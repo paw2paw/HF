@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Parameter {
+  id                   String   @id @default(uuid())
+  parameterId          String   @unique
+  sectionId            String
+  domainGroup          String
+  name                 String
+  definition           String
+  measurementMvp       String?
+  measurementVoiceOnly String?
+  interpretationHigh   String?
+  interpretationLow    String?
+  scaleType            String
+  directionality       String
+  computedBy           String
+  isActive             Boolean  @default(true)
+  isMvpCore            Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  mappings             ParameterMapping[]
+}
+
+model ParameterMapping {
+  id          String   @id @default(uuid())
+  parameterId String
+  targetType  String   // QS | PRS | MEM | RWD
+  targetKey   String
+  weight      Float?
+  notes       String?
+
+  parameter   Parameter @relation(fields: [parameterId], references: [parameterId])
+
+  createdAt   DateTime @default(now())
+}

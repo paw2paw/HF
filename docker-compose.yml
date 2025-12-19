@@ -1,0 +1,17 @@
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: hf_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: hf
+      POSTGRES_USER: hf_user
+      POSTGRES_PASSWORD: hf_password
+    volumes:
+      - hf_pgdata:/var/lib/postgresql/data
+
+volumes:
+  hf_pgdata:
