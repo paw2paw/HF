@@ -1,3 +1,35 @@
+## HF Execution Board – Card Template
+  ## Summary
+  <1–2 lines in plain English>
+
+  ## BDD Source
+  - File: bdd/features/<filename>.feature
+  - Status: Draft / Stable / Executable
+
+  ## Scenarios
+  - [ ] Scenario: <name>
+  - [ ] Scenario: <name>
+
+  ## Service Boundaries
+  - PromptComposer
+  - CallLifecycle
+  - PersonalityAnalysis
+  - MemorySynthesiser
+
+  ## Data Touchpoints
+  - Call
+  - Transcript
+  - AnalysisRun
+  - Memory
+
+  ## Notes
+  - Constraints
+  - Open questions
+
+
+
+
+
 # Contributing to HF (Browser-only workflow)
 
 HF uses GitHub as the source of truth. Contributors work directly in the GitHub web interface.
