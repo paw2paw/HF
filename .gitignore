@@ -22,3 +22,7 @@ build/
 
 # Logs
 *.log
+
+# local-only
+scripts/
+supabase/
