@@ -26,3 +26,5 @@ build/
 # local-only
 scripts/
 supabase/
+
+.runtime/

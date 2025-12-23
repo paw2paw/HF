@@ -1,0 +1,60 @@
+Pull Request Checklist (BDD-Aligned)
+
+Behaviour First
+	•	This change is driven by a BDD feature or scenario
+	•	The feature clearly describes user/system behaviour
+	•	I did not implement logic without behaviour coverage
+
+⸻
+
+BDD Status
+	•	All relevant BDD features pass locally
+	•	New behaviour includes at least one new or updated scenario
+	•	No existing behaviour was removed without updating features
+
+⸻
+
+Service Design
+	•	Core logic lives in pure services (input → output)
+	•	Services do not depend on databases, HTTP, or frameworks
+	•	Any side effects are isolated outside core services
+
+⸻
+
+Infrastructure Discipline
+	•	BDD tests do not require Docker or Postgres
+	•	Infra changes are optional and isolated
+	•	.runtime/ is untouched or ignored by git
+
+⸻
+
+HF Adaptive Loop Integrity
+
+I confirm this change respects the HF loop:
+	•	Call
+	•	Transcript
+	•	Analysis
+	•	Memory
+	•	Next Prompt
+
+No step is skipped or bypassed.
+
+⸻
+
+Safety & Maintainability
+	•	Changes are small and reversible
+	•	Behaviour is explicit and deterministic
+	•	No “temporary” hacks or shortcuts were introduced
+
+⸻
+
+Reviewer Notes
+
+Describe what behaviour changed and why, not how.
+
+⸻
+
+Final Check
+
+If BDD is green, this PR is valid.
+If BDD is red, this PR is incomplete.

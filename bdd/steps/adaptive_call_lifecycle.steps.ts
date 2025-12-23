@@ -1,5 +1,57 @@
 import { Given, When, Then } from "@cucumber/cucumber";
+/**
+ * “Service-like” helpers (in-memory).
+ * These correspond to the service boundaries we agreed.
+ */
+function composePromptRun(params: {
+  user: HFUser;
+  agent: HFAgent;
+  templates: PromptTemplate[];
+  memories: Memory[];
+}): PromptRun {
+  const { user, agent, templates, memories } = params;
 
+  const layers: PromptLayerSnapshot[] = [];
+
+  // Always include active SYSTEM layer(s)
+  for (const t of templates.filter((x) => x.isActive && x.layerType === "SYSTEM")) {
+    layers.push({
+      id: id("pls"),
+      templateId: t.id,
+      layerType: "SYSTEM",
+      renderedText: t.content,
+    });
+  }
+
+  // If we have TRAIT memories, include a PERSONALITY layer derived from them.
+  const traits = memories.filter((m) => m.type === "TRAIT");
+  if (traits.length > 0) {
+    const renderedText =
+      "Personality traits:\n" +
+      traits
+        .map(
+          (t) =>
+            `- ${t.content} (w=${t.weight.toFixed(2)}${
+              t.confidence != null ? `, c=${t.confidence.toFixed(2)}` : ""
+            })`
+        )
+        .join("\n");
+
+    layers.push({
+      id: id("pls"),
+      layerType: "PERSONALITY",
+      renderedText,
+    });
+  }
+
+  return {
+    id: id("pr"),
+    userId: user.id,
+    agentId: agent.id,
+    layers,
+    createdAt: new Date(),
+  };
+}
 /**
  * In-memory BDD world + minimal domain types.
  * No DB. No Prisma. Deterministic, fast, and locks service boundaries.
@@ -122,55 +174,6 @@ function id(prefix: string): ID {
  * “Service-like” helpers (in-memory).
  * These correspond to the service boundaries we agreed.
  */
-function composePromptRun(params: {
-  user: HFUser;
-  agent: HFAgent;
-  templates: PromptTemplate[];
-  memories: Memory[];
-}): PromptRun {
-  const { user, agent, templates, memories } = params;
-
-  const layers: PromptLayerSnapshot[] = [];
-
-  // Always include active SYSTEM layer(s)
-  for (const t of templates.filter((x) => x.isActive && x.layerType === "SYSTEM")) {
-    layers.push({
-      id: id("pls"),
-      templateId: t.id,
-      layerType: "SYSTEM",
-      renderedText: t.content,
-    });
-  }
-
-  // If we have TRAIT memories, include a PERSONALITY layer derived from them.
-  const traits = memories.filter((m) => m.type === "TRAIT");
-  if (traits.length > 0) {
-    const renderedText =
-      "Personality traits:\n" +
-      traits
-        .map(
-          (t) =>
-            `- ${t.content} (w=${t.weight.toFixed(2)}${
-              t.confidence != null ? `, c=${t.confidence.toFixed(2)}` : ""
-            })`
-        )
-        .join("\n");
-
-    layers.push({
-      id: id("pls"),
-      layerType: "PERSONALITY",
-      renderedText,
-    });
-  }
-
-  return {
-    id: id("pr"),
-    userId: user.id,
-    agentId: agent.id,
-    layers,
-    createdAt: new Date(),
-  };
-}
 
 function startCall(params: { user: HFUser; agent: HFAgent; promptRun: PromptRun }): HFCall {
   const { user, agent, promptRun } = params;
@@ -412,6 +415,7 @@ Then("the prompt is regenerated using the updated memory", function (this: HFWor
     memories: this.memories,
   });
 
+  if (!this.nextPromptRun) throw new Error("Missing nextPromptRun");
   const hasPersonalityLayer = this.nextPromptRun.layers.some((l) => l.layerType === "PERSONALITY");
   if (!hasPersonalityLayer) throw new Error("Expected regenerated prompt to include a PERSONALITY layer");
 });
