@@ -1,75 +1,78 @@
-import { prisma } from "@/lib/prisma";
+"use client";
 
-async function toggleActive(parameterId: string) {
-  "use server";
-  const p = await prisma.parameter.findUnique({ where: { parameterId } });
-  if (!p) return;
-  await prisma.parameter.update({
-    where: { parameterId },
-    data: { isActive: !p.isActive },
-  });
-}
+import React from "react";
 
-async function toggleMvp(parameterId: string) {
-  "use server";
-  const p = await prisma.parameter.findUnique({ where: { parameterId } });
-  if (!p) return;
-  await prisma.parameter.update({
-    where: { parameterId },
-    data: { isMvpCore: !p.isMvpCore },
-  });
-}
-
-export default async function ParametersPage() {
-  const parameters = await prisma.parameter.findMany({
-    orderBy: [{ sectionId: "asc" }, { parameterId: "asc" }],
-  });
-
+export default function ParametersPage() {
   return (
-    <main style={{ padding: 24 }}>
-      <h1>HF — Conversation Parameters</h1>
-      <p>Total parameters: {parameters.length}</p>
+    <div style={{ padding: 16, maxWidth: 900 }}>
+      <h1 style={{ margin: 0 }}>Parameters</h1>
+      <p style={{ marginTop: 10, color: "#374151", lineHeight: 1.5 }}>
+        The custom Parameters admin UI has been disabled.
+        Manage Parameters and Tags via AdminJS instead.
+      </p>
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            {["Section", "ID", "Name", "Domain", "MVP", "Active"].map(h => (
-              <th
-                key={h}
-                style={{ textAlign: "left", borderBottom: "1px solid #ccc", padding: 8 }}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {parameters.map(p => (
-            <tr key={p.parameterId}>
-              <td style={{ padding: 8 }}>{p.sectionId}</td>
-              <td style={{ padding: 8, fontFamily: "monospace" }}>{p.parameterId}</td>
-              <td style={{ padding: 8 }}>{p.name}</td>
-              <td style={{ padding: 8 }}>{p.domainGroup}</td>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+        <a
+          href="/admin"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid #d1d5db",
+            background: "white",
+            textDecoration: "none",
+            color: "#111827",
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          Open Admin
+        </a>
 
-              <td style={{ padding: 8 }}>
-                <form action={async () => toggleMvp(p.parameterId)}>
-                  <button type="submit">
-                    {p.isMvpCore ? "✓ MVP" : "Set MVP"}
-                  </button>
-                </form>
-              </td>
+        <a
+          href="/admin/resources/Parameter"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid #c7d2fe",
+            background: "#eef2ff",
+            textDecoration: "none",
+            color: "#111827",
+            fontSize: 14,
+            fontWeight: 700,
+          }}
+        >
+          Parameters (Resource)
+        </a>
 
-              <td style={{ padding: 8 }}>
-                <form action={async () => toggleActive(p.parameterId)}>
-                  <button type="submit">
-                    {p.isActive ? "✓ Active" : "Enable"}
-                  </button>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+        <a
+          href="/admin/resources/Tag"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid #d1fae5",
+            background: "#ecfdf5",
+            textDecoration: "none",
+            color: "#065f46",
+            fontSize: 14,
+            fontWeight: 700,
+          }}
+        >
+          Tags (Resource)
+        </a>
+      </div>
+
+      <div style={{ marginTop: 14, fontSize: 13, color: "#6b7280" }}>
+        If you still want an in-app table editor later, we can re-introduce it after the API tag persistence is solid.
+      </div>
+    </div>
   );
 }
