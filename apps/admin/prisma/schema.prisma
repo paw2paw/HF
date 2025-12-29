@@ -13,7 +13,7 @@ model Parameter {
   sectionId            String
   domainGroup          String
   name                 String
-  definition           String
+  definition           String?
   measurementMvp       String?
   measurementVoiceOnly String?
   interpretationHigh   String?
@@ -21,12 +21,17 @@ model Parameter {
   scaleType            String
   directionality       String
   computedBy           String
-  isActive             Boolean  @default(true)
-  isMvpCore            Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   mappings             ParameterMapping[]
+
+  // Status such as Active or MVP is represented via tags, not boolean columns
+  tags                 ParameterTag[]
+
+  // Analysis relations (opposite sides)
+  parameterSetParameters ParameterSetParameter[]
+  callScores             CallScore[]
 }
 
 model ParameterMapping {
@@ -40,4 +45,174 @@ model ParameterMapping {
   parameter   Parameter @relation(fields: [parameterId], references: [parameterId])
 
   createdAt   DateTime @default(now())
+}
+
+model Tag {
+  id        String   @id
+  name      String         @unique  // Human-readable name, used in UI filters
+  slug      String?        @unique
+  tone      String?        // optional: neutral/info/success/warning/danger/brand
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  parameters ParameterTag[]
+}
+
+model ParameterTag {
+  id          String   @id
+  parameterId String
+  tagId       String
+  createdAt   DateTime @default(now())
+
+  parameter   Parameter @relation(fields: [parameterId], references: [parameterId], onDelete: Cascade, onUpdate: Cascade)
+  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([parameterId, tagId])
+  @@index([tagId])
+  @@index([parameterId])
+}
+
+// =========================
+// ANALYSIS SNAPSHOTS + RUNS
+// =========================
+
+model ParameterSet {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  parameters ParameterSetParameter[]
+  runs       AnalysisRun[]
+}
+
+model ParameterSetParameter {
+  id             String   @id @default(uuid())
+  parameterSetId String
+  parameterId    String
+
+  // Snapshot of parameter content at run-time
+  definition         String?
+  scaleType          String?
+  directionality     String?
+  interpretationLow  String?
+  interpretationHigh String?
+
+  createdAt DateTime @default(now())
+
+  parameterSet ParameterSet @relation(fields: [parameterSetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parameter    Parameter    @relation(fields: [parameterId], references: [parameterId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([parameterSetId, parameterId])
+  @@index([parameterSetId])
+  @@index([parameterId])
+}
+
+model AnalysisRun {
+  id             String   @id @default(uuid())
+  parameterSetId String
+
+  // e.g. QUEUED | RUNNING | SUCCEEDED | FAILED
+  status     String
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  parameterSet ParameterSet @relation(fields: [parameterSetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  scores       CallScore[]
+
+  @@index([parameterSetId])
+  @@index([status])
+}
+
+model Call {
+  id         String   @id @default(uuid())
+  source     String
+  externalId String?
+  transcript String
+  createdAt  DateTime @default(now())
+
+  scores CallScore[]
+
+  @@index([source])
+  @@index([externalId])
+}
+
+model CallScore {
+  id            String   @id @default(uuid())
+  analysisRunId String
+  callId        String
+  parameterId   String
+
+  score      Float?
+  confidence Float?
+  evidence   String?
+
+  createdAt DateTime @default(now())
+
+  run       AnalysisRun @relation(fields: [analysisRunId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  call      Call        @relation(fields: [callId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parameter Parameter   @relation(fields: [parameterId], references: [parameterId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([analysisRunId, callId, parameterId])
+  @@index([analysisRunId])
+  @@index([callId])
+  @@index([parameterId])
+}
+
+// =========================
+// KNOWLEDGE BASE (DOCS/KB)
+// =========================
+
+model KnowledgeDoc {
+  id         String   @id @default(uuid())
+
+  // Absolute or repo-relative path to the file that was ingested
+  sourcePath String   @unique
+
+  // Best-effort title (e.g. from YAML frontmatter or first H1)
+  title      String?
+
+  // Original full text (normalized)
+  content    String
+
+  // Optional metadata extracted from frontmatter or filename conventions
+  meta       Json?
+
+  // Content hash to detect changes and avoid unnecessary re-index
+  contentSha String
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  chunks     KnowledgeChunk[]
+
+  @@index([updatedAt])
+  @@index([contentSha])
+}
+
+model KnowledgeChunk {
+  id         String   @id @default(uuid())
+  docId      String
+
+  // Monotonic index within the document
+  chunkIndex Int
+
+  // Character offsets in the parent document content
+  startChar  Int
+  endChar    Int
+
+  // Chunk text that is used for retrieval
+  content    String
+
+  // Optional future fields
+  tokens     Int?
+
+  createdAt  DateTime @default(now())
+
+  doc        KnowledgeDoc @relation(fields: [docId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([docId, chunkIndex])
+  @@index([docId])
+  @@index([chunkIndex])
 }

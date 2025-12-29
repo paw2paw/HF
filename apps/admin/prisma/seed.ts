@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -52,11 +53,54 @@ function asBool(v: unknown, fallback = false): boolean {
   return fallback;
 }
 
-function pick(obj: Record<string, string>, key: string): string | null {
-  const v = obj[key];
-  if (v == null) return null;
-  const t = String(v).trim();
-  return t.length ? t : null;
+function normKey(k: string): string {
+  return k
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function pick(obj: Record<string, string>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const direct = obj[key];
+    if (direct != null) {
+      const t = String(direct).trim();
+      if (t.length) return t;
+    }
+
+    const nk = normKey(key);
+    for (const k of Object.keys(obj)) {
+      if (normKey(k) === nk) {
+        const v = obj[k];
+        const t = String(v ?? "").trim();
+        if (t.length) return t;
+      }
+    }
+  }
+  return null;
+}
+
+function parseTags(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  // allow comma/semicolon separated
+  return raw
+    .split(/[;,]/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function slugify(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
+
+function uniq<T>(arr: T[]): T[] {
+  return Array.from(new Set(arr));
 }
 
 async function main() {
@@ -72,7 +116,7 @@ async function main() {
 
   if (lines.length < 2) throw new Error(`CSV has no data rows: ${CSV_PATH}`);
 
-  const headers = parseCsvLine(lines[0]).map((h) => h.replace(/^\uFEFF/, "").trim());
+  const headers = parseCsvLine(lines[0]).map((h) => h.replace(/^\uFEFF/, ""));
   const rows = lines.slice(1, 1 + SEED_LIMIT);
 
   let upserted = 0;
@@ -82,43 +126,92 @@ async function main() {
     const rec: Record<string, string> = {};
     headers.forEach((h, i) => (rec[h] = cols[i] ?? ""));
 
-    // Expected header names (case-sensitive). If your CSV uses different headers,
-    // rename the CSV headers to match these fields.
-    const parameterId = pick(rec, "parameterId");
+    // Support both machine headers (parameterId) and human headers (Parameter ID)
+    const parameterId = pick(rec, "parameterId", "Parameter ID", "ParameterID", "ID");
     if (!parameterId) throw new Error(`Missing parameterId in row: ${line}`);
+
+    // Tags:
+    // - If CSV has explicit isActive/isMvpCore, use them
+    // - Otherwise default to Active (and NO MVP unless explicitly provided)
+    const isActiveRaw = pick(rec, "isActive", "Active");
+    const isMvpRaw = pick(rec, "isMvpCore", "MVP");
+    const isActive = isActiveRaw == null ? true : asBool(isActiveRaw, true);
+    const isMvpCore = isMvpRaw == null ? false : asBool(isMvpRaw, false);
+
+    const csvTags = parseTags(pick(rec, "tags", "Tags", "Tag"));
+    const baseTags = [isActive ? "Active" : "Inactive", isMvpCore ? "MVP" : "Non-MVP"].filter(Boolean);
+
+    // De-dupe by slug but keep the first readable label for create.name
+    const tagNames = uniq([...baseTags, ...csvTags]);
+    const tags = tagNames
+      .map((name) => ({ name, slug: slugify(name) }))
+      .filter((t) => t.slug.length > 0);
 
     await prisma.parameter.upsert({
       where: { parameterId },
       create: {
         parameterId,
-        sectionId: pick(rec, "sectionId") ?? "UNASSIGNED",
-        domainGroup: pick(rec, "domainGroup") ?? "UNASSIGNED",
-        name: pick(rec, "name") ?? parameterId,
-        definition: pick(rec, "definition") ?? "",
-        measurementMvp: pick(rec, "measurementMvp"),
+        sectionId: pick(rec, "sectionId", "Section") ?? "UNASSIGNED",
+        // In your CSV, "Model" best maps to domainGroup
+        domainGroup: pick(rec, "domainGroup", "Domain Group", "Model") ?? "UNASSIGNED",
+        name: pick(rec, "name", "Parameter Name", "Name") ?? parameterId,
+        // In your CSV, "Explanation" best maps to definition
+        definition: pick(rec, "definition", "Explanation", "Definition") ?? "",
+        // In your CSV, "Measurement" best maps to measurementMvp for now
+        measurementMvp: pick(rec, "measurementMvp", "Measurement"),
         measurementVoiceOnly: pick(rec, "measurementVoiceOnly"),
-        interpretationHigh: pick(rec, "interpretationHigh"),
-        interpretationLow: pick(rec, "interpretationLow"),
-        scaleType: pick(rec, "scaleType") ?? "UNKNOWN",
+        // In your CSV, "High Bias"/"Low Bias" best map to interpretation labels
+        interpretationHigh: pick(rec, "interpretationHigh", "High Bias"),
+        interpretationLow: pick(rec, "interpretationLow", "Low Bias"),
+        // In your CSV, "Value Type" best maps to scaleType
+        scaleType: pick(rec, "scaleType", "Value Type") ?? "UNKNOWN",
         directionality: pick(rec, "directionality") ?? "UNKNOWN",
         computedBy: pick(rec, "computedBy") ?? "UNKNOWN",
-        isActive: asBool(pick(rec, "isActive"), true),
-        isMvpCore: asBool(pick(rec, "isMvpCore"), false),
+        tags: {
+          create: tags.map((t) => ({
+            id: randomUUID(),
+            tag: {
+              connectOrCreate: {
+                where: { slug: t.slug },
+                create: {
+                  id: randomUUID(),
+                  slug: t.slug,
+                  name: t.name,
+                },
+              },
+            },
+          })),
+        },
       },
       update: {
-        sectionId: pick(rec, "sectionId") ?? "UNASSIGNED",
-        domainGroup: pick(rec, "domainGroup") ?? "UNASSIGNED",
-        name: pick(rec, "name") ?? parameterId,
-        definition: pick(rec, "definition") ?? "",
-        measurementMvp: pick(rec, "measurementMvp"),
+        sectionId: pick(rec, "sectionId", "Section") ?? "UNASSIGNED",
+        domainGroup: pick(rec, "domainGroup", "Domain Group", "Model") ?? "UNASSIGNED",
+        name: pick(rec, "name", "Parameter Name", "Name") ?? parameterId,
+        definition: pick(rec, "definition", "Explanation", "Definition") ?? "",
+        measurementMvp: pick(rec, "measurementMvp", "Measurement"),
         measurementVoiceOnly: pick(rec, "measurementVoiceOnly"),
-        interpretationHigh: pick(rec, "interpretationHigh"),
-        interpretationLow: pick(rec, "interpretationLow"),
-        scaleType: pick(rec, "scaleType") ?? "UNKNOWN",
+        interpretationHigh: pick(rec, "interpretationHigh", "High Bias"),
+        interpretationLow: pick(rec, "interpretationLow", "Low Bias"),
+        scaleType: pick(rec, "scaleType", "Value Type") ?? "UNKNOWN",
         directionality: pick(rec, "directionality") ?? "UNKNOWN",
         computedBy: pick(rec, "computedBy") ?? "UNKNOWN",
-        isActive: asBool(pick(rec, "isActive"), true),
-        isMvpCore: asBool(pick(rec, "isMvpCore"), false),
+        // Replace tags on every seed run so CSV is the source of truth.
+        tags: {
+          deleteMany: {},
+          create: tags.map((t) => ({
+            id: randomUUID(),
+            tag: {
+              connectOrCreate: {
+                where: { slug: t.slug },
+                create: {
+                  id: randomUUID(),
+                  slug: t.slug,
+                  name: t.name,
+                },
+              },
+            },
+          })),
+        },
       },
     });
 
