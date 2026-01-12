@@ -10,8 +10,14 @@ const DEFAULT_CSV = path.resolve(process.cwd(), "../../backlog/parameters.csv");
 // You can override: HF_PARAMETERS_CSV=/path/to/file.csv
 const CSV_PATH = process.env.HF_PARAMETERS_CSV || DEFAULT_CSV;
 
-// How many to seed (default 5). Override: HF_SEED_LIMIT=3
-const SEED_LIMIT = Number(process.env.HF_SEED_LIMIT || "5");
+// How many to seed:
+// - By default: import ALL rows.
+// - Optional: set HF_SEED_LIMIT=74 (or any number) to cap imports.
+const SEED_LIMIT_RAW = process.env.HF_SEED_LIMIT;
+const SEED_LIMIT =
+  SEED_LIMIT_RAW && Number.isFinite(Number(SEED_LIMIT_RAW))
+    ? Math.max(1, Math.floor(Number(SEED_LIMIT_RAW)))
+    : null;
 
 function parseCsvLine(line: string): string[] {
   // Minimal CSV parser supporting quotes + commas inside quotes.
@@ -117,7 +123,7 @@ async function main() {
   if (lines.length < 2) throw new Error(`CSV has no data rows: ${CSV_PATH}`);
 
   const headers = parseCsvLine(lines[0]).map((h) => h.replace(/^\uFEFF/, ""));
-  const rows = lines.slice(1, 1 + SEED_LIMIT);
+  const rows = SEED_LIMIT ? lines.slice(1, 1 + SEED_LIMIT) : lines.slice(1);
 
   let upserted = 0;
 
@@ -218,7 +224,7 @@ async function main() {
     upserted++;
   }
 
-  console.log(`Seeded ${upserted} Parameter rows from ${CSV_PATH}`);
+  console.log(`Seeded ${upserted} Parameter rows from ${CSV_PATH}${SEED_LIMIT ? ` (limit=${SEED_LIMIT})` : ""}`);
 }
 
 main()

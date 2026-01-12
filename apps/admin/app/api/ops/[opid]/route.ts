@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { execFile as _execFile } from "child_process";
 import { promisify } from "util";
-import path from "node:path";
 
 const execFile = promisify(_execFile);
 
@@ -80,13 +79,6 @@ function projectCwd() {
   return process.cwd();
 }
 
-function kbRootFromEnv(): string {
-  // HF_KB_PATH is the preferred env var for the knowledge base root.
-  // Default: ../../knowledge (relative to the admin app cwd).
-  const env = typeof process.env.HF_KB_PATH === "string" ? process.env.HF_KB_PATH.trim() : "";
-  if (env) return env;
-  return path.resolve(projectCwd(), "../../knowledge");
-}
 
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -112,6 +104,15 @@ function safeName(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   if (!t) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(t)) return null;
+  return t;
+}
+
+function safeId(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  if (!t) return null;
+  // allow cuid/uuid-ish ids
   if (!/^[a-zA-Z0-9_-]+$/.test(t)) return null;
   return t;
 }
@@ -454,14 +455,21 @@ const OPS: Record<string, OpSpec> = {
       return {
         cmd:
           "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-          "  const res = await m.importParametersSnapshot({ force: " +
-          (force ? "true" : "false") +
-          " });\n" +
+          "  const force = " + (force ? "true" : "false") + ";\n" +
+          "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+          "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+          "  const fn = (typeof mod === 'function') ? mod : (root.importParametersSnapshot || root.importParametersSnapshots || root.importParametersSnapshotFromCsv || root.importParameters || root.importSnapshot || root.import);\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+          "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+          "    throw new Error('No compatible import function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+          "  }\n" +
+          "  const res = await fn({ force });\n" +
           "  console.log(JSON.stringify({ ok: true, snapshot: res }, null, 2));\n" +
           "}).catch((e) => {\n" +
           "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
           "  process.exitCode = 1;\n" +
-          "});\"",
+          "});\""
       };
     },
   },
@@ -717,7 +725,15 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({
       cmd:
         "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-        "  const snaps = await m.listParameterSnapshots();\n" +
+        "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+        "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+        "  const fn = root.listParameterSnapshots || root.listParametersSnapshots || root.listSnapshots;\n" +
+        "  if (typeof fn !== 'function') {\n" +
+        "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+        "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+        "    throw new Error('No compatible list snapshots function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+        "  }\n" +
+        "  const snaps = await fn();\n" +
         "  const items = (snaps || []).map((s) => ({\n" +
         "    id: 'snapshot:' + (s.id || s.snapshotId || s.name || ''),\n" +
         "    title: s.name || s.id || s.snapshotId || 'snapshot',\n" +
@@ -728,7 +744,7 @@ const OPS: Record<string, OpSpec> = {
         "}).catch((e) => {\n" +
         "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
         "  process.exitCode = 1;\n" +
-        "});\"",
+        "});\""
     }),
   },
 
@@ -762,6 +778,25 @@ const OPS: Record<string, OpSpec> = {
         "node -e \"const {PrismaClient}=require('\\@prisma/client');(async()=>{const prisma=new PrismaClient();try{const sets=await prisma.parameterSet.findMany({take:50,orderBy:{createdAt:'desc'},select:{id:true,name:true,createdAt:true}});const ids=sets.map(s=>s.id);const counts=ids.length?await prisma.parameterSetParameter.groupBy({by:['parameterSetId'],where:{parameterSetId:{in:ids}},_count:{_all:true}}):[];const m=new Map(counts.map(c=>[c.parameterSetId,c._count._all]));const out={ok:true,sets:sets.map(s=>({id:s.id,name:s.name,createdAt:s.createdAt,params:m.get(s.id)||0}))};console.log(JSON.stringify(out,null,2));}catch(e){console.error(e);process.exitCode=1;}finally{await prisma.\\$disconnect();}})();\"",
     }),
   },
+  "analysis:read:set": {
+    title: "Read: ParameterSet",
+    description: "Fetch a single ParameterSet plus its linked parameters",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "safe",
+    effects: { reads: ["ParameterSet", "ParameterSetParameter", "Parameter"] },
+    buildCommand: (body) => {
+      const id = safeId((body as any).id) || safeId((body as any).parameterSetId);
+      // Embed the id into the node script (safeId prevents injection).
+      const idLit = id ? id : "";
+      return {
+        cmd:
+          "node -e \"const {PrismaClient}=require('\\@prisma/client');(async()=>{const prisma=new PrismaClient();const id='" +
+          idLit +
+          "';try{if(!id){console.log(JSON.stringify({ok:false,error:'Missing id (send {id} or {parameterSetId})'},null,2));return;}const set=await prisma.parameterSet.findUnique({where:{id},select:{id:true,name:true,createdAt:true}});if(!set){console.log(JSON.stringify({ok:false,error:'Not found',id},null,2));return;}const links=await prisma.parameterSetParameter.findMany({where:{parameterSetId:id}});const ids=Array.from(new Set((links||[]).map((x)=>x.parameterId).filter(Boolean)));let parameters=[];if(ids.length){try{parameters=await prisma.parameter.findMany({where:{id:{in:ids}}});}catch(e){parameters=[];}}// Preserve a sensible display order: follow link order first, then append any missing.\nconst order=new Map();(links||[]).forEach((l,i)=>{if(l&&l.parameterId&&!order.has(l.parameterId))order.set(l.parameterId,i);});parameters=(parameters||[]).slice().sort((a,b)=>{const ai=order.has(a.id)?order.get(a.id):Number.MAX_SAFE_INTEGER;const bi=order.has(b.id)?order.get(b.id):Number.MAX_SAFE_INTEGER;return ai-bi;});console.log(JSON.stringify({ok:true,set,links,parameters},null,2));}catch(e){console.error(e);process.exitCode=1;}finally{await prisma.\\$disconnect();}})();\"",
+      };
+    },
+  },
 
   // --- Knowledge cockpit (local KB folder → derived docs → vectors) ---
 
@@ -777,12 +812,20 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({
       cmd:
         "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-        "  const snaps = await m.listParameterSnapshots();\n" +
-        "  console.log(JSON.stringify({ ok: true, count: snaps.length, snapshots: snaps }, null, 2));\n" +
+        "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+        "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+        "  const fn = root.listParameterSnapshots || root.listParametersSnapshots || root.listSnapshots;\n" +
+        "  if (typeof fn !== 'function') {\n" +
+        "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+        "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+        "    throw new Error('No compatible list snapshots function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+        "  }\n" +
+        "  const snaps = await fn();\n" +
+        "  console.log(JSON.stringify({ ok: true, count: (snaps||[]).length, snapshots: snaps }, null, 2));\n" +
         "}).catch((e) => {\n" +
         "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
         "  process.exitCode = 1;\n" +
-        "});\"",
+        "});\""
     }),
   },
   "kb:snapshots:list": {
@@ -795,12 +838,20 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({
       cmd:
         "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-        "  const snaps = await m.listParameterSnapshots();\n" +
-        "  console.log(JSON.stringify({ ok: true, kind: 'parameters', count: snaps.length, snapshots: snaps }, null, 2));\n" +
+        "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+        "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+        "  const fn = root.listParameterSnapshots || root.listParametersSnapshots || root.listSnapshots;\n" +
+        "  if (typeof fn !== 'function') {\n" +
+        "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+        "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+        "    throw new Error('No compatible list snapshots function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+        "  }\n" +
+        "  const snaps = await fn();\n" +
+        "  console.log(JSON.stringify({ ok: true, kind: 'parameters', count: (snaps||[]).length, snapshots: snaps }, null, 2));\n" +
         "}).catch((e) => {\n" +
         "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
         "  process.exitCode = 1;\n" +
-        "});\"",
+        "});\""
     }),
   },
 
@@ -820,10 +871,46 @@ const OPS: Record<string, OpSpec> = {
       return {
         cmd:
           "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-          "  const res = await m.importParametersSnapshot({ force: " +
-          (force ? "true" : "false") +
-          " });\n" +
-          "  console.log(JSON.stringify({ ok: true, snapshot: res }, null, 2));\n" +
+          "  const ns = (m || {}) as any;\n" +
+          "  const d1 = ns?.default;\n" +
+          "  const d2 = d1?.default;\n" +
+          "  const force = " + (force ? "true" : "false") + ";\n" +
+          "\n" +
+          "  const candidates: Array<[string, any]> = [\n" +
+          "    ['ns.importParametersSnapshot', ns.importParametersSnapshot],\n" +
+          "    ['ns.importParametersSnapshots', ns.importParametersSnapshots],\n" +
+          "    ['ns.importParametersSnapshotFromCsv', ns.importParametersSnapshotFromCsv],\n" +
+          "    ['ns.default.importParametersSnapshot', d1?.importParametersSnapshot],\n" +
+          "    ['ns.default.importParametersSnapshots', d1?.importParametersSnapshots],\n" +
+          "    ['ns.default.importParametersSnapshotFromCsv', d1?.importParametersSnapshotFromCsv],\n" +
+          "    ['ns.default.default.importParametersSnapshot', d2?.importParametersSnapshot],\n" +
+          "    ['ns.default.default.importParametersSnapshots', d2?.importParametersSnapshots],\n" +
+          "    ['ns.default.default.importParametersSnapshotFromCsv', d2?.importParametersSnapshotFromCsv],\n" +
+          "  ];\n" +
+          "\n" +
+          "  const diag = {\n" +
+          "    exports: ns ? Object.keys(ns) : [],\n" +
+          "    defaultKeys: d1 && typeof d1 === 'object' ? Object.keys(d1) : [],\n" +
+          "    defaultDefaultKeys: d2 && typeof d2 === 'object' ? Object.keys(d2) : [],\n" +
+          "    types: Object.fromEntries(candidates.map(([k, v]) => [k, typeof v])),\n" +
+          "    sample: {\n" +
+          "      d1_importParametersSnapshot: d1?.importParametersSnapshot,\n" +
+          "      d2_importParametersSnapshot: d2?.importParametersSnapshot,\n" +
+          "    }\n" +
+          "  };\n" +
+          "  console.log(JSON.stringify({ ok: true, phase: 'diagnostic', force, diag }, null, 2));\n" +
+          "\n" +
+          "  const hit = candidates.find(([, v]) => typeof v === 'function');\n" +
+          "  const fn = hit ? hit[1] : null;\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    throw new Error('No compatible import function found in ./lib/knowledge/parameters. ' +\n" +
+          "      'exports=' + (diag.exports||[]).join(',') + ' ' +\n" +
+          "      'defaultKeys=' + (diag.defaultKeys||[]).join(',') + ' ' +\n" +
+          "      'defaultDefaultKeys=' + (diag.defaultDefaultKeys||[]).join(','));\n" +
+          "  }\n" +
+          "\n" +
+          "  const res = await (fn as any)({ force });\n" +
+          "  console.log(JSON.stringify({ ok: true, picked: hit ? hit[0] : null, snapshot: res }, null, 2));\n" +
           "}).catch((e) => {\n" +
           "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
           "  process.exitCode = 1;\n" +
