@@ -4,6 +4,14 @@ import path from "node:path";
 import os from "node:os";
 import { resolveKbLayout } from "@/lib/knowledge/loader";
 import { fileURLToPath } from "node:url";
+import {
+  loadSettingsLibrary,
+  getSettingsLibraryPath,
+  resolveSchemaRefs,
+  extractDefaultsFromSchema,
+} from "@/lib/settings/resolver";
+import { AgentInstanceStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -85,6 +93,14 @@ export type AgentConfig = {
   // Pass-through extras for debugging/UI
   opid?: string;
   schema?: AgentSpec["settingsSchema"];
+  // DB instance info (if exists)
+  instance?: {
+    id: string;
+    status: AgentInstanceStatus;
+    version: string;
+    publishedAt: Date | null;
+    hasDraft: boolean;
+  };
 };
 
 type AgentOverride = {
@@ -227,12 +243,30 @@ function normalizeOverridesFromLegacyArray(manifest: AgentSpec[], input: unknown
   return out;
 }
 
-function buildEffectiveAgents(manifestAgents: AgentSpec[], overridesById: Record<string, AgentOverride> | null | undefined): AgentConfig[] {
+async function buildEffectiveAgents(
+  manifestAgents: AgentSpec[],
+  overridesById: Record<string, AgentOverride> | null | undefined,
+  kbRoot: string
+): Promise<AgentConfig[]> {
   const ov = overridesById || {};
+
+  // Load settings library for resolving $ref
+  const libraryPath = getSettingsLibraryPath(kbRoot);
+  const library = await loadSettingsLibrary(libraryPath);
 
   return manifestAgents.map((spec) => {
     const baseEnabled = typeof spec.enabledDefault === "boolean" ? spec.enabledDefault : true;
-    const baseSettings = safeDefaultsFromSpec(spec);
+
+    // Resolve $ref in schema if library exists
+    let resolvedSchema = spec.settingsSchema;
+    if (library && resolvedSchema) {
+      resolvedSchema = resolveSchemaRefs(resolvedSchema, library);
+    }
+
+    // Extract defaults from resolved schema
+    const baseSettings = resolvedSchema
+      ? extractDefaultsFromSchema(resolvedSchema)
+      : safeDefaultsFromSpec(spec);
 
     const patch = ov[spec.agentId];
     const enabled = typeof patch?.enabled === "boolean" ? patch.enabled : baseEnabled;
@@ -245,7 +279,7 @@ function buildEffectiveAgents(manifestAgents: AgentSpec[], overridesById: Record
       description: spec.description || "",
       settings: { ...baseSettings, ...patchSettings },
       opid: spec.opid,
-      schema: spec.settingsSchema,
+      schema: resolvedSchema, // Return resolved schema to UI
     };
   });
 }
@@ -378,13 +412,63 @@ export async function GET() {
     }
 
     const overridesById = overridesAgents || legacyOverrides || {};
-    const agents = buildEffectiveAgents(manifestAgents, overridesById);
+    const agents = await buildEffectiveAgents(manifestAgents, overridesById, kbRoot);
+
+    // Fetch DB instances to merge with manifest-based agents
+    const dbInstances = await prisma.agentInstance.findMany({
+      where: {
+        status: { in: ["PUBLISHED", "DRAFT"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Group instances by agentId
+    const instancesByAgentId = new Map<string, typeof dbInstances>();
+    for (const inst of dbInstances) {
+      const arr = instancesByAgentId.get(inst.agentId) || [];
+      arr.push(inst);
+      instancesByAgentId.set(inst.agentId, arr);
+    }
+
+    // Merge DB instance info into agents
+    const agentsWithInstances = agents.map((agent) => {
+      const instances = instancesByAgentId.get(agent.agentId) || [];
+      const published = instances.find((i) => i.status === "PUBLISHED");
+      const draft = instances.find((i) => i.status === "DRAFT");
+
+      // If published instance exists, use its settings
+      const effectiveSettings = published
+        ? { ...agent.settings, ...(published.settings as Record<string, unknown>) }
+        : agent.settings;
+
+      return {
+        ...agent,
+        settings: effectiveSettings,
+        instance: published
+          ? {
+              id: published.id,
+              status: published.status,
+              version: published.version,
+              publishedAt: published.publishedAt,
+              hasDraft: !!draft,
+            }
+          : draft
+          ? {
+              id: draft.id,
+              status: draft.status,
+              version: draft.version,
+              publishedAt: null,
+              hasDraft: true,
+            }
+          : undefined,
+      };
+    });
 
     const layout = await resolveKbLayout({ kbRoot });
 
     return NextResponse.json({
       ok: true,
-      agents,
+      agents: agentsWithInstances,
       resolved: {
         env: {
           NODE_ENV: process.env.NODE_ENV || null,
@@ -403,10 +487,15 @@ export async function GET() {
           source: overridesAgents ? "overrides.agents" : legacyOverrides ? "legacy.agents[]" : "none",
           updatedAt: (stored as any)?.updatedAt || null,
         },
-        effectiveAgents: agents.map((a) => ({
+        effectiveAgents: agentsWithInstances.map((a) => ({
           ...a,
           resolvedSettings: buildResolvedSettings(kbRoot, layout as any, a),
         })),
+        dbInstances: {
+          count: dbInstances.length,
+          published: dbInstances.filter((i) => i.status === "PUBLISHED").length,
+          drafts: dbInstances.filter((i) => i.status === "DRAFT").length,
+        },
       },
     });
   } catch (err: any) {
@@ -441,33 +530,28 @@ export async function POST(req: Request) {
     // UI sends full agents; we normalize against the manifest.
     const incoming = normalizeAgentsFromUi(manifestAgents, isPlainObject(body) ? (body as any).agents : []);
 
-    // Compute effective agents by overlaying incoming on top of manifest defaults.
-    const byId = new Map<string, AgentConfig>();
-    for (const spec of manifestAgents) {
+    // Convert incoming to overrides format
+    const incomingOverrides: Record<string, AgentOverride> = {};
+    for (const agent of incoming) {
+      const spec = manifestAgents.find(m => m.agentId === agent.agentId);
+      if (!spec) continue;
+
       const baseEnabled = typeof spec.enabledDefault === "boolean" ? spec.enabledDefault : true;
-      const baseSettings = safeDefaultsFromSpec(spec);
-      byId.set(spec.agentId, {
-        agentId: spec.agentId,
-        enabled: baseEnabled,
-        title: spec.title,
-        description: spec.description || "",
-        settings: { ...baseSettings },
-        opid: spec.opid,
-        schema: spec.settingsSchema,
-      });
+      const enabledDiff = agent.enabled !== baseEnabled;
+
+      const patch: AgentOverride = {};
+      if (enabledDiff) patch.enabled = agent.enabled;
+      if (agent.settings && Object.keys(agent.settings).length > 0) {
+        patch.settings = agent.settings;
+      }
+
+      if (patch.enabled !== undefined || patch.settings) {
+        incomingOverrides[agent.agentId] = patch;
+      }
     }
 
-    for (const a of incoming) {
-      const base = byId.get(a.agentId);
-      if (!base) continue;
-      byId.set(a.agentId, {
-        ...base,
-        enabled: a.enabled,
-        settings: { ...(base.settings || {}), ...(a.settings || {}) },
-      });
-    }
-
-    const effectiveAgents = Array.from(byId.values());
+    // Build effective agents with resolved schemas
+    const effectiveAgents = await buildEffectiveAgents(manifestAgents, incomingOverrides, kbRoot);
     const overrides = diffToOverrides(manifestAgents, effectiveAgents);
 
     await fs.mkdir(path.dirname(storePath), { recursive: true });

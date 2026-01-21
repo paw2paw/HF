@@ -1,66 +1,76 @@
-import fs from "node:fs/promises";
-import path from "node:path";
+import { PrismaClient, AgentRunStatus } from "@prisma/client";
 
-type AgentRunRow = {
-  at?: string;
-  agentId?: string;
-  op?: string;
-  ok?: boolean;
-  [k: string]: any;
-};
-
-function getKbRoot() {
-  const kb = process.env.HF_KB_PATH;
-  if (!kb || !kb.trim()) throw new Error("HF_KB_PATH is not set");
-  return kb.trim();
-}
-
-async function readRunsJsonl(filePath: string): Promise<AgentRunRow[]> {
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    const out: AgentRunRow[] = [];
-    for (const l of lines) {
-      try {
-        out.push(JSON.parse(l));
-      } catch {
-        // ignore bad lines
-      }
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
+const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const agentId = (url.searchParams.get("agentId") || "").trim();
-    const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") || "200")));
+    const statusParam = url.searchParams.get("status") || "";
+    const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") || "50")));
 
-    const kbRoot = getKbRoot();
-    const runsPath = path.join(kbRoot, ".hf", "agent_runs.jsonl");
+    // Parse status filter (comma-separated)
+    let statusFilter: AgentRunStatus[] | undefined;
+    if (statusParam) {
+      const validStatuses = ["QUEUED", "RUNNING", "OK", "ERROR"];
+      statusFilter = statusParam
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) => validStatuses.includes(s)) as AgentRunStatus[];
 
-    const all = await readRunsJsonl(runsPath);
+      if (statusFilter.length === 0) {
+        statusFilter = undefined;
+      }
+    }
 
-    const filtered = agentId ? all.filter((r) => r?.agentId === agentId) : all;
+    const where: any = {};
+    if (agentId) {
+      where.agentId = agentId;
+    }
+    if (statusFilter && statusFilter.length > 0) {
+      where.status = { in: statusFilter };
+    }
 
-    // newest first (best-effort on `at`)
-    filtered.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+    const runs = await prisma.agentRun.findMany({
+      where,
+      orderBy: { startedAt: "desc" },
+      take: limit,
+      include: {
+        agentInstance: {
+          select: { name: true, agentId: true },
+        },
+      },
+    });
+
+    // Transform to include name from instance
+    const transformedRuns = runs.map((run) => ({
+      id: run.id,
+      agentId: run.agentId,
+      name: run.agentInstance?.name || run.agentId,
+      status: run.status,
+      startedAt: run.startedAt.toISOString(),
+      finishedAt: run.finishedAt?.toISOString(),
+      opid: run.opid,
+      // Parse progress from artifacts if present
+      progress: run.artifacts && typeof run.artifacts === "object" && "progress" in (run.artifacts as any)
+        ? (run.artifacts as any).progress
+        : undefined,
+    }));
 
     return Response.json({
       ok: true,
       agentId: agentId || null,
+      status: statusFilter || null,
       limit,
-      runsPath,
-      count: filtered.length,
-      runs: filtered.slice(0, limit),
+      count: transformedRuns.length,
+      runs: transformedRuns,
     });
   } catch (err: any) {
     return Response.json(
       { ok: false, error: err?.message || String(err) },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

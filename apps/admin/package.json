@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:start": "./scripts/dev-start.sh",
+    "dev:start:docker": "./scripts/dev-start.sh docker",
+    "dev:stop": "./scripts/dev-start.sh stop",
+    "dev:status": "./scripts/dev-start.sh status",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -19,6 +23,7 @@
   "dependencies": {
     "@adminjs/express": "^6.1.1",
     "@adminjs/prisma": "^5.0.4",
+    "@anthropic-ai/sdk": "^0.71.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.6",
@@ -28,6 +33,7 @@
     "csv-parser": "^3.2.0",
     "express": "^5.2.1",
     "next": "16.1.0",
+    "pdf-parse": "^1.1.4",
     "prisma": "^6.19.1",
     "ra-core": "^5.13.4",
     "ra-data-simple-rest": "^5.13.4",
@@ -35,7 +41,8 @@
     "ra-ui-materialui": "^5.13.4",
     "react": "19.2.3",
     "react-admin": "^5.13.4",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "reactflow": "^11.11.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

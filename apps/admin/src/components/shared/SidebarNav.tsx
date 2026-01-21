@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 type NavItem = {
   href: string;
   label: string;
-  icon: string;
+  icon?: string;
+  working?: boolean;
+  indent?: boolean; // For sub-items
 };
 
 type NavSection = {
@@ -27,102 +29,91 @@ export default function SidebarNav({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const sections: NavSection[] = useMemo(
     () => [
+      // Primary tools - no header
       {
-        id: "root",
-        items: [{ href: "/cockpit", label: "Cockpit", icon: "🧭" }],
+        id: "primary",
+        items: [
+          { href: "/flow", label: "Flow", icon: "🔀", working: true },
+          { href: "/cockpit", label: "Cockpit", icon: "🧭", working: true },
+          { href: "/ops", label: "Ops", icon: "🛠️", working: true },
+        ],
         collapsible: false,
+        dividerAfter: true,
       },
-      {
-        id: "agents",
-        title: "Agents",
-        items: [
-          { href: "/agents", label: "Agents", icon: "🤖" },
-          { href: "/prompt-preview", label: "Prompt Preview", icon: "📝" },
-        ],
-        collapsible: true,
-        defaultCollapsed: false,
-      },
-      {
-        id: "people",
-        title: "People",
-        items: [
-          { href: "/people", label: "People", icon: "👤" },
-          { href: "/people/segments", label: "Segments", icon: "🧩" },
-          { href: "/people/identity", label: "Identity", icon: "🪪" },
-        ],
-        collapsible: true,
-        defaultCollapsed: false,
-      },
-      {
-        id: "sessions",
-        title: "Sessions",
-        items: [
-          { href: "/sessions", label: "Sessions", icon: "🎧" },
-          { href: "/sessions/analytics", label: "Analytics", icon: "📊" },
-        ],
-        collapsible: true,
-        defaultCollapsed: false,
-      },
+      // Sources section
       {
         id: "sources",
         title: "Sources",
         items: [
-          { href: "/controls", label: "Controls", icon: "🧷" },
-          { href: "/parameters", label: "Parameters", icon: "🗄️" },
-          { href: "/transcripts", label: "Transcripts (Raw)", icon: "🗣️" },
-          { href: "/audio", label: "Audio (Raw)", icon: "🎙️" },
-          { href: "/knowledge", label: "Knowledge (Raw)", icon: "📚" },
-          { href: "/integrations", label: "Integrations", icon: "🔌" },
+          { href: "/knowledge-docs", label: "Knowledge Docs", icon: "📚", working: true },
+          { href: "/transcript-batches", label: "Transcripts", icon: "🎙️", working: true },
         ],
-        dividerAfter: true,
         collapsible: true,
         defaultCollapsed: false,
       },
+      // Derived section (processed from sources)
       {
         id: "derived",
         title: "Derived",
         items: [
-          { href: "/derived/control-sets", label: "Control Sets", icon: "📌" },
-          { href: "/derived/transcript-imports", label: "Transcript Imports", icon: "📥" },
-          { href: "/derived/transcript-analyses", label: "Transcript Analyses", icon: "🧠" },
-          { href: "/derived/knowledge-artifacts", label: "Knowledge Artifacts", icon: "🧾" },
-          { href: "/derived/vectors", label: "Vectors", icon: "🧬" },
-          { href: "/derived/reports", label: "Reports", icon: "🗂️" },
+          { href: "/chunks", label: "Chunks", icon: "📄", working: true },
+          { href: "/vectors", label: "Embeddings", icon: "🧠", working: true },
+          { href: "/knowledge-artifacts", label: "Artifacts", icon: "💎", working: true },
+          { href: "/callers", label: "Callers", icon: "👥", working: true },
+          { href: "/calls", label: "Calls", icon: "📞", working: true },
         ],
         collapsible: true,
         defaultCollapsed: false,
       },
+      // Analysis section
       {
-        id: "models",
-        title: "Models",
+        id: "analysis",
+        title: "Analysis",
         items: [
-          { href: "/models/traits", label: "Trait Library", icon: "📐" },
-          { href: "/models/trait-targets", label: "Trait Targets", icon: "🎯" },
-          { href: "/models/assemblies", label: "Model Assemblies", icon: "🧱" },
-          { href: "/models/policies", label: "Policies (Reward/NBM)", icon: "🏁" },
-          { href: "/models/prompt-templates", label: "Prompt Templates", icon: "🧬" },
-          { href: "/models/experiments", label: "Experiments", icon: "🧪" },
+          { href: "/admin#/parameters", label: "Parameters", icon: "⚙️", working: true },
+          { href: "/analysis-specs", label: "Analysis Specs", icon: "🎯", working: true },
+          { href: "/run-configs", label: "Run Configs", icon: "📦", working: true },
+          { href: "/analysis-profiles", label: "Profiles", icon: "📊", working: true },
+          { href: "/analysis-runs", label: "Runs", indent: true, working: true },
+          { href: "/analysis-test", label: "Test", icon: "🧪", working: true },
         ],
         collapsible: true,
         defaultCollapsed: false,
       },
+      // Prompts section
       {
-        id: "admin",
-        title: "Ops & Admin",
+        id: "prompts",
+        title: "Prompts",
         items: [
-          { href: "/ops", label: "Ops", icon: "🛠️" },
-          { href: "/history", label: "History", icon: "🕘" },
-          { href: "/services", label: "Services", icon: "⚙️" },
-          { href: "/config", label: "Runtime Config", icon: "🔧" },
-          { href: "/access", label: "Access / Roles", icon: "🔒" },
-          { href: "/audit", label: "Audit Log", icon: "🧾" },
-          { href: "/settings", label: "System Settings", icon: "🧰" },
+          { href: "/prompt-blocks", label: "Static Prompts", icon: "🧱", working: true },
+          { href: "/prompt-slugs", label: "Dynamic Prompts", icon: "🔀", working: true },
+          { href: "/prompt-stacks", label: "Stacks", icon: "📚", working: true },
+          { href: "/prompt-preview", label: "Preview", icon: "👁️", working: true },
+          { href: "/prompt-generate", label: "Generate", icon: "✨", working: true },
         ],
         collapsible: true,
         defaultCollapsed: false,
+      },
+      // Config section
+      {
+        id: "config",
+        title: "Config",
+        items: [
+          { href: "/agents", label: "Agents", icon: "🤖", working: true },
+          { href: "/prompt-templates", label: "Templates", icon: "📝", working: true },
+          { href: "/control-sets", label: "Control Sets", icon: "📌", working: true },
+          { href: "/settings-library", label: "Settings", icon: "⚙️", working: true },
+        ],
+        collapsible: true,
+        defaultCollapsed: true,
       },
     ],
     []
@@ -138,7 +129,7 @@ export default function SidebarNav({
   });
 
   const isActive = (href: string) => {
-    if (!pathname) return false;
+    if (!mounted || !pathname) return false;
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -201,24 +192,34 @@ export default function SidebarNav({
                 ) : null}
 
                 {sectionIsCollapsed ? null : (
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-0.5">
                     {section.items.map((l) => {
                       const active = isActive(l.href);
+                      const isSubItem = l.indent && !l.icon;
                       return (
                         <Link
                           key={l.href}
                           href={l.href}
                           title={collapsed ? l.label : undefined}
                           className={
-                            "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 " +
+                            "flex items-center gap-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 " +
+                            (isSubItem
+                              ? "pl-7 pr-2 py-1.5 text-[13px] "
+                              : "px-2 py-2 text-sm ") +
                             (active
                               ? "bg-indigo-600 text-white font-semibold"
+                              : isSubItem
+                              ? "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                              : l.working
+                              ? "text-neutral-900 font-medium hover:bg-neutral-100"
                               : "text-neutral-900 hover:bg-neutral-100")
                           }
                         >
-                          <span className={"text-base " + (active ? "opacity-100" : "opacity-90")} aria-hidden>
-                            {l.icon}
-                          </span>
+                          {l.icon && (
+                            <span className={"text-base " + (active ? "opacity-100" : "opacity-80")} aria-hidden>
+                              {l.icon}
+                            </span>
+                          )}
                           {!collapsed ? <span className="truncate">{l.label}</span> : null}
                         </Link>
                       );

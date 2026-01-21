@@ -1,0 +1,20 @@
+{
+  "_DEPRECATED": "This file is deprecated. Paths are now defined in agents.json 'data' nodes. See lib/agents.json",
+  "_MIGRATION_NOTE": "All paths now live in agents.json data nodes with id like 'data:knowledge', 'data:transcripts', etc.",
+  "version": 1,
+  "sources": {
+    "knowledge": "sources/knowledge",
+    "transcripts": "sources/transcripts",
+    "parameters": "sources/parameters/parameters.csv"
+  },
+  "derived": {
+    "knowledge": "derived/knowledge",
+    "embeddings": "derived/embeddings",
+    "transcripts": "derived/transcripts",
+    "analysis": "derived/analysis"
+  },
+  "exports": {
+    "reports": "exports/reports",
+    "snapshots": "exports/snapshots"
+  }
+}

@@ -1,0 +1,1097 @@
+{
+  "version": 6,
+  "groups": [
+    {
+      "id": "group:knowledge",
+      "label": "Knowledge Pipeline",
+      "description": "Extract, ingest, chunk, and embed knowledge documents",
+      "color": "#3b82f6",
+      "members": [
+        "agent:knowledge_extractor",
+        "agent:knowledge_ingestor",
+        "agent:knowledge_embedder",
+        "agent:kb_build_embed"
+      ],
+      "collapsed": false
+    },
+    {
+      "id": "group:transcripts",
+      "label": "Transcript Pipeline",
+      "description": "Process raw transcript files into calls and users",
+      "color": "#10b981",
+      "members": [
+        "agent:transcript_processor"
+      ],
+      "collapsed": false
+    },
+    {
+      "id": "group:parameters",
+      "label": "Parameter Setup",
+      "description": "Import parameters and create analysis profiles",
+      "color": "#f59e0b",
+      "members": [
+        "agent:parameters_import",
+        "agent:parameters_snapshot"
+      ],
+      "collapsed": false
+    },
+    {
+      "id": "group:analysis",
+      "label": "User Analysis",
+      "description": "Score personality traits and extract memories from calls",
+      "color": "#8b5cf6",
+      "members": [
+        "agent:personality_analyzer",
+        "agent:memory_extractor"
+      ],
+      "collapsed": false
+    },
+    {
+      "id": "group:system",
+      "label": "System Management",
+      "description": "Administrative agents for managing configuration and system state",
+      "color": "#6b7280",
+      "members": [
+        "agent:manifest_manager"
+      ],
+      "collapsed": true
+    }
+  ],
+  "data": [
+    {
+      "id": "data:knowledge",
+      "label": "Knowledge Base",
+      "description": "Raw knowledge documents (PDF, markdown, text files)",
+      "storageType": "path",
+      "path": "sources/knowledge",
+      "role": "source",
+      "resources": [
+        {
+          "type": "path",
+          "path": "sources/knowledge/**/*",
+          "label": "Source files"
+        }
+      ]
+    },
+    {
+      "id": "data:knowledge_derived",
+      "label": "Derived Knowledge",
+      "description": "Processed knowledge artifacts (links, metadata, chunks)",
+      "storageType": "path",
+      "path": "derived/knowledge",
+      "role": "output",
+      "resources": [
+        {
+          "type": "path",
+          "path": "derived/knowledge/**/*",
+          "label": "Derived files"
+        }
+      ]
+    },
+    {
+      "id": "data:transcripts",
+      "label": "Raw Transcripts",
+      "description": "Raw transcript JSON files from call recordings",
+      "storageType": "path",
+      "path": "sources/transcripts",
+      "role": "source",
+      "resources": [
+        {
+          "type": "path",
+          "path": "sources/transcripts/*.json",
+          "label": "Transcript files"
+        }
+      ]
+    },
+    {
+      "id": "data:transcripts_derived",
+      "label": "Derived Transcripts",
+      "description": "Processed transcript outputs",
+      "storageType": "path",
+      "path": "derived/transcripts",
+      "role": "output",
+      "resources": [
+        {
+          "type": "path",
+          "path": "derived/transcripts/**/*",
+          "label": "Derived files"
+        }
+      ]
+    },
+    {
+      "id": "data:parameters_source",
+      "label": "Parameters Source",
+      "description": "Raw parameters CSV file",
+      "storageType": "path",
+      "path": "sources/parameters",
+      "role": "source",
+      "resources": [
+        {
+          "type": "path",
+          "path": "sources/parameters/*.csv",
+          "label": "CSV files"
+        }
+      ]
+    },
+    {
+      "id": "data:parameters",
+      "label": "Parameters",
+      "description": "Imported parameters in database",
+      "storageType": "table",
+      "table": "Parameter",
+      "role": "both",
+      "resources": [
+        {
+          "type": "table",
+          "table": "Parameter",
+          "link": "/admin#/parameters",
+          "label": "Parameters"
+        }
+      ]
+    },
+    {
+      "id": "data:embeddings",
+      "label": "Vector Embeddings",
+      "description": "Vector embeddings for semantic search",
+      "storageType": "path",
+      "path": "derived/embeddings",
+      "role": "output",
+      "resources": [
+        {
+          "type": "path",
+          "path": "derived/embeddings/**/*",
+          "label": "Embedding files"
+        }
+      ]
+    },
+    {
+      "id": "data:chunks",
+      "label": "Knowledge Chunks",
+      "description": "Chunked knowledge documents for RAG",
+      "storageType": "table",
+      "table": "KnowledgeChunk",
+      "role": "both",
+      "resources": [
+        {
+          "type": "table",
+          "table": "KnowledgeDoc",
+          "link": "/knowledge-docs",
+          "label": "Docs"
+        },
+        {
+          "type": "table",
+          "table": "KnowledgeChunk",
+          "link": "/knowledge-docs",
+          "label": "Chunks"
+        },
+        {
+          "type": "table",
+          "table": "VectorEmbedding",
+          "link": "/vectors",
+          "label": "Vectors"
+        }
+      ]
+    },
+    {
+      "id": "data:calls",
+      "label": "Calls",
+      "description": "Imported call transcripts in database",
+      "storageType": "table",
+      "table": "Call",
+      "role": "both",
+      "resources": [
+        {
+          "type": "table",
+          "table": "Call",
+          "link": "/calls",
+          "label": "Calls"
+        },
+        {
+          "type": "table",
+          "table": "TranscriptBatch",
+          "link": "/transcript-batches",
+          "label": "Batches"
+        }
+      ]
+    },
+    {
+      "id": "data:users",
+      "label": "Users",
+      "description": "User/caller records",
+      "storageType": "table",
+      "table": "User",
+      "role": "output",
+      "resources": [
+        {
+          "type": "table",
+          "table": "User",
+          "link": "/people",
+          "label": "Users"
+        }
+      ]
+    },
+    {
+      "id": "data:analysisprofiles",
+      "label": "Analysis Profiles",
+      "description": "Parameter snapshots for personality analysis",
+      "storageType": "table",
+      "table": "AnalysisProfile",
+      "role": "both",
+      "resources": [
+        {
+          "type": "table",
+          "table": "AnalysisProfile",
+          "link": "/analysis-profiles",
+          "label": "Profiles"
+        }
+      ]
+    },
+    {
+      "id": "data:profiles",
+      "label": "User Personalities",
+      "description": "Computed personality profiles",
+      "storageType": "table",
+      "table": "UserPersonality",
+      "role": "output",
+      "resources": [
+        {
+          "type": "table",
+          "table": "UserPersonality",
+          "link": "/people",
+          "label": "Profiles"
+        },
+        {
+          "type": "table",
+          "table": "PersonalityObservation",
+          "link": "/people",
+          "label": "Observations"
+        }
+      ]
+    },
+    {
+      "id": "data:memories",
+      "label": "User Memories",
+      "description": "Extracted facts, preferences, and context",
+      "storageType": "table",
+      "table": "UserMemory",
+      "role": "output",
+      "resources": [
+        {
+          "type": "table",
+          "table": "UserMemory",
+          "link": "/memories",
+          "label": "Memories"
+        },
+        {
+          "type": "table",
+          "table": "UserMemorySummary",
+          "link": "/memories",
+          "label": "Summaries"
+        }
+      ]
+    },
+    {
+      "id": "data:analysis_derived",
+      "label": "Analysis Output",
+      "description": "Derived analysis results (personality scores, reports)",
+      "storageType": "path",
+      "path": "derived/analysis",
+      "role": "output",
+      "resources": [
+        {
+          "type": "path",
+          "path": "derived/analysis/**/*",
+          "label": "Analysis files"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "id": "knowledge_extractor",
+      "agentId": "knowledge_extractor",
+      "title": "Knowledge Extractor",
+      "description": "Scans KB sources and prepares derived knowledge artifacts (links extraction, optional scraping).",
+      "enabled": true,
+      "opid": "kb:links:extract",
+      "inputs": [
+        {
+          "node": "data:knowledge",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:knowledge_derived",
+          "edgeType": "solid"
+        },
+        {
+          "node": "agent:knowledge_ingestor",
+          "edgeType": "dashed",
+          "label": "prepares"
+        }
+      ],
+      "resources": [
+        {
+          "type": "path",
+          "path": "derived/knowledge/links.json",
+          "label": "Extracted links"
+        }
+      ],
+      "settings": {
+        "scrapeTypes": ["links"]
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "scrapeTypes": {
+            "type": "array",
+            "title": "Scrape types",
+            "description": "Optional list of scrape modes to enable",
+            "items": {
+              "type": "string",
+              "enum": [
+                "links",
+                "metadata",
+                "fulltext"
+              ]
+            },
+            "default": [
+              "links"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "knowledge_ingestor",
+      "agentId": "knowledge_ingestor",
+      "title": "Knowledge Ingestor",
+      "description": "Ingests knowledge documents (PDFs, markdown, text) from sources. Hash-based deduplication, chunking, resumable processing.",
+      "enabled": false,
+      "opid": "knowledge:ingest",
+      "inputs": [
+        {
+          "node": "data:knowledge",
+          "edgeType": "solid"
+        },
+        {
+          "node": "agent:knowledge_extractor",
+          "edgeType": "dashed",
+          "label": "after extraction"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:knowledge_derived",
+          "edgeType": "solid"
+        },
+        {
+          "node": "agent:knowledge_embedder",
+          "edgeType": "solid"
+        },
+        {
+          "node": "data:chunks",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "KnowledgeDoc",
+          "link": "/knowledge-docs",
+          "label": "Documents"
+        }
+      ],
+      "settings": {
+        "maxDocuments": 0,
+        "maxCharsPerChunk": 1500,
+        "overlapChars": 200,
+        "forceReprocess": false,
+        "resumePartial": true
+      },
+      "prompts": {
+        "extractFacts": {
+          "model": "claude-haiku-3-5-20241022",
+          "temperature": 0.2,
+          "systemPrompt": "You extract structured facts from knowledge documents. Focus on actionable information that could be used to understand or serve customers better.",
+          "userPromptTemplate": "Extract key facts from this knowledge chunk:\n\n{{chunk.content}}\n\nReturn JSON array of facts, each with:\n- fact: the extracted fact (concise)\n- category: one of [product, policy, procedure, faq, definition]\n- confidence: 0-1\n- keywords: array of relevant search terms"
+        },
+        "generateSummary": {
+          "model": "claude-haiku-3-5-20241022",
+          "temperature": 0.3,
+          "systemPrompt": "You summarize knowledge documents concisely while preserving key information.",
+          "userPromptTemplate": "Summarize this document in 2-3 sentences:\n\nTitle: {{document.title}}\nContent:\n{{document.content}}\n\nFocus on: what it covers, key takeaways, when it applies."
+        }
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "maxDocuments": {
+            "type": "number",
+            "title": "Max documents",
+            "description": "Maximum documents to process (for testing). 0 = unlimited.",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "maxCharsPerChunk": {
+            "type": "number",
+            "title": "Chunk size (chars)",
+            "description": "Maximum characters per chunk",
+            "default": 1500,
+            "minimum": 500,
+            "maximum": 4000
+          },
+          "overlapChars": {
+            "type": "number",
+            "title": "Overlap (chars)",
+            "description": "Character overlap between chunks for context",
+            "default": 200,
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "forceReprocess": {
+            "type": "boolean",
+            "title": "Force reprocess",
+            "description": "Reprocess even if document hash already exists (deletes existing chunks)",
+            "default": false
+          },
+          "resumePartial": {
+            "type": "boolean",
+            "title": "Resume partial",
+            "description": "Resume partially-processed documents (status=IN_PROGRESS) instead of skipping",
+            "default": true
+          }
+        }
+      }
+    },
+    {
+      "id": "knowledge_embedder",
+      "agentId": "knowledge_embedder",
+      "title": "Knowledge Embedder",
+      "description": "Generates vector embeddings for knowledge chunks using OpenAI. Enables semantic search for parameter scoring.",
+      "enabled": false,
+      "opid": "knowledge:embed",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "KnowledgeChunk",
+          "min": 1,
+          "required": true,
+          "message": "Run Knowledge Ingestor first"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "agent:knowledge_ingestor",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:chunks",
+          "edgeType": "solid",
+          "label": "vectors"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "VectorEmbedding",
+          "link": "/vectors",
+          "label": "Embeddings"
+        }
+      ],
+      "settings": {
+        "maxChunks": 100,
+        "model": "text-embedding-3-small",
+        "batchSize": 50
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "maxChunks": {
+            "type": "number",
+            "title": "Max chunks",
+            "description": "Maximum chunks to embed (for testing). 0 = unlimited.",
+            "default": 100,
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "model": {
+            "type": "string",
+            "title": "Embedding model",
+            "description": "OpenAI embedding model to use",
+            "enum": [
+              "text-embedding-3-small",
+              "text-embedding-3-large"
+            ],
+            "default": "text-embedding-3-small"
+          },
+          "batchSize": {
+            "type": "number",
+            "title": "Batch size",
+            "description": "Number of chunks to embed per API call",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      }
+    },
+    {
+      "id": "transcript_processor",
+      "agentId": "transcript_processor",
+      "title": "Transcript Processor",
+      "description": "Scans raw transcript JSON files, indexes them, extracts calls into database with hash-based deduplication, and creates user records.",
+      "enabled": true,
+      "opid": "transcripts:process",
+      "inputs": [
+        {
+          "node": "data:transcripts",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:transcripts_derived",
+          "edgeType": "solid"
+        },
+        {
+          "node": "data:calls",
+          "edgeType": "solid"
+        },
+        {
+          "node": "data:users",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "Call",
+          "link": "/calls",
+          "label": "Calls"
+        },
+        {
+          "type": "table",
+          "table": "User",
+          "link": "/people",
+          "label": "Users"
+        }
+      ],
+      "settings": {
+        "autoDetectType": true,
+        "createUsers": true,
+        "createBatches": true
+      },
+      "prompts": {
+        "extractCustomerFacts": {
+          "model": "claude-haiku-3-5-20241022",
+          "temperature": 0.2,
+          "systemPrompt": "You extract factual information about customers from call transcripts. Focus on concrete details mentioned, not inferences.",
+          "userPromptTemplate": "Extract customer facts from this call transcript:\n\n{{transcript}}\n\nReturn JSON with:\n- familyMembers: array of {name, relationship} if mentioned\n- preferences: array of {topic, preference} (likes/dislikes)\n- demographics: {location?, occupation?, ageRange?} if mentioned\n- interests: array of strings\n- concerns: array of strings (worries, complaints)\n- actionItems: array of things customer wants/needs"
+        },
+        "summarizeCall": {
+          "model": "claude-haiku-3-5-20241022",
+          "temperature": 0.3,
+          "systemPrompt": "You create concise call summaries for agent handoff and CRM notes.",
+          "userPromptTemplate": "Summarize this call in 2-3 sentences:\n\n{{transcript}}\n\nInclude: reason for call, outcome, any follow-up needed."
+        }
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "autoDetectType": {
+            "type": "boolean",
+            "title": "Auto-detect file type",
+            "description": "Automatically determine if file is batch export or single call",
+            "default": true
+          },
+          "createUsers": {
+            "type": "boolean",
+            "title": "Create user records",
+            "description": "Extract and create User records from customer data",
+            "default": true
+          },
+          "createBatches": {
+            "type": "boolean",
+            "title": "Create batches",
+            "description": "Group calls into TranscriptBatch records",
+            "default": true
+          }
+        }
+      }
+    },
+    {
+      "id": "parameters_import",
+      "agentId": "parameters_import",
+      "title": "Parameters Import",
+      "description": "Imports parameters.csv and creates immutable versioned snapshots.",
+      "enabled": true,
+      "opid": "kb:parameters:import",
+      "inputs": [
+        {
+          "node": "data:parameters_source",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:parameters",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [
+        {
+          "type": "path",
+          "path": "sources/parameters/*.csv",
+          "label": "CSV files"
+        }
+      ],
+      "settings": {
+        "force": false
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "title": "Force re-import",
+            "description": "Recreate snapshot even if content hash already exists",
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "id": "parameters_snapshot",
+      "agentId": "parameters_snapshot",
+      "title": "Analysis Profile Creator",
+      "description": "Creates an Analysis Profile from currently Active parameters. Use to configure parameter weights and settings for personality analysis.",
+      "enabled": true,
+      "opid": "kb:parameters:snapshot",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "Parameter",
+          "min": 1,
+          "required": true,
+          "message": "Import parameters first"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "data:parameters",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:analysisprofiles",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "AnalysisProfile",
+          "link": "/analysis-profiles",
+          "label": "Profiles"
+        }
+      ],
+      "settings": {
+        "name": "",
+        "tagFilter": "Active",
+        "includeDefinitions": true
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Snapshot Name",
+            "description": "Optional name for this snapshot (auto-generated if empty)",
+            "default": ""
+          },
+          "tagFilter": {
+            "type": "string",
+            "title": "Tag Filter",
+            "description": "Only include parameters with this tag (default: Active)",
+            "default": "Active"
+          },
+          "includeDefinitions": {
+            "type": "boolean",
+            "title": "Include Definitions",
+            "description": "Copy full parameter definitions into snapshot (recommended)",
+            "default": true
+          }
+        }
+      }
+    },
+    {
+      "id": "personality_analyzer",
+      "agentId": "personality_analyzer",
+      "title": "Personality Analyzer",
+      "description": "Extracts personality traits from call transcripts using knowledge bank parameters as scoring rubric. Creates time-series PersonalityObservation records with decay-based aggregation.",
+      "enabled": false,
+      "opid": "personality:analyze",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "Call",
+          "min": 1,
+          "required": true,
+          "message": "Process transcripts first"
+        },
+        {
+          "type": "count",
+          "table": "AnalysisProfile",
+          "min": 1,
+          "required": true,
+          "message": "Create an analysis profile first"
+        },
+        {
+          "type": "count",
+          "table": "VectorEmbedding",
+          "min": 1,
+          "required": false,
+          "message": "RAG context improves quality (run Knowledge Embedder)"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "data:calls",
+          "edgeType": "solid"
+        },
+        {
+          "node": "data:analysisprofiles",
+          "edgeType": "solid"
+        },
+        {
+          "node": "data:chunks",
+          "edgeType": "dashed",
+          "label": "RAG context"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:profiles",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "PersonalityObservation",
+          "link": "/people",
+          "label": "Observations"
+        },
+        {
+          "type": "table",
+          "table": "UserPersonality",
+          "link": "/people",
+          "label": "Profiles"
+        }
+      ],
+      "settings": {
+        "aggregate": true,
+        "halfLifeDays": 30
+      },
+      "prompts": {
+        "scorePersonality": {
+          "model": "claude-sonnet-4-20250514",
+          "temperature": 0.3,
+          "systemPrompt": "You are an expert psychologist analyzing call transcripts. Score the customer on personality parameters using evidence from the conversation. Be objective and cite specific quotes as evidence. Return structured JSON.",
+          "userPromptTemplate": "Analyze this call transcript for the personality parameter: {{parameter.name}}\n\nParameter description: {{parameter.description}}\nScoring scale: {{parameter.scale_min}} to {{parameter.scale_max}}\n\n---\nTRANSCRIPT:\n{{transcript}}\n---\n\nReturn JSON with:\n- score: number between {{parameter.scale_min}} and {{parameter.scale_max}}\n- confidence: number 0-1 (how confident based on evidence)\n- evidence: array of quote strings from transcript\n- reasoning: brief explanation"
+        }
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "title": "Specific call ID",
+            "description": "Analyze a specific call (leave empty to analyze all unprocessed calls)"
+          },
+          "aggregate": {
+            "type": "boolean",
+            "title": "Aggregate profiles",
+            "description": "Re-aggregate UserPersonality after creating observations (with time decay)",
+            "default": true
+          },
+          "halfLifeDays": {
+            "type": "number",
+            "title": "Decay half-life (days)",
+            "description": "Number of days until observation weight is halved (controls how much recent calls matter)",
+            "default": 30,
+            "minimum": 1,
+            "maximum": 365
+          }
+        }
+      }
+    },
+    {
+      "id": "kb_build_embed",
+      "agentId": "kb_build_embed",
+      "title": "KB Build + Embed",
+      "description": "Builds derived knowledge and produces vector embeddings.",
+      "enabled": false,
+      "opid": "kb:build+embed",
+      "inputs": [
+        {
+          "node": "data:knowledge",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:chunks",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [],
+      "settings": {
+        "maxCharsPerChunk": 1800,
+        "overlapChars": 200,
+        "model": "text-embedding-3-small",
+        "batchSize": 64
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "maxCharsPerChunk": {
+            "type": "number",
+            "title": "Max chars per chunk",
+            "default": 1800,
+            "minimum": 200
+          },
+          "overlapChars": {
+            "type": "number",
+            "title": "Overlap chars",
+            "default": 200,
+            "minimum": 0
+          },
+          "model": {
+            "type": "string",
+            "title": "Embedding model",
+            "default": "text-embedding-3-small"
+          },
+          "batchSize": {
+            "type": "number",
+            "title": "Batch size",
+            "default": 64,
+            "minimum": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "manifest_manager",
+      "agentId": "manifest_manager",
+      "title": "Manifest Manager",
+      "description": "Manages the agents.json manifest: CRUD operations for agents, groups, and path settings. Validates structure and syncs with DB.",
+      "enabled": true,
+      "opid": "manifest:manage",
+      "inputs": [],
+      "outputs": [],
+      "resources": [
+        {
+          "type": "path",
+          "path": "lib/agents.json",
+          "label": "Manifest file"
+        }
+      ],
+      "settings": {
+        "autoBackup": true,
+        "validateOnSave": true
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "autoBackup": {
+            "type": "boolean",
+            "title": "Auto backup",
+            "description": "Create backup before any modification",
+            "default": true
+          },
+          "validateOnSave": {
+            "type": "boolean",
+            "title": "Validate on save",
+            "description": "Validate manifest structure before saving changes",
+            "default": true
+          }
+        }
+      }
+    },
+    {
+      "id": "memory_extractor",
+      "agentId": "memory_extractor",
+      "title": "Memory Extractor",
+      "description": "Extracts structured memories (facts, preferences, events, topics, relationships, context) from call transcripts. Handles key normalization and contradiction resolution.",
+      "enabled": false,
+      "opid": "memory:extract",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "Call",
+          "min": 1,
+          "required": true,
+          "message": "Process transcripts first"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "data:calls",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:memories",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "UserMemory",
+          "link": "/memories",
+          "label": "Memories"
+        },
+        {
+          "type": "table",
+          "table": "UserMemorySummary",
+          "link": "/memories",
+          "label": "Summaries"
+        }
+      ],
+      "settings": {
+        "limit": 100,
+        "aggregate": true,
+        "confidenceThreshold": 0.5
+      },
+      "prompts": {
+        "extractMemories": {
+          "model": "claude-haiku-3-5-20241022",
+          "temperature": 0.2,
+          "systemPrompt": "You extract structured memories from call transcripts. Focus on factual information about the customer that would be useful in future interactions.",
+          "userPromptTemplate": "Analyze this call transcript and extract structured memories about the customer.\n\nCategories:\n- FACT: Immutable facts (location, occupation, name)\n- PREFERENCE: User preferences (contact method, response style)\n- EVENT: Time-bound events (appointments, complaints, purchases)\n- TOPIC: Topics discussed (interests, products mentioned)\n- RELATIONSHIP: Relationships (family members, colleagues)\n- CONTEXT: Temporary situational context (traveling, in a meeting)\n\nTranscript:\n{{transcript}}\n\nReturn JSON array of memories, each with:\n- category: one of the categories above\n- key: memory key (e.g., \"location\", \"preferred_contact\")\n- value: the extracted value\n- evidence: quote from transcript supporting this\n- confidence: 0-1 confidence score\n- expiresInDays: (optional) for temporary context"
+        }
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "title": "Specific call ID",
+            "description": "Process a specific call (leave empty to process all unprocessed calls)"
+          },
+          "userId": {
+            "type": "string",
+            "title": "Specific user ID",
+            "description": "Process calls for a specific user only"
+          },
+          "limit": {
+            "type": "number",
+            "title": "Max calls",
+            "description": "Maximum number of calls to process",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "aggregate": {
+            "type": "boolean",
+            "title": "Aggregate summaries",
+            "description": "Update UserMemorySummary after extraction",
+            "default": true
+          },
+          "confidenceThreshold": {
+            "type": "number",
+            "title": "Confidence threshold",
+            "description": "Minimum confidence score to store a memory (0-1)",
+            "default": 0.5,
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    }
+  ],
+  "layout": {
+    "columns": {
+      "sources": 50,
+      "agents1": 280,
+      "agents2": 510,
+      "outputs": 740,
+      "outputs2": 920
+    },
+    "defaultPositions": {
+      "data:knowledge": {
+        "x": 50,
+        "y": 50
+      },
+      "data:transcripts": {
+        "x": 50,
+        "y": 220
+      },
+      "data:parameters": {
+        "x": 50,
+        "y": 370
+      },
+      "agent:knowledge_extractor": {
+        "x": 230,
+        "y": 30
+      },
+      "agent:knowledge_ingestor": {
+        "x": 430,
+        "y": 30
+      },
+      "agent:knowledge_embedder": {
+        "x": 630,
+        "y": 30
+      },
+      "agent:kb_build_embed": {
+        "x": 430,
+        "y": 120
+      },
+      "agent:transcript_processor": {
+        "x": 280,
+        "y": 210
+      },
+      "agent:parameters_import": {
+        "x": 230,
+        "y": 360
+      },
+      "agent:parameters_snapshot": {
+        "x": 430,
+        "y": 360
+      },
+      "data:chunks": {
+        "x": 830,
+        "y": 30
+      },
+      "data:calls": {
+        "x": 630,
+        "y": 180
+      },
+      "data:users": {
+        "x": 630,
+        "y": 250
+      },
+      "data:analysisprofiles": {
+        "x": 630,
+        "y": 360
+      },
+      "agent:personality_analyzer": {
+        "x": 830,
+        "y": 210
+      },
+      "data:profiles": {
+        "x": 1030,
+        "y": 210
+      }
+    }
+  }
+}

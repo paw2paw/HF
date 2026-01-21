@@ -1,14 +1,120 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Light Theme - Softer, professional palette
+   ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base colors */
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+
+  /* Surface hierarchy (cards, panels, modals) */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f5f5f5;
+  --surface-tertiary: #ebebeb;
+
+  /* Text hierarchy */
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --text-placeholder: #a3a3a3;
+
+  /* Borders */
+  --border-default: #e5e5e5;
+  --border-subtle: #f0f0f0;
+  --border-strong: #d4d4d4;
+
+  /* Interactive elements */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-primary-text: #ffffff;
+
+  /* Status colors - softer versions */
+  --status-success-bg: #ecfdf5;
+  --status-success-text: #059669;
+  --status-warning-bg: #fffbeb;
+  --status-warning-text: #d97706;
+  --status-error-bg: #fef2f2;
+  --status-error-text: #dc2626;
+  --status-info-bg: #eff6ff;
+  --status-info-text: #2563eb;
+  --status-neutral-bg: #f5f5f5;
+  --status-neutral-text: #525252;
+
+  /* Table specific */
+  --table-header-bg: #f5f5f5;
+  --table-row-border: #f0f0f0;
+  --table-row-hover: #fafafa;
+
+  /* Tabs */
+  --tab-active-bg: #3b82f6;
+  --tab-active-text: #ffffff;
+  --tab-inactive-bg: #ffffff;
+  --tab-inactive-text: #525252;
+  --tab-inactive-border: #e5e5e5;
+
+  /* Badge/pill colors */
+  --badge-purple-bg: #f3e8ff;
+  --badge-purple-text: #7c3aed;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dark Theme - Easy on the eyes, reduced contrast
+   ═══════════════════════════════════════════════════════════════════════════ */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Base colors - not pure black */
+    --background: #0f0f0f;
+    --foreground: #e5e5e5;
+
+    /* Surface hierarchy */
+    --surface-primary: #171717;
+    --surface-secondary: #1f1f1f;
+    --surface-tertiary: #262626;
+
+    /* Text hierarchy - reduced brightness for comfort */
+    --text-primary: #e5e5e5;
+    --text-secondary: #a3a3a3;
+    --text-muted: #737373;
+    --text-placeholder: #525252;
+
+    /* Borders - subtle in dark mode */
+    --border-default: #2a2a2a;
+    --border-subtle: #1f1f1f;
+    --border-strong: #3a3a3a;
+
+    /* Interactive elements */
+    --accent-primary: #60a5fa;
+    --accent-primary-hover: #3b82f6;
+    --accent-primary-text: #0f0f0f;
+
+    /* Status colors - muted for dark mode */
+    --status-success-bg: #052e16;
+    --status-success-text: #4ade80;
+    --status-warning-bg: #422006;
+    --status-warning-text: #fbbf24;
+    --status-error-bg: #450a0a;
+    --status-error-text: #f87171;
+    --status-info-bg: #172554;
+    --status-info-text: #60a5fa;
+    --status-neutral-bg: #262626;
+    --status-neutral-text: #a3a3a3;
+
+    /* Table specific */
+    --table-header-bg: #1f1f1f;
+    --table-row-border: #262626;
+    --table-row-hover: #1a1a1a;
+
+    /* Tabs */
+    --tab-active-bg: #60a5fa;
+    --tab-active-text: #0f0f0f;
+    --tab-inactive-bg: #171717;
+    --tab-inactive-text: #a3a3a3;
+    --tab-inactive-border: #2a2a2a;
+
+    /* Badge/pill colors */
+    --badge-purple-bg: #2e1065;
+    --badge-purple-text: #c4b5fd;
   }
 }
 

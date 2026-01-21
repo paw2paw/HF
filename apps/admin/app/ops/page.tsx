@@ -3,6 +3,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { uiColors } from "../../src/components/shared/uiColors";
+import HealthCheck from "../admin/shared/HealthCheck";
 
 const mono =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
@@ -467,7 +468,7 @@ export default function OpsPage() {
   const [opsList, setOpsList] = useState<OpsListItem[] | null>(null);
   const [opsListError, setOpsListError] = useState<string | null>(null);
 
-  type SectionKey = "schema" | "data" | "analysis" | "last" | "history" | "howto";
+  type SectionKey = "schema" | "data" | "analysis" | "services" | "last" | "history" | "howto";
 
   const [activeSection, setActiveSection] = useState<SectionKey>("schema");
 
@@ -484,6 +485,17 @@ export default function OpsPage() {
         { opid: "analysis:snapshot:active", label: "Snapshot Active controls", tone: "brand" as const },
         { opid: "analysis:inspect:sets", label: "Inspect Control Sets", tone: "neutral" as const },
       ],
+      services: [
+        { opid: "service:status", label: "Environment Status", tone: "neutral" as const },
+        { opid: "service:start", label: "Start (Colima)", tone: "brand" as const },
+        { opid: "service:start:docker", label: "Start (Docker Desktop)", tone: "brand" as const },
+        { opid: "service:stop", label: "Stop All", tone: "danger" as const },
+        { opid: "service:db:status", label: "DB Status", tone: "neutral" as const },
+        { opid: "service:db:start", label: "DB Start", tone: "brand" as const },
+        { opid: "service:db:stop", label: "DB Stop", tone: "danger" as const },
+        { opid: "service:db:restart", label: "DB Restart", tone: "brand" as const },
+        { opid: "service:server:status", label: "Server Status", tone: "neutral" as const },
+      ],
     };
 
     if (!opsList) return fallback;
@@ -491,6 +503,7 @@ export default function OpsPage() {
     const schema: any[] = [];
     const data: any[] = [];
     const analysis: any[] = [];
+    const services: any[] = [];
 
     for (const it of opsList) {
       const label = it.title || it.opid;
@@ -504,6 +517,14 @@ export default function OpsPage() {
         schema.push({ ...entry, tone });
       } else if (it.opid.startsWith("analysis:")) {
         analysis.push({ ...entry, tone: "brand" as const });
+      } else if (it.opid.startsWith("service:")) {
+        const tone =
+          it.opid.includes(":stop") || it.opid.includes(":restart")
+            ? ("danger" as const)
+            : it.opid.includes(":start")
+            ? ("brand" as const)
+            : ("neutral" as const);
+        services.push({ ...entry, tone });
       }
     }
 
@@ -526,8 +547,9 @@ export default function OpsPage() {
     });
 
     analysis.sort((a, b) => a.label.localeCompare(b.label));
+    services.sort((a, b) => a.label.localeCompare(b.label));
 
-    return { schema, data, analysis };
+    return { schema, data, analysis, services };
   }, [opsList]);
   useEffect(() => {
     let cancelled = false;
@@ -563,6 +585,7 @@ export default function OpsPage() {
     schema: false,
     data: true,
     analysis: true,
+    services: true,
     last: true,
     history: true,
     howto: true,
@@ -575,6 +598,7 @@ export default function OpsPage() {
       schema: true,
       data: true,
       analysis: true,
+      services: true,
       last: true,
       history: true,
       howto: true,
@@ -596,6 +620,7 @@ export default function OpsPage() {
       schema: true,
       data: true,
       analysis: true,
+      services: true,
       last: true,
       history: true,
       howto: true,
@@ -607,6 +632,7 @@ export default function OpsPage() {
       schema: false,
       data: false,
       analysis: false,
+      services: false,
       last: false,
       history: false,
       howto: false,
@@ -838,6 +864,9 @@ export default function OpsPage() {
         </div>
       </div>
 
+      {/* Health Check - Traffic Light System Status */}
+      <HealthCheck />
+
       <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1, minHeight: 0 }}>
           <div
             style={{
@@ -862,6 +891,7 @@ export default function OpsPage() {
               { key: "schema" as const, label: "Schema & migrations" },
               { key: "data" as const, label: "Data" },
               { key: "analysis" as const, label: "Analysis" },
+              { key: "services" as const, label: "Services" },
               { key: "last" as const, label: "Last run" },
               { key: "history" as const, label: "History" },
               { key: "howto" as const, label: "How to use" },
@@ -1029,6 +1059,80 @@ export default function OpsPage() {
                         </div>
                         <div style={{ fontSize: 12, color: uiColors.textMuted }}>
                           Snapshots should be one-click: ensure tags → snapshot active → inspect sets.
+                        </div>
+                      </Frame>
+                    </div>
+                  ) : null}
+
+                  {activeSection === "services" ? (
+                    <div id="sec_services">
+                      <Frame
+                        title="Services"
+                        subtitle={<span>Control database and server services (local-only). Check status before starting or stopping.</span>}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 900, color: uiColors.textLabel, marginBottom: 8 }}>
+                              Database (PostgreSQL)
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {ops.services
+                                .filter((b) => b.opid.startsWith("service:db:"))
+                                .map((b) => (
+                                  <div key={b.opid} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                                    <ActionButton
+                                      label={b.label}
+                                      tone={b.tone}
+                                      disabled={!!running}
+                                      running={running === b.opid}
+                                      title={b.opid}
+                                      onClick={() => run(b.opid)}
+                                    />
+                                    <ActionButton
+                                      label="More"
+                                      tone="neutral"
+                                      small
+                                      disabled={!!running}
+                                      title={`Plan: ${b.opid}`}
+                                      onClick={() => openPlan(b.opid)}
+                                    />
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 900, color: uiColors.textLabel, marginBottom: 8 }}>
+                              Dev Server (Next.js)
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {ops.services
+                                .filter((b) => b.opid.startsWith("service:server:"))
+                                .map((b) => (
+                                  <div key={b.opid} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                                    <ActionButton
+                                      label={b.label}
+                                      tone={b.tone}
+                                      disabled={!!running}
+                                      running={running === b.opid}
+                                      title={b.opid}
+                                      onClick={() => run(b.opid)}
+                                    />
+                                    <ActionButton
+                                      label="More"
+                                      tone="neutral"
+                                      small
+                                      disabled={!!running}
+                                      title={`Plan: ${b.opid}`}
+                                      onClick={() => openPlan(b.opid)}
+                                    />
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 12, color: uiColors.textMuted }}>
+                          Note: Server start/stop controls can't be implemented from within the running server. Use your terminal for those operations.
                         </div>
                       </Frame>
                     </div>

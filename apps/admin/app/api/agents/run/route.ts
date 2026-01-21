@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { AgentRunStatus as DbAgentRunStatus } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { resolveAgentPaths } from '@/lib/agent-paths';
 
 export const runtime = 'nodejs';
 
@@ -188,32 +191,22 @@ function loadAgentManifest(): Record<
   const repoRootGuess = path.resolve(process.cwd(), '..', '..');
   candidates.push(path.join(repoRootGuess, 'lib', 'agents.json'));
 
-  let manifestJson: string | null = null;
-
+  // Try each candidate until we find a valid manifest with agents
   for (const p of candidates) {
     try {
-      if (fs.existsSync(p)) {
-        manifestJson = fs.readFileSync(p, 'utf8');
-        break;
-      }
-    } catch {
-      // ignore
-    }
-  }
+      if (!fs.existsSync(p)) continue;
 
-  if (!manifestJson) return {};
+      const manifestJson = fs.readFileSync(p, 'utf8');
+      const parsed = JSON.parse(manifestJson);
 
-  try {
-    const parsed = JSON.parse(manifestJson);
+      if (!isPlainObject(parsed)) continue;
 
-    // Shape A: object map { [agentId]: { title, opid, settingsSchema? } }
-    if (isPlainObject(parsed)) {
-      // Shape B: { agents: [...] }
+      // Shape B: { agents: [...] } - new format with agents array
       if (Array.isArray((parsed as any).agents)) {
         const out: Record<string, any> = {};
         for (const a of (parsed as any).agents) {
           if (!a || typeof a !== 'object') continue;
-          const id = String((a as any).agentId || '').trim();
+          const id = String((a as any).agentId || (a as any).id || '').trim();
           const title = String((a as any).title || '').trim();
           const opid = String((a as any).opid || '').trim();
           if (!id || !opid) continue;
@@ -221,12 +214,18 @@ function loadAgentManifest(): Record<
             title: title || id,
             opid,
             settingsSchema: isPlainObject((a as any).settingsSchema) ? (a as any).settingsSchema : undefined,
+            settings: isPlainObject((a as any).settings) ? (a as any).settings : undefined,
           };
         }
-        return out as Record<string, { title: string; opid: string; settingsSchema?: { defaults?: Record<string, unknown> } }>;
+        // Only return if we found valid agents
+        if (Object.keys(out).length > 0) {
+          return out as Record<string, { title: string; opid: string; settingsSchema?: { defaults?: Record<string, unknown> } }>;
+        }
+        // No valid agents found, try next candidate
+        continue;
       }
 
-      // Assume it's already a map; lightly validate entries.
+      // Shape A: object map { [agentId]: { title, opid, settingsSchema? } } - old format
       const out: Record<string, any> = {};
       for (const [k, v] of Object.entries(parsed)) {
         const id = String(k || '').trim();
@@ -240,14 +239,16 @@ function loadAgentManifest(): Record<
           settingsSchema: isPlainObject((v as any).settingsSchema) ? (v as any).settingsSchema : undefined,
         };
       }
-      return out as Record<string, { title: string; opid: string; settingsSchema?: { defaults?: Record<string, unknown> } }>;
+      // Only return if we found valid agents
+      if (Object.keys(out).length > 0) {
+        return out as Record<string, { title: string; opid: string; settingsSchema?: { defaults?: Record<string, unknown> } }>;
+      }
+    } catch {
+      // ignore parse errors, try next candidate
     }
-  } catch {
-    // ignore parse errors
   }
 
-  // If we got here, parsing failed or shape unsupported.
-  // Return empty map so caller can surface "Known agents:".
+  // No valid manifest found
   return {};
 }
 
@@ -274,6 +275,110 @@ function resolveAgentIdFromManifest(manifest: Record<string, { title: string; op
   }
 
   return null;
+}
+
+/**
+ * Get published agent instance from DB, if exists.
+ * Returns settings to merge with manifest defaults.
+ */
+async function getPublishedInstance(agentId: string) {
+  try {
+    const instance = await prisma.agentInstance.findFirst({
+      where: { agentId, status: 'PUBLISHED' },
+    });
+    return instance;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Create initial running record in DB
+ */
+async function createRunningRecord(
+  agentId: string,
+  agentTitle: string,
+  opid: string,
+  instanceId: string | null,
+  dryRun: boolean
+): Promise<string | null> {
+  try {
+    const record = await prisma.agentRun.create({
+      data: {
+        agentInstanceId: instanceId,
+        agentId,
+        agentTitle,
+        opid,
+        dryRun,
+        status: 'RUNNING',
+        startedAt: new Date(),
+      },
+    });
+    return record.id;
+  } catch (err) {
+    console.error('[AgentRun DB create error]', err);
+    return null;
+  }
+}
+
+/**
+ * Update run record with final status
+ */
+async function updateRunRecord(
+  runId: string | null,
+  status: 'OK' | 'ERROR',
+  data: {
+    finishedAt: Date;
+    summary?: string;
+    stdout?: string;
+    stderr?: string;
+    artifacts?: any;
+  }
+) {
+  if (!runId) return;
+  try {
+    await prisma.agentRun.update({
+      where: { id: runId },
+      data: {
+        status,
+        finishedAt: data.finishedAt,
+        summary: data.summary,
+        stdout: data.stdout,
+        stderr: data.stderr,
+        artifacts: data.artifacts ?? [],
+      },
+    });
+  } catch (err) {
+    console.error('[AgentRun DB update error]', err);
+  }
+}
+
+/**
+ * Persist run to database (in addition to JSONL for backwards compat)
+ * Legacy function for error cases
+ */
+async function persistRunToDb(run: AgentRun, instanceId: string | null) {
+  try {
+    await prisma.agentRun.create({
+      data: {
+        agentInstanceId: instanceId,
+        agentId: run.agentId,
+        agentTitle: run.agentTitle,
+        opid: run.opid,
+        dryRun: run.dryRun ?? false,
+        status: run.status === 'ok' ? 'OK' : run.status === 'error' ? 'ERROR' : 'RUNNING',
+        startedAt: new Date(run.startedAt),
+        finishedAt: run.finishedAt ? new Date(run.finishedAt) : null,
+        summary: run.summary,
+        stdout: run.stdout,
+        stderr: run.stderr,
+        artifacts: run.artifacts ?? [],
+      },
+    });
+  } catch (err) {
+    console.error('[AgentRun DB persist error]', err);
+    // Don't throw - JSONL is the fallback
+  }
 }
 
 export async function GET() {
@@ -337,16 +442,48 @@ export async function POST(req: Request) {
     const opid = spec.opid;
     const agentTitle = spec.title;
 
-    // Build ops body; merge defaults from manifest settingsSchema with request body overrides, plus dryRun.
-    const defaults = spec.settingsSchema?.defaults ?? {};
-    // Exclude agentId and dryRun from overrides to avoid conflicts
-    const overrides: Record<string, unknown> = { ...(parsedBody as any) };
-    delete (overrides as any).agentId;
-    delete (overrides as any).id;
-    delete (overrides as any).name;
-    delete (overrides as any).title;
-    delete (overrides as any).dryRun;
-    const opsBody = { ...defaults, ...overrides, dryRun };
+    // Check for published instance in DB - use its settings if available
+    const publishedInstance = await getPublishedInstance(agentId);
+    const instanceSettings = publishedInstance?.settings as Record<string, unknown> | null;
+
+    // Build ops body with path resolution:
+    // 1. Manifest defaults (from settingsSchema)
+    // 2. System paths (from paths.json via pathRef in settingsSchema)
+    // 3. Published instance settings (including path_override values)
+    // 4. Request body overrides
+
+    // Support both flat body and nested { settings: {...} } format
+    const settingsFromBody = isPlainObject((parsedBody as any).settings)
+      ? (parsedBody as any).settings
+      : {};
+
+    // Also support flat settings in body (legacy compatibility)
+    const flatOverrides: Record<string, unknown> = { ...(parsedBody as any) };
+    delete (flatOverrides as any).agentId;
+    delete (flatOverrides as any).id;
+    delete (flatOverrides as any).name;
+    delete (flatOverrides as any).title;
+    delete (flatOverrides as any).dryRun;
+    delete (flatOverrides as any).settings; // remove the nested settings key
+
+    // Merge instance settings with request overrides
+    const mergedInstanceSettings = { ...(instanceSettings || {}), ...flatOverrides, ...settingsFromBody };
+
+    // Resolve paths: manifest defaults + system paths + instance overrides
+    // This handles $ref to pathSettings in settingsSchema
+    const resolvedSettings = resolveAgentPaths(agentId, mergedInstanceSettings);
+
+    // Final ops body with dryRun flag
+    const opsBody = { ...resolvedSettings, dryRun };
+
+    // Create initial RUNNING record in DB so it shows in the cockpit
+    const dbRunId = await createRunningRecord(
+      agentId,
+      agentTitle,
+      opid,
+      publishedInstance?.id ?? null,
+      dryRun
+    );
 
     // Build absolute URL to Ops endpoint using the incoming request URL as base.
     const base = new URL(req.url);
@@ -362,6 +499,7 @@ export async function POST(req: Request) {
     const opsJson = await safeReadOpsResult(opsRes);
 
     const finishedAt = new Date().toISOString();
+    const finalStatus = opsJson && opsJson.ok ? 'ok' : 'error';
 
     const run: AgentRun = {
       id,
@@ -369,7 +507,7 @@ export async function POST(req: Request) {
       agentTitle,
       startedAt,
       finishedAt,
-      status: opsJson && opsJson.ok ? 'ok' : 'error',
+      status: finalStatus,
       summary:
         opsJson && opsJson.ok
           ? `${agentTitle} completed${dryRun ? ' (dry-run)' : ''}`
@@ -384,13 +522,22 @@ export async function POST(req: Request) {
       ],
     };
 
-    // Persist
+    // Persist to JSONL (legacy)
     try {
       appendRun(run);
       pruneRunsIfNeeded();
     } catch {
-      // If persistence fails, still return the run result to the UI.
+      // If JSONL persistence fails, still return the run result to the UI.
     }
+
+    // Update DB record with final status
+    await updateRunRecord(dbRunId, finalStatus === 'ok' ? 'OK' : 'ERROR', {
+      finishedAt: new Date(finishedAt),
+      summary: run.summary,
+      stdout: run.stdout,
+      stderr: run.stderr,
+      artifacts: run.artifacts,
+    });
 
     return NextResponse.json({
       ok: true,
@@ -398,6 +545,9 @@ export async function POST(req: Request) {
       ops: opsJson,
       meta: {
         runsFile: runsFilePath(),
+        usedPublishedInstance: !!publishedInstance,
+        instanceId: publishedInstance?.id,
+        instanceVersion: publishedInstance?.version,
       },
     });
   } catch (err: any) {
@@ -424,6 +574,9 @@ export async function POST(req: Request) {
     } catch {
       // ignore
     }
+
+    // Also persist error to DB
+    await persistRunToDb(run, null);
 
     return NextResponse.json({ ok: false, error: err?.message || 'Run failed' }, { status: 500 });
   }

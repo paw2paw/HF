@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AgentCard } from '@/components/agents/AgentCard';
 
 type AgentId = string;
 
@@ -41,6 +42,8 @@ type JsonSchema = {
   properties?: Record<string, JsonSchema>;
   items?: JsonSchema;
   required?: string[];
+  minimum?: number;
+  maximum?: number;
 };
 
 type AgentConfig = {
@@ -849,198 +852,35 @@ export default function AgentsPage() {
             </div>
           ) : null}
 
-          <div className="mt-8 overflow-hidden rounded-lg border border-neutral-200 bg-white">
-            <div className="p-6">
-              <table className="w-full text-sm">
-                <thead className="bg-neutral-50 border-b border-neutral-200">
-                  <tr>
-                    <th className="text-left font-semibold text-neutral-800 px-6 py-4 w-[110px]">Enabled</th>
-                    <th className="text-left font-semibold text-neutral-800 px-6 py-4 w-[220px]">Agent</th>
-                    <th className="text-left font-semibold text-neutral-800 px-6 py-4">Description</th>
-                    <th className="text-left font-semibold text-neutral-800 px-6 py-4 w-[160px]">Status</th>
-                    <th className="text-right font-semibold text-neutral-800 px-6 py-4 w-[220px]">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                {agentRows.map(({ agent }, idx) => {
-                  const busy = runningId === agent.agentId;
-                  const rowKey = (String(agent.agentId || '').trim() || `${(agent.title || 'agent').trim()}:${idx}`);
-                  return (
-                    <tr
-                      key={rowKey}
-                      className="border-b last:border-b-0 align-top hover:bg-neutral-50 transition-colors"
-                    >
-                      <td className="px-6 py-4 align-top">
-                        <div className="flex items-center gap-2">
-                          <Toggle checked={agent.enabled} onChange={(v) => updateAgent(agent.agentId, { enabled: v })} />
-                          {agent.enabled ? <StatusPill status="enabled" /> : <StatusPill status="disabled" />}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 align-top">
-                        <div className="font-semibold text-neutral-900">{agent.title}</div>
-                        <div className="text-xs font-mono text-neutral-800 mt-1">{agent.agentId}</div>
-                      </td>
-
-                      <td className="px-6 py-4 align-top">
-                        <div className="text-neutral-800 leading-relaxed">{agent.description}</div>
-
-                        <div className="mt-4">
-                          <div className="text-xs font-medium text-neutral-800 mb-2">Settings</div>
-
-                          {agent.schema && isPlainObject(agent.schema.properties) ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {Object.entries(agent.schema.properties)
-                                .map(([k, sch]) => ({
-                                  key: k,
-                                  schema: sch,
-                                  label: schemaFieldLabel(k, sch),
-                                }))
-                                .sort((a, b) => a.label.localeCompare(b.label))
-                                .map(({ key: k, schema: sch, label }) => {
-                                  const uiType = schemaUiType(sch);
-                                  const value = schemaEffectiveValue(agent.settings, k, sch);
-                                  const desc = (sch?.description || '').trim();
-
-                                  if (uiType === 'boolean') {
-                                    return (
-                                      <label key={k} className="block">
-                                        <div className="text-xs font-medium text-neutral-800 mb-1">{label}</div>
-                                        <div className="flex items-center gap-2">
-                                          <Toggle checked={Boolean(value)} onChange={(next) => updateAgent(agent.agentId, { settings: { [k]: next } })} />
-                                          <span className="text-xs text-neutral-700">{Boolean(value) ? 'true' : 'false'}</span>
-                                        </div>
-                                        {desc ? <div className="mt-1 text-[11px] text-neutral-600">{desc}</div> : null}
-                                      </label>
-                                    );
-                                  }
-
-                                  if (uiType === 'number') {
-                                    return (
-                                      <div key={k} className="block">
-                                        <NumberField
-                                          label={label}
-                                          value={typeof value === 'number' ? value : undefined}
-                                          placeholder={typeof sch?.default === 'number' ? String(sch.default) : undefined}
-                                          onChange={(next) => updateAgent(agent.agentId, { settings: { [k]: next } })}
-                                        />
-                                        {desc ? <div className="mt-1 text-[11px] text-neutral-600">{desc}</div> : null}
-                                      </div>
-                                    );
-                                  }
-
-                                  if (uiType === 'string') {
-                                    return (
-                                      <div key={k} className="block">
-                                        <TextField
-                                          label={label}
-                                          value={typeof value === 'string' ? value : String(value ?? '')}
-                                          placeholder={typeof sch?.default === 'string' ? String(sch.default) : undefined}
-                                          onChange={(next) => updateAgent(agent.agentId, { settings: { [k]: next } })}
-                                        />
-                                        {desc ? <div className="mt-1 text-[11px] text-neutral-600">{desc}</div> : null}
-                                      </div>
-                                    );
-                                  }
-
-                                  if (uiType === 'enum') {
-                                    const opts = (sch?.enum || []).map((x) => {
-                                      const v = String(x);
-                                      return { value: v, label: v };
-                                    });
-                                    const current = typeof value === 'string' ? value : value == null ? '' : String(value);
-                                    const safeValue = opts.some((o) => o.value === current) ? current : (opts[0]?.value ?? '');
-
-                                    return (
-                                      <div key={k} className="block">
-                                        <SelectField
-                                          label={label}
-                                          value={safeValue}
-                                          options={opts}
-                                          onChange={(next) => updateAgent(agent.agentId, { settings: { [k]: next } })}
-                                        />
-                                        {desc ? <div className="mt-1 text-[11px] text-neutral-600">{desc}</div> : null}
-                                      </div>
-                                    );
-                                  }
-
-                                  // json fallback for object/array/unknown
-                                  return (
-                                    <label key={k} className="block md:col-span-2">
-                                      <div className="text-xs font-medium text-neutral-800 mb-1">{label}</div>
-                                      <textarea
-                                        value={stableStringify(value)}
-                                        onChange={(e) => {
-                                          const raw = e.target.value;
-                                          try {
-                                            const parsed = JSON.parse(raw);
-                                            updateAgent(agent.agentId, { settings: { [k]: parsed } });
-                                          } catch {
-                                            // ignore invalid JSON edits
-                                          }
-                                        }}
-                                        className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                                        rows={4}
-                                      />
-                                      <div className="mt-1 text-[11px] text-neutral-600">
-                                        {desc ? `${desc} ` : ''}Edit as JSON (must be valid to apply).
-                                      </div>
-                                    </label>
-                                  );
-                                })}
-                            </div>
-                          ) : (
-                            <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
-                              <div className="text-xs text-neutral-800 font-medium">No schema provided for this agent.</div>
-                              <div className="mt-1 text-xs text-neutral-700">Settings are shown as raw JSON.</div>
-                              <pre className="mt-3 text-xs bg-white border border-neutral-200 rounded-md p-3 overflow-auto max-h-64 text-neutral-900">
-                                {stableStringify(agent.settings ?? {})}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 align-top">
-                        {busy ? <StatusPill status="running" /> : <span className="text-xs italic text-neutral-500">—</span>}
-                      </td>
-
-                      <td className="px-6 py-4 align-top">
-                        <div className="flex justify-end gap-3">
-                          <IconButton
-                            title="Run (execute)"
-                            disabled={!agent.enabled || busy || !String(agent.agentId || '').trim()}
-                            onClick={() => runAgent(agent.agentId, false)}
-                          >
-                            Run
-                          </IconButton>
-                          <IconButton
-                            title="Dry-run (plan only)"
-                            disabled={!agent.enabled || busy || !String(agent.agentId || '').trim()}
-                            onClick={() => runAgent(agent.agentId, true)}
-                          >
-                            Dry-run
-                          </IconButton>
-                          <IconButton title="History" onClick={() => openHistory(agent)}>
-                            History
-                          </IconButton>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {!agentRows.length ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-600">
-                      {loading ? 'Loading…' : 'No agents configured.'}
-                    </td>
-                  </tr>
-                ) : null}
-                </tbody>
-              </table>
-            </div>
+          {/* Agent Cards Grid */}
+          <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {agentRows.map(({ agent }, idx) => {
+              const busy = runningId === agent.agentId;
+              const cardKey = (String(agent.agentId || '').trim() || `${(agent.title || 'agent').trim()}:${idx}`);
+              return (
+                <AgentCard
+                  key={cardKey}
+                  agent={agent}
+                  onUpdate={(patch) => updateAgent(agent.agentId, patch)}
+                  onRun={(dryRun) => runAgent(agent.agentId, dryRun)}
+                  onViewHistory={() => openHistory(agent)}
+                  isRunning={busy}
+                />
+              );
+            })}
           </div>
+
+          {!agentRows.length && !loading ? (
+            <div className="mt-8 rounded-lg border border-neutral-200 bg-white p-10 text-center text-sm text-gray-600">
+              No agents configured.
+            </div>
+          ) : null}
+
+          {loading ? (
+            <div className="mt-8 rounded-lg border border-neutral-200 bg-white p-10 text-center text-sm text-gray-600">
+              Loading agents...
+            </div>
+          ) : null}
 
           <div className="mt-8 overflow-hidden rounded-lg border border-neutral-200 bg-white">
             <div className="border-b border-neutral-200 px-6 py-6">

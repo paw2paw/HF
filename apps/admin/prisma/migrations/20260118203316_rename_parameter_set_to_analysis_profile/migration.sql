@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "ParameterSet" ADD COLUMN     "description" TEXT,
+ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

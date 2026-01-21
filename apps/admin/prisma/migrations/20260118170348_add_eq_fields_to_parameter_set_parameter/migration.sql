@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "ParameterSetParameter" ADD COLUMN     "biasValue" DOUBLE PRECISION,
+ADD COLUMN     "enabled" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "thresholdHigh" DOUBLE PRECISION,
+ADD COLUMN     "thresholdLow" DOUBLE PRECISION,
+ADD COLUMN     "weight" DOUBLE PRECISION NOT NULL DEFAULT 1.0;
