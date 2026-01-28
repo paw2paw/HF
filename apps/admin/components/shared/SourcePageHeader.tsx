@@ -27,10 +27,11 @@ type RunFeedback = {
   message?: string;
 };
 
-interface SourcePageHeaderProps {
+export interface SourcePageHeaderProps {
   title: string;
   description: string;
-  dataNodeId: string;
+  /** Data node ID for fetching related agents (optional - if omitted, agents bar won't show) */
+  dataNodeId?: string;
   /** Optional icon (emoji or similar) */
   icon?: string;
   /** Optional count to display */
@@ -64,8 +65,12 @@ export function SourcePageHeader({
   const [loading, setLoading] = useState(true);
   const [runFeedback, setRunFeedback] = useState<RunFeedback | null>(null);
 
-  // Fetch agents for this data node
+  // Fetch agents for this data node (only if dataNodeId provided)
   useEffect(() => {
+    if (!dataNodeId) {
+      setLoading(false);
+      return;
+    }
     fetch(`/api/agents/by-data-node?dataNode=${encodeURIComponent(dataNodeId)}`)
       .then((res) => res.json())
       .then((data) => {
@@ -81,7 +86,7 @@ export function SourcePageHeader({
 
   // Run an agent
   const handleRunAgent = useCallback(async (agent: AgentInfo) => {
-    if (!agent.agentId || runFeedback?.state === "running") return;
+    if (!agent.agentId || runFeedback?.state === "running" || !dataNodeId) return;
 
     setRunFeedback({ agentId: agent.agentId, state: "running" });
 

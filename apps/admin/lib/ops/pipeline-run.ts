@@ -3,20 +3,28 @@
  *
  * End-to-End Pipeline Operation
  *
- * Chains together all the analysis operations:
+ * Chains together all the analysis operations in the adaptive loop:
+ *
+ * LEARN PHASE (after call):
  * 1. Process transcripts → Call + Caller records
- * 2. Analyze personality → CallScore + CallerPersonality
- * 3. Extract memories → CallerMemory + CallerMemorySummary
- * 4. Generate prompts → Ready for LLM use
+ * 2. Measure caller → CallScore (personality traits)
+ * 3. Learn from call → CallerMemory + CallerPersonality
+ *
+ * ADAPT PHASE (before next call):
+ * 4. Measure agent → BehaviorMeasurement (what agent actually did)
+ * 5. Compute reward → RewardScore (target vs actual)
+ * 6. Compose prompt → ComposedPrompt (for next call)
  *
  * This provides a single operation that takes raw transcripts and produces
- * prompt-ready caller profiles.
+ * prompt-ready caller profiles with adaptive learning.
  */
 
 import { PrismaClient } from "@prisma/client";
 import { processTranscripts } from "./transcripts-process";
 import { analyzePersonality } from "./personality-analyze";
 import { extractMemories } from "./memory-extract";
+import { measureAgent } from "./measure-agent";
+import { computeReward } from "./compute-reward";
 
 const prisma = new PrismaClient();
 
@@ -26,10 +34,13 @@ export interface PipelineOptions {
   mock?: boolean;              // Use mock scoring/extraction
   filepath?: string;           // Process specific transcript file
   callerId?: string;           // Process specific caller only
+  callId?: string;             // Process specific call only
   limit?: number;              // Max calls to process per step
   skipTranscripts?: boolean;   // Skip transcript processing
-  skipPersonality?: boolean;   // Skip personality analysis
-  skipMemory?: boolean;        // Skip memory extraction
+  skipPersonality?: boolean;   // Skip personality analysis (MEASURE caller)
+  skipMemory?: boolean;        // Skip memory extraction (LEARN)
+  skipAgentMeasure?: boolean;  // Skip agent behavior measurement
+  skipReward?: boolean;        // Skip reward computation
   generatePrompts?: boolean;   // Generate prompts after analysis
 }
 
@@ -54,6 +65,17 @@ export interface PipelineResult {
       memoriesStored: number;
       errors: string[];
     };
+    agentMeasure?: {
+      callsAnalyzed: number;
+      measurementsCreated: number;
+      specsUsed: number;
+      errors: string[];
+    };
+    reward?: {
+      callsProcessed: number;
+      rewardsComputed: number;
+      errors: string[];
+    };
     prompts?: {
       callersProcessed: number;
       promptsGenerated: number;
@@ -64,6 +86,8 @@ export interface PipelineResult {
     totalCallers: number;
     callersWithPersonality: number;
     callersWithMemories: number;
+    callsWithMeasurements: number;
+    callsWithRewards: number;
     callersReadyForPrompts: number;
   };
   errors: string[];
@@ -78,10 +102,13 @@ export async function runPipeline(
     mock = true,
     filepath,
     callerId,
+    callId,
     limit = 100,
     skipTranscripts = false,
     skipPersonality = false,
     skipMemory = false,
+    skipAgentMeasure = false,
+    skipReward = false,
     generatePrompts = true,
   } = options;
 
@@ -92,6 +119,8 @@ export async function runPipeline(
       totalCallers: 0,
       callersWithPersonality: 0,
       callersWithMemories: 0,
+      callsWithMeasurements: 0,
+      callsWithRewards: 0,
       callersReadyForPrompts: 0,
     },
     errors: [],
@@ -99,35 +128,55 @@ export async function runPipeline(
 
   if (plan) {
     console.log("\n📋 PIPELINE PLAN\n");
-    console.log("This operation chains multiple analysis steps:\n");
+    console.log("This operation chains the adaptive learning loop:\n");
+    console.log("═══════════════════════════════════════════════════════════");
+    console.log("LEARN PHASE (understand the caller)\n");
 
     if (!skipTranscripts) {
       console.log("1️⃣  TRANSCRIPTS:PROCESS");
       console.log("   - Scan for JSON files in HF_KB_PATH/sources/transcripts/");
-      console.log("   - Extract calls and create User records");
-      console.log("   - Output: Call + User records in database\n");
+      console.log("   - Extract calls and create Caller records");
+      console.log("   - Output: Call + Caller records in database\n");
     }
 
     if (!skipPersonality) {
-      console.log("2️⃣  PERSONALITY:ANALYZE");
+      console.log("2️⃣  MEASURE CALLER (personality:analyze)");
       console.log("   - Load MEASURE-type AnalysisSpecs");
       console.log("   - Score each call against specs");
       console.log(`   - Mode: ${mock ? "MOCK (pattern-based)" : "LLM (real scoring)"}`);
-      console.log("   - Output: CallScore + UserPersonality records\n");
+      console.log("   - Output: CallScore + CallerPersonality records\n");
     }
 
     if (!skipMemory) {
-      console.log("3️⃣  MEMORY:EXTRACT");
+      console.log("3️⃣  LEARN (memory:extract)");
       console.log("   - Load LEARN-type AnalysisSpecs");
       console.log("   - Extract key-value memories from transcripts");
       console.log(`   - Mode: ${mock ? "MOCK (pattern-based)" : "LLM (real extraction)"}`);
-      console.log("   - Output: UserMemory + UserMemorySummary records\n");
+      console.log("   - Output: CallerMemory + CallerMemorySummary records\n");
+    }
+
+    console.log("═══════════════════════════════════════════════════════════");
+    console.log("ADAPT PHASE (improve the agent)\n");
+
+    if (!skipAgentMeasure) {
+      console.log("4️⃣  MEASURE AGENT (agent:measure)");
+      console.log("   - Load MEASURE_AGENT-type AnalysisSpecs");
+      console.log("   - Score what the agent actually did in each call");
+      console.log(`   - Mode: ${mock ? "MOCK (pattern-based)" : "LLM (real scoring)"}`);
+      console.log("   - Output: BehaviorMeasurement records\n");
+    }
+
+    if (!skipReward) {
+      console.log("5️⃣  COMPUTE REWARD (reward:compute)");
+      console.log("   - Compare BehaviorMeasurement vs BehaviorTarget");
+      console.log("   - Calculate delta (gap between target and actual)");
+      console.log("   - Output: RewardScore records\n");
     }
 
     if (generatePrompts) {
-      console.log("4️⃣  PROMPT GENERATION (Ready)");
-      console.log("   - Users now have personality + memories");
-      console.log("   - Call GET /api/prompt/generate to see available users");
+      console.log("6️⃣  COMPOSE PROMPT (Ready for prompt composition)");
+      console.log("   - Callers now have personality + memories + targets");
+      console.log("   - Call POST /api/callers/{id}/compose-prompt to generate");
       console.log("   - Call POST /api/prompt/generate { callerId: '...' } to generate\n");
     }
 
@@ -225,24 +274,74 @@ export async function runPipeline(
       }
     }
 
-    // Stage 4: Summary & Prompt Readiness
+    // Stage 4: Agent Measurement
+    if (!skipAgentMeasure) {
+      console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("4️⃣  MEASURING AGENT BEHAVIOR\n");
+
+      const agentResult = await measureAgent({
+        verbose,
+        mock,
+        callId,
+        limit,
+      });
+
+      result.stages.agentMeasure = {
+        callsAnalyzed: agentResult.callsAnalyzed,
+        measurementsCreated: agentResult.measurementsCreated,
+        specsUsed: agentResult.specsUsed,
+        errors: agentResult.errors,
+      };
+
+      if (agentResult.errors.length > 0) {
+        result.errors.push(...agentResult.errors.map((e) => `[agent-measure] ${e}`));
+      }
+    }
+
+    // Stage 5: Reward Computation
+    if (!skipReward) {
+      console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("5️⃣  COMPUTING REWARDS\n");
+
+      const rewardResult = await computeReward({
+        verbose,
+        callId,
+        limit,
+      });
+
+      result.stages.reward = {
+        callsProcessed: rewardResult.callsProcessed,
+        rewardsComputed: rewardResult.rewardsCreated,
+        errors: rewardResult.errors,
+      };
+
+      if (rewardResult.errors.length > 0) {
+        result.errors.push(...rewardResult.errors.map((e) => `[reward] ${e}`));
+      }
+    }
+
+    // Stage 6: Summary & Prompt Readiness
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("4️⃣  CHECKING PROMPT READINESS\n");
+    console.log("6️⃣  CHECKING PROMPT READINESS\n");
 
     // Get summary counts
-    const [totalCallers, callersWithPersonality, callersWithMemories] = await Promise.all([
+    const [
+      totalCallers,
+      callersWithPersonality,
+      callersWithMemoriesCount,
+      callsWithMeasurements,
+      callsWithRewards,
+    ] = await Promise.all([
       prisma.caller.count(),
       prisma.callerPersonality.count(),
-      prisma.callerMemory.count({
+      prisma.callerMemory.groupBy({
+        by: ["callerId"],
         where: { supersededById: null },
-      }).then(async () => {
-        // Count distinct callers with memories
-        const callers = await prisma.callerMemory.groupBy({
-          by: ["callerId"],
-          where: { supersededById: null },
-        });
-        return callers.length;
-      }),
+      }).then(callers => callers.length),
+      prisma.behaviorMeasurement.groupBy({
+        by: ["callId"],
+      }).then(calls => calls.length),
+      prisma.rewardScore.count(),
     ]);
 
     // Callers ready for prompts = have both personality AND memories
@@ -257,7 +356,9 @@ export async function runPipeline(
     result.summary = {
       totalCallers,
       callersWithPersonality,
-      callersWithMemories,
+      callersWithMemories: callersWithMemoriesCount,
+      callsWithMeasurements,
+      callsWithRewards,
       callersReadyForPrompts: readyCallers.length,
     };
 
@@ -277,7 +378,7 @@ export async function runPipeline(
       }
 
       console.log("\n   To generate prompts:");
-      console.log("   POST /api/prompt/generate { \"callerId\": \"<caller-id>\" }");
+      console.log("   POST /api/callers/{callerId}/compose-prompt");
     } else if (readyCallers.length === 0) {
       console.log("   ⚠️  No callers ready for prompts yet");
       console.log("      Need: personality scores + memories");
@@ -291,7 +392,9 @@ export async function runPipeline(
     console.log(`   Duration: ${duration}s`);
     console.log(`   Total callers: ${totalCallers}`);
     console.log(`   With personality: ${callersWithPersonality}`);
-    console.log(`   With memories: ${callersWithMemories}`);
+    console.log(`   With memories: ${callersWithMemoriesCount}`);
+    console.log(`   Calls with agent measurements: ${callsWithMeasurements}`);
+    console.log(`   Calls with reward scores: ${callsWithRewards}`);
     console.log(`   Ready for prompts: ${readyCallers.length}`);
 
     if (result.errors.length > 0) {

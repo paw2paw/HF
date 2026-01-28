@@ -129,6 +129,7 @@ type CallerData = {
   };
 };
 
+// Memory category colors - matches MEMORY_CATEGORY_META in lib/constants.ts
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   FACT: { bg: "#dbeafe", text: "#2563eb" },
   PREFERENCE: { bg: "#fef3c7", text: "#d97706" },
@@ -146,7 +147,7 @@ const TRAIT_INFO = {
   neuroticism: { label: "Neuroticism", color: "#8b5cf6", desc: "Emotional instability, anxiety, moodiness" },
 };
 
-type SectionId = "overview" | "calls" | "transcripts" | "memories" | "personality" | "scores" | "targets" | "agent-behavior" | "prompt-prep" | "prompts";
+type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "targets" | "agent-behavior" | "prompt-prep" | "prompts";
 
 type ComposedPrompt = {
   id: string;
@@ -167,7 +168,7 @@ export default function CallerDetailPage() {
   const [data, setData] = useState<CallerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<SectionId>("overview");
+  const [activeSection, setActiveSection] = useState<SectionId | null>(null);
 
   // Expanded states
   const [expandedCall, setExpandedCall] = useState<string | null>(null);
@@ -316,15 +317,14 @@ export default function CallerDetailPage() {
   }
 
   const sections: { id: SectionId; label: string; icon: string; count?: number }[] = [
-    { id: "overview", label: "Overview", icon: "📊" },
     { id: "calls", label: "Calls", icon: "📞", count: data.counts.calls },
-    { id: "transcripts", label: "Transcripts", icon: "📜", count: data.counts.calls },
-    { id: "memories", label: "Memories", icon: "💭", count: data.counts.memories },
+    { id: "transcripts", label: "Trans", icon: "📜", count: data.counts.calls },
+    { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories },
     { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0 },
-    { id: "personality", label: "Personality", icon: "🧠", count: data.counts.observations },
+    { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations },
     { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0 },
-    { id: "agent-behavior", label: "Agent Behavior", icon: "🤖", count: data.counts.measurements || 0 },
-    { id: "prompt-prep", label: "Prompt Prep", icon: "✨" },
+    { id: "agent-behavior", label: "Agent", icon: "🤖", count: data.counts.measurements || 0 },
+    { id: "prompt-prep", label: "Prep", icon: "✨" },
     { id: "prompts", label: "Prompts", icon: "📝", count: data.counts.prompts },
   ];
 
@@ -448,16 +448,16 @@ export default function CallerDetailPage() {
       </div>
 
       {/* Section Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 24, borderBottom: "1px solid #e5e7eb", paddingBottom: 0 }}>
+      <div style={{ display: "flex", gap: 2, marginBottom: 24, borderBottom: "1px solid #e5e7eb", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto" }}>
         {sections.map((section) => (
           <button
             key={section.id}
             onClick={() => setActiveSection(section.id)}
             style={{
-              padding: "12px 20px",
+              padding: "10px 12px",
               border: "none",
               background: "none",
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: activeSection === section.id ? 600 : 400,
               color: activeSection === section.id ? "#4f46e5" : "#6b7280",
               cursor: "pointer",
@@ -465,18 +465,19 @@ export default function CallerDetailPage() {
               marginBottom: -1,
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 4,
+              whiteSpace: "nowrap",
             }}
           >
-            <span>{section.icon}</span>
+            <span style={{ fontSize: 12 }}>{section.icon}</span>
             {section.label}
-            {section.count !== undefined && (
+            {section.count !== undefined && section.count > 0 && (
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   background: activeSection === section.id ? "#e0e7ff" : "#f3f4f6",
                   color: activeSection === section.id ? "#4f46e5" : "#6b7280",
-                  padding: "2px 6px",
+                  padding: "1px 5px",
                   borderRadius: 10,
                 }}
               >
@@ -488,7 +489,7 @@ export default function CallerDetailPage() {
       </div>
 
       {/* Section Content */}
-      {activeSection === "overview" && (
+      {activeSection === null && (
         <OverviewSection data={data} onNavigate={setActiveSection} />
       )}
 
@@ -562,7 +563,7 @@ function OverviewSection({
   onNavigate,
 }: {
   data: CallerData;
-  onNavigate: (section: SectionId) => void;
+  onNavigate: (section: SectionId | null) => void;
 }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>

@@ -575,7 +575,6 @@ async function main() {
     where: { slug: { in: oldSlugs } },
     data: {
       isActive: false,
-      description: prisma.raw ? undefined : undefined, // Can't easily append, so just deactivate
     },
   });
 

@@ -27,6 +27,7 @@
  */
 
 import { PrismaClient, MemoryCategory } from "@prisma/client";
+import { getMemoriesByCategory } from "@/lib/constants";
 
 const prisma = new PrismaClient();
 
@@ -244,16 +245,10 @@ function buildTemplateData(
           lowLabel: "Low",
         },
 
-    // Memories
+    // Memories - grouped using centralized helper
     memories: {
       all: memories || [],
-      facts: memories?.filter((m) => m.category === "FACT") || [],
-      preferences: memories?.filter((m) => m.category === "PREFERENCE") || [],
-      events: memories?.filter((m) => m.category === "EVENT") || [],
-      topics: memories?.filter((m) => m.category === "TOPIC") || [],
-      relationships:
-        memories?.filter((m) => m.category === "RELATIONSHIP") || [],
-      context: memories?.filter((m) => m.category === "CONTEXT") || [],
+      ...getMemoriesByCategory(memories || []),
     },
     hasMemories: memories && memories.length > 0,
 

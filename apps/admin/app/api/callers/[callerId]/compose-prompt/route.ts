@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAICompletion, AIEngine, getDefaultEngine } from "@/lib/ai/client";
 import { renderTemplate } from "@/lib/prompt/PromptTemplateCompiler";
+import { getMemoriesByCategory } from "@/lib/constants";
 
 export const runtime = "nodejs";
 
@@ -330,15 +331,8 @@ export async function POST(
           }
         })(),
 
-        // Memories organized by type
-        memories: {
-          facts: memories.filter(m => m.category === "FACT").slice(0, memoriesPerCategory),
-          preferences: memories.filter(m => m.category === "PREFERENCE").slice(0, memoriesPerCategory),
-          events: memories.filter(m => m.category === "EVENT").slice(0, memoriesPerCategory),
-          topics: memories.filter(m => m.category === "TOPIC").slice(0, memoriesPerCategory),
-          relationships: memories.filter(m => m.category === "RELATIONSHIP").slice(0, memoriesPerCategory),
-          context: memories.filter(m => m.category === "CONTEXT").slice(0, memoriesPerCategory),
-        },
+        // Memories organized by type - using centralized helper
+        memories: getMemoriesByCategory(memories, memoriesPerCategory),
         hasMemories: memories.length > 0,
 
         // Also include the plain text context as fallback
