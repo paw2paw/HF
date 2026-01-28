@@ -152,6 +152,7 @@ type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores"
 type ComposedPrompt = {
   id: string;
   prompt: string;
+  llmPrompt: Record<string, any> | null;  // LLM-friendly structured JSON version
   triggerType: string;
   triggerCallId: string | null;
   model: string | null;
@@ -285,9 +286,9 @@ export default function CallerDetailPage() {
     }
   };
 
-  // Fetch prompts when switching to prompts tab
+  // Fetch prompts when switching to prompts or LLM tab
   useEffect(() => {
-    if (activeSection === "prompts" && composedPrompts.length === 0) {
+    if ((activeSection === "prompts" || activeSection === "prompt-prep") && composedPrompts.length === 0) {
       fetchPrompts();
     }
   }, [activeSection, fetchPrompts, composedPrompts.length]);
@@ -324,8 +325,8 @@ export default function CallerDetailPage() {
     { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations },
     { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0 },
     { id: "agent-behavior", label: "Agent", icon: "🤖", count: data.counts.measurements || 0 },
-    { id: "prompt-prep", label: "Prep", icon: "✨" },
-    { id: "prompts", label: "Prompts", icon: "📝", count: data.counts.prompts },
+    { id: "prompt-prep", label: "LLM", icon: "🤖" },
+    { id: "prompts", label: "History", icon: "📝", count: data.counts.prompts },
   ];
 
   return (
@@ -552,7 +553,15 @@ export default function CallerDetailPage() {
         />
       )}
 
-      {activeSection === "prompt-prep" && <PromptSection identities={data.identities} caller={data.caller} memories={data.memories} />}
+      {activeSection === "prompt-prep" && (
+        <LlmPromptSection
+          prompts={composedPrompts}
+          loading={promptsLoading}
+          composing={composing}
+          onCompose={handleComposePrompt}
+          onRefresh={fetchPrompts}
+        />
+      )}
     </div>
   );
 }
@@ -1666,8 +1675,8 @@ function CallDetailPanel({
     { id: "personality", label: "Personality", count: personalityObservation ? 1 : 0 },
     { id: "targets", label: "Targets", count: effectiveTargets.length },
     { id: "measurements", label: "Agent Behavior", count: measurements.length },
-    { id: "prompt-prep", label: "Prompt Prep", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
-    { id: "prompt", label: "Prompt", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
+    { id: "prompt-prep", label: "LLM Prompt", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
+    { id: "prompt", label: "AI Generated", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
   ];
 
   return (
@@ -3839,7 +3848,365 @@ function PromptsSection({
   );
 }
 
-// Prompt Prep Section
+// LLM Prompt Section - displays the structured JSON prompt for AI consumption
+function LlmPromptSection({
+  prompts,
+  loading,
+  composing,
+  onCompose,
+  onRefresh,
+}: {
+  prompts: ComposedPrompt[];
+  loading: boolean;
+  composing: boolean;
+  onCompose: () => void;
+  onRefresh: () => void;
+}) {
+  const [viewMode, setViewMode] = useState<"pretty" | "raw">("pretty");
+
+  // Get the most recent active prompt
+  const activePrompt = prompts.find((p) => p.status === "active") || prompts[0];
+
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading LLM prompt...</div>
+    );
+  }
+
+  if (!activePrompt || !activePrompt.llmPrompt) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            background: "#f9fafb",
+            borderRadius: 12,
+            border: "1px dashed #e5e7eb",
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No LLM Prompt Available</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
+            {!activePrompt
+              ? "Compose a prompt first to generate structured LLM data."
+              : "This prompt was created before the llmPrompt feature. Compose a new prompt to get structured JSON data."}
+          </div>
+          <button
+            onClick={onCompose}
+            disabled={composing}
+            style={{
+              marginTop: 20,
+              padding: "12px 24px",
+              background: composing ? "#9ca3af" : "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: composing ? "not-allowed" : "pointer",
+            }}
+          >
+            {composing ? "Composing..." : "Compose New Prompt"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const llm = activePrompt.llmPrompt;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>LLM-Friendly Prompt Data</h3>
+          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+            Structured JSON for AI agent consumption • Generated {new Date(activePrompt.composedAt).toLocaleString()}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+            <button
+              onClick={() => setViewMode("pretty")}
+              style={{
+                padding: "6px 12px",
+                fontSize: 12,
+                background: viewMode === "pretty" ? "#4f46e5" : "#fff",
+                color: viewMode === "pretty" ? "#fff" : "#374151",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Pretty
+            </button>
+            <button
+              onClick={() => setViewMode("raw")}
+              style={{
+                padding: "6px 12px",
+                fontSize: 12,
+                background: viewMode === "raw" ? "#4f46e5" : "#fff",
+                color: viewMode === "raw" ? "#fff" : "#374151",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Raw JSON
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(JSON.stringify(llm, null, 2));
+              alert("Copied JSON to clipboard!");
+            }}
+            style={{
+              padding: "6px 12px",
+              background: "#f3f4f6",
+              color: "#374151",
+              border: "1px solid #e5e7eb",
+              borderRadius: 6,
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            📋 Copy JSON
+          </button>
+          <button
+            onClick={onCompose}
+            disabled={composing}
+            style={{
+              padding: "6px 12px",
+              background: composing ? "#9ca3af" : "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: composing ? "not-allowed" : "pointer",
+            }}
+          >
+            {composing ? "..." : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {viewMode === "raw" ? (
+        /* Raw JSON View */
+        <div
+          style={{
+            background: "#1f2937",
+            color: "#a5f3fc",
+            padding: 20,
+            borderRadius: 12,
+            fontSize: 12,
+            fontFamily: "ui-monospace, monospace",
+            whiteSpace: "pre-wrap",
+            maxHeight: 600,
+            overflowY: "auto",
+            border: "1px solid #374151",
+          }}
+        >
+          {JSON.stringify(llm, null, 2)}
+        </div>
+      ) : (
+        /* Pretty View - structured sections */
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Caller Info */}
+          {llm.caller && (
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#4f46e5" }}>
+                👤 Caller
+              </h4>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                {llm.caller.name && (
+                  <div style={{ padding: 10, background: "#f0f9ff", borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>Name</div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.name}</div>
+                  </div>
+                )}
+                {llm.caller.contactInfo?.email && (
+                  <div style={{ padding: 10, background: "#f0f9ff", borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>Email</div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.contactInfo.email}</div>
+                  </div>
+                )}
+                {llm.caller.contactInfo?.phone && (
+                  <div style={{ padding: 10, background: "#f0f9ff", borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>Phone</div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.contactInfo.phone}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Personality */}
+          {llm.personality && (
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#8b5cf6" }}>
+                🧠 Personality Profile
+              </h4>
+              {llm.personality.traits && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 12 }}>
+                  {Object.entries(llm.personality.traits).map(([trait, data]: [string, any]) => (
+                    <div
+                      key={trait}
+                      style={{
+                        padding: 10,
+                        background: data.level === "HIGH" ? "#dcfce7" : data.level === "LOW" ? "#fef2f2" : "#f3f4f6",
+                        borderRadius: 6,
+                        textAlign: "center",
+                      }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 600, textTransform: "capitalize", marginBottom: 4 }}>
+                        {trait}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: data.level === "HIGH" ? "#16a34a" : data.level === "LOW" ? "#dc2626" : "#6b7280",
+                        }}
+                      >
+                        {data.level || "—"}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#6b7280", marginTop: 4 }}>
+                        {data.score !== null ? `${(data.score * 100).toFixed(0)}%` : "N/A"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {llm.personality.preferences && Object.values(llm.personality.preferences).some((v) => v) && (
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {llm.personality.preferences.tone && (
+                    <span style={{ fontSize: 11, padding: "4px 8px", background: "#e0e7ff", color: "#3730a3", borderRadius: 4 }}>
+                      Tone: {llm.personality.preferences.tone}
+                    </span>
+                  )}
+                  {llm.personality.preferences.responseLength && (
+                    <span style={{ fontSize: 11, padding: "4px 8px", background: "#fef3c7", color: "#92400e", borderRadius: 4 }}>
+                      Length: {llm.personality.preferences.responseLength}
+                    </span>
+                  )}
+                  {llm.personality.preferences.technicalLevel && (
+                    <span style={{ fontSize: 11, padding: "4px 8px", background: "#f3e8ff", color: "#7c3aed", borderRadius: 4 }}>
+                      Tech: {llm.personality.preferences.technicalLevel}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Memories */}
+          {llm.memories && llm.memories.totalCount > 0 && (
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#0891b2" }}>
+                💭 Memories ({llm.memories.totalCount})
+              </h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
+                  <div key={category}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "#6b7280", marginBottom: 6 }}>
+                      {category}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {items.slice(0, 3).map((m: any, i: number) => (
+                        <div
+                          key={i}
+                          style={{
+                            padding: 8,
+                            background: CATEGORY_COLORS[category]?.bg || "#f3f4f6",
+                            borderRadius: 6,
+                            fontSize: 12,
+                          }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
+                          <span style={{ marginLeft: 8, fontSize: 10, color: "#9ca3af" }}>
+                            ({(m.confidence * 100).toFixed(0)}%)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Behavior Targets */}
+          {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#059669" }}>
+                🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
+              </h4>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: 10,
+                      background: t.targetLevel === "HIGH" ? "#dcfce7" : t.targetLevel === "LOW" ? "#fef2f2" : "#f3f4f6",
+                      borderRadius: 6,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: t.targetLevel === "HIGH" ? "#16a34a" : t.targetLevel === "LOW" ? "#dc2626" : "#6b7280",
+                      }}
+                    >
+                      {t.targetLevel}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#6b7280" }}>
+                      {(t.targetValue * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Instructions Summary */}
+          {llm.instructions && (
+            <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#92400e" }}>
+                📋 AI Instructions
+              </h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "#78350f" }}>
+                {llm.instructions.use_memories && (
+                  <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
+                )}
+                {llm.instructions.use_preferences && (
+                  <div><strong>Preferences:</strong> {llm.instructions.use_preferences}</div>
+                )}
+                {llm.instructions.use_topics && (
+                  <div><strong>Topics:</strong> {llm.instructions.use_topics}</div>
+                )}
+                {llm.instructions.personality_adaptation?.length > 0 && (
+                  <div>
+                    <strong>Personality Adaptation:</strong>
+                    <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                      {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
+                        <li key={i} style={{ marginBottom: 2 }}>{tip}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Prompt Prep Section (deprecated - keeping for backward compatibility)
 function PromptSection({ identities, caller, memories }: { identities: CallerIdentity[]; caller: CallerProfile; memories: Memory[] }) {
   const [selectedIdentity, setSelectedIdentity] = useState<CallerIdentity | null>(
     identities.find((i) => i.nextPrompt) || identities[0] || null
