@@ -116,7 +116,7 @@ const TEXT_EXTENSIONS = ["md", "txt", "html", "json", "yaml", "yml"];
 // PDF extensions (handled separately with pdf-parse)
 const PDF_EXTENSIONS = ["pdf"];
 
-interface ExtractResult {
+export interface ExtractLinksResult {
   ok: boolean;
   root: string;
   sourceDir: string;
@@ -131,7 +131,22 @@ interface ExtractResult {
   dryRun: boolean;
 }
 
-async function extractLinks(dryRun: boolean): Promise<ExtractResult> {
+export interface ExtractKbLinksOptions {
+  verbose?: boolean;
+  plan?: boolean;
+  force?: boolean;
+}
+
+/**
+ * Extract links from knowledge base documents
+ * Exportable function for use via API
+ */
+export async function extractKbLinks(options: ExtractKbLinksOptions = {}): Promise<ExtractLinksResult> {
+  const { verbose = false, plan: dryRun = false } = options;
+  return extractLinksInternal(dryRun, verbose);
+}
+
+async function extractLinksInternal(dryRun: boolean, verbose = false): Promise<ExtractLinksResult> {
   const root = getKbRoot();
 
   // Resolve paths from data nodes (single source of truth)
@@ -220,7 +235,7 @@ async function extractLinks(dryRun: boolean): Promise<ExtractResult> {
     }
   }
 
-  const result: ExtractResult = {
+  const result: ExtractLinksResult = {
     ok: true,
     root,
     sourceDir,
@@ -245,7 +260,8 @@ async function extractLinks(dryRun: boolean): Promise<ExtractResult> {
   return result;
 }
 
-// Main
+// Main - only runs when executed directly (not imported)
+if (require.main === module) {
 (async () => {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
@@ -254,7 +270,7 @@ async function extractLinks(dryRun: boolean): Promise<ExtractResult> {
     console.log("[kb:links:extract] DRY RUN - no files will be written");
   }
 
-  const result = await extractLinks(dryRun);
+  const result = await extractLinksInternal(dryRun);
 
   console.log("\n[kb:links:extract] Summary:");
   console.log(`  Files scanned: ${result.filesScanned} (${result.textFilesScanned} text, ${result.pdfFilesScanned} PDF)`);
@@ -270,3 +286,4 @@ async function extractLinks(dryRun: boolean): Promise<ExtractResult> {
   console.error("[kb:links:extract] Error:", err.message || err);
   process.exitCode = 1;
 });
+}

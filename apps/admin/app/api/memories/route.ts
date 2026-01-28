@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const userId = url.searchParams.get("userId");
+    const callerId = url.searchParams.get("callerId");
     const category = url.searchParams.get("category");
     const search = url.searchParams.get("search");
     const includeSuperseded = url.searchParams.get("includeSuperseded") === "true";
@@ -19,9 +19,9 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    // Filter by userId
-    if (userId) {
-      where.userId = userId;
+    // Filter by callerId
+    if (callerId) {
+      where.callerId = callerId;
     }
 
     // Filter by category
@@ -50,13 +50,13 @@ export async function GET(req: Request) {
     ];
 
     const [memories, total] = await Promise.all([
-      prisma.userMemory.findMany({
+      prisma.callerMemory.findMany({
         where,
         orderBy: [{ extractedAt: "desc" }],
         take: limit,
         skip: offset,
         include: {
-          user: {
+          caller: {
             select: { id: true, name: true, email: true, externalId: true },
           },
           call: {
@@ -67,7 +67,7 @@ export async function GET(req: Request) {
           },
         },
       }),
-      prisma.userMemory.count({ where }),
+      prisma.callerMemory.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -94,11 +94,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, category, key, value, evidence, context, confidence, expiresInDays } = body;
+    const { callerId, category, key, value, evidence, context, confidence, expiresInDays } = body;
 
-    if (!userId) {
+    if (!callerId) {
       return NextResponse.json(
-        { ok: false, error: "userId is required" },
+        { ok: false, error: "callerId is required" },
         { status: 400 }
       );
     }
@@ -118,19 +118,19 @@ export async function POST(req: Request) {
     }
 
     // Check if user exists
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.caller.findUnique({ where: { id: callerId } });
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: "User not found" },
+        { ok: false, error: "Caller not found" },
         { status: 404 }
       );
     }
 
     // Check for existing memory with same normalized key
     const normalizedKey = key.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-    const existing = await prisma.userMemory.findFirst({
+    const existing = await prisma.callerMemory.findFirst({
       where: {
-        userId,
+        callerId,
         normalizedKey,
         supersededById: null,
       },
@@ -141,9 +141,9 @@ export async function POST(req: Request) {
 
     if (existing && existing.value !== value) {
       // Create new memory and supersede old one
-      memory = await prisma.userMemory.create({
+      memory = await prisma.callerMemory.create({
         data: {
-          userId,
+          callerId,
           category: category as MemoryCategory,
           source: "CORRECTED", // Manual correction
           key,
@@ -159,7 +159,7 @@ export async function POST(req: Request) {
         },
       });
 
-      await prisma.userMemory.update({
+      await prisma.callerMemory.update({
         where: { id: existing.id },
         data: { supersededById: memory.id },
       });
@@ -167,7 +167,7 @@ export async function POST(req: Request) {
       supersededId = existing.id;
     } else if (existing) {
       // Same value, just update confidence
-      memory = await prisma.userMemory.update({
+      memory = await prisma.callerMemory.update({
         where: { id: existing.id },
         data: {
           confidence: Math.max(existing.confidence, confidence ?? 0.95),
@@ -177,9 +177,9 @@ export async function POST(req: Request) {
       });
     } else {
       // New memory
-      memory = await prisma.userMemory.create({
+      memory = await prisma.callerMemory.create({
         data: {
-          userId,
+          callerId,
           category: category as MemoryCategory,
           source: "STATED", // Explicit addition
           key,

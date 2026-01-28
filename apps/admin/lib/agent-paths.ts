@@ -1,19 +1,20 @@
-import fs from "node:fs";
-import path from "node:path";
-import { getResolvedPaths } from "./paths";
+import {
+  loadManifest as loadDataManifest,
+  getAgentPaths as getAgentDataPaths,
+  resolveDataNodePath,
+  getKbRoot,
+  clearManifestCache
+} from "./data-paths";
 
 /**
  * Agent Path Resolution
  *
- * Resolves paths for agent execution with 3-tier override system:
- * 1. AgentInstance settings (path_override) - highest priority
- * 2. System paths config (paths.json)
- * 3. Manifest defaults (agents.json)
+ * Uses unified data-paths.ts system for path resolution.
+ * All paths are defined in agents.json data nodes.
  *
- * Path settings in agents.json use $ref to pathSettings which define:
- * - key: the settings key (e.g., "sourceDir")
- * - pathRef: reference to paths.json (e.g., "sources.knowledge")
- * - label/description: for UI
+ * Legacy 3-tier system replaced with:
+ * 1. AgentInstance settings (path_override) - highest priority
+ * 2. Data node definitions in agents.json manifest
  */
 
 interface PathSetting {
@@ -38,26 +39,16 @@ interface AgentManifest {
   }>;
 }
 
-// Cache manifest
-let cachedManifest: AgentManifest | null = null;
-
 /**
- * Load agents manifest
+ * Load agents manifest (delegates to data-paths)
  */
 function loadManifest(): AgentManifest {
-  if (cachedManifest) return cachedManifest;
-
-  const cwd = process.cwd();
-  const manifestPath = path.resolve(cwd, "../../lib/agents.json");
-
-  if (!fs.existsSync(manifestPath)) {
-    console.warn(`[AgentPaths] Manifest not found: ${manifestPath}`);
+  const manifest = loadDataManifest();
+  if (!manifest) {
     return { pathSettings: {}, agents: [] };
   }
-
-  const content = fs.readFileSync(manifestPath, "utf-8");
-  cachedManifest = JSON.parse(content);
-  return cachedManifest!;
+  // Cast to local AgentManifest type (compatible subset)
+  return manifest as unknown as AgentManifest;
 }
 
 /**
@@ -70,9 +61,9 @@ export function getPathSettings(): Record<string, PathSetting> {
 
 /**
  * Resolve a pathRef (e.g., "sources.knowledge") to an absolute path
+ * Maps legacy pathRef format to data node IDs
  */
 function resolvePathRef(pathRef: string): string | null {
-  const resolved = getResolvedPaths();
   const parts = pathRef.split(".");
 
   if (parts.length !== 2) {
@@ -81,14 +72,22 @@ function resolvePathRef(pathRef: string): string | null {
   }
 
   const [category, key] = parts;
-  const categoryPaths = resolved[category as keyof typeof resolved];
 
-  if (!categoryPaths || typeof categoryPaths !== "object") {
+  // Map legacy pathRef format to data node IDs
+  // e.g., "sources.knowledge" -> "data:knowledge"
+  // e.g., "sources.transcripts" -> "data:transcripts"
+  // e.g., "derived.knowledge" -> "data:knowledge_derived"
+  let nodeId: string;
+  if (category === "sources") {
+    nodeId = `data:${key}`;
+  } else if (category === "derived") {
+    nodeId = `data:${key}_derived`;
+  } else {
     console.warn(`[AgentPaths] Unknown path category: ${category}`);
     return null;
   }
 
-  return (categoryPaths as Record<string, string>)[key] || null;
+  return resolveDataNodePath(nodeId);
 }
 
 /**
@@ -225,5 +224,5 @@ export function getAgentPathInfo(
  * Clear cached manifest (for testing or hot reload)
  */
 export function clearAgentPathsCache(): void {
-  cachedManifest = null;
+  clearManifestCache();
 }

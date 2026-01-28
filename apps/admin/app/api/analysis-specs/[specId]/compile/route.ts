@@ -118,7 +118,7 @@ export async function POST(
                   type: "anchor",
                   id: param.parameterId,
                   name: param.name,
-                  error: `Parameter has only ${anchorCount} scoring anchor(s). Minimum 3 recommended.`,
+                  error: `Parameter "${param.name}" has ${anchorCount} anchor(s). Add ${3 - anchorCount} more for calibration.`,
                   severity: anchorCount === 0 ? "error" : "warning",
                 });
               }
@@ -158,7 +158,7 @@ export async function POST(
               type: "action",
               id: action.id,
               name: action.description.substring(0, 50),
-              error: "LEARN action has no category configured",
+              error: "Set learnCategory (FACT, PREFERENCE, EVENT, RELATIONSHIP, TOPIC, or CONTEXT)",
               severity: "warning",
             });
           }
@@ -181,12 +181,15 @@ export async function POST(
     const warnings = errors.filter(e => e.severity === "warning");
 
     if (criticalErrors.length > 0 && !force) {
+      const typeHint = spec.outputType === "MEASURE"
+        ? "MEASURE specs require: triggers with actions, each action linked to a parameter, and 3+ anchors per parameter"
+        : "LEARN specs require: triggers with actions, each action must have a learnCategory set";
       return NextResponse.json({
         ok: false,
         error: "Compilation failed with validation errors",
         errors: criticalErrors,
         warnings,
-        hint: "Fix the errors and try again, or use force=true to compile with warnings only",
+        hint: typeHint,
       });
     }
 

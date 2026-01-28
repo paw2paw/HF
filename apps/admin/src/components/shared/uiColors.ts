@@ -26,4 +26,9 @@ export const uiColors = {
   neutralText: "#374151",
   neutralBg: "#f3f4f6",
   neutralBorder: "#e5e7eb",
+
+  // Brand colors
+  brandText: "#4f46e5", // indigo-600
+  brandBg: "#eef2ff", // indigo-50
+  brandBorder: "#c7d2fe", // indigo-200
 } as const;

@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 
-type UserMemory = {
+type CallerMemory = {
   id: string;
-  userId: string;
+  callerId: string;
   callId: string | null;
   category: string;
   source: string;
@@ -20,7 +20,7 @@ type UserMemory = {
   supersededById: string | null;
   extractedAt: string;
   extractedBy: string | null;
-  user?: {
+  caller?: {
     id: string;
     name: string | null;
     email: string | null;
@@ -39,9 +39,9 @@ type UserMemory = {
   } | null;
 };
 
-type UserMemorySummary = {
+type CallerMemorySummary = {
   id: string;
-  userId: string;
+  callerId: string;
   factCount: number;
   preferenceCount: number;
   eventCount: number;
@@ -50,7 +50,7 @@ type UserMemorySummary = {
   topTopics: { topic: string; lastMentioned: string }[];
   preferences: Record<string, string>;
   lastMemoryAt: string | null;
-  user?: {
+  caller?: {
     id: string;
     name: string | null;
     email: string | null;
@@ -76,8 +76,8 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export default function MemoriesPage() {
   const [view, setView] = useState<"memories" | "summaries">("memories");
-  const [memories, setMemories] = useState<UserMemory[]>([]);
-  const [summaries, setSummaries] = useState<UserMemorySummary[]>([]);
+  const [memories, setMemories] = useState<CallerMemory[]>([]);
+  const [summaries, setSummaries] = useState<CallerMemorySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,16 +94,16 @@ export default function MemoriesPage() {
   // Expanded memory
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
 
-  // Users list for filter
-  const [users, setUsers] = useState<{ id: string; name: string | null; email: string | null }[]>([]);
+  // Callers list for filter
+  const [callers, setCallers] = useState<{ id: string; name: string | null; email: string | null }[]>([]);
 
-  // Load users for filter dropdown
+  // Load callers for filter dropdown
   useEffect(() => {
-    fetch("/api/users?limit=500")
+    fetch("/api/callers?limit=500")
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
-          setUsers(data.users || []);
+          setCallers(data.callers || []);
         }
       })
       .catch(() => {});
@@ -115,7 +115,7 @@ export default function MemoriesPage() {
     const params = new URLSearchParams();
     params.set("limit", String(limit));
     params.set("offset", String(offset));
-    if (selectedUserId) params.set("userId", selectedUserId);
+    if (selectedUserId) params.set("callerId", selectedUserId);
     if (selectedCategory) params.set("category", selectedCategory);
     if (searchQuery) params.set("search", searchQuery);
 
@@ -142,7 +142,7 @@ export default function MemoriesPage() {
     const params = new URLSearchParams();
     params.set("limit", String(limit));
     params.set("offset", String(offset));
-    if (selectedUserId) params.set("userId", selectedUserId);
+    if (selectedUserId) params.set("callerId", selectedUserId);
 
     fetch(`/api/memories/summaries?${params}`)
       .then((r) => r.json())
@@ -177,15 +177,15 @@ export default function MemoriesPage() {
   const totalPages = Math.ceil(total / limit);
   const currentPage = Math.floor(offset / limit) + 1;
 
-  const getUserLabel = (user: { name: string | null; email: string | null; externalId: string | null } | undefined) => {
-    if (!user) return "Unknown";
-    return user.name || user.email || user.externalId || "Unknown";
+  const getCallerLabel = (caller: { id?: string; name: string | null; email: string | null; externalId?: string | null } | undefined) => {
+    if (!caller) return "Unknown";
+    return caller.name || caller.email || caller.externalId || caller.id || "Unknown";
   };
 
   return (
     <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
       <SourcePageHeader
-        title="User Memories"
+        title="Caller Memories"
         description="Extracted facts, preferences, and context from call transcripts"
         dataNodeId="data:memories"
         count={total}
@@ -221,7 +221,7 @@ export default function MemoriesPage() {
             cursor: "pointer",
           }}
         >
-          User Summaries
+          Caller Summaries
         </button>
       </div>
 
@@ -247,10 +247,10 @@ export default function MemoriesPage() {
             minWidth: 200,
           }}
         >
-          <option value="">All users</option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>
-              {getUserLabel(user)}
+          <option value="">All callers</option>
+          {callers.map((caller) => (
+            <option key={caller.id} value={caller.id}>
+              {getCallerLabel(caller)}
             </option>
           ))}
         </select>
@@ -397,7 +397,7 @@ export default function MemoriesPage() {
                           = "{memory.value}"
                         </span>
                         <span style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>
-                          {getUserLabel(memory.user)}
+                          {getCallerLabel(memory.caller)}
                         </span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -523,14 +523,14 @@ export default function MemoriesPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
-                      {getUserLabel(summary.user)}
+                      {getCallerLabel(summary.caller)}
                     </div>
                     <div style={{ fontSize: 12, color: "#9ca3af" }}>
                       Last memory: {summary.lastMemoryAt ? new Date(summary.lastMemoryAt).toLocaleString() : "—"}
                     </div>
                   </div>
                   <Link
-                    href={`/people/${summary.userId}`}
+                    href={`/callers/${summary.callerId}`}
                     style={{
                       padding: "6px 12px",
                       borderRadius: 6,

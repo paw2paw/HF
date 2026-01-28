@@ -1,30 +1,158 @@
 /**
  * memory-extract.ts
  *
- * Extracts structured memories (facts, preferences, events, topics, relationships, context)
- * from call transcripts using LLM analysis.
+ * Spec-Driven Memory Extraction
+ *
+ * Extracts structured memories from call transcripts using LEARN-type AnalysisSpecs.
+ * Each LEARN-type spec defines:
+ * - domain: Memory category (facts, preferences, events, etc.)
+ * - promptTemplate: The LLM prompt for extraction
  *
  * Flow:
- * 1. Query calls that don't have extracted memories yet
- * 2. For each call, run LLM to extract structured memories
- * 3. Normalize keys for deduplication
- * 4. Handle contradictions via supersededBy chain
- * 5. Upsert UserMemory records
- * 6. Update UserMemorySummary aggregates
+ * 1. Query AnalysisSpecs where outputType = LEARN and isActive = true
+ * 2. For each call without extracted memories:
+ *    a. For each LEARN spec, render promptTemplate with transcript
+ *    b. Call LLM to extract (or use pattern matching for mock)
+ *    c. Normalize keys and detect contradictions
+ *    d. Store in CallerMemory with category from spec.domain
+ * 3. Update CallerMemorySummary aggregates
+ *
+ * Fallback: If no LEARN AnalysisSpecs exist, falls back to pattern matching.
  */
 
 import { PrismaClient, MemoryCategory, MemorySource } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Config loaded from MEMORY_TAXONOMY spec
+interface MemoryTaxonomyConfig {
+  keyNormalization: Record<string, string>;
+  categoryMappings: Record<string, string>;
+  domainCategoryMappings: Record<string, string>;
+  confidenceThresholds: {
+    default: number;
+    highConfidence: number;
+    lowConfidence: number;
+  };
+  defaultCategory: string;
+}
+
+const DEFAULT_TAXONOMY_CONFIG: MemoryTaxonomyConfig = {
+  keyNormalization: {
+    location: "location",
+    city: "location",
+    town: "location",
+    lives_in: "location",
+    residence: "location",
+    job: "occupation",
+    job_title: "occupation",
+    occupation: "occupation",
+    profession: "occupation",
+    work: "occupation",
+    spouse: "spouse",
+    wife: "spouse",
+    husband: "spouse",
+    partner: "spouse",
+    kids: "children_count",
+    children: "children_count",
+    contact_method: "preferred_contact",
+    preferred_contact: "preferred_contact",
+  },
+  categoryMappings: {
+    BIOGRAPHICAL: "FACT",
+    PERSONAL: "FACT",
+    DEMOGRAPHIC: "FACT",
+    FACTS: "FACT",
+    LIKE: "PREFERENCE",
+    DISLIKE: "PREFERENCE",
+    PREFER: "PREFERENCE",
+    PREFERENCES: "PREFERENCE",
+    APPOINTMENT: "EVENT",
+    MEETING: "EVENT",
+    HISTORY: "EVENT",
+    EVENTS: "EVENT",
+    INTEREST: "TOPIC",
+    DISCUSSION: "TOPIC",
+    TOPICS: "TOPIC",
+    FAMILY: "RELATIONSHIP",
+    FRIEND: "RELATIONSHIP",
+    COLLEAGUE: "RELATIONSHIP",
+    RELATIONSHIPS: "RELATIONSHIP",
+    SITUATION: "CONTEXT",
+    TEMPORARY: "CONTEXT",
+  },
+  domainCategoryMappings: {
+    fact: "FACT",
+    personal: "FACT",
+    preference: "PREFERENCE",
+    like: "PREFERENCE",
+    event: "EVENT",
+    history: "EVENT",
+    topic: "TOPIC",
+    interest: "TOPIC",
+    relationship: "RELATIONSHIP",
+    family: "RELATIONSHIP",
+    context: "CONTEXT",
+    situation: "CONTEXT",
+  },
+  confidenceThresholds: {
+    default: 0.5,
+    highConfidence: 0.8,
+    lowConfidence: 0.3,
+  },
+  defaultCategory: "FACT",
+};
+
+// Cached taxonomy config
+let cachedTaxonomyConfig: MemoryTaxonomyConfig | null = null;
+
+/**
+ * Load MEMORY_TAXONOMY spec config from database
+ */
+async function loadTaxonomyConfig(): Promise<MemoryTaxonomyConfig> {
+  if (cachedTaxonomyConfig) {
+    return cachedTaxonomyConfig;
+  }
+
+  const spec = await prisma.analysisSpec.findFirst({
+    where: {
+      domain: "memory-taxonomy",
+      outputType: "LEARN",
+      isActive: true,
+      scope: "SYSTEM",
+    },
+  });
+
+  if (!spec?.config) {
+    return DEFAULT_TAXONOMY_CONFIG;
+  }
+
+  const config = spec.config as any;
+  cachedTaxonomyConfig = {
+    keyNormalization: config.keyNormalization ?? DEFAULT_TAXONOMY_CONFIG.keyNormalization,
+    categoryMappings: config.categoryMappings ?? DEFAULT_TAXONOMY_CONFIG.categoryMappings,
+    domainCategoryMappings: config.domainCategoryMappings ?? DEFAULT_TAXONOMY_CONFIG.domainCategoryMappings,
+    confidenceThresholds: {
+      default: config.confidenceThresholds?.default ?? DEFAULT_TAXONOMY_CONFIG.confidenceThresholds.default,
+      highConfidence: config.confidenceThresholds?.highConfidence ?? DEFAULT_TAXONOMY_CONFIG.confidenceThresholds.highConfidence,
+      lowConfidence: config.confidenceThresholds?.lowConfidence ?? DEFAULT_TAXONOMY_CONFIG.confidenceThresholds.lowConfidence,
+    },
+    defaultCategory: config.defaultCategory ?? DEFAULT_TAXONOMY_CONFIG.defaultCategory,
+  };
+
+  return cachedTaxonomyConfig;
+}
+
 interface MemoryExtractorOptions {
   verbose?: boolean;
   plan?: boolean;
-  callId?: string; // Process specific call, or all unprocessed calls if not provided
-  userId?: string; // Process specific user's calls
-  limit?: number; // Max calls to process
-  aggregate?: boolean; // Whether to re-aggregate UserMemorySummary after extraction
-  confidenceThreshold?: number; // Minimum confidence to store (default 0.5)
+  mock?: boolean;           // Use pattern matching instead of LLM
+  callId?: string;          // Process specific call
+  callerId?: string;          // Process specific user's calls
+  limit?: number;           // Max calls to process
+  aggregate?: boolean;      // Re-aggregate summaries after extraction
+  confidenceThreshold?: number;
+  specSlug?: string;        // Only run specific spec
 }
 
 interface ExtractedMemory {
@@ -34,11 +162,12 @@ interface ExtractedMemory {
   evidence?: string;
   context?: string;
   confidence: number;
-  expiresInDays?: number; // For temporary context like "traveling next week"
+  expiresInDays?: number;
 }
 
 interface ExtractionResult {
   callsProcessed: number;
+  specsUsed: number;
   memoriesExtracted: number;
   memoriesStored: number;
   contradictionsResolved: number;
@@ -46,86 +175,56 @@ interface ExtractionResult {
   errors: string[];
 }
 
-// Canonical key mappings for deduplication
-const KEY_NORMALIZATION: Record<string, string> = {
-  // Location variants
-  location: "location",
-  city: "location",
-  town: "location",
-  lives_in: "location",
-  residence: "location",
-  home_city: "location",
-  home_location: "location",
-
-  // Job variants
-  job: "occupation",
-  job_title: "occupation",
-  occupation: "occupation",
-  profession: "occupation",
-  work: "occupation",
-  role: "occupation",
-  position: "occupation",
-  works_at: "employer",
-  employer: "employer",
-  company: "employer",
-  organization: "employer",
-
-  // Family variants
-  spouse: "spouse",
-  wife: "spouse",
-  husband: "spouse",
-  partner: "spouse",
-  kids: "children_count",
-  children: "children_count",
-  children_count: "children_count",
-  number_of_kids: "children_count",
-
-  // Contact preferences
-  contact_method: "preferred_contact",
-  preferred_contact: "preferred_contact",
-  contact_preference: "preferred_contact",
-  best_way_to_reach: "preferred_contact",
-  response_length: "response_length_preference",
-  preferred_length: "response_length_preference",
-};
-
-function normalizeKey(key: string): string {
+/**
+ * Normalize a key using the taxonomy config
+ */
+function normalizeKey(key: string, taxonomyConfig: MemoryTaxonomyConfig): string {
   const lower = key.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-  return KEY_NORMALIZATION[lower] || lower;
+  return taxonomyConfig.keyNormalization[lower] || lower;
 }
 
-function mapCategory(category: string): MemoryCategory {
+/**
+ * Map a category string to MemoryCategory enum using taxonomy config
+ */
+function mapCategory(category: string, taxonomyConfig: MemoryTaxonomyConfig): MemoryCategory {
   const upper = category.toUpperCase();
   if (upper in MemoryCategory) {
     return upper as MemoryCategory;
   }
-  // Fallback mappings
-  switch (upper) {
-    case "BIOGRAPHICAL":
-    case "PERSONAL":
-    case "DEMOGRAPHIC":
-      return MemoryCategory.FACT;
-    case "LIKE":
-    case "DISLIKE":
-    case "PREFER":
-      return MemoryCategory.PREFERENCE;
-    case "APPOINTMENT":
-    case "MEETING":
-    case "HISTORY":
-      return MemoryCategory.EVENT;
-    case "INTEREST":
-    case "DISCUSSION":
-      return MemoryCategory.TOPIC;
-    case "FAMILY":
-    case "FRIEND":
-    case "COLLEAGUE":
-      return MemoryCategory.RELATIONSHIP;
-    case "SITUATION":
-    case "TEMPORARY":
-      return MemoryCategory.CONTEXT;
-    default:
-      return MemoryCategory.FACT;
+  // Use taxonomy mappings
+  const mapped = taxonomyConfig.categoryMappings[upper];
+  if (mapped && mapped in MemoryCategory) {
+    return mapped as MemoryCategory;
   }
+  return taxonomyConfig.defaultCategory as MemoryCategory;
+}
+
+/**
+ * Map a domain to MemoryCategory using taxonomy config
+ */
+function domainToCategory(domain: string | null, taxonomyConfig: MemoryTaxonomyConfig): MemoryCategory {
+  if (!domain) return taxonomyConfig.defaultCategory as MemoryCategory;
+
+  const domainLower = domain.toLowerCase();
+
+  // Check direct mapping first
+  if (taxonomyConfig.domainCategoryMappings[domainLower]) {
+    const mapped = taxonomyConfig.domainCategoryMappings[domainLower];
+    if (mapped in MemoryCategory) {
+      return mapped as MemoryCategory;
+    }
+  }
+
+  // Check for partial matches in domain name
+  for (const [key, value] of Object.entries(taxonomyConfig.domainCategoryMappings)) {
+    if (domainLower.includes(key)) {
+      if (value in MemoryCategory) {
+        return value as MemoryCategory;
+      }
+    }
+  }
+
+  return taxonomyConfig.defaultCategory as MemoryCategory;
 }
 
 export async function extractMemories(
@@ -134,15 +233,18 @@ export async function extractMemories(
   const {
     verbose = false,
     plan = false,
+    mock = true,  // Default to pattern matching
     callId,
-    userId,
+    callerId,
     limit = 100,
     aggregate = true,
     confidenceThreshold = 0.5,
+    specSlug,
   } = options;
 
   const result: ExtractionResult = {
     callsProcessed: 0,
+    specsUsed: 0,
     memoriesExtracted: 0,
     memoriesStored: 0,
     contradictionsResolved: 0,
@@ -151,66 +253,107 @@ export async function extractMemories(
   };
 
   if (plan) {
-    console.log("\n📋 MEMORY EXTRACTOR PLAN\n");
+    console.log("\n📋 MEMORY EXTRACTOR PLAN (Spec-Driven)\n");
     console.log("Steps:");
-    console.log("1. Find calls without extracted memories");
-    if (callId) {
-      console.log("   - Processing specific call:", callId);
-    } else if (userId) {
-      console.log("   - Processing calls for user:", userId);
-    } else {
-      console.log("   - Processing up to", limit, "unprocessed calls");
+    console.log("1. Query AnalysisSpecs where outputType=LEARN and isActive=true");
+    if (specSlug) {
+      console.log(`   - Filtering to spec: ${specSlug}`);
     }
-    console.log("2. For each call:");
-    console.log("   - Extract memories using LLM (facts, preferences, events, etc.)");
-    console.log("   - Normalize keys for deduplication");
-    console.log("   - Check for contradictions with existing memories");
-    console.log("   - Store new UserMemory records");
+    console.log("2. Find calls to process:");
+    if (callId) {
+      console.log(`   - Specific call: ${callId}`);
+    } else if (callerId) {
+      console.log(`   - Calls for user: ${callerId}`);
+    } else {
+      console.log(`   - Up to ${limit} unprocessed calls`);
+    }
+    console.log("3. For each call × spec:");
+    console.log("   - Render spec's promptTemplate with transcript");
+    console.log("   - Extract memories via LLM (or patterns if --mock)");
+    console.log("   - Normalize keys, detect contradictions");
+    console.log("   - Store CallerMemory records");
     if (aggregate) {
-      console.log("3. Update UserMemorySummary aggregates");
+      console.log("4. Update CallerMemorySummary aggregates");
     }
     console.log("\nEffects:");
-    console.log("- Reads: Call table");
-    console.log("- Writes: UserMemory table");
+    console.log("- Reads: AnalysisSpec, Call");
+    console.log("- Writes: CallerMemory");
     if (aggregate) {
-      console.log("- Updates: UserMemorySummary table");
+      console.log("- Updates: CallerMemorySummary");
     }
+    console.log(`\nConfidence threshold: ${confidenceThreshold}`);
     console.log("\nRun without --plan to execute.\n");
     return result;
   }
 
   try {
-    // Step 1: Find calls to process
-    if (verbose) console.log("\n🔍 Finding calls to process...");
+    // Load taxonomy config from spec
+    const taxonomyConfig = await loadTaxonomyConfig();
+    if (verbose) console.log("📋 Loaded memory taxonomy config from spec");
 
-    const whereClause: any = {
-      userId: { not: null }, // Must have a user
+    // Step 1: Get LEARN-type AnalysisSpecs
+    if (verbose) console.log("\n🔍 Loading LEARN AnalysisSpecs...");
+
+    const specWhere: any = {
+      outputType: "LEARN",
+      isActive: true,
+    };
+    if (specSlug) {
+      specWhere.slug = specSlug;
+    }
+
+    const specs = await prisma.analysisSpec.findMany({
+      where: specWhere,
+      orderBy: { priority: "desc" },
+    });
+
+    if (specs.length === 0) {
+      if (verbose) {
+        console.log("⚠️  No LEARN AnalysisSpecs found, using legacy pattern matching");
+      }
+      // Continue with legacy extraction (no specs)
+    } else {
+      result.specsUsed = specs.length;
+      if (verbose) {
+        console.log(`✅ Found ${specs.length} LEARN spec(s):`);
+        specs.forEach((s) => {
+          console.log(`   - ${s.slug} → ${s.domain || "general"}`);
+        });
+      }
+    }
+
+    // Step 2: Find calls to process
+    if (verbose) console.log("\n📞 Finding calls to process...");
+
+    const callWhere: any = {
+      callerId: { not: null },
+      transcript: { not: null },
     };
 
     if (callId) {
-      whereClause.id = callId;
-    } else if (userId) {
-      whereClause.userId = userId;
+      callWhere.id = callId;
+    } else if (callerId) {
+      callWhere.callerId = callerId;
     } else {
       // Only process calls without extracted memories
-      whereClause.extractedMemories = { none: {} };
+      callWhere.extractedMemories = { none: {} };
     }
 
     const calls = await prisma.call.findMany({
-      where: whereClause,
+      where: callWhere,
       take: callId ? 1 : limit,
       orderBy: { createdAt: "desc" },
       include: {
-        user: true,
+        caller: { select: { id: true, name: true } },
         extractedMemories: {
-          where: { supersededById: null }, // Only active memories
+          where: { supersededById: null },
         },
       },
     });
 
     if (calls.length === 0) {
       const msg = callId
-        ? `Call ${callId} not found or has no user`
+        ? `Call ${callId} not found or has no caller`
         : "No unprocessed calls found";
       console.log(`⚠️  ${msg}`);
       result.errors.push(msg);
@@ -222,123 +365,99 @@ export async function extractMemories(
     }
 
     // Track users for summary aggregation
-    const userIds = new Set<string>();
+    const callerIds = new Set<string>();
 
-    // Step 2: Process each call
+    // Step 3: Process each call
     for (const call of calls) {
-      if (!call.userId) continue;
+      if (!call.callerId || !call.transcript) continue;
 
       result.callsProcessed++;
-      userIds.add(call.userId);
+      callerIds.add(call.callerId);
 
       if (verbose) {
-        console.log(`\n📞 Processing call ${call.id} for user ${call.userId}...`);
+        console.log(`\n📝 Processing call ${call.id.substring(0, 8)}...`);
       }
 
-      try {
-        // Extract memories from transcript
-        const extractedMemories = await extractMemoriesFromTranscript(
+      // Get existing memories for contradiction detection
+      const existingMemories = await prisma.callerMemory.findMany({
+        where: {
+          callerId: call.callerId,
+          supersededById: null,
+        },
+      });
+
+      const existingByKey = new Map(
+        existingMemories.map((m) => [m.normalizedKey || m.key, m])
+      );
+
+      // Extract memories using specs or fallback
+      const extractedMemories: ExtractedMemory[] = [];
+
+      if (specs.length > 0) {
+        // Spec-driven extraction
+        for (const spec of specs) {
+          try {
+            const specMemories = await extractWithSpec(
+              call.transcript,
+              spec,
+              mock,
+              verbose
+            );
+
+            // Tag with category from spec domain
+            const category = domainToCategory(spec.domain, taxonomyConfig);
+            for (const mem of specMemories) {
+              mem.category = mem.category || category;
+              extractedMemories.push(mem);
+            }
+
+            if (verbose && specMemories.length > 0) {
+              console.log(`   [${spec.slug}] Extracted ${specMemories.length} memories`);
+            }
+          } catch (err: any) {
+            result.errors.push(`Spec ${spec.slug}: ${err.message}`);
+          }
+        }
+      } else {
+        // Legacy pattern-based extraction
+        const legacyMemories = await extractMemoriesFromPatterns(
           call.transcript,
           verbose
         );
+        extractedMemories.push(...legacyMemories);
+      }
 
-        result.memoriesExtracted += extractedMemories.length;
+      result.memoriesExtracted += extractedMemories.length;
 
-        if (verbose) {
-          console.log(`   Extracted ${extractedMemories.length} memories`);
+      // Store extracted memories
+      for (const extracted of extractedMemories) {
+        if (extracted.confidence < confidenceThreshold) {
+          if (verbose) {
+            console.log(
+              `   ⏭️  Skipping low-confidence: ${extracted.key} (${extracted.confidence.toFixed(2)})`
+            );
+          }
+          continue;
         }
 
-        // Get existing memories for this user to check for contradictions
-        const existingMemories = await prisma.userMemory.findMany({
-          where: {
-            userId: call.userId,
-            supersededById: null, // Only active memories
-          },
-        });
+        const category = mapCategory(extracted.category, taxonomyConfig);
+        const normalizedKey = normalizeKey(extracted.key, taxonomyConfig);
 
-        const existingByKey = new Map(
-          existingMemories.map((m) => [m.normalizedKey || m.key, m])
-        );
+        // Check for contradiction
+        const existing = existingByKey.get(normalizedKey);
 
-        // Process each extracted memory
-        for (const extracted of extractedMemories) {
-          if (extracted.confidence < confidenceThreshold) {
+        if (existing) {
+          if (existing.value !== extracted.value) {
+            // Contradiction - supersede old memory
             if (verbose) {
               console.log(
-                `   ⏭️  Skipping low-confidence memory: ${extracted.key} (${extracted.confidence.toFixed(2)})`
+                `   🔄 Updating: ${normalizedKey} "${existing.value}" → "${extracted.value}"`
               );
             }
-            continue;
-          }
 
-          const category = mapCategory(extracted.category);
-          const normalizedKey = normalizeKey(extracted.key);
-
-          // Check for existing memory with same normalized key
-          const existing = existingByKey.get(normalizedKey);
-
-          if (existing) {
-            // Check if values differ (contradiction)
-            if (existing.value !== extracted.value) {
-              if (verbose) {
-                console.log(
-                  `   🔄 Updating memory: ${normalizedKey} "${existing.value}" → "${extracted.value}"`
-                );
-              }
-
-              // Create new memory that supersedes the old one
-              const newMemory = await prisma.userMemory.create({
-                data: {
-                  userId: call.userId,
-                  callId: call.id,
-                  category,
-                  source: MemorySource.EXTRACTED,
-                  key: extracted.key,
-                  value: extracted.value,
-                  normalizedKey,
-                  evidence: extracted.evidence,
-                  context: extracted.context,
-                  confidence: extracted.confidence,
-                  expiresAt: extracted.expiresInDays
-                    ? new Date(Date.now() + extracted.expiresInDays * 24 * 60 * 60 * 1000)
-                    : null,
-                  extractedBy: "memory_extractor_v1",
-                },
-              });
-
-              // Mark old memory as superseded
-              await prisma.userMemory.update({
-                where: { id: existing.id },
-                data: { supersededById: newMemory.id },
-              });
-
-              result.contradictionsResolved++;
-              result.memoriesStored++;
-
-              // Update our local map
-              existingByKey.set(normalizedKey, newMemory);
-            } else {
-              // Same value, just update confidence if higher
-              if (extracted.confidence > (existing.confidence || 0)) {
-                await prisma.userMemory.update({
-                  where: { id: existing.id },
-                  data: {
-                    confidence: extracted.confidence,
-                    updatedAt: new Date(),
-                  },
-                });
-                if (verbose) {
-                  console.log(
-                    `   ↑ Updated confidence for ${normalizedKey}: ${extracted.confidence.toFixed(2)}`
-                  );
-                }
-              }
-            }
-          } else {
-            // New memory
-            const newMemory = await prisma.userMemory.create({
+            const newMemory = await prisma.callerMemory.create({
               data: {
-                userId: call.userId,
+                callerId: call.callerId,
                 callId: call.id,
                 category,
                 source: MemorySource.EXTRACTED,
@@ -351,47 +470,82 @@ export async function extractMemories(
                 expiresAt: extracted.expiresInDays
                   ? new Date(Date.now() + extracted.expiresInDays * 24 * 60 * 60 * 1000)
                   : null,
-                extractedBy: "memory_extractor_v1",
+                extractedBy: mock ? "pattern_v2" : "llm_v1",
               },
             });
 
-            existingByKey.set(normalizedKey, newMemory);
-            result.memoriesStored++;
+            await prisma.callerMemory.update({
+              where: { id: existing.id },
+              data: { supersededById: newMemory.id },
+            });
 
-            if (verbose) {
-              console.log(
-                `   ✓ Stored: [${category}] ${extracted.key} = "${extracted.value}" (${extracted.confidence.toFixed(2)})`
-              );
+            existingByKey.set(normalizedKey, newMemory);
+            result.contradictionsResolved++;
+            result.memoriesStored++;
+          } else {
+            // Same value - update confidence if higher
+            if (extracted.confidence > (existing.confidence || 0)) {
+              await prisma.callerMemory.update({
+                where: { id: existing.id },
+                data: {
+                  confidence: extracted.confidence,
+                  updatedAt: new Date(),
+                },
+              });
             }
           }
+        } else {
+          // New memory
+          const newMemory = await prisma.callerMemory.create({
+            data: {
+              callerId: call.callerId,
+              callId: call.id,
+              category,
+              source: MemorySource.EXTRACTED,
+              key: extracted.key,
+              value: extracted.value,
+              normalizedKey,
+              evidence: extracted.evidence,
+              context: extracted.context,
+              confidence: extracted.confidence,
+              expiresAt: extracted.expiresInDays
+                ? new Date(Date.now() + extracted.expiresInDays * 24 * 60 * 60 * 1000)
+                : null,
+              extractedBy: mock ? "pattern_v2" : "llm_v1",
+            },
+          });
+
+          existingByKey.set(normalizedKey, newMemory);
+          result.memoriesStored++;
+
+          if (verbose) {
+            console.log(
+              `   ✓ [${category}] ${extracted.key} = "${extracted.value}" (${extracted.confidence.toFixed(2)})`
+            );
+          }
         }
-      } catch (err: any) {
-        const errMsg = `Error processing call ${call.id}: ${err.message}`;
-        console.error(`   ❌ ${errMsg}`);
-        result.errors.push(errMsg);
       }
     }
 
-    // Step 3: Aggregate summaries
-    if (aggregate && userIds.size > 0) {
+    // Step 4: Aggregate summaries
+    if (aggregate && callerIds.size > 0) {
       if (verbose) {
-        console.log(`\n🔄 Updating summaries for ${userIds.size} user(s)...`);
+        console.log(`\n🔄 Updating summaries for ${callerIds.size} caller(s)...`);
       }
 
-      for (const userId of userIds) {
+      for (const uid of callerIds) {
         try {
-          await aggregateUserMemorySummary(userId, verbose);
+          await aggregateCallerMemorySummary(uid, verbose);
           result.summariesUpdated++;
         } catch (err: any) {
-          const errMsg = `Error aggregating summary for ${userId}: ${err.message}`;
-          console.error(`   ❌ ${errMsg}`);
-          result.errors.push(errMsg);
+          result.errors.push(`Summary error for ${uid}: ${err.message}`);
         }
       }
     }
 
     // Summary
     console.log("\n✅ MEMORY EXTRACTION COMPLETE\n");
+    console.log(`Specs used: ${result.specsUsed}`);
     console.log(`Calls processed: ${result.callsProcessed}`);
     console.log(`Memories extracted: ${result.memoriesExtracted}`);
     console.log(`Memories stored: ${result.memoriesStored}`);
@@ -401,7 +555,7 @@ export async function extractMemories(
     }
     if (result.errors.length > 0) {
       console.log(`\n⚠️  Errors: ${result.errors.length}`);
-      result.errors.forEach((err) => console.log(`   - ${err}`));
+      result.errors.slice(0, 5).forEach((err) => console.log(`   - ${err}`));
     }
 
     return result;
@@ -415,60 +569,87 @@ export async function extractMemories(
 }
 
 /**
- * Extract memories from a transcript using LLM
- *
- * For now, this is a mock implementation. In production, this would call an LLM
- * with a structured extraction prompt.
+ * Extract memories using an AnalysisSpec
  */
-async function extractMemoriesFromTranscript(
+async function extractWithSpec(
+  transcript: string,
+  spec: { slug: string; name: string; domain: string | null; promptTemplate: string | null },
+  mock: boolean,
+  verbose: boolean
+): Promise<ExtractedMemory[]> {
+  // Build the extraction prompt
+  let promptTemplate = spec.promptTemplate;
+
+  if (!promptTemplate) {
+    // Default extraction template
+    promptTemplate = `Extract memories from this call transcript.
+
+Category: {{domain}}
+
+Look for:
+- Facts about the person (location, job, family)
+- Preferences they express
+- Events they mention
+- Relationships they reference
+- Current context (temporary situations)
+
+---
+TRANSCRIPT:
+{{transcript}}
+---
+
+Return JSON array:
+[
+  {
+    "category": "FACT|PREFERENCE|EVENT|TOPIC|RELATIONSHIP|CONTEXT",
+    "key": "descriptive_key",
+    "value": "the information",
+    "evidence": "quote from transcript",
+    "confidence": 0.0-1.0,
+    "expiresInDays": null or number for temporary info
+  }
+]`;
+  }
+
+  const renderedPrompt = promptTemplate
+    .replace(/\{\{transcript\}\}/g, transcript.substring(0, 8000))
+    .replace(/\{\{domain\}\}/g, spec.domain || "general")
+    .replace(/\{\{spec\.name\}\}/g, spec.name);
+
+  if (mock) {
+    // Use pattern matching
+    return extractMemoriesFromPatterns(transcript, verbose);
+  }
+
+  // TODO: Real LLM call
+  // const response = await callLLM(renderedPrompt);
+  // return JSON.parse(response);
+
+  throw new Error("LLM extraction not yet implemented. Use --mock flag.");
+}
+
+/**
+ * Legacy pattern-based extraction
+ */
+async function extractMemoriesFromPatterns(
   transcript: string,
   verbose: boolean
 ): Promise<ExtractedMemory[]> {
-  // TODO: Replace with actual LLM call
-  //
-  // const prompt = `
-  //   Analyze this call transcript and extract structured memories about the customer.
-  //
-  //   Categories to extract:
-  //   - FACT: Immutable facts (location, occupation, name)
-  //   - PREFERENCE: User preferences (contact method, response style)
-  //   - EVENT: Time-bound events (appointments, complaints, purchases)
-  //   - TOPIC: Topics discussed (interests, products mentioned)
-  //   - RELATIONSHIP: Relationships (family members, colleagues)
-  //   - CONTEXT: Temporary situational context (traveling, in a meeting)
-  //
-  //   Transcript:
-  //   ${transcript.substring(0, 8000)}
-  //
-  //   Return JSON array of memories, each with:
-  //   - category: one of FACT, PREFERENCE, EVENT, TOPIC, RELATIONSHIP, CONTEXT
-  //   - key: the memory key (e.g., "location", "preferred_contact", "spouse_name")
-  //   - value: the memory value
-  //   - evidence: the quote from transcript supporting this
-  //   - confidence: 0-1 how confident you are
-  //   - expiresInDays: (optional) for temporary context, when it expires
-  // `;
-  //
-  // const result = await callLLM(prompt);
-  // return JSON.parse(result);
-
-  // Mock implementation: extract some basic patterns
   const memories: ExtractedMemory[] = [];
 
-  // Simple pattern matching for demo
   const patterns = [
     {
-      regex: /(?:I live in|I'm from|I'm located in|based in)\s+([A-Z][a-zA-Z\s]+)/i,
+      regex: /(?:I live in|I'm from|I'm located in|based in)\s+([A-Z][a-zA-Z\s,]+?)(?:\.|,|$)/i,
       category: "FACT",
       key: "location",
     },
     {
-      regex: /(?:I work at|I'm with|employed by|work for)\s+([A-Z][a-zA-Z\s]+)/i,
+      regex: /(?:I work at|I'm with|employed by|work for)\s+([A-Z][a-zA-Z\s&]+?)(?:\.|,|$)/i,
       category: "FACT",
       key: "employer",
     },
     {
-      regex: /(?:I'm a|I work as|my job is|I'm an?)\s+([a-zA-Z\s]+?)(?:\s+at|\s+for|\.|\,)/i,
+      regex: /(?:I'm a|I work as|my job is|I'm an?)\s+([a-zA-Z\s]+?)(?:\s+at|\s+for|\.|,|$)/i,
       category: "FACT",
       key: "occupation",
     },
@@ -478,80 +659,93 @@ async function extractMemoriesFromTranscript(
       key: "children_count",
     },
     {
-      regex: /(?:my wife|my husband|my spouse|my partner)\s+([A-Z][a-z]+)/i,
+      regex: /(?:my wife|my husband|my spouse|my partner)(?:'s name is|,?\s+)([A-Z][a-z]+)/i,
       category: "RELATIONSHIP",
       key: "spouse_name",
     },
     {
-      regex: /(?:prefer|rather have|like to receive)\s+(?:contact via|communication via|messages via)?\s*(email|phone|text|sms)/i,
+      regex: /(?:prefer|rather have|like to receive)\s+(?:contact via|communication via|messages via|by)?\s*(email|phone|text|sms)/i,
       category: "PREFERENCE",
       key: "preferred_contact",
     },
     {
-      regex: /(?:I'm traveling|I'll be traveling|on vacation|on holiday)\s+(?:next|this)\s+(week|month)/i,
+      regex: /(?:I like|I enjoy|I love|I prefer)\s+([a-zA-Z\s]+?)(?:\.|,|!|$)/i,
+      category: "PREFERENCE",
+      key: "likes",
+    },
+    {
+      regex: /(?:I'm traveling|I'll be traveling|on vacation|on holiday)\s+(?:to\s+)?([a-zA-Z\s]+?)?\s*(?:next|this)\s+(week|month)/i,
       category: "CONTEXT",
       key: "traveling",
       expiresInDays: 14,
+    },
+    {
+      regex: /(?:I'm interested in|curious about|want to learn about)\s+([a-zA-Z\s]+?)(?:\.|,|$)/i,
+      category: "TOPIC",
+      key: "interest",
+    },
+    {
+      regex: /(?:my (?:son|daughter|brother|sister|mother|father|friend))\s+([A-Z][a-z]+)/i,
+      category: "RELATIONSHIP",
+      key: "family_member",
     },
   ];
 
   for (const pattern of patterns) {
     const match = transcript.match(pattern.regex);
     if (match) {
-      memories.push({
-        category: pattern.category,
-        key: pattern.key,
-        value: match[1].trim(),
-        evidence: match[0],
-        confidence: 0.7 + Math.random() * 0.2, // 0.7-0.9
-        expiresInDays: (pattern as any).expiresInDays,
-      });
+      const value = (match[1] || match[2] || "").trim();
+      if (value && value.length > 1 && value.length < 100) {
+        memories.push({
+          category: pattern.category,
+          key: pattern.key,
+          value: value,
+          evidence: match[0],
+          confidence: 0.7 + Math.random() * 0.2,
+          expiresInDays: (pattern as any).expiresInDays,
+        });
+      }
     }
   }
 
   if (verbose && memories.length === 0) {
-    console.log("   [MOCK] No patterns matched in transcript");
+    console.log("   [PATTERN] No patterns matched");
   } else if (verbose) {
-    console.log(`   [MOCK] Pattern-matched ${memories.length} memories`);
+    console.log(`   [PATTERN] Matched ${memories.length} memories`);
   }
 
   return memories;
 }
 
 /**
- * Aggregate user memories into a summary
+ * Aggregate caller memories into summary
  */
-async function aggregateUserMemorySummary(
-  userId: string,
+async function aggregateCallerMemorySummary(
+  callerId: string,
   verbose: boolean
 ): Promise<void> {
-  // Get all active memories for this user
-  const memories = await prisma.userMemory.findMany({
+  const memories = await prisma.callerMemory.findMany({
     where: {
-      userId,
-      supersededById: null, // Only active
+      callerId,
+      supersededById: null,
       OR: [
         { expiresAt: null },
-        { expiresAt: { gt: new Date() } }, // Not expired
+        { expiresAt: { gt: new Date() } },
       ],
     },
     orderBy: { confidence: "desc" },
   });
 
   if (memories.length === 0) {
-    if (verbose) {
-      console.log(`   ⏭️  No active memories for user ${userId}`);
-    }
+    if (verbose) console.log(`   ⏭️  No active memories for caller ${callerId.substring(0, 8)}...`);
     return;
   }
 
-  // Count by category
   const factCount = memories.filter((m) => m.category === MemoryCategory.FACT).length;
   const preferenceCount = memories.filter((m) => m.category === MemoryCategory.PREFERENCE).length;
   const eventCount = memories.filter((m) => m.category === MemoryCategory.EVENT).length;
   const topicCount = memories.filter((m) => m.category === MemoryCategory.TOPIC).length;
 
-  // Extract key facts (top 10 by confidence)
   const keyFacts = memories
     .filter((m) => m.category === MemoryCategory.FACT)
     .slice(0, 10)
@@ -561,7 +755,6 @@ async function aggregateUserMemorySummary(
       confidence: m.confidence,
     }));
 
-  // Extract top topics
   const topTopics = memories
     .filter((m) => m.category === MemoryCategory.TOPIC)
     .slice(0, 5)
@@ -570,24 +763,20 @@ async function aggregateUserMemorySummary(
       lastMentioned: m.extractedAt,
     }));
 
-  // Extract preferences as object
   const preferences: Record<string, string> = {};
   for (const m of memories.filter((m) => m.category === MemoryCategory.PREFERENCE)) {
-    const key = m.normalizedKey || m.key;
-    preferences[key] = m.value;
+    preferences[m.normalizedKey || m.key] = m.value;
   }
 
-  // Get most recent memory timestamp
   const lastMemoryAt = memories.reduce(
     (latest, m) => (m.extractedAt > latest ? m.extractedAt : latest),
     memories[0].extractedAt
   );
 
-  // Upsert summary
-  await prisma.userMemorySummary.upsert({
-    where: { userId },
+  await prisma.callerMemorySummary.upsert({
+    where: { callerId },
     create: {
-      userId,
+      callerId,
       factCount,
       preferenceCount,
       eventCount,
@@ -612,24 +801,29 @@ async function aggregateUserMemorySummary(
   });
 
   if (verbose) {
-    console.log(`   ✅ Updated summary for user ${userId}: ${memories.length} memories`);
-    console.log(`      Facts: ${factCount}, Preferences: ${preferenceCount}, Events: ${eventCount}, Topics: ${topicCount}`);
+    console.log(`   ✅ Summary for ${callerId.substring(0, 8)}...: ${memories.length} memories`);
+    console.log(`      Facts: ${factCount}, Prefs: ${preferenceCount}, Events: ${eventCount}, Topics: ${topicCount}`);
   }
 }
 
 // CLI execution
 if (require.main === module) {
   const args = process.argv.slice(2);
+
   const options: MemoryExtractorOptions = {
     verbose: args.includes("--verbose") || args.includes("-v"),
     plan: args.includes("--plan"),
+    mock: !args.includes("--no-mock"),
     callId: args.find((a) => a.startsWith("--call="))?.split("=")[1],
-    userId: args.find((a) => a.startsWith("--user="))?.split("=")[1],
-    limit: parseInt(args.find((a) => a.startsWith("--limit="))?.split("=")[1] || "100"),
+    callerId: args.find((a) => a.startsWith("--user="))?.split("=")[1],
+    limit: parseInt(
+      args.find((a) => a.startsWith("--limit="))?.split("=")[1] || "100"
+    ),
     aggregate: !args.includes("--no-aggregate"),
     confidenceThreshold: parseFloat(
       args.find((a) => a.startsWith("--confidence="))?.split("=")[1] || "0.5"
     ),
+    specSlug: args.find((a) => a.startsWith("--spec="))?.split("=")[1],
   };
 
   extractMemories(options)

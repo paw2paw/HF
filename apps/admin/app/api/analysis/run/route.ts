@@ -14,7 +14,7 @@ export const runtime = "nodejs";
  * Body: {
  *   transcript: string,           // The transcript text to analyze
  *   callId?: string,              // Optional call ID for storing results
- *   userId?: string,              // Optional user ID for storing memories
+ *   callerId?: string,            // Optional caller ID for storing memories
  *   specs?: string[],             // Optional: specific spec slugs to analyze
  *   domains?: string[],           // Optional: filter by domains (personality, memory, etc.)
  *   outputTypes?: ("MEASURE" | "LEARN")[],  // Optional: filter by output type
@@ -25,7 +25,7 @@ export const runtime = "nodejs";
  * Returns:
  * - measures: Record<parameterId, score>
  * - learned: Array<{category, key, value, evidence}>
- * - stored: { callScores, userMemories }
+ * - stored: { callScores, callerMemories }
  */
 export async function POST(req: Request) {
   try {
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const {
       transcript,
       callId,
-      userId,
+      callerId,
       specs: specSlugs,
       domains,
       outputTypes,
@@ -147,11 +147,11 @@ export async function POST(req: Request) {
     let adaptResult: AdaptCalculationResult | null = null;
 
     if (storeResults) {
-      stored = await storeAnalysisResults(callId, userId, measures, learned);
+      stored = await storeAnalysisResults(callId, callerId, measures, learned);
 
       // Calculate ADAPT scores after storing MEASURE results
       // This computes deltas and goal progress based on the new scores
-      if (callId && userId && stored.analysisRunId) {
+      if (callId && callerId && stored.analysisRunId) {
         try {
           adaptResult = await calculateAdaptScores(callId, stored.analysisRunId);
           console.log(`ADAPT: Calculated ${adaptResult.adaptScores.length} adapt scores for call ${callId}`);
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       callId,
-      userId,
+      callerId,
       model,
       analysisTime,
       usage: {
@@ -432,12 +432,12 @@ async function runLearnAnalysis(
  */
 async function storeAnalysisResults(
   callId: string | undefined,
-  userId: string | undefined,
+  callerId: string | undefined,
   measures: Record<string, number>,
   learned: Array<{ category: string; key: string; value: string; evidence: string }>
 ) {
   let callScoresCreated = 0;
-  let userMemoriesCreated = 0;
+  let callerMemoriesCreated = 0;
   let analysisRunId: string | null = null;
 
   // Store measures as CallScore
@@ -449,7 +449,7 @@ async function storeAnalysisResults(
         finishedAt: new Date(),
         metadata: {
           type: "unified_analysis",
-          userId,
+          callerId,
         },
       },
     });
@@ -468,10 +468,10 @@ async function storeAnalysisResults(
     callScoresCreated = scoresToCreate.length;
   }
 
-  // Store learned facts as UserMemory
-  if (userId && learned.length > 0) {
+  // Store learned facts as CallerMemory
+  if (callerId && learned.length > 0) {
     const memoriesToCreate = learned.map((e) => ({
-      userId,
+      callerId,
       callId: callId || null,
       category: e.category as MemoryCategory,
       source: "EXTRACTED" as const,  // Keep DB value for backwards compatibility
@@ -482,13 +482,13 @@ async function storeAnalysisResults(
       extractedBy: "unified_analysis",
     }));
 
-    await prisma.userMemory.createMany({ data: memoriesToCreate });
-    userMemoriesCreated = memoriesToCreate.length;
+    await prisma.callerMemory.createMany({ data: memoriesToCreate });
+    callerMemoriesCreated = memoriesToCreate.length;
   }
 
   return {
     analysisRunId,
     callScoresCreated,
-    userMemoriesCreated,
+    callerMemoriesCreated,
   };
 }

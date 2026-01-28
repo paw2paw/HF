@@ -27,7 +27,7 @@ export interface AdaptResult {
 
 export interface AdaptCalculationResult {
   callId: string;
-  userId: string;
+  callerId: string;
   adaptScores: AdaptResult[];
   previousCallId?: string;
   callSequence: number;
@@ -44,11 +44,11 @@ export async function calculateAdaptScores(
   callId: string,
   analysisRunId: string
 ): Promise<AdaptCalculationResult> {
-  // 1. Get the call with user info
+  // 1. Get the call with caller info
   const call = await prisma.call.findUnique({
     where: { id: callId },
     include: {
-      user: true,
+      caller: true,
       scores: {
         include: { parameter: true },
       },
@@ -59,8 +59,8 @@ export async function calculateAdaptScores(
     throw new Error(`Call not found: ${callId}`);
   }
 
-  if (!call.userId) {
-    throw new Error(`Call ${callId} has no userId - cannot calculate ADAPT scores`);
+  if (!call.callerId) {
+    throw new Error(`Call ${callId} has no callerId - cannot calculate ADAPT scores`);
   }
 
   // 2. Get all ADAPT parameters
@@ -73,16 +73,16 @@ export async function calculateAdaptScores(
   if (adaptParameters.length === 0) {
     return {
       callId,
-      userId: call.userId,
+      callerId: call.callerId,
       adaptScores: [],
       callSequence: call.callSequence || 1,
     };
   }
 
-  // 3. Find previous call for this user
+  // 3. Find previous call for this caller
   const previousCall = await prisma.call.findFirst({
     where: {
-      userId: call.userId,
+      callerId: call.callerId,
       id: { not: callId },
       createdAt: { lt: call.createdAt },
     },
@@ -147,7 +147,7 @@ export async function calculateAdaptScores(
           // No previous value - delta is 0 (no change from "baseline")
           delta = 0;
           confidence = 0.5; // Lower confidence - no comparison available
-          evidence = `First call for user - no previous ${param.baseParameterId} score to compare`;
+          evidence = `First call for caller - no previous ${param.baseParameterId} score to compare`;
         }
 
         adaptScores.push({
@@ -202,19 +202,19 @@ export async function calculateAdaptScores(
         parameterId: adaptScore.parameterId,
         score: adaptScore.score,
         confidence: adaptScore.confidence,
-        evidence: adaptScore.evidence,
+        evidence: adaptScore.evidence ? [adaptScore.evidence] : [],
       },
       update: {
         score: adaptScore.score,
         confidence: adaptScore.confidence,
-        evidence: adaptScore.evidence,
+        evidence: adaptScore.evidence ? [adaptScore.evidence] : [],
       },
     });
   }
 
   return {
     callId,
-    userId: call.userId,
+    callerId: call.callerId,
     adaptScores,
     previousCallId: previousCall?.id,
     callSequence,
@@ -224,18 +224,18 @@ export async function calculateAdaptScores(
 /**
  * Calculate session momentum - average delta over last N calls
  *
- * @param userId - User to calculate momentum for
+ * @param callerId - Caller to calculate momentum for
  * @param parameterId - Base parameter to track (e.g., "engagement")
  * @param windowSize - Number of calls to consider (default 3)
  */
 export async function calculateSessionMomentum(
-  userId: string,
+  callerId: string,
   parameterId: string,
   windowSize: number = 3
 ): Promise<{ momentum: number; confidence: number; evidence: string }> {
   // Get last N calls with scores for this parameter
   const recentCalls = await prisma.call.findMany({
-    where: { userId },
+    where: { callerId },
     orderBy: { createdAt: "desc" },
     take: windowSize + 1, // Need N+1 to calculate N deltas
     include: {
@@ -284,7 +284,7 @@ export async function calculateSessionMomentum(
  * Get user's current ADAPT state
  * Useful for prompt generation
  */
-export async function getUserAdaptState(userId: string): Promise<{
+export async function getUserAdaptState(callerId: string): Promise<{
   latestCall?: {
     id: string;
     callSequence: number;
@@ -297,7 +297,7 @@ export async function getUserAdaptState(userId: string): Promise<{
 }> {
   // Get latest call with ADAPT scores
   const latestCall = await prisma.call.findFirst({
-    where: { userId },
+    where: { callerId },
     orderBy: { createdAt: "desc" },
     include: {
       scores: {

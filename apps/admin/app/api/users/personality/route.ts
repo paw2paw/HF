@@ -5,11 +5,11 @@ const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    const profiles = await prisma.userPersonality.findMany({
+    const profiles = await prisma.callerPersonality.findMany({
       orderBy: { updatedAt: "desc" },
       take: 100,
       include: {
-        user: {
+        caller: {
           select: {
             name: true,
             email: true,

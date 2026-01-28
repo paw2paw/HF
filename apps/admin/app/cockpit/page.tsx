@@ -6,6 +6,8 @@ import AgentPathsCard from "../../components/cockpit/AgentPathsCard";
 import ServiceTogglesPanel from "../../components/cockpit/ServiceTogglesPanel";
 import ActiveConfigSummary from "../../components/cockpit/ActiveConfigSummary";
 import RunningAgentsCard from "../../components/cockpit/RunningAgentsCard";
+import LoggingSettingsCard from "../../components/cockpit/LoggingSettingsCard";
+import AIEngineSettingsCard from "../../components/cockpit/AIEngineSettingsCard";
 
 export default function CockpitPage() {
   return (
@@ -38,6 +40,12 @@ export default function CockpitPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
         <ActiveConfigSummary />
         <ServiceTogglesPanel />
+      </div>
+
+      {/* Row 4: AI Engine + Logging Settings */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        <AIEngineSettingsCard />
+        <LoggingSettingsCard />
       </div>
 
       {/* CLI Reference */}

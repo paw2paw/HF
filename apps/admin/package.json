@@ -15,7 +15,14 @@
     "prisma:dev": "npx prisma migrate dev",
     "prisma:generate": "npx prisma generate",
     "prisma:seed": "npx prisma db seed",
-    "prisma:studio": "npx prisma studio"
+    "prisma:studio": "npx prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
+    "db:reset": "tsx prisma/reset.ts",
+    "db:seed:all": "tsx prisma/seed-all.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -33,6 +40,7 @@
     "csv-parser": "^3.2.0",
     "express": "^5.2.1",
     "next": "16.1.0",
+    "openai": "^6.16.0",
     "pdf-parse": "^1.1.4",
     "prisma": "^6.19.1",
     "ra-core": "^5.13.4",
@@ -46,15 +54,22 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/glob": "^8.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.1.2",
+    "@vitest/coverage-v8": "^4.0.17",
     "autoprefixer": "^10.4.23",
     "eslint": "^9",
     "eslint-config-next": "16.1.0",
+    "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.17"
   }
 }

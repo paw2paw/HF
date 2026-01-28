@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { loadManifest, validateManifest } from "@/lib/manifest";
 import crypto from "crypto";
 
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
           continue;
         }
 
-        const settings = agent.settings || {};
+        const settings = (agent.settings || {}) as Record<string, unknown>;
         const settingsHash = computeSettingsHash(settings);
 
         await prisma.agentInstance.create({
@@ -191,7 +191,7 @@ export async function POST(req: Request) {
             description: agent.description || null,
             version: "v1.0",
             status: "DRAFT",
-            settings,
+            settings: settings as Prisma.JsonObject,
             settingsHash,
           },
         });
@@ -220,7 +220,7 @@ export async function POST(req: Request) {
 
         if (!existing) {
           // Create if not exists
-          const settings = agent.settings || {};
+          const settings = (agent.settings || {}) as Record<string, unknown>;
           const settingsHash = computeSettingsHash(settings);
 
           await prisma.agentInstance.create({
@@ -230,7 +230,7 @@ export async function POST(req: Request) {
               description: agent.description || null,
               version: "v1.0",
               status: "DRAFT",
-              settings,
+              settings: settings as Prisma.JsonObject,
               settingsHash,
             },
           });
@@ -245,7 +245,7 @@ export async function POST(req: Request) {
         }
 
         // Update existing
-        const settings = agent.settings || {};
+        const settings = (agent.settings || {}) as Record<string, unknown>;
         const settingsHash = computeSettingsHash(settings);
 
         await prisma.agentInstance.update({
@@ -253,7 +253,7 @@ export async function POST(req: Request) {
           data: {
             name: agent.title,
             description: agent.description || null,
-            settings,
+            settings: settings as Prisma.JsonObject,
             settingsHash,
             updatedAt: new Date(),
           },

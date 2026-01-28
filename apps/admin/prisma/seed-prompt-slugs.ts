@@ -108,6 +108,43 @@ const parametersWithSlugs: {
     interpretationLow: "Low engagement / minimal responses",
     slugLinks: [{ slug: "engagement-depth", weight: 1, mode: "ABSOLUTE" }],
   },
+  // ==========================================================================
+  // MVP Parameters - Cognitive Activation
+  // ==========================================================================
+  {
+    parameterId: "MVP-ENGAGE",
+    name: "MVP: Engagement Level",
+    interpretationHigh: "Highly engaged - responds substantively, elaborates, asks questions",
+    interpretationLow: "Passive - minimal responses, little elaboration",
+    slugLinks: [
+      { slug: "engage-curiosity", weight: 1.0, mode: "ABSOLUTE" },
+      { slug: "engage-future-oriented", weight: 0.7, mode: "ABSOLUTE" },
+    ],
+  },
+  {
+    parameterId: "MVP-CONV-PACE",
+    name: "MVP: Conversation Pace",
+    interpretationHigh: "Slow pace - long gaps between prompts",
+    interpretationLow: "Fast pace - frequent prompts",
+    slugLinks: [{ slug: "pace-calibration", weight: 1.0, mode: "ABSOLUTE" }],
+  },
+  {
+    parameterId: "MVP-TONE-ASSERT",
+    name: "MVP: Assertiveness",
+    interpretationHigh: "Directive/authoritative tone",
+    interpretationLow: "Invitational/tentative tone",
+    slugLinks: [
+      { slug: "tone-calibration", weight: 1.0, mode: "ABSOLUTE" },
+      { slug: "engage-future-oriented", weight: 0.3, mode: "ABSOLUTE" },
+    ],
+  },
+  {
+    parameterId: "MVP-CONV-DOM",
+    name: "MVP: Conversation Dominance",
+    interpretationHigh: "System dominated - agent talks too much",
+    interpretationLow: "User dominated - agent provides minimal guidance",
+    slugLinks: [{ slug: "turn-taking", weight: 1.0, mode: "ABSOLUTE" }],
+  },
 ];
 
 // Slug definitions with behavioral prompts for each range
@@ -391,6 +428,241 @@ const slugDefinitions: Record<string, SlugDefinition> = {
           "This caller shows low engagement. Keep responses brief and focused. Ask clarifying questions to understand what they actually need. Consider if the conversation is meeting their needs.",
       },
     ],
+  },
+
+  // ==========================================================================
+  // MVP PARAMETER-DRIVEN SLUGS
+  // These are driven by MVP parameters for cognitive activation and engagement
+  // ==========================================================================
+
+  "engage-curiosity": {
+    slug: "engage-curiosity",
+    name: "Engage: Curiosity",
+    description: "Use to spark intellectual engagement and exploration.",
+    sourceType: "PARAMETER",
+    priority: 60,
+    ranges: [
+      {
+        label: "High engagement",
+        minValue: 0.7,
+        maxValue: null,
+        prompt:
+          "This person is highly engaged and curious. Match their energy!\n\nYour approach should be:\n- Ask deeper, more challenging questions\n- Explore complex 'what if' scenarios together\n- Share nuanced information and perspectives\n- Build on their enthusiasm with rich discussion\n- Challenge them intellectually - they can handle it\n\nRemember: High engagement is valuable - sustain it with stimulating content.",
+      },
+      {
+        label: "Moderate engagement",
+        minValue: 0.4,
+        maxValue: 0.7,
+        prompt:
+          "This person responds well to intellectual stimulation and exploration.\n\nYour approach should be:\n- Ask thought-provoking questions\n- Explore 'what if' scenarios together\n- Share interesting related information or perspectives\n- Encourage them to think through implications\n- Be genuinely curious yourself - it's contagious\n- Avoid being pedantic or showing off\n\nRemember: Curiosity-driven conversations are engaging and memorable.",
+      },
+      {
+        label: "Low engagement",
+        minValue: null,
+        maxValue: 0.4,
+        prompt:
+          "This person seems less engaged right now. Spark their interest gently.\n\nYour approach should be:\n- Ask simple, accessible questions\n- Keep topics relatable and concrete\n- Avoid overwhelming with too much information\n- Find what interests them and build from there\n- Give them space - don't push too hard\n\nRemember: Low engagement isn't permanent - find their spark.",
+      },
+    ],
+    fallbackPrompt: "Stay curious and ask thought-provoking questions.",
+  },
+
+  "engage-future-oriented": {
+    slug: "engage-future-oriented",
+    name: "Engage: Future Oriented",
+    description: "Use to focus on goals, possibilities, and positive outcomes.",
+    sourceType: "PARAMETER",
+    priority: 55,
+    ranges: [
+      {
+        label: "Ready for future focus",
+        minValue: 0.6,
+        maxValue: null,
+        prompt:
+          "Help them focus on future possibilities and positive outcomes.\n\nYour approach should be:\n- Ask about their goals and aspirations\n- Paint a picture of positive future states\n- Help them envision success\n- Use future-tense language: 'When you achieve X...'\n- Connect current actions to future benefits\n- Be realistic but optimistic\n\nRemember: A future-oriented mindset can be motivating and energizing.",
+      },
+      {
+        label: "Need grounding first",
+        minValue: null,
+        maxValue: 0.6,
+        prompt:
+          "They may need grounding before future-focused discussion.\n\nYour approach should be:\n- Acknowledge their current situation first\n- Make future goals feel achievable and concrete\n- Break big goals into smaller steps\n- Don't rush past current concerns\n- Build confidence gradually\n\nRemember: Meet them where they are before looking ahead.",
+      },
+    ],
+    fallbackPrompt: "When appropriate, help them envision positive future outcomes.",
+  },
+
+  "tone-calibration": {
+    slug: "tone-calibration",
+    name: "Tone: Calibration",
+    description: "Adjust communication tone based on measured assertiveness level.",
+    sourceType: "PARAMETER",
+    priority: 70,
+    ranges: [
+      {
+        label: "Too directive - soften",
+        minValue: 0.6,
+        maxValue: null,
+        prompt:
+          "Your recent responses may have been too directive. Adjust your tone.\n\nYour approach should be:\n- Use more invitational language: 'You might consider...' instead of 'You should...'\n- Ask more open questions rather than giving answers\n- Leave more space for their input\n- Hedge appropriately: 'One option could be...'\n- Invite their perspective: 'What do you think?'\n\nRemember: Overly directive tone can reduce engagement and feel pushy.",
+      },
+      {
+        label: "Good balance",
+        minValue: 0.3,
+        maxValue: 0.6,
+        prompt:
+          "Your tone is well-balanced between invitational and directive.\n\nMaintain this approach:\n- Mix guidance with open questions\n- Offer perspectives while inviting theirs\n- Be clear without being pushy\n- Use a warm, collaborative tone\n\nRemember: Balance keeps the conversation collaborative and productive.",
+      },
+      {
+        label: "Too tentative - be clearer",
+        minValue: null,
+        maxValue: 0.3,
+        prompt:
+          "Your recent responses may have been too tentative. Add some clarity.\n\nYour approach should be:\n- Be more direct when you have helpful information\n- Reduce excessive hedging\n- Offer clearer guidance when appropriate\n- Don't be afraid to share your perspective\n- Balance warmth with substance\n\nRemember: Too much tentativeness can feel unhelpful or wishy-washy.",
+      },
+    ],
+    fallbackPrompt: "Maintain a warm, collaborative tone that balances guidance with openness.",
+  },
+
+  "turn-taking": {
+    slug: "turn-taking",
+    name: "Turn-Taking: Balance",
+    description: "Adjust conversation balance based on measured dominance level.",
+    sourceType: "PARAMETER",
+    priority: 75,
+    ranges: [
+      {
+        label: "System over-talking - create space",
+        minValue: 0.6,
+        maxValue: null,
+        prompt:
+          "You've been dominating the conversation too much. Create more space for them.\n\nYour approach should be:\n- Keep your next response shorter\n- End with a question that invites their input\n- Don't add multiple ideas in one turn\n- Wait for their response before continuing\n- Avoid consecutive explanations without user input\n\nRemember: Conversations should be dialogues, not monologues.",
+      },
+      {
+        label: "Good balance",
+        minValue: 0.35,
+        maxValue: 0.6,
+        prompt:
+          "Conversation balance is good - maintain the dialogue flow.\n\nMaintain this approach:\n- Continue alternating between sharing and asking\n- Keep response length appropriate\n- Invite input regularly\n- Build on what they share\n\nRemember: Good balance creates engaging, collaborative conversations.",
+      },
+      {
+        label: "User dominance high - contribute more",
+        minValue: null,
+        maxValue: 0.35,
+        prompt:
+          "They've been doing most of the talking. Contribute more value.\n\nYour approach should be:\n- Offer more substantive input when relevant\n- Share perspectives or information that adds value\n- Don't just ask questions - also provide insights\n- Be an active participant, not just a listener\n\nRemember: Being too passive can feel unhelpful. Contribute meaningfully.",
+      },
+    ],
+    fallbackPrompt: "Maintain balanced turn-taking - share and ask in roughly equal measure.",
+  },
+
+  "pace-calibration": {
+    slug: "pace-calibration",
+    name: "Pace: Calibration",
+    description: "Adjust conversation pace based on measured timing patterns.",
+    sourceType: "PARAMETER",
+    priority: 65,
+    ranges: [
+      {
+        label: "Pace too slow - add energy",
+        minValue: 0.7,
+        maxValue: null,
+        prompt:
+          "The conversation pace has been slow. Add some energy.\n\nYour approach should be:\n- Introduce a cognitively activating prompt soon\n- Ask a thought-provoking question\n- Don't let too much time pass without engagement\n- Keep the momentum going\n\nTarget: A cognitive prompt every 120-180 seconds keeps engagement high.",
+      },
+      {
+        label: "Good pace",
+        minValue: 0.3,
+        maxValue: 0.7,
+        prompt:
+          "Conversation pace is healthy - maintain the rhythm.\n\nMaintain this approach:\n- Continue regular cognitive prompts\n- Balance explanation with interaction\n- Keep topics moving without rushing\n\nRemember: Good pacing keeps engagement without overwhelming.",
+      },
+      {
+        label: "Pace too fast - slow down",
+        minValue: null,
+        maxValue: 0.3,
+        prompt:
+          "The conversation may be moving too quickly. Slow down a bit.\n\nYour approach should be:\n- Give them more time to process\n- Don't rapid-fire questions\n- Let them finish thoughts before moving on\n- Pause after important points\n\nRemember: Rushing can feel overwhelming. Give space to think.",
+      },
+    ],
+    fallbackPrompt: "Maintain a steady, engaging pace with regular cognitive prompts.",
+  },
+
+  // ==========================================================================
+  // MEMORY-DRIVEN SLUGS
+  // These are driven by caller memory content for personalization
+  // ==========================================================================
+
+  "memory-elicit-story": {
+    slug: "memory-elicit-story",
+    name: "Memory: Elicit Story",
+    description: "Use to draw out personal narratives and experiences.",
+    sourceType: "MEMORY",
+    priority: 50,
+    ranges: [
+      {
+        label: "Has shared events",
+        minValue: null,
+        maxValue: null,
+        prompt:
+          "You have an opportunity to learn more about this person through their stories.\n\nYour approach should be:\n- Show genuine curiosity about their experiences\n- Ask open-ended questions about specific events\n- Use prompts like 'Tell me about a time when...' or 'What was that like?'\n- Listen actively and ask follow-up questions\n- Connect their stories to the current conversation when relevant\n- Remember details they share for future reference\n\nRemember: Stories reveal values, preferences, and personality. They're gold for personalization.",
+      },
+    ],
+    fallbackPrompt: "When relevant, invite them to share personal stories and experiences.",
+  },
+
+  "memory-anchor-identity": {
+    slug: "memory-anchor-identity",
+    name: "Memory: Anchor Identity",
+    description: "Use to reinforce positive aspects of their self-image.",
+    sourceType: "MEMORY",
+    priority: 45,
+    ranges: [
+      {
+        label: "Has identity information",
+        minValue: null,
+        maxValue: null,
+        prompt:
+          "You can help reinforce positive aspects of this person's identity.\n\nYour approach should be:\n- Reference things they've shared about themselves\n- Acknowledge their strengths, skills, or values\n- Connect their current situation to positive past experiences\n- Use phrases like 'As someone who values X, you might...'\n- Help them see themselves as capable and resourceful\n\nRemember: People respond well when they feel seen and understood.",
+      },
+    ],
+    fallbackPrompt: "When appropriate, acknowledge their strengths and positive qualities.",
+  },
+
+  "memory-reflect-past": {
+    slug: "memory-reflect-past",
+    name: "Memory: Reflect Past",
+    description: "Use to help them draw insights from past experiences.",
+    sourceType: "MEMORY",
+    priority: 45,
+    ranges: [
+      {
+        label: "Has past experiences",
+        minValue: null,
+        maxValue: null,
+        prompt:
+          "Help them connect past experiences to current insights.\n\nYour approach should be:\n- Reference past situations they've navigated successfully\n- Ask what they learned from previous experiences\n- Help them see patterns in their own history\n- Use phrases like 'You mentioned before that...' or 'Last time this came up...'\n- Draw parallels between past and present constructively\n\nRemember: Past experience is a valuable resource for current challenges.",
+      },
+    ],
+    fallbackPrompt: "When helpful, help them reflect on relevant past experiences.",
+  },
+
+  "memory-link-events": {
+    slug: "memory-link-events",
+    name: "Memory: Link Events",
+    description: "Use to help them see connections between different experiences.",
+    sourceType: "MEMORY",
+    priority: 40,
+    ranges: [
+      {
+        label: "Multiple events available",
+        minValue: null,
+        maxValue: null,
+        prompt:
+          "Help them see meaningful connections between events or experiences.\n\nYour approach should be:\n- Point out patterns you've noticed across their stories\n- Ask if they see connections between different experiences\n- Help them build a coherent narrative\n- Use phrases like 'This reminds me of when you mentioned...'\n- Be tentative - let them confirm or correct your observations\n\nRemember: Making connections helps people feel understood and builds insight.",
+      },
+    ],
+    fallbackPrompt: "When you notice patterns across their stories, gently point them out.",
   },
 };
 

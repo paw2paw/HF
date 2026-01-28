@@ -1,14 +1,14 @@
 # HF Admin System - Status & Roadmap
 
-**Last Updated:** 2025-01-14
+**Last Updated:** 2026-01-22
 
-## 🎯 System Vision
+## System Vision
 
 **WHY:** Build adaptive voice AI that holds meaningful conversations over time by learning from each interaction.
 
 **HOW:**
 - Track personality traits across calls (time series with decay)
-- Score conversations using knowledge-backed parameters
+- Score conversations using spec-driven analysis
 - Modify prompts based on user personality profiles
 - Extract facts and insights about each caller
 
@@ -16,286 +16,247 @@
 
 ---
 
-## ✅ COMPLETED (Working Features)
+## Architecture Overview
 
-### 1. **Parameters System** ✅ GREEN
-- Location: [/admin#/parameters](http://localhost:3000/admin#/parameters)
+The system uses three core concepts:
+
+1. **Parameters** - Dimensions to measure (e.g., Big Five personality traits)
+2. **AnalysisSpecs** - HOW to measure each parameter (MEASURE) or extract memories (LEARN)
+3. **PromptSlugs** - WHAT to say based on measurements (adaptive prompts)
+
+**Primary Prompt Composition:** `/api/prompt/compose-from-specs`
+- Renders Mustache-style templates with user's parameter values
+- Injects memories based on conversation history
+- Evaluates conditionals (high/medium/low thresholds)
+
+---
+
+## COMPLETED (Working Features)
+
+### 1. **Parameters System**
+- Location: [/admin](http://localhost:3000/admin)
 - CRUD for personality/conversation parameters
 - Active/Inactive status management
 - CSV import with hash-based versioning
-- Stored in: `Parameter`, `ParameterTag`, `ParameterSet` tables
+- Stored in: `Parameter`, `ParameterTag`, `AnalysisProfile` tables
 
-### 2. **Transcripts System** ✅ GREEN
+### 2. **Analysis Specs System**
+- Location: [/analysis-specs](http://localhost:3000/analysis-specs)
+- MEASURE specs: Score personality traits (0-1 scale)
+- LEARN specs: Extract memories (key-value facts)
+- Prompt templates with Mustache-style variables
+- Stored in: `AnalysisSpec` table
+
+### 3. **Prompt Slugs System**
+- Location: [/prompt-slugs](http://localhost:3000/prompt-slugs)
+- Adaptive prompts based on parameter thresholds
+- High/Medium/Low variants per parameter
+- Stored in: `PromptSlug` table
+
+### 4. **Transcripts System**
 - Location: [/transcripts](http://localhost:3000/transcripts)
-- Raw transcript file display (from ~/hf_kb/sources/transcripts/raw)
+- Raw transcript file display (from HF_KB_PATH/sources/transcripts/raw)
 - Type detection (Batch/Single)
-- Status tracking (Completed/Unprocessed)
+- Status tracking (Completed/Partial/Unprocessed)
 - Hash-based deduplication
-- Stored in: `ProcessedFile`, `TranscriptBatch` tables
+- Stored in: `ProcessedFile`, `Call`, `FailedCall` tables
 
-### 3. **Transcript Processing** ✅ GREEN
+### 5. **Transcript Processing**
 - Agent: `transcript_processor`
 - Operation: `transcripts:process`
 - Extracts calls from JSON batches
 - Creates User records
-- Links to TranscriptBatch
-- **Tested:** 3 files, 237 calls extracted successfully
+- Handles partial failures with FailedCall tracking
 
-### 4. **Agents Management** ✅ GREEN
+### 6. **Personality Analysis**
+- Agent: `personality_analyzer`
+- Operation: `personality:analyze`
+- Spec-driven scoring using MEASURE-type AnalysisSpecs
+- Time decay aggregation (30-day half-life)
+- Stored in: `CallScore`, `UserPersonality` tables
+
+### 7. **Memory Extraction**
+- Agent: `memory_extractor`
+- Operation: `memory:extract`
+- Spec-driven extraction using LEARN-type AnalysisSpecs
+- Pattern-based extraction with key normalization
+- Handles contradictions by superseding old memories
+- Stored in: `UserMemory`, `UserMemorySummary` tables
+
+### 8. **Knowledge Ingestion**
+- Agent: `knowledge_ingestor`
+- Operation: `knowledge:ingest`
+- Markdown and PDF document processing
+- Hash-based deduplication with resume logic
+- Stored in: `KnowledgeDoc`, `KnowledgeChunk` tables
+
+### 9. **Agents Management**
 - Location: [/agents](http://localhost:3000/agents)
 - JSON-based agent manifest
-- Enable/disable agents
-- Configure settings per agent
-- JSON Schema for UI generation
+- Draft/Publish workflow
+- Settings configuration per agent
+- Run history tracking
+- Stored in: `AgentInstance`, `AgentRun` tables
 
-### 5. **Ops Cockpit** ✅ GREEN
+### 10. **Ops Cockpit**
 - Location: [/ops](http://localhost:3000/ops)
-- Execute operations with verbose/plan modes
+- Execute operations with verbose/plan/mock modes
 - Real-time logs
 - Operation registry with effects tracking
 
-### 6. **Runtime Config** ✅ GREEN
-- Location: [/config](http://localhost:3000/config)
-- Environment variable management
-- HF_KB_PATH configuration
+### 11. **Flow Visualization**
+- Location: [/flow](http://localhost:3000/flow)
+- React Flow pipeline visualization
+- Source → Agent → Output node layout
+- Agent status integration (draft/published)
 
-### 7. **Database Schema - Core** ✅
-```
-✅ Parameter (personality/conversation metrics)
-✅ ParameterTag (Active/MVP status)
-✅ ParameterSet (bundles for analysis runs)
-✅ ProcessedFile (transcript tracking)
-✅ TranscriptBatch (import batches)
-✅ Call (individual conversations)
-✅ CallScore (parameter scoring per call)
-✅ User (callers)
-```
+### 12. **System Cockpit**
+- Location: [/cockpit](http://localhost:3000/cockpit)
+- System health overview
+- Path configuration status
+- Recent activity summary
 
-### 8. **Database Schema - Personality System** ✅
-```
-✅ PersonalityObservation (time series per call)
-✅ UserPersonality (aggregated with decay)
-✅ ControlSet (parameter bundles + expected personality)
-✅ PromptTemplate (with personality modifiers)
-✅ RewardScore (overall conversation quality)
-```
+---
 
-### 9. **Database Schema - Knowledge System** ✅
+## Database Schema
+
+### Core Models
 ```
-✅ KnowledgeDoc (documents with hash + status tracking)
-✅ KnowledgeChunk (chunked text for retrieval)
-✅ VectorEmbedding (embeddings for semantic search)
-✅ KnowledgeArtifact (scoring guides per parameter)
-✅ ParameterKnowledgeLink (parameter ↔ relevant chunks)
+Parameter         - Personality/conversation metrics
+ParameterTag      - Active/MVP status tags
+AnalysisProfile   - Bundles for analysis runs
+AnalysisSpec      - Scoring/extraction specifications
+PromptSlug        - Adaptive prompt variants
+PromptBlock       - Static prompt sections
+PromptTemplate    - Full prompt templates
 ```
 
----
+### Processing Models
+```
+ProcessedFile     - Transcript file tracking
+Call              - Individual conversations
+FailedCall        - Failed extraction records
+CallScore         - Parameter scores per call
+```
 
-## 🔨 IN PROGRESS
+### User Models
+```
+User              - Caller records
+UserPersonality   - Aggregated personality profiles
+UserMemory        - Extracted memories
+UserMemorySummary - Memory aggregations
+```
 
-### 1. **Knowledge Ingestion** 🚧
-- Agent: `knowledge_ingestor` (added to manifest)
-- Operation: `knowledge:ingest` (added to ops registry)
-- Implementation: Complete with resume logic
-- **Status:** Code complete, ready for testing
-- **Next:** Test with markdown files (PDFs need pdf-parse library)
+### Knowledge Models
+```
+KnowledgeDoc      - Source documents
+KnowledgeChunk    - Chunked text for retrieval
+VectorEmbedding   - Semantic search embeddings
+KnowledgeArtifact - Scoring guides per parameter
+```
 
-### 2. **Personality Analysis** 🚧
-- Agent: `personality_analyzer` (added to manifest)
-- Operation: `personality:analyze` (added to ops registry)
-- Implementation: Complete with time decay aggregation
-- **Status:** Code complete, needs testing with real calls
-- **Blocker:** No calls in database yet (need to run transcript_processor first)
-
----
-
-## ⏳ PENDING - Critical Path
-
-### Phase 1: Testing Current Features
-**Priority: HIGH** - Validate what we've built works
-
-1. ⏳ **Test transcript processing with your 3 files**
-   - Run `transcript_processor` agent
-   - Verify 237 calls extracted
-   - Check User records created
-
-2. ⏳ **Test knowledge ingestion with 10 markdown files**
-   - Run `knowledge_ingestor` agent (maxDocuments: 10)
-   - Verify hash deduplication works
-   - Test resume after limit reached
-
-3. ⏳ **Test personality analysis on extracted calls**
-   - Run `personality_analyzer` agent
-   - Verify PersonalityObservation records created
-   - Check time decay aggregation
-
-### Phase 2: Missing Infrastructure
-**Priority: HIGH** - Fill critical gaps
-
-4. ⏳ **Add reasoning/WHY fields to schema** (YOUR REQUIREMENT)
-   ```prisma
-   PromptTemplate:
-     + targetParameters String[]
-     + hypothesis String
-     + expectedReward Float
-     + whyExists String
-
-   ControlSet:
-     + purpose String (WHY)
-     + methodology String (HOW)
-     + outcome String (WHAT)
-   ```
-
-5. ⏳ **Add KnowledgeFact model** (YOUR REQUIREMENT)
-   - Extract facts about callers
-   - Store with confidence scores
-   - Link to source (call/transcript)
-   - Categories: preference, demographic, issue_history
-
-6. ⏳ **Embedding generation**
-   - Agent: `knowledge_embedder` (already in manifest)
-   - Operation: `knowledge:embed` (needs implementation)
-   - OpenAI API integration
-
-### Phase 3: User-Facing UI
-**Priority: MEDIUM** - Make system usable and explainable
-
-7. ⏳ **People list page** `/people`
-   - List all callers
-   - Show derived info (personality, call count)
-   - Filter/search
-
-8. ⏳ **Caller detail page** `/people/{userId}` (YOUR VISION)
-   - Header with key info + derived data
-   - Personality profile block (time series chart)
-   - Knowledge & facts block
-   - Calls list (clickable)
-   - Transcript analyses block
-
-9. ⏳ **Call detail page** `/people/{userId}/calls/{callId}`
-   - Full transcript
-   - Personality scores for this call
-   - Control set used
-   - Reward score breakdown
-
-10. ⏳ **Control Sets UI** `/derived/control-sets`
-    - List all control sets
-    - Show WHY/HOW/WHAT for each
-    - Link to parameters used
-    - Performance metrics
+### Agent Models
+```
+AgentInstance     - Agent configurations (draft/published)
+AgentRun          - Agent execution history
+```
 
 ---
 
-## ❌ NOT STARTED
+## Operations Registry
 
-### Phase 4: Advanced Features
-
-11. ❌ **Artifact creation** `knowledge:artifacts`
-    - Generate scoring guides per parameter
-    - Create examples of high/low traits
-    - Research summaries from knowledge base
-
-12. ❌ **RAG-enhanced personality scoring**
-    - Update `personality_analyzer` to use vector search
-    - Retrieve relevant knowledge chunks
-    - Build enriched prompts
-
-13. ❌ **Active call integration**
-    - Real-time transcript analysis
-    - Live personality detection
-    - Dynamic prompt modification
-
-14. ❌ **A/B testing framework**
-    - Compare ControlSet performance
-    - Prompt variation experiments
-    - Statistical significance testing
-
-15. ❌ **Cockpit dashboard** `/cockpit`
-    - System health overview
-    - Recent activity
-    - Quick actions
+| opid | Status | Description |
+|------|--------|-------------|
+| `transcripts:process` | Implemented | Extract calls from transcript files |
+| `personality:analyze` | Implemented | Score personality traits from calls |
+| `memory:extract` | Implemented | Extract memories from calls |
+| `knowledge:ingest` | Implemented | Ingest knowledge documents |
+| `kb:links:extract` | Implemented | Extract links from knowledge base |
+| `knowledge:embed` | Not implemented | Generate vector embeddings |
 
 ---
 
-## 📊 System Metrics (Current State)
+## API Endpoints
 
-**Database:**
-- Parameters: ? (need to check)
-- Calls: 0 (need to run transcript_processor)
-- Users: 0 (need to run transcript_processor)
-- KnowledgeDocs: 0 (ready to ingest)
-- Agents: 5 (2 ready for testing)
+### Prompt Composition (Primary)
+- `POST /api/prompt/compose-from-specs` - Generate prompts for a user
+- `POST /api/prompt/post-call` - Post-call prompt refresh
 
-**Working Pages:**
-- ✅ Parameters (green)
-- ✅ Transcripts (green)
-- ✅ Agents (green)
-- ✅ Ops (green)
-- ✅ Runtime Config (green)
-- ❌ People (not built)
-- ❌ Cockpit (not built)
+### Operations
+- `GET /api/ops` - List available operations
+- `POST /api/ops` - Execute operation
 
----
-
-## 🎯 Recommended Next Steps (Your Priority)
-
-Based on your feedback, here's what I recommend:
-
-### Immediate (Today/This Week):
-
-1. **Add reasoning fields to schema** (30 min)
-   - PromptTemplate: targetParameters, hypothesis, expectedReward
-   - ControlSet: purpose, methodology, outcome
-   - Run `prisma db push`
-
-2. **Add KnowledgeFact model** (20 min)
-   - Schema definition
-   - Relations to User, Call
-   - Run `prisma db push`
-
-3. **Test transcript processing** (10 min)
-   - Run on your 3 files
-   - Verify 237 calls extracted
-   - Creates foundation for personality analysis
-
-4. **Build People list page** (2 hours)
-   - Basic table with User data
-   - Link to detail pages
-   - Mark as GREEN in sidebar
-
-5. **Build Caller detail page** (4 hours)
-   - The dashboard you described
-   - Personality profile block
-   - Knowledge/facts block
-   - Calls list
-   - Analyses block
-
-### This Week Goals:
-
-- ✅ Schema has reasoning (WHY/HOW/WHAT)
-- ✅ Calls extracted from transcripts
-- ✅ People pages built and working (GREEN)
-- ✅ System is explainable at every level
+### Data Management
+- `/api/parameters` - Parameter CRUD
+- `/api/analysis-specs` - Spec CRUD
+- `/api/prompt-slugs` - Slug CRUD
+- `/api/transcripts` - Transcript listing
+- `/api/callers` - Caller listing
+- `/api/calls` - Call listing
 
 ---
 
-## 🤔 Open Questions
+## UI Pages
 
-1. **Prompt Slugs:** Where are these defined? Are they in PromptTemplate or separate?
-2. **Reward System:** How do we calculate "expected reward" for a ControlSet?
-3. **Active Calls:** Do you want real-time analysis during calls, or post-call only for now?
-4. **Knowledge Sources:** Should we prioritize PDF extraction (need library) or start with markdown?
+### Primary
+- `/cockpit` - System status dashboard
+- `/flow` - Pipeline visualization
+- `/ops` - Operations execution
+
+### Setup
+- `/admin` - Parameters management
+- `/analysis-specs` - Analysis specifications
+- `/prompt-slugs` - Adaptive prompts
+- `/prompt-blocks` - Static prompt blocks
+- `/memories` - Memory configuration
+
+### Sources
+- `/knowledge-docs` - Knowledge documents
+- `/transcripts` - Call transcripts
+
+### Processing
+- `/chunks` - Knowledge chunks
+- `/vectors` - Vector embeddings
+- `/knowledge-artifacts` - Extracted artifacts
+
+### Analysis
+- `/callers` - Caller profiles
+- `/calls` - Call records
+- `/analysis-profiles` - Analysis profiles
+- `/analysis-runs` - Run history
+- `/analysis-test` - Test lab
+
+### Config
+- `/agents` - Agent management
+- `/run-configs` - Run configurations
+- `/control-sets` - Control sets
+- `/settings-library` - Settings library
 
 ---
 
-## 📝 Documentation Created
+## Related Documentation
 
-- ✅ `PERSONALITY_SCORING_SYSTEM.md` - Full personality architecture
-- ✅ `TIME_SERIES_PERSONALITY.md` - Decay formula and examples
-- ✅ `KNOWLEDGE_ARTIFACT_SYSTEM.md` - RAG architecture
-- ✅ `HASH_STRATEGY.md` - Deduplication and resume logic
-- ✅ `STATUS.md` - This document
+- [ADMIN_USER_GUIDE.md](ADMIN_USER_GUIDE.md) - Comprehensive admin guide
+- [QUICKSTART.md](QUICKSTART.md) - Getting started guide
+- [ANALYSIS_SPECS.md](ANALYSIS_SPECS.md) - Behavior specifications
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
+- [DATA_FLOW_GUIDE.md](DATA_FLOW_GUIDE.md) - Data flow documentation
 
 ---
 
-**Ready to proceed with adding reasoning fields and building People pages?**
+## Pending Features
+
+### High Priority
+- Vector embedding generation (`knowledge:embed`)
+- Real-time analysis during calls
+- A/B testing framework for control sets
+
+### Medium Priority
+- Advanced RAG-enhanced personality scoring
+- Statistical significance testing
+- Prompt variation experiments
+
+---
+
+**Version**: 0.4
+**Last Updated**: 2026-01-22

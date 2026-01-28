@@ -63,19 +63,22 @@ async function getTableCount(tableName: string): Promise<number> {
     const validTables = [
       "Parameter",
       "ParameterSet",
+      "AnalysisProfile",
       "Call",
-      "User",
+      "Caller",
       "KnowledgeDoc",
       "KnowledgeChunk",
       "VectorEmbedding",
       "ProcessedFile",
-      "TranscriptBatch",
       "PersonalityObservation",
-      "UserPersonality",
-      "ControlSet",
+      "CallerPersonality",
       "PromptTemplate",
       "AgentInstance",
       "AgentRun",
+      "AnalysisSpec",
+      "CallerMemory",
+      "CallScore",
+      "BehaviorTarget",
     ];
 
     if (!validTables.includes(tableName)) {
@@ -92,8 +95,8 @@ async function getTableCount(tableName: string): Promise<number> {
         return await prisma.analysisProfile.count();
       case "Call":
         return await prisma.call.count();
-      case "User":
-        return await prisma.user.count();
+      case "Caller":
+        return await prisma.caller.count();
       case "KnowledgeDoc":
         return await prisma.knowledgeDoc.count();
       case "KnowledgeChunk":
@@ -102,20 +105,24 @@ async function getTableCount(tableName: string): Promise<number> {
         return await prisma.vectorEmbedding.count();
       case "ProcessedFile":
         return await prisma.processedFile.count();
-      case "TranscriptBatch":
-        return await prisma.transcriptBatch.count();
       case "PersonalityObservation":
         return await prisma.personalityObservation.count();
-      case "UserPersonality":
-        return await prisma.userPersonality.count();
-      case "ControlSet":
-        return await prisma.controlSet.count();
+      case "CallerPersonality":
+        return await prisma.callerPersonality.count();
+      case "BehaviorTarget":
+        return await prisma.behaviorTarget.count();
       case "PromptTemplate":
         return await prisma.promptTemplate.count();
       case "AgentInstance":
         return await prisma.agentInstance.count();
       case "AgentRun":
         return await prisma.agentRun.count();
+      case "AnalysisSpec":
+        return await prisma.analysisSpec.count();
+      case "CallerMemory":
+        return await prisma.callerMemory.count();
+      case "CallScore":
+        return await prisma.callScore.count();
       default:
         return 0;
     }

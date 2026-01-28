@@ -1,0 +1,410 @@
+/**
+ * GET /api/calls/[callId]
+ *
+ * Get detailed call data including:
+ * - Basic call info
+ * - Scores with parameter details
+ * - Memories extracted from this call
+ * - Behavior measurements
+ * - Reward score
+ * - Effective behavior targets (layered: SYSTEM → PLAYBOOK → SEGMENT → CALLER)
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ callId: string }> }
+) {
+  try {
+    const { callId } = await params;
+
+    const [call, scores, memories, measurements, rewardScore, triggeredPrompts, personalityObservation] = await Promise.all([
+      // Basic call info
+      prisma.call.findUnique({
+        where: { id: callId },
+        select: {
+          id: true,
+          source: true,
+          externalId: true,
+          transcript: true,
+          createdAt: true,
+          callSequence: true,
+          callerId: true,
+          caller: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      }),
+
+      // Scores with parameter details and analysis spec
+      prisma.callScore.findMany({
+        where: { callId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          parameterId: true,
+          score: true,
+          confidence: true,
+          evidence: true,
+          reasoning: true,
+          scoredBy: true,
+          scoredAt: true,
+          createdAt: true,
+          analysisSpecId: true,
+          parameter: {
+            select: {
+              name: true,
+              definition: true,
+            },
+          },
+          analysisSpec: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              description: true,
+            },
+          },
+        },
+      }),
+
+      // Memories extracted from this call
+      prisma.callerMemory.findMany({
+        where: {
+          callId,
+          supersededById: null,
+        },
+        orderBy: { extractedAt: "desc" },
+        select: {
+          id: true,
+          category: true,
+          key: true,
+          value: true,
+          evidence: true,
+          confidence: true,
+          extractedAt: true,
+          extractedBy: true,
+        },
+      }),
+
+      // Behavior measurements
+      prisma.behaviorMeasurement.findMany({
+        where: { callId },
+        select: {
+          id: true,
+          parameterId: true,
+          actualValue: true,
+          confidence: true,
+          evidence: true,
+          createdAt: true,
+          parameter: {
+            select: {
+              name: true,
+              definition: true,
+            },
+          },
+        },
+      }),
+
+      // Reward score
+      prisma.rewardScore.findUnique({
+        where: { callId },
+        select: {
+          id: true,
+          overallScore: true,
+          parameterDiffs: true,
+          modelVersion: true,
+          scoredAt: true,
+        },
+      }),
+
+      // Prompts triggered by this call
+      prisma.composedPrompt.findMany({
+        where: { triggerCallId: callId },
+        orderBy: { composedAt: "desc" },
+        select: {
+          id: true,
+          prompt: true,
+          llmPrompt: true, // LLM-friendly structured JSON version
+          triggerType: true,
+          model: true,
+          status: true,
+          composedAt: true,
+          inputs: true,
+        },
+      }),
+
+      // Personality observation for this call
+      prisma.personalityObservation.findUnique({
+        where: { callId },
+        select: {
+          id: true,
+          openness: true,
+          conscientiousness: true,
+          extraversion: true,
+          agreeableness: true,
+          neuroticism: true,
+          confidence: true,
+          decayFactor: true,
+          observedAt: true,
+        },
+      }),
+    ]);
+
+    if (!call) {
+      return NextResponse.json(
+        { ok: false, error: "Call not found" },
+        { status: 404 }
+      );
+    }
+
+    // Fetch effective behavior targets for this caller
+    // Cascade: SYSTEM → PLAYBOOK → SEGMENT → CALLER
+    // Each lower level overrides the higher level
+    let effectiveTargets: any[] = [];
+
+    if (call.callerId) {
+      // Get caller's segment and identity info
+      const callerIdentity = await prisma.callerIdentity.findFirst({
+        where: { callerId: call.callerId },
+        select: {
+          id: true,
+          segmentId: true,
+          segment: { select: { id: true, name: true } },
+          promptStackId: true,
+          promptStack: { select: { id: true, name: true } },
+        },
+      });
+
+      // Fetch all potentially applicable targets
+      const [systemTargets, playbookTargets, segmentTargets, callerTargets] = await Promise.all([
+        // SYSTEM level targets
+        prisma.behaviorTarget.findMany({
+          where: {
+            scope: "SYSTEM",
+            effectiveUntil: null,
+          },
+          include: {
+            parameter: {
+              select: {
+                parameterId: true,
+                name: true,
+                definition: true,
+                interpretationHigh: true,
+                interpretationLow: true,
+                domainGroup: true,
+              },
+            },
+          },
+        }),
+        // PLAYBOOK level targets (if caller has a prompt stack / playbook)
+        callerIdentity?.promptStackId
+          ? prisma.behaviorTarget.findMany({
+              where: {
+                scope: "PLAYBOOK",
+                playbookId: callerIdentity.promptStackId,
+                effectiveUntil: null,
+              },
+              include: {
+                parameter: {
+                  select: {
+                    parameterId: true,
+                    name: true,
+                    definition: true,
+                    interpretationHigh: true,
+                    interpretationLow: true,
+                    domainGroup: true,
+                  },
+                },
+                playbook: { select: { id: true, name: true } },
+              },
+            })
+          : Promise.resolve([]),
+        // SEGMENT level targets
+        callerIdentity?.segmentId
+          ? prisma.behaviorTarget.findMany({
+              where: {
+                scope: "SEGMENT",
+                segmentId: callerIdentity.segmentId,
+                effectiveUntil: null,
+              },
+              include: {
+                parameter: {
+                  select: {
+                    parameterId: true,
+                    name: true,
+                    definition: true,
+                    interpretationHigh: true,
+                    interpretationLow: true,
+                    domainGroup: true,
+                  },
+                },
+                segment: { select: { id: true, name: true } },
+              },
+            })
+          : Promise.resolve([]),
+        // CALLER level targets
+        callerIdentity?.id
+          ? prisma.behaviorTarget.findMany({
+              where: {
+                scope: "CALLER",
+                callerIdentityId: callerIdentity.id,
+                effectiveUntil: null,
+              },
+              include: {
+                parameter: {
+                  select: {
+                    parameterId: true,
+                    name: true,
+                    definition: true,
+                    interpretationHigh: true,
+                    interpretationLow: true,
+                    domainGroup: true,
+                  },
+                },
+              },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      // Merge targets with cascade (lower levels override higher)
+      const targetMap = new Map<string, any>();
+
+      // Layer 1: SYSTEM (base)
+      for (const t of systemTargets) {
+        targetMap.set(t.parameterId, {
+          parameterId: t.parameterId,
+          parameter: t.parameter,
+          targetValue: t.targetValue,
+          confidence: t.confidence,
+          source: t.source,
+          effectiveScope: "SYSTEM",
+          layers: [{ scope: "SYSTEM", value: t.targetValue, source: t.source }],
+        });
+      }
+
+      // Layer 2: PLAYBOOK (overrides SYSTEM)
+      for (const t of playbookTargets) {
+        const existing = targetMap.get(t.parameterId);
+        if (existing) {
+          existing.layers.push({
+            scope: "PLAYBOOK",
+            value: t.targetValue,
+            source: t.source,
+            playbookName: t.playbook?.name,
+          });
+          existing.targetValue = t.targetValue;
+          existing.confidence = t.confidence;
+          existing.source = t.source;
+          existing.effectiveScope = "PLAYBOOK";
+        } else {
+          targetMap.set(t.parameterId, {
+            parameterId: t.parameterId,
+            parameter: t.parameter,
+            targetValue: t.targetValue,
+            confidence: t.confidence,
+            source: t.source,
+            effectiveScope: "PLAYBOOK",
+            layers: [{ scope: "PLAYBOOK", value: t.targetValue, source: t.source, playbookName: t.playbook?.name }],
+          });
+        }
+      }
+
+      // Layer 3: SEGMENT (overrides PLAYBOOK)
+      for (const t of segmentTargets) {
+        const existing = targetMap.get(t.parameterId);
+        if (existing) {
+          existing.layers.push({
+            scope: "SEGMENT",
+            value: t.targetValue,
+            source: t.source,
+            segmentName: t.segment?.name,
+          });
+          existing.targetValue = t.targetValue;
+          existing.confidence = t.confidence;
+          existing.source = t.source;
+          existing.effectiveScope = "SEGMENT";
+        } else {
+          targetMap.set(t.parameterId, {
+            parameterId: t.parameterId,
+            parameter: t.parameter,
+            targetValue: t.targetValue,
+            confidence: t.confidence,
+            source: t.source,
+            effectiveScope: "SEGMENT",
+            layers: [{ scope: "SEGMENT", value: t.targetValue, source: t.source, segmentName: t.segment?.name }],
+          });
+        }
+      }
+
+      // Layer 4: CALLER (overrides all)
+      for (const t of callerTargets) {
+        const existing = targetMap.get(t.parameterId);
+        if (existing) {
+          existing.layers.push({
+            scope: "CALLER",
+            value: t.targetValue,
+            source: t.source,
+          });
+          existing.targetValue = t.targetValue;
+          existing.confidence = t.confidence;
+          existing.source = t.source;
+          existing.effectiveScope = "CALLER";
+        } else {
+          targetMap.set(t.parameterId, {
+            parameterId: t.parameterId,
+            parameter: t.parameter,
+            targetValue: t.targetValue,
+            confidence: t.confidence,
+            source: t.source,
+            effectiveScope: "CALLER",
+            layers: [{ scope: "CALLER", value: t.targetValue, source: t.source }],
+          });
+        }
+      }
+
+      effectiveTargets = Array.from(targetMap.values());
+
+      // Add measurement comparison if available
+      const measurementMap = new Map(measurements.map((m: any) => [m.parameterId, m.actualValue]));
+      for (const target of effectiveTargets) {
+        const measured = measurementMap.get(target.parameterId);
+        if (measured !== undefined) {
+          target.actualValue = measured;
+          target.delta = measured - target.targetValue;
+        }
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      call,
+      scores,
+      memories,
+      measurements,
+      rewardScore,
+      triggeredPrompts,
+      personalityObservation,
+      effectiveTargets,
+      counts: {
+        scores: scores.length,
+        memories: memories.length,
+        measurements: measurements.length,
+        prompts: triggeredPrompts.length,
+        targets: effectiveTargets.length,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error fetching call:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Failed to fetch call" },
+      { status: 500 }
+    );
+  }
+}

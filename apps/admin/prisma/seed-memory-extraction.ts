@@ -296,9 +296,9 @@ async function main() {
             actions: {
               create: t.actions.map((a, aIdx) => ({
                 description: a.description,
-                learnCategory: a.extractCategory,
-                learnKeyPrefix: a.extractKeyPrefix,
-                learnKeyHint: a.extractKeyHint,
+                learnCategory: a.learnCategory,
+                learnKeyPrefix: a.learnKeyPrefix,
+                learnKeyHint: a.learnKeyHint,
                 sortOrder: aIdx,
               })),
             },

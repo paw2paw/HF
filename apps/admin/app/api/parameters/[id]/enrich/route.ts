@@ -128,7 +128,7 @@ export async function POST(
       },
       chunksUsed: chunks.map(c => ({
         id: c.id,
-        title: c.title,
+        docId: c.docId,
         relevance: c.relevance,
       })),
       usage: {
@@ -199,7 +199,7 @@ export async function GET(
  */
 async function searchKnowledgeChunks(terms: string[]): Promise<Array<{
   id: string;
-  title: string;
+  docId: string;
   content: string;
   relevance: number;
 }>> {
@@ -208,13 +208,12 @@ async function searchKnowledgeChunks(terms: string[]): Promise<Array<{
     where: {
       OR: terms.flatMap(term => [
         { content: { contains: term, mode: "insensitive" } },
-        { title: { contains: term, mode: "insensitive" } },
       ]),
     },
     select: {
       id: true,
-      title: true,
       content: true,
+      docId: true,
     },
     take: 10,
   });
@@ -222,18 +221,16 @@ async function searchKnowledgeChunks(terms: string[]): Promise<Array<{
   // Score relevance based on term matches
   return chunks.map(chunk => {
     const contentLower = chunk.content.toLowerCase();
-    const titleLower = (chunk.title || "").toLowerCase();
     let relevance = 0;
 
     for (const term of terms) {
       const termLower = term.toLowerCase();
-      if (titleLower.includes(termLower)) relevance += 2;
       if (contentLower.includes(termLower)) relevance += 1;
     }
 
     return {
       id: chunk.id,
-      title: chunk.title || "Untitled",
+      docId: chunk.docId,
       content: chunk.content,
       relevance,
     };
@@ -245,7 +242,7 @@ async function searchKnowledgeChunks(terms: string[]): Promise<Array<{
  */
 function buildEnrichmentPrompt(
   parameter: any,
-  chunks: Array<{ title: string; content: string }>
+  chunks: Array<{ docId: string; content: string }>
 ): string {
   const lines: string[] = [
     `You are enriching the definition of a behavioral parameter used in call analysis.`,
@@ -278,7 +275,7 @@ function buildEnrichmentPrompt(
     lines.push(`The following relevant context was found in the knowledge base:`);
     lines.push(``);
     for (const chunk of chunks) {
-      lines.push(`## ${chunk.title}`);
+      lines.push(`## Doc ${chunk.docId}`);
       lines.push(chunk.content.substring(0, 500));
       lines.push(``);
     }

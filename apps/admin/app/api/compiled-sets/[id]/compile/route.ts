@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -231,7 +231,7 @@ export async function POST(
         data: {
           status: "READY",
           compiledAt: new Date(),
-          validationErrors: errors.length > 0 ? errors : null,
+          validationErrors: errors.length > 0 ? errors : Prisma.JsonNull,
           validationPassed: criticalErrors.length === 0,
           ragContext,
           kbChunksUsed: Array.from(kbChunkIds),

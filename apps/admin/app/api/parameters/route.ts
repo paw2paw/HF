@@ -48,6 +48,11 @@ export async function GET(request: NextRequest) {
       where.isMvpCore = filter.isMvpCore;
     }
 
+    // Parameter type filter
+    if (filter.parameterType) {
+      where.parameterType = filter.parameterType;
+    }
+
     // Get total count
     const total = await prisma.parameter.count({ where });
 

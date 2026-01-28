@@ -231,7 +231,7 @@ export default function GettingStartedPage() {
     <div style={{ padding: "24px 32px", maxWidth: 900, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: uiColors.textValue }}>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: uiColors.text }}>
           Getting Started with HF MVP
         </h1>
         <p style={{ marginTop: 8, fontSize: 15, color: uiColors.textMuted, lineHeight: 1.6 }}>
@@ -339,7 +339,7 @@ export default function GettingStartedPage() {
                   {getStatusIcon(step.status)}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: uiColors.textValue }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: uiColors.text }}>
                     {step.title}
                   </div>
                   <div style={{ fontSize: 13, color: uiColors.textMuted, marginTop: 2 }}>
@@ -474,7 +474,7 @@ export default function GettingStartedPage() {
                           background: "#f9fafb",
                           borderRadius: 6,
                           fontSize: 12,
-                          color: uiColors.textValue,
+                          color: uiColors.text,
                         }}
                       >
                         <div style={{ fontFamily: "monospace" }}>
@@ -525,7 +525,7 @@ export default function GettingStartedPage() {
                           border: step.status === "completed" ? "1px solid #86efac" : "none",
                           borderRadius: 6,
                           fontSize: 12,
-                          color: uiColors.textValue,
+                          color: uiColors.text,
                         }}
                       >
                         <div style={{ fontFamily: "monospace" }}>
@@ -711,7 +711,7 @@ export default function GettingStartedPage() {
                           fontSize: 12,
                         }}
                       >
-                        <div style={{ fontWeight: 600, marginBottom: 8, color: uiColors.textValue }}>
+                        <div style={{ fontWeight: 600, marginBottom: 8, color: uiColors.text }}>
                           Why snapshot?
                         </div>
                         <ul style={{ margin: 0, paddingLeft: 16, color: uiColors.textMuted, lineHeight: 1.8 }}>

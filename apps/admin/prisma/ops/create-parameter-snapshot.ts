@@ -32,7 +32,7 @@ async function main() {
   const setId = randomUUID();
   const name = `Active parameters snapshot ${new Date().toISOString()}`;
 
-  await prisma.parameterSet.create({
+  await prisma.analysisProfile.create({
     data: {
       id: setId,
       name,
@@ -40,10 +40,10 @@ async function main() {
     select: { id: true },
   });
 
-  await prisma.parameterSetParameter.createMany({
+  await prisma.analysisProfileParameter.createMany({
     data: activeParams.map((p) => ({
       id: randomUUID(),
-      parameterSetId: setId,
+      analysisProfileId: setId,
       parameterId: p.parameterId,
       definition: p.definition ?? null,
       scaleType: p.scaleType ?? null,
@@ -57,7 +57,7 @@ async function main() {
     JSON.stringify(
       {
         ok: true,
-        parameterSetId: setId,
+        analysisProfileId: setId,
         name,
         activeCount: activeParams.length,
       },

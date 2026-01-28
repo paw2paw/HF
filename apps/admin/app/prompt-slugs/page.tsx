@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { theme, categoryColors } from "@/lib/styles/theme";
 
@@ -57,7 +57,7 @@ type ParameterInput = {
   mode: "ABSOLUTE" | "DELTA";
 };
 
-export default function DynamicPromptsPage() {
+function DynamicPromptsPageContent() {
   const searchParams = useSearchParams();
   const urlParameterId = searchParams.get("parameterId");
 
@@ -736,5 +736,13 @@ export default function DynamicPromptsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DynamicPromptsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
+      <DynamicPromptsPageContent />
+    </Suspense>
   );
 }

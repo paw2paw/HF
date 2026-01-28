@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -54,7 +52,67 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ ok: true, spec });
+    // Collect all parameter IDs from actions
+    const parameterIds = new Set<string>();
+    for (const trigger of spec.triggers) {
+      for (const action of trigger.actions) {
+        if (action.parameterId) {
+          parameterIds.add(action.parameterId);
+        }
+      }
+    }
+
+    // Fetch active behavior targets for these parameters
+    const behaviorTargets = parameterIds.size > 0
+      ? await prisma.behaviorTarget.findMany({
+          where: {
+            parameterId: { in: Array.from(parameterIds) },
+            effectiveUntil: null, // Only active targets
+          },
+          orderBy: [{ parameterId: "asc" }, { scope: "asc" }],
+          select: {
+            id: true,
+            parameterId: true,
+            scope: true,
+            targetValue: true,
+            confidence: true,
+            source: true,
+            playbookId: true,
+            playbook: {
+              select: { id: true, name: true },
+            },
+          },
+        })
+      : [];
+
+    // Group targets by parameterId for easy lookup
+    const targetsByParameter = new Map<string, typeof behaviorTargets>();
+    for (const target of behaviorTargets) {
+      const existing = targetsByParameter.get(target.parameterId) || [];
+      existing.push(target);
+      targetsByParameter.set(target.parameterId, existing);
+    }
+
+    // Enhance spec with behavior targets on each action's parameter
+    const enhancedSpec = {
+      ...spec,
+      triggers: spec.triggers.map((trigger) => ({
+        ...trigger,
+        actions: trigger.actions.map((action) => ({
+          ...action,
+          parameter: action.parameter
+            ? {
+                ...action.parameter,
+                behaviorTargets: action.parameterId
+                  ? targetsByParameter.get(action.parameterId) || []
+                  : [],
+              }
+            : null,
+        })),
+      })),
+    };
+
+    return NextResponse.json({ ok: true, spec: enhancedSpec });
   } catch (error: any) {
     return NextResponse.json(
       { ok: false, error: error?.message || "Failed to fetch spec" },

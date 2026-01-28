@@ -35,8 +35,8 @@ async function main() {
     throw new Error("No Active parameters found. Check Tag + ParameterTag data.");
   }
 
-  // 2) Create snapshot ParameterSet
-  const set = await prisma.parameterSet.create({
+  // 2) Create snapshot AnalysisProfile
+  const set = await prisma.analysisProfile.create({
     data: {
       id: randomUUID(),
       name: `Active snapshot ${nowStamp()}`,
@@ -44,11 +44,11 @@ async function main() {
     select: { id: true, name: true },
   });
 
-  // 3) Snapshot parameters into ParameterSetParameter
-  await prisma.parameterSetParameter.createMany({
+  // 3) Snapshot parameters into AnalysisProfileParameter
+  await prisma.analysisProfileParameter.createMany({
     data: activeParams.map((p) => ({
       id: randomUUID(),
-      parameterSetId: set.id,
+      analysisProfileId: set.id,
       parameterId: p.parameterId,
       definition: p.definition ?? null,
       scaleType: p.scaleType ?? null,
@@ -58,7 +58,7 @@ async function main() {
     })),
   });
 
-  console.log("Created ParameterSet:", set.id, set.name);
+  console.log("Created AnalysisProfile:", set.id, set.name);
   console.log("Snapshot rows:", activeParams.length);
 }
 

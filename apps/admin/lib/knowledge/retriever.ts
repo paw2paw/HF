@@ -23,8 +23,8 @@ export interface RetrievalParams {
   queryText?: string;
   /** Call ID to get transcript from */
   callId?: string;
-  /** User ID for personalized retrieval */
-  userId?: string;
+  /** Caller ID for personalized retrieval */
+  callerId?: string;
   /** Parameter ID for parameter-specific retrieval */
   parameterId?: string;
   /** Maximum chunks to return */
@@ -186,9 +186,9 @@ async function getRecentChunks(limit: number): Promise<KnowledgeChunkResult[]> {
 async function getTranscriptText(callId: string): Promise<string | undefined> {
   const call = await prisma.call.findUnique({
     where: { id: callId },
-    select: { transcriptText: true },
+    select: { transcript: true },
   });
-  return call?.transcriptText ?? undefined;
+  return call?.transcript ?? undefined;
 }
 
 /**

@@ -83,17 +83,55 @@ export async function GET(req: Request) {
             },
     });
 
-    // Add trigger count and action count for non-full includes
+    // Get playbook usage for all specs
+    const playbookItems = await prisma.playbookItem.findMany({
+      where: {
+        specId: { in: specs.map(s => s.id) },
+        itemType: "SPEC",
+      },
+      include: {
+        playbook: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            domain: {
+              select: { name: true, slug: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Group by specId
+    const playbooksBySpec = new Map<string, typeof playbookItems>();
+    for (const item of playbookItems) {
+      if (!item.specId) continue;
+      if (!playbooksBySpec.has(item.specId)) {
+        playbooksBySpec.set(item.specId, []);
+      }
+      playbooksBySpec.get(item.specId)!.push(item);
+    }
+
+    // Add trigger count, action count, and playbook usage
     const specsWithCounts = specs.map((s) => {
       const actionCount = s.triggers.reduce(
         (sum, t) => sum + ((t as any)._count?.actions || 0),
         0
       );
+      const usedInPlaybooks = playbooksBySpec.get(s.id) || [];
       return {
         ...s,
         triggerCount: s.triggers.length,
         actionCount,
         triggers: include === "full" ? s.triggers : undefined,
+        playbookCount: usedInPlaybooks.length,
+        playbooks: usedInPlaybooks.map(p => ({
+          id: p.playbook.id,
+          name: p.playbook.name,
+          status: p.playbook.status,
+          domain: p.playbook.domain?.name || null,
+        })),
       };
     });
 

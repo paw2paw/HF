@@ -1,100 +1,16 @@
-import fs from "node:fs";
-import path from "node:path";
+/**
+ * Parameter De-duplication Seed
+ *
+ * Reads existing parameters from the database, de-duplicates them by parameterId,
+ * and ensures consistent tagging.
+ *
+ * Run with: npx tsx prisma/seed.ts
+ */
+
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-
-// Default CSV location (change if yours differs)
-const DEFAULT_CSV = path.resolve(process.cwd(), "../../backlog/parameters.csv");
-// You can override: HF_PARAMETERS_CSV=/path/to/file.csv
-const CSV_PATH = process.env.HF_PARAMETERS_CSV || DEFAULT_CSV;
-
-// How many to seed:
-// - By default: import ALL rows.
-// - Optional: set HF_SEED_LIMIT=74 (or any number) to cap imports.
-const SEED_LIMIT_RAW = process.env.HF_SEED_LIMIT;
-const SEED_LIMIT =
-  SEED_LIMIT_RAW && Number.isFinite(Number(SEED_LIMIT_RAW))
-    ? Math.max(1, Math.floor(Number(SEED_LIMIT_RAW)))
-    : null;
-
-function parseCsvLine(line: string): string[] {
-  // Minimal CSV parser supporting quotes + commas inside quotes.
-  const out: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-
-    if (ch === '"') {
-      // Handle escaped quote ""
-      const next = line[i + 1];
-      if (inQuotes && next === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (ch === "," && !inQuotes) {
-      out.push(cur.trim());
-      cur = "";
-      continue;
-    }
-
-    cur += ch;
-  }
-  out.push(cur.trim());
-  return out;
-}
-
-function asBool(v: unknown, fallback = false): boolean {
-  const s = String(v ?? "").trim().toLowerCase();
-  if (["true", "1", "yes", "y"].includes(s)) return true;
-  if (["false", "0", "no", "n"].includes(s)) return false;
-  return fallback;
-}
-
-function normKey(k: string): string {
-  return k
-    .replace(/^\uFEFF/, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
-}
-
-function pick(obj: Record<string, string>, ...keys: string[]): string | null {
-  for (const key of keys) {
-    const direct = obj[key];
-    if (direct != null) {
-      const t = String(direct).trim();
-      if (t.length) return t;
-    }
-
-    const nk = normKey(key);
-    for (const k of Object.keys(obj)) {
-      if (normKey(k) === nk) {
-        const v = obj[k];
-        const t = String(v ?? "").trim();
-        if (t.length) return t;
-      }
-    }
-  }
-  return null;
-}
-
-function parseTags(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  // allow comma/semicolon separated
-  return raw
-    .split(/[;,]/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
 
 function slugify(name: string): string {
   return name
@@ -105,126 +21,113 @@ function slugify(name: string): string {
     .replace(/-+$/, "");
 }
 
-function uniq<T>(arr: T[]): T[] {
-  return Array.from(new Set(arr));
-}
-
 async function main() {
-  if (!fs.existsSync(CSV_PATH)) {
-    throw new Error(`CSV not found: ${CSV_PATH}`);
+  console.log("De-duplicating existing parameters...\n");
+
+  // Get all parameters
+  const allParams = await prisma.parameter.findMany({
+    include: {
+      tags: {
+        include: { tag: true },
+      },
+    },
+    orderBy: { createdAt: "asc" }, // Keep oldest as canonical
+  });
+
+  if (allParams.length === 0) {
+    console.log("No parameters found in database. Nothing to de-duplicate.");
+    console.log("\nTo seed parameters, run the other seed scripts:");
+    console.log("  npm run db:seed:all");
+    return;
   }
 
-  const raw = fs.readFileSync(CSV_PATH, "utf8");
-  const lines = raw
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length && !l.startsWith("#"));
+  console.log(`Found ${allParams.length} total parameter records`);
 
-  if (lines.length < 2) throw new Error(`CSV has no data rows: ${CSV_PATH}`);
+  // Group by parameterId
+  const byId = new Map<string, typeof allParams>();
+  for (const param of allParams) {
+    const existing = byId.get(param.parameterId) || [];
+    existing.push(param);
+    byId.set(param.parameterId, existing);
+  }
 
-  const headers = parseCsvLine(lines[0]).map((h) => h.replace(/^\uFEFF/, ""));
-  const rows = SEED_LIMIT ? lines.slice(1, 1 + SEED_LIMIT) : lines.slice(1);
+  const uniqueCount = byId.size;
+  const duplicateCount = allParams.length - uniqueCount;
 
-  let upserted = 0;
+  console.log(`Unique parameterIds: ${uniqueCount}`);
+  console.log(`Duplicates to remove: ${duplicateCount}`);
 
-  for (const line of rows) {
-    const cols = parseCsvLine(line);
-    const rec: Record<string, string> = {};
-    headers.forEach((h, i) => (rec[h] = cols[i] ?? ""));
+  if (duplicateCount === 0) {
+    console.log("\nNo duplicates found. Parameters are clean.");
+    return;
+  }
 
-    // Support both machine headers (parameterId) and human headers (Parameter ID)
-    const parameterId = pick(rec, "parameterId", "Parameter ID", "ParameterID", "ID");
-    if (!parameterId) throw new Error(`Missing parameterId in row: ${line}`);
+  // Process each group
+  let removed = 0;
+  let kept = 0;
 
-    // Tags:
-    // - If CSV has explicit isActive/isMvpCore, use them
-    // - Otherwise default to Active (and NO MVP unless explicitly provided)
-    const isActiveRaw = pick(rec, "isActive", "Active");
-    const isMvpRaw = pick(rec, "isMvpCore", "MVP");
-    const isActive = isActiveRaw == null ? true : asBool(isActiveRaw, true);
-    const isMvpCore = isMvpRaw == null ? false : asBool(isMvpRaw, false);
+  for (const [parameterId, params] of byId) {
+    if (params.length === 1) {
+      kept++;
+      continue;
+    }
 
-    const csvTags = parseTags(pick(rec, "tags", "Tags", "Tag"));
-    const baseTags = [isActive ? "Active" : "Inactive", isMvpCore ? "MVP" : "Non-MVP"].filter(Boolean);
+    // Keep the first (oldest) one, delete the rest
+    const [canonical, ...duplicates] = params;
+    kept++;
 
-    // De-dupe by slug but keep the first readable label for create.name
-    const tagNames = uniq([...baseTags, ...csvTags]);
-    const tags = tagNames
-      .map((name) => ({ name, slug: slugify(name) }))
-      .filter((t) => t.slug.length > 0);
+    console.log(`\n  ${parameterId}: keeping 1, removing ${duplicates.length}`);
 
-    await prisma.parameter.upsert({
-      where: { parameterId },
-      create: {
-        parameterId,
-        sectionId: pick(rec, "sectionId", "Section") ?? "UNASSIGNED",
-        // In your CSV, "Model" best maps to domainGroup
-        domainGroup: pick(rec, "domainGroup", "Domain Group", "Model") ?? "UNASSIGNED",
-        name: pick(rec, "name", "Parameter Name", "Name") ?? parameterId,
-        // In your CSV, "Explanation" best maps to definition
-        definition: pick(rec, "definition", "Explanation", "Definition") ?? "",
-        // In your CSV, "Measurement" best maps to measurementMvp for now
-        measurementMvp: pick(rec, "measurementMvp", "Measurement"),
-        measurementVoiceOnly: pick(rec, "measurementVoiceOnly"),
-        // In your CSV, "High Bias"/"Low Bias" best map to interpretation labels
-        interpretationHigh: pick(rec, "interpretationHigh", "High Bias"),
-        interpretationLow: pick(rec, "interpretationLow", "Low Bias"),
-        // In your CSV, "Value Type" best maps to scaleType
-        scaleType: pick(rec, "scaleType", "Value Type") ?? "UNKNOWN",
-        directionality: pick(rec, "directionality") ?? "UNKNOWN",
-        computedBy: pick(rec, "computedBy") ?? "UNKNOWN",
-        tags: {
-          create: tags.map((t) => ({
-            id: randomUUID(),
-            tag: {
-              connectOrCreate: {
-                where: { slug: t.slug },
-                create: {
-                  id: randomUUID(),
-                  slug: t.slug,
-                  name: t.name,
-                },
-              },
-            },
-          })),
+    for (const dup of duplicates) {
+      // Delete the duplicate's tags first (FK constraint)
+      await prisma.parameterTag.deleteMany({
+        where: { parameterId: dup.parameterId },
+      });
+
+      // Delete the duplicate parameter
+      await prisma.parameter.delete({
+        where: { parameterId: dup.parameterId },
+      });
+
+      removed++;
+    }
+  }
+
+  // Ensure all parameters have Active tag
+  console.log("\nEnsuring Active tags on all parameters...");
+
+  const activeTag = await prisma.tag.upsert({
+    where: { slug: "active" },
+    create: { id: randomUUID(), slug: "active", name: "Active" },
+    update: {},
+  });
+
+  const paramsWithoutActive = await prisma.parameter.findMany({
+    where: {
+      tags: {
+        none: {
+          tag: { slug: "active" },
         },
       },
-      update: {
-        sectionId: pick(rec, "sectionId", "Section") ?? "UNASSIGNED",
-        domainGroup: pick(rec, "domainGroup", "Domain Group", "Model") ?? "UNASSIGNED",
-        name: pick(rec, "name", "Parameter Name", "Name") ?? parameterId,
-        definition: pick(rec, "definition", "Explanation", "Definition") ?? "",
-        measurementMvp: pick(rec, "measurementMvp", "Measurement"),
-        measurementVoiceOnly: pick(rec, "measurementVoiceOnly"),
-        interpretationHigh: pick(rec, "interpretationHigh", "High Bias"),
-        interpretationLow: pick(rec, "interpretationLow", "Low Bias"),
-        scaleType: pick(rec, "scaleType", "Value Type") ?? "UNKNOWN",
-        directionality: pick(rec, "directionality") ?? "UNKNOWN",
-        computedBy: pick(rec, "computedBy") ?? "UNKNOWN",
-        // Replace tags on every seed run so CSV is the source of truth.
-        tags: {
-          deleteMany: {},
-          create: tags.map((t) => ({
-            id: randomUUID(),
-            tag: {
-              connectOrCreate: {
-                where: { slug: t.slug },
-                create: {
-                  id: randomUUID(),
-                  slug: t.slug,
-                  name: t.name,
-                },
-              },
-            },
-          })),
-        },
+    },
+  });
+
+  let taggedActive = 0;
+  for (const param of paramsWithoutActive) {
+    await prisma.parameterTag.create({
+      data: {
+        id: randomUUID(),
+        parameterId: param.parameterId,
+        tagId: activeTag.id,
       },
     });
-
-    upserted++;
+    taggedActive++;
   }
 
-  console.log(`Seeded ${upserted} Parameter rows from ${CSV_PATH}${SEED_LIMIT ? ` (limit=${SEED_LIMIT})` : ""}`);
+  console.log(`\n✅ De-duplication complete`);
+  console.log(`   Parameters kept: ${kept}`);
+  console.log(`   Duplicates removed: ${removed}`);
+  console.log(`   Tagged as Active: ${taggedActive}`);
 }
 
 main()

@@ -723,98 +723,122 @@ Coaching approach:
   console.log(`   ✓ Created 3 prompt stacks\n`);
 
   // ============================================
-  // 4. SAMPLE CALLERS
+  // 4. SAMPLE CALLERS + CALLER IDENTITIES
   // ============================================
-  console.log("👤 Creating Sample Callers...");
+  console.log("👤 Creating Sample Callers and Identities...");
 
-  const callers = [
+  const callerData = [
     {
-      id: "caller-sarah-001",
+      callerId: "caller-sarah-001",
+      callerIdentityId: "identity-sarah-001",
       name: "Sarah Mitchell",
       externalId: "+1-555-0101",
       promptStackId: defaultStack.id,
     },
     {
-      id: "caller-james-002",
+      callerId: "caller-james-002",
+      callerIdentityId: "identity-james-002",
       name: "James Chen",
       externalId: "+1-555-0102",
       promptStackId: coachingStack.id,
     },
     {
-      id: "caller-maria-003",
+      callerId: "caller-maria-003",
+      callerIdentityId: "identity-maria-003",
       name: "Maria Rodriguez",
       externalId: "+1-555-0103",
       promptStackId: defaultStack.id,
     },
     {
-      id: "caller-alex-004",
+      callerId: "caller-alex-004",
+      callerIdentityId: "identity-alex-004",
       name: "Alex Thompson",
       externalId: "+1-555-0104",
       promptStackId: professionalStack.id,
     },
     {
-      id: "caller-emma-005",
+      callerId: "caller-emma-005",
+      callerIdentityId: "identity-emma-005",
       name: "Emma Wilson",
       externalId: "+1-555-0105",
       promptStackId: coachingStack.id,
     },
   ];
 
-  for (const caller of callers) {
+  for (const data of callerData) {
+    // Create or update Caller (the person)
     await prisma.caller.upsert({
-      where: { id: caller.id },
-      create: caller,
+      where: { id: data.callerId },
+      create: {
+        id: data.callerId,
+        name: data.name,
+      },
       update: {
-        name: caller.name,
-        promptStackId: caller.promptStackId,
+        name: data.name,
+      },
+    });
+
+    // Create or update CallerIdentity (the phone/contact identifier)
+    await prisma.callerIdentity.upsert({
+      where: { id: data.callerIdentityId },
+      create: {
+        id: data.callerIdentityId,
+        name: data.name,
+        externalId: data.externalId,
+        callerId: data.callerId,
+        promptStackId: data.promptStackId,
+      },
+      update: {
+        name: data.name,
+        promptStackId: data.promptStackId,
       },
     });
   }
 
-  console.log(`   ✓ Created ${callers.length} sample callers\n`);
+  console.log(`   ✓ Created ${callerData.length} sample callers and identities\n`);
 
   // ============================================
-  // 5. SAMPLE USER MEMORIES (for CALLER items)
+  // 5. SAMPLE CALLER MEMORIES (for CALLER items)
   // ============================================
-  console.log("🧠 Creating Sample User Memories...");
+  console.log("🧠 Creating Sample Caller Memories...");
 
-  // Create a sample user if needed
-  let sampleUser = await prisma.user.findFirst({ where: { email: "sample@example.com" } });
-  if (!sampleUser) {
-    sampleUser = await prisma.user.create({
+  // Create a sample caller if needed
+  let sampleCaller = await prisma.caller.findFirst({ where: { email: "sample@example.com" } });
+  if (!sampleCaller) {
+    sampleCaller = await prisma.caller.create({
       data: {
         email: "sample@example.com",
-        name: "Sample User",
+        name: "Sample Caller",
       },
     });
   }
 
-  // Link caller to user
-  await prisma.caller.update({
+  // Link caller identity to caller
+  await prisma.callerIdentity.update({
     where: { id: "caller-sarah-001" },
-    data: { userId: sampleUser.id },
+    data: { callerId: sampleCaller.id },
   });
 
-  // Create memories for the sample user
+  // Create memories for the sample caller
   // MemorySource enum: EXTRACTED, INFERRED, STATED, CORRECTED
   const memories = [
-    { category: "FACT", key: "occupation", value: "Software engineer at a startup", confidence: 0.95, source: "STATED" as const },
-    { category: "FACT", key: "location", value: "Lives in San Francisco", confidence: 0.9, source: "STATED" as const },
-    { category: "PREFERENCE", key: "communication_style", value: "Prefers direct, concise responses", confidence: 0.85, source: "INFERRED" as const },
-    { category: "PREFERENCE", key: "topics_of_interest", value: "Interested in AI, productivity, career growth", confidence: 0.8, source: "EXTRACTED" as const },
-    { category: "EVENT", key: "recent_life_event", value: "Recently got promoted to senior engineer", confidence: 0.9, source: "STATED" as const },
-    { category: "TOPIC", key: "ongoing_discussion", value: "Working on work-life balance", confidence: 0.75, source: "EXTRACTED" as const },
-    { category: "RELATIONSHIP", key: "family_situation", value: "Has a supportive partner", confidence: 0.7, source: "INFERRED" as const },
-    { category: "CONTEXT", key: "current_goal", value: "Wants to improve leadership skills", confidence: 0.85, source: "STATED" as const },
+    { category: "FACT" as const, key: "occupation", value: "Software engineer at a startup", confidence: 0.95, source: "STATED" as const },
+    { category: "FACT" as const, key: "location", value: "Lives in San Francisco", confidence: 0.9, source: "STATED" as const },
+    { category: "PREFERENCE" as const, key: "communication_style", value: "Prefers direct, concise responses", confidence: 0.85, source: "INFERRED" as const },
+    { category: "PREFERENCE" as const, key: "topics_of_interest", value: "Interested in AI, productivity, career growth", confidence: 0.8, source: "EXTRACTED" as const },
+    { category: "EVENT" as const, key: "recent_life_event", value: "Recently got promoted to senior engineer", confidence: 0.9, source: "STATED" as const },
+    { category: "TOPIC" as const, key: "ongoing_discussion", value: "Working on work-life balance", confidence: 0.75, source: "EXTRACTED" as const },
+    { category: "RELATIONSHIP" as const, key: "family_situation", value: "Has a supportive partner", confidence: 0.7, source: "INFERRED" as const },
+    { category: "CONTEXT" as const, key: "current_goal", value: "Wants to improve leadership skills", confidence: 0.85, source: "STATED" as const },
   ];
 
-  // Clear existing memories for this user
-  await prisma.userMemory.deleteMany({ where: { userId: sampleUser.id } });
+  // Clear existing memories for this caller
+  await prisma.callerMemory.deleteMany({ where: { callerId: sampleCaller.id } });
 
   for (const mem of memories) {
-    await prisma.userMemory.create({
+    await prisma.callerMemory.create({
       data: {
-        userId: sampleUser.id,
+        callerId: sampleCaller.id,
         category: mem.category,
         key: mem.key,
         value: mem.value,
@@ -835,7 +859,7 @@ Coaching approach:
   console.log(`   • ${blocks.length} Prompt Blocks (static prompts)`);
   console.log(`   • ${dynamicPrompts.length + 1} Dynamic Prompts (parameter-driven)`);
   console.log(`   • 3 Prompt Stacks`);
-  console.log(`   • ${callers.length} Sample Callers`);
+  console.log(`   • ${callerData.length} Sample Callers`);
   console.log(`   • ${memories.length} Sample Memories\n`);
   console.log("You can now:");
   console.log("   1. View blocks at /prompt-blocks");

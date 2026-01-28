@@ -49,11 +49,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get or create caller and associated user
-    let caller = await prisma.caller.findUnique({
+    // Get or create caller identity and associated caller
+    let callerIdentity = await prisma.callerIdentity.findUnique({
       where: { id: callerId },
       include: {
-        user: {
+        caller: {
           include: {
             personalityProfile: true,
           },
@@ -61,41 +61,42 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (!caller) {
-      // Auto-create caller with a new user
-      const user = await prisma.user.create({
+    if (!callerIdentity) {
+      // Auto-create caller identity with a new caller
+      const newCaller = await prisma.caller.create({
         data: {
           name: `Caller ${callerId.substring(0, 8)}`,
         },
       });
 
-      caller = await prisma.caller.create({
+      const newCallerIdentity = await prisma.callerIdentity.create({
         data: {
           id: callerId,
-          phone: callerId,
-          userId: user.id,
+          externalId: callerId,
+          callerId: newCaller.id,
         },
         include: {
-          user: {
+          caller: {
             include: {
               personalityProfile: true,
             },
           },
         },
       });
+      callerIdentity = newCallerIdentity;
     }
 
-    const userId = caller.user?.id;
-    if (!userId) {
+    const actualCallerId = callerIdentity.caller?.id;
+    if (!actualCallerId) {
       return NextResponse.json(
-        { ok: false, error: "No user associated with caller" },
+        { ok: false, error: "No caller associated with caller identity" },
         { status: 400 }
       );
     }
 
     const pipeline: PipelineResult = {
       callerId,
-      userId,
+      actualCallerId,
       steps: [],
       success: true,
     };
@@ -117,16 +118,16 @@ export async function POST(request: NextRequest) {
       if (parameterValues && Object.keys(parameterValues).length > 0) {
         try {
           // Upsert personality profile
-          const profile = await prisma.userPersonalityProfile.upsert({
-            where: { userId },
+          const profile = await prisma.callerPersonalityProfile.upsert({
+            where: { callerId: actualCallerId },
             create: {
-              userId,
+              callerId: actualCallerId,
               parameterValues: parameterValues as any,
-              lastAnalyzedAt: new Date(),
+              lastUpdatedAt: new Date(),
             },
             update: {
               parameterValues: parameterValues as any,
-              lastAnalyzedAt: new Date(),
+              lastUpdatedAt: new Date(),
             },
           });
 
@@ -157,9 +158,9 @@ export async function POST(request: NextRequest) {
         for (const memory of memories) {
           try {
             // Check for existing memory with same key
-            const existing = await prisma.userMemory.findFirst({
+            const existing = await prisma.callerMemory.findFirst({
               where: {
-                userId,
+                callerId: actualCallerId,
                 category: memory.category,
                 key: memory.key,
                 supersededById: null,
@@ -168,20 +169,20 @@ export async function POST(request: NextRequest) {
 
             if (existing) {
               // Create new memory and mark old as superseded
-              const newMemory = await prisma.userMemory.create({
+              const newMemory = await prisma.callerMemory.create({
                 data: {
-                  userId,
+                  callerId: actualCallerId,
                   category: memory.category,
                   key: memory.key,
                   value: memory.value,
                   confidence: memory.confidence || 0.8,
                   decayFactor: memory.decayFactor || 1.0,
-                  sourceType: "ANALYSIS",
-                  sourceRef: transcriptId || callerId,
+                  source: "EXTRACTED",
+                  callId: transcriptId || null,
                 },
               });
 
-              await prisma.userMemory.update({
+              await prisma.callerMemory.update({
                 where: { id: existing.id },
                 data: { supersededById: newMemory.id },
               });
@@ -189,16 +190,16 @@ export async function POST(request: NextRequest) {
               stored.push(`${memory.category}:${memory.key} (updated)`);
             } else {
               // Create new memory
-              await prisma.userMemory.create({
+              await prisma.callerMemory.create({
                 data: {
-                  userId,
+                  callerId: actualCallerId,
                   category: memory.category,
                   key: memory.key,
                   value: memory.value,
                   confidence: memory.confidence || 0.8,
                   decayFactor: memory.decayFactor || 1.0,
-                  sourceType: "ANALYSIS",
-                  sourceRef: transcriptId || callerId,
+                  source: "EXTRACTED",
+                  callId: transcriptId || null,
                 },
               });
 
@@ -238,23 +239,22 @@ export async function POST(request: NextRequest) {
     if (composePrompt) {
       try {
         // Fetch latest parameter values
-        const profile = await prisma.userPersonalityProfile.findUnique({
-          where: { userId },
+        const profile = await prisma.callerPersonalityProfile.findUnique({
+          where: { callerId: actualCallerId },
         });
 
         const parameterValues = (profile?.parameterValues as Record<string, number>) || {};
 
         // Build template context
         const context: TemplateContext = {
-          userId,
-          callerId,
+          callerId: actualCallerId,
           parameterValues,
         };
 
         // Fetch memories
-        const memories = await prisma.userMemory.findMany({
+        const memories = await prisma.callerMemory.findMany({
           where: {
-            userId,
+            callerId: actualCallerId,
             supersededById: null,
             OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
           },
@@ -301,8 +301,8 @@ export async function POST(request: NextRequest) {
       pipeline,
       prompt: composedPrompt,
       nextCall: {
-        callerId,
-        userId,
+        callerIdentityId: callerId,
+        callerId: actualCallerId,
         hasPrompt: !!composedPrompt,
         promptLength: composedPrompt?.length || 0,
       },
@@ -326,7 +326,7 @@ interface PipelineStep {
 
 interface PipelineResult {
   callerId: string;
-  userId: string;
+  actualCallerId: string;
   steps: PipelineStep[];
   success: boolean;
 }
@@ -349,11 +349,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get caller and user
-    const caller = await prisma.caller.findUnique({
+    // Get caller identity and associated caller
+    const callerIdentity = await prisma.callerIdentity.findUnique({
       where: { id: callerId },
       include: {
-        user: {
+        caller: {
           include: {
             personalityProfile: true,
             memories: {
@@ -369,21 +369,20 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (!caller) {
+    if (!callerIdentity) {
       return NextResponse.json(
-        { ok: false, error: "Caller not found" },
+        { ok: false, error: "Caller identity not found" },
         { status: 404 }
       );
     }
 
-    const userId = caller.user?.id;
-    const parameterValues = (caller.user?.personalityProfile?.parameterValues as Record<string, number>) || {};
-    const memories = caller.user?.memories || [];
+    const actualCallerId = callerIdentity.caller?.id;
+    const parameterValues = (callerIdentity.caller?.personalityProfile?.parameterValues as Record<string, number>) || {};
+    const memories = callerIdentity.caller?.memories || [];
 
     // Compose prompt
     const context: TemplateContext = {
-      userId,
-      callerId,
+      callerId: actualCallerId,
       parameterValues,
       memories: memories.map((m) => ({
         category: m.category,
@@ -399,14 +398,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      caller: {
+      callerIdentity: {
         id: callerId,
-        userId,
-        phone: caller.phone,
-        userName: caller.user?.name,
+        callerId: actualCallerId,
+        externalId: callerIdentity.externalId,
+        callerName: callerIdentity.caller?.name,
       },
       state: {
-        hasProfile: !!caller.user?.personalityProfile,
+        hasProfile: !!callerIdentity.caller?.personalityProfile,
         parameterCount: Object.keys(parameterValues).length,
         memoryCount: memories.length,
         parameterValues,

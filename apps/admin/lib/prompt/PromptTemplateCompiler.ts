@@ -35,18 +35,17 @@ export interface TemplateContext {
   value?: number;
   parameterId?: string;
 
-  // User/caller info
-  userId?: string;
+  // Caller info
   callerId?: string;
 
   // All parameter values (for cross-referencing)
   parameterValues?: Record<string, number>;
 
-  // Memories (optional - will be fetched if userId provided and not passed)
-  memories?: UserMemory[];
+  // Memories (optional - will be fetched if callerId provided and not passed)
+  memories?: CallerMemory[];
 }
 
-export interface UserMemory {
+export interface CallerMemory {
   category: string;
   key: string;
   value: string;
@@ -104,12 +103,12 @@ export async function composePromptsFromSpecs(
     orderBy: [{ priority: "desc" }, { domain: "asc" }, { name: "asc" }],
   });
 
-  // Fetch memories if we have a userId and they weren't provided
+  // Fetch memories if we have a callerId and they weren't provided
   let memories = context.memories;
-  if (!memories && context.userId) {
-    const dbMemories = await prisma.userMemory.findMany({
+  if (!memories && context.callerId) {
+    const dbMemories = await prisma.callerMemory.findMany({
       where: {
-        userId: context.userId,
+        callerId: context.callerId,
         supersededById: null,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
@@ -207,7 +206,7 @@ function buildTemplateData(
   value: number | undefined,
   parameterId: string | undefined,
   parameter: any | null,
-  memories: UserMemory[] | undefined,
+  memories: CallerMemory[] | undefined,
   context: TemplateContext
 ): Record<string, any> {
   const label = getValueLabel(value);
@@ -254,13 +253,14 @@ function buildTemplateData(
       topics: memories?.filter((m) => m.category === "TOPIC") || [],
       relationships:
         memories?.filter((m) => m.category === "RELATIONSHIP") || [],
+      context: memories?.filter((m) => m.category === "CONTEXT") || [],
     },
     hasMemories: memories && memories.length > 0,
 
-    // User info (can be extended)
-    user: {
-      id: context.userId || "",
-      name: "", // Would need to fetch from User table
+    // Caller info (can be extended)
+    caller: {
+      id: context.callerId || "",
+      name: "", // Would need to fetch from Caller table
     },
 
     // All parameter values for cross-referencing
@@ -289,7 +289,11 @@ export function renderTemplate(
 ): string {
   let result = template;
 
-  // Handle conditionals first: {{#if condition}}...{{/if}}
+  // Handle section blocks first: {{#sectionName}}...{{/sectionName}}
+  // These are Mustache-style blocks that scope variables to an object
+  result = processSectionBlocks(result, data);
+
+  // Handle conditionals: {{#if condition}}...{{/if}}
   result = processConditionals(result, data);
 
   // Handle inverse conditionals: {{#unless condition}}...{{/unless}}
@@ -308,6 +312,80 @@ export function renderTemplate(
   result = result.replace(/\n{3,}/g, "\n\n").trim();
 
   return result;
+}
+
+/**
+ * Process Mustache-style section blocks: {{#sectionName}}...{{/sectionName}}
+ * If sectionName is an object, variables inside are scoped to that object
+ * If sectionName is an array, it iterates over items
+ * If sectionName is falsy, the section is removed
+ */
+function processSectionBlocks(
+  template: string,
+  data: Record<string, any>
+): string {
+  // Match {{#name}}...{{/name}} but NOT {{#if, {{#unless, {{#each
+  const sectionRegex = /\{\{#(?!if\s|unless\s|each\s)(\w+(?:\.\w+)*)\}\}([\s\S]*?)\{\{\/\1\}\}/g;
+
+  return template.replace(sectionRegex, (match, sectionPath, content) => {
+    const sectionData = getNestedValue(data, sectionPath);
+
+    // If falsy, remove the section
+    if (!isTruthy(sectionData)) {
+      return "";
+    }
+
+    // If it's an array, iterate over items
+    if (Array.isArray(sectionData)) {
+      return sectionData
+        .map((item, index) => {
+          // For each item, recursively render with item as context
+          // Replace {{property}} with item.property within this section
+          let itemContent = content;
+          if (typeof item === "object" && item !== null) {
+            // Replace direct property references like {{name}} with item.name
+            itemContent = itemContent.replace(
+              /\{\{(\w+)\}\}/g,
+              (m: string, prop: string) => {
+                // Check if it's a property of the current item
+                if (prop in item) {
+                  return item[prop] !== undefined ? String(item[prop]) : "";
+                }
+                // Fall through to global data
+                return m;
+              }
+            );
+          }
+          return itemContent;
+        })
+        .join("\n");
+    }
+
+    // If it's an object, scope variables to that object
+    if (typeof sectionData === "object" && sectionData !== null) {
+      // Replace {{property}} with sectionData.property within this section
+      let scopedContent = content.replace(
+        /\{\{(\w+)\}\}/g,
+        (m: string, prop: string) => {
+          if (prop in sectionData) {
+            const val = sectionData[prop];
+            return val !== undefined && val !== null ? String(val) : "";
+          }
+          // Check in global data too
+          if (prop in data) {
+            const val = data[prop];
+            return val !== undefined && val !== null ? String(val) : "";
+          }
+          return m;
+        }
+      );
+      // Recursively process any nested sections
+      return processSectionBlocks(scopedContent, { ...data, ...sectionData });
+    }
+
+    // For truthy primitives, just return the content
+    return content;
+  });
 }
 
 /**
@@ -441,7 +519,7 @@ export function compileTemplate(
     parameterDefinition?: string;
     highLabel?: string;
     lowLabel?: string;
-    memories?: UserMemory[];
+    memories?: CallerMemory[];
     userName?: string;
   }
 ): string {

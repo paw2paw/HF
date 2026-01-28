@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 /**
  * GET /api/callers
  *
- * List all callers (users) with optional personality and counts
+ * List all callers with optional personality and counts
  */
 export async function GET(req: Request) {
   try {
@@ -14,12 +14,27 @@ export async function GET(req: Request) {
     const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
-    // Fetch callers with basic counts (calls and observations are always available)
-    const callers = await prisma.user.findMany({
+    // Fetch callers with basic counts, plus their linked CallerIdentity (which has nextPrompt)
+    const callers = await prisma.caller.findMany({
       take: limit,
       skip: offset,
       include: {
         personality: withPersonality,
+        domain: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+          },
+        },
+        callerIdentities: {
+          take: 1, // Get the first CallerIdentity linked to this caller
+          select: {
+            id: true,
+            nextPrompt: true,
+            nextPromptComposedAt: true,
+          },
+        },
         _count: withCounts
           ? {
               select: {
@@ -34,14 +49,25 @@ export async function GET(req: Request) {
       },
     });
 
+    // Flatten the callerIdentity data onto the caller object for easier consumption
+    const callersWithPrompt = callers.map((caller) => {
+      const identity = caller.callerIdentities[0];
+      return {
+        ...caller,
+        callerIdentities: undefined, // Remove the nested array
+        nextPrompt: identity?.nextPrompt || null,
+        nextPromptComposedAt: identity?.nextPromptComposedAt || null,
+      };
+    });
+
     // If counts requested, add memory counts separately
     // (workaround for Prisma client caching issues)
-    if (withCounts && callers.length > 0) {
-      const userIds = callers.map((c) => c.id);
-      const memoryCounts = await prisma.userMemory.groupBy({
-        by: ["userId"],
+    if (withCounts && callersWithPrompt.length > 0) {
+      const callerIds = callersWithPrompt.map((c) => c.id);
+      const memoryCounts = await prisma.callerMemory.groupBy({
+        by: ["callerId"],
         where: {
-          userId: { in: userIds },
+          callerId: { in: callerIds },
           supersededById: null,
           OR: [
             { expiresAt: null },
@@ -52,11 +78,11 @@ export async function GET(req: Request) {
       });
 
       const memoryCountMap = new Map(
-        memoryCounts.map((mc) => [mc.userId, mc._count.id])
+        memoryCounts.map((mc) => [mc.callerId, mc._count.id])
       );
 
       // Augment callers with memory count
-      for (const caller of callers) {
+      for (const caller of callersWithPrompt) {
         (caller as any)._count = {
           ...(caller as any)._count,
           memories: memoryCountMap.get(caller.id) || 0,
@@ -64,11 +90,11 @@ export async function GET(req: Request) {
       }
     }
 
-    const total = await prisma.user.count();
+    const total = await prisma.caller.count();
 
     return NextResponse.json({
       ok: true,
-      callers,
+      callers: callersWithPrompt,
       total,
       limit,
       offset,

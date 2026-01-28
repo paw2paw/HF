@@ -11,8 +11,96 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// Prompt slug taxonomy from docs/taxonomy/prompt-slugs.md
-const PROMPT_SLUGS = {
+// Config loaded from SLUG_SELECT spec (with defaults)
+interface SlugSelectConfig {
+  // Threshold definitions for rule-based selection
+  thresholds: {
+    highNeuroticism: number;
+    moderateNeuroticism: number;
+    lowOpenness: number;
+    highAgreeableness: number;
+    highExtraversion: number;
+    highConscientiousness: number;
+    highOpenness: number;
+  };
+  // Confidence levels for each rule
+  confidences: {
+    highNeuroticism: number;
+    moderateNeuroticism: number;
+    memoryNarrative: number;
+    highExtraversion: number;
+    highConscientiousness: number;
+    highOpenness: number;
+    fallback: number;
+  };
+  // How many recent slugs to check for repetition avoidance
+  maxRecentSlugs: number;
+}
+
+const DEFAULT_SLUG_SELECT_CONFIG: SlugSelectConfig = {
+  thresholds: {
+    highNeuroticism: 0.6,
+    moderateNeuroticism: 0.4,
+    lowOpenness: 0.4,
+    highAgreeableness: 0.6,
+    highExtraversion: 0.7,
+    highConscientiousness: 0.6,
+    highOpenness: 0.6,
+  },
+  confidences: {
+    highNeuroticism: 0.85,
+    moderateNeuroticism: 0.75,
+    memoryNarrative: 0.8,
+    highExtraversion: 0.8,
+    highConscientiousness: 0.75,
+    highOpenness: 0.7,
+    fallback: 0.5,
+  },
+  maxRecentSlugs: 3,
+};
+
+/**
+ * Load SLUG_SELECT spec config from database
+ */
+async function loadSlugSelectConfig(): Promise<SlugSelectConfig> {
+  const spec = await prisma.analysisSpec.findFirst({
+    where: {
+      slug: "system-slug-select",
+      isActive: true,
+      scope: "SYSTEM",
+    },
+  });
+
+  if (!spec?.config) {
+    return DEFAULT_SLUG_SELECT_CONFIG;
+  }
+
+  const config = spec.config as any;
+  return {
+    thresholds: {
+      highNeuroticism: config.thresholds?.highNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highNeuroticism,
+      moderateNeuroticism: config.thresholds?.moderateNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.moderateNeuroticism,
+      lowOpenness: config.thresholds?.lowOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.lowOpenness,
+      highAgreeableness: config.thresholds?.highAgreeableness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highAgreeableness,
+      highExtraversion: config.thresholds?.highExtraversion ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highExtraversion,
+      highConscientiousness: config.thresholds?.highConscientiousness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highConscientiousness,
+      highOpenness: config.thresholds?.highOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highOpenness,
+    },
+    confidences: {
+      highNeuroticism: config.confidences?.highNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highNeuroticism,
+      moderateNeuroticism: config.confidences?.moderateNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.moderateNeuroticism,
+      memoryNarrative: config.confidences?.memoryNarrative ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.memoryNarrative,
+      highExtraversion: config.confidences?.highExtraversion ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highExtraversion,
+      highConscientiousness: config.confidences?.highConscientiousness ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highConscientiousness,
+      highOpenness: config.confidences?.highOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highOpenness,
+      fallback: config.confidences?.fallback ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.fallback,
+    },
+    maxRecentSlugs: config.maxRecentSlugs ?? DEFAULT_SLUG_SELECT_CONFIG.maxRecentSlugs,
+  };
+}
+
+// Default prompt slug taxonomy (fallback if database not seeded)
+const DEFAULT_PROMPT_SLUGS = {
   emotion: [
     "emotion.soothing",
     "emotion.validating",
@@ -39,7 +127,81 @@ const PROMPT_SLUGS = {
     "engage.curiosity",
     "engage.future_oriented",
   ],
-} as const;
+};
+
+// Cached prompt slugs (loaded from database)
+let cachedPromptSlugs: Record<string, string[]> | null = null;
+
+/**
+ * Load prompt slug taxonomy from database
+ * Slugs are stored as COMPOSE specs with domain="prompt-slugs"
+ */
+async function loadPromptSlugs(): Promise<Record<string, string[]>> {
+  if (cachedPromptSlugs) {
+    return cachedPromptSlugs;
+  }
+
+  const specs = await prisma.analysisSpec.findMany({
+    where: {
+      domain: "prompt-slugs",
+      outputType: "COMPOSE",
+      scope: "SYSTEM",
+      isActive: true,
+    },
+    select: {
+      config: true,
+    },
+  });
+
+  if (specs.length === 0) {
+    // Fallback to defaults if no specs found
+    return DEFAULT_PROMPT_SLUGS;
+  }
+
+  // Build taxonomy from specs
+  const taxonomy: Record<string, string[]> = {};
+
+  for (const spec of specs) {
+    const config = spec.config as { category?: string; slugId?: string } | null;
+    if (config?.category && config?.slugId) {
+      if (!taxonomy[config.category]) {
+        taxonomy[config.category] = [];
+      }
+      taxonomy[config.category].push(config.slugId);
+    }
+  }
+
+  // If we got valid data, cache it
+  if (Object.keys(taxonomy).length > 0) {
+    cachedPromptSlugs = taxonomy;
+    return taxonomy;
+  }
+
+  return DEFAULT_PROMPT_SLUGS;
+}
+
+/**
+ * Get the prompt template for a specific slug
+ */
+export async function getPromptTemplate(slugId: string): Promise<string | null> {
+  const spec = await prisma.analysisSpec.findFirst({
+    where: {
+      domain: "prompt-slugs",
+      outputType: "COMPOSE",
+      scope: "SYSTEM",
+      isActive: true,
+      config: {
+        path: ["slugId"],
+        equals: slugId,
+      },
+    },
+    select: {
+      promptTemplate: true,
+    },
+  });
+
+  return spec?.promptTemplate || null;
+}
 
 interface PersonalityScores {
   openness: number | null;
@@ -51,7 +213,7 @@ interface PersonalityScores {
 
 interface SelectionContext {
   callId?: string;
-  userId?: string;
+  callerId?: string;
   recentSlugs?: string[];
   maxRecent?: number; // How many recent slugs to avoid (default 3)
 }
@@ -70,40 +232,44 @@ interface SelectionResult {
 export async function selectPromptSlug(
   context: SelectionContext
 ): Promise<SelectionResult> {
-  const { callId, userId, maxRecent = 3 } = context;
+  const { callId, callerId } = context;
 
-  if (!userId && !callId) {
-    throw new Error("Either userId or callId must be provided");
+  if (!callerId && !callId) {
+    throw new Error("Either callerId or callId must be provided");
   }
 
+  // Load SLUG_SELECT spec config
+  const config = await loadSlugSelectConfig();
+  const maxRecent = context.maxRecent ?? config.maxRecentSlugs;
+
   // Get user ID from call if not provided
-  let effectiveUserId = userId;
+  let effectiveUserId = callerId;
   if (!effectiveUserId && callId) {
     const call = await prisma.call.findUnique({
       where: { id: callId },
-      select: { userId: true },
+      select: { callerId: true },
     });
-    effectiveUserId = call?.userId ?? undefined;
+    effectiveUserId = call?.callerId ?? undefined;
   }
 
   if (!effectiveUserId) {
-    throw new Error("Could not determine userId from context");
+    throw new Error("Could not determine callerId from context");
   }
 
   // Get personality profile
-  const personality = await prisma.userPersonality.findUnique({
-    where: { userId: effectiveUserId },
+  const personality = await prisma.callerPersonality.findUnique({
+    where: { callerId: effectiveUserId },
   });
 
   if (!personality) {
     throw new Error(
-      `No personality profile found for user ${effectiveUserId}. Run personality analysis first.`
+      `No personality profile found for caller ${effectiveUserId}. Run personality analysis first.`
     );
   }
 
   // Get recent prompt slugs to avoid repetition
   const recentSelections = await prisma.promptSlugSelection.findMany({
-    where: { userId: effectiveUserId },
+    where: { callerId: effectiveUserId },
     orderBy: { selectedAt: "desc" },
     take: maxRecent,
     select: { promptSlug: true },
@@ -112,7 +278,10 @@ export async function selectPromptSlug(
   const recentSlugs =
     context.recentSlugs ?? recentSelections.map((s) => s.promptSlug);
 
-  // Select prompt slug using rule-based logic
+  // Load prompt slug taxonomy from database
+  const promptSlugs = await loadPromptSlugs();
+
+  // Select prompt slug using rule-based logic (with config thresholds)
   const selection = selectSlugByRules(
     {
       openness: personality.openness,
@@ -121,7 +290,9 @@ export async function selectPromptSlug(
       agreeableness: personality.agreeableness,
       neuroticism: personality.neuroticism,
     },
-    recentSlugs
+    recentSlugs,
+    config,
+    promptSlugs
   );
 
   return {
@@ -135,10 +306,14 @@ export async function selectPromptSlug(
  *
  * Maps Big 5 personality traits to appropriate prompt slug categories.
  * Applies recency filter to avoid repetition.
+ * Uses thresholds and confidences from SLUG_SELECT spec config.
+ * Uses prompt slug taxonomy loaded from database.
  */
 function selectSlugByRules(
   personality: PersonalityScores,
-  recentSlugs: string[]
+  recentSlugs: string[],
+  config: SlugSelectConfig,
+  promptSlugs: Record<string, string[]>
 ): Omit<SelectionResult, "recentSlugs"> {
   const {
     openness,
@@ -148,31 +323,33 @@ function selectSlugByRules(
     neuroticism,
   } = personality;
 
+  const { thresholds, confidences } = config;
+
   // Rule 1: High neuroticism → Emotional regulation
-  if (neuroticism !== null && neuroticism > 0.6) {
+  if (neuroticism !== null && neuroticism > thresholds.highNeuroticism) {
     const slug = selectFromCategory(
-      PROMPT_SLUGS.emotion,
+      promptSlugs.emotion || [],
       recentSlugs,
       "emotion.soothing"
     );
     return {
       promptSlug: slug,
-      confidence: 0.85,
+      confidence: confidences.highNeuroticism,
       reasoning: `High neuroticism (${neuroticism.toFixed(2)}) indicates emotional support needed`,
       personalitySnapshot: personality,
     };
   }
 
-  // Rule 2: High neuroticism (moderate) → Emotional validation
-  if (neuroticism !== null && neuroticism > 0.4) {
+  // Rule 2: Moderate neuroticism → Emotional validation
+  if (neuroticism !== null && neuroticism > thresholds.moderateNeuroticism) {
     const slug = selectFromCategory(
-      PROMPT_SLUGS.emotion,
+      promptSlugs.emotion || [],
       recentSlugs,
       "emotion.validating"
     );
     return {
       promptSlug: slug,
-      confidence: 0.75,
+      confidence: confidences.moderateNeuroticism,
       reasoning: `Moderate neuroticism (${neuroticism.toFixed(2)}) suggests validation approach`,
       personalitySnapshot: personality,
     };
@@ -182,62 +359,62 @@ function selectSlugByRules(
   if (
     openness !== null &&
     agreeableness !== null &&
-    openness < 0.4 &&
-    agreeableness > 0.6
+    openness < thresholds.lowOpenness &&
+    agreeableness > thresholds.highAgreeableness
   ) {
     const slug = selectFromCategory(
-      PROMPT_SLUGS.memory,
+      promptSlugs.memory || [],
       recentSlugs,
       "memory.elicit_story"
     );
     return {
       promptSlug: slug,
-      confidence: 0.8,
+      confidence: confidences.memoryNarrative,
       reasoning: `Low openness (${openness.toFixed(2)}) + High agreeableness (${agreeableness.toFixed(2)}) → narrative approach works well`,
       personalitySnapshot: personality,
     };
   }
 
   // Rule 4: High extraversion → Engagement/Encouragement
-  if (extraversion !== null && extraversion > 0.7) {
+  if (extraversion !== null && extraversion > thresholds.highExtraversion) {
     const slug = selectFromCategory(
-      PROMPT_SLUGS.engage,
+      promptSlugs.engage || [],
       recentSlugs,
       "engage.encourage"
     );
     return {
       promptSlug: slug,
-      confidence: 0.8,
+      confidence: confidences.highExtraversion,
       reasoning: `High extraversion (${extraversion.toFixed(2)}) responds well to encouragement`,
       personalitySnapshot: personality,
     };
   }
 
   // Rule 5: High conscientiousness → Action-oriented prompts
-  if (conscientiousness !== null && conscientiousness > 0.6) {
+  if (conscientiousness !== null && conscientiousness > thresholds.highConscientiousness) {
     const slug = selectFromCategory(
-      PROMPT_SLUGS.engage,
+      promptSlugs.engage || [],
       recentSlugs,
       "engage.prompt_action"
     );
     return {
       promptSlug: slug,
-      confidence: 0.75,
+      confidence: confidences.highConscientiousness,
       reasoning: `High conscientiousness (${conscientiousness.toFixed(2)}) benefits from action prompts`,
       personalitySnapshot: personality,
     };
   }
 
   // Rule 6: High openness → Curiosity-based engagement
-  if (openness !== null && openness > 0.6) {
+  if (openness !== null && openness > thresholds.highOpenness) {
     const slug = selectFromCategory(
-      PROMPT_SLUGS.engage,
+      promptSlugs.engage || [],
       recentSlugs,
       "engage.curiosity"
     );
     return {
       promptSlug: slug,
-      confidence: 0.7,
+      confidence: confidences.highOpenness,
       reasoning: `High openness (${openness.toFixed(2)}) enjoys curiosity-driven conversation`,
       personalitySnapshot: personality,
     };
@@ -245,13 +422,13 @@ function selectSlugByRules(
 
   // Default fallback: Clarify (safe conversational control)
   const slug = selectFromCategory(
-    PROMPT_SLUGS.control,
+    promptSlugs.control || [],
     recentSlugs,
     "control.clarify"
   );
   return {
     promptSlug: slug,
-    confidence: 0.5,
+    confidence: confidences.fallback,
     reasoning: "No strong personality signals - using neutral clarification prompt",
     personalitySnapshot: personality,
   };
@@ -261,10 +438,15 @@ function selectSlugByRules(
  * Select a slug from a category, avoiding recent slugs
  */
 function selectFromCategory(
-  category: readonly string[],
+  category: string[],
   recentSlugs: string[],
   preferredSlug: string
 ): string {
+  // If category is empty, return preferred slug
+  if (category.length === 0) {
+    return preferredSlug;
+  }
+
   // Try preferred slug first if not recently used
   if (!recentSlugs.includes(preferredSlug)) {
     return preferredSlug;
@@ -287,13 +469,13 @@ function selectFromCategory(
  */
 export async function savePromptSlugSelection(
   callId: string,
-  userId: string,
+  callerId: string,
   selection: Omit<SelectionResult, "recentSlugs">
 ): Promise<void> {
   await prisma.promptSlugSelection.create({
     data: {
       callId,
-      userId,
+      callerId,
       promptSlug: selection.promptSlug,
       confidence: selection.confidence,
       reasoning: selection.reasoning,
@@ -306,20 +488,28 @@ export async function savePromptSlugSelection(
 
 /**
  * Get all prompt slugs by category (for UI/testing)
+ * Now loads from database with fallback to defaults
  */
-export function getAllPromptSlugs() {
-  return PROMPT_SLUGS;
+export async function getAllPromptSlugs(): Promise<Record<string, string[]>> {
+  return await loadPromptSlugs();
+}
+
+/**
+ * Clear cached prompt slugs (call after seeding or updating specs)
+ */
+export function clearPromptSlugCache(): void {
+  cachedPromptSlugs = null;
 }
 
 /**
  * Get selection history for a user
  */
 export async function getSelectionHistory(
-  userId: string,
+  callerId: string,
   limit: number = 10
 ) {
   return await prisma.promptSlugSelection.findMany({
-    where: { userId },
+    where: { callerId },
     orderBy: { selectedAt: "desc" },
     take: limit,
     include: {

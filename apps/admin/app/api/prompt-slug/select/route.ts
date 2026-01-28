@@ -12,12 +12,12 @@ export const runtime = "nodejs";
 /**
  * POST /api/prompt-slug/select
  *
- * Select a prompt slug for a given user/call based on personality profile
+ * Select a prompt slug for a given caller/call based on personality profile
  *
  * Body:
  * {
  *   "callId": "uuid",           // Optional: call ID
- *   "userId": "uuid",           // Optional: user ID (one of callId or userId required)
+ *   "callerId": "uuid",         // Optional: caller ID (one of callId or callerId required)
  *   "maxRecent": 3,             // Optional: number of recent slugs to avoid
  *   "saveToDb": true,           // Optional: whether to save selection to DB (default true)
  *   "includeKnowledge": true,   // Optional: retrieve relevant knowledge chunks (default true)
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const {
       callId,
-      userId,
+      callerId,
       maxRecent,
       saveToDb = true,
       includeKnowledge = true,
@@ -49,9 +49,9 @@ export async function POST(req: Request) {
       knowledgeLimit = 5,
     } = body;
 
-    if (!callId && !userId) {
+    if (!callId && !callerId) {
       return NextResponse.json(
-        { ok: false, error: "Either callId or userId is required" },
+        { ok: false, error: "Either callId or callerId is required" },
         { status: 400 }
       );
     }
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     // Select prompt slug
     const selection = await selectPromptSlug({
       callId,
-      userId,
+      callerId,
       maxRecent,
     });
 
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         knowledgeContext = await retrieveKnowledgeForPrompt({
           queryText,
           callId,
-          userId,
+          callerId,
           limit: knowledgeLimit,
         });
       } catch (kErr: any) {
@@ -80,10 +80,10 @@ export async function POST(req: Request) {
     }
 
     // Save to database if requested and we have a callId
-    if (saveToDb && callId && (userId || selection)) {
-      const effectiveUserId = userId || (await getUserIdFromCall(callId));
-      if (effectiveUserId) {
-        await savePromptSlugSelection(callId, effectiveUserId, selection);
+    if (saveToDb && callId && (callerId || selection)) {
+      const effectiveCallerId = callerId || (await getCallerIdFromCall(callId));
+      if (effectiveCallerId) {
+        await savePromptSlugSelection(callId, effectiveCallerId, selection);
       }
     }
 
@@ -102,14 +102,14 @@ export async function POST(req: Request) {
 }
 
 /**
- * GET /api/prompt-slug/select?userId=xxx
+ * GET /api/prompt-slug/select?callerId=xxx
  *
- * Get selection history for a user
+ * Get selection history for a caller
  */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const userId = url.searchParams.get("userId");
+    const callerId = url.searchParams.get("callerId");
     const limit = parseInt(url.searchParams.get("limit") || "10");
     const action = url.searchParams.get("action");
 
@@ -123,8 +123,8 @@ export async function GET(req: Request) {
     }
 
     // Action: Get selection history
-    if (userId) {
-      const history = await getSelectionHistory(userId, limit);
+    if (callerId) {
+      const history = await getSelectionHistory(callerId, limit);
       return NextResponse.json({
         ok: true,
         history,
@@ -132,7 +132,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json(
-      { ok: false, error: "userId or action=list-slugs required" },
+      { ok: false, error: "callerId or action=list-slugs required" },
       { status: 400 }
     );
   } catch (err: any) {
@@ -145,18 +145,18 @@ export async function GET(req: Request) {
 }
 
 /**
- * Helper: Get userId from callId
+ * Helper: Get callerId from callId
  */
-async function getUserIdFromCall(callId: string): Promise<string | null> {
+async function getCallerIdFromCall(callId: string): Promise<string | null> {
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
 
   try {
     const call = await prisma.call.findUnique({
       where: { id: callId },
-      select: { userId: true },
+      select: { callerId: true },
     });
-    return call?.userId ?? null;
+    return call?.callerId ?? null;
   } finally {
     await prisma.$disconnect();
   }

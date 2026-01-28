@@ -18,9 +18,9 @@ export async function GET(
     const { callerId } = await params;
 
     // Fetch all caller data in parallel
-    const [caller, personality, observations, memories, memorySummary, calls] = await Promise.all([
+    const [caller, personality, observations, memories, memorySummary, calls, identities, scores] = await Promise.all([
       // Basic caller info
-      prisma.user.findUnique({
+      prisma.caller.findUnique({
         where: { id: callerId },
         select: {
           id: true,
@@ -29,12 +29,20 @@ export async function GET(
           phone: true,
           externalId: true,
           createdAt: true,
+          domainId: true,
+          domain: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+            },
+          },
         },
       }),
 
       // Personality profile
-      prisma.userPersonality.findUnique({
-        where: { userId: callerId },
+      prisma.callerPersonality.findUnique({
+        where: { callerId: callerId },
         select: {
           openness: true,
           conscientiousness: true,
@@ -52,7 +60,7 @@ export async function GET(
 
       // Personality observations
       prisma.personalityObservation.findMany({
-        where: { userId: callerId },
+        where: { callerId: callerId },
         orderBy: { observedAt: "desc" },
         take: 50,
         select: {
@@ -69,9 +77,9 @@ export async function GET(
       }),
 
       // Active memories (not superseded, not expired)
-      prisma.userMemory.findMany({
+      prisma.callerMemory.findMany({
         where: {
-          userId: callerId,
+          callerId: callerId,
           supersededById: null,
           OR: [
             { expiresAt: null },
@@ -93,8 +101,8 @@ export async function GET(
       }),
 
       // Memory summary
-      prisma.userMemorySummary.findUnique({
-        where: { userId: callerId },
+      prisma.callerMemorySummary.findUnique({
+        where: { callerId: callerId },
         select: {
           factCount: true,
           preferenceCount: true,
@@ -106,9 +114,9 @@ export async function GET(
         },
       }),
 
-      // Calls
+      // Calls with analysis status
       prisma.call.findMany({
-        where: { userId: callerId },
+        where: { callerId: callerId },
         orderBy: { createdAt: "desc" },
         take: 50,
         select: {
@@ -117,6 +125,74 @@ export async function GET(
           externalId: true,
           transcript: true,
           createdAt: true,
+          callSequence: true,
+          _count: {
+            select: {
+              scores: true,
+              behaviorMeasurements: true,
+            },
+          },
+          rewardScore: {
+            select: { id: true },
+          },
+        },
+      }),
+
+      // Caller identities (phone numbers, external IDs, etc.)
+      prisma.callerIdentity.findMany({
+        where: { callerId: callerId },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          externalId: true,
+          nextPrompt: true,
+          nextPromptComposedAt: true,
+          nextPromptInputs: true,
+          segmentId: true,
+          segment: {
+            select: { name: true },
+          },
+        },
+      }),
+
+      // Call scores
+      prisma.callScore.findMany({
+        where: {
+          call: { callerId: callerId },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: {
+          id: true,
+          callId: true,
+          parameterId: true,
+          score: true,
+          confidence: true,
+          evidence: true,
+          reasoning: true,
+          scoredBy: true,
+          scoredAt: true,
+          analysisSpecId: true,
+          createdAt: true,
+          parameter: {
+            select: {
+              name: true,
+              definition: true,
+            },
+          },
+          analysisSpec: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+            },
+          },
+          call: {
+            select: {
+              createdAt: true,
+            },
+          },
         },
       }),
     ]);
@@ -129,11 +205,11 @@ export async function GET(
     }
 
     // Get counts
-    const [callCount, memoryCount, observationCount] = await Promise.all([
-      prisma.call.count({ where: { userId: callerId } }),
-      prisma.userMemory.count({
+    const [callCount, memoryCount, observationCount, promptsCount, measurementsCount] = await Promise.all([
+      prisma.call.count({ where: { callerId: callerId } }),
+      prisma.callerMemory.count({
         where: {
-          userId: callerId,
+          callerId: callerId,
           supersededById: null,
           OR: [
             { expiresAt: null },
@@ -141,27 +217,186 @@ export async function GET(
           ],
         },
       }),
-      prisma.personalityObservation.count({ where: { userId: callerId } }),
+      prisma.personalityObservation.count({ where: { callerId: callerId } }),
+      prisma.composedPrompt.count({ where: { callerId: callerId } }),
+      prisma.behaviorMeasurement.count({
+        where: {
+          call: { callerId: callerId },
+        },
+      }),
     ]);
+
+    // Get behavior targets count for this caller
+    // First get caller's identity to check for targets
+    const callerIdentity = await prisma.callerIdentity.findFirst({
+      where: { callerId: callerId },
+      select: {
+        id: true,
+        segmentId: true,
+        promptStackId: true,
+      },
+    });
+
+    // Count targets at various levels (SYSTEM is always available)
+    let targetsCount = 0;
+    const [systemTargets, segmentTargets, callerTargets, playbookTargets] = await Promise.all([
+      prisma.behaviorTarget.count({
+        where: { scope: "SYSTEM", effectiveUntil: null },
+      }),
+      callerIdentity?.segmentId
+        ? prisma.behaviorTarget.count({
+            where: { scope: "SEGMENT", segmentId: callerIdentity.segmentId, effectiveUntil: null },
+          })
+        : Promise.resolve(0),
+      callerIdentity?.id
+        ? prisma.behaviorTarget.count({
+            where: { scope: "CALLER", callerIdentityId: callerIdentity.id, effectiveUntil: null },
+          })
+        : Promise.resolve(0),
+      callerIdentity?.promptStackId
+        ? prisma.behaviorTarget.count({
+            where: { scope: "PLAYBOOK", playbookId: callerIdentity.promptStackId, effectiveUntil: null },
+          })
+        : Promise.resolve(0),
+    ]);
+    targetsCount = systemTargets + segmentTargets + callerTargets + playbookTargets;
+
+    // Get memory counts per call for status
+    const memoryCountsByCall = await prisma.callerMemory.groupBy({
+      by: ["callId"],
+      where: {
+        callerId: callerId,
+        supersededById: null,
+        callId: { not: null },
+      },
+      _count: { id: true },
+    });
+    const memoryCountMap = new Map(
+      memoryCountsByCall.map((m) => [m.callId, m._count.id])
+    );
+
+    // Transform calls to include analysis status
+    const callsWithStatus = calls.map((call) => ({
+      id: call.id,
+      source: call.source,
+      externalId: call.externalId,
+      transcript: call.transcript,
+      createdAt: call.createdAt,
+      callSequence: call.callSequence,
+      // Analysis status flags
+      hasScores: call._count.scores > 0,
+      hasMemories: (memoryCountMap.get(call.id) || 0) > 0,
+      hasBehaviorMeasurements: call._count.behaviorMeasurements > 0,
+      hasRewardScore: !!call.rewardScore,
+    }));
 
     return NextResponse.json({
       ok: true,
-      caller,
+      caller: {
+        ...caller,
+        personality,
+        _count: {
+          calls: callCount,
+          memories: memoryCount,
+          personalityObservations: observationCount,
+        },
+      },
       personality,
       observations,
       memories,
       memorySummary,
-      calls,
+      calls: callsWithStatus,
+      identities,
+      scores,
       counts: {
         calls: callCount,
         memories: memoryCount,
         observations: observationCount,
+        prompts: promptsCount,
+        targets: targetsCount,
+        measurements: measurementsCount,
       },
     });
   } catch (error: any) {
     console.error("Error fetching caller:", error);
     return NextResponse.json(
       { ok: false, error: error?.message || "Failed to fetch caller" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/callers/[callerId]
+ *
+ * Update caller profile (name, email, phone, domainId)
+ */
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ callerId: string }> }
+) {
+  try {
+    const { callerId } = await params;
+    const body = await req.json();
+
+    // Allowed fields to update
+    const { name, email, phone, domainId } = body;
+
+    // Build update data
+    const updateData: {
+      name?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      domainId?: string | null;
+    } = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (domainId !== undefined) updateData.domainId = domainId;
+
+    // If domainId provided, verify it exists
+    if (domainId) {
+      const domain = await prisma.domain.findUnique({
+        where: { id: domainId },
+      });
+      if (!domain) {
+        return NextResponse.json(
+          { ok: false, error: "Domain not found" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const updatedCaller = await prisma.caller.update({
+      where: { id: callerId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        externalId: true,
+        createdAt: true,
+        domainId: true,
+        domain: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+          },
+        },
+      },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      caller: updatedCaller,
+    });
+  } catch (error: any) {
+    console.error("Error updating caller:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Failed to update caller" },
       { status: 500 }
     );
   }

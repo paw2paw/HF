@@ -6,11 +6,11 @@ const prisma = new PrismaClient();
 export const runtime = "nodejs";
 
 /**
- * GET /api/users
+ * GET /api/callers
  *
  * Query params:
  * - withPersonality: Include personality profile
- * - limit: Max users to return (default 50)
+ * - limit: Max callers to return (default 50)
  */
 export async function GET(req: Request) {
   try {
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     const withPersonality = url.searchParams.get("withPersonality") === "true";
     const limit = parseInt(url.searchParams.get("limit") || "50");
 
-    const users = await prisma.user.findMany({
+    const callers = await prisma.caller.findMany({
       take: limit,
       include: {
         personality: withPersonality,
@@ -36,13 +36,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      users,
-      count: users.length,
+      callers,
+      count: callers.length,
     });
   } catch (err: any) {
-    console.error("[Users API Error]:", err);
+    console.error("[Callers API Error]:", err);
     return NextResponse.json(
-      { ok: false, error: err?.message || "Failed to fetch users" },
+      { ok: false, error: err?.message || "Failed to fetch callers" },
       { status: 500 }
     );
   } finally {

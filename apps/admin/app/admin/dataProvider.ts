@@ -22,8 +22,8 @@ async function http(url: string, options: RequestInit = {}) {
 
 export const dataProvider: DataProvider = {
   getList: async (resource, params) => {
-    const { page, perPage } = params.pagination;
-    const { field, order } = params.sort;
+    const { page = 1, perPage = 25 } = params.pagination ?? {};
+    const { field = "id", order = "ASC" } = params.sort ?? {};
 
     const start = (page - 1) * perPage;
     const end = start + perPage - 1;

@@ -163,11 +163,10 @@ async function getTranscriptsStatus(kbRoot: string | null): Promise<NodeStats & 
   }
 
   // Count DB stats
-  const [fileCount, callCount, userCount, batchCount] = await Promise.all([
+  const [fileCount, callCount, callerCount] = await Promise.all([
     prisma.processedFile.count(),
     prisma.call.count(),
-    prisma.user.count(),
-    prisma.transcriptBatch.count(),
+    prisma.caller.count(),
   ]);
 
   // Get last updated
@@ -205,8 +204,7 @@ async function getTranscriptsStatus(kbRoot: string | null): Promise<NodeStats & 
     derived: [
       { label: "Files Processed", count: fileCount, link: "/transcripts" },
       { label: "Calls", count: callCount, link: "/calls" },
-      { label: "Users", count: userCount, link: "/people" },
-      { label: "Batches", count: batchCount, link: "/transcript-batches" },
+      { label: "Callers", count: callerCount, link: "/callers" },
     ],
     lastUpdated: lastCall?.createdAt?.toISOString(),
     resolvedPath: transcriptsPath || undefined,

@@ -99,15 +99,17 @@ export async function GET() {
   } else {
     try {
       if (existsSync(kbPath)) {
-        // Check key subdirectories
+        // Check key subdirectories (core KB structure)
         const sources = resolve(kbPath, "sources");
-        const transcripts = resolve(kbPath, "transcripts", "raw");
-        const parameters = resolve(kbPath, "parameters", "raw");
+        const derived = resolve(kbPath, "derived");
+        const parameters = resolve(kbPath, "parameters");
+        const vectors = resolve(kbPath, "vectors");
 
         const subdirs = {
           sources: existsSync(sources),
-          transcripts: existsSync(transcripts),
+          derived: existsSync(derived),
           parameters: existsSync(parameters),
+          vectors: existsSync(vectors),
         };
 
         const allExist = Object.values(subdirs).every(Boolean);
@@ -152,6 +154,8 @@ export async function GET() {
 
   const optionalEnv = {
     OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+    OPENAI_HF_MVP_KEY: !!process.env.OPENAI_HF_MVP_KEY,
+    ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
     HF_SUPERADMIN_TOKEN: !!process.env.HF_SUPERADMIN_TOKEN,
   };
 

@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "groups": [
     {
       "id": "group:knowledge",
@@ -55,6 +55,19 @@
         "agent:manifest_manager"
       ],
       "collapsed": true
+    },
+    {
+      "id": "group:reward_loop",
+      "label": "Reward & Learning Loop",
+      "description": "Post-call agents that measure behavior, compute rewards, update targets, and compose next prompts",
+      "color": "#ec4899",
+      "members": [
+        "agent:measure_agent",
+        "agent:compute_reward",
+        "agent:update_targets",
+        "agent:compose_next_prompt"
+      ],
+      "collapsed": false
     }
   ],
   "data": [
@@ -208,9 +221,9 @@
         },
         {
           "type": "table",
-          "table": "TranscriptBatch",
-          "link": "/transcript-batches",
-          "label": "Batches"
+          "table": "ProcessedFile",
+          "link": "/transcripts",
+          "label": "Processed Files"
         }
       ]
     },
@@ -304,6 +317,97 @@
           "label": "Analysis files"
         }
       ]
+    },
+    {
+      "id": "data:composed_prompts",
+      "label": "Composed Prompts",
+      "description": "Final prompts composed from PromptSlugs with personality values and user memories injected. The end product of the analysis pipeline.",
+      "storageType": "virtual",
+      "role": "output",
+      "resources": [
+        {
+          "type": "table",
+          "table": "PromptSlug",
+          "link": "/prompt-slugs",
+          "label": "Active Slugs"
+        },
+        {
+          "type": "table",
+          "table": "PromptBlock",
+          "link": "/prompt-blocks",
+          "label": "Prompt Blocks"
+        }
+      ]
+    },
+    {
+      "id": "data:behavior_targets",
+      "label": "Behavior Targets",
+      "description": "Target values for agent communication behaviors (layered: SYSTEM → SEGMENT → CALLER)",
+      "storageType": "table",
+      "table": "BehaviorTarget",
+      "role": "both",
+      "resources": [
+        {
+          "type": "table",
+          "table": "BehaviorTarget",
+          "link": "/admin#behavior-targets",
+          "label": "Targets"
+        },
+        {
+          "type": "table",
+          "table": "Segment",
+          "link": "/admin#segments",
+          "label": "Segments"
+        }
+      ]
+    },
+    {
+      "id": "data:behavior_measurements",
+      "label": "Behavior Measurements",
+      "description": "Measured agent behavior per call (what the agent actually did)",
+      "storageType": "table",
+      "table": "BehaviorMeasurement",
+      "role": "output",
+      "resources": [
+        {
+          "type": "table",
+          "table": "BehaviorMeasurement",
+          "link": "/calls",
+          "label": "Measurements"
+        }
+      ]
+    },
+    {
+      "id": "data:rewards",
+      "label": "Reward Scores",
+      "description": "Computed reward signals comparing targets to actuals with outcome signals",
+      "storageType": "table",
+      "table": "RewardScore",
+      "role": "output",
+      "resources": [
+        {
+          "type": "table",
+          "table": "RewardScore",
+          "link": "/calls",
+          "label": "Rewards"
+        }
+      ]
+    },
+    {
+      "id": "data:caller_prompts",
+      "label": "Caller Prompts",
+      "description": "Per-caller composed prompts for next conversation (stored on Caller record)",
+      "storageType": "table",
+      "table": "Caller",
+      "role": "output",
+      "resources": [
+        {
+          "type": "table",
+          "table": "Caller",
+          "link": "/callers",
+          "label": "Callers"
+        }
+      ]
     }
   ],
   "agents": [
@@ -368,7 +472,7 @@
       "agentId": "knowledge_ingestor",
       "title": "Knowledge Ingestor",
       "description": "Ingests knowledge documents (PDFs, markdown, text) from sources. Hash-based deduplication, chunking, resumable processing.",
-      "enabled": false,
+      "enabled": true,
       "opid": "knowledge:ingest",
       "inputs": [
         {
@@ -471,7 +575,7 @@
       "agentId": "knowledge_embedder",
       "title": "Knowledge Embedder",
       "description": "Generates vector embeddings for knowledge chunks using OpenAI. Enables semantic search for parameter scoring.",
-      "enabled": false,
+      "enabled": true,
       "opid": "knowledge:embed",
       "prerequisites": [
         {
@@ -734,8 +838,8 @@
       "id": "personality_analyzer",
       "agentId": "personality_analyzer",
       "title": "Personality Analyzer",
-      "description": "Extracts personality traits from call transcripts using knowledge bank parameters as scoring rubric. Creates time-series PersonalityObservation records with decay-based aggregation.",
-      "enabled": false,
+      "description": "Extracts personality traits from call transcripts using MEASURE-type AnalysisSpecs. Creates time-series PersonalityObservation records with decay-based aggregation.",
+      "enabled": true,
       "opid": "personality:analyze",
       "prerequisites": [
         {
@@ -779,6 +883,11 @@
         {
           "node": "data:profiles",
           "edgeType": "solid"
+        },
+        {
+          "node": "data:composed_prompts",
+          "edgeType": "dashed",
+          "label": "feeds"
         }
       ],
       "resources": [
@@ -837,7 +946,7 @@
       "agentId": "kb_build_embed",
       "title": "KB Build + Embed",
       "description": "Builds derived knowledge and produces vector embeddings.",
-      "enabled": false,
+      "enabled": true,
       "opid": "kb:build+embed",
       "inputs": [
         {
@@ -929,8 +1038,8 @@
       "id": "memory_extractor",
       "agentId": "memory_extractor",
       "title": "Memory Extractor",
-      "description": "Extracts structured memories (facts, preferences, events, topics, relationships, context) from call transcripts. Handles key normalization and contradiction resolution.",
-      "enabled": false,
+      "description": "Extracts structured memories (facts, preferences, events, topics, relationships, context) from call transcripts using LEARN-type AnalysisSpecs. Handles key normalization and contradiction resolution.",
+      "enabled": true,
       "opid": "memory:extract",
       "prerequisites": [
         {
@@ -951,6 +1060,11 @@
         {
           "node": "data:memories",
           "edgeType": "solid"
+        },
+        {
+          "node": "data:composed_prompts",
+          "edgeType": "dashed",
+          "label": "feeds"
         }
       ],
       "resources": [
@@ -1014,6 +1128,363 @@
             "default": 0.5,
             "minimum": 0,
             "maximum": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "measure_agent",
+      "agentId": "measure_agent",
+      "title": "Agent Behavior Measurer",
+      "description": "Measures agent communication behaviors from call transcripts using MEASURE_AGENT specs. Creates BehaviorMeasurement records for each behavior parameter.",
+      "enabled": true,
+      "opid": "behavior:measure",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "Call",
+          "min": 1,
+          "required": true,
+          "message": "Process transcripts first"
+        },
+        {
+          "type": "count",
+          "table": "AnalysisSpec",
+          "min": 1,
+          "required": true,
+          "message": "Create MEASURE_AGENT specs first"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "data:calls",
+          "edgeType": "solid"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:behavior_measurements",
+          "edgeType": "solid"
+        },
+        {
+          "node": "agent:compute_reward",
+          "edgeType": "dashed",
+          "label": "triggers"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "BehaviorMeasurement",
+          "link": "/calls",
+          "label": "Measurements"
+        }
+      ],
+      "settings": {
+        "limit": 100,
+        "mock": false
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "title": "Specific call ID",
+            "description": "Measure a specific call (leave empty to measure all unprocessed calls)"
+          },
+          "limit": {
+            "type": "number",
+            "title": "Max calls",
+            "description": "Maximum number of calls to process",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "mock": {
+            "type": "boolean",
+            "title": "Mock mode",
+            "description": "Use mock LLM responses (for testing)",
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "id": "compute_reward",
+      "agentId": "compute_reward",
+      "title": "Reward Computer",
+      "description": "Computes reward scores by comparing agent behavior measurements to effective targets. Considers call outcomes and sentiment changes.",
+      "enabled": true,
+      "opid": "reward:compute",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "BehaviorMeasurement",
+          "min": 1,
+          "required": true,
+          "message": "Run Agent Behavior Measurer first"
+        },
+        {
+          "type": "count",
+          "table": "BehaviorTarget",
+          "min": 1,
+          "required": true,
+          "message": "Seed behavior targets first"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "data:behavior_measurements",
+          "edgeType": "solid"
+        },
+        {
+          "node": "data:behavior_targets",
+          "edgeType": "solid"
+        },
+        {
+          "node": "agent:measure_agent",
+          "edgeType": "dashed",
+          "label": "after measurement"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:rewards",
+          "edgeType": "solid"
+        },
+        {
+          "node": "agent:update_targets",
+          "edgeType": "dashed",
+          "label": "triggers"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "RewardScore",
+          "link": "/calls",
+          "label": "Rewards"
+        }
+      ],
+      "settings": {
+        "limit": 100,
+        "tolerance": 0.15,
+        "outcomeWeight": 0.3
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "title": "Specific call ID",
+            "description": "Compute reward for a specific call"
+          },
+          "limit": {
+            "type": "number",
+            "title": "Max calls",
+            "description": "Maximum number of calls to process",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "tolerance": {
+            "type": "number",
+            "title": "Target tolerance",
+            "description": "Tolerance for hitting targets (0-1)",
+            "default": 0.15,
+            "minimum": 0,
+            "maximum": 0.5
+          },
+          "outcomeWeight": {
+            "type": "number",
+            "title": "Outcome weight",
+            "description": "Weight of outcome signals in overall score",
+            "default": 0.3,
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "update_targets",
+      "agentId": "update_targets",
+      "title": "Target Updater",
+      "description": "Updates behavior targets based on reward signals using learning rules. Creates new target versions when adjusting values.",
+      "enabled": true,
+      "opid": "targets:update",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "RewardScore",
+          "min": 1,
+          "required": true,
+          "message": "Run Reward Computer first"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "data:rewards",
+          "edgeType": "solid"
+        },
+        {
+          "node": "agent:compute_reward",
+          "edgeType": "dashed",
+          "label": "after reward"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:behavior_targets",
+          "edgeType": "solid",
+          "label": "updates"
+        },
+        {
+          "node": "agent:compose_next_prompt",
+          "edgeType": "dashed",
+          "label": "triggers"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "BehaviorTarget",
+          "link": "/admin#behavior-targets",
+          "label": "Targets"
+        }
+      ],
+      "settings": {
+        "limit": 100,
+        "learningRate": 0.1,
+        "minConfidence": 0.2
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "title": "Specific call ID",
+            "description": "Update targets for a specific call's reward"
+          },
+          "limit": {
+            "type": "number",
+            "title": "Max rewards",
+            "description": "Maximum number of rewards to process",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "learningRate": {
+            "type": "number",
+            "title": "Learning rate",
+            "description": "How much to adjust targets (0-1)",
+            "default": 0.1,
+            "minimum": 0.01,
+            "maximum": 0.5
+          },
+          "minConfidence": {
+            "type": "number",
+            "title": "Min confidence",
+            "description": "Don't adjust targets below this confidence",
+            "default": 0.2,
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "compose_next_prompt",
+      "agentId": "compose_next_prompt",
+      "title": "Next Prompt Composer",
+      "description": "Composes personalized prompts for the next conversation with each caller. Uses learned targets, memories, and personality profiles.",
+      "enabled": true,
+      "opid": "prompt:compose-next",
+      "prerequisites": [
+        {
+          "type": "count",
+          "table": "BehaviorTarget",
+          "min": 1,
+          "required": true,
+          "message": "Seed behavior targets first"
+        },
+        {
+          "type": "count",
+          "table": "Caller",
+          "min": 1,
+          "required": true,
+          "message": "Process transcripts first"
+        }
+      ],
+      "inputs": [
+        {
+          "node": "data:behavior_targets",
+          "edgeType": "solid"
+        },
+        {
+          "node": "data:memories",
+          "edgeType": "dashed",
+          "label": "context"
+        },
+        {
+          "node": "data:profiles",
+          "edgeType": "dashed",
+          "label": "context"
+        },
+        {
+          "node": "agent:update_targets",
+          "edgeType": "dashed",
+          "label": "after update"
+        }
+      ],
+      "outputs": [
+        {
+          "node": "data:caller_prompts",
+          "edgeType": "solid"
+        }
+      ],
+      "resources": [
+        {
+          "type": "table",
+          "table": "Caller",
+          "link": "/callers",
+          "label": "Callers"
+        }
+      ],
+      "settings": {
+        "limit": 100,
+        "forceRecompose": false,
+        "maxAge": 24
+      },
+      "settingsSchema": {
+        "type": "object",
+        "properties": {
+          "callerId": {
+            "type": "string",
+            "title": "Specific caller ID",
+            "description": "Compose prompt for a specific caller"
+          },
+          "limit": {
+            "type": "number",
+            "title": "Max callers",
+            "description": "Maximum number of callers to process",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "forceRecompose": {
+            "type": "boolean",
+            "title": "Force recompose",
+            "description": "Recompose even if recently composed",
+            "default": false
+          },
+          "maxAge": {
+            "type": "number",
+            "title": "Max age (hours)",
+            "description": "Only recompose if last composition is older than this",
+            "default": 24,
+            "minimum": 1,
+            "maximum": 168
           }
         }
       }
@@ -1090,7 +1561,51 @@
       },
       "data:profiles": {
         "x": 1030,
-        "y": 210
+        "y": 180
+      },
+      "data:memories": {
+        "x": 1030,
+        "y": 300
+      },
+      "agent:memory_extractor": {
+        "x": 830,
+        "y": 320
+      },
+      "data:composed_prompts": {
+        "x": 1200,
+        "y": 240
+      },
+      "data:behavior_targets": {
+        "x": 830,
+        "y": 450
+      },
+      "data:behavior_measurements": {
+        "x": 1030,
+        "y": 420
+      },
+      "data:rewards": {
+        "x": 1200,
+        "y": 420
+      },
+      "data:caller_prompts": {
+        "x": 1370,
+        "y": 420
+      },
+      "agent:measure_agent": {
+        "x": 830,
+        "y": 420
+      },
+      "agent:compute_reward": {
+        "x": 1030,
+        "y": 480
+      },
+      "agent:update_targets": {
+        "x": 1200,
+        "y": 480
+      },
+      "agent:compose_next_prompt": {
+        "x": 1370,
+        "y": 480
       }
     }
   }

@@ -77,34 +77,34 @@ type RunConfigDetail = {
   };
 };
 
+// Inline style versions
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  DRAFT: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-700" },
-  COMPILING: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-700" },
-  READY: { bg: "bg-green-50", border: "border-green-300", text: "text-green-700" },
-  ERROR: { bg: "bg-red-50", border: "border-red-300", text: "text-red-700" },
-  SUPERSEDED: { bg: "bg-neutral-100", border: "border-neutral-300", text: "text-neutral-600" },
+  DRAFT: { bg: "#fffbeb", border: "#fcd34d", text: "#d97706" },
+  COMPILING: { bg: "#eff6ff", border: "#93c5fd", text: "#2563eb" },
+  READY: { bg: "#f0fdf4", border: "#86efac", text: "#16a34a" },
+  ERROR: { bg: "#fef2f2", border: "#fca5a5", text: "#dc2626" },
+  SUPERSEDED: { bg: "#f5f5f5", border: "#d4d4d4", text: "#6b7280" },
 };
 
-// Match Analysis Specs page domain colors
 const DOMAIN_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  personality: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-  engagement: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  conversation: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
-  memory: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  safety: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
-  commercial: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
+  personality: { bg: "#f3e8ff", text: "#7c3aed", border: "#ddd6fe" },
+  engagement: { bg: "#dbeafe", text: "#2563eb", border: "#bfdbfe" },
+  conversation: { bg: "#ccfbf1", text: "#0d9488", border: "#99f6e4" },
+  memory: { bg: "#fef3c7", text: "#d97706", border: "#fde68a" },
+  safety: { bg: "#fee2e2", text: "#dc2626", border: "#fecaca" },
+  commercial: { bg: "#dcfce7", text: "#16a34a", border: "#bbf7d0" },
 };
 
 function getDomainColor(domain: string | null) {
-  if (!domain) return { bg: "bg-neutral-50", text: "text-neutral-700", border: "border-neutral-200" };
-  return DOMAIN_COLORS[domain.toLowerCase()] || { bg: "bg-neutral-50", text: "text-neutral-700", border: "border-neutral-200" };
+  if (!domain) return { bg: "#f9fafb", text: "#6b7280", border: "#e5e7eb" };
+  return DOMAIN_COLORS[domain.toLowerCase()] || { bg: "#f9fafb", text: "#6b7280", border: "#e5e7eb" };
 }
 
 function getOutputTypeBadge(outputType: "MEASURE" | "LEARN") {
   if (outputType === "LEARN") {
-    return { bg: "bg-amber-100", text: "text-amber-700", label: "Learn" };
+    return { bg: "#fef3c7", text: "#d97706", label: "Learn" };
   }
-  return { bg: "bg-indigo-100", text: "text-indigo-700", label: "Measure" };
+  return { bg: "#e0e7ff", text: "#4f46e5", label: "Measure" };
 }
 
 export default function RunConfigsPage() {
@@ -370,32 +370,32 @@ export default function RunConfigsPage() {
       <div style={{ flex: 1, minHeight: 0, padding: 16, display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, overflow: "hidden" }}>
         {/* LEFT: Available Specs */}
         <div style={{ display: "flex", flexDirection: "column", background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-          <div className="px-3 py-2 bg-green-50 border-b border-green-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                <span className="font-semibold text-green-800 text-sm">Available Specs</span>
+          <div style={{ padding: "8px 12px", background: "#f0fdf4", borderBottom: "1px solid #bbf7d0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#16a34a" }} />
+                <span style={{ fontWeight: 600, color: "#166534", fontSize: 14 }}>Available Specs</span>
               </div>
-              <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+              <span style={{ fontSize: 12, color: "#16a34a", background: "#dcfce7", padding: "2px 8px", borderRadius: 12 }}>
                 {filteredSpecs.length}
               </span>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="px-2 py-2 border-b border-neutral-100 space-y-1.5">
+          <div style={{ padding: 8, borderBottom: "1px solid #f3f4f6" }}>
             <input
               type="text"
               placeholder="Filter specs..."
               value={specFilter}
               onChange={(e) => setSpecFilter(e.target.value)}
-              className="w-full px-2 py-1 text-xs border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-green-300"
+              style={{ width: "100%", padding: "6px 8px", fontSize: 12, border: "1px solid #e5e7eb", borderRadius: 6, marginBottom: 6 }}
             />
-            <div className="flex gap-1.5">
+            <div style={{ display: "flex", gap: 6 }}>
               <select
                 value={domainFilter || ""}
                 onChange={(e) => setDomainFilter(e.target.value || null)}
-                className="text-xs px-1.5 py-0.5 border border-neutral-200 rounded bg-white flex-1"
+                style={{ flex: 1, fontSize: 12, padding: "4px 6px", border: "1px solid #e5e7eb", borderRadius: 6 }}
               >
                 <option value="">All domains</option>
                 {uniqueDomains.map((d) => (
@@ -405,7 +405,7 @@ export default function RunConfigsPage() {
               <select
                 value={outputTypeFilter || ""}
                 onChange={(e) => setOutputTypeFilter((e.target.value as "MEASURE" | "LEARN") || null)}
-                className="text-xs px-1.5 py-0.5 border border-neutral-200 rounded bg-white flex-1"
+                style={{ flex: 1, fontSize: 12, padding: "4px 6px", border: "1px solid #e5e7eb", borderRadius: 6 }}
               >
                 <option value="">All types</option>
                 <option value="MEASURE">MEASURE</option>
@@ -415,16 +415,16 @@ export default function RunConfigsPage() {
           </div>
 
           {/* Specs list */}
-          <div className="flex-1 overflow-y-auto p-1.5">
+          <div style={{ flex: 1, overflowY: "auto", padding: 6 }}>
             {loadingSpecs ? (
-              <div className="text-center py-6 text-neutral-400 text-sm">Loading...</div>
+              <div style={{ textAlign: "center", padding: 24, color: "#9ca3af", fontSize: 14 }}>Loading...</div>
             ) : filteredSpecs.length === 0 ? (
-              <div className="text-center py-6 text-neutral-400">
-                <div className="text-xl mb-1">📋</div>
-                <div className="text-xs">No compiled specs</div>
+              <div style={{ textAlign: "center", padding: 24, color: "#9ca3af" }}>
+                <div style={{ fontSize: 20, marginBottom: 4 }}>📋</div>
+                <div style={{ fontSize: 12 }}>No compiled specs</div>
               </div>
             ) : (
-              <div className="space-y-1.5">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {filteredSpecs.map((spec) => {
                   const domainColors = getDomainColor(spec.domain);
                   const outputBadge = getOutputTypeBadge(spec.outputType);
@@ -434,30 +434,36 @@ export default function RunConfigsPage() {
                       draggable
                       onDragStart={() => handleDragStart(spec)}
                       onDragEnd={handleDragEnd}
-                      className="cursor-grab active:cursor-grabbing rounded-md border p-2.5 transition-colors bg-green-50 border-green-200 hover:border-green-300"
+                      style={{
+                        cursor: "grab",
+                        borderRadius: 6,
+                        border: "1px solid #bbf7d0",
+                        padding: 10,
+                        background: "#f0fdf4",
+                      }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span
-                              className="inline-block w-2 h-2 rounded-full flex-shrink-0 bg-green-500"
+                              style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", flexShrink: 0 }}
                               title="Compiled"
                             />
-                            <span className="font-medium text-neutral-900 truncate text-sm">{spec.name}</span>
+                            <span style={{ fontWeight: 500, color: "#1f2937", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{spec.name}</span>
                           </div>
-                          <div className="text-[11px] text-neutral-500 truncate ml-3.5">{spec.slug}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280", marginLeft: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{spec.slug}</div>
                         </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className={`rounded px-1.5 py-0.5 text-[10px] ${outputBadge.bg} ${outputBadge.text}`}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                          <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: outputBadge.bg, color: outputBadge.text }}>
                             {outputBadge.label}
                           </span>
-                          <span className="text-green-500 text-base">⊕</span>
+                          <span style={{ color: "#16a34a", fontSize: 16 }}>⊕</span>
                         </div>
                       </div>
-                      <div className="mt-1.5 flex items-center gap-2 text-[11px] text-neutral-500 ml-3.5">
-                        <span>{spec.actionCount || 0} param{(spec.actionCount || 0) !== 1 ? "s" : ""}</span>
+                      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#6b7280", marginLeft: 14 }}>
+                        <span>{spec.actionCount || 0} params</span>
                         {spec.domain && (
-                          <span className={`rounded px-1 py-0.5 ${domainColors.bg} ${domainColors.text}`}>
+                          <span style={{ padding: "1px 6px", borderRadius: 4, background: domainColors.bg, color: domainColors.text }}>
                             {spec.domain}
                           </span>
                         )}
@@ -485,28 +491,28 @@ export default function RunConfigsPage() {
           }}
         >
           {/* Builder header with inputs */}
-          <div className={`px-4 py-3 border-b ${isBuilding ? "bg-blue-50 border-blue-200" : "bg-neutral-100 border-neutral-200"}`}>
-            <div className="flex items-start gap-4">
-              <div className="flex-1 space-y-2">
+          <div style={{ padding: 12, borderBottom: `1px solid ${isBuilding ? "#bfdbfe" : "#e5e7eb"}`, background: isBuilding ? "#eff6ff" : "#f9fafb" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
                 <input
                   type="text"
                   placeholder="Run Config name..."
                   value={configName}
                   onChange={(e) => setConfigName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm font-medium border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                  style={{ width: "100%", padding: "8px 12px", fontSize: 14, fontWeight: 500, border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff" }}
                 />
                 <input
                   type="text"
                   placeholder="Description (optional)..."
                   value={configDescription}
                   onChange={(e) => setConfigDescription(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                  style={{ width: "100%", padding: "6px 12px", fontSize: 12, border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff" }}
                 />
               </div>
               {isBuilding && (
                 <button
                   onClick={handleClearBuilder}
-                  className="text-xs text-neutral-500 hover:text-red-500 px-2 py-1"
+                  style={{ fontSize: 12, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}
                 >
                   Clear
                 </button>
@@ -515,49 +521,49 @@ export default function RunConfigsPage() {
           </div>
 
           {/* Builder drop zone */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
             {builderSpecs.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-neutral-400">
-                <div className="text-5xl mb-3">📦</div>
-                <div className="text-base font-medium">Drop specs here</div>
-                <div className="text-xs mt-1">Drag from the left panel to build your config</div>
+              <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
+                <div style={{ fontSize: 16, fontWeight: 500 }}>Drop specs here</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>Drag from the left panel to build your config</div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
                 {builderSpecs.map((spec, idx) => {
                   const domainColors = getDomainColor(spec.domain);
                   const outputBadge = getOutputTypeBadge(spec.outputType);
                   return (
                     <div
                       key={spec.id}
-                      className="rounded-md border p-3 bg-blue-50 border-blue-200"
+                      style={{ borderRadius: 6, border: "1px solid #bfdbfe", padding: 12, background: "#eff6ff" }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-blue-500 font-mono bg-blue-100 px-1.5 py-0.5 rounded">
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 10, color: "#3b82f6", fontFamily: "monospace", background: "#dbeafe", padding: "2px 6px", borderRadius: 4 }}>
                               #{idx + 1}
                             </span>
-                            <span className={`rounded px-1.5 py-0.5 text-[10px] ${outputBadge.bg} ${outputBadge.text}`}>
+                            <span style={{ borderRadius: 4, padding: "2px 6px", fontSize: 10, background: outputBadge.bg, color: outputBadge.text }}>
                               {outputBadge.label}
                             </span>
                           </div>
-                          <div className="font-medium text-sm text-neutral-900 truncate mt-1.5">
+                          <div style={{ fontWeight: 500, fontSize: 14, color: "#171717", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 6 }}>
                             {spec.name}
                           </div>
-                          <div className="text-[11px] text-neutral-500 truncate">{spec.slug}</div>
+                          <div style={{ fontSize: 11, color: "#737373", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{spec.slug}</div>
                         </div>
                         <button
                           onClick={() => handleRemoveFromBuilder(spec.id)}
-                          className="text-neutral-400 hover:text-red-500 transition-colors text-lg leading-none -mt-1"
+                          style={{ color: "#a3a3a3", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, marginTop: -4 }}
                         >
                           ×
                         </button>
                       </div>
-                      <div className="mt-1.5 flex items-center gap-2 text-[11px] text-neutral-500">
+                      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#737373" }}>
                         <span>{spec.actionCount || 0} param{(spec.actionCount || 0) !== 1 ? "s" : ""}</span>
                         {spec.domain && (
-                          <span className={`rounded px-1 py-0.5 ${domainColors.bg} ${domainColors.text}`}>
+                          <span style={{ borderRadius: 4, padding: "2px 4px", background: domainColors.bg, color: domainColors.text }}>
                             {spec.domain}
                           </span>
                         )}
@@ -570,22 +576,25 @@ export default function RunConfigsPage() {
           </div>
 
           {/* Builder footer with stats and save */}
-          <div className="px-4 py-3 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between">
-            <div className="flex gap-4 text-sm">
-              <span className="text-indigo-600 font-medium">{measureCount} MEASURE</span>
-              <span className="text-amber-600 font-medium">{learnCount} LEARN</span>
-              <span className="text-neutral-500">{builderSpecs.length} total</span>
+          <div style={{ padding: "12px 16px", borderTop: "1px solid #e5e7eb", background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", gap: 16, fontSize: 14 }}>
+              <span style={{ color: "#4f46e5", fontWeight: 500 }}>{measureCount} MEASURE</span>
+              <span style={{ color: "#d97706", fontWeight: 500 }}>{learnCount} LEARN</span>
+              <span style={{ color: "#737373" }}>{builderSpecs.length} total</span>
             </div>
             <button
               onClick={handleSave}
               disabled={saving || !configName.trim() || builderSpecs.length === 0}
-              className={`
-                px-6 py-2 rounded-lg font-semibold text-sm transition-all
-                ${saving || !configName.trim() || builderSpecs.length === 0
-                  ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                }
-              `}
+              style={{
+                padding: "8px 24px",
+                borderRadius: 8,
+                fontWeight: 600,
+                fontSize: 14,
+                border: "none",
+                cursor: saving || !configName.trim() || builderSpecs.length === 0 ? "not-allowed" : "pointer",
+                background: saving || !configName.trim() || builderSpecs.length === 0 ? "#e5e5e5" : "#2563eb",
+                color: saving || !configName.trim() || builderSpecs.length === 0 ? "#a3a3a3" : "#fff",
+              }}
             >
               {saving ? "Saving..." : "SAVE CONFIG"}
             </button>
@@ -616,24 +625,24 @@ export default function RunConfigsPage() {
         {/* Run Configs Table (scrollable) */}
         <div style={{ height: selectedConfigId ? 160 : "100%", overflowY: "auto", flexShrink: 0 }}>
           {loadingConfigs ? (
-            <div className="text-center py-8 text-neutral-400">Loading...</div>
+            <div style={{ textAlign: "center", padding: "32px 0", color: "#a3a3a3" }}>Loading...</div>
           ) : runConfigs.length === 0 ? (
-            <div className="text-center py-8 text-neutral-400">
-              <div className="text-2xl mb-2">📦</div>
-              <div className="text-sm">No run configs yet</div>
-              <div className="text-xs mt-1">Build one using the panel above</div>
+            <div style={{ textAlign: "center", padding: "32px 0", color: "#a3a3a3" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>📦</div>
+              <div style={{ fontSize: 14 }}>No run configs yet</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Build one using the panel above</div>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50 sticky top-0">
-                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium text-center">Specs</th>
-                  <th className="px-4 py-2 font-medium text-center">Params</th>
-                  <th className="px-4 py-2 font-medium text-center">Runs</th>
-                  <th className="px-4 py-2 font-medium">Created</th>
-                  <th className="px-4 py-2 font-medium text-right">Actions</th>
+            <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
+              <thead style={{ background: "#fafafa", position: "sticky", top: 0 }}>
+                <tr style={{ textAlign: "left", fontSize: 12, color: "#737373", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "8px 16px", fontWeight: 500 }}>Name</th>
+                  <th style={{ padding: "8px 16px", fontWeight: 500 }}>Status</th>
+                  <th style={{ padding: "8px 16px", fontWeight: 500, textAlign: "center" }}>Specs</th>
+                  <th style={{ padding: "8px 16px", fontWeight: 500, textAlign: "center" }}>Params</th>
+                  <th style={{ padding: "8px 16px", fontWeight: 500, textAlign: "center" }}>Runs</th>
+                  <th style={{ padding: "8px 16px", fontWeight: 500 }}>Created</th>
+                  <th style={{ padding: "8px 16px", fontWeight: 500, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -646,59 +655,61 @@ export default function RunConfigsPage() {
                     <tr
                       key={config.id}
                       onClick={() => handleRowClick(config.id)}
-                      className={`border-b border-neutral-100 hover:bg-neutral-50 transition-colors cursor-pointer ${
-                        isSelected ? "bg-blue-50 hover:bg-blue-50" : ""
-                      }`}
+                      style={{
+                        borderBottom: "1px solid #f5f5f5",
+                        cursor: "pointer",
+                        background: isSelected ? "#eff6ff" : "transparent",
+                      }}
                     >
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs transition-transform ${isSelected ? "rotate-90" : ""}`}>▶</span>
+                      <td style={{ padding: "8px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, transform: isSelected ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>▶</span>
                           <div>
-                            <div className="font-medium text-neutral-900">{config.name}</div>
-                            <div className="text-xs text-neutral-500">v{config.version}</div>
+                            <div style={{ fontWeight: 500, color: "#171717" }}>{config.name}</div>
+                            <div style={{ fontSize: 12, color: "#737373" }}>v{config.version}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border}`}>
+                      <td style={{ padding: "8px 16px" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 4, fontSize: 12, fontWeight: 500, background: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}>
                           {config.status}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="text-indigo-600 font-medium">{config.measureSpecCount}</span>
-                          <span className="text-neutral-300">/</span>
-                          <span className="text-amber-600 font-medium">{config.learnSpecCount}</span>
+                      <td style={{ padding: "8px 16px", textAlign: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                          <span style={{ color: "#4f46e5", fontWeight: 500 }}>{config.measureSpecCount}</span>
+                          <span style={{ color: "#d4d4d4" }}>/</span>
+                          <span style={{ color: "#d97706", fontWeight: 500 }}>{config.learnSpecCount}</span>
                         </div>
-                        <div className="text-[10px] text-neutral-400">{totalSpecs} total</div>
+                        <div style={{ fontSize: 10, color: "#a3a3a3" }}>{totalSpecs} total</div>
                       </td>
-                      <td className="px-4 py-2 text-center">
-                        <span className="text-neutral-700 font-medium">{config.parameterCount || 0}</span>
+                      <td style={{ padding: "8px 16px", textAlign: "center" }}>
+                        <span style={{ color: "#404040", fontWeight: 500 }}>{config.parameterCount || 0}</span>
                       </td>
-                      <td className="px-4 py-2 text-center">
+                      <td style={{ padding: "8px 16px", textAlign: "center" }}>
                         {config.runCount > 0 ? (
-                          <span className="text-green-600 font-medium">{config.runCount}</span>
+                          <span style={{ color: "#16a34a", fontWeight: 500 }}>{config.runCount}</span>
                         ) : (
-                          <span className="text-neutral-400">—</span>
+                          <span style={{ color: "#a3a3a3" }}>—</span>
                         )}
                       </td>
-                      <td className="px-4 py-2">
-                        <div className="text-neutral-700">{createdDate.toLocaleDateString()}</div>
-                        <div className="text-[10px] text-neutral-400">{createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <td style={{ padding: "8px 16px" }}>
+                        <div style={{ color: "#404040" }}>{createdDate.toLocaleDateString()}</div>
+                        <div style={{ fontSize: 10, color: "#a3a3a3" }}>{createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       </td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center justify-end gap-2">
+                      <td style={{ padding: "8px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
                           {config.status === "DRAFT" && (
                             <button
                               onClick={(e) => { e.stopPropagation(); }}
-                              className="px-2.5 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                              style={{ padding: "4px 10px", fontSize: 12, fontWeight: 500, background: "#dcfce7", color: "#15803d", borderRadius: 4, border: "none", cursor: "pointer" }}
                             >
                               Publish
                             </button>
                           )}
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDeleteConfig(config.id, config.name); }}
-                            className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
+                            style={{ padding: "4px 10px", fontSize: 12, fontWeight: 500, background: "#fef2f2", color: "#dc2626", borderRadius: 4, border: "none", cursor: "pointer" }}
                           >
                             Delete
                           </button>
@@ -714,17 +725,17 @@ export default function RunConfigsPage() {
 
         {/* Config Detail Panel (fixed at bottom when selected) */}
         {selectedConfigId && (
-          <div className="flex-1 border-t border-neutral-300 bg-neutral-50 overflow-hidden">
+          <div style={{ flex: 1, borderTop: "1px solid #d4d4d4", background: "#fafafa", overflow: "hidden" }}>
             {/* Detail Header */}
-            <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h3 className="font-semibold text-neutral-900">
+            <div style={{ padding: "8px 16px", background: "#eff6ff", borderBottom: "1px solid #bfdbfe", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <h3 style={{ fontWeight: 600, color: "#171717", margin: 0 }}>
                   {configDetail?.compiledSet?.name || "Loading..."}
                 </h3>
                 {configDetail?.compiledSet && (
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="text-neutral-500">v{configDetail.compiledSet.version}</span>
-                    <span className={`px-2 py-0.5 rounded font-medium ${STATUS_COLORS[configDetail.compiledSet.status]?.bg} ${STATUS_COLORS[configDetail.compiledSet.status]?.text} border ${STATUS_COLORS[configDetail.compiledSet.status]?.border}`}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12 }}>
+                    <span style={{ color: "#737373" }}>v{configDetail.compiledSet.version}</span>
+                    <span style={{ padding: "2px 8px", borderRadius: 4, fontWeight: 500, background: STATUS_COLORS[configDetail.compiledSet.status]?.bg, color: STATUS_COLORS[configDetail.compiledSet.status]?.text, border: `1px solid ${STATUS_COLORS[configDetail.compiledSet.status]?.border}` }}>
                       {configDetail.compiledSet.status}
                     </span>
                   </div>
@@ -732,69 +743,69 @@ export default function RunConfigsPage() {
               </div>
               <button
                 onClick={() => { setSelectedConfigId(null); setConfigDetail(null); }}
-                className="p-1 rounded hover:bg-blue-100 transition-colors text-neutral-500 hover:text-neutral-700"
+                style={{ padding: 4, borderRadius: 4, border: "none", background: "transparent", color: "#737373", cursor: "pointer" }}
               >
                 ✕
               </button>
             </div>
 
             {/* Detail Content - Horizontal layout */}
-            <div className="px-4 py-3 overflow-y-auto h-[calc(100%-44px)]">
+            <div style={{ padding: "12px 16px", overflowY: "auto", height: "calc(100% - 44px)" }}>
               {loadingDetail ? (
-                <div className="text-center py-8 text-neutral-400">Loading details...</div>
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#a3a3a3" }}>Loading details...</div>
               ) : configDetail ? (
-                <div className="flex gap-6 h-full">
+                <div style={{ display: "flex", gap: 24, height: "100%" }}>
                   {/* Left: Stats + Specs */}
-                  <div className="flex flex-col gap-3 w-[320px] flex-shrink-0">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, width: 320, flexShrink: 0 }}>
                     {/* Compact stats - 2 rows */}
-                    <div className="space-y-1.5">
-                      <div className="flex gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-indigo-50 border border-indigo-100 text-indigo-600">
-                          Measure <b className="ml-0.5">{configDetail.summary.measureSpecCount}</b>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontSize: 11, background: "#eef2ff", border: "1px solid #e0e7ff", color: "#4f46e5" }}>
+                          Measure <b style={{ marginLeft: 2 }}>{configDetail.summary.measureSpecCount}</b>
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-amber-50 border border-amber-100 text-amber-600">
-                          Learn <b className="ml-0.5">{configDetail.summary.learnSpecCount}</b>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontSize: 11, background: "#fffbeb", border: "1px solid #fef3c7", color: "#d97706" }}>
+                          Learn <b style={{ marginLeft: 2 }}>{configDetail.summary.learnSpecCount}</b>
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-blue-50 border border-blue-100 text-blue-600">
-                          Actions <b className="ml-0.5">{configDetail.summary.actionCount || configDetail.actions?.length || 0}</b>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontSize: 11, background: "#eff6ff", border: "1px solid #dbeafe", color: "#2563eb" }}>
+                          Actions <b style={{ marginLeft: 2 }}>{configDetail.summary.actionCount || configDetail.actions?.length || 0}</b>
                         </span>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-green-50 border border-green-100 text-green-600">
-                          Anchors <b className="ml-0.5">{configDetail.summary.totalAnchors}</b>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontSize: 11, background: "#f0fdf4", border: "1px solid #dcfce7", color: "#16a34a" }}>
+                          Anchors <b style={{ marginLeft: 2 }}>{configDetail.summary.totalAnchors}</b>
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-cyan-50 border border-cyan-100 text-cyan-600">
-                          Runs <b className="ml-0.5">{configDetail.compiledSet?.runCount || 0}</b>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontSize: 11, background: "#ecfeff", border: "1px solid #cffafe", color: "#0891b2" }}>
+                          Runs <b style={{ marginLeft: 2 }}>{configDetail.compiledSet?.runCount || 0}</b>
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-teal-50 border border-teal-100 text-teal-600">
-                          Enriched <b className="ml-0.5">{configDetail.summary.enrichedParameterCount}</b>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontSize: 11, background: "#f0fdfa", border: "1px solid #ccfbf1", color: "#0d9488" }}>
+                          Enriched <b style={{ marginLeft: 2 }}>{configDetail.summary.enrichedParameterCount}</b>
                         </span>
                       </div>
                     </div>
 
                     {/* Specs list - clickable to navigate to Analysis Specs */}
-                    <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5">
+                    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
                       {configDetail.specs.measure.map((spec) => {
                         const domainColors = getDomainColor(spec.domain);
                         return (
                           <div
                             key={spec.id}
                             onClick={() => router.push(`/analysis-specs?select=${spec.id}`)}
-                            className="flex items-center gap-2 p-2 rounded bg-white border border-indigo-100 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
+                            style={{ display: "flex", alignItems: "center", gap: 8, padding: 8, borderRadius: 4, background: "#fff", border: "1px solid #e0e7ff", cursor: "pointer" }}
                           >
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-medium">M</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-medium text-neutral-800 truncate">{spec.name}</div>
-                              <div className="flex items-center gap-1.5 text-[10px] text-neutral-400">
+                            <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#e0e7ff", color: "#4f46e5", fontWeight: 500 }}>M</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 500, color: "#262626", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{spec.name}</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#a3a3a3" }}>
                                 <span>{spec.triggerCount} triggers</span>
                                 {spec.domain && (
-                                  <span className={`rounded px-1 py-0.5 ${domainColors.bg} ${domainColors.text}`}>
+                                  <span style={{ borderRadius: 4, padding: "2px 4px", background: domainColors.bg, color: domainColors.text }}>
                                     {spec.domain}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            <span className="text-neutral-300 text-xs">→</span>
+                            <span style={{ color: "#d4d4d4", fontSize: 12 }}>→</span>
                           </div>
                         );
                       })}
@@ -804,45 +815,45 @@ export default function RunConfigsPage() {
                           <div
                             key={spec.id}
                             onClick={() => router.push(`/analysis-specs?select=${spec.id}`)}
-                            className="flex items-center gap-2 p-2 rounded bg-white border border-amber-100 cursor-pointer hover:bg-amber-50 hover:border-amber-200 transition-colors"
+                            style={{ display: "flex", alignItems: "center", gap: 8, padding: 8, borderRadius: 4, background: "#fff", border: "1px solid #fef3c7", cursor: "pointer" }}
                           >
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 font-medium">L</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-medium text-neutral-800 truncate">{spec.name}</div>
-                              <div className="flex items-center gap-1.5 text-[10px] text-neutral-400">
+                            <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#fef3c7", color: "#d97706", fontWeight: 500 }}>L</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 500, color: "#262626", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{spec.name}</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#a3a3a3" }}>
                                 <span>{spec.triggerCount} triggers</span>
                                 {spec.domain && (
-                                  <span className={`rounded px-1 py-0.5 ${domainColors.bg} ${domainColors.text}`}>
+                                  <span style={{ borderRadius: 4, padding: "2px 4px", background: domainColors.bg, color: domainColors.text }}>
                                     {spec.domain}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            <span className="text-neutral-300 text-xs">→</span>
+                            <span style={{ color: "#d4d4d4", fontSize: 12 }}>→</span>
                           </div>
                         );
                       })}
                       {configDetail.specs.measure.length === 0 && configDetail.specs.learn.length === 0 && (
-                        <div className="text-center py-4 text-neutral-300 text-sm">No specs</div>
+                        <div style={{ textAlign: "center", padding: "16px 0", color: "#d4d4d4", fontSize: 14 }}>No specs</div>
                       )}
                     </div>
                   </div>
 
                   {/* Right: Actions table (AC-1, AC-2, etc.) */}
-                  <div className="flex-1 min-w-0 flex flex-col">
-                    <h4 className="text-[10px] font-semibold text-neutral-500 uppercase mb-2">
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                    <h4 style={{ fontSize: 10, fontWeight: 600, color: "#737373", textTransform: "uppercase", marginBottom: 8 }}>
                       Actions ({configDetail.actions?.length || 0})
                     </h4>
                     {configDetail.actions && configDetail.actions.length > 0 ? (
-                      <div className="border border-neutral-200 rounded bg-white flex-1 overflow-hidden overflow-y-auto">
-                        <table className="w-full text-[11px]">
-                          <thead className="bg-neutral-50 sticky top-0">
-                            <tr className="text-left text-neutral-500">
-                              <th className="px-2 py-2 font-medium w-14">Code</th>
-                              <th className="px-2 py-2 font-medium">Parameter</th>
-                              <th className="px-2 py-2 font-medium text-center w-16">Anchors</th>
-                              <th className="px-2 py-2 font-medium text-center w-16">Enriched</th>
-                              <th className="px-2 py-2 w-6"></th>
+                      <div style={{ border: "1px solid #e5e7eb", borderRadius: 4, background: "#fff", flex: 1, overflow: "hidden", overflowY: "auto" }}>
+                        <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
+                          <thead style={{ background: "#fafafa", position: "sticky", top: 0 }}>
+                            <tr style={{ textAlign: "left", color: "#737373" }}>
+                              <th style={{ padding: 8, fontWeight: 500, width: 56 }}>Code</th>
+                              <th style={{ padding: 8, fontWeight: 500 }}>Parameter</th>
+                              <th style={{ padding: 8, fontWeight: 500, textAlign: "center", width: 64 }}>Anchors</th>
+                              <th style={{ padding: 8, fontWeight: 500, textAlign: "center", width: 64 }}>Enriched</th>
+                              <th style={{ padding: 8, width: 24 }}></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -850,38 +861,38 @@ export default function RunConfigsPage() {
                               <tr
                                 key={action.id}
                                 onClick={() => action.parameterId && router.push(`/admin#/parameters?select=${action.parameterId}`)}
-                                className={`border-t border-neutral-100 transition-colors ${action.parameterId ? "hover:bg-purple-50 cursor-pointer" : ""}`}
+                                style={{ borderTop: "1px solid #f5f5f5", cursor: action.parameterId ? "pointer" : "default" }}
                               >
-                                <td className="px-2 py-1.5">
-                                  <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">{action.code}</span>
+                                <td style={{ padding: "6px 8px" }}>
+                                  <span style={{ fontFamily: "monospace", fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1d4ed8" }}>{action.code}</span>
                                 </td>
-                                <td className="px-2 py-1.5">
-                                  <div className="font-medium text-neutral-800 truncate max-w-[200px]">{action.parameterName || "—"}</div>
-                                  <div className="text-[9px] text-neutral-400 truncate">{action.specName}</div>
+                                <td style={{ padding: "6px 8px" }}>
+                                  <div style={{ fontWeight: 500, color: "#262626", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{action.parameterName || "—"}</div>
+                                  <div style={{ fontSize: 9, color: "#a3a3a3", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{action.specName}</div>
                                 </td>
-                                <td className="px-2 py-1.5 text-center text-neutral-600">{action.anchorCount}</td>
-                                <td className="px-2 py-1.5 text-center">
+                                <td style={{ padding: "6px 8px", textAlign: "center", color: "#525252" }}>{action.anchorCount}</td>
+                                <td style={{ padding: "6px 8px", textAlign: "center" }}>
                                   {action.isEnriched ? (
-                                    <span className="text-green-600">✓</span>
+                                    <span style={{ color: "#16a34a" }}>✓</span>
                                   ) : (
-                                    <span className="text-neutral-300">—</span>
+                                    <span style={{ color: "#d4d4d4" }}>—</span>
                                   )}
                                 </td>
-                                <td className="px-2 py-1.5 text-neutral-300 text-xs">{action.parameterId ? "→" : ""}</td>
+                                <td style={{ padding: "6px 8px", color: "#d4d4d4", fontSize: 12 }}>{action.parameterId ? "→" : ""}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center text-neutral-300 text-sm border border-dashed border-neutral-200 rounded">
+                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#d4d4d4", fontSize: 14, border: "1px dashed #e5e7eb", borderRadius: 4 }}>
                         No actions
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8 text-neutral-400">Failed to load details</div>
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#a3a3a3" }}>Failed to load details</div>
               )}
             </div>
           </div>

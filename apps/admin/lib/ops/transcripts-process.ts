@@ -21,13 +21,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { PrismaClient, FileType, ProcessingStatus, FailedCallErrorType } from "@prisma/client";
-import { getResolvedPaths, clearPathsCache } from "../paths";
+import { getKbRoot, resolveDataNodePath, clearManifestCache } from "../data-paths";
 
 const prisma = new PrismaClient();
 
 export interface TranscriptProcessOptions {
   autoDetectType?: boolean;
-  createUsers?: boolean;
+  createCallers?: boolean;
   filepath?: string; // Optional: process specific file only
 }
 
@@ -36,7 +36,7 @@ export interface ProcessingResult {
   filesProcessed: number;
   callsExtracted: number;
   callsFailed: number;
-  usersCreated: number;
+  callersCreated: number;
   errors: string[];
 }
 
@@ -227,7 +227,7 @@ async function processFile(
   filePath: string,
   filename: string,
   options: TranscriptProcessOptions
-): Promise<{ callsExtracted: number; callsFailed: number; usersCreated: number; error?: string }> {
+): Promise<{ callsExtracted: number; callsFailed: number; callersCreated: number; error?: string }> {
   console.log(`Processing file: ${filename}`);
 
   try {
@@ -243,7 +243,7 @@ async function processFile(
 
     if (existing && (existing.status === ProcessingStatus.COMPLETED || existing.status === ProcessingStatus.PARTIAL)) {
       console.log(`Skipping already processed file: ${filename} (status: ${existing.status})`);
-      return { callsExtracted: 0, callsFailed: 0, usersCreated: 0 };
+      return { callsExtracted: 0, callsFailed: 0, callersCreated: 0 };
     }
 
     // Parse JSON
@@ -274,7 +274,7 @@ async function processFile(
         callCount: calls.length,
         callsExtracted: 0,
         callsFailed: 0,
-        usersCreated: 0,
+        callersCreated: 0,
         sizeBytes: BigInt(stats.size),
         status: ProcessingStatus.PROCESSING,
         sourcePreserved: true
@@ -294,8 +294,14 @@ async function processFile(
     // Process calls
     let callsExtracted = 0;
     let callsFailed = 0;
-    let usersCreated = 0;
-    const userMap = new Map<string, string>(); // identifier -> userId
+    let callersCreated = 0;
+    const callerMap = new Map<string, string>(); // identifier -> callerId
+
+    // Get default domain for new callers
+    const defaultDomain = await prisma.domain.findFirst({
+      where: { isDefault: true, isActive: true },
+      select: { id: true },
+    });
 
     for (let i = 0; i < calls.length; i++) {
       const call = calls[i];
@@ -331,18 +337,18 @@ async function processFile(
           }
         }
 
-        // Extract and create/find user if enabled
-        let userId: string | undefined;
-        if (options.createUsers !== false) {
+        // Extract and create/find caller if enabled
+        let callerId: string | undefined;
+        if (options.createCallers !== false) {
           const customerInfo = extractCustomerInfo(call);
 
           if (customerInfo) {
-            // Create a unique identifier for the user
-            const userKey = customerInfo.externalId || customerInfo.email || customerInfo.phone;
+            // Create a unique identifier for the caller
+            const callerKey = customerInfo.externalId || customerInfo.email || customerInfo.phone;
 
-            if (userKey && !userMap.has(userKey)) {
-              // Check if user exists
-              let user = await prisma.user.findFirst({
+            if (callerKey && !callerMap.has(callerKey)) {
+              // Check if caller exists
+              let caller = await prisma.caller.findFirst({
                 where: {
                   OR: [
                     customerInfo.externalId ? { externalId: customerInfo.externalId } : {},
@@ -352,23 +358,24 @@ async function processFile(
                 }
               });
 
-              if (!user) {
-                user = await prisma.user.create({
+              if (!caller) {
+                caller = await prisma.caller.create({
                   data: {
                     email: customerInfo.email || null,
                     phone: customerInfo.phone || null,
                     name: customerInfo.name || null,
                     externalId: customerInfo.externalId || null,
+                    domainId: defaultDomain?.id || null,
                   }
                 });
-                usersCreated++;
-                console.log(`Created user: ${userKey}`);
+                callersCreated++;
+                console.log(`Created caller: ${callerKey}${defaultDomain ? ` (domain: default)` : ""}`);
               }
 
-              userMap.set(userKey, user.id);
+              callerMap.set(callerKey, caller.id);
             }
 
-            userId = userKey ? userMap.get(userKey) : undefined;
+            callerId = callerKey ? callerMap.get(callerKey) : undefined;
           }
         }
 
@@ -378,7 +385,7 @@ async function processFile(
             source: "VAPI",
             externalId: externalId || null,
             transcript,
-            userId: userId || null,
+            callerId: callerId || null,
           }
         });
 
@@ -416,15 +423,15 @@ async function processFile(
         status: finalStatus,
         callsExtracted,
         callsFailed,
-        usersCreated,
+        callersCreated,
         processedAt: new Date(),
         errorMessage: callsFailed > 0 ? `${callsFailed} call(s) failed to extract` : null
       }
     });
 
-    console.log(`Processed ${filename}: ${callsExtracted} extracted, ${callsFailed} failed, ${usersCreated} users created (status: ${finalStatus})`);
+    console.log(`Processed ${filename}: ${callsExtracted} extracted, ${callsFailed} failed, ${callersCreated} callers created (status: ${finalStatus})`);
 
-    return { callsExtracted, callsFailed, usersCreated };
+    return { callsExtracted, callsFailed, callersCreated };
 
   } catch (error: any) {
     console.error(`Error processing ${filename}:`, error.message);
@@ -445,7 +452,7 @@ async function processFile(
           callCount: 0,
           callsExtracted: 0,
           callsFailed: 0,
-          usersCreated: 0,
+          callersCreated: 0,
           sizeBytes: BigInt(stats.size),
           status: ProcessingStatus.FAILED,
           errorMessage: error.message,
@@ -460,7 +467,7 @@ async function processFile(
       // Ignore errors when trying to mark as failed
     }
 
-    return { callsExtracted: 0, callsFailed: 0, usersCreated: 0, error: error.message };
+    return { callsExtracted: 0, callsFailed: 0, callersCreated: 0, error: error.message };
   }
 }
 
@@ -499,20 +506,20 @@ export async function processTranscripts(options: TranscriptProcessOptions = {})
     filesProcessed: 0,
     callsExtracted: 0,
     callsFailed: 0,
-    usersCreated: 0,
+    callersCreated: 0,
     errors: []
   };
 
   try {
     // Clear cache to pick up any env changes at runtime
-    clearPathsCache();
+    clearManifestCache();
 
-    // Use centralized path resolution
-    const resolvedPaths = getResolvedPaths();
-    const transcriptsDir = resolvedPaths.sources.transcripts;
+    // Use unified data-paths system (reads from agents.json manifest)
+    const kbRoot = getKbRoot();
+    const transcriptsDir = resolveDataNodePath("data:transcripts") || path.join(kbRoot, "sources/transcripts");
 
     console.log(`[transcripts-process] HF_KB_PATH env: "${process.env.HF_KB_PATH}"`);
-    console.log(`[transcripts-process] KB root: ${resolvedPaths.root}`);
+    console.log(`[transcripts-process] KB root: ${kbRoot}`);
     console.log(`[transcripts-process] Scanning: ${transcriptsDir}`);
 
     // Get list of files to process
@@ -535,7 +542,7 @@ export async function processTranscripts(options: TranscriptProcessOptions = {})
       result.filesProcessed++;
       result.callsExtracted += fileResult.callsExtracted;
       result.callsFailed += fileResult.callsFailed;
-      result.usersCreated += fileResult.usersCreated;
+      result.callersCreated += fileResult.callersCreated;
 
       if (fileResult.error) {
         result.errors.push(`${file.name}: ${fileResult.error}`);
@@ -543,7 +550,7 @@ export async function processTranscripts(options: TranscriptProcessOptions = {})
     }
 
     result.success = result.errors.length === 0;
-    console.log(`Processing complete: ${result.filesProcessed} files, ${result.callsExtracted} calls extracted, ${result.callsFailed} failed, ${result.usersCreated} users`);
+    console.log(`Processing complete: ${result.filesProcessed} files, ${result.callsExtracted} calls extracted, ${result.callsFailed} failed, ${result.callersCreated} callers`);
 
     return result;
 

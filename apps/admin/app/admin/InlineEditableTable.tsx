@@ -309,15 +309,13 @@ export const InlineEditableTable = ({
   };
 
   const toggleRowSelection = (rowId: string) => {
-    setSelectedRows(prev => {
-      const next = new Set(prev);
-      if (next.has(rowId)) {
-        next.delete(rowId);
-      } else {
-        next.add(rowId);
-      }
-      return next;
-    });
+    const next = new Set(selectedRows);
+    if (next.has(rowId)) {
+      next.delete(rowId);
+    } else {
+      next.add(rowId);
+    }
+    setSelectedRows(next);
   };
 
   const toggleAllRows = () => {
@@ -337,7 +335,7 @@ export const InlineEditableTable = ({
       // Delete all selected rows
       await Promise.all(
         Array.from(selectedRows).map(id =>
-          dataProvider.delete('parameters', { id, previousData: {} })
+          dataProvider.delete('parameters', { id, previousData: { id } })
         )
       );
 

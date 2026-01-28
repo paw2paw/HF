@@ -17,10 +17,10 @@ export const runtime = "nodejs";
  * with the provided context (parameter values, memories, etc.)
  *
  * Request body:
- * - userId?: string - Fetch user's parameter values and memories
- * - callerId?: string - Fetch caller's latest values
+ * - callerId?: string - Fetch caller's parameter values and memories
+ * - callerIdentityId?: string - Fetch caller identity's latest values
  * - parameterValues?: Record<string, number> - Override/provide parameter values
- * - includeMemories?: boolean - Include user memories in composition (default: true)
+ * - includeMemories?: boolean - Include caller memories in composition (default: true)
  * - domain?: string - Filter specs by domain
  * - outputType?: "MEASURE" | "LEARN" - Filter specs by output type
  */
@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      userId,
       callerId,
+      callerIdentityId,
       parameterValues: providedValues,
       includeMemories = true,
       domain,
@@ -38,37 +38,36 @@ export async function POST(request: NextRequest) {
 
     // Build the template context
     const context: TemplateContext = {
-      userId,
       callerId,
       parameterValues: providedValues || {},
     };
 
-    // If userId provided, fetch their latest parameter values
-    if (userId && !providedValues) {
-      const userProfile = await prisma.userPersonalityProfile.findUnique({
-        where: { userId },
+    // If callerId provided, fetch their latest parameter values
+    if (callerId && !providedValues) {
+      const callerProfile = await prisma.callerPersonalityProfile.findUnique({
+        where: { callerId },
       });
-      if (userProfile?.parameterValues) {
-        context.parameterValues = userProfile.parameterValues as Record<string, number>;
+      if (callerProfile?.parameterValues) {
+        context.parameterValues = callerProfile.parameterValues as Record<string, number>;
       }
     }
 
-    // If callerId provided, fetch caller's user and their values
-    if (callerId && !userId) {
-      const caller = await prisma.caller.findUnique({
-        where: { id: callerId },
+    // If callerIdentityId provided, fetch caller identity's caller and their values
+    if (callerIdentityId && !callerId) {
+      const callerIdentity = await prisma.callerIdentity.findUnique({
+        where: { id: callerIdentityId },
         include: {
-          user: {
+          caller: {
             include: {
               personalityProfile: true,
             },
           },
         },
       });
-      if (caller?.user) {
-        context.userId = caller.user.id;
-        if (caller.user.personalityProfile?.parameterValues) {
-          context.parameterValues = caller.user.personalityProfile.parameterValues as Record<
+      if (callerIdentity?.caller) {
+        context.callerId = callerIdentity.caller.id;
+        if (callerIdentity.caller.personalityProfile?.parameterValues) {
+          context.parameterValues = callerIdentity.caller.personalityProfile.parameterValues as Record<
             string,
             number
           >;
@@ -77,10 +76,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch memories if needed
-    if (includeMemories && context.userId) {
-      const memories = await prisma.userMemory.findMany({
+    if (includeMemories && context.callerId) {
+      const memories = await prisma.callerMemory.findMany({
         where: {
-          userId: context.userId,
+          callerId: context.callerId,
           supersededById: null,
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
@@ -135,55 +134,54 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/prompt/compose-from-specs?userId=...
+ * GET /api/prompt/compose-from-specs?callerId=...
  *
- * Quick spec-based composition for a user
+ * Quick spec-based composition for a caller
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
     const callerId = searchParams.get("callerId");
+    const callerIdentityId = searchParams.get("callerIdentityId");
     const domain = searchParams.get("domain");
     const outputType = searchParams.get("outputType") as "MEASURE" | "LEARN" | null;
 
-    if (!userId && !callerId) {
+    if (!callerId && !callerIdentityId) {
       return NextResponse.json(
-        { ok: false, error: "Must provide userId or callerId" },
+        { ok: false, error: "Must provide callerId or callerIdentityId" },
         { status: 400 }
       );
     }
 
     // Build context
     const context: TemplateContext = {
-      userId: userId || undefined,
       callerId: callerId || undefined,
       parameterValues: {},
     };
 
     // Fetch parameter values
-    if (userId) {
-      const userProfile = await prisma.userPersonalityProfile.findUnique({
-        where: { userId },
+    if (callerId) {
+      const callerProfile = await prisma.callerPersonalityProfile.findUnique({
+        where: { callerId },
       });
-      if (userProfile?.parameterValues) {
-        context.parameterValues = userProfile.parameterValues as Record<string, number>;
+      if (callerProfile?.parameterValues) {
+        context.parameterValues = callerProfile.parameterValues as Record<string, number>;
       }
-    } else if (callerId) {
-      const caller = await prisma.caller.findUnique({
-        where: { id: callerId },
+    } else if (callerIdentityId) {
+      const callerIdentity = await prisma.callerIdentity.findUnique({
+        where: { id: callerIdentityId },
         include: {
-          user: {
+          caller: {
             include: {
               personalityProfile: true,
             },
           },
         },
       });
-      if (caller?.user) {
-        context.userId = caller.user.id;
-        if (caller.user.personalityProfile?.parameterValues) {
-          context.parameterValues = caller.user.personalityProfile.parameterValues as Record<
+      if (callerIdentity?.caller) {
+        context.callerId = callerIdentity.caller.id;
+        if (callerIdentity.caller.personalityProfile?.parameterValues) {
+          context.parameterValues = callerIdentity.caller.personalityProfile.parameterValues as Record<
             string,
             number
           >;
@@ -192,10 +190,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch memories
-    if (context.userId) {
-      const memories = await prisma.userMemory.findMany({
+    if (context.callerId) {
+      const memories = await prisma.callerMemory.findMany({
         where: {
-          userId: context.userId,
+          callerId: context.callerId,
           supersededById: null,
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },

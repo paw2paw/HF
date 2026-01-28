@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 
 /**
  * POST /api/parameters/import
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
             let tagId = tagMap.get(tagName.toLowerCase());
             if (!tagId) {
               const newTag = await prisma.tag.create({
-                data: { name: tagName },
+                data: { id: randomUUID(), name: tagName },
               });
               tagId = newTag.id;
               tagMap.set(tagName.toLowerCase(), tagId);
@@ -178,6 +179,7 @@ export async function POST(request: NextRequest) {
               },
               update: {},
               create: {
+                id: randomUUID(),
                 parameterId: paramRecord.id,
                 tagId,
               },

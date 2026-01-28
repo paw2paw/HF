@@ -3,18 +3,45 @@
 import { useState, useEffect, useCallback } from "react";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 
+type CallScore = {
+  id: string;
+  parameterId: string;
+  score: number;
+  analysisSpecId: string | null;
+  analysisSpec?: {
+    slug: string;
+    name: string;
+    outputType: string;
+  } | null;
+};
+
+type CallerMemory = {
+  id: string;
+  category: string;
+  key: string;
+  value: string;
+};
+
 type Call = {
   id: string;
   source: string;
   externalId: string | null;
   transcript: string;
   createdAt: string;
-  userId: string | null;
-  controlSetId: string | null;
-  user?: { name: string | null; email: string | null; id: string } | null;
-  controlSet?: { name: string } | null;
+  callerId: string | null;
+  caller?: { name: string | null; email: string | null; id: string } | null;
+  scores?: CallScore[];
+  extractedMemories?: CallerMemory[];
+  triggeredPrompts?: { id: string; composedAt: string }[];
+  hasNextPrompt?: boolean;
+  pipelineStatus?: {
+    prepComplete: boolean;
+    promptComposed: boolean;
+  };
   _count?: {
     scores: number;
+    extractedMemories: number;
+    behaviorMeasurements: number;
   };
 };
 
@@ -32,12 +59,12 @@ type RunConfig = {
 type AnalysisResult = {
   ok: boolean;
   callId: string;
-  userId: string | null;
+  callerId: string | null;
   model: string;
   analysisTime: number;
   measures: Record<string, number>;
   learned: Array<{ category: string; key: string; value: string; evidence: string }>;
-  stored: { callScoresCreated: number; userMemoriesCreated: number } | null;
+  stored: { callScoresCreated: number; memoriesCreated: number } | null;
   summary: {
     specsAnalyzed: number;
     measureSpecs: number;
@@ -61,6 +88,10 @@ export default function CallsPage() {
   const [analysing, setAnalysing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [storeResults, setStoreResults] = useState(true);
+
+  // Pipeline state - track which calls are currently running prep/prompt
+  const [runningPipeline, setRunningPipeline] = useState<Record<string, "prep" | "prompt" | null>>({});
+  const [pipelineEngine, setPipelineEngine] = useState<"mock" | "openai" | "claude">("openai");
 
   // Fetch calls
   const fetchCalls = useCallback(() => {
@@ -112,6 +143,73 @@ export default function CallsPage() {
     fetchRunConfigs();
   };
 
+  // Compose prompt for a call's caller (legacy - keeping for backwards compatibility)
+  const handleComposePrompt = async (call: Call) => {
+    if (!call.caller?.id) return;
+
+    if (!confirm(`Compose a new prompt for caller "${call.caller.name || call.caller.email || call.caller.id}"?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/callers/${call.caller.id}/compose-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          triggerType: "post_call",
+          triggerCallId: call.id,
+        }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        alert(`Prompt composed successfully!\n\nModel: ${result.metadata.model}\nEngine: ${result.metadata.engine}`);
+        fetchCalls();
+      } else {
+        alert("Failed to compose prompt: " + result.error);
+      }
+    } catch (err: any) {
+      alert("Error composing prompt: " + err.message);
+    }
+  };
+
+  // Run pipeline (prep or prompt mode)
+  const handleRunPipeline = async (call: Call, mode: "prep" | "prompt") => {
+    if (!call.caller?.id) {
+      alert("This call has no associated caller. Cannot run pipeline.");
+      return;
+    }
+
+    setRunningPipeline((prev) => ({ ...prev, [call.id]: mode }));
+
+    try {
+      const res = await fetch(`/api/calls/${call.id}/pipeline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callerId: call.caller.id,
+          mode,
+          engine: pipelineEngine,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!result.ok) {
+        alert(`Pipeline failed: ${result.error}`);
+      } else {
+        const summary = mode === "prep"
+          ? `Prep complete!\n\n• ${result.data?.scoresCreated || 0} scores\n• ${result.data?.memoriesCreated || 0} memories\n• ${result.data?.agentMeasurements || 0} agent measurements\n• Reward: ${(result.data?.rewardScore || 0).toFixed(2)}\n• Personality: ${result.data?.personalityProfileUpdated ? "updated" : "skipped"}`
+          : `Prompt composed!\n\nPrompt length: ${result.data?.promptLength || 0} chars`;
+        alert(summary);
+        fetchCalls();
+      }
+    } catch (err: any) {
+      alert(`Pipeline error: ${err.message}`);
+    } finally {
+      setRunningPipeline((prev) => ({ ...prev, [call.id]: null }));
+    }
+  };
+
   // Run analysis
   const handleRunAnalysis = async () => {
     if (!selectedCall || !selectedConfigId) return;
@@ -141,7 +239,7 @@ export default function CallsPage() {
         body: JSON.stringify({
           transcript: selectedCall.transcript,
           callId: selectedCall.id,
-          userId: selectedCall.user?.id || selectedCall.userId,
+          callerId: selectedCall.caller?.id || selectedCall.callerId,
           specs: specSlugs.length > 0 ? specSlugs : undefined,
           storeResults,
         }),
@@ -221,27 +319,51 @@ export default function CallsPage() {
                   Source
                 </th>
                 <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
-                  User
+                  Caller
                 </th>
                 <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
-                  Control Set
-                </th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
-                  Transcript Preview
-                </th>
-                <th style={{ padding: "12px 16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
-                  Scores
+                  Analysis Results
                 </th>
                 <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
                   Created
                 </th>
                 <th style={{ padding: "12px 16px", textAlign: "right", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
-                  Actions
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                    <span>Engine:</span>
+                    <select
+                      value={pipelineEngine}
+                      onChange={(e) => setPipelineEngine(e.target.value as "mock" | "openai" | "claude")}
+                      style={{
+                        padding: "4px 8px",
+                        fontSize: 11,
+                        border: "1px solid #d1d5db",
+                        borderRadius: 4,
+                        background: "white",
+                      }}
+                    >
+                      <option value="openai">OpenAI</option>
+                      <option value="claude">Claude</option>
+                      <option value="mock">Mock</option>
+                    </select>
+                    <span style={{ marginLeft: 8 }}>Actions</span>
+                  </div>
                 </th>
               </tr>
             </thead>
             <tbody>
-              {calls.map((call) => (
+              {calls.map((call) => {
+                // Group scores by spec type
+                const scoresByType = (call.scores || []).reduce((acc, score) => {
+                  const type = score.analysisSpec?.outputType || "UNKNOWN";
+                  if (!acc[type]) acc[type] = [];
+                  acc[type].push(score);
+                  return acc;
+                }, {} as Record<string, CallScore[]>);
+
+                const memoriesCount = call._count?.extractedMemories || 0;
+                const hasAnalysis = (call._count?.scores || 0) > 0 || memoriesCount > 0;
+
+                return (
                 <tr key={call.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                   <td style={{ padding: "12px 16px" }}>
                     <span
@@ -258,41 +380,210 @@ export default function CallsPage() {
                     </span>
                   </td>
                   <td style={{ padding: "12px 16px", fontSize: 14 }}>
-                    {call.user?.name || call.user?.email || <span style={{ color: "#9ca3af" }}>—</span>}
+                    {call.caller?.name || call.caller?.email || <span style={{ color: "#9ca3af" }}>—</span>}
                   </td>
-                  <td style={{ padding: "12px 16px", fontSize: 14, color: "#6b7280" }}>
-                    {call.controlSet?.name || <span style={{ color: "#9ca3af" }}>—</span>}
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: "#6b7280", maxWidth: 300 }}>
-                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {call.transcript.slice(0, 100)}...
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 14, textAlign: "center" }}>
-                    {call._count?.scores || 0}
+                  <td style={{ padding: "12px 16px", fontSize: 12 }}>
+                    {!hasAnalysis ? (
+                      <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Not analysed</span>
+                    ) : (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {scoresByType["MEASURE"] && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: "2px 6px",
+                              background: "#dcfce7",
+                              color: "#166534",
+                              borderRadius: 4,
+                              fontWeight: 500,
+                            }}
+                            title={scoresByType["MEASURE"].map(s => `${s.parameterId}: ${s.score.toFixed(2)}`).join("\n")}
+                          >
+                            {scoresByType["MEASURE"].length} MEASURE
+                          </span>
+                        )}
+                        {scoresByType["MEASURE_AGENT"] && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: "2px 6px",
+                              background: "#e0e7ff",
+                              color: "#4338ca",
+                              borderRadius: 4,
+                              fontWeight: 500,
+                            }}
+                            title={scoresByType["MEASURE_AGENT"].map(s => `${s.parameterId}: ${s.score.toFixed(2)}`).join("\n")}
+                          >
+                            {scoresByType["MEASURE_AGENT"].length} AGENT
+                          </span>
+                        )}
+                        {scoresByType["ADAPT"] && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: "2px 6px",
+                              background: "#fef3c7",
+                              color: "#92400e",
+                              borderRadius: 4,
+                              fontWeight: 500,
+                            }}
+                            title={scoresByType["ADAPT"].map(s => `${s.parameterId}: ${s.score.toFixed(2)}`).join("\n")}
+                          >
+                            {scoresByType["ADAPT"].length} ADAPT
+                          </span>
+                        )}
+                        {memoriesCount > 0 && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: "2px 6px",
+                              background: "#ede9fe",
+                              color: "#5b21b6",
+                              borderRadius: 4,
+                              fontWeight: 500,
+                            }}
+                            title={(call.extractedMemories || []).map(m => `${m.category}: ${m.key}=${m.value}`).join("\n")}
+                          >
+                            {memoriesCount} MEMORIES
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: "12px 16px", fontSize: 12, color: "#6b7280" }}>
                     {new Date(call.createdAt).toLocaleDateString()}
                   </td>
                   <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                    <button
-                      onClick={() => handleAnalyseClick(call)}
-                      style={{
-                        padding: "6px 12px",
-                        fontSize: 12,
-                        fontWeight: 500,
-                        background: "#4f46e5",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Analyse
-                    </button>
+                    {(() => {
+                      const prepComplete = call.pipelineStatus?.prepComplete || false;
+                      const promptComposed = call.pipelineStatus?.promptComposed || false;
+                      const isRunningPrep = runningPipeline[call.id] === "prep";
+                      const isRunningPrompt = runningPipeline[call.id] === "prompt";
+                      const isRunning = isRunningPrep || isRunningPrompt;
+                      const hasCaller = !!call.caller?.id;
+
+                      // Button states:
+                      // - Prep: disabled if prepComplete OR promptComposed OR no caller OR running
+                      // - Prompt: disabled if promptComposed OR no caller OR running
+                      //   (Prompt CAN run without prep - it will run prep first automatically)
+                      const prepDisabled = !hasCaller || prepComplete || promptComposed || isRunning;
+                      const promptDisabled = !hasCaller || promptComposed || isRunning;
+
+                      return (
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+                          {/* Pipeline status indicator */}
+                          {(prepComplete || promptComposed) && (
+                            <div style={{ display: "flex", gap: 4, marginRight: 8 }}>
+                              {prepComplete && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    padding: "2px 6px",
+                                    background: "#dcfce7",
+                                    color: "#166534",
+                                    borderRadius: 4,
+                                  }}
+                                  title="Prep analysis complete"
+                                >
+                                  ✓ Prep
+                                </span>
+                              )}
+                              {promptComposed && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    padding: "2px 6px",
+                                    background: "#e0e7ff",
+                                    color: "#4338ca",
+                                    borderRadius: 4,
+                                  }}
+                                  title="Prompt composed"
+                                >
+                                  ✓ Prompt
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Prep button */}
+                          <button
+                            onClick={() => handleRunPipeline(call, "prep")}
+                            disabled={prepDisabled}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: 12,
+                              fontWeight: 500,
+                              background: prepDisabled ? "#e5e7eb" : "#059669",
+                              color: prepDisabled ? "#9ca3af" : "white",
+                              border: "none",
+                              borderRadius: 6,
+                              cursor: prepDisabled ? "not-allowed" : "pointer",
+                              opacity: isRunningPrep ? 0.7 : 1,
+                            }}
+                            title={
+                              !hasCaller
+                                ? "No caller associated"
+                                : prepComplete
+                                  ? "Prep already complete"
+                                  : promptComposed
+                                    ? "Prompt already composed"
+                                    : "Run MEASURE + LEARN + MEASURE_AGENT analysis"
+                            }
+                          >
+                            {isRunningPrep ? "Running..." : "📊 Prep"}
+                          </button>
+
+                          {/* Prompt button */}
+                          <button
+                            onClick={() => handleRunPipeline(call, "prompt")}
+                            disabled={promptDisabled}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: 12,
+                              fontWeight: 500,
+                              background: promptDisabled ? "#e5e7eb" : "#7c3aed",
+                              color: promptDisabled ? "#9ca3af" : "white",
+                              border: "none",
+                              borderRadius: 6,
+                              cursor: promptDisabled ? "not-allowed" : "pointer",
+                              opacity: isRunningPrompt ? 0.7 : 1,
+                            }}
+                            title={
+                              !hasCaller
+                                ? "No caller associated"
+                                : promptComposed
+                                  ? "Prompt already composed"
+                                  : prepComplete
+                                    ? "Compose next-call prompt"
+                                    : "Run full pipeline (prep + prompt)"
+                            }
+                          >
+                            {isRunningPrompt ? "Running..." : "📝 Prompt"}
+                          </button>
+
+                          {/* Legacy analyse button - for debugging/re-running */}
+                          <button
+                            onClick={() => handleAnalyseClick(call)}
+                            style={{
+                              padding: "6px 8px",
+                              fontSize: 11,
+                              fontWeight: 500,
+                              background: "#f3f4f6",
+                              color: "#6b7280",
+                              border: "1px solid #d1d5db",
+                              borderRadius: 6,
+                              cursor: "pointer",
+                            }}
+                            title="Open analysis modal (legacy)"
+                          >
+                            ⚙️
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -338,7 +629,7 @@ export default function CallsPage() {
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Analyse Call</h2>
                 <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0 0" }}>
-                  {selectedCall.user?.name || selectedCall.user?.email || "Unknown user"} • {selectedCall.source}
+                  {selectedCall.caller?.name || selectedCall.caller?.email || "Unknown caller"} • {selectedCall.source}
                 </p>
               </div>
               <button
@@ -412,7 +703,7 @@ export default function CallsPage() {
                         onChange={(e) => setStoreResults(e.target.checked)}
                         style={{ width: 16, height: 16 }}
                       />
-                      <span style={{ fontSize: 14 }}>Store results (CallScores + UserMemories)</span>
+                      <span style={{ fontSize: 14 }}>Store results (CallScores + Memories)</span>
                     </label>
                   </div>
 
@@ -510,7 +801,7 @@ export default function CallsPage() {
                       }}
                     >
                       ✓ Stored: {analysisResult.stored.callScoresCreated} call scores,{" "}
-                      {analysisResult.stored.userMemoriesCreated} memories
+                      {analysisResult.stored.memoriesCreated} memories
                     </div>
                   )}
 

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
-import { paths } from "@/lib/paths";
+import { resolveDataNodePath, getKbRoot } from "@/lib/data-paths";
 
 const prisma = new PrismaClient();
 
@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
     const [sortField, sortOrder] = sort;
     const [start, end] = range;
 
-    // Use centralized paths configuration
-    const transcriptsDir = paths.sources.transcripts;
+    // Use unified data-paths system (reads from agents.json manifest)
+    const transcriptsDir = resolveDataNodePath("data:transcripts") || path.join(getKbRoot(), "sources/transcripts");
 
     // Check if directory exists
     let stat;
@@ -54,16 +54,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Read directory entries
-    const entries = await fs.readdir(transcriptsDir, { withFileTypes: true });
-    const files = entries
-      .filter(e => e.isFile() && e.name.toLowerCase().endsWith(".json"))
-      .map(e => e.name);
+    // Recursively find all JSON files in directory and subdirectories
+    async function findJsonFiles(dir: string, baseDir: string): Promise<{ filename: string; filePath: string; relativePath: string }[]> {
+      const results: { filename: string; filePath: string; relativePath: string }[] = [];
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          // Recurse into subdirectories
+          const subResults = await findJsonFiles(fullPath, baseDir);
+          results.push(...subResults);
+        } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".json")) {
+          const relativePath = path.relative(baseDir, fullPath);
+          results.push({
+            filename: entry.name,
+            filePath: fullPath,
+            relativePath,
+          });
+        }
+      }
+      return results;
+    }
+
+    const jsonFiles = await findJsonFiles(transcriptsDir, transcriptsDir);
 
     // Get file stats for each file
     const fileDetails = await Promise.all(
-      files.map(async (filename) => {
-        const filePath = path.join(transcriptsDir, filename);
+      jsonFiles.map(async ({ filename, filePath, relativePath }) => {
         const stats = await fs.stat(filePath);
 
         // Try to read basic info from the JSON file
@@ -112,8 +130,9 @@ export async function GET(request: NextRequest) {
         }
 
         return {
-          id: filename,
+          id: relativePath, // Use relative path as unique ID for files in subdirs
           filename,
+          relativePath,
           path: filePath,
           sizeBytes: stats.size,
           sizeMB: (stats.size / (1024 * 1024)).toFixed(2),

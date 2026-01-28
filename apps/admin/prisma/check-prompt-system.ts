@@ -47,13 +47,13 @@ async function main() {
     console.log(`    Parameters: ${params || "none"}`);
   }
 
-  // 4. Check UserMemories
-  const memories = await prisma.userMemory.findMany({ take: 10 });
-  console.log("\n=== USER MEMORIES ===");
+  // 4. Check CallerMemories
+  const memories = await prisma.callerMemory.findMany({ take: 10 });
+  console.log("\n=== CALLER MEMORIES ===");
   console.log(`  ${memories.length} memories in DB`);
 
   // 5. Check if we have callers with scores
-  const callersWithScores = await prisma.user.findMany({
+  const callersWithScores = await prisma.caller.findMany({
     include: {
       calls: { include: { scores: true }, take: 1 },
       memories: { take: 3 },
@@ -61,9 +61,9 @@ async function main() {
     take: 3,
   });
   console.log("\n=== CALLERS ===");
-  for (const user of callersWithScores) {
-    const scoreCount = user.calls.reduce((sum, c) => sum + c.scores.length, 0);
-    console.log(`  ${user.name || user.email || user.id}: ${scoreCount} scores, ${user.memories.length} memories`);
+  for (const caller of callersWithScores) {
+    const scoreCount = caller.calls.reduce((sum, c) => sum + c.scores.length, 0);
+    console.log(`  ${caller.name || caller.email || caller.id}: ${scoreCount} scores, ${caller.memories.length} memories`);
   }
 }
 
