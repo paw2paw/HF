@@ -1321,14 +1321,52 @@ function CallsSection({
     if (onCallUpdated) onCallUpdated();
   };
 
-  // Run pipeline on ALL calls
-  const runPipelineOnAllCalls = async (mode: PipelineMode) => {
-    setBulkRunning(mode);
-    setBulkProgress({ current: 0, total: calls.length });
+  // Run pipeline on ALL calls (oldest first for proper chronological processing)
+  const runPipelineOnAllCalls = async (mode: PipelineMode, replaceExisting = false) => {
+    // Sort calls by createdAt ascending (oldest first)
+    const sortedCalls = [...calls].sort((a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
 
-    for (let i = 0; i < calls.length; i++) {
-      const call = calls[i];
-      setBulkProgress({ current: i + 1, total: calls.length, callId: call.id });
+    // For prompt mode, check if there are existing prompts
+    if (mode === "prompt" && !replaceExisting) {
+      const existingCount = sortedCalls.filter(c => pipelineStatus[c.id]?.prompt === "success").length;
+      if (existingCount > 0) {
+        const shouldReplace = window.confirm(
+          `${existingCount} call(s) already have prompts generated.\n\n` +
+          `Click OK to replace ALL existing prompts (oldest call first).\n` +
+          `Click Cancel to skip calls with existing prompts.`
+        );
+        if (!shouldReplace) {
+          // Filter to only calls without prompts
+          const callsToProcess = sortedCalls.filter(c => pipelineStatus[c.id]?.prompt !== "success");
+          if (callsToProcess.length === 0) {
+            alert("All calls already have prompts. Nothing to do.");
+            return;
+          }
+          setBulkRunning(mode);
+          setBulkProgress({ current: 0, total: callsToProcess.length });
+
+          for (let i = 0; i < callsToProcess.length; i++) {
+            const call = callsToProcess[i];
+            setBulkProgress({ current: i + 1, total: callsToProcess.length, callId: call.id });
+            await runPipeline(call.id, mode);
+          }
+
+          setBulkRunning(null);
+          setBulkProgress(null);
+          if (onCallUpdated) onCallUpdated();
+          return;
+        }
+      }
+    }
+
+    setBulkRunning(mode);
+    setBulkProgress({ current: 0, total: sortedCalls.length });
+
+    for (let i = 0; i < sortedCalls.length; i++) {
+      const call = sortedCalls[i];
+      setBulkProgress({ current: i + 1, total: sortedCalls.length, callId: call.id });
       await runPipeline(call.id, mode);
     }
 
