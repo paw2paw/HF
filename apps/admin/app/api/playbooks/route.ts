@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
                 name: true,
                 scope: true,
                 outputType: true,
+                domain: true,
               },
             },
             promptTemplate: {

@@ -1,20 +1,20 @@
 /**
  * POST /api/calls/[callId]/pipeline
  *
- * Unified pipeline endpoint that runs the full analysis in a single batched AI call.
- * This is much more cost-efficient than running separate AI calls for each op.
+ * Unified pipeline endpoint that runs the full analysis in batched AI calls.
+ *
+ * Pipeline Stages (in order):
+ *   1. LEARN  - Extract data about the caller (memories, personality scores)
+ *   2. MEASURE - Score agent behavior in the call
+ *   3. ADAPT  - Compute personalized targets for next call
+ *   4. COMPOSE - Build the final prompt (optional, mode="prompt")
  *
  * Request body:
  * - callerId: string (required)
  * - mode: "prep" | "prompt" (required)
- *   - prep: Run MEASURE + LEARN + MEASURE_AGENT + REWARD + ADAPT (prepares all data)
- *   - prompt: Run prep + compose the final prompt
- * - engine: "mock" | "claude" | "openai" (optional, defaults to "mock")
- *
- * AI Optimization Strategy:
- * - Instead of N separate AI calls (one per parameter), we batch all scoring into ONE call
- * - The prompt includes all parameters to score, and the AI returns all scores at once
- * - This reduces API calls from ~20 to 1-2 (one for MEASURE+LEARN, one for MEASURE_AGENT)
+ *   - prep: Run LEARN + MEASURE + ADAPT stages
+ *   - prompt: Run prep + COMPOSE stage
+ * - engine: "mock" | "claude" | "openai" (optional, defaults to "claude")
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -22,6 +22,171 @@ import { PrismaClient, MemoryCategory } from "@prisma/client";
 import { getAICompletion, AIEngine, isEngineAvailable } from "@/lib/ai/client";
 
 const prisma = new PrismaClient();
+
+// =====================================================
+// SPEC SELECTION BY TYPE
+// =====================================================
+
+/**
+ * Get SYSTEM specs filtered by playbook toggle settings.
+ * System specs can be toggled ON/OFF per playbook via PlaybookSystemSpec.isEnabled.
+ * Defaults to enabled if no PlaybookSystemSpec record exists.
+ */
+async function getSystemSpecs(
+  outputTypes: string[],
+  playbookId: string | null,
+  log: ReturnType<typeof createLogger>
+): Promise<Array<{ id: string; slug: string; outputType: string }>> {
+  // Get all active SYSTEM specs
+  const allSystemSpecs = await prisma.analysisSpec.findMany({
+    where: {
+      scope: "SYSTEM",
+      outputType: { in: outputTypes as any[] },
+      isActive: true,
+      isDirty: false,
+    },
+    select: { id: true, slug: true, outputType: true },
+    orderBy: { priority: "desc" },
+  });
+
+  // If no playbook, return all system specs (default behavior)
+  if (!playbookId) {
+    log.info(`Loaded ${allSystemSpecs.length} SYSTEM specs (no playbook)`, { outputTypes });
+    return allSystemSpecs;
+  }
+
+  // TODO: System spec toggles not yet implemented - PlaybookSpec model doesn't exist
+  // For now, include all system specs
+  log.info(`Loaded ${allSystemSpecs.length} SYSTEM specs (system spec toggles not yet implemented)`, {
+    outputTypes,
+    playbookId,
+  });
+
+  return allSystemSpecs;
+}
+
+/**
+ * Get specs by outputType for a specific pipeline stage.
+ */
+async function getSpecsByOutputType(
+  outputType: string,
+  log: ReturnType<typeof createLogger>
+): Promise<Array<{ id: string; slug: string; outputType: string }>> {
+  const specs = await prisma.analysisSpec.findMany({
+    where: {
+      outputType: outputType as any,
+      isActive: true,
+      isDirty: false,
+    },
+    select: { id: true, slug: true, outputType: true },
+    orderBy: { priority: "desc" },
+  });
+
+  log.info(`Loaded ${specs.length} ${outputType} specs`);
+  return specs;
+}
+
+// =====================================================
+// PLAYBOOK-AWARE SPEC SELECTION (DOMAIN specs)
+// =====================================================
+
+/**
+ * Get DOMAIN specs from the caller's domain's published playbook.
+ * Only returns specs with scope=DOMAIN (not SYSTEM).
+ * Falls back to all active DOMAIN specs if no playbook is published.
+ */
+async function getPlaybookSpecs(
+  callerId: string,
+  outputTypes: string[],
+  log: ReturnType<typeof createLogger>
+): Promise<{
+  specs: Array<{ id: string; slug: string; outputType: string }>;
+  playbookId: string | null;
+  playbookName: string | null;
+  fallback: boolean;
+}> {
+  // 1. Get caller's domain
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true, domain: { select: { slug: true, name: true } } },
+  });
+
+  if (!caller?.domainId) {
+    log.warn("Caller has no domain assigned, using fallback (all active DOMAIN specs)");
+    const allSpecs = await prisma.analysisSpec.findMany({
+      where: {
+        scope: "DOMAIN",
+        outputType: { in: outputTypes as any[] },
+        isActive: true,
+        isDirty: false,
+      },
+      select: { id: true, slug: true, outputType: true },
+    });
+    return { specs: allSpecs, playbookId: null, playbookName: null, fallback: true };
+  }
+
+  // 2. Find PUBLISHED playbook for this domain
+  const playbook = await prisma.playbook.findFirst({
+    where: {
+      domainId: caller.domainId,
+      status: "PUBLISHED",
+    },
+    select: {
+      id: true,
+      name: true,
+      items: {
+        where: {
+          itemType: "SPEC",
+          isEnabled: true,
+          spec: {
+            scope: "DOMAIN",
+            outputType: { in: outputTypes as any[] },
+            isActive: true,
+            isDirty: false,
+          },
+        },
+        select: {
+          spec: {
+            select: { id: true, slug: true, outputType: true },
+          },
+        },
+        orderBy: { sortOrder: "asc" },
+      },
+    },
+  });
+
+  if (!playbook) {
+    log.warn(`No published playbook for domain "${caller.domain?.slug}", using fallback (all active DOMAIN specs)`);
+    const allSpecs = await prisma.analysisSpec.findMany({
+      where: {
+        scope: "DOMAIN",
+        outputType: { in: outputTypes as any[] },
+        isActive: true,
+        isDirty: false,
+      },
+      select: { id: true, slug: true, outputType: true },
+    });
+    return { specs: allSpecs, playbookId: null, playbookName: null, fallback: true };
+  }
+
+  // 3. Extract specs from playbook items
+  const specs = playbook.items
+    .filter((item) => item.spec)
+    .map((item) => item.spec!);
+
+  log.info(`Using playbook "${playbook.name}" for domain "${caller.domain?.slug}"`, {
+    playbookId: playbook.id,
+    specCount: specs.length,
+    outputTypes,
+  });
+
+  return {
+    specs,
+    playbookId: playbook.id,
+    playbookName: playbook.name,
+    fallback: false,
+  };
+}
 
 // Category mappings for normalizing LLM output to valid MemoryCategory enum values
 // Mirrors the taxonomy config from system-memory-taxonomy spec
@@ -183,7 +348,7 @@ function buildBatchedCallerPrompt(
 }
 
 /**
- * Build a BATCHED prompt for MEASURE_AGENT specs
+ * Build a BATCHED prompt for MEASURE specs
  * This scores all agent behavior parameters in ONE AI call
  */
 function buildBatchedAgentPrompt(
@@ -232,20 +397,60 @@ async function runBatchedCallerAnalysis(
 ): Promise<{
   scoresCreated: number;
   memoriesCreated: number;
+  playbookUsed: string | null;
 }> {
   const transcript = call.transcript || "";
 
-  // Load MEASURE specs for caller
-  const measureSpecs = await prisma.analysisSpec.findMany({
-    where: { outputType: "MEASURE", isActive: true, isDirty: false },
-    include: { triggers: { include: { actions: true } } },
+  // Get DOMAIN specs from caller's domain playbook (or fallback to all active DOMAIN specs)
+  // Need playbookId first to filter system specs
+  const { specs: playbookSpecs, playbookId, playbookName, fallback } = await getPlaybookSpecs(
+    callerId,
+    ["MEASURE", "LEARN"],
+    log
+  );
+
+  // Get SYSTEM specs filtered by playbook toggle settings
+  const systemSpecs = await getSystemSpecs(["MEASURE", "LEARN"], playbookId, log);
+
+  // Combine SYSTEM + DOMAIN specs (deduplicate by ID)
+  const allSpecIds = new Set<string>();
+  const combinedSpecs: Array<{ id: string; slug: string; outputType: string }> = [];
+
+  for (const spec of [...systemSpecs, ...playbookSpecs]) {
+    if (!allSpecIds.has(spec.id)) {
+      allSpecIds.add(spec.id);
+      combinedSpecs.push(spec);
+    }
+  }
+
+  log.info(`Combined specs for caller analysis`, {
+    systemCount: systemSpecs.length,
+    playbookCount: playbookSpecs.length,
+    totalUnique: combinedSpecs.length
   });
 
-  // Load LEARN specs
-  const learnSpecs = await prisma.analysisSpec.findMany({
-    where: { outputType: "LEARN", isActive: true, isDirty: false },
-    include: { triggers: { include: { actions: true } } },
-  });
+  const measureSpecIds = combinedSpecs.filter(s => s.outputType === "MEASURE").map(s => s.id);
+  const learnSpecIds = combinedSpecs.filter(s => s.outputType === "LEARN").map(s => s.id);
+
+  // Load full MEASURE specs with triggers/actions
+  const measureSpecs = measureSpecIds.length > 0
+    ? await prisma.analysisSpec.findMany({
+        where: { id: { in: measureSpecIds } },
+        include: { triggers: { include: { actions: true } } },
+      })
+    : [];
+
+  // Load full LEARN specs with triggers/actions
+  const learnSpecs = learnSpecIds.length > 0
+    ? await prisma.analysisSpec.findMany({
+        where: { id: { in: learnSpecIds } },
+        include: { triggers: { include: { actions: true } } },
+      })
+    : [];
+
+  if (fallback) {
+    log.warn("Running in fallback mode - no playbook constraint");
+  }
 
   // Collect unique parameters to score
   const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
@@ -287,7 +492,7 @@ async function runBatchedCallerAnalysis(
 
   if (measureParams.length === 0 && learnActions.length === 0) {
     log.warn("No MEASURE or LEARN specs found");
-    return { scoresCreated: 0, memoriesCreated: 0 };
+    return { scoresCreated: 0, memoriesCreated: 0, playbookUsed: playbookName };
   }
 
   let scoresCreated = 0;
@@ -421,24 +626,61 @@ async function runBatchedCallerAnalysis(
     }
   }
 
-  return { scoresCreated, memoriesCreated };
+  return { scoresCreated, memoriesCreated, playbookUsed: playbookName };
 }
 
 /**
- * Run batched agent analysis (MEASURE_AGENT)
+ * Run batched agent analysis (MEASURE)
  */
 async function runBatchedAgentAnalysis(
   call: { id: string; transcript: string | null },
+  callerId: string,
   engine: AIEngine,
   log: ReturnType<typeof createLogger>
 ): Promise<{ measurementsCreated: number }> {
   const transcript = call.transcript || "";
 
-  // Load MEASURE_AGENT specs
-  const agentSpecs = await prisma.analysisSpec.findMany({
-    where: { outputType: "MEASURE_AGENT", isActive: true, isDirty: false },
-    include: { triggers: { include: { actions: true } } },
+  // Get DOMAIN MEASURE specs from caller's domain playbook (or fallback)
+  // Need playbookId first to filter system specs
+  const { specs: playbookSpecs, playbookId, fallback } = await getPlaybookSpecs(
+    callerId,
+    ["MEASURE"],
+    log
+  );
+
+  // Get SYSTEM MEASURE specs filtered by playbook toggle settings
+  const systemSpecs = await getSystemSpecs(["MEASURE"], playbookId, log);
+
+  // Combine SYSTEM + DOMAIN specs (deduplicate by ID)
+  const allSpecIds = new Set<string>();
+  const combinedSpecs: Array<{ id: string; slug: string; outputType: string }> = [];
+
+  for (const spec of [...systemSpecs, ...playbookSpecs]) {
+    if (!allSpecIds.has(spec.id)) {
+      allSpecIds.add(spec.id);
+      combinedSpecs.push(spec);
+    }
+  }
+
+  log.info(`Combined specs for agent analysis`, {
+    systemCount: systemSpecs.length,
+    playbookCount: playbookSpecs.length,
+    totalUnique: combinedSpecs.length
   });
+
+  const agentSpecIds = combinedSpecs.map(s => s.id);
+
+  // Load full specs with triggers/actions
+  const agentSpecs = agentSpecIds.length > 0
+    ? await prisma.analysisSpec.findMany({
+        where: { id: { in: agentSpecIds } },
+        include: { triggers: { include: { actions: true } } },
+      })
+    : [];
+
+  if (fallback) {
+    log.debug("Agent analysis running in fallback mode");
+  }
 
   // Collect unique agent parameters
   const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
@@ -462,7 +704,7 @@ async function runBatchedAgentAnalysis(
   log.info(`Batched agent analysis`, { params: agentParams.length });
 
   if (agentParams.length === 0) {
-    log.warn("No MEASURE_AGENT specs found");
+    log.warn("No MEASURE specs found");
     return { measurementsCreated: 0 };
   }
 
@@ -880,6 +1122,356 @@ async function computeAdapt(
   return { deltasComputed };
 }
 
+// =====================================================
+// ADAPT & SUPERVISE SPEC RUNNERS
+// =====================================================
+
+/**
+ * Build prompt for ADAPT specs to compute personalized targets
+ */
+function buildAdaptPrompt(
+  transcript: string,
+  callScores: Array<{ parameterId: string; score: number; confidence: number }>,
+  callerProfile: Record<string, any> | null,
+  targetParams: Array<{ parameterId: string; name: string; definition: string | null }>
+): string {
+  const lines: string[] = [
+    `You are computing personalized behavioral targets for an AI agent's next interaction with this caller.`,
+    `Based on the caller's personality scores and the current call analysis, determine optimal target values.`,
+    ``,
+    `# TRANSCRIPT SUMMARY`,
+    transcript.slice(0, 3000),
+    ``,
+    `# CALLER PERSONALITY SCORES (0-1 scale)`,
+  ];
+
+  for (const score of callScores) {
+    lines.push(`- ${score.parameterId}: ${score.score.toFixed(2)} (confidence: ${score.confidence.toFixed(2)})`);
+  }
+
+  if (callerProfile) {
+    lines.push(``);
+    lines.push(`# CALLER PROFILE`);
+    lines.push(JSON.stringify(callerProfile, null, 2).slice(0, 1000));
+  }
+
+  lines.push(``);
+  lines.push(`# TARGET PARAMETERS TO COMPUTE`);
+  lines.push(`For each parameter, compute an optimal target value (0.0-1.0) for the AGENT to exhibit:`);
+  lines.push(``);
+
+  for (const param of targetParams) {
+    lines.push(`- ${param.parameterId}: ${param.name}`);
+    if (param.definition) lines.push(`  ${param.definition}`);
+  }
+
+  lines.push(``);
+  lines.push(`# OUTPUT FORMAT`);
+  lines.push(`Return JSON:`);
+  lines.push("```json");
+  lines.push(`{`);
+  lines.push(`  "targets": {`);
+  lines.push(`    "PARAM-ID": { "value": 0.65, "confidence": 0.8, "reasoning": "brief explanation" },`);
+  lines.push(`    ...`);
+  lines.push(`  }`);
+  lines.push(`}`);
+  lines.push("```");
+
+  return lines.join("\n");
+}
+
+/**
+ * Run ADAPT specs to compute personalized CallTargets
+ * These specs compute what target values the agent should aim for based on caller profile
+ */
+async function runAdaptSpecs(
+  callId: string,
+  callerId: string,
+  engine: AIEngine,
+  log: ReturnType<typeof createLogger>
+): Promise<{ targetsCreated: number }> {
+  // Load ADAPT specs (by outputType, not specType)
+  const adaptSpecs = await getSpecsByOutputType("ADAPT", log);
+
+  if (adaptSpecs.length === 0) {
+    log.info("No ADAPT specs configured - using defaults");
+    return { targetsCreated: 0 };
+  }
+
+  // Load call scores for this call
+  const callScores = await prisma.callScore.findMany({
+    where: { callId },
+    select: { parameterId: true, score: true, confidence: true },
+  });
+
+  // Load caller personality profile
+  const callerProfile = await prisma.callerPersonalityProfile.findUnique({
+    where: { callerId },
+    select: { parameterValues: true },
+  });
+
+  // Load full ADAPT specs with triggers/actions to get target parameters
+  const fullSpecs = await prisma.analysisSpec.findMany({
+    where: { id: { in: adaptSpecs.map(s => s.id) } },
+    include: { triggers: { include: { actions: true } } },
+  });
+
+  // Collect unique parameters that ADAPT specs compute targets for
+  const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
+  for (const spec of fullSpecs) {
+    for (const trigger of spec.triggers) {
+      for (const action of trigger.actions) {
+        if (action.parameterId && !paramMap.has(action.parameterId)) {
+          const param = await prisma.parameter.findUnique({
+            where: { parameterId: action.parameterId },
+            select: { parameterId: true, name: true, definition: true },
+          });
+          if (param) paramMap.set(param.parameterId, param);
+        }
+      }
+    }
+  }
+
+  const targetParams = Array.from(paramMap.values());
+  log.info(`Running ADAPT specs`, { specCount: adaptSpecs.length, targetParams: targetParams.length });
+
+  if (targetParams.length === 0) {
+    log.warn("No target parameters found in ADAPT specs");
+    return { targetsCreated: 0 };
+  }
+
+  let targetsCreated = 0;
+
+  // Get call transcript
+  const call = await prisma.call.findUnique({
+    where: { id: callId },
+    select: { transcript: true },
+  });
+
+  if (engine === "mock") {
+    // Mock: compute targets as slight adjustments from call scores
+    for (const param of targetParams) {
+      const callScore = callScores.find(s => s.parameterId === param.parameterId);
+      // Target is based on caller score with some adjustment toward middle
+      const baseValue = callScore?.score ?? 0.5;
+      const targetValue = baseValue + (0.5 - baseValue) * 0.2; // Nudge 20% toward center
+
+      await prisma.callTarget.upsert({
+        where: { callId_parameterId: { callId, parameterId: param.parameterId } },
+        create: {
+          callId,
+          parameterId: param.parameterId,
+          targetValue,
+          confidence: 0.7,
+          sourceSpecSlug: "mock_adapt",
+          reasoning: "Mock adaptation based on caller score",
+        },
+        update: {
+          targetValue,
+          confidence: 0.7,
+          sourceSpecSlug: "mock_adapt",
+          reasoning: "Mock adaptation based on caller score",
+        },
+      });
+      targetsCreated++;
+    }
+  } else {
+    // Real AI: compute targets
+    const prompt = buildAdaptPrompt(
+      call?.transcript || "",
+      callScores,
+      callerProfile?.parameterValues as Record<string, any> | null,
+      targetParams
+    );
+
+    try {
+      const result = await getAICompletion({
+        engine,
+        messages: [
+          { role: "system", content: "You are an expert at personalizing AI agent behavior based on caller profiles. Always respond with valid JSON." },
+          { role: "user", content: prompt },
+        ],
+        maxTokens: 1024,
+        temperature: 0.3,
+      });
+
+      let jsonContent = result.content.trim();
+      if (jsonContent.startsWith("```")) {
+        jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+      }
+      const parsed = JSON.parse(jsonContent);
+
+      if (parsed.targets) {
+        for (const [parameterId, targetData] of Object.entries(parsed.targets as Record<string, any>)) {
+          const targetValue = Math.max(0, Math.min(1, targetData.value || 0.5));
+          const confidence = Math.max(0, Math.min(1, targetData.confidence || 0.7));
+
+          await prisma.callTarget.upsert({
+            where: { callId_parameterId: { callId, parameterId } },
+            create: {
+              callId,
+              parameterId,
+              targetValue,
+              confidence,
+              sourceSpecSlug: `${engine}_adapt`,
+              reasoning: targetData.reasoning || "AI-computed target",
+            },
+            update: {
+              targetValue,
+              confidence,
+              sourceSpecSlug: `${engine}_adapt`,
+              reasoning: targetData.reasoning || "AI-computed target",
+            },
+          });
+          targetsCreated++;
+        }
+      }
+
+      log.info(`ADAPT specs complete`, { targetsCreated });
+    } catch (error: any) {
+      log.error("ADAPT specs failed", { error: error.message });
+      throw error;
+    }
+  }
+
+  return { targetsCreated };
+}
+
+/**
+ * Validate/clamp targets to safe ranges (hardcoded guardrails)
+ * Keeps targets within 0.2-0.8 to avoid extremes
+ */
+async function validateTargets(
+  callId: string,
+  log: ReturnType<typeof createLogger>
+): Promise<{ adjustments: number }> {
+  const targets = await prisma.callTarget.findMany({
+    where: { callId },
+  });
+
+  if (targets.length === 0) {
+    return { adjustments: 0 };
+  }
+
+  // Clamp targets to safe range (avoid extremes)
+  let adjustments = 0;
+  for (const target of targets) {
+    let newValue = target.targetValue;
+    let adjusted = false;
+
+    if (newValue < 0.2) {
+      newValue = 0.2;
+      adjusted = true;
+    } else if (newValue > 0.8) {
+      newValue = 0.8;
+      adjusted = true;
+    }
+
+    if (adjusted) {
+      await prisma.callTarget.update({
+        where: { id: target.id },
+        data: {
+          targetValue: newValue,
+          reasoning: `${target.reasoning || ""} [clamped to safe range]`.trim(),
+        },
+      });
+      adjustments++;
+    }
+  }
+
+  log.info(`Targets validated`, { adjustments });
+  return { adjustments };
+}
+
+/**
+ * Aggregate CallTargets to CallerTargets (moving average for prompt composition)
+ */
+async function aggregateCallerTargets(
+  callId: string,
+  callerId: string,
+  log: ReturnType<typeof createLogger>
+): Promise<{ aggregated: number }> {
+  // Get all CallTargets for this caller's calls
+  const callerCalls = await prisma.call.findMany({
+    where: { callerId },
+    select: { id: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const callIds = callerCalls.map(c => c.id);
+
+  // Get all CallTargets for these calls
+  const allTargets = await prisma.callTarget.findMany({
+    where: { callId: { in: callIds } },
+    include: { call: { select: { createdAt: true } } },
+  });
+
+  if (allTargets.length === 0) {
+    log.info("No CallTargets to aggregate");
+    return { aggregated: 0 };
+  }
+
+  // Group by parameterId
+  const byParameter: Record<string, Array<{ value: number; confidence: number; date: Date }>> = {};
+  for (const target of allTargets) {
+    if (!byParameter[target.parameterId]) {
+      byParameter[target.parameterId] = [];
+    }
+    byParameter[target.parameterId].push({
+      value: target.targetValue,
+      confidence: target.confidence,
+      date: target.call?.createdAt || target.createdAt,
+    });
+  }
+
+  // Compute weighted average with time decay (30-day half-life)
+  const halfLifeDays = 30;
+  const now = new Date();
+  let aggregated = 0;
+
+  for (const [parameterId, targets] of Object.entries(byParameter)) {
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    for (const t of targets) {
+      const ageMs = now.getTime() - t.date.getTime();
+      const ageDays = ageMs / (1000 * 60 * 60 * 24);
+      const decayWeight = Math.exp((-Math.log(2) * ageDays) / halfLifeDays);
+      const weight = decayWeight * t.confidence;
+
+      weightedSum += t.value * weight;
+      totalWeight += weight;
+    }
+
+    if (totalWeight > 0) {
+      const avgValue = weightedSum / totalWeight;
+
+      await prisma.callerTarget.upsert({
+        where: { callerId_parameterId: { callerId, parameterId } },
+        create: {
+          callerId,
+          parameterId,
+          targetValue: avgValue,
+          confidence: Math.min(0.95, 0.5 + targets.length * 0.1), // Confidence grows with more data
+          callsUsed: targets.length,
+          lastUpdatedAt: now,
+          decayHalfLife: halfLifeDays,
+        },
+        update: {
+          targetValue: avgValue,
+          confidence: Math.min(0.95, 0.5 + targets.length * 0.1),
+          callsUsed: targets.length,
+          lastUpdatedAt: now,
+        },
+      });
+      aggregated++;
+    }
+  }
+
+  log.info(`CallerTargets aggregated`, { aggregated, totalCallTargets: allTargets.length });
+  return { aggregated };
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ callId: string }> }
@@ -899,13 +1491,17 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "mode must be 'prep' or 'prompt'", logs: log.getLogs() }, { status: 400 });
     }
 
-    // Validate engine
-    let engine: AIEngine = "mock";
+    // Validate engine - default to claude for real AI inference
+    let engine: AIEngine = "claude";
     if (requestedEngine && ["mock", "claude", "openai"].includes(requestedEngine)) {
-      if (isEngineAvailable(requestedEngine)) {
-        engine = requestedEngine;
-      } else {
-        log.warn(`Engine ${requestedEngine} not available, using mock`);
+      engine = requestedEngine as AIEngine;
+    }
+
+    // Verify the engine is available (has API key configured)
+    if (!isEngineAvailable(engine)) {
+      if (engine !== "mock") {
+        log.warn(`Engine "${engine}" not available (missing API key), falling back to mock`);
+        engine = "mock";
       }
     }
 
@@ -921,33 +1517,42 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Call not found", logs: log.getLogs() }, { status: 404 });
     }
 
-    // Step 1: Batched caller analysis (MEASURE + LEARN)
-    log.info("Step 1: Caller analysis (MEASURE + LEARN)");
+    // =====================================================
+    // PIPELINE EXECUTION
+    // Order: LEARN → MEASURE → ADAPT (→ COMPOSE if mode="prompt")
+    // =====================================================
+
+    // ===== LEARN STAGE =====
+    // Extract data about the caller (memories, personality scores)
+    log.info("LEARN: Extracting caller data");
     const callerResult = await runBatchedCallerAnalysis(call, callerId, engine, log);
+    const deltaResult = await computeAdapt(callId, callerId, log);
+    const personalityResult = await aggregatePersonality(callId, callerId, log);
 
-    // Step 2: Batched agent analysis (MEASURE_AGENT)
-    log.info("Step 2: Agent analysis (MEASURE_AGENT)");
-    const agentResult = await runBatchedAgentAnalysis(call, engine, log);
-
-    // Step 3: Reward
-    log.info("Step 3: Compute reward");
+    // ===== MEASURE STAGE =====
+    // Score agent behavior in the call
+    log.info("MEASURE: Scoring agent behavior");
+    const agentResult = await runBatchedAgentAnalysis(call, callerId, engine, log);
     const rewardResult = await computeReward(callId, log);
 
-    // Step 4: Adapt
-    log.info("Step 4: Compute adapt");
-    const adaptResult = await computeAdapt(callId, callerId, log);
-
-    // Step 5: Personality aggregation
-    log.info("Step 5: Aggregate personality");
-    const personalityResult = await aggregatePersonality(callId, callerId, log);
+    // ===== ADAPT STAGE =====
+    // Compute personalized targets for next call
+    log.info("ADAPT: Computing personalized targets");
+    const adaptResult = await runAdaptSpecs(callId, callerId, engine, log);
+    const validateResult = await validateTargets(callId, log);
+    const callerTargetResult = await aggregateCallerTargets(callId, callerId, log);
 
     // Summary for prep mode
     const summary = {
+      playbookUsed: callerResult.playbookUsed,
       scoresCreated: callerResult.scoresCreated,
       memoriesCreated: callerResult.memoriesCreated,
+      deltasComputed: deltaResult.deltasComputed,
+      callTargetsCreated: adaptResult.targetsCreated,
+      targetsValidated: validateResult.adjustments,
+      callerTargetsAggregated: callerTargetResult.aggregated,
       agentMeasurements: agentResult.measurementsCreated,
       rewardScore: rewardResult.overallScore,
-      deltasComputed: adaptResult.deltasComputed,
       personalityObservationCreated: personalityResult.observationCreated,
       personalityProfileUpdated: personalityResult.profileUpdated,
     };
@@ -957,7 +1562,7 @@ export async function POST(
       return NextResponse.json({
         ok: true,
         mode: "prep",
-        message: `Prep complete: ${summary.scoresCreated} scores, ${summary.memoriesCreated} memories, ${summary.agentMeasurements} agent measurements, personality ${summary.personalityProfileUpdated ? "updated" : "skipped"}`,
+        message: `Prep complete: ${summary.scoresCreated} scores, ${summary.memoriesCreated} memories, ${summary.callTargetsCreated} targets, ${summary.agentMeasurements} agent measurements`,
         data: summary,
         logs: log.getLogs(),
         duration: log.getDuration(),
@@ -965,7 +1570,7 @@ export async function POST(
     }
 
     // Mode is "prompt" - compose the prompt
-    log.info("Step 6: Compose prompt");
+    log.info("Step 9: Compose prompt");
 
     // Call the compose-prompt endpoint logic
     const composeResult = await fetch(`${request.nextUrl.origin}/api/callers/${callerId}/compose-prompt`, {

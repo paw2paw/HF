@@ -22,6 +22,8 @@ export async function GET(
             name: true,
           },
         },
+        // agent: removed - FK relation deprecated, agentId is now just a string reference
+        // curriculum: removed - FK relation no longer exists on Playbook model
         items: {
           orderBy: { sortOrder: "asc" },
           include: {
@@ -33,6 +35,9 @@ export async function GET(
                 description: true,
                 scope: true,
                 outputType: true,
+                specType: true,
+                specRole: true,
+                config: true,
                 domain: true,
                 priority: true,
                 isActive: true,
@@ -52,6 +57,7 @@ export async function GET(
             },
           },
         },
+        // specs: removed - PlaybookSpec model doesn't exist yet. System specs are handled via scope="SYSTEM" filter
         parentVersion: {
           select: {
             id: true,
@@ -96,7 +102,7 @@ export async function PATCH(
   try {
     const { playbookId } = await params;
     const body = await request.json();
-    const { name, description, items } = body;
+    const { name, description, items, specs, agentId, toggleSpec } = body;
 
     const existing = await prisma.playbook.findUnique({
       where: { id: playbookId },
@@ -109,24 +115,111 @@ export async function PATCH(
       );
     }
 
-    if (existing.status === "PUBLISHED") {
+    // For published playbooks, only allow system spec toggle updates
+    const isToggleOnlyUpdate = (specs !== undefined || toggleSpec !== undefined) &&
+      name === undefined && description === undefined &&
+      items === undefined && agentId === undefined;
+
+    if (existing.status === "PUBLISHED" && !isToggleOnlyUpdate) {
       return NextResponse.json(
         { ok: false, error: "Cannot modify a published playbook. Create a new version instead." },
         { status: 400 }
       );
     }
 
-    // Update metadata
-    const playbook = await prisma.playbook.update({
-      where: { id: playbookId },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-      },
-    });
+    // Handle convenience toggleSpec format from Studio: { specId, enabled }
+    // This auto-detects if spec is SYSTEM or DOMAIN and updates accordingly
+    if (toggleSpec) {
+      const { specId, enabled } = toggleSpec;
 
-    // Update items if provided
-    if (items !== undefined) {
+      // Find the spec to determine its scope
+      const spec = await prisma.analysisSpec.findUnique({
+        where: { id: specId },
+        select: { id: true, scope: true },
+      });
+
+      if (!spec) {
+        return NextResponse.json(
+          { ok: false, error: "Spec not found" },
+          { status: 404 }
+        );
+      }
+
+      if (spec.scope === "SYSTEM") {
+        // TODO: System spec toggles not yet implemented - PlaybookSpec model doesn't exist
+        // System specs are implicitly enabled for all playbooks
+        return NextResponse.json(
+          { ok: false, error: "System spec toggles are not yet supported" },
+          { status: 400 }
+        );
+      } else {
+        // Toggle domain spec via PlaybookItem
+        const existingItem = await prisma.playbookItem.findFirst({
+          where: { playbookId, specId },
+        });
+
+        if (existingItem) {
+          // Update existing item
+          await prisma.playbookItem.update({
+            where: { id: existingItem.id },
+            data: { isEnabled: enabled },
+          });
+        } else if (enabled) {
+          // Create new item (only if enabling)
+          const maxOrder = await prisma.playbookItem.aggregate({
+            where: { playbookId },
+            _max: { sortOrder: true },
+          });
+          await prisma.playbookItem.create({
+            data: {
+              playbookId,
+              specId,
+              itemType: "SPEC",
+              isEnabled: true,
+              sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
+            },
+          });
+        }
+      }
+
+      // Return updated playbook
+      const updated = await prisma.playbook.findUnique({
+        where: { id: playbookId },
+        include: {
+          domain: { select: { id: true, slug: true, name: true } },
+          items: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              spec: {
+                select: {
+                  id: true, slug: true, name: true, description: true,
+                  scope: true, outputType: true, specType: true, specRole: true,
+                },
+              },
+            },
+          },
+          // specs: removed - PlaybookSpec model doesn't exist
+        },
+      });
+
+      return NextResponse.json({ ok: true, playbook: updated });
+    }
+
+    // Update metadata (including optional agentId) - only for non-published
+    let playbook = existing;
+    if (existing.status !== "PUBLISHED") {
+      playbook = await prisma.playbook.update({
+        where: { id: playbookId },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+          ...(agentId !== undefined && { agentId: agentId || null }),
+        },
+      });
+    }
+
+    // Update items if provided (only for non-published)
+    if (items !== undefined && existing.status !== "PUBLISHED") {
       // Delete existing items
       await prisma.playbookItem.deleteMany({
         where: { playbookId },
@@ -147,6 +240,15 @@ export async function PATCH(
       }
     }
 
+    // TODO: System spec toggles not yet implemented - PlaybookSpec model doesn't exist
+    // System specs are implicitly enabled for all playbooks
+    if (specs !== undefined) {
+      return NextResponse.json(
+        { ok: false, error: "System spec toggles are not yet supported" },
+        { status: 400 }
+      );
+    }
+
     // Fetch updated playbook
     const updated = await prisma.playbook.findUnique({
       where: { id: playbookId },
@@ -154,6 +256,8 @@ export async function PATCH(
         domain: {
           select: { id: true, slug: true, name: true },
         },
+        // agent: removed - FK relation deprecated
+        // curriculum: removed - FK relation no longer exists on Playbook model
         items: {
           orderBy: { sortOrder: "asc" },
           include: {
@@ -165,6 +269,8 @@ export async function PATCH(
                 description: true,
                 scope: true,
                 outputType: true,
+                specType: true,
+                specRole: true,
                 _count: {
                   select: { triggers: true },
                 },
@@ -179,6 +285,7 @@ export async function PATCH(
             },
           },
         },
+        // specs: removed - PlaybookSpec model doesn't exist
       },
     });
 

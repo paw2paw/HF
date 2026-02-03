@@ -29,6 +29,9 @@ export async function GET(
       where: { id: playbookId },
       include: {
         domain: true,
+        // agent: removed - FK relation deprecated, agentId is now just a string reference
+        // curriculum: removed - FK relation no longer exists on Playbook model
+        // specs: removed - PlaybookSystemSpec model no longer exists, system specs are implicitly included
         items: {
           orderBy: { sortOrder: "asc" },
           include: {
@@ -64,8 +67,44 @@ export async function GET(
       );
     }
 
+    // Load ALL SYSTEM specs directly (not from PlaybookSystemSpec)
+    // These are platform-managed specs that apply to all playbooks
+    const allSystemSpecs = await prisma.analysisSpec.findMany({
+      where: {
+        specType: "SYSTEM",
+        isActive: true,
+      },
+      include: {
+        triggers: {
+          include: {
+            actions: {
+              include: {
+                parameter: {
+                  include: {
+                    scoringAnchors: {
+                      orderBy: { score: "asc" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ outputType: "asc" }, { name: "asc" }],
+    });
+
+    // Create system specs array with enabled state
+    // Note: PlaybookSystemSpec model was removed - all system specs are now implicitly enabled
+    const systemSpecsWithState = allSystemSpecs.map((spec) => ({
+      spec,
+      isEnabled: true, // All system specs are enabled by default
+    }));
+
     // Get all unique parameter IDs from specs to load behavior targets
     const parameterIds = new Set<string>();
+
+    // Collect from playbook items (DOMAIN specs)
     for (const item of playbook.items) {
       if (item.spec) {
         for (const trigger of item.spec.triggers) {
@@ -75,8 +114,24 @@ export async function GET(
             }
           }
         }
-        // Also check spec config for parameterId
         const config = item.spec.config as any;
+        if (config?.parameterId) {
+          parameterIds.add(config.parameterId);
+        }
+      }
+    }
+
+    // Collect from system specs
+    for (const ss of systemSpecsWithState) {
+      if (ss.spec) {
+        for (const trigger of ss.spec.triggers) {
+          for (const action of trigger.actions) {
+            if (action.parameterId) {
+              parameterIds.add(action.parameterId);
+            }
+          }
+        }
+        const config = ss.spec.config as any;
         if (config?.parameterId) {
           parameterIds.add(config.parameterId);
         }
@@ -102,15 +157,18 @@ export async function GET(
     }
 
     // Build the tree structure
-    const tree = buildPlaybookTree(playbook, targetsByParam);
+    const tree = buildPlaybookTree(playbook, targetsByParam, systemSpecsWithState);
 
+    const enabledCount = systemSpecsWithState.filter((s) => s.isEnabled).length;
     return NextResponse.json({
       ok: true,
       tree,
       stats: {
         totalItems: playbook.items.length,
-        specCount: playbook.items.filter(i => i.spec).length,
-        templateCount: playbook.items.filter(i => i.promptTemplate).length,
+        specCount: playbook.items.filter((i: any) => i.spec).length,
+        templateCount: playbook.items.filter((i: any) => i.promptTemplate).length,
+        systemSpecCount: systemSpecsWithState.length,
+        systemSpecEnabledCount: enabledCount,
         parameterCount: parameterIds.size,
         targetCount: behaviorTargets.length,
       },
@@ -135,7 +193,8 @@ interface TreeNode {
 
 function buildPlaybookTree(
   playbook: any,
-  targetsByParam: Map<string, any[]>
+  targetsByParam: Map<string, any[]>,
+  systemSpecs: Array<{ spec: any; isEnabled: boolean }>
 ): TreeNode {
   const root: TreeNode = {
     id: playbook.id,
@@ -146,6 +205,10 @@ function buildPlaybookTree(
       status: playbook.status,
       domain: playbook.domain?.name || "No domain",
       domainSlug: playbook.domain?.slug,
+      // agent: deprecated - identity comes from PlaybookItems with specRole=IDENTITY
+      agentId: playbook.agentId || undefined, // String reference only (no FK)
+      curriculum: playbook.curriculum?.name,
+      curriculumSlug: playbook.curriculum?.slug,
       measureSpecCount: playbook.measureSpecCount,
       learnSpecCount: playbook.learnSpecCount,
       adaptSpecCount: playbook.adaptSpecCount,
@@ -153,6 +216,63 @@ function buildPlaybookTree(
     },
     children: [],
   };
+
+  // Add System Specs group first (platform-managed specs with ON/OFF toggles)
+  const enabledSystemSpecs = systemSpecs.filter((ss) => ss.isEnabled);
+  if (systemSpecs.length > 0) {
+    const systemSpecsGroup: TreeNode = {
+      id: "group-SYSTEM",
+      type: "group",
+      name: `⚙️ System Specs (${enabledSystemSpecs.length}/${systemSpecs.length} enabled)`,
+      meta: {
+        outputType: "SYSTEM",
+        count: systemSpecs.length,
+        enabledCount: enabledSystemSpecs.length,
+      },
+      children: [],
+    };
+
+    // Group system specs by outputType
+    const systemByOutput: Record<string, typeof systemSpecs> = {};
+    for (const ss of systemSpecs) {
+      if (ss.spec) {
+        const outputType = ss.spec.outputType || "OTHER";
+        if (!systemByOutput[outputType]) systemByOutput[outputType] = [];
+        systemByOutput[outputType].push(ss);
+      }
+    }
+
+    const outputOrder = ["MEASURE", "LEARN", "ADAPT", "COMPOSE", "AGGREGATE", "REWARD", "OTHER"];
+    for (const outputType of outputOrder) {
+      const specs = systemByOutput[outputType];
+      if (!specs || specs.length === 0) continue;
+
+      const outputNode: TreeNode = {
+        id: `system-${outputType}`,
+        type: "output-group",
+        name: `${outputType} (${specs.filter((s) => s.isEnabled).length}/${specs.length})`,
+        meta: { outputType },
+        children: [],
+      };
+
+      for (const ss of specs) {
+        const specNode = buildSpecNode(ss.spec, targetsByParam);
+        specNode.meta = {
+          ...specNode.meta,
+          isEnabled: ss.isEnabled,
+          isSystemSpec: true,
+        };
+        if (!ss.isEnabled) {
+          specNode.name = `🚫 ${specNode.name}`;
+        }
+        outputNode.children!.push(specNode);
+      }
+
+      systemSpecsGroup.children!.push(outputNode);
+    }
+
+    root.children!.push(systemSpecsGroup);
+  }
 
   // Check if items have groupId (new structure) or fall back to outputType grouping
   const hasGroups = playbook.items.some((item: any) => item.groupId);
@@ -297,6 +417,20 @@ function buildSpecNode(spec: any, targetsByParam: Map<string, any[]>): TreeNode 
     children: [],
   };
 
+  // Add prompt template summary if present (this is key content!)
+  if (spec.promptTemplate) {
+    const templatePreview = spec.promptTemplate.slice(0, 200).replace(/\n/g, " ").trim();
+    node.children!.push({
+      id: `template-${spec.id}`,
+      type: "template-content",
+      name: `📝 Template: ${templatePreview}${spec.promptTemplate.length > 200 ? "..." : ""}`,
+      meta: {
+        fullTemplate: spec.promptTemplate,
+        length: spec.promptTemplate.length,
+      },
+    });
+  }
+
   // Add config summary if present
   if (spec.config) {
     const configNode = buildConfigNode(spec.config, spec.outputType);
@@ -319,15 +453,32 @@ function buildSpecNode(spec: any, targetsByParam: Map<string, any[]>): TreeNode 
         children: [],
       };
 
-      for (const action of trigger.actions) {
-        const actionNode = buildActionNode(action, targetsByParam);
-        triggerNode.children!.push(actionNode);
+      if (trigger.actions && trigger.actions.length > 0) {
+        for (const action of trigger.actions) {
+          const actionNode = buildActionNode(action, targetsByParam);
+          triggerNode.children!.push(actionNode);
+        }
+      } else {
+        // Show that trigger has no actions configured
+        triggerNode.children!.push({
+          id: `no-actions-${trigger.id}`,
+          type: "info",
+          name: "ℹ️ No actions configured",
+        });
       }
 
-      if (triggerNode.children!.length > 0) {
-        node.children!.push(triggerNode);
-      }
+      node.children!.push(triggerNode);
     }
+  }
+
+  // If spec still has no children, add an info node so it's not empty
+  if (node.children!.length === 0 && spec.description) {
+    node.children!.push({
+      id: `info-${spec.id}`,
+      type: "info",
+      name: `ℹ️ ${spec.description.slice(0, 100)}${spec.description.length > 100 ? "..." : ""}`,
+      meta: { fullDescription: spec.description },
+    });
   }
 
   return node;
@@ -387,16 +538,61 @@ function buildActionNode(action: any, targetsByParam: Map<string, any[]>): TreeN
     name: action.description || action.actionType || "Action",
     meta: {
       actionType: action.actionType,
-      learnCategory: action.learnCategory,
-      learnKeyPrefix: action.learnKeyPrefix,
+      weight: action.weight !== 1.0 ? action.weight : undefined,
     },
     children: [],
   };
 
-  // Add parameter with scoring anchors if present
+  // Add LEARN-specific info as child nodes
+  if (action.learnCategory || action.learnKeyPrefix || action.learnKeyHint) {
+    const learnNode: TreeNode = {
+      id: `learn-${action.id}`,
+      type: "learn-config",
+      name: `🧠 Learn: ${action.learnCategory || "memory"}`,
+      meta: {
+        category: action.learnCategory,
+        keyPrefix: action.learnKeyPrefix,
+        keyHint: action.learnKeyHint,
+      },
+      children: [],
+    };
+
+    if (action.learnKeyPrefix) {
+      learnNode.children!.push({
+        id: `prefix-${action.id}`,
+        type: "config-item",
+        name: `Key prefix: "${action.learnKeyPrefix}"`,
+      });
+    }
+    if (action.learnKeyHint) {
+      learnNode.children!.push({
+        id: `hint-${action.id}`,
+        type: "config-item",
+        name: `Hint: ${action.learnKeyHint}`,
+      });
+    }
+    node.children!.push(learnNode);
+  }
+
+  // Add parameter with scoring anchors if present (MEASURE actions)
   if (action.parameter) {
     const paramNode = buildParameterNode(action.parameter, targetsByParam);
     node.children!.push(paramNode);
+  }
+
+  // If action still has no children, it's a simple instruction/guideline
+  // Add the full description as content so it's not empty
+  if (node.children!.length === 0 && action.description) {
+    node.children!.push({
+      id: `desc-${action.id}`,
+      type: "instruction",
+      name: `📋 ${action.description}`,
+      meta: {
+        fullText: action.description,
+        weight: action.weight,
+        sortOrder: action.sortOrder,
+      },
+    });
   }
 
   return node;

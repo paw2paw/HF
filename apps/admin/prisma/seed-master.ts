@@ -39,10 +39,18 @@ async function clearAllData() {
     "callerPersonality",
     "caller",
 
-    // Playbook system
+    // Playbook system (new tables first)
+    "playbookSpec",
     "behaviorTarget",
     "playbookItem",
     "playbook",
+
+    // First-class entities
+    "curriculumModule",
+    "curriculum",
+    "agent",
+
+    // Domain
     "domain",
 
     // Analysis specs
@@ -148,35 +156,98 @@ async function seedCoreParameters() {
       definition: "How well the agent adapts to the user's conversation pace",
       domainGroup: "pacing",
     },
+    // Voice-specific parameters for VAPI/voice AI agents
+    {
+      parameterId: "BEH-RESPONSE-LENGTH",
+      name: "Response Length",
+      definition: "How long agent responses should be (shorter for voice, longer for text)",
+      domainGroup: "voice",
+      interpretationHigh: "Longer responses (3-4 sentences), more explanation, mini-lectures OK",
+      interpretationLow: "Very short responses (1-2 sentences), punchy, question-heavy",
+    },
+    {
+      parameterId: "BEH-PAUSE-TOLERANCE",
+      name: "Pause Tolerance",
+      definition: "How long to wait for caller response before prompting",
+      domainGroup: "voice",
+      interpretationHigh: "Wait 4-5 seconds for response, comfortable with silence, let them think",
+      interpretationLow: "Prompt after 2 seconds of silence, keep conversation moving",
+    },
+    {
+      parameterId: "BEH-FILLER-USE",
+      name: "Filler Word Use",
+      definition: "Use of natural speech fillers (so, well, now, etc.) for conversational flow",
+      domainGroup: "voice",
+      interpretationHigh: "Use fillers for natural speech: 'So...', 'Well...', 'Now...'",
+      interpretationLow: "Clean speech, minimal fillers, more formal delivery",
+    },
+    {
+      parameterId: "BEH-BACKCHANNEL",
+      name: "Backchanneling",
+      definition: "Use of acknowledgment sounds during or after caller speech",
+      domainGroup: "voice",
+      interpretationHigh: "Frequent backchannels: 'Mm-hmm', 'I see', 'Right', 'Got it'",
+      interpretationLow: "Minimal backchannels, wait for caller to finish before responding",
+    },
+    {
+      parameterId: "BEH-TURN-LENGTH",
+      name: "Turn Length",
+      definition: "Maximum duration of agent speaking turns before checking in",
+      domainGroup: "voice",
+      interpretationHigh: "Longer monologues OK (15-20 seconds), lecture-style acceptable",
+      interpretationLow: "Max 10 seconds per turn, frequent check-ins, highly interactive",
+    },
   ];
 
   for (const param of coreParams) {
-    await prisma.parameter.create({
-      data: {
-        parameterId: param.parameterId,
-        name: param.name,
-        definition: param.definition,
+    const p = param as typeof param & { interpretationHigh?: string; interpretationLow?: string };
+    await prisma.parameter.upsert({
+      where: { parameterId: p.parameterId },
+      create: {
+        parameterId: p.parameterId,
+        name: p.name,
+        definition: p.definition,
         scaleType: "0-1",
         directionality: "neutral",
         computedBy: "measured",
         sectionId: "core-behavior",
-        domainGroup: param.domainGroup,
+        domainGroup: p.domainGroup,
         parameterType: ParameterType.BEHAVIOR,
         isAdjustable: true,
+        interpretationHigh: p.interpretationHigh || null,
+        interpretationLow: p.interpretationLow || null,
+      },
+      update: {
+        name: p.name,
+        definition: p.definition,
+        domainGroup: p.domainGroup,
+        parameterType: ParameterType.BEHAVIOR,
+        isAdjustable: true,
+        interpretationHigh: p.interpretationHigh || null,
+        interpretationLow: p.interpretationLow || null,
       },
     });
-    console.log(`   ✓ Created: ${param.parameterId}`);
+    console.log(`   ✓ Upserted: ${p.parameterId}`);
 
-    // Create SYSTEM-level default target
-    await prisma.behaviorTarget.create({
-      data: {
+    // Create SYSTEM-level default target if not exists
+    const existingTarget = await prisma.behaviorTarget.findFirst({
+      where: {
         parameterId: param.parameterId,
         scope: BehaviorTargetScope.SYSTEM,
-        targetValue: 0.5,
-        confidence: 1.0,
-        source: "SEED",
+        effectiveUntil: null,
       },
     });
+    if (!existingTarget) {
+      await prisma.behaviorTarget.create({
+        data: {
+          parameterId: param.parameterId,
+          scope: BehaviorTargetScope.SYSTEM,
+          targetValue: 0.5,
+          confidence: 1.0,
+          source: "SEED",
+        },
+      });
+    }
   }
 
   console.log(`\n   ✅ Created ${coreParams.length} core behavior parameters\n`);
@@ -680,19 +751,30 @@ async function main() {
   // Step 1: Clear all data
   await clearAllData();
 
-  // Step 2: Seed core parameters
+  // Step 2: Seed core parameters FIRST (BEH-* behavior params that ADAPT specs reference)
+  // This must run BEFORE seed-from-specs so ADAPT spec actions can link to BEH-* params
   await seedCoreParameters();
 
-  // Step 3: Seed SYSTEM specs (guardrails, safety, quality)
+  // Step 3: Seed from BDD spec files (creates Specs, Parameters, Agents, Curricula)
+  // Now ADAPT specs can find BEH-* parameters and create proper actions
+  await runSeed("seed-from-specs.ts");
+
+  // Step 4: Seed SYSTEM specs (guardrails, safety, quality)
   await seedSystemSpecs();
 
-  // Step 4: Run WWII Tutor seed (DOMAIN specs for tutor domain)
+  // Step 4.5: Seed Prompt Conflict Detection specs
+  await runSeed("seed-prompt-conflict-specs.ts");
+
+  // Step 5: Run WWII Tutor seed (DOMAIN specs for tutor domain)
   await runSeed("seed-wwii-tutor.ts");
 
-  // Step 5: Run Companion seed (DOMAIN specs for companion domain)
-  await runSeed("seed-companion.ts");
+  // NOTE: Companion specs now come from BDD files (bdd-specs/COMP-*.spec.json)
+  // No need to run seed-companion.ts - specs are loaded by seed-from-specs.ts
 
-  // Step 6: Seed sample callers and calls
+  // Step 6: Run WNF seed (Why Nations Fail domain + playbook with Agent/Curriculum)
+  await runSeed("seed-wnf.ts");
+
+  // Step 7: Seed sample callers and calls
   await seedSampleData();
 
   // Final summary
@@ -712,10 +794,14 @@ async function main() {
   const targetCount = await prisma.behaviorTarget.count();
   const callerCount = await prisma.caller.count();
   const callCount = await prisma.call.count();
+  const agentCount = await prisma.agent.count();
+  const curriculumCount = await prisma.curriculum.count();
 
   console.log("\nFinal database state:\n");
   console.log(`   🌐 Domains: ${domainCount}`);
   console.log(`   📚 Playbooks: ${playbookCount}`);
+  console.log(`   🤖 Agents: ${agentCount}`);
+  console.log(`   📖 Curricula: ${curriculumCount}`);
   console.log(`   🎯 Analysis Specs: ${specCount} total`);
   console.log(`      └─ CALLER: ${callerSpecCount}`);
   console.log(`      └─ DOMAIN: ${domainSpecCount}`);

@@ -7,10 +7,16 @@ import { resolveDataNodePath, getKbRoot } from "@/lib/data-paths";
 
 const prisma = new PrismaClient();
 
+// Multiple possible transcript locations
+const TRANSCRIPT_PATHS = [
+  process.env.HF_TRANSCRIPTS_PATH,
+  "/Volumes/PAWSTAW/Projects/hf_kb/sources/transcripts",
+].filter(Boolean) as string[];
+
 /**
  * GET /api/transcripts
  * React-Admin getList endpoint for transcript files
- * Lists transcript files from configured sources.transcripts path
+ * Lists transcript files from configured sources.transcripts path (supports JSON and TXT)
  *
  * Query params:
  * - sort: JSON array [field, order] e.g. ["modifiedAt", "DESC"]
@@ -33,18 +39,34 @@ export async function GET(request: NextRequest) {
     const [sortField, sortOrder] = sort;
     const [start, end] = range;
 
-    // Use unified data-paths system (reads from agents.json manifest)
-    const transcriptsDir = resolveDataNodePath("data:transcripts") || path.join(getKbRoot(), "sources/transcripts");
+    // Use unified data-paths system first, then fallback to configured paths
+    let transcriptsDir = resolveDataNodePath("data:transcripts") || path.join(getKbRoot(), "sources/transcripts");
 
-    // Check if directory exists
+    // Check if primary directory exists, if not try alternatives
     let stat;
     try {
       stat = await fs.stat(transcriptsDir);
     } catch {
-      return NextResponse.json(
-        { error: `Transcripts directory not found: ${transcriptsDir}` },
-        { status: 404 }
-      );
+      // Try alternative paths
+      for (const altPath of TRANSCRIPT_PATHS) {
+        try {
+          stat = await fs.stat(altPath);
+          transcriptsDir = altPath;
+          break;
+        } catch {
+          // Continue to next path
+        }
+      }
+    }
+
+    if (!stat) {
+      // Return empty list instead of error - allows UI to show import button
+      const response = NextResponse.json([]);
+      response.headers.set('Content-Range', 'transcripts 0-0/0');
+      response.headers.set('Access-Control-Expose-Headers', 'Content-Range');
+      response.headers.set('X-Transcripts-Path', transcriptsDir);
+      response.headers.set('X-Transcripts-Status', 'no-directory');
+      return response;
     }
 
     if (!stat.isDirectory()) {
@@ -54,37 +76,46 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Recursively find all JSON files in directory and subdirectories
-    async function findJsonFiles(dir: string, baseDir: string): Promise<{ filename: string; filePath: string; relativePath: string }[]> {
-      const results: { filename: string; filePath: string; relativePath: string }[] = [];
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+    // Recursively find all transcript files (JSON and TXT) in directory and subdirectories
+    async function findTranscriptFiles(dir: string, baseDir: string): Promise<{ filename: string; filePath: string; relativePath: string; fileExt: string }[]> {
+      const results: { filename: string; filePath: string; relativePath: string; fileExt: string }[] = [];
 
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          // Recurse into subdirectories
-          const subResults = await findJsonFiles(fullPath, baseDir);
-          results.push(...subResults);
-        } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".json")) {
-          const relativePath = path.relative(baseDir, fullPath);
-          results.push({
-            filename: entry.name,
-            filePath: fullPath,
-            relativePath,
-          });
+      try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            // Recurse into subdirectories
+            const subResults = await findTranscriptFiles(fullPath, baseDir);
+            results.push(...subResults);
+          } else if (entry.isFile()) {
+            const lowerName = entry.name.toLowerCase();
+            if (lowerName.endsWith(".json") || lowerName.endsWith(".txt")) {
+              const relativePath = path.relative(baseDir, fullPath);
+              results.push({
+                filename: entry.name,
+                filePath: fullPath,
+                relativePath,
+                fileExt: lowerName.endsWith(".json") ? "json" : "txt",
+              });
+            }
+          }
         }
+      } catch (e) {
+        console.error(`Error reading directory ${dir}:`, e);
       }
       return results;
     }
 
-    const jsonFiles = await findJsonFiles(transcriptsDir, transcriptsDir);
+    const transcriptFiles = await findTranscriptFiles(transcriptsDir, transcriptsDir);
 
     // Get file stats for each file
     const fileDetails = await Promise.all(
-      jsonFiles.map(async ({ filename, filePath, relativePath }) => {
+      transcriptFiles.map(async ({ filename, filePath, relativePath, fileExt }) => {
         const stats = await fs.stat(filePath);
 
-        // Try to read basic info from the JSON file
+        // Try to read basic info from the file
         let callCount = 0;
         let dateInfo = null;
         let fileType = "Unknown";
@@ -93,31 +124,42 @@ export async function GET(request: NextRequest) {
 
         try {
           const content = await fs.readFile(filePath, "utf8");
-          const json = JSON.parse(content);
 
           // Calculate file hash
           fileHash = crypto.createHash("sha256").update(content).digest("hex");
 
-          // Count calls and detect type
-          if (Array.isArray(json)) {
-            callCount = json.length;
-            fileType = callCount > 1 ? "Batch" : "Single";
-          } else if (json.calls && Array.isArray(json.calls)) {
-            callCount = json.calls.length;
-            fileType = "Batch";
+          if (fileExt === "json") {
+            const json = JSON.parse(content);
+
+            // Count calls and detect type
+            if (Array.isArray(json)) {
+              callCount = json.length;
+              fileType = callCount > 1 ? "Batch" : "Single";
+            } else if (json.calls && Array.isArray(json.calls)) {
+              callCount = json.calls.length;
+              fileType = "Batch";
+            } else {
+              fileType = "Single";
+              callCount = 1;
+            }
           } else {
-            fileType = "Single";
+            // TXT file - single call
+            fileType = "Text";
             callCount = 1;
           }
 
           // Check if file has been processed
-          const processedFile = await prisma.processedFile.findUnique({
-            where: { fileHash },
-            select: { status: true }
-          });
+          try {
+            const processedFile = await prisma.processedFile.findUnique({
+              where: { fileHash },
+              select: { status: true }
+            });
 
-          if (processedFile) {
-            status = processedFile.status;
+            if (processedFile) {
+              status = processedFile.status;
+            }
+          } catch {
+            // ProcessedFile table may not exist yet
           }
 
           // Extract date from filename (e.g., "2025-12-24")
@@ -142,7 +184,8 @@ export async function GET(request: NextRequest) {
           date: dateInfo,
           type: fileType,
           status,
-          fileHash
+          fileHash,
+          fileExt
         };
       })
     );
@@ -183,6 +226,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json(paginatedData);
     response.headers.set('Content-Range', `transcripts ${start}-${Math.min(end, total - 1)}/${total}`);
     response.headers.set('Access-Control-Expose-Headers', 'Content-Range');
+    response.headers.set('X-Transcripts-Path', transcriptsDir);
 
     return response;
   } catch (error: any) {

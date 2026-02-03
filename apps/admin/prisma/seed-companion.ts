@@ -22,9 +22,12 @@ import {
   PlaybookStatus,
 } from "@prisma/client";
 
-const prisma = new PrismaClient();
+// Use passed prisma client if available (for integration with seed-mabel)
+let prisma: PrismaClient;
 
-async function main() {
+export async function seedCompanionDomain(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
+
   console.log("\n🧓 COMPANION - CONVERSATIONAL ASSISTANT FOR CURIOUS OLDER ADULTS\n");
   console.log("━".repeat(60));
 
@@ -842,7 +845,7 @@ Be especially warm and reassuring. Acknowledge concerns without dismissing them.
       name: "Companion Playbook v1",
       description: "Optimized for meaningful conversation with curious, intelligent older adults",
       domainId: domain.id,
-      status: PlaybookStatus.DRAFT,
+      status: PlaybookStatus.PUBLISHED,
       version: "1.0",
     },
   });
@@ -1139,11 +1142,21 @@ Be especially warm and reassuring. Acknowledge concerns without dismissing them.
   console.log("\n✅ Companion seed complete!\n");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Entry point for standalone execution
+async function main() {
+  const client = new PrismaClient();
+  try {
+    await seedCompanionDomain(client);
+  } finally {
+    await client.$disconnect();
+  }
+}
+
+// Only run if executed directly (not imported)
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    });
+}

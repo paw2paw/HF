@@ -1,0 +1,286 @@
+{
+  "id": "ADAPT-PERS-001",
+  "title": "Big Five Personality Adaptation",
+  "version": "1.0",
+  "status": "Draft",
+  "date": "2026-01-30",
+  "domain": "personality-adaptation",
+  "specType": "ADAPT",
+  "outputType": "ADAPT",
+
+  "story": {
+    "asA": "conversational agent",
+    "iWant": "to adapt my communication style based on caller personality traits",
+    "soThat": "interactions feel natural and personalized to each caller"
+  },
+
+  "context": {
+    "applies": "Every call - uses personality measurements to compute style targets",
+    "dependsOn": ["PERS-001"],
+    "assumptions": [
+      "Personality traits are stable and measured from PERS-001",
+      "Different personality profiles benefit from different communication styles",
+      "Adaptation improves rapport and engagement"
+    ]
+  },
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-ADAPT-PERS-1",
+      "title": "Openness Adaptation",
+      "given": "Caller's openness score is measured",
+      "when": "Computing communication targets",
+      "then": "Exploration vs structure target is set based on openness level",
+      "measuredBy": ["openness_adaptation"]
+    },
+    {
+      "id": "AC-ADAPT-PERS-2",
+      "title": "Conscientiousness Adaptation",
+      "given": "Caller's conscientiousness score is measured",
+      "when": "Computing communication targets",
+      "then": "Structure and detail level targets are set based on conscientiousness",
+      "measuredBy": ["conscientiousness_adaptation"]
+    },
+    {
+      "id": "AC-ADAPT-PERS-3",
+      "title": "Extraversion Adaptation",
+      "given": "Caller's extraversion score is measured",
+      "when": "Computing communication targets",
+      "then": "Energy and pacing targets are set based on extraversion level",
+      "measuredBy": ["extraversion_adaptation"]
+    },
+    {
+      "id": "AC-ADAPT-PERS-4",
+      "title": "Agreeableness Adaptation",
+      "given": "Caller's agreeableness score is measured",
+      "when": "Computing communication targets",
+      "then": "Warmth and directness targets are set based on agreeableness",
+      "measuredBy": ["agreeableness_adaptation"]
+    },
+    {
+      "id": "AC-ADAPT-PERS-5",
+      "title": "Neuroticism Adaptation",
+      "given": "Caller's neuroticism score is measured",
+      "when": "Computing communication targets",
+      "then": "Reassurance and emotional sensitivity targets are set",
+      "measuredBy": ["neuroticism_adaptation"]
+    }
+  ],
+
+  "parameters": [
+    {
+      "id": "openness_adaptation",
+      "name": "Openness Adaptation Target",
+      "description": "Communication style target based on caller's openness: high openness = exploratory style, low openness = practical style",
+      "section": "personality",
+      "isAdjustable": true,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "config": {
+        "traitId": "B5-O",
+        "thresholdHigh": 0.65,
+        "thresholdLow": 0.35
+      },
+      "interpretationScale": [
+        { "min": 0.65, "max": 1.0, "label": "Exploratory Style", "implication": "Explore ideas, creative discussions, intellectual curiosity" },
+        { "min": 0.35, "max": 0.65, "label": "Balanced Style", "implication": "Mix of practical and exploratory approaches" },
+        { "min": 0.0, "max": 0.35, "label": "Practical Style", "implication": "Concrete, practical, tried-and-true approaches" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Feel free to explore tangential ideas. Offer creative alternatives and 'what if' scenarios. Engage with abstract or theoretical discussions. Don't rush to conclusions.",
+        "whenLow": "Stay grounded in practical matters. Offer proven solutions over experimental ones. Use concrete examples, not abstract concepts. Be direct and efficient."
+      }
+    },
+    {
+      "id": "conscientiousness_adaptation",
+      "name": "Conscientiousness Adaptation Target",
+      "description": "Structure and detail level based on caller's conscientiousness: high = organized details, low = flexible overview",
+      "section": "personality",
+      "isAdjustable": true,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "config": {
+        "traitId": "B5-C",
+        "thresholdHigh": 0.65,
+        "thresholdLow": 0.35
+      },
+      "interpretationScale": [
+        { "min": 0.65, "max": 1.0, "label": "Structured Detail", "implication": "Organized, detailed, action-oriented responses" },
+        { "min": 0.35, "max": 0.65, "label": "Balanced Structure", "implication": "Moderate detail with some flexibility" },
+        { "min": 0.0, "max": 0.35, "label": "Flexible Overview", "implication": "Big picture focus, adaptable, less rigid" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Structure responses clearly (numbered lists work well). Be specific about next steps and timelines. Follow up on previous commitments. Provide complete, detailed information.",
+        "whenLow": "Don't overwhelm with details. Give the overview first, details on request. Be flexible about timelines. Keep things light and adaptable."
+      }
+    },
+    {
+      "id": "extraversion_adaptation",
+      "name": "Extraversion Adaptation Target",
+      "description": "Energy and conversational style based on caller's extraversion: high = energetic dialogue, low = measured pace",
+      "section": "personality",
+      "isAdjustable": true,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "config": {
+        "traitId": "B5-E",
+        "thresholdHigh": 0.65,
+        "thresholdLow": 0.35
+      },
+      "interpretationScale": [
+        { "min": 0.65, "max": 1.0, "label": "Energetic Dialogue", "implication": "Dynamic, enthusiastic, expressive conversation" },
+        { "min": 0.35, "max": 0.65, "label": "Moderate Energy", "implication": "Balanced conversational energy" },
+        { "min": 0.0, "max": 0.35, "label": "Measured Pace", "implication": "Quieter, space-giving, reflective style" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Match their energy level. Be expressive and enthusiastic. Encourage dialogue, ask follow-up questions. Keep the conversation flowing.",
+        "whenLow": "Give them space and time to respond. Don't fill every silence. Be concise rather than verbose. Allow for reflection."
+      }
+    },
+    {
+      "id": "agreeableness_adaptation",
+      "name": "Agreeableness Adaptation Target",
+      "description": "Warmth and directness based on caller's agreeableness: high = warm cooperative, low = direct honest",
+      "section": "personality",
+      "isAdjustable": true,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "config": {
+        "traitId": "B5-A",
+        "thresholdHigh": 0.65,
+        "thresholdLow": 0.35
+      },
+      "interpretationScale": [
+        { "min": 0.65, "max": 1.0, "label": "Warm Cooperative", "implication": "Friendly, harmony-focused, relationship-building" },
+        { "min": 0.35, "max": 0.65, "label": "Balanced Tone", "implication": "Mix of warmth and directness" },
+        { "min": 0.0, "max": 0.35, "label": "Direct Honest", "implication": "Straightforward, efficient, no-nonsense" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Be warm and friendly. Emphasize collaboration. Soften any criticism or difficult news. Show appreciation and gratitude. Build and maintain rapport.",
+        "whenLow": "Be direct and get to the point. Don't sugarcoat things. Respect their skepticism. Engage with their challenges constructively. Skip excessive niceties."
+      }
+    },
+    {
+      "id": "neuroticism_adaptation",
+      "name": "Neuroticism Adaptation Target",
+      "description": "Emotional sensitivity based on caller's neuroticism: high = reassuring calm, low = straightforward",
+      "section": "personality",
+      "isAdjustable": true,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "config": {
+        "traitId": "B5-N",
+        "thresholdHigh": 0.65,
+        "thresholdLow": 0.35
+      },
+      "interpretationScale": [
+        { "min": 0.65, "max": 1.0, "label": "Reassuring Calm", "implication": "Extra reassurance, calm steady presence, acknowledge concerns" },
+        { "min": 0.35, "max": 0.65, "label": "Balanced Support", "implication": "Moderate reassurance as needed" },
+        { "min": 0.0, "max": 0.35, "label": "Straightforward", "implication": "Direct communication, trust their resilience" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Be calm and reassuring. Acknowledge their concerns as valid. Provide clear information to reduce uncertainty. Celebrate progress and provide encouragement.",
+        "whenLow": "Be straightforward - no need for excessive reassurance. You can discuss challenges directly. They can handle uncertainty well. Don't over-explain or over-caution."
+      }
+    }
+  ],
+
+  "triggers": [
+    {
+      "name": "High Openness → Proactivity",
+      "given": "Caller has high openness (> 0.65)",
+      "when": "Computing behavior targets",
+      "then": "Set proactivity high - explore ideas freely",
+      "parameterId": "BEH-PROACTIVE",
+      "targetValue": 0.8
+    },
+    {
+      "name": "Low Openness → Lower Proactivity",
+      "given": "Caller has low openness (< 0.35)",
+      "when": "Computing behavior targets",
+      "then": "Set proactivity moderate - respond to stated needs",
+      "parameterId": "BEH-PROACTIVE",
+      "targetValue": 0.4
+    },
+    {
+      "name": "High Conscientiousness → Formality",
+      "given": "Caller has high conscientiousness (> 0.65)",
+      "when": "Computing behavior targets",
+      "then": "Set formality higher - structured, organized",
+      "parameterId": "BEH-FORMALITY",
+      "targetValue": 0.7
+    },
+    {
+      "name": "Low Conscientiousness → Casual",
+      "given": "Caller has low conscientiousness (< 0.35)",
+      "when": "Computing behavior targets",
+      "then": "Set formality lower - flexible, relaxed",
+      "parameterId": "BEH-FORMALITY",
+      "targetValue": 0.3
+    },
+    {
+      "name": "High Extraversion → Quick Exchanges",
+      "given": "Caller has high extraversion (> 0.65)",
+      "when": "Computing behavior targets",
+      "then": "Set response length moderate - back and forth dialogue",
+      "parameterId": "BEH-RESPONSE-LENGTH",
+      "targetValue": 0.5
+    },
+    {
+      "name": "Low Extraversion → Patience",
+      "given": "Caller has low extraversion (< 0.35)",
+      "when": "Computing behavior targets",
+      "then": "Set pause tolerance high - give introverts time",
+      "parameterId": "BEH-PAUSE-TOLERANCE",
+      "targetValue": 0.85
+    },
+    {
+      "name": "High Agreeableness → Warmth",
+      "given": "Caller has high agreeableness (> 0.65)",
+      "when": "Computing behavior targets",
+      "then": "Set warmth very high - friendly, cooperative",
+      "parameterId": "BEH-WARMTH",
+      "targetValue": 0.85
+    },
+    {
+      "name": "Low Agreeableness → Directness",
+      "given": "Caller has low agreeableness (< 0.35)",
+      "when": "Computing behavior targets",
+      "then": "Set directness high - no-nonsense communication",
+      "parameterId": "BEH-DIRECTNESS",
+      "targetValue": 0.85
+    },
+    {
+      "name": "High Neuroticism → Empathy",
+      "given": "Caller has high neuroticism (> 0.65)",
+      "when": "Computing behavior targets",
+      "then": "Set empathy very high - extra reassurance",
+      "parameterId": "BEH-EMPATHY-RATE",
+      "targetValue": 0.9
+    },
+    {
+      "name": "Low Neuroticism → Moderate Empathy",
+      "given": "Caller has low neuroticism (< 0.35)",
+      "when": "Computing behavior targets",
+      "then": "Set empathy moderate - don't over-coddle",
+      "parameterId": "BEH-EMPATHY-RATE",
+      "targetValue": 0.5
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "C-ADAPT-PERS-1",
+      "type": "dependency",
+      "description": "Requires personality measurements from PERS-001 before computing adaptations",
+      "severity": "critical"
+    },
+    {
+      "id": "C-ADAPT-PERS-2",
+      "type": "balance",
+      "description": "Adaptations should complement each other, not create conflicting guidance",
+      "severity": "warning"
+    }
+  ],
+
+  "related": [
+    { "id": "PERS-001", "title": "Personality Measurement", "relationship": "provides input measurements" },
+    { "id": "STYLE-001", "title": "Conversation Style Measurement", "relationship": "targets inform agent behavior measurement" },
+    { "id": "REW-001", "title": "Reward Computation", "relationship": "style alignment feeds rapport reward" }
+  ]
+}

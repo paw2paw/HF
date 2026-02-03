@@ -18,7 +18,9 @@ import { Prisma } from "@prisma/client";
  * - CallerPersonality
  * - CallerPersonalityProfile
  * - ComposedPrompt
- * - BehaviorTarget (CALLER-scoped, via CallerIdentity)
+ * - CallTarget (per-call computed targets)
+ * - CallerTarget (aggregated caller-level targets)
+ * - BehaviorTarget (CALLER-scoped, via CallerIdentity) [DEPRECATED]
  * - Clears CallerIdentity fields (nextPrompt, callerPrompt, snapshots, stats)
  *
  * Preserves:
@@ -79,6 +81,11 @@ export async function POST(
         where: { callId: { in: callIds } },
       });
 
+      // 3b. Delete CallTargets for all calls (new specType architecture)
+      const callTargetsDeleted = await tx.callTarget.deleteMany({
+        where: { callId: { in: callIds } },
+      });
+
       // 4. Delete PromptSlugSelection for caller (also linked to calls)
       const slugSelectionsDeleted = await tx.promptSlugSelection.deleteMany({
         where: { callerId },
@@ -113,6 +120,11 @@ export async function POST(
 
       // 10. Delete ComposedPrompt
       const promptsDeleted = await tx.composedPrompt.deleteMany({
+        where: { callerId },
+      });
+
+      // 10b. Delete CallerTargets (new specType architecture)
+      const callerTargetsDeleted = await tx.callerTarget.deleteMany({
         where: { callerId },
       });
 
@@ -157,6 +169,7 @@ export async function POST(
         scores: scoresDeleted.count,
         behaviorMeasurements: measurementsDeleted.count,
         rewardScores: rewardScoresDeleted.count,
+        callTargets: callTargetsDeleted.count,
         slugSelections: slugSelectionsDeleted.count,
         memories: memoriesDeleted.count,
         memorySummary: summaryDeleted.count,
@@ -164,6 +177,7 @@ export async function POST(
         personalityProfiles: profilesDeleted.count,
         personality: personalityDeleted.count,
         prompts: promptsDeleted.count,
+        callerTargets: callerTargetsDeleted.count,
         behaviorTargets: behaviorTargetsDeleted.count,
         identitiesCleared: identitiesUpdated.count,
         callSequencesReset: callSequenceReset.count,

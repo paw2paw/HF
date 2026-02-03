@@ -55,10 +55,87 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      xrefs.analysisSpecs = specs.map(s => ({
-        ...s,
-        field: "promptTemplate",
-      }));
+      const specMap = new Map<string, { id: string; name: string; slug: string; outputType: string; field: string }>();
+      for (const s of specs) {
+        specMap.set(s.id, { ...s, field: "promptTemplate" });
+      }
+
+      // Also search AnalysisAction descriptions for variable references
+      const actionsWithVariable = await prisma.analysisAction.findMany({
+        where: {
+          description: {
+            contains: searchPattern,
+          },
+        },
+        select: {
+          id: true,
+          description: true,
+          trigger: {
+            select: {
+              spec: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  outputType: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      for (const action of actionsWithVariable) {
+        if (action.trigger?.spec) {
+          const spec = action.trigger.spec;
+          if (specMap.has(spec.id)) {
+            const existing = specMap.get(spec.id)!;
+            if (!existing.field.includes("action")) {
+              existing.field += ", action description";
+            }
+          } else {
+            specMap.set(spec.id, { ...spec, field: "action description" });
+          }
+        }
+      }
+
+      // Also search AnalysisTrigger given/when/then fields
+      const triggersWithVariable = await prisma.analysisTrigger.findMany({
+        where: {
+          OR: [
+            { given: { contains: searchPattern } },
+            { when: { contains: searchPattern } },
+            { then: { contains: searchPattern } },
+          ],
+        },
+        select: {
+          id: true,
+          spec: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              outputType: true,
+            },
+          },
+        },
+      });
+
+      for (const trigger of triggersWithVariable) {
+        if (trigger.spec) {
+          const spec = trigger.spec;
+          if (specMap.has(spec.id)) {
+            const existing = specMap.get(spec.id)!;
+            if (!existing.field.includes("trigger")) {
+              existing.field += ", trigger";
+            }
+          } else {
+            specMap.set(spec.id, { ...spec, field: "trigger" });
+          }
+        }
+      }
+
+      xrefs.analysisSpecs = Array.from(specMap.values());
 
       // Search PromptTemplate systemPrompt and contextTemplate fields
       const templatesWithSystemPrompt = await prisma.promptTemplate.findMany({

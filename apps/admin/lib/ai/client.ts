@@ -178,6 +178,39 @@ function mockCompletion(messages: AIMessage[]): AICompletionResult {
     };
   }
 
+  // Generate mock prompt if this is a compose/generation request
+  if (content.toLowerCase().includes("compose") || content.toLowerCase().includes("generate") || content.toLowerCase().includes("agent guidance")) {
+    return {
+      content: `# Agent Guidance Prompt (MOCK)
+
+## Identity & Role
+You are a helpful, knowledgeable assistant focused on providing clear, accurate information and support.
+
+## Conversation Context
+This is a mock-generated prompt. In production, this would be customized based on:
+- Caller's personality profile and preferences
+- Conversation history and memories
+- Learning progress and goals
+- Behavioral targets for tone and style
+
+## Behavioral Guidelines
+- Be warm, approachable, and empathetic
+- Match the caller's pace and communication style
+- Ask thoughtful questions to encourage engagement
+- Provide clear explanations tailored to their level
+
+## Current Session Goals
+- Build rapport and understand caller's needs
+- Provide helpful, relevant information
+- Encourage continued learning and exploration
+
+---
+*This is a MOCK prompt. Configure ANTHROPIC_API_KEY or OPENAI_API_KEY for real AI-generated prompts.*`,
+      engine: "mock",
+      model: "mock_v1",
+    };
+  }
+
   // Default mock response
   return {
     content: JSON.stringify({ result: "mock_response", timestamp: new Date().toISOString() }),
@@ -209,4 +242,149 @@ export function getDefaultEngine(): AIEngine {
   if (isEngineAvailable("claude")) return "claude";
   if (isEngineAvailable("openai")) return "openai";
   return "mock";
+}
+
+// ============================================================
+// STREAMING SUPPORT
+// ============================================================
+
+export interface AIStreamOptions {
+  engine: AIEngine;
+  messages: AIMessage[];
+  maxTokens?: number;
+  temperature?: number;
+}
+
+/**
+ * Get AI completion as a streaming response
+ * Returns a ReadableStream that can be directly returned from API routes
+ */
+export async function getAICompletionStream(
+  options: AIStreamOptions
+): Promise<ReadableStream<Uint8Array>> {
+  const { engine, messages, maxTokens = 1024, temperature = 0.7 } = options;
+
+  switch (engine) {
+    case "claude":
+      return streamClaude(messages, maxTokens, temperature);
+    case "openai":
+      return streamOpenAI(messages, maxTokens, temperature);
+    case "mock":
+    default:
+      return mockStream(messages);
+  }
+}
+
+async function streamClaude(
+  messages: AIMessage[],
+  maxTokens: number,
+  temperature: number
+): Promise<ReadableStream<Uint8Array>> {
+  const client = getAnthropicClient();
+
+  // Separate system message from user/assistant messages
+  const systemMessage = messages.find((m) => m.role === "system");
+  const chatMessages = messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+  const stream = client.messages.stream({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: maxTokens,
+    temperature,
+    system: systemMessage?.content,
+    messages: chatMessages,
+  });
+
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+}
+
+async function streamOpenAI(
+  messages: AIMessage[],
+  maxTokens: number,
+  temperature: number
+): Promise<ReadableStream<Uint8Array>> {
+  const client = getOpenAIClient();
+
+  const stream = await client.chat.completions.create({
+    model: "gpt-4o",
+    max_tokens: maxTokens,
+    temperature,
+    stream: true,
+    messages: messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    })),
+  });
+
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            controller.enqueue(encoder.encode(content));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+}
+
+function mockStream(messages: AIMessage[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const lastMessage = messages[messages.length - 1];
+
+  // Generate a mock response based on the message
+  let response = "This is a mock response. ";
+  if (lastMessage?.content.toLowerCase().includes("help")) {
+    response = "Available commands:\n• /help - Show this help\n• /context - Show current context\n• /clear - Clear chat history\n• /memories - Show caller memories\n• /buildprompt - Build composed prompt";
+  } else if (lastMessage?.content.toLowerCase().includes("hello") || lastMessage?.content.toLowerCase().includes("hi")) {
+    response = "Hello! I'm your AI assistant. How can I help you today?";
+  } else {
+    response = `I received your message: "${lastMessage?.content?.slice(0, 50)}..."\n\nThis is a mock response since no AI engine is configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable real responses.`;
+  }
+
+  const words = response.split(" ");
+  let index = 0;
+
+  return new ReadableStream({
+    async pull(controller) {
+      if (index < words.length) {
+        const word = words[index] + (index < words.length - 1 ? " " : "");
+        controller.enqueue(encoder.encode(word));
+        index++;
+        // Simulate streaming delay
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      } else {
+        controller.close();
+      }
+    },
+  });
 }

@@ -24,12 +24,13 @@ function getKbRoot(): string {
 
 /**
  * GET /api/transcripts/raw-files
- * Lists raw transcript files from the sources/transcripts directory
+ * Lists raw transcript files from the sources/transcripts/raw directory
+ * Supports both .json (VAPI exports) and .txt (session transcripts) formats
  */
 export async function GET() {
   try {
     const kbRoot = getKbRoot();
-    const transcriptsDir = path.join(kbRoot, "sources", "transcripts");
+    const transcriptsDir = path.join(kbRoot, "sources", "transcripts", "raw");
 
     // Check if directory exists
     try {
@@ -40,17 +41,19 @@ export async function GET() {
         ok: true,
         files: [],
         directory: transcriptsDir,
+        kbRoot,
         message: "Transcripts directory does not exist",
       });
     }
 
-    // Recursively find all JSON files
+    // Recursively find all JSON and TXT files
     type RawFile = {
       name: string;
       path: string;
       relativePath: string;
       size: number;
       modifiedAt: string;
+      format: "json" | "txt";
     };
     const files: RawFile[] = [];
 
@@ -60,16 +63,20 @@ export async function GET() {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory() && !entry.name.startsWith(".")) {
           await scanDir(fullPath);
-        } else if (entry.isFile() && entry.name.endsWith(".json")) {
-          const stats = await fs.stat(fullPath);
-          const relPath = path.relative(transcriptsDir, fullPath);
-          files.push({
-            name: entry.name,
-            path: fullPath,
-            relativePath: relPath,
-            size: stats.size,
-            modifiedAt: stats.mtime.toISOString(),
-          });
+        } else if (entry.isFile()) {
+          const lowerName = entry.name.toLowerCase();
+          if (lowerName.endsWith(".json") || lowerName.endsWith(".txt")) {
+            const stats = await fs.stat(fullPath);
+            const relPath = path.relative(transcriptsDir, fullPath);
+            files.push({
+              name: entry.name,
+              path: fullPath,
+              relativePath: relPath,
+              size: stats.size,
+              modifiedAt: stats.mtime.toISOString(),
+              format: lowerName.endsWith(".json") ? "json" : "txt",
+            });
+          }
         }
       }
     }
@@ -83,6 +90,7 @@ export async function GET() {
       ok: true,
       files,
       directory: transcriptsDir,
+      kbRoot,
       count: files.length,
     });
   } catch (error: unknown) {

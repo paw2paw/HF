@@ -865,13 +865,17 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const { callerId, engine: requestedEngine } = body;
 
-    // Validate and default engine
-    let engine: AIEngine = "mock";
+    // Validate and default engine - default to claude for real AI inference
+    let engine: AIEngine = "claude";
     if (requestedEngine && ["mock", "claude", "openai"].includes(requestedEngine)) {
-      if (isEngineAvailable(requestedEngine)) {
-        engine = requestedEngine;
-      } else {
-        log.warn(`Requested engine ${requestedEngine} not available, falling back to mock`);
+      engine = requestedEngine as AIEngine;
+    }
+
+    // Verify the engine is available (has API key configured)
+    if (!isEngineAvailable(engine)) {
+      if (engine !== "mock") {
+        log.warn(`Engine "${engine}" not available (missing API key), falling back to mock`);
+        engine = "mock";
       }
     }
 

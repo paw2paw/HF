@@ -1,0 +1,208 @@
+{
+  "id": "GOAL-001",
+  "title": "Learner Goal Extraction & Tracking",
+  "version": "1.0",
+  "status": "Draft",
+  "date": "2026-01-30",
+  "domain": "goals",
+  "specType": "SYSTEM",
+  "outputType": "LEARN",
+
+  "story": {
+    "asA": "personalization system",
+    "iWant": "to extract and track learner goals from conversations",
+    "soThat": "agents can align interactions with what callers want to achieve"
+  },
+
+  "context": {
+    "applies": "Every call where caller expresses intentions, desires, or objectives",
+    "dependsOn": ["MEM-001"],
+    "assumptions": [
+      "Goals may be explicit ('I want to learn about X') or implicit ('I've been struggling with Y')",
+      "Goals have varying time horizons (session, weekly, long-term)",
+      "Goals can evolve and should be updated, not just accumulated"
+    ]
+  },
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-GOAL-1",
+      "title": "Explicit Goal Extraction",
+      "given": "Caller explicitly states a goal or intention",
+      "when": "Goal extraction runs",
+      "then": "The goal is captured with verbatim statement, category, and time horizon",
+      "measuredBy": ["explicit_goal_extraction"]
+    },
+    {
+      "id": "AC-GOAL-2",
+      "title": "Implicit Goal Detection",
+      "given": "Caller expresses frustration, curiosity, or desire without explicit goal language",
+      "when": "Goal extraction runs",
+      "then": "An inferred goal is created with lower confidence and source evidence",
+      "measuredBy": ["implicit_goal_detection"]
+    },
+    {
+      "id": "AC-GOAL-3",
+      "title": "Goal Progress Update",
+      "given": "An existing goal has been addressed in conversation",
+      "when": "Goal tracking runs",
+      "then": "The goal's progress status is updated with evidence",
+      "measuredBy": ["goal_progress_tracking"]
+    },
+    {
+      "id": "AC-GOAL-4",
+      "title": "Goal Completion Detection",
+      "given": "Caller indicates a goal has been achieved or is no longer relevant",
+      "when": "Goal tracking runs",
+      "then": "The goal is marked complete with completion evidence",
+      "measuredBy": ["goal_completion_detection"]
+    },
+    {
+      "id": "AC-GOAL-5",
+      "title": "Goal Prioritization",
+      "given": "Multiple goals exist for a caller",
+      "when": "Goals are retrieved for session planning",
+      "then": "Goals are ranked by recency, importance, and caller emphasis",
+      "measuredBy": ["goal_prioritization"]
+    }
+  ],
+
+  "parameters": [
+    {
+      "id": "explicit_goal_extraction",
+      "name": "Explicit Goal Extraction",
+      "description": "Extraction of clearly stated goals, intentions, and objectives from caller speech",
+      "section": "goal_detection",
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Clear Goal", "implication": "Unambiguous goal statement extracted" },
+        { "min": 0.5, "max": 0.8, "label": "Probable Goal", "implication": "Likely goal with some ambiguity" },
+        { "min": 0.0, "max": 0.5, "label": "Unclear", "implication": "Statement may or may not be a goal" }
+      ],
+      "scoringAnchors": [
+        { "score": 1.0, "example": "I want to understand how compound interest works by the end of this month", "rationale": "Explicit goal with topic and timeline", "isGold": true },
+        { "score": 0.9, "example": "My goal is to feel more confident speaking in meetings", "rationale": "Explicit goal with outcome", "isGold": true },
+        { "score": 0.8, "example": "I need to get better at managing my time", "rationale": "Clear need expressed as goal", "isGold": true },
+        { "score": 0.6, "example": "I've been thinking I should probably learn more about investing", "rationale": "Tentative goal expression", "isGold": true },
+        { "score": 0.4, "example": "That investing stuff sounds interesting", "rationale": "Interest but not clearly a goal", "isGold": true },
+        { "score": 0.1, "example": "I don't really know what I want to learn", "rationale": "Absence of goal", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Clear goal detected - acknowledge it explicitly and reference it in future conversations.",
+        "whenLow": "No clear goal detected - consider asking about what the caller hopes to achieve or learn."
+      }
+    },
+    {
+      "id": "implicit_goal_detection",
+      "name": "Implicit Goal Detection",
+      "description": "Detection of unstated goals from frustrations, curiosities, or repeated topics",
+      "section": "goal_detection",
+      "interpretationScale": [
+        { "min": 0.7, "max": 1.0, "label": "Strong Inference", "implication": "High confidence implicit goal" },
+        { "min": 0.4, "max": 0.7, "label": "Moderate Inference", "implication": "Possible implicit goal" },
+        { "min": 0.0, "max": 0.4, "label": "Weak Inference", "implication": "Speculative goal detection" }
+      ],
+      "scoringAnchors": [
+        { "score": 0.9, "example": "I keep struggling with this every time it comes up at work [repeated 3x across calls]", "rationale": "Repeated frustration implies goal to resolve", "isGold": true },
+        { "score": 0.8, "example": "I wish I understood why my presentations don't land well", "rationale": "Wish statement implies improvement goal", "isGold": true },
+        { "score": 0.6, "example": "That's really frustrating, I never seem to get this right", "rationale": "Frustration suggests implicit goal", "isGold": true },
+        { "score": 0.4, "example": "Hmm, that's interesting, I hadn't thought about it that way", "rationale": "Interest might indicate curiosity goal", "isGold": true },
+        { "score": 0.2, "example": "Yeah, I guess that makes sense", "rationale": "Passive agreement, no implicit goal", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Strong implicit goal detected - consider surfacing it: 'It sounds like improving X might be important to you?'",
+        "whenLow": "No implicit goals detected - continue conversation without assuming unstated objectives."
+      }
+    },
+    {
+      "id": "goal_progress_tracking",
+      "name": "Goal Progress Tracking",
+      "description": "Tracking of progress toward previously identified goals",
+      "section": "goal_tracking",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Near Complete", "implication": "Goal almost achieved" },
+        { "min": 0.5, "max": 0.8, "label": "Good Progress", "implication": "Significant advancement" },
+        { "min": 0.2, "max": 0.5, "label": "Some Progress", "implication": "Partial advancement" },
+        { "min": 0.0, "max": 0.2, "label": "Early Stage", "implication": "Goal recently identified or minimal progress" }
+      ],
+      "scoringAnchors": [
+        { "score": 1.0, "example": "I finally did it! I gave a presentation and it went great", "rationale": "Goal achieved", "isGold": true },
+        { "score": 0.7, "example": "I've been practicing what we discussed and I'm feeling more confident", "rationale": "Significant progress with evidence", "isGold": true },
+        { "score": 0.5, "example": "I tried that technique once, it kind of helped", "rationale": "Initial application with partial success", "isGold": true },
+        { "score": 0.3, "example": "I've been thinking about what you said but haven't tried it yet", "rationale": "Awareness without action", "isGold": true },
+        { "score": 0.0, "example": "[No mention of previously identified goal]", "rationale": "No progress indicators", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Good progress on goals - celebrate wins and encourage continued effort.",
+        "whenLow": "Limited goal progress - gently revisit the goal and explore obstacles."
+      }
+    },
+    {
+      "id": "goal_completion_detection",
+      "name": "Goal Completion Detection",
+      "description": "Detection of goal achievement or goal abandonment",
+      "section": "goal_tracking",
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Completed", "implication": "Goal achieved" },
+        { "min": 0.5, "max": 0.8, "label": "Likely Complete", "implication": "Strong completion signals" },
+        { "min": 0.2, "max": 0.5, "label": "Possibly Complete", "implication": "Some completion indicators" },
+        { "min": 0.0, "max": 0.2, "label": "Ongoing", "implication": "Goal still active" }
+      ],
+      "scoringAnchors": [
+        { "score": 1.0, "example": "I achieved my goal of running a 5K last weekend!", "rationale": "Explicit completion statement", "isGold": true },
+        { "score": 0.9, "example": "I don't need to work on that anymore, I've got it figured out", "rationale": "Clear indication goal resolved", "isGold": true },
+        { "score": 0.7, "example": "I'm happy with where I am on that now", "rationale": "Satisfaction suggesting completion", "isGold": true },
+        { "score": 0.4, "example": "I'm not really focused on that anymore", "rationale": "May be abandonment rather than completion", "isGold": true },
+        { "score": 0.1, "example": "I'm still working on that", "rationale": "Explicit ongoing status", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Goal appears complete - acknowledge the achievement and ask about next goals.",
+        "whenLow": "Goal still active - continue tracking and supporting progress."
+      }
+    },
+    {
+      "id": "goal_prioritization",
+      "name": "Goal Prioritization Score",
+      "description": "Computed priority of goals based on recency, caller emphasis, and urgency signals",
+      "section": "goal_management",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "formula": "0.4 * recency_factor + 0.3 * emphasis_factor + 0.2 * urgency_factor + 0.1 * progress_factor",
+      "interpretationScale": [
+        { "min": 0.7, "max": 1.0, "label": "High Priority", "implication": "Focus on this goal" },
+        { "min": 0.4, "max": 0.7, "label": "Medium Priority", "implication": "Address when relevant" },
+        { "min": 0.0, "max": 0.4, "label": "Low Priority", "implication": "Background goal" }
+      ],
+      "scoringAnchors": [
+        { "score": 1.0, "example": "Goal mentioned in last 2 calls with urgency ('I need this by Friday')", "rationale": "Recent, emphasized, urgent", "isGold": true },
+        { "score": 0.7, "example": "Goal mentioned last call, caller expressed importance", "rationale": "Recent and emphasized", "isGold": true },
+        { "score": 0.4, "example": "Goal mentioned 3 calls ago, no recent reference", "rationale": "Older goal, may still be relevant", "isGold": true },
+        { "score": 0.2, "example": "Goal set months ago, never referenced since", "rationale": "Possibly stale goal", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "High priority goal - make this a focus of the current conversation.",
+        "whenLow": "Low priority goal - don't force focus unless caller brings it up."
+      }
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "C-GOAL-1",
+      "type": "privacy",
+      "description": "Goals should be stored with evidence but without excessive personal detail",
+      "severity": "warning"
+    },
+    {
+      "id": "C-GOAL-2",
+      "type": "freshness",
+      "description": "Goals older than 30 days without progress should be deprioritized",
+      "severity": "info"
+    }
+  ],
+
+  "related": [
+    { "id": "MEM-001", "title": "Memory Extraction", "relationship": "goals are a specialized type of memory" },
+    { "id": "REW-001", "title": "Reward Computation", "relationship": "goal progress feeds reward signal" },
+    { "id": "SESSION-001", "title": "Session Arc Planning", "relationship": "goals inform session planning" }
+  ]
+}

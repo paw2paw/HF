@@ -1,0 +1,712 @@
+#!/usr/bin/env node
+/**
+ * HumanFirst Control CLI
+ *
+ * A command-line interface for managing the HumanFirst Admin application
+ *
+ * Usage:
+ *   npx tsx cli/control.ts <command> [options]
+ *   npm run ctl <command> [options]
+ *   cd cli && npx run control.ts (also works)
+ */
+
+import { Command } from 'commander';
+import { execSync, spawn, ChildProcess } from 'child_process';
+import * as readline from 'readline';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const program = new Command();
+
+// Get the correct working directory (apps/admin, not cli/)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ADMIN_ROOT = path.resolve(__dirname, '..');
+
+// Colors for terminal output
+const colors = {
+  reset: '\x1b[0m',
+  bright: '\x1b[1m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+  red: '\x1b[31m',
+  cyan: '\x1b[36m',
+};
+
+function log(message: string, color = colors.reset) {
+  console.log(`${color}${message}${colors.reset}`);
+}
+
+function success(message: string) {
+  log(`✅ ${message}`, colors.green);
+}
+
+function error(message: string) {
+  log(`❌ ${message}`, colors.red);
+}
+
+function info(message: string) {
+  log(`ℹ️  ${message}`, colors.blue);
+}
+
+function warn(message: string) {
+  log(`⚠️  ${message}`, colors.yellow);
+}
+
+function exec(command: string, description?: string) {
+  if (description) {
+    info(description);
+  }
+
+  try {
+    const output = execSync(command, {
+      stdio: 'inherit',
+      cwd: ADMIN_ROOT, // Always run from apps/admin directory
+    });
+    return { success: true, output };
+  } catch (e: any) {
+    error(`Command failed: ${command}`);
+    return { success: false, error: e };
+  }
+}
+
+// ============================================================================
+// MIGRATION COMMANDS
+// ============================================================================
+
+program
+  .command('migrate')
+  .description('Run database migrations')
+  .option('-t, --test', 'Run tests after migration')
+  .option('-s, --seed', 'Seed database after migration')
+  .option('--reset', 'Reset database before migration (destructive!)')
+  .action(async (options) => {
+    log('\n🔄 Database Migration\n', colors.bright);
+
+    // Reset if requested
+    if (options.reset) {
+      warn('This will DELETE all data! Are you sure?');
+      const confirmed = await confirm('Continue?');
+      if (!confirmed) {
+        info('Migration cancelled');
+        return;
+      }
+
+      exec('npx prisma migrate reset --force', 'Resetting database...');
+    }
+
+    // Run migrations
+    const result = exec('npx prisma migrate deploy', 'Running migrations...');
+
+    if (!result.success) {
+      error('Migration failed!');
+      process.exit(1);
+    }
+
+    success('Migrations completed successfully');
+
+    // Seed if requested
+    if (options.seed) {
+      exec('npx tsx prisma/seed-mabel.ts', 'Seeding database...');
+    }
+
+    // Run tests if requested
+    if (options.test) {
+      log('\n🧪 Running Tests\n', colors.bright);
+
+      info('1/3: Unit tests...');
+      exec('npm run test');
+
+      info('2/3: Integration tests...');
+      await runTestsWithServer(
+        'npm run test:integration',
+        'Running integration tests...'
+      );
+
+      info('3/3: E2E tests...');
+      await runTestsWithServer('npm run test:e2e', 'Running E2E tests...');
+    }
+
+    success('Migration complete!');
+  });
+
+program
+  .command('migrate:create')
+  .description('Create a new migration')
+  .argument('<name>', 'Migration name')
+  .action((name) => {
+    exec(`npx prisma migrate dev --name ${name}`, 'Creating migration...');
+  });
+
+program
+  .command('migrate:status')
+  .description('Check migration status')
+  .action(() => {
+    exec('npx prisma migrate status', 'Checking migration status...');
+  });
+
+// ============================================================================
+// TEST COMMANDS
+// ============================================================================
+
+program
+  .command('test')
+  .description('Run tests')
+  .option('-u, --unit', 'Run unit tests only')
+  .option('-i, --integration', 'Run integration tests only')
+  .option('-e, --e2e', 'Run E2E tests only')
+  .option('-c, --coverage', 'Generate coverage report')
+  .option('-w, --watch', 'Run in watch mode')
+  .action(async (options) => {
+    log('\n🧪 Running Tests\n', colors.bright);
+
+    if (options.watch) {
+      exec('npm run test:watch', 'Starting test watcher...');
+      return;
+    }
+
+    let result = true;
+
+    if (options.unit) {
+      const cmd = options.coverage ? 'npm run test:coverage' : 'npm run test';
+      const testResult = exec(cmd, 'Running unit tests...');
+      result = testResult.success;
+    } else if (options.integration) {
+      result = await runTestsWithServer(
+        'npm run test:integration',
+        'Running integration tests...'
+      );
+    } else if (options.e2e) {
+      result = await runTestsWithServer('npm run test:e2e', 'Running E2E tests...');
+    } else {
+      // Run all tests (unit, integration, E2E)
+      log('Running full test suite...\n', colors.bright);
+
+      // 1. Unit tests (no server needed)
+      info('1/3: Unit tests...');
+      const unitResult = exec('npm run test');
+      if (!unitResult.success) {
+        error('Unit tests failed!');
+        process.exit(1);
+      }
+
+      // 2. Integration tests (with server)
+      info('2/3: Integration tests...');
+      const integrationResult = await runTestsWithServer(
+        'npm run test:integration',
+        'Running integration tests with dev server...'
+      );
+      if (!integrationResult) {
+        error('Integration tests failed!');
+        process.exit(1);
+      }
+
+      // 3. E2E tests (with server)
+      info('3/3: E2E tests...');
+      const e2eResult = await runTestsWithServer(
+        'npm run test:e2e',
+        'Running E2E tests with dev server...'
+      );
+      if (!e2eResult) {
+        error('E2E tests failed!');
+        process.exit(1);
+      }
+
+      result = true;
+    }
+
+    if (result) {
+      success('Tests complete!');
+    } else {
+      error('Tests failed!');
+      process.exit(1);
+    }
+  });
+
+program
+  .command('test:ui')
+  .description('Run E2E tests in UI mode')
+  .action(() => {
+    exec('npm run test:e2e:ui', 'Opening Playwright UI...');
+  });
+
+// ============================================================================
+// DATABASE COMMANDS
+// ============================================================================
+
+program
+  .command('db:reset')
+  .description('Reset database (destructive!)')
+  .option('-s, --seed', 'Seed after reset')
+  .action(async (options) => {
+    warn('⚠️  This will DELETE all data!');
+    const confirmed = await confirm('Are you sure?');
+
+    if (!confirmed) {
+      info('Reset cancelled');
+      return;
+    }
+
+    exec('npx tsx prisma/reset.ts', 'Resetting database...');
+
+    if (options.seed) {
+      exec('npx tsx prisma/seed-mabel.ts', 'Seeding database...');
+    }
+
+    success('Database reset complete!');
+  });
+
+program
+  .command('db:seed')
+  .description('Seed database with test data')
+  .option('--all', 'Seed ALL data (Mabel + WNF + Voice) - DEFAULT')
+  .option('--mabel', 'Seed with Mabel data (full reset)')
+  .option('--wnf', 'Seed WNF domain only (adds to existing)')
+  .option('--safe', 'Seed SAFE data')
+  .option('--master', 'Run master seed (parameters only)')
+  .option('--transcripts', 'Import WNF transcripts only')
+  .action((options) => {
+    if (options.mabel) {
+      exec('npx tsx prisma/seed-mabel.ts', 'Seeding with Mabel data (full reset)...');
+    } else if (options.wnf) {
+      exec('npx tsx prisma/seed-wnf.ts', 'Seeding WNF domain...');
+    } else if (options.safe) {
+      exec('npx tsx prisma/seed-safe.ts', 'Seeding SAFE data...');
+    } else if (options.master) {
+      exec('npx tsx prisma/seed-master.ts', 'Running master seed (parameters)...');
+    } else if (options.transcripts) {
+      exec('npx tsx prisma/seed-wnf-transcripts.ts', 'Importing WNF transcripts...');
+    } else {
+      // Default: Seed ALL (Mabel + WNF)
+      log('\n🌱 Seeding ALL data (Mabel + WNF domains)\n', colors.bright);
+      exec('npx tsx prisma/seed-mabel.ts', 'Step 1/2: Seeding Mabel (full reset + base data)...');
+      exec('npx tsx prisma/seed-wnf.ts', 'Step 2/2: Adding WNF domain + playbook...');
+    }
+
+    success('Database seeded!');
+  });
+
+program
+  .command('db:studio')
+  .description('Open Prisma Studio')
+  .action(() => {
+    exec('npx prisma studio', 'Opening Prisma Studio...');
+  });
+
+// ============================================================================
+// DEV COMMANDS
+// ============================================================================
+
+program
+  .command('dev')
+  .description('Start development server')
+  .option('-d, --docker', 'Start with Docker')
+  .action((options) => {
+    if (options.docker) {
+      exec('./scripts/dev-start.sh docker', 'Starting with Docker...');
+    } else {
+      exec('npm run dev', 'Starting development server...');
+    }
+  });
+
+program
+  .command('dev:stop')
+  .description('Stop development server')
+  .action(() => {
+    exec('./scripts/dev-start.sh stop', 'Stopping development server...');
+  });
+
+program
+  .command('dev:status')
+  .description('Check development server status')
+  .action(() => {
+    exec('./scripts/dev-start.sh status', 'Checking status...');
+  });
+
+// ============================================================================
+// BUILD & DEPLOY COMMANDS
+// ============================================================================
+
+program
+  .command('build')
+  .description('Build application for production')
+  .action(() => {
+    log('\n🏗️  Building Application\n', colors.bright);
+
+    const result = exec('npm run build', 'Building...');
+
+    if (result.success) {
+      success('Build complete!');
+    } else {
+      error('Build failed!');
+      process.exit(1);
+    }
+  });
+
+program
+  .command('build:test')
+  .description('Build and run tests')
+  .action(async () => {
+    log('\n🏗️  Build & Test Pipeline\n', colors.bright);
+
+    // 1. Run tests
+    info('Step 1/2: Running tests...');
+
+    // Unit tests
+    let result = exec('npm run test');
+    if (!result.success) {
+      error('Unit tests failed!');
+      process.exit(1);
+    }
+
+    // Integration tests
+    const integrationResult = await runTestsWithServer(
+      'npm run test:integration',
+      'Running integration tests...'
+    );
+    if (!integrationResult) {
+      error('Integration tests failed!');
+      process.exit(1);
+    }
+
+    // E2E tests
+    const e2eResult = await runTestsWithServer(
+      'npm run test:e2e',
+      'Running E2E tests...'
+    );
+    if (!e2eResult) {
+      error('E2E tests failed!');
+      process.exit(1);
+    }
+
+    // 2. Build
+    info('Step 2/2: Building application...');
+    result = exec('npm run build');
+    if (!result.success) {
+      error('Build failed!');
+      process.exit(1);
+    }
+
+    success('✅ Build & Test pipeline complete!');
+  });
+
+// ============================================================================
+// UTILITY COMMANDS
+// ============================================================================
+
+program
+  .command('lint')
+  .description('Run linter')
+  .option('-f, --fix', 'Auto-fix issues')
+  .action((options) => {
+    const cmd = options.fix ? 'npm run lint -- --fix' : 'npm run lint';
+    exec(cmd, 'Running linter...');
+  });
+
+program
+  .command('check')
+  .description('Run all checks (lint + type check + tests)')
+  .action(async () => {
+    log('\n🔍 Running All Checks\n', colors.bright);
+
+    info('1/4: Linting...');
+    exec('npm run lint');
+
+    info('2/4: Type checking...');
+    exec('npx tsc --noEmit');
+
+    info('3/4: Unit tests...');
+    exec('npm run test');
+
+    info('4/4: Integration tests...');
+    await runTestsWithServer(
+      'npm run test:integration',
+      'Running integration tests...'
+    );
+
+    success('All checks passed!');
+  });
+
+program
+  .command('clean')
+  .description('Clean build artifacts and node_modules')
+  .action(async () => {
+    warn('This will delete .next, node_modules, and coverage');
+    const confirmed = await confirm('Continue?');
+
+    if (!confirmed) {
+      info('Clean cancelled');
+      return;
+    }
+
+    exec('rm -rf .next node_modules coverage playwright-report test-results', 'Cleaning...');
+    success('Clean complete! Run `npm install` to reinstall dependencies.');
+  });
+
+// ============================================================================
+// INTERACTIVE MENU
+// ============================================================================
+
+program
+  .command('menu')
+  .description('Interactive menu (default)')
+  .action(async () => {
+    await showInteractiveMenu();
+  });
+
+async function showInteractiveMenu() {
+  while (true) {
+    console.clear();
+    log('╔═══════════════════════════════════════════════════════════════╗', colors.cyan);
+    log('║           HumanFirst Admin - Control Panel                   ║', colors.cyan);
+    log('╚═══════════════════════════════════════════════════════════════╝', colors.cyan);
+    log('');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('  🌱 SEED WORKFLOW (recommended order)', colors.bright);
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('');
+    log('  1. Clear data          - Wipe database clean');
+    log('  2. Upload BDD specs    - Load specs from bdd-specs/ (compiles promptTemplate)');
+    log('  3. Upload transcripts  - Import VAPI call transcripts');
+    log('  4. SEED ALL            - Full reset: clear + specs + transcripts', colors.green);
+    log('');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('  🚀 DEVELOPMENT', colors.bright);
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('');
+    log('  5. Start server        - npm run dev');
+    log('  6. Prisma Studio       - Database browser');
+    log('  7. Build               - Production build');
+    log('');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('  🧪 TESTING', colors.bright);
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('');
+    log('  8. Run all tests');
+    log('  9. Run unit tests only');
+    log('');
+    log('  0. Exit');
+    log('');
+
+    const choice = await prompt('Select an option: ');
+
+    switch (choice) {
+      // ========================================
+      // SEED WORKFLOW
+      // ========================================
+      case '1':
+        // Clear data
+        log('\n🗑️  Clearing all data...\n', colors.bright);
+        exec('npx tsx prisma/reset.ts', 'Wiping database...');
+        success('Database cleared!');
+        await pressEnterToContinue();
+        break;
+
+      case '2':
+        // Upload BDD specs (compile promptTemplate)
+        log('\n📋 Loading BDD specs from bdd-specs/\n', colors.bright);
+        log('   This will:', colors.yellow);
+        log('   • Parse all .spec.json files');
+        log('   • Create Parameters, ScoringAnchors, PromptSlugs');
+        log('   • Compile promptTemplate for each spec');
+        log('');
+        exec('npx tsx prisma/seed-from-specs.ts', 'Loading and compiling specs...');
+        success('BDD specs loaded and compiled!');
+        await pressEnterToContinue();
+        break;
+
+      case '3':
+        // Upload transcripts
+        log('\n📞 Importing VAPI transcripts\n', colors.bright);
+        exec('npx tsx prisma/seed-wnf-transcripts.ts', 'Importing transcripts...');
+        success('Transcripts imported!');
+        await pressEnterToContinue();
+        break;
+
+      case '4':
+        // SEED ALL - Full workflow
+        log('\n🌱 FULL SEED: Clear → Specs → Transcripts → Domains\n', colors.bright);
+        log('━'.repeat(50));
+        log('Step 1/2: Running seed-mabel.ts (clears, loads specs, imports transcripts)');
+        exec('npx tsx prisma/seed-mabel.ts');
+        log('');
+        log('Step 2/2: Adding WNF domain + playbook');
+        exec('npx tsx prisma/seed-wnf.ts');
+        log('━'.repeat(50));
+        success('Full seed complete!');
+        await pressEnterToContinue();
+        break;
+
+      // ========================================
+      // DEVELOPMENT
+      // ========================================
+      case '5':
+        log('\n🚀 Starting development server...\n', colors.bright);
+        exec('npm run dev');
+        break;
+
+      case '6':
+        exec('npx prisma studio', 'Opening Prisma Studio...');
+        break;
+
+      case '7':
+        exec('npm run build', 'Building for production...');
+        await pressEnterToContinue();
+        break;
+
+      // ========================================
+      // TESTING
+      // ========================================
+      case '8':
+        log('\n🧪 Running All Tests\n', colors.bright);
+        exec('npm run test', 'Running unit tests...');
+        await runTestsWithServer(
+          'npm run test:integration',
+          'Running integration tests...'
+        );
+        await runTestsWithServer('npm run test:e2e', 'Running E2E tests...');
+        await pressEnterToContinue();
+        break;
+
+      case '9':
+        exec('npm run test', 'Running unit tests...');
+        await pressEnterToContinue();
+        break;
+
+      case '0':
+        log('\nGoodbye! 👋\n', colors.green);
+        process.exit(0);
+
+      default:
+        error('Invalid option');
+        await pressEnterToContinue();
+    }
+  }
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+function prompt(question: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+async function confirm(question: string): Promise<boolean> {
+  const answer = await prompt(`${question} (y/N): `);
+  return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+}
+
+async function pressEnterToContinue() {
+  await prompt('\nPress Enter to continue...');
+}
+
+/**
+ * Start dev server in background
+ */
+function startDevServer(): ChildProcess {
+  info('Starting dev server...');
+  const server = spawn('npm', ['run', 'dev'], {
+    detached: false,
+    stdio: 'ignore',
+    cwd: ADMIN_ROOT, // Always run from apps/admin directory
+  });
+
+  return server;
+}
+
+/**
+ * Wait for server to be ready
+ */
+async function waitForServer(): Promise<boolean> {
+  info('Waiting for server to be ready...');
+  try {
+    execSync('npx wait-on http://localhost:3000 -t 60000', {
+      stdio: 'ignore',
+      cwd: ADMIN_ROOT,
+    });
+    success('Server is ready!');
+    return true;
+  } catch (e) {
+    error('Server failed to start within timeout');
+    return false;
+  }
+}
+
+/**
+ * Stop dev server
+ */
+function stopDevServer(server: ChildProcess) {
+  if (server && !server.killed) {
+    info('Stopping dev server...');
+    server.kill();
+    // Also kill any lingering processes on port 3000
+    try {
+      execSync('lsof -ti:3000 | xargs kill -9 2>/dev/null || true', {
+        stdio: 'ignore',
+        cwd: ADMIN_ROOT,
+      });
+    } catch (e) {
+      // Ignore errors - process might already be dead
+    }
+  }
+}
+
+/**
+ * Run tests with automatic server management
+ */
+async function runTestsWithServer(
+  testCommand: string,
+  description: string
+): Promise<boolean> {
+  let server: ChildProcess | null = null;
+
+  try {
+    // Start server
+    server = startDevServer();
+
+    // Wait for server to be ready
+    const serverReady = await waitForServer();
+    if (!serverReady) {
+      return false;
+    }
+
+    // Run tests
+    info(description);
+    const result = exec(testCommand);
+
+    return result.success;
+  } finally {
+    // Always stop server
+    if (server) {
+      stopDevServer(server);
+    }
+  }
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+
+program
+  .name('hf-control')
+  .description('HumanFirst Admin Control CLI')
+  .version('1.0.0');
+
+// If no command provided, show interactive menu
+if (process.argv.length === 2) {
+  showInteractiveMenu();
+} else {
+  program.parse(process.argv);
+}

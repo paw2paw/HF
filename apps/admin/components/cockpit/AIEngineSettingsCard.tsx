@@ -11,7 +11,8 @@ const AI_ENGINES: { value: AIEngine; label: string; description: string; envKey?
 ];
 
 export default function AIEngineSettingsCard() {
-  const [engine, setEngine] = useState<AIEngine>("mock");
+  // Default to claude for real AI inference
+  const [engine, setEngine] = useState<AIEngine>("claude");
   const [saved, setSaved] = useState(false);
   const [envStatus, setEnvStatus] = useState<Record<string, boolean>>({});
 

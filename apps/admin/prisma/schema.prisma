@@ -88,6 +88,7 @@ model Parameter {
   // Behavior system relations (for BEHAVIOR parameters)
   behaviorTargets      BehaviorTarget[]
   behaviorMeasurements BehaviorMeasurement[]
+  callerTargets        CallerTarget[] // Personalized targets computed by ADAPT specs
 }
 
 model ParameterMapping {
@@ -485,11 +486,95 @@ model Caller {
   // AI-composed prompts for this caller
   composedPrompts ComposedPrompt[]
 
+  // Personalized behavior targets (computed by ADAPT specs)
+  callerTargets CallerTarget[]
+
+  // Caller-specific attributes (curriculum progress, session state, etc.)
+  callerAttributes CallerAttribute[]
+
   createdAt DateTime @default(now())
 
   @@index([externalId])
   @@index([domainId])
   @@map("User") // Preserve existing table name
+}
+
+// CallerTarget - Personalized behavior targets computed by ADAPT specs
+// These override static BehaviorTargets and adapt based on caller's characteristics
+model CallerTarget {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  parameterId String
+  parameter   Parameter @relation(fields: [parameterId], references: [parameterId])
+
+  // Target value for this behavior parameter (0.0 - 1.0)
+  targetValue Float
+
+  // How many calls were used to compute this target
+  callsUsed Int @default(0)
+
+  // Confidence in this personalized target (0.0 - 1.0)
+  confidence Float @default(0.5)
+
+  // How quickly this target should decay/update with new data (in days)
+  // Lower = adapts faster to recent behavior
+  decayHalfLife Float @default(7.0)
+
+  // When this target was last recomputed
+  lastUpdatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([callerId, parameterId])
+  @@index([callerId])
+  @@index([parameterId])
+}
+
+// CallerAttribute - Flexible key-value store for caller-specific data
+// Used by various specs (curriculum, session planning, domain-specific state)
+model CallerAttribute {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Attribute key (e.g., "current_module", "session_arc", "mastery_chapter_1")
+  key String
+
+  // Scope of this attribute (GLOBAL, SESSION, CURRICULUM, etc.)
+  scope String @default("GLOBAL")
+
+  // Optional domain categorization
+  domain String?
+
+  // Which spec created/updated this attribute
+  sourceSpecSlug String?
+
+  // Value type and storage (only one should be set based on valueType)
+  valueType    String  // "STRING" | "NUMBER" | "BOOLEAN" | "JSON"
+  stringValue  String?
+  numberValue  Float?
+  booleanValue Boolean?
+  jsonValue    Json?
+
+  // Confidence in this attribute value (0.0 - 1.0)
+  confidence Float @default(1.0)
+
+  // Optional expiration
+  validUntil DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([callerId, key, scope])
+  @@index([callerId])
+  @@index([key])
+  @@index([scope])
+  @@index([validUntil])
 }
 
 model Call {
@@ -1258,6 +1343,120 @@ enum AnalysisOutputType {
   REWARD // Compute reward scores from behavior measurements → RewardScore
 }
 
+// Spec type: differentiates system-wide specs from domain-specific specs
+enum SpecType {
+  SYSTEM // System-wide specs (applied globally)
+  DOMAIN // Domain-specific specs
+}
+
+// Spec role: categorizes what the spec contributes to the pipeline
+enum SpecRole {
+  IDENTITY // Defines agent identity and persona
+  CONTENT // Defines content/curriculum
+  VOICE // Voice-specific guidance
+  MEASURE // Measurement specs (scoring parameters)
+  ADAPT // Adaptation specs (behavioral adjustments)
+  REWARD // Reward computation specs
+}
+
+// =========================
+// BDD FEATURE SETS
+// =========================
+// Stores parsed BDD spec files for compilation and activation
+// The rawSpec field is the source of truth for runtime compilation
+
+model BDDFeatureSet {
+  id        String  @id @default(uuid())
+  featureId String  @unique // e.g., "PERS-001", "MEM-001"
+  name      String
+  description String? @db.Text
+
+  // Spec metadata
+  version   String @default("1.0")
+  specType  String @default("DOMAIN") // DOMAIN, SYSTEM, etc.
+
+  // Parsed spec data (JSON)
+  parameters  Json @default("[]")
+  constraints Json @default("[]")
+  definitions Json @default("{}")
+  validations Json @default("[]")
+  promptGuidance Json @default("{}")
+  thresholds  Json @default("[]")
+
+  // Raw JSON spec (source of truth for compilation)
+  rawSpec Json?
+
+  // Scoring spec metadata (extracted from raw spec)
+  scoringSpec Json?
+
+  // Stats
+  parameterCount  Int @default(0)
+  constraintCount Int @default(0)
+  definitionCount Int @default(0)
+
+  // Activation status
+  isActive    Boolean   @default(false)
+  activatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([featureId])
+  @@index([isActive])
+}
+
+model BDDUpload {
+  id       String @id @default(uuid())
+  filename String
+  content  String @db.Text
+  status   String @default("pending") // pending, processing, completed, error
+  error    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =========================
+// CURRICULUM (Content Specs)
+// =========================
+// Stores curriculum/content data extracted from CONTENT specs
+// Used by compose-prompt to inject content knowledge into prompts
+
+model Curriculum {
+  id          String  @id @default(uuid())
+  slug        String  @unique // e.g., "wnf-content-001"
+  name        String
+  description String? @db.Text
+
+  // Source metadata
+  authors     String[] // e.g., ["Daron Acemoglu", "James A. Robinson"]
+  sourceTitle String? // e.g., "Why Nations Fail"
+  sourceYear  Int?
+
+  // Content structure (JSON)
+  notableInfo         Json? // Notable information about the source
+  coreArgument        Json? // Main thesis and key insights
+  caseStudies         Json? // Case studies and examples
+  discussionQuestions Json? // Discussion questions for teaching
+  critiques           Json? // Scholarly critiques and counterpoints
+  deliveryConfig      Json? // How to deliver this content (timing, pacing, etc.)
+
+  // Constraints from spec
+  constraints Json @default("[]")
+
+  // Link to source AnalysisSpec
+  sourceSpecId String?
+
+  // Versioning
+  version String @default("1.0")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([sourceSpecId])
+}
+
 // Top-level spec: defines a category of analysis
 // e.g., "Personality - Openness", "Memory - Personal Facts"
 // Also known as "Specification" - AnalysisSpec is the legacy name (preserved via @@map)
@@ -1276,6 +1475,10 @@ model AnalysisSpec {
 
   // What this spec produces
   outputType AnalysisOutputType @default(MEASURE)
+
+  // Spec classification
+  specType SpecType @default(DOMAIN) // SYSTEM or DOMAIN
+  specRole SpecRole @default(MEASURE) // What the spec contributes to the pipeline
 
   // Domain grouping (personality, memory, engagement, etc.)
   domain   String? // e.g., "personality", "memory", "engagement"
@@ -1346,6 +1549,8 @@ model AnalysisSpec {
   @@index([scope])
   @@index([domain])
   @@index([outputType])
+  @@index([specType])
+  @@index([specRole])
   @@index([isActive])
   @@index([compiledSetId])
   @@index([isLocked])

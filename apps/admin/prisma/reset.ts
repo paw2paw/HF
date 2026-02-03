@@ -20,17 +20,71 @@ const prisma = new PrismaClient();
 // Tables to clear in order (respects foreign key constraints)
 // Order: children first, then parents
 const TABLES_IN_ORDER = [
-  // User-related child tables
+  // BDD specs
+  "BDDFeatureSet",
+  "BDDUpload",
+
+  // Composed prompts
+  "ComposedPrompt",
+
+  // Caller identity
+  "CallerIdentity",
+
+  // Prompt stack
+  "PromptStackItem",
+  "PromptStack",
+  "PromptCompositionConfig",
+
+  // Prompt slug related
+  "PromptSlugRange",
+  "PromptSlugStats",
+  "PromptSlugReward",
+  "PromptSlugSelection",
+  "PromptSlugParameter",
+  "PromptSlug",
+  "PromptBlock",
+  "PromptTemplate",
+
+  // Reward scores
+  "RewardScore",
+
+  // Call scores and measurements
   "CallScore",
+  "BehaviorMeasurement",
+
+  // Caller-related child tables
   "PersonalityObservation",
-  "UserPersonality",
-  "UserPersonalityProfile",
-  "UserMemory",
-  "UserMemorySummary",
+  "CallerPersonality",
+  "CallerPersonalityProfile",
+  "CallerMemory",
+  "CallerMemorySummary",
+  "CallerAttribute",
+
+  // Targets (reference Parameter AND Caller/Call)
+  "CallerTarget",
+  "CallTarget",
+  "BehaviorTarget",
+
+  // Playbook items (reference Playbook and AnalysisSpec)
+  "PlaybookItem",
+
+  // Analysis actions and triggers
+  "AnalysisAction",
+  "AnalysisTrigger",
 
   // Call-related
   "FailedCall",
   "Call",
+
+  // Caller
+  "Caller",
+
+  // Playbooks
+  "Playbook",
+
+  // Segments and Domains
+  "Segment",
+  "Domain",
 
   // Processing
   "ProcessedFile",
@@ -44,13 +98,8 @@ const TABLES_IN_ORDER = [
 
   // Analysis
   "AnalysisSpec",
-  "PromptSlugParameter",
-  "PromptSlug",
   "CompiledAnalysisSet",
-
-  // Behavior targets
-  "BehaviorTarget",
-  "BehaviorMeasurement",
+  "AnalysisRun",
 
   // Analysis profiles
   "AnalysisProfileParameter",
@@ -60,22 +109,14 @@ const TABLES_IN_ORDER = [
   "AgentRun",
   "AgentInstance",
 
-  // Prompt system
-  "PromptBlock",
-  "PromptStack",
-  "PromptStackSlot",
-  "PromptTemplate",
-
   // Parameters
   "ParameterScoringAnchor",
   "ParameterTag",
+  "ParameterMapping",
   "Parameter",
 
   // Tags
   "Tag",
-
-  // Users (last)
-  "User",
 ];
 
 async function clearTable(tableName: string): Promise<number> {

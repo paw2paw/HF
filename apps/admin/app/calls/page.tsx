@@ -402,21 +402,6 @@ export default function CallsPage() {
                             {scoresByType["MEASURE"].length} MEASURE
                           </span>
                         )}
-                        {scoresByType["MEASURE_AGENT"] && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "2px 6px",
-                              background: "#e0e7ff",
-                              color: "#4338ca",
-                              borderRadius: 4,
-                              fontWeight: 500,
-                            }}
-                            title={scoresByType["MEASURE_AGENT"].map(s => `${s.parameterId}: ${s.score.toFixed(2)}`).join("\n")}
-                          >
-                            {scoresByType["MEASURE_AGENT"].length} AGENT
-                          </span>
-                        )}
                         {scoresByType["ADAPT"] && (
                           <span
                             style={{
@@ -527,7 +512,7 @@ export default function CallsPage() {
                                   ? "Prep already complete"
                                   : promptComposed
                                     ? "Prompt already composed"
-                                    : "Run MEASURE + LEARN + MEASURE_AGENT analysis"
+                                    : "Run LEARN + MEASURE + ADAPT pipeline"
                             }
                           >
                             {isRunningPrep ? "Running..." : "📊 Prep"}

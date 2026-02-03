@@ -1,24 +1,16 @@
 /**
  * Master Seed Script
  *
- * Runs all seed scripts in the correct order to set up a fresh database
- * with all necessary configuration data.
+ * Runs seed scripts to set up a fresh database.
  *
  * Usage:
- *   npm run db:seed:all
- *   npx tsx prisma/seed-all.ts
- *   npx tsx prisma/seed-all.ts --skip-dedupe     # Skip parameter de-duplication
- *   npx tsx prisma/seed-all.ts --verbose         # Show detailed output
+ *   npx tsx prisma/seed-all.ts              # Clean seed (from spec files only)
+ *   npx tsx prisma/seed-all.ts --legacy     # Old seed with sample/mock data
+ *   npx tsx prisma/seed-all.ts --verbose    # Show detailed output
+ *   npx tsx prisma/seed-all.ts --reset      # Clear DB first (passed to clean seed)
  *
- * Seeds are run in order:
- * 1. Parameters de-dupe - clean up existing parameters
- * 2. Parameter Types - type definitions
- * 3. Big Five traits - personality model
- * 4. BDD/Analysis Specs - scoring rubrics
- * 5. Memory extraction specs - memory patterns
- * 6. Prompt templates - LLM prompts
- * 7. Prompt slugs - prompt identifiers
- * 8. Run configs - agent configurations
+ * DEFAULT: seed-clean.ts (single source of truth - specs + transcripts only)
+ * LEGACY:  seed-mabel.ts + seed-wnf.ts (includes sample/mock data)
  */
 
 import { execSync } from "child_process";
@@ -28,85 +20,59 @@ interface SeedConfig {
   name: string;
   script: string;
   description: string;
-  skipFlag?: string;
+  args?: string[];
 }
 
-const SEEDS: SeedConfig[] = [
+// Clean seed - single source of truth (NO hardcoded data)
+const CLEAN_SEEDS: SeedConfig[] = [
   {
-    name: "Parameters De-dupe",
-    script: "seed.ts",
-    description: "De-duplicate existing parameters and ensure tags",
-    skipFlag: "--skip-dedupe",
-  },
-  {
-    name: "Parameter Types",
-    script: "seed-parameter-types.ts",
-    description: "Set up parameter type definitions",
-  },
-  {
-    name: "Big Five",
-    script: "seed-big-five.ts",
-    description: "Big Five personality model with scoring anchors",
-  },
-  {
-    name: "BDD/Analysis Specs",
-    script: "seed-bdd.ts",
-    description: "MEASURE and LEARN analysis specifications",
-  },
-  {
-    name: "Memory Specs",
-    script: "seed-memory-specs.ts",
-    description: "Memory extraction specifications",
-  },
-  {
-    name: "Memory Slugs",
-    script: "seed-memory-slugs.ts",
-    description: "Memory category slugs",
-  },
-  {
-    name: "Prompt Templates",
-    script: "seed-prompt-templates.ts",
-    description: "LLM prompt templates",
-  },
-  {
-    name: "Prompt Slugs",
-    script: "seed-prompt-slugs.ts",
-    description: "Prompt slug taxonomy",
-  },
-  {
-    name: "Run Configs",
-    script: "seed-run-configs.ts",
-    description: "Agent run configurations",
-  },
-  {
-    name: "Adapt System",
-    script: "seed-adapt-system.ts",
-    description: "Adaptive prompting system",
+    name: "Clean Seed (Spec-First)",
+    script: "seed-clean.ts",
+    description: "Load from bdd-specs/ and transcripts/ only - no hardcoded data",
+    args: ["--reset"],
   },
 ];
 
-async function runSeed(seed: SeedConfig, verbose: boolean): Promise<boolean> {
+// Legacy seeds - includes sample/mock data (for development/testing)
+const LEGACY_SEEDS: SeedConfig[] = [
+  {
+    name: "Mabel (Full Reset)",
+    script: "seed-mabel.ts",
+    description: "Full database reset with base data, parameters, and BDD specs",
+  },
+  {
+    name: "WNF Domain",
+    script: "seed-wnf.ts",
+    description: "Why Nations Fail domain, playbook, and system spec links",
+  },
+];
+
+async function runSeed(seed: SeedConfig, verbose: boolean, extraArgs: string[] = []): Promise<boolean> {
   const scriptPath = path.resolve(__dirname, seed.script);
+  const allArgs = [...(seed.args || []), ...extraArgs].join(" ");
 
   try {
     console.log(`\n📦 ${seed.name}`);
     console.log(`   ${seed.description}`);
 
-    const output = execSync(`npx tsx "${scriptPath}"`, {
+    const output = execSync(`npx tsx "${scriptPath}" ${allArgs}`, {
       encoding: "utf-8",
       stdio: verbose ? "inherit" : "pipe",
       cwd: path.resolve(__dirname, ".."),
     });
 
     if (!verbose && output) {
-      // Show just the summary line(s)
       const lines = output.trim().split("\n");
       const summaryLines = lines.filter(
         (l) =>
           l.includes("Seeded") ||
           l.includes("Created") ||
           l.includes("Upserted") ||
-          l.includes("✅")
+          l.includes("✅") ||
+          l.includes("Specs:") ||
+          l.includes("Parameters:") ||
+          l.includes("Callers:") ||
+          l.includes("Calls:")
       );
       if (summaryLines.length > 0) {
         console.log(`   ${summaryLines.join("\n   ")}`);
@@ -127,31 +93,39 @@ async function runSeed(seed: SeedConfig, verbose: boolean): Promise<boolean> {
 async function main() {
   const args = process.argv.slice(2);
   const verbose = args.includes("--verbose") || args.includes("-v");
-  const skipFlags = args.filter((a) => a.startsWith("--skip"));
+  const useLegacy = args.includes("--legacy") || args.includes("-l");
+  const reset = args.includes("--reset") || args.includes("-r");
+
+  const seeds = useLegacy ? LEGACY_SEEDS : CLEAN_SEEDS;
+  const mode = useLegacy ? "LEGACY (with sample data)" : "CLEAN (spec-first)";
 
   console.log("\n🌱 MASTER SEED SCRIPT\n");
-  console.log("This will populate the database with all configuration data.");
-  console.log(`Seeds to run: ${SEEDS.length}`);
+  console.log(`Mode: ${mode}`);
+  console.log(`Seeds to run: ${seeds.length}`);
+
+  if (!useLegacy) {
+    console.log("\n💡 Using clean seed (single source of truth):");
+    console.log("   • All specs from bdd-specs/*.spec.json");
+    console.log("   • All callers/calls from transcripts/");
+    console.log("   • NO hardcoded/mock data");
+    console.log("\n   Use --legacy for old seed with sample data.");
+  }
 
   const startTime = Date.now();
   let successCount = 0;
-  let skipCount = 0;
   let failCount = 0;
 
-  for (const seed of SEEDS) {
-    // Check if this seed should be skipped
-    if (seed.skipFlag && skipFlags.includes(seed.skipFlag)) {
-      console.log(`\n⏭️  ${seed.name} (skipped)`);
-      skipCount++;
-      continue;
-    }
+  const extraArgs: string[] = [];
+  if (reset && !useLegacy) {
+    // Reset is already in CLEAN_SEEDS args
+  }
 
-    const success = await runSeed(seed, verbose);
+  for (const seed of seeds) {
+    const success = await runSeed(seed, verbose, extraArgs);
     if (success) {
       successCount++;
     } else {
       failCount++;
-      // Don't stop on failure - continue with other seeds
     }
   }
 
@@ -160,17 +134,14 @@ async function main() {
   console.log("\n" + "=".repeat(50));
   console.log("🌱 SEEDING COMPLETE\n");
   console.log(`  ✅ Succeeded: ${successCount}`);
-  if (skipCount > 0) {
-    console.log(`  ⏭️  Skipped:   ${skipCount}`);
-  }
   if (failCount > 0) {
     console.log(`  ❌ Failed:    ${failCount}`);
   }
   console.log(`  ⏱️  Duration:  ${duration}s`);
   console.log("\nNext steps:");
-  console.log("  1. Process transcripts: POST /api/ops { opid: 'transcripts:process' }");
-  console.log("  2. Ingest knowledge: POST /api/ops { opid: 'knowledge:ingest' }");
-  console.log("  3. Run personality analysis: POST /api/ops { opid: 'personality:analyze' }");
+  console.log("  1. Go to /x/studio to configure playbooks");
+  console.log("  2. Select a caller and generate a prompt");
+  console.log("  3. Test with VAPI or your voice AI");
   console.log("");
 
   if (failCount > 0) {

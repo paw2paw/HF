@@ -17,6 +17,7 @@ type Spec = {
   name: string;
   scope: string;
   outputType: string;
+  specRole: string;
 };
 
 type PromptTemplate = {
@@ -134,15 +135,30 @@ export default function PlaybooksPage() {
 
   const outputTypeBadge = (outputType: string) => {
     const styles: Record<string, { bg: string; color: string }> = {
-      MEASURE: { bg: "#dcfce7", color: "#166534" },
       LEARN: { bg: "#ede9fe", color: "#5b21b6" },
+      MEASURE: { bg: "#dcfce7", color: "#166534" },
       ADAPT: { bg: "#fef3c7", color: "#92400e" },
-      MEASURE_AGENT: { bg: "#e0e7ff", color: "#4338ca" },
+      COMPOSE: { bg: "#fce7f3", color: "#be185d" },
     };
     const s = styles[outputType] || { bg: "#f3f4f6", color: "#6b7280" };
     return (
-      <span style={{ fontSize: 9, padding: "1px 4px", background: s.bg, color: s.color, borderRadius: 3 }}>
+      <span style={{ fontSize: 9, padding: "2px 6px", background: s.bg, color: s.color, borderRadius: 4, fontWeight: 500 }}>
         {outputType}
+      </span>
+    );
+  };
+
+  const specRoleBadge = (specRole: string) => {
+    const styles: Record<string, { bg: string; color: string; label: string }> = {
+      IDENTITY: { bg: "#dbeafe", color: "#1e40af", label: "WHO" },
+      CONTENT: { bg: "#d1fae5", color: "#065f46", label: "WHAT" },
+      CONTEXT: { bg: "#fef3c7", color: "#92400e", label: "CALLER" },
+      META: { bg: "#f3f4f6", color: "#6b7280", label: "META" },
+    };
+    const s = styles[specRole] || styles.META;
+    return (
+      <span style={{ fontSize: 8, padding: "1px 4px", background: s.bg, color: s.color, borderRadius: 3, fontWeight: 600 }}>
+        {s.label}
       </span>
     );
   };
@@ -280,13 +296,14 @@ export default function PlaybooksPage() {
                           <span key={idx} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             {item.spec && (
                               <>
+                                {specRoleBadge(item.spec.specRole)}
                                 {outputTypeBadge(item.spec.outputType)}
                                 <span style={{ fontSize: 11, color: "#6b7280" }}>{item.spec.name}</span>
                               </>
                             )}
                             {item.promptTemplate && (
                               <>
-                                <span style={{ fontSize: 9, padding: "1px 4px", background: "#fce7f3", color: "#be185d", borderRadius: 3 }}>
+                                <span style={{ fontSize: 9, padding: "2px 6px", background: "#fef3c7", color: "#92400e", borderRadius: 4, fontWeight: 500 }}>
                                   TEMPLATE
                                 </span>
                                 <span style={{ fontSize: 11, color: "#6b7280" }}>{item.promptTemplate.name}</span>
@@ -315,7 +332,7 @@ export default function PlaybooksPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        router.push(`/playbooks/${playbook.id}/tree`);
+                        router.push(`/playbooks/${playbook.id}`);
                       }}
                       style={{
                         display: "inline-block",

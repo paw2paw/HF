@@ -18,7 +18,7 @@ export async function GET(
     const { callerId } = await params;
 
     // Fetch all caller data in parallel
-    const [caller, personality, observations, memories, memorySummary, calls, identities, scores] = await Promise.all([
+    const [caller, personality, observations, memories, memorySummary, calls, identities, scores, callerTargets] = await Promise.all([
       // Basic caller info
       prisma.caller.findUnique({
         where: { id: callerId },
@@ -195,6 +195,32 @@ export async function GET(
           },
         },
       }),
+
+      // CallerTargets - personalized behavior targets computed by ADAPT specs
+      prisma.callerTarget.findMany({
+        where: { callerId: callerId },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          parameterId: true,
+          targetValue: true,
+          callsUsed: true,
+          confidence: true,
+          decayHalfLife: true,
+          lastUpdatedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          parameter: {
+            select: {
+              name: true,
+              definition: true,
+              interpretationLow: true,
+              interpretationHigh: true,
+              domainGroup: true,
+            },
+          },
+        },
+      }),
     ]);
 
     if (!caller) {
@@ -227,19 +253,30 @@ export async function GET(
     ]);
 
     // Get behavior targets count for this caller
-    // First get caller's identity to check for targets
-    const callerIdentity = await prisma.callerIdentity.findFirst({
-      where: { callerId: callerId },
-      select: {
-        id: true,
-        segmentId: true,
-        promptStackId: true,
-      },
-    });
+    // First get caller's identity and find the published playbook for their domain
+    const [callerIdentity, publishedPlaybook] = await Promise.all([
+      prisma.callerIdentity.findFirst({
+        where: { callerId: callerId },
+        select: {
+          id: true,
+          segmentId: true,
+        },
+      }),
+      // Find the published playbook for the caller's domain
+      caller.domainId
+        ? prisma.playbook.findFirst({
+            where: {
+              domainId: caller.domainId,
+              status: "PUBLISHED",
+            },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
 
     // Count targets at various levels (SYSTEM is always available)
     let targetsCount = 0;
-    const [systemTargets, segmentTargets, callerTargets, playbookTargets] = await Promise.all([
+    const [systemTargets, segmentTargets, callerScopeTargets, playbookTargets] = await Promise.all([
       prisma.behaviorTarget.count({
         where: { scope: "SYSTEM", effectiveUntil: null },
       }),
@@ -253,13 +290,14 @@ export async function GET(
             where: { scope: "CALLER", callerIdentityId: callerIdentity.id, effectiveUntil: null },
           })
         : Promise.resolve(0),
-      callerIdentity?.promptStackId
+      // Use the published playbook from the caller's domain for PLAYBOOK scope
+      publishedPlaybook?.id
         ? prisma.behaviorTarget.count({
-            where: { scope: "PLAYBOOK", playbookId: callerIdentity.promptStackId, effectiveUntil: null },
+            where: { scope: "PLAYBOOK", playbookId: publishedPlaybook.id, effectiveUntil: null },
           })
         : Promise.resolve(0),
     ]);
-    targetsCount = systemTargets + segmentTargets + callerTargets + playbookTargets;
+    targetsCount = systemTargets + segmentTargets + callerScopeTargets + playbookTargets;
 
     // Get memory counts per call for status
     const memoryCountsByCall = await prisma.callerMemory.groupBy({
@@ -308,12 +346,14 @@ export async function GET(
       calls: callsWithStatus,
       identities,
       scores,
+      callerTargets,
       counts: {
         calls: callCount,
         memories: memoryCount,
         observations: observationCount,
         prompts: promptsCount,
         targets: targetsCount,
+        callerTargets: callerTargets.length,
         measurements: measurementsCount,
       },
     });

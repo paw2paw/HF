@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
@@ -75,6 +75,7 @@ type Call = {
   externalId: string | null;
   transcript: string;
   createdAt: string;
+  callSequence?: number | null;
   // Analysis status
   hasScores?: boolean;
   hasMemories?: boolean;
@@ -147,7 +148,7 @@ const TRAIT_INFO = {
   neuroticism: { label: "Neuroticism", color: "#8b5cf6", desc: "Emotional instability, anxiety, moodiness" },
 };
 
-type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "targets" | "agent-behavior" | "prompt-prep" | "prompts";
+type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "targets" | "agent-behavior" | "prompt" | "ai-call" | "slugs";
 
 type ComposedPrompt = {
   id: string;
@@ -286,9 +287,9 @@ export default function CallerDetailPage() {
     }
   };
 
-  // Fetch prompts when switching to prompts or LLM tab
+  // Fetch prompts when switching to prompt tab
   useEffect(() => {
-    if ((activeSection === "prompts" || activeSection === "prompt-prep") && composedPrompts.length === 0) {
+    if (activeSection === "prompt" && composedPrompts.length === 0) {
       fetchPrompts();
     }
   }, [activeSection, fetchPrompts, composedPrompts.length]);
@@ -317,16 +318,26 @@ export default function CallerDetailPage() {
     );
   }
 
-  const sections: { id: SectionId; label: string; icon: string; count?: number }[] = [
-    { id: "calls", label: "Calls", icon: "📞", count: data.counts.calls },
-    { id: "transcripts", label: "Trans", icon: "📜", count: data.counts.calls },
-    { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories },
-    { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0 },
-    { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations },
-    { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0 },
-    { id: "agent-behavior", label: "Agent", icon: "🤖", count: data.counts.measurements || 0 },
-    { id: "prompt-prep", label: "LLM", icon: "🤖" },
-    { id: "prompts", label: "History", icon: "📝", count: data.counts.prompts },
+  // Sections organized into logical groups:
+  // - History: call recordings and transcripts
+  // - Caller: who they are (personality, memories)
+  // - Agent: how we respond (targets, scores, behavior, prompt)
+  // - Action: make a call
+  const sections: { id: SectionId; label: string; icon: string; count?: number; special?: boolean; group: "history" | "caller" | "agent" | "action" }[] = [
+    // History group - call data
+    { id: "calls", label: "Calls", icon: "📞", count: data.counts.calls, group: "history" },
+    { id: "transcripts", label: "Trans", icon: "📜", count: data.counts.calls, group: "history" },
+    // Caller group - who they are
+    { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations, group: "caller" },
+    { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories, group: "caller" },
+    { id: "slugs", label: "Slugs", icon: "🏷️", group: "caller" },
+    // Agent group - how we respond
+    { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0, group: "agent" },
+    { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0, group: "agent" },
+    { id: "agent-behavior", label: "Agent", icon: "🤖", count: data.counts.measurements || 0, group: "agent" },
+    { id: "prompt", label: "Prompt", icon: "📝", count: data.counts.prompts, group: "agent" },
+    // Action group
+    { id: "ai-call", label: "Call", icon: "📞", special: true, group: "action" },
   ];
 
   return (
@@ -411,17 +422,45 @@ export default function CallerDetailPage() {
                 </button>
               )}
             </div>
-            <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
-              {data.caller.email && (
-                <span style={{ fontSize: 13, color: "#6b7280" }}>{data.caller.email}</span>
-              )}
+            <div style={{ display: "flex", gap: 16, marginTop: 4, alignItems: "center", flexWrap: "wrap" }}>
               {data.caller.phone && (
-                <span style={{ fontSize: 13, color: "#6b7280" }}>{data.caller.phone}</span>
+                <span style={{ fontSize: 13, color: "#6b7280" }}>📱 {data.caller.phone}</span>
+              )}
+              {data.caller.email && (
+                <span style={{ fontSize: 13, color: "#6b7280" }}>✉️ {data.caller.email}</span>
               )}
               {data.caller.externalId && (
                 <span style={{ fontSize: 11, fontFamily: "monospace", color: "#9ca3af" }}>
                   ID: {data.caller.externalId}
                 </span>
+              )}
+              {/* Compact Personality Profile */}
+              {data.personality && (
+                <div style={{ display: "flex", gap: 6, marginLeft: 8, padding: "4px 8px", background: "#f3f4f6", borderRadius: 6 }}>
+                  <span style={{ fontSize: 11, color: "#6b7280" }}>🧠</span>
+                  {Object.entries(TRAIT_INFO).map(([key, info]) => {
+                    const value = data.personality?.[key as keyof typeof TRAIT_INFO] as number | null;
+                    if (value === null) return null;
+                    const level = value >= 0.7 ? "HIGH" : value <= 0.3 ? "LOW" : "MED";
+                    const levelColor = level === "HIGH" ? "#16a34a" : level === "LOW" ? "#dc2626" : "#6b7280";
+                    return (
+                      <span
+                        key={key}
+                        title={`${info.label}: ${(value * 100).toFixed(0)}%`}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          color: levelColor,
+                          padding: "1px 4px",
+                          background: level === "HIGH" ? "#dcfce7" : level === "LOW" ? "#fef2f2" : "#e5e7eb",
+                          borderRadius: 3,
+                        }}
+                      >
+                        {info.label.charAt(0)}{(value * 100).toFixed(0)}
+                      </span>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
@@ -448,45 +487,75 @@ export default function CallerDetailPage() {
         </div>
       </div>
 
-      {/* Section Tabs */}
-      <div style={{ display: "flex", gap: 2, marginBottom: 24, borderBottom: "1px solid #e5e7eb", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto" }}>
-        {sections.map((section) => (
-          <button
-            key={section.id}
-            onClick={() => setActiveSection(section.id)}
-            style={{
-              padding: "10px 12px",
-              border: "none",
-              background: "none",
-              fontSize: 13,
-              fontWeight: activeSection === section.id ? 600 : 400,
-              color: activeSection === section.id ? "#4f46e5" : "#6b7280",
-              cursor: "pointer",
-              borderBottom: activeSection === section.id ? "2px solid #4f46e5" : "2px solid transparent",
-              marginBottom: -1,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span style={{ fontSize: 12 }}>{section.icon}</span>
-            {section.label}
-            {section.count !== undefined && section.count > 0 && (
-              <span
+      {/* Section Tabs - Grouped: History | Caller | Agent | Action */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 24, borderBottom: "1px solid #e5e7eb", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center" }}>
+        {sections.map((section, index) => {
+          const isActive = activeSection === section.id;
+          const isSpecial = section.special;
+          const prevSection = index > 0 ? sections[index - 1] : null;
+          const showGroupSeparator = prevSection && prevSection.group !== section.group;
+
+          // Special styling for the Call tab (green background)
+          const specialStyles = isSpecial ? {
+            background: isActive ? "#059669" : "#d1fae5",
+            color: isActive ? "#ffffff" : "#065f46",
+            borderRadius: 6,
+            marginLeft: 8,
+            borderBottom: "2px solid transparent",
+          } : {};
+
+          return (
+            <span key={section.id} style={{ display: "contents" }}>
+              {/* Group Separator */}
+              {showGroupSeparator && (
+                <div
+                  style={{
+                    width: 1,
+                    height: 24,
+                    background: "#d1d5db",
+                    margin: "0 6px",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              <button
+                onClick={() => setActiveSection(section.id)}
                 style={{
-                  fontSize: 10,
-                  background: activeSection === section.id ? "#e0e7ff" : "#f3f4f6",
-                  color: activeSection === section.id ? "#4f46e5" : "#6b7280",
-                  padding: "1px 5px",
-                  borderRadius: 10,
+                  padding: "10px 12px",
+                  border: "none",
+                  background: "none",
+                  fontSize: 13,
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive ? "#4f46e5" : "#6b7280",
+                  cursor: "pointer",
+                  borderBottom: isActive ? "2px solid #4f46e5" : "2px solid transparent",
+                  marginBottom: -1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  whiteSpace: "nowrap",
+                  ...specialStyles,
                 }}
               >
-                {section.count}
-              </span>
-            )}
-          </button>
-        ))}
+                <span style={{ fontSize: 12 }}>{section.icon}</span>
+                {section.label}
+                {section.count !== undefined && section.count > 0 && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      background: isActive ? "#e0e7ff" : "#f3f4f6",
+                      color: isActive ? "#4f46e5" : "#6b7280",
+                      padding: "1px 5px",
+                      borderRadius: 10,
+                    }}
+                  >
+                    {section.count}
+                  </span>
+                )}
+              </button>
+            </span>
+          );
+        })}
       </div>
 
       {/* Section Content */}
@@ -541,8 +610,12 @@ export default function CallerDetailPage() {
         <TopLevelAgentBehaviorSection callerId={callerId} />
       )}
 
-      {activeSection === "prompts" && (
-        <PromptsSection
+      {activeSection === "slugs" && (
+        <CallerSlugsSection callerId={callerId} />
+      )}
+
+      {activeSection === "prompt" && (
+        <UnifiedPromptSection
           prompts={composedPrompts}
           loading={promptsLoading}
           composing={composing}
@@ -553,13 +626,21 @@ export default function CallerDetailPage() {
         />
       )}
 
-      {activeSection === "prompt-prep" && (
-        <LlmPromptSection
-          prompts={composedPrompts}
-          loading={promptsLoading}
-          composing={composing}
-          onCompose={handleComposePrompt}
-          onRefresh={fetchPrompts}
+      {activeSection === "ai-call" && (
+        <AICallSection
+          callerId={callerId}
+          callerName={data.caller.name || "Caller"}
+          calls={data.calls}
+          onCallEnded={() => {
+            // Refresh data after call ends
+            fetch(`/api/callers/${callerId}`)
+              .then((r) => r.json())
+              .then((result) => {
+                if (result.ok) setData(result);
+              });
+            // Refresh prompts
+            fetchPrompts();
+          }}
         />
       )}
     </div>
@@ -737,6 +818,12 @@ type OpResult = {
   logs: LogEntry[];
   duration: number;
   error?: string;
+  data?: {
+    scoresCreated?: number;
+    memoriesCreated?: number;
+    agentMeasurements?: number;
+    playbookUsed?: string | null;
+  };
 };
 
 type OpDefinition = {
@@ -987,6 +1074,10 @@ function PipelineLogsPanel({
   const filteredLogs = filterLogs(result.logs, logLevel);
   const hiddenCount = result.logs.length - filteredLogs.length;
 
+  // Check if this was a "success" with zero results (potential config issue)
+  const isZeroResults = result.ok && result.data &&
+    (result.data.scoresCreated || 0) + (result.data.agentMeasurements || 0) === 0;
+
   return (
     <div style={{ borderTop: "1px solid #e5e7eb", background: "#1f2937" }}>
       {/* Header */}
@@ -1006,11 +1097,11 @@ function PipelineLogsPanel({
               fontSize: 10,
               padding: "2px 6px",
               borderRadius: 4,
-              background: result.ok ? "#065f46" : "#7f1d1d",
-              color: result.ok ? "#6ee7b7" : "#fca5a5",
+              background: isZeroResults ? "#78350f" : result.ok ? "#065f46" : "#7f1d1d",
+              color: isZeroResults ? "#fcd34d" : result.ok ? "#6ee7b7" : "#fca5a5",
             }}
           >
-            {result.ok ? "SUCCESS" : "ERROR"}
+            {isZeroResults ? "⚠️ 0 RESULTS" : result.ok ? "SUCCESS" : "ERROR"}
           </span>
           <span style={{ fontSize: 11, color: "#9ca3af" }}>{result.duration}ms</span>
           {hiddenCount > 0 && (
@@ -1033,6 +1124,35 @@ function PipelineLogsPanel({
           ✕
         </button>
       </div>
+
+      {/* Summary - show key counts for quick visibility */}
+      {result.data && (
+        <div
+          style={{
+            display: "flex",
+            gap: 16,
+            padding: "6px 16px",
+            borderBottom: "1px solid #374151",
+            background: "#111827",
+            fontSize: 11,
+          }}
+        >
+          <span style={{ color: "#9ca3af" }}>
+            📊 Scores: <strong style={{ color: (result.data.scoresCreated || 0) > 0 ? "#6ee7b7" : "#fca5a5" }}>{result.data.scoresCreated || 0}</strong>
+          </span>
+          <span style={{ color: "#9ca3af" }}>
+            🤖 Agent: <strong style={{ color: (result.data.agentMeasurements || 0) > 0 ? "#6ee7b7" : "#fca5a5" }}>{result.data.agentMeasurements || 0}</strong>
+          </span>
+          <span style={{ color: "#9ca3af" }}>
+            💾 Memories: <strong style={{ color: "#93c5fd" }}>{result.data.memoriesCreated || 0}</strong>
+          </span>
+          {result.data.playbookUsed && (
+            <span style={{ color: "#9ca3af" }}>
+              📋 Playbook: <strong style={{ color: "#c4b5fd" }}>{result.data.playbookUsed}</strong>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Logs */}
       <div
@@ -1260,6 +1380,7 @@ function CallsSection({
             logs: result.logs || [],
             duration: result.duration || 0,
             error: result.error,
+            data: result.data, // Include summary data for visibility
           },
         },
       }));
@@ -1499,14 +1620,24 @@ function CallsSection({
         const showingLogs = logsPanel?.callId === call.id;
         const isRunningOnThisCall = runningOnCall?.callId === call.id;
 
-        // Get status color for pipeline mode
-        const getStatusStyle = (status: PipelineStatus) => {
-          const colors: Record<PipelineStatus, { bg: string; text: string; border: string }> = {
+        // Get status color for pipeline mode - show warning if success but 0 results
+        const getStatusStyle = (status: PipelineStatus, mode?: PipelineMode) => {
+          // Check if this was a "success" with zero results (potential bug)
+          const result = mode ? callPipelineResults[mode] : null;
+          const isZeroResults = result?.ok && result?.data &&
+            (result.data.scoresCreated || 0) + (result.data.agentMeasurements || 0) === 0;
+
+          const colors: Record<PipelineStatus | "warning", { bg: string; text: string; border: string }> = {
             ready: { bg: "#dbeafe", text: "#2563eb", border: "#93c5fd" },
             running: { bg: "#fef3c7", text: "#d97706", border: "#fcd34d" },
             success: { bg: "#dcfce7", text: "#16a34a", border: "#86efac" },
             error: { bg: "#fee2e2", text: "#dc2626", border: "#fca5a5" },
+            warning: { bg: "#fef3c7", text: "#b45309", border: "#fcd34d" }, // Amber for zero results
           };
+
+          if (status === "success" && isZeroResults) {
+            return colors.warning;
+          }
           return colors[status];
         };
 
@@ -1562,8 +1693,8 @@ function CallsSection({
                     padding: "3px 10px",
                     fontSize: 10,
                     fontWeight: 600,
-                    ...getStatusStyle(callPipelineStatus.prep),
-                    border: `1px solid ${getStatusStyle(callPipelineStatus.prep).border}`,
+                    ...getStatusStyle(callPipelineStatus.prep, "prep"),
+                    border: `1px solid ${getStatusStyle(callPipelineStatus.prep, "prep").border}`,
                     borderRadius: 4,
                     cursor: isRunningOnThisCall || bulkRunning ? "not-allowed" : "pointer",
                     display: "flex",
@@ -1573,6 +1704,11 @@ function CallsSection({
                   }}
                 >
                   {callPipelineStatus.prep === "running" ? "⏳" : callPipelineStatus.prep === "success" ? "✓" : callPipelineStatus.prep === "error" ? "✗" : "📊"} PREP
+                  {callPipelineStatus.prep === "success" && callPipelineResults.prep?.data && (
+                    <span style={{ fontSize: 9, opacity: 0.8 }}>
+                      {(callPipelineResults.prep.data.scoresCreated || 0) + (callPipelineResults.prep.data.agentMeasurements || 0)}
+                    </span>
+                  )}
                 </button>
 
                 {/* Prompt button */}
@@ -1592,10 +1728,10 @@ function CallsSection({
                     padding: "3px 10px",
                     fontSize: 10,
                     fontWeight: 600,
-                    ...getStatusStyle(callPipelineStatus.prompt),
-                    border: callPipelineStatus.prompt === "ready" ? "none" : `1px solid ${getStatusStyle(callPipelineStatus.prompt).border}`,
-                    background: callPipelineStatus.prompt === "ready" ? "#4f46e5" : getStatusStyle(callPipelineStatus.prompt).bg,
-                    color: callPipelineStatus.prompt === "ready" ? "#fff" : getStatusStyle(callPipelineStatus.prompt).text,
+                    ...getStatusStyle(callPipelineStatus.prompt, "prompt"),
+                    border: callPipelineStatus.prompt === "ready" ? "none" : `1px solid ${getStatusStyle(callPipelineStatus.prompt, "prompt").border}`,
+                    background: callPipelineStatus.prompt === "ready" ? "#4f46e5" : getStatusStyle(callPipelineStatus.prompt, "prompt").bg,
+                    color: callPipelineStatus.prompt === "ready" ? "#fff" : getStatusStyle(callPipelineStatus.prompt, "prompt").text,
                     borderRadius: 4,
                     cursor: isRunningOnThisCall || bulkRunning ? "not-allowed" : "pointer",
                     display: "flex",
@@ -1605,6 +1741,11 @@ function CallsSection({
                   }}
                 >
                   {callPipelineStatus.prompt === "running" ? "⏳" : callPipelineStatus.prompt === "success" ? "✓" : callPipelineStatus.prompt === "error" ? "✗" : "📝"} PROMPT
+                  {callPipelineStatus.prompt === "success" && callPipelineResults.prompt?.data && (
+                    <span style={{ fontSize: 9, opacity: 0.8 }}>
+                      {(callPipelineResults.prompt.data.scoresCreated || 0) + (callPipelineResults.prompt.data.agentMeasurements || 0)}
+                    </span>
+                  )}
                 </button>
 
                 {/* Logs toggle */}
@@ -1688,7 +1829,7 @@ function CallDetailPanel({
   details: any;
   loading: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "scores" | "personality" | "targets" | "measurements" | "prompt-prep" | "prompt">("transcript");
+  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "scores" | "personality" | "targets" | "measurements" | "prompt">("transcript");
 
   if (loading) {
     return (
@@ -1713,8 +1854,7 @@ function CallDetailPanel({
     { id: "personality", label: "Personality", count: personalityObservation ? 1 : 0 },
     { id: "targets", label: "Targets", count: effectiveTargets.length },
     { id: "measurements", label: "Agent Behavior", count: measurements.length },
-    { id: "prompt-prep", label: "LLM Prompt", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
-    { id: "prompt", label: "AI Generated", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
+    { id: "prompt", label: "Prompt", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
   ];
 
   return (
@@ -1798,12 +1938,8 @@ function CallDetailPanel({
           <MeasurementsTab measurements={measurements} rewardScore={rewardScore} />
         )}
 
-        {activeTab === "prompt-prep" && (
-          <PromptPrepTab prompts={triggeredPrompts} />
-        )}
-
         {activeTab === "prompt" && (
-          <PromptTab prompts={triggeredPrompts} />
+          <UnifiedDetailPromptTab prompts={triggeredPrompts} />
         )}
       </div>
     </div>
@@ -1945,6 +2081,318 @@ function PromptTab({ prompts }: { prompts: any[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Unified Detail Prompt Tab - combines human-readable and LLM-friendly views
+// Matches the layout of UnifiedPromptSection in the header
+function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
+  const [viewMode, setViewMode] = useState<"human" | "llm">("human");
+  const [llmViewMode, setLlmViewMode] = useState<"pretty" | "raw">("pretty");
+
+  if (prompts.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+        No prompt generated after this call. Run the Prompt pipeline step to generate one.
+      </div>
+    );
+  }
+
+  const latestPrompt = prompts[0];
+  const llm = latestPrompt?.llmPrompt;
+  const inputs = latestPrompt?.inputs || {};
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Header with toggle - matches UnifiedPromptSection */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span
+            style={{
+              fontSize: 10,
+              padding: "2px 8px",
+              background: latestPrompt.status === "SUCCESS" ? "#dcfce7" : "#fef3c7",
+              color: latestPrompt.status === "SUCCESS" ? "#166534" : "#92400e",
+              borderRadius: 4,
+              fontWeight: 500,
+            }}
+          >
+            {latestPrompt.status || "COMPOSED"}
+          </span>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>
+            {new Date(latestPrompt.composedAt).toLocaleString()}
+          </span>
+          {latestPrompt.model && (
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>via {latestPrompt.model}</span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+            <button
+              onClick={() => setViewMode("human")}
+              style={{
+                padding: "6px 12px",
+                fontSize: 11,
+                fontWeight: 500,
+                background: viewMode === "human" ? "#4f46e5" : "#fff",
+                color: viewMode === "human" ? "#fff" : "#374151",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              📖 Human-Readable
+            </button>
+            <button
+              onClick={() => setViewMode("llm")}
+              style={{
+                padding: "6px 12px",
+                fontSize: 11,
+                fontWeight: 500,
+                background: viewMode === "llm" ? "#4f46e5" : "#fff",
+                color: viewMode === "llm" ? "#fff" : "#374151",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              🤖 LLM-Friendly
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Human-Readable View */}
+      {viewMode === "human" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div
+            style={{
+              background: "#1f2937",
+              color: "#f3f4f6",
+              padding: 16,
+              borderRadius: 8,
+              fontSize: 13,
+              lineHeight: 1.6,
+              whiteSpace: "pre-wrap",
+              fontFamily: "ui-monospace, monospace",
+              maxHeight: 400,
+              overflowY: "auto",
+              border: "1px solid #374151",
+            }}
+          >
+            {latestPrompt.prompt || "No prompt content"}
+          </div>
+
+          {/* Inputs used */}
+          {inputs && Object.keys(inputs).length > 0 && (
+            <div style={{ padding: 12, background: "#fefce8", borderRadius: 8, border: "1px solid #fde68a" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>
+                Composition Inputs
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, color: "#78350f" }}>
+                {inputs.memoriesCount !== undefined && <span>Memories: {inputs.memoriesCount}</span>}
+                {inputs.personalityAvailable !== undefined && <span>Personality: {inputs.personalityAvailable ? "Yes" : "No"}</span>}
+                {inputs.recentCallsCount !== undefined && <span>Recent Calls: {inputs.recentCallsCount}</span>}
+                {inputs.behaviorTargetsCount !== undefined && <span>Behavior Targets: {inputs.behaviorTargetsCount}</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Copy button */}
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(latestPrompt.prompt || "");
+              alert("Copied to clipboard!");
+            }}
+            style={{
+              padding: "8px 16px",
+              fontSize: 12,
+              background: "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              alignSelf: "flex-start",
+            }}
+          >
+            📋 Copy Prompt
+          </button>
+        </div>
+      )}
+
+      {/* LLM-Friendly View - matches UnifiedPromptSection with Pretty/Raw toggle */}
+      {viewMode === "llm" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {!llm ? (
+            <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", background: "#f9fafb", borderRadius: 8 }}>
+              No LLM-friendly JSON available for this prompt.
+            </div>
+          ) : (
+            <>
+              {/* Pretty/Raw Toggle */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "#6b7280" }}>Structured JSON for AI agent consumption</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                    <button
+                      onClick={() => setLlmViewMode("pretty")}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: 11,
+                        background: llmViewMode === "pretty" ? "#4f46e5" : "#fff",
+                        color: llmViewMode === "pretty" ? "#fff" : "#374151",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Pretty
+                    </button>
+                    <button
+                      onClick={() => setLlmViewMode("raw")}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: 11,
+                        background: llmViewMode === "raw" ? "#4f46e5" : "#fff",
+                        color: llmViewMode === "raw" ? "#fff" : "#374151",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Raw JSON
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(llm, null, 2));
+                      alert("Copied JSON to clipboard!");
+                    }}
+                    style={{
+                      padding: "4px 10px",
+                      background: "#f3f4f6",
+                      color: "#374151",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    📋 Copy JSON
+                  </button>
+                </div>
+              </div>
+
+              {llmViewMode === "raw" ? (
+                <div
+                  style={{
+                    background: "#1f2937",
+                    color: "#a5f3fc",
+                    padding: 16,
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontFamily: "ui-monospace, monospace",
+                    whiteSpace: "pre-wrap",
+                    maxHeight: 500,
+                    overflowY: "auto",
+                    border: "1px solid #374151",
+                  }}
+                >
+                  {JSON.stringify(llm, null, 2)}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {/* Memories */}
+                  {llm.memories && llm.memories.totalCount > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#0891b2" }}>
+                        💭 Memories ({llm.memories.totalCount})
+                      </h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {llm.memories.byCategory && Object.entries(llm.memories.byCategory).slice(0, 3).map(([category, items]: [string, any]) => (
+                          <div key={category}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "#6b7280", marginBottom: 4 }}>
+                              {category}
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              {items.slice(0, 2).map((m: any, i: number) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    padding: 6,
+                                    background: CATEGORY_COLORS[category]?.bg || "#f3f4f6",
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Behavior Targets */}
+                  {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#059669" }}>
+                        🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
+                      </h4>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                        {llm.behaviorTargets.all?.slice(0, 6).map((t: any, i: number) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: 8,
+                              background: t.targetLevel === "HIGH" ? "#dcfce7" : t.targetLevel === "LOW" ? "#fef2f2" : "#f3f4f6",
+                              borderRadius: 4,
+                            }}
+                          >
+                            <div style={{ fontSize: 10, fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: t.targetLevel === "HIGH" ? "#16a34a" : t.targetLevel === "LOW" ? "#dc2626" : "#6b7280",
+                              }}
+                            >
+                              {t.targetLevel}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI Instructions */}
+                  {llm.instructions && (
+                    <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: 12 }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#92400e" }}>
+                        📋 AI Instructions
+                      </h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "#78350f" }}>
+                        {llm.instructions.use_memories && (
+                          <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
+                        )}
+                        {llm.instructions.personality_adaptation?.length > 0 && (
+                          <div>
+                            <strong>Personality Adaptation:</strong>
+                            <ul style={{ margin: "2px 0 0 14px", padding: 0 }}>
+                              {llm.instructions.personality_adaptation.slice(0, 3).map((tip: string, i: number) => (
+                                <li key={i} style={{ marginBottom: 2 }}>{tip}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3635,7 +4083,502 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
   );
 }
 
-// Prompts Section (AI-composed prompts history)
+// Unified Prompt Section - combines Human-Readable and LLM-Friendly views
+function UnifiedPromptSection({
+  prompts,
+  loading,
+  composing,
+  expandedPrompt,
+  setExpandedPrompt,
+  onCompose,
+  onRefresh,
+}: {
+  prompts: ComposedPrompt[];
+  loading: boolean;
+  composing: boolean;
+  expandedPrompt: string | null;
+  setExpandedPrompt: (id: string | null) => void;
+  onCompose: () => void;
+  onRefresh: () => void;
+}) {
+  const [viewMode, setViewMode] = useState<"human" | "llm">("human");
+  const [llmViewMode, setLlmViewMode] = useState<"pretty" | "raw">("pretty");
+
+  // Get the most recent active prompt
+  const activePrompt = prompts.find((p) => p.status === "active") || prompts[0];
+
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading prompts...</div>
+    );
+  }
+
+  if (!activePrompt) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            background: "#f9fafb",
+            borderRadius: 12,
+            border: "1px dashed #e5e7eb",
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No Prompt Available</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
+            Compose a prompt to generate personalized next-call guidance for this caller.
+          </div>
+          <button
+            onClick={onCompose}
+            disabled={composing}
+            style={{
+              marginTop: 20,
+              padding: "12px 24px",
+              background: composing ? "#9ca3af" : "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: composing ? "not-allowed" : "pointer",
+            }}
+          >
+            {composing ? "Composing..." : "Compose New Prompt"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const llm = activePrompt.llmPrompt;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Header with View Toggle */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Next Prompt</h3>
+          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+            Generated {new Date(activePrompt.composedAt).toLocaleString()} • {activePrompt.status.toUpperCase()}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Main View Toggle: Human vs LLM */}
+          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+            <button
+              onClick={() => setViewMode("human")}
+              style={{
+                padding: "8px 16px",
+                fontSize: 12,
+                fontWeight: 500,
+                background: viewMode === "human" ? "#4f46e5" : "#fff",
+                color: viewMode === "human" ? "#fff" : "#374151",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              📖 Human-Readable
+            </button>
+            <button
+              onClick={() => setViewMode("llm")}
+              style={{
+                padding: "8px 16px",
+                fontSize: 12,
+                fontWeight: 500,
+                background: viewMode === "llm" ? "#4f46e5" : "#fff",
+                color: viewMode === "llm" ? "#fff" : "#374151",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              🤖 LLM-Friendly
+            </button>
+          </div>
+          <button
+            onClick={onRefresh}
+            style={{
+              padding: "8px 12px",
+              background: "#f3f4f6",
+              color: "#374151",
+              border: "1px solid #e5e7eb",
+              borderRadius: 6,
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            ↻
+          </button>
+          <button
+            onClick={onCompose}
+            disabled={composing}
+            style={{
+              padding: "8px 16px",
+              background: composing ? "#9ca3af" : "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: composing ? "not-allowed" : "pointer",
+            }}
+          >
+            {composing ? "..." : "Compose New"}
+          </button>
+        </div>
+      </div>
+
+      {/* Human-Readable View */}
+      {viewMode === "human" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Prompt Content */}
+          <div
+            style={{
+              background: "#1f2937",
+              color: "#f3f4f6",
+              padding: 20,
+              borderRadius: 12,
+              fontSize: 14,
+              lineHeight: 1.7,
+              whiteSpace: "pre-wrap",
+              fontFamily: "ui-monospace, monospace",
+              maxHeight: 500,
+              overflowY: "auto",
+              border: "1px solid #374151",
+            }}
+          >
+            {activePrompt.prompt}
+          </div>
+
+          {/* Composition Inputs */}
+          {activePrompt.inputs && (
+            <div style={{ padding: 12, background: "#fefce8", borderRadius: 8, border: "1px solid #fde68a" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>
+                Composition Inputs
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                {activePrompt.inputs.memoriesCount !== undefined && (
+                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                    Memories: {activePrompt.inputs.memoriesCount}
+                  </span>
+                )}
+                {activePrompt.inputs.personalityAvailable !== undefined && (
+                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                    Personality: {activePrompt.inputs.personalityAvailable ? "Yes" : "No"}
+                  </span>
+                )}
+                {activePrompt.inputs.recentCallsCount !== undefined && (
+                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                    Recent Calls: {activePrompt.inputs.recentCallsCount}
+                  </span>
+                )}
+                {activePrompt.inputs.behaviorTargetsCount !== undefined && (
+                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                    Behavior Targets: {activePrompt.inputs.behaviorTargetsCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Copy Button */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(activePrompt.prompt);
+                alert("Copied to clipboard!");
+              }}
+              style={{
+                padding: "8px 16px",
+                background: "#4f46e5",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              📋 Copy Prompt
+            </button>
+          </div>
+
+          {/* Prompt History */}
+          {prompts.length > 1 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                Prompt History ({prompts.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {prompts.slice(1, 5).map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => setExpandedPrompt(expandedPrompt === p.id ? null : p.id)}
+                    style={{
+                      padding: 12,
+                      background: "#f9fafb",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            background: p.status === "active" ? "#dcfce7" : "#e5e7eb",
+                            color: p.status === "active" ? "#166534" : "#6b7280",
+                            borderRadius: 4,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {p.status}
+                        </span>
+                        <span style={{ fontSize: 12, color: "#374151" }}>
+                          {new Date(p.composedAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 12, color: "#9ca3af" }}>{expandedPrompt === p.id ? "−" : "+"}</span>
+                    </div>
+                    {expandedPrompt === p.id && (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          padding: 12,
+                          background: "#1f2937",
+                          color: "#f3f4f6",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          whiteSpace: "pre-wrap",
+                          fontFamily: "monospace",
+                          maxHeight: 200,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {p.prompt}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LLM-Friendly View */}
+      {viewMode === "llm" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {!llm ? (
+            <div
+              style={{
+                padding: 40,
+                textAlign: "center",
+                background: "#f9fafb",
+                borderRadius: 12,
+                border: "1px dashed #e5e7eb",
+              }}
+            >
+              <div style={{ fontSize: 14, color: "#6b7280" }}>
+                No structured LLM data available for this prompt. Compose a new prompt to generate.
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Pretty/Raw Toggle */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>Structured JSON for AI agent consumption</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                    <button
+                      onClick={() => setLlmViewMode("pretty")}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: 11,
+                        background: llmViewMode === "pretty" ? "#4f46e5" : "#fff",
+                        color: llmViewMode === "pretty" ? "#fff" : "#374151",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Pretty
+                    </button>
+                    <button
+                      onClick={() => setLlmViewMode("raw")}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: 11,
+                        background: llmViewMode === "raw" ? "#4f46e5" : "#fff",
+                        color: llmViewMode === "raw" ? "#fff" : "#374151",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Raw JSON
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(llm, null, 2));
+                      alert("Copied JSON to clipboard!");
+                    }}
+                    style={{
+                      padding: "4px 10px",
+                      background: "#f3f4f6",
+                      color: "#374151",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    📋 Copy JSON
+                  </button>
+                </div>
+              </div>
+
+              {llmViewMode === "raw" ? (
+                <div
+                  style={{
+                    background: "#1f2937",
+                    color: "#a5f3fc",
+                    padding: 20,
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontFamily: "ui-monospace, monospace",
+                    whiteSpace: "pre-wrap",
+                    maxHeight: 600,
+                    overflowY: "auto",
+                    border: "1px solid #374151",
+                  }}
+                >
+                  {JSON.stringify(llm, null, 2)}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* Memories */}
+                  {llm.memories && llm.memories.totalCount > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#0891b2" }}>
+                        💭 Memories ({llm.memories.totalCount})
+                      </h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
+                          <div key={category}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "#6b7280", marginBottom: 6 }}>
+                              {category}
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              {items.slice(0, 3).map((m: any, i: number) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    padding: 8,
+                                    background: CATEGORY_COLORS[category]?.bg || "#f3f4f6",
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
+                                  <span style={{ marginLeft: 8, fontSize: 10, color: "#9ca3af" }}>
+                                    ({(m.confidence * 100).toFixed(0)}%)
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Behavior Targets */}
+                  {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#059669" }}>
+                        🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
+                      </h4>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                        {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: 10,
+                              background: t.targetLevel === "HIGH" ? "#dcfce7" : t.targetLevel === "LOW" ? "#fef2f2" : "#f3f4f6",
+                              borderRadius: 6,
+                            }}
+                          >
+                            <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 700,
+                                color: t.targetLevel === "HIGH" ? "#16a34a" : t.targetLevel === "LOW" ? "#dc2626" : "#6b7280",
+                              }}
+                            >
+                              {t.targetLevel}
+                            </div>
+                            <div style={{ fontSize: 10, color: "#6b7280" }}>
+                              {(t.targetValue * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Call History Summary */}
+                  {llm.callHistory && llm.callHistory.totalCalls > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#6366f1" }}>
+                        📞 Call History ({llm.callHistory.totalCalls} calls)
+                      </h4>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        Recent calls included in prompt context
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI Instructions */}
+                  {llm.instructions && (
+                    <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#92400e" }}>
+                        📋 AI Instructions
+                      </h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "#78350f" }}>
+                        {llm.instructions.use_memories && (
+                          <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
+                        )}
+                        {llm.instructions.use_preferences && (
+                          <div><strong>Preferences:</strong> {llm.instructions.use_preferences}</div>
+                        )}
+                        {llm.instructions.personality_adaptation?.length > 0 && (
+                          <div>
+                            <strong>Personality Adaptation:</strong>
+                            <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                              {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
+                                <li key={i} style={{ marginBottom: 2 }}>{tip}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Prompts Section (AI-composed prompts history) - kept for reference
 function PromptsSection({
   prompts,
   loading,
@@ -4610,9 +5553,11 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
 
 // Top-Level Targets Section - shows behavior targets for this caller
 function TopLevelTargetsSection({ callerId }: { callerId: string }) {
-  const [targets, setTargets] = useState<any[]>([]);
+  const [callerTargets, setCallerTargets] = useState<any[]>([]);
+  const [behaviorTargets, setBehaviorTargets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedTarget, setExpandedTarget] = useState<string | null>(null);
+  const [showBehaviorTargets, setShowBehaviorTargets] = useState(false);
 
   useEffect(() => {
     fetchTargets();
@@ -4621,15 +5566,21 @@ function TopLevelTargetsSection({ callerId }: { callerId: string }) {
   const fetchTargets = async () => {
     setLoading(true);
     try {
-      // We need to fetch effective targets - use a call detail API with a recent call
-      // or create a dedicated endpoint. For now, fetch from the first call's details.
-      const callsRes = await fetch(`/api/callers/${callerId}`);
-      const callsData = await callsRes.json();
-      if (callsData.ok && callsData.calls.length > 0) {
-        const callDetailRes = await fetch(`/api/calls/${callsData.calls[0].id}`);
-        const callDetail = await callDetailRes.json();
-        if (callDetail.ok) {
-          setTargets(callDetail.effectiveTargets || []);
+      // Fetch caller data which now includes callerTargets
+      const callerRes = await fetch(`/api/callers/${callerId}`);
+      const callerData = await callerRes.json();
+
+      if (callerData.ok) {
+        // CallerTargets - personalized, computed by ADAPT specs
+        setCallerTargets(callerData.callerTargets || []);
+
+        // Also fetch behavior targets from a call if available
+        if (callerData.calls?.length > 0) {
+          const callDetailRes = await fetch(`/api/calls/${callerData.calls[0].id}`);
+          const callDetail = await callDetailRes.json();
+          if (callDetail.ok) {
+            setBehaviorTargets(callDetail.effectiveTargets || []);
+          }
         }
       }
     } catch (err) {
@@ -4647,13 +5598,19 @@ function TopLevelTargetsSection({ callerId }: { callerId: string }) {
     );
   }
 
-  if (targets.length === 0) {
+  const hasCallerTargets = callerTargets.length > 0;
+  const hasBehaviorTargets = behaviorTargets.length > 0;
+
+  if (!hasCallerTargets && !hasBehaviorTargets) {
     return (
       <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
         <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No behavior targets</div>
         <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-          Configure behavior targets at the system, playbook, segment, or caller level
+          CallerTargets are computed by ADAPT specs after calls are processed
+        </div>
+        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+          Run the pipeline on calls to generate personalized targets
         </div>
       </div>
     );
@@ -4664,169 +5621,378 @@ function TopLevelTargetsSection({ callerId }: { callerId: string }) {
     PLAYBOOK: { bg: "#e0e7ff", text: "#4f46e5" },
     SEGMENT: { bg: "#fef3c7", text: "#d97706" },
     CALLER: { bg: "#dcfce7", text: "#16a34a" },
+    PERSONALIZED: { bg: "#fce7f3", text: "#db2777" },
   };
 
-  // Group by domain
-  const grouped: Record<string, any[]> = {};
-  for (const t of targets) {
+  // Group CallerTargets by domain
+  const groupedCallerTargets: Record<string, any[]> = {};
+  for (const t of callerTargets) {
     const group = t.parameter?.domainGroup || "Other";
-    if (!grouped[group]) grouped[group] = [];
-    grouped[group].push(t);
+    if (!groupedCallerTargets[group]) groupedCallerTargets[group] = [];
+    groupedCallerTargets[group].push(t);
   }
+
+  // Group BehaviorTargets by domain
+  const groupedBehaviorTargets: Record<string, any[]> = {};
+  for (const t of behaviorTargets) {
+    const group = t.parameter?.domainGroup || "Other";
+    if (!groupedBehaviorTargets[group]) groupedBehaviorTargets[group] = [];
+    groupedBehaviorTargets[group].push(t);
+  }
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Legend */}
-      <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap", padding: 12, background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-        <span style={{ fontWeight: 600 }}>Target Cascade:</span>
-        {["SYSTEM", "PLAYBOOK", "SEGMENT", "CALLER"].map((scope) => (
-          <span
-            key={scope}
-            style={{
-              padding: "2px 8px",
-              borderRadius: 4,
-              background: scopeColors[scope].bg,
-              color: scopeColors[scope].text,
-              fontWeight: 500,
-            }}
-          >
-            {scope}
-          </span>
-        ))}
-        <span style={{ color: "#9ca3af" }}>(later overrides earlier)</span>
-      </div>
-
-      {Object.entries(grouped).map(([group, groupTargets]) => (
-        <div key={group}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", marginBottom: 8 }}>
-            {group}
+      {/* CallerTargets Section - Personalized */}
+      {hasCallerTargets && (
+        <>
+          <div style={{
+            padding: 12,
+            background: "linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)",
+            borderRadius: 8,
+            border: "1px solid #f9a8d4"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 16 }}>✨</span>
+              <span style={{ fontWeight: 700, color: "#be185d" }}>Personalized Targets</span>
+              <span style={{
+                fontSize: 10,
+                padding: "2px 6px",
+                background: "#db2777",
+                color: "#fff",
+                borderRadius: 4,
+                fontWeight: 600
+              }}>
+                {callerTargets.length} active
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: "#9d174d" }}>
+              Computed by ADAPT specs based on call history. These override playbook defaults.
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {groupTargets.map((target: any) => {
-              const isExpanded = expandedTarget === target.parameterId;
 
-              return (
-                <div
-                  key={target.parameterId}
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
-                  <button
-                    onClick={() => setExpandedTarget(isExpanded ? null : target.parameterId)}
-                    style={{
-                      width: "100%",
-                      padding: 12,
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      background: "transparent",
-                      border: "none",
-                      textAlign: "left",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                      {/* Target value */}
-                      <div style={{ width: 50, textAlign: "center" }}>
-                        <div
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 700,
-                            color: target.targetValue >= 0.7 ? "#10b981" : target.targetValue >= 0.3 ? "#f59e0b" : "#ef4444",
-                          }}
-                        >
-                          {(target.targetValue * 100).toFixed(0)}
-                        </div>
-                        <div style={{ fontSize: 9, color: "#9ca3af" }}>target</div>
-                      </div>
+          {Object.entries(groupedCallerTargets).map(([group, groupTargets]) => (
+            <div key={`caller-${group}`}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#be185d", textTransform: "uppercase", marginBottom: 8 }}>
+                {group}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {groupTargets.map((target: any) => {
+                  const isExpanded = expandedTarget === `caller-${target.parameterId}`;
+                  const value = target.targetValue;
 
-                      {/* Parameter info */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                          <span style={{ fontWeight: 600, fontSize: 13 }}>
-                            {target.parameter?.name || target.parameterId}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "2px 6px",
-                              borderRadius: 4,
-                              background: scopeColors[target.effectiveScope]?.bg || "#f3f4f6",
-                              color: scopeColors[target.effectiveScope]?.text || "#6b7280",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {target.effectiveScope}
-                          </span>
-                        </div>
-                        {target.parameter?.definition && (
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>
-                            {target.parameter.definition}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <span style={{ color: "#9ca3af", fontSize: 12 }}>
-                      {isExpanded ? "▼" : "▶"}
-                    </span>
-                  </button>
-
-                  {/* Layer cascade details */}
-                  {isExpanded && target.layers && (
-                    <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, background: "#fafafa" }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
-                        Layer Cascade
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {target.layers.map((layer: any, idx: number) => (
-                          <div
-                            key={idx}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              padding: 8,
-                              background: "#fff",
-                              borderRadius: 6,
-                              border: "1px solid #e5e7eb",
-                            }}
-                          >
-                            <span
+                  return (
+                    <div
+                      key={`caller-${target.parameterId}`}
+                      style={{
+                        background: "#fff",
+                        border: "2px solid #f9a8d4",
+                        borderRadius: 8,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <button
+                        onClick={() => setExpandedTarget(isExpanded ? null : `caller-${target.parameterId}`)}
+                        style={{
+                          width: "100%",
+                          padding: 12,
+                          cursor: "pointer",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          background: "transparent",
+                          border: "none",
+                          textAlign: "left",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                          {/* Target value */}
+                          <div style={{ width: 50, textAlign: "center" }}>
+                            <div
                               style={{
-                                fontSize: 10,
-                                padding: "2px 8px",
-                                borderRadius: 4,
-                                background: scopeColors[layer.scope]?.bg || "#f3f4f6",
-                                color: scopeColors[layer.scope]?.text || "#6b7280",
-                                fontWeight: 500,
-                                minWidth: 70,
-                                textAlign: "center",
+                                fontSize: 18,
+                                fontWeight: 700,
+                                color: value >= 0.7 ? "#10b981" : value >= 0.3 ? "#f59e0b" : "#ef4444",
                               }}
                             >
-                              {layer.scope}
-                            </span>
-                            <span style={{ fontSize: 14, fontWeight: 600 }}>
-                              {(layer.value * 100).toFixed(0)}%
-                            </span>
-                            <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                              ({layer.source})
-                            </span>
+                              {(value * 100).toFixed(0)}
+                            </div>
+                            <div style={{ fontSize: 9, color: "#9ca3af" }}>target</div>
                           </div>
-                        ))}
-                      </div>
+
+                          {/* Parameter info */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                {target.parameter?.name || target.parameterId}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  padding: "2px 6px",
+                                  borderRadius: 4,
+                                  background: "#fce7f3",
+                                  color: "#db2777",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                PERSONALIZED
+                              </span>
+                              <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                                {target.callsUsed} calls
+                              </span>
+                            </div>
+                            {target.parameter?.definition && (
+                              <div style={{ fontSize: 11, color: "#6b7280" }}>
+                                {target.parameter.definition}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                          {isExpanded ? "▼" : "▶"}
+                        </span>
+                      </button>
+
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div style={{ borderTop: "1px solid #f9a8d4", padding: 12, background: "#fdf2f8" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 10, color: "#9d174d", fontWeight: 600, marginBottom: 4 }}>
+                                Low Interpretation
+                              </div>
+                              <div style={{ fontSize: 11, color: "#6b7280" }}>
+                                {target.parameter?.interpretationLow || "—"}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 10, color: "#9d174d", fontWeight: 600, marginBottom: 4 }}>
+                                High Interpretation
+                              </div>
+                              <div style={{ fontSize: 11, color: "#6b7280" }}>
+                                {target.parameter?.interpretationHigh || "—"}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 12, display: "flex", gap: 16, fontSize: 11, color: "#6b7280" }}>
+                            <div>
+                              <strong>Confidence:</strong> {((target.confidence || 0.7) * 100).toFixed(0)}%
+                            </div>
+                            <div>
+                              <strong>Updated:</strong> {formatDate(target.lastUpdatedAt || target.updatedAt)}
+                            </div>
+                            <div>
+                              <strong>Decay:</strong> {target.decayHalfLife || 30} days
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Behavior Targets Section - Playbook Defaults */}
+      {hasBehaviorTargets && (
+        <>
+          <button
+            onClick={() => setShowBehaviorTargets(!showBehaviorTargets)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: 12,
+              background: "#f9fafb",
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              cursor: "pointer",
+              width: "100%",
+              textAlign: "left",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>📋</span>
+            <span style={{ fontWeight: 600, color: "#374151", flex: 1 }}>
+              Playbook Defaults
+            </span>
+            <span style={{ fontSize: 11, color: "#6b7280" }}>
+              {behaviorTargets.length} parameters
+            </span>
+            <span style={{ color: "#9ca3af", fontSize: 12 }}>
+              {showBehaviorTargets ? "▼" : "▶"}
+            </span>
+          </button>
+
+          {showBehaviorTargets && (
+            <div style={{ marginLeft: 16 }}>
+              {/* Legend */}
+              <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap", padding: 12, background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", marginBottom: 16 }}>
+                <span style={{ fontWeight: 600 }}>Target Cascade:</span>
+                {["SYSTEM", "PLAYBOOK", "SEGMENT", "CALLER"].map((scope) => (
+                  <span
+                    key={scope}
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      background: scopeColors[scope].bg,
+                      color: scopeColors[scope].text,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {scope}
+                  </span>
+                ))}
+                <span style={{ color: "#9ca3af" }}>(later overrides earlier)</span>
+              </div>
+
+              {Object.entries(groupedBehaviorTargets).map(([group, groupTargets]) => (
+                <div key={`behavior-${group}`} style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", marginBottom: 8 }}>
+                    {group}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {groupTargets.map((target: any) => {
+                      const isExpanded = expandedTarget === `behavior-${target.parameterId}`;
+
+                      return (
+                        <div
+                          key={`behavior-${target.parameterId}`}
+                          style={{
+                            background: "#fff",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 8,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <button
+                            onClick={() => setExpandedTarget(isExpanded ? null : `behavior-${target.parameterId}`)}
+                            style={{
+                              width: "100%",
+                              padding: 12,
+                              cursor: "pointer",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              background: "transparent",
+                              border: "none",
+                              textAlign: "left",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                              {/* Target value */}
+                              <div style={{ width: 50, textAlign: "center" }}>
+                                <div
+                                  style={{
+                                    fontSize: 18,
+                                    fontWeight: 700,
+                                    color: target.targetValue >= 0.7 ? "#10b981" : target.targetValue >= 0.3 ? "#f59e0b" : "#ef4444",
+                                  }}
+                                >
+                                  {(target.targetValue * 100).toFixed(0)}
+                                </div>
+                                <div style={{ fontSize: 9, color: "#9ca3af" }}>default</div>
+                              </div>
+
+                              {/* Parameter info */}
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                                  <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                    {target.parameter?.name || target.parameterId}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      padding: "2px 6px",
+                                      borderRadius: 4,
+                                      background: scopeColors[target.effectiveScope]?.bg || "#f3f4f6",
+                                      color: scopeColors[target.effectiveScope]?.text || "#6b7280",
+                                      fontWeight: 500,
+                                    }}
+                                  >
+                                    {target.effectiveScope}
+                                  </span>
+                                </div>
+                                {target.parameter?.definition && (
+                                  <div style={{ fontSize: 11, color: "#6b7280" }}>
+                                    {target.parameter.definition}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                              {isExpanded ? "▼" : "▶"}
+                            </span>
+                          </button>
+
+                          {/* Layer cascade details */}
+                          {isExpanded && target.layers && (
+                            <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, background: "#fafafa" }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                                Layer Cascade
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {target.layers.map((layer: any, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 8,
+                                      padding: 8,
+                                      background: "#fff",
+                                      borderRadius: 6,
+                                      border: "1px solid #e5e7eb",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        padding: "2px 8px",
+                                        borderRadius: 4,
+                                        background: scopeColors[layer.scope]?.bg || "#f3f4f6",
+                                        color: scopeColors[layer.scope]?.text || "#6b7280",
+                                        fontWeight: 500,
+                                        minWidth: 70,
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      {layer.scope}
+                                    </span>
+                                    <span style={{ fontSize: 14, fontWeight: 600 }}>
+                                      {(layer.value * 100).toFixed(0)}%
+                                    </span>
+                                    <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                                      ({layer.source})
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -4958,6 +6124,847 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// =====================================================
+// CALLER SLUGS SECTION - Shows all resolved template variables
+// =====================================================
+
+type SlugNode = {
+  id: string;
+  type: "category" | "spec" | "variable" | "value";
+  name: string;
+  path?: string;
+  value?: string | number | boolean | null;
+  specId?: string;
+  specSlug?: string;
+  children?: SlugNode[];
+  meta?: Record<string, any>;
+};
+
+function CallerSlugsSection({ callerId }: { callerId: string }) {
+  const [slugsData, setSlugsData] = useState<{
+    caller: { id: string; name: string; domain: string | null };
+    playbook: { id: string; name: string; status: string } | null;
+    tree: SlugNode[];
+    counts: { memories: number; scores: number; targets: number; total: number };
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetchSlugs();
+  }, [callerId]);
+
+  const fetchSlugs = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/callers/${callerId}/slugs`);
+      const result = await res.json();
+      if (result.ok) {
+        setSlugsData(result);
+        // Auto-expand top-level categories
+        const topLevel = new Set<string>();
+        result.tree.forEach((node: SlugNode) => topLevel.add(node.id));
+        setExpandedNodes(topLevel);
+      }
+    } catch (err) {
+      console.error("Error fetching slugs:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleNode = (nodeId: string) => {
+    setExpandedNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        <div style={{ color: "#6b7280" }}>Loading slugs...</div>
+      </div>
+    );
+  }
+
+  if (!slugsData || slugsData.tree.length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🏷️</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No template variables</div>
+        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+          This caller has no memories, scores, or personalized targets yet.
+        </div>
+        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+          Process calls through the pipeline to generate caller-specific data.
+        </div>
+      </div>
+    );
+  }
+
+  const categoryIcons: Record<string, string> = {
+    IDENTITY: "🎭",
+    MEMORIES: "🧠",
+    SCORES: "📊",
+    "PERSONALIZED TARGETS": "🎯",
+  };
+
+  const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
+    IDENTITY: { bg: "#f0fdf4", border: "#86efac", text: "#16a34a" },
+    MEMORIES: { bg: "#fef3c7", border: "#fcd34d", text: "#d97706" },
+    SCORES: { bg: "#dbeafe", border: "#93c5fd", text: "#2563eb" },
+    "PERSONALIZED TARGETS": { bg: "#fdf2f8", border: "#f9a8d4", text: "#db2777" },
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Header with context */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: 12,
+        background: "#f9fafb",
+        borderRadius: 8,
+        border: "1px solid #e5e7eb",
+      }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>
+            Caller Template Variables
+          </div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+            {slugsData.counts.total} variables: {slugsData.counts.memories} memories, {slugsData.counts.scores} scores, {slugsData.counts.targets} targets
+          </div>
+        </div>
+        {slugsData.playbook && (
+          <Link
+            href={`/x/playbooks/${slugsData.playbook.id}`}
+            style={{
+              fontSize: 11,
+              padding: "4px 8px",
+              background: "#e0e7ff",
+              color: "#4f46e5",
+              borderRadius: 4,
+              textDecoration: "none",
+            }}
+          >
+            📚 {slugsData.playbook.name}
+          </Link>
+        )}
+      </div>
+
+      {/* Tree view */}
+      <div style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        overflow: "hidden",
+      }}>
+        {slugsData.tree.map((category) => {
+          const isExpanded = expandedNodes.has(category.id);
+          const colors = categoryColors[category.name] || { bg: "#f3f4f6", border: "#e5e7eb", text: "#374151" };
+          const icon = categoryIcons[category.name] || "📁";
+
+          return (
+            <div key={category.id}>
+              {/* Category header */}
+              <div
+                onClick={() => toggleNode(category.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "12px 16px",
+                  background: colors.bg,
+                  borderBottom: `1px solid ${colors.border}`,
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: 12, color: "#6b7280" }}>
+                  {isExpanded ? "▼" : "▶"}
+                </span>
+                <span style={{ fontSize: 16 }}>{icon}</span>
+                <span style={{ fontWeight: 600, color: colors.text }}>{category.name}</span>
+                {category.meta?.count !== undefined && (
+                  <span style={{
+                    fontSize: 10,
+                    padding: "2px 6px",
+                    background: colors.text,
+                    color: "#fff",
+                    borderRadius: 4,
+                  }}>
+                    {category.meta.count}
+                  </span>
+                )}
+              </div>
+
+              {/* Category children */}
+              {isExpanded && category.children && (
+                <div style={{ borderBottom: "1px solid #e5e7eb" }}>
+                  {category.children.map((spec) => (
+                    <SlugSpecNode
+                      key={spec.id}
+                      spec={spec}
+                      expandedNodes={expandedNodes}
+                      onToggle={toggleNode}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Spec node component for caller slugs
+function SlugSpecNode({
+  spec,
+  expandedNodes,
+  onToggle,
+}: {
+  spec: SlugNode;
+  expandedNodes: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const isExpanded = expandedNodes.has(spec.id);
+  const hasChildren = spec.children && spec.children.length > 0;
+
+  return (
+    <div>
+      <div
+        onClick={() => hasChildren && onToggle(spec.id)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 16px 8px 32px",
+          background: isExpanded ? "#f9fafb" : "#fff",
+          borderBottom: "1px solid #f3f4f6",
+          cursor: hasChildren ? "pointer" : "default",
+        }}
+      >
+        {hasChildren ? (
+          <span style={{ fontSize: 10, color: "#9ca3af" }}>
+            {isExpanded ? "▼" : "▶"}
+          </span>
+        ) : (
+          <span style={{ width: 10 }} />
+        )}
+        <span style={{ fontSize: 12 }}>📄</span>
+        <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
+          {spec.name}
+        </span>
+        {spec.specSlug && (
+          <Link
+            href={`/analysis-specs?slug=${spec.specSlug}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              fontSize: 10,
+              color: "#6b7280",
+              textDecoration: "none",
+            }}
+          >
+            ({spec.specSlug})
+          </Link>
+        )}
+        {spec.meta?.count !== undefined && (
+          <span style={{ fontSize: 10, color: "#9ca3af" }}>
+            ({spec.meta.count} items)
+          </span>
+        )}
+      </div>
+
+      {/* Variables */}
+      {isExpanded && spec.children && (
+        <div>
+          {spec.children.map((variable) => (
+            <SlugVariableNode key={variable.id} variable={variable} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Variable node component for caller slugs
+function SlugVariableNode({ variable }: { variable: SlugNode }) {
+  const [showFull, setShowFull] = useState(false);
+  const valueStr = variable.value !== undefined && variable.value !== null
+    ? String(variable.value)
+    : "—";
+  const isLong = valueStr.length > 60;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        padding: "6px 16px 6px 56px",
+        background: "#fafafa",
+        borderBottom: "1px solid #f3f4f6",
+        fontSize: 12,
+      }}
+    >
+      <code style={{
+        padding: "2px 6px",
+        background: "#e5e7eb",
+        borderRadius: 4,
+        fontFamily: "monospace",
+        fontSize: 11,
+        color: "#4b5563",
+        whiteSpace: "nowrap",
+      }}>
+        {variable.path || variable.name}
+      </code>
+      <span style={{ color: "#9ca3af" }}>=</span>
+      <span
+        style={{
+          flex: 1,
+          color: "#374151",
+          wordBreak: "break-word",
+          cursor: isLong ? "pointer" : "default",
+        }}
+        onClick={() => isLong && setShowFull(!showFull)}
+        title={isLong ? "Click to expand" : undefined}
+      >
+        {showFull || !isLong ? valueStr : `${valueStr.substring(0, 60)}...`}
+      </span>
+      {variable.meta?.confidence !== undefined && (
+        <span style={{
+          fontSize: 10,
+          padding: "1px 4px",
+          background: variable.meta.confidence > 0.7 ? "#dcfce7" : "#fef3c7",
+          color: variable.meta.confidence > 0.7 ? "#16a34a" : "#d97706",
+          borderRadius: 3,
+        }}>
+          {(variable.meta.confidence * 100).toFixed(0)}%
+        </span>
+      )}
+    </div>
+  );
+}
+
+// =====================================================
+// AI CALL SECTION - Simulates a real voice call
+// =====================================================
+
+type CallState = "idle" | "active" | "ended" | "processing";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
+
+function AICallSection({
+  callerId,
+  callerName,
+  calls,
+  onCallEnded,
+}: {
+  callerId: string;
+  callerName: string;
+  calls: Call[];
+  onCallEnded: () => void;
+}) {
+  const [callState, setCallState] = useState<CallState>("idle");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<string>("");
+  const [pipelineStatus, setPipelineStatus] = useState<string>("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Focus input when call becomes active
+  useEffect(() => {
+    if (callState === "active") {
+      inputRef.current?.focus();
+    }
+  }, [callState]);
+
+  // Get next call sequence number
+  const nextCallSequence = calls.length > 0
+    ? Math.max(...calls.map((c) => c.callSequence || 0)) + 1
+    : 1;
+
+  // Start call - create a new call record and fetch the composed prompt
+  const handleStartCall = async () => {
+    setCallState("active");
+    setMessages([]);
+    setTranscript("");
+    setPipelineStatus("");
+
+    try {
+      // Create a new call record
+      const createRes = await fetch(`/api/callers/${callerId}/calls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "ai-simulation",
+          callSequence: nextCallSequence,
+        }),
+      });
+      const createData = await createRes.json();
+      if (createData.ok && createData.call?.id) {
+        setCurrentCallId(createData.call.id);
+      }
+
+      // AI greets the user first
+      const greetingPrompt = `The user just picked up the phone. Greet ${callerName} warmly and naturally, as if this is a real phone call. Keep it short (1-2 sentences).`;
+
+      await streamAIResponse(greetingPrompt, []);
+    } catch (err) {
+      console.error("Error starting call:", err);
+      setCallState("idle");
+    }
+  };
+
+  // Stream AI response
+  const streamAIResponse = async (userMessage: string, history: ChatMessage[]) => {
+    setIsStreaming(true);
+
+    // Use random suffix to avoid duplicate keys when user and assistant messages created in same millisecond
+    const assistantMsgId = `msg-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantMsgId, role: "assistant", content: "", timestamp: new Date() },
+    ]);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMessage,
+          mode: "CALL",
+          entityContext: [{ type: "caller", id: callerId, label: callerName }],
+          conversationHistory: history.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Chat API failed");
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          fullContent += chunk;
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsgId ? { ...m, content: fullContent } : m
+            )
+          );
+        }
+      }
+
+      // Update transcript
+      setTranscript((prev) => prev + (prev ? "\n" : "") + `AI: ${fullContent}`);
+
+    } catch (err) {
+      console.error("Error streaming response:", err);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMsgId
+            ? { ...m, content: "Sorry, I had trouble responding. Please try again." }
+            : m
+        )
+      );
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  // Handle user message
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isStreaming || callState !== "active") return;
+
+    const userMsg: ChatMessage = {
+      id: `msg-user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      role: "user",
+      content: inputValue.trim(),
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setTranscript((prev) => prev + (prev ? "\n" : "") + `User: ${userMsg.content}`);
+    setInputValue("");
+
+    await streamAIResponse(userMsg.content, [...messages, userMsg]);
+  };
+
+  // End call - save transcript and run pipeline
+  const handleEndCall = async () => {
+    if (callState !== "active") return;
+
+    setCallState("processing");
+    setPipelineStatus("Saving transcript...");
+
+    try {
+      if (!currentCallId) {
+        setPipelineStatus("Error: No call ID - call was not created properly");
+        setCallState("ended");
+        return;
+      }
+
+      if (messages.length === 0) {
+        setPipelineStatus("Error: No messages to save");
+        setCallState("ended");
+        return;
+      }
+
+      // Save messages as JSON transcript to the call
+      // The /end endpoint expects JSON array of {role, content, timestamp}
+      const messagesJson = JSON.stringify(
+        messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp.toISOString(),
+        }))
+      );
+
+      await fetch(`/api/calls/${currentCallId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: messagesJson }),
+      });
+
+      setPipelineStatus("Running analysis pipeline...");
+
+      // Use the proper /end endpoint which formats transcript and runs pipeline
+      const endRes = await fetch(`/api/calls/${currentCallId}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ engine: "claude" }),
+      });
+
+      const endData = await endRes.json();
+      if (endData.ok) {
+        setPipelineStatus(
+          `Pipeline complete: ${endData.pipeline?.scoresCreated || 0} scores, ` +
+          `${endData.pipeline?.memoriesCreated || 0} memories extracted`
+        );
+      } else {
+        setPipelineStatus(`Pipeline error: ${endData.error}`);
+      }
+
+      setCallState("ended");
+      onCallEnded();
+    } catch (err: any) {
+      setPipelineStatus(`Error: ${err.message}`);
+      setCallState("ended");
+    }
+  };
+
+  // Reset for new call
+  const handleNewCall = () => {
+    setCallState("idle");
+    setMessages([]);
+    setCurrentCallId(null);
+    setTranscript("");
+    setPipelineStatus("");
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 300px)", minHeight: 500 }}>
+      {/* Call Header */}
+      <div
+        style={{
+          padding: "16px 20px",
+          background: callState === "active" ? "#dcfce7" : callState === "processing" ? "#fef3c7" : "#f9fafb",
+          borderRadius: "12px 12px 0 0",
+          borderBottom: "1px solid #e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              background: callState === "active" ? "#22c55e" : "#e5e7eb",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 24,
+            }}
+          >
+            {callState === "active" ? "📞" : callState === "processing" ? "⏳" : "📱"}
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>{callerName}</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>
+              {callState === "idle" && "Ready to call"}
+              {callState === "active" && "Call in progress..."}
+              {callState === "processing" && "Processing call..."}
+              {callState === "ended" && "Call ended"}
+            </div>
+          </div>
+        </div>
+
+        {/* Call Controls */}
+        <div style={{ display: "flex", gap: 8 }}>
+          {callState === "idle" && (
+            <button
+              onClick={handleStartCall}
+              style={{
+                padding: "12px 24px",
+                background: "#22c55e",
+                color: "white",
+                border: "none",
+                borderRadius: 24,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>📞</span>
+              Start Call
+            </button>
+          )}
+          {callState === "active" && (
+            <button
+              onClick={handleEndCall}
+              style={{
+                padding: "12px 24px",
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                borderRadius: 24,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>📵</span>
+              End Call
+            </button>
+          )}
+          {(callState === "ended" || callState === "processing") && (
+            <button
+              onClick={handleNewCall}
+              disabled={callState === "processing"}
+              style={{
+                padding: "12px 24px",
+                background: callState === "processing" ? "#9ca3af" : "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: 24,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: callState === "processing" ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🔄</span>
+              New Call
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+          padding: 20,
+          background: callState === "active" ? "#f0fdf4" : "#ffffff",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        {callState === "idle" && (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#6b7280",
+              gap: 16,
+            }}
+          >
+            <div style={{ fontSize: 64 }}>📱</div>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>Ready to Simulate Call</div>
+            <div style={{ fontSize: 14, textAlign: "center", maxWidth: 400 }}>
+              Click "Start Call" to begin a simulated voice conversation with {callerName}.
+              The AI will use the composed prompt and remember this caller's history.
+            </div>
+            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+              Call #{nextCallSequence} for this caller
+            </div>
+          </div>
+        )}
+
+        {callState !== "idle" && messages.length === 0 && !isStreaming && (
+          <div style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+            Starting call...
+          </div>
+        )}
+
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            style={{
+              display: "flex",
+              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+            }}
+          >
+            <div
+              style={{
+                maxWidth: "80%",
+                padding: "12px 16px",
+                borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                background: msg.role === "user" ? "#4f46e5" : "#ffffff",
+                color: msg.role === "user" ? "white" : "#111827",
+                border: msg.role === "user" ? "none" : "1px solid #e5e7eb",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              }}
+            >
+              <div style={{ fontSize: 10, color: msg.role === "user" ? "rgba(255,255,255,0.7)" : "#9ca3af", marginBottom: 4 }}>
+                {msg.role === "user" ? "You" : "AI"}
+              </div>
+              <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                {msg.content || (isStreaming ? "..." : "")}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Pipeline Status */}
+        {pipelineStatus && (
+          <div
+            style={{
+              padding: 12,
+              background: callState === "ended" ? "#dcfce7" : "#fef3c7",
+              borderRadius: 8,
+              fontSize: 13,
+              color: callState === "ended" ? "#166534" : "#92400e",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {callState === "processing" && <span style={{ animation: "spin 1s linear infinite" }}>⏳</span>}
+            {callState === "ended" && <span>✅</span>}
+            {pipelineStatus}
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area */}
+      {callState === "active" && (
+        <div
+          style={{
+            padding: 16,
+            borderTop: "1px solid #e5e7eb",
+            background: "#f0fdf4",
+            borderRadius: "0 0 12px 12px",
+          }}
+        >
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+              placeholder="Type your message..."
+              disabled={isStreaming}
+              style={{
+                flex: 1,
+                padding: "12px 16px",
+                border: "1px solid #d1d5db",
+                borderRadius: 24,
+                fontSize: 14,
+                outline: "none",
+                background: "#ffffff",
+                color: "#111827",
+              }}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isStreaming || !inputValue.trim()}
+              style={{
+                padding: "12px 20px",
+                background: isStreaming || !inputValue.trim() ? "#d1d5db" : "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: 24,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isStreaming || !inputValue.trim() ? "not-allowed" : "pointer",
+              }}
+            >
+              {isStreaming ? "..." : "Send"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Call Summary after ended */}
+      {callState === "ended" && messages.length > 0 && (
+        <div
+          style={{
+            padding: 16,
+            borderTop: "1px solid #e5e7eb",
+            background: "#f9fafb",
+            borderRadius: "0 0 12px 12px",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Call Summary</div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>
+            {messages.filter((m) => m.role === "user").length} user messages,{" "}
+            {messages.filter((m) => m.role === "assistant").length} AI responses
+          </div>
+        </div>
+      )}
     </div>
   );
 }

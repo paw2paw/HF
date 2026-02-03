@@ -37,6 +37,7 @@ export async function GET(
               id: true,
               name: true,
               email: true,
+              domainId: true,
             },
           },
         },
@@ -170,17 +171,27 @@ export async function GET(
     let effectiveTargets: any[] = [];
 
     if (call.callerId) {
-      // Get caller's segment and identity info
-      const callerIdentity = await prisma.callerIdentity.findFirst({
-        where: { callerId: call.callerId },
-        select: {
-          id: true,
-          segmentId: true,
-          segment: { select: { id: true, name: true } },
-          promptStackId: true,
-          promptStack: { select: { id: true, name: true } },
-        },
-      });
+      // Get caller's segment and identity info, and find published playbook for their domain
+      const [callerIdentity, publishedPlaybook] = await Promise.all([
+        prisma.callerIdentity.findFirst({
+          where: { callerId: call.callerId },
+          select: {
+            id: true,
+            segmentId: true,
+            segment: { select: { id: true, name: true } },
+          },
+        }),
+        // Find the published playbook for the caller's domain
+        call.caller?.domainId
+          ? prisma.playbook.findFirst({
+              where: {
+                domainId: call.caller.domainId,
+                status: "PUBLISHED",
+              },
+              select: { id: true, name: true },
+            })
+          : Promise.resolve(null),
+      ]);
 
       // Fetch all potentially applicable targets
       const [systemTargets, playbookTargets, segmentTargets, callerTargets] = await Promise.all([
@@ -203,12 +214,12 @@ export async function GET(
             },
           },
         }),
-        // PLAYBOOK level targets (if caller has a prompt stack / playbook)
-        callerIdentity?.promptStackId
+        // PLAYBOOK level targets (from published playbook for caller's domain)
+        publishedPlaybook?.id
           ? prisma.behaviorTarget.findMany({
               where: {
                 scope: "PLAYBOOK",
-                playbookId: callerIdentity.promptStackId,
+                playbookId: publishedPlaybook.id,
                 effectiveUntil: null,
               },
               include: {
@@ -404,6 +415,53 @@ export async function GET(
     console.error("Error fetching call:", error);
     return NextResponse.json(
       { ok: false, error: error?.message || "Failed to fetch call" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/calls/[callId]
+ *
+ * Update call data (e.g., transcript after AI simulation)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ callId: string }> }
+) {
+  try {
+    const { callId } = await params;
+    const body = await request.json();
+    const { transcript, summary } = body;
+
+    const call = await prisma.call.findUnique({
+      where: { id: callId },
+    });
+
+    if (!call) {
+      return NextResponse.json(
+        { ok: false, error: "Call not found" },
+        { status: 404 }
+      );
+    }
+
+    const updateData: any = {};
+    if (transcript !== undefined) updateData.transcript = transcript;
+    if (summary !== undefined) updateData.summary = summary;
+
+    const updated = await prisma.call.update({
+      where: { id: callId },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      call: updated,
+    });
+  } catch (error: any) {
+    console.error("Error updating call:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Failed to update call" },
       { status: 500 }
     );
   }

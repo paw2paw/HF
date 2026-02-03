@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
           name: true,
           description: true,
           scope: true,
+          specType: true,
           outputType: true,
+          specRole: true,
           domain: true,
           priority: true,
           _count: {
@@ -28,9 +30,10 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // System specs (SYSTEM scope)
+      // System specs (SYSTEM scope) - include ALL, even inactive ones
+      // UI will show inactive status and prevent enabling
       prisma.analysisSpec.findMany({
-        where: { isActive: true, scope: "SYSTEM" },
+        where: { scope: "SYSTEM" },
         orderBy: [{ domain: "asc" }, { priority: "desc" }, { name: "asc" }],
         select: {
           id: true,
@@ -38,9 +41,13 @@ export async function GET(request: NextRequest) {
           name: true,
           description: true,
           scope: true,
+          specType: true,
           outputType: true,
+          specRole: true,
           domain: true,
           priority: true,
+          isActive: true,
+          config: true,
           _count: {
             select: { triggers: true },
           },

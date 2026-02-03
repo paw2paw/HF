@@ -20,9 +20,15 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:all": "npm run test && npm run test:integration && npm run test:e2e",
+    "playwright:install": "playwright install --with-deps",
     "db:reset": "tsx prisma/reset.ts",
-    "db:seed:all": "tsx prisma/seed-all.ts"
+    "db:seed:all": "tsx prisma/seed-all.ts",
+    "ctl": "tsx cli/control.ts",
+    "control": "tsx cli/control.ts menu"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -53,6 +59,8 @@
     "reactflow": "^11.11.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "commander": "^12.1.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -70,6 +78,7 @@
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.17",
+    "wait-on": "^8.0.4"
   }
 }

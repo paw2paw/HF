@@ -4,22 +4,21 @@ import { prisma } from "@/lib/prisma";
 /**
  * GET /api/callers
  *
- * List all callers with optional personality and counts
+ * List all callers with optional counts
+ * Note: The Caller model is minimal - most data lives on related User model
  */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const withPersonality = url.searchParams.get("withPersonality") === "true";
     const withCounts = url.searchParams.get("withCounts") === "true";
     const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
-    // Fetch callers with basic counts, plus their linked CallerIdentity (which has nextPrompt)
+    // Fetch callers with available relations
     const callers = await prisma.caller.findMany({
       take: limit,
       skip: offset,
       include: {
-        personality: withPersonality,
         domain: {
           select: {
             id: true,
@@ -27,43 +26,48 @@ export async function GET(req: Request) {
             name: true,
           },
         },
-        callerIdentities: {
-          take: 1, // Get the first CallerIdentity linked to this caller
+        personality: {
           select: {
-            id: true,
-            nextPrompt: true,
-            nextPromptComposedAt: true,
+            openness: true,
+            conscientiousness: true,
+            extraversion: true,
+            agreeableness: true,
+            neuroticism: true,
+            preferredTone: true,
+            preferredLength: true,
+            technicalLevel: true,
+            confidenceScore: true,
           },
         },
-        _count: withCounts
-          ? {
-              select: {
-                calls: true,
-                personalityObservations: true,
-              },
-            }
-          : undefined,
       },
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    // Flatten the callerIdentity data onto the caller object for easier consumption
-    const callersWithPrompt = callers.map((caller) => {
-      const identity = caller.callerIdentities[0];
-      return {
-        ...caller,
-        callerIdentities: undefined, // Remove the nested array
-        nextPrompt: identity?.nextPrompt || null,
-        nextPromptComposedAt: identity?.nextPromptComposedAt || null,
-      };
-    });
+    // Transform to flatten nested data
+    const callersFlattened = callers.map((caller) => ({
+      id: caller.id,
+      name: caller.name || null,
+      email: caller.email || null,
+      phone: caller.phone || null,
+      externalId: caller.externalId,
+      domainId: caller.domainId || null,
+      domain: caller.domain || null,
+      personality: caller.personality || null,
+      nextPrompt: caller.nextPrompt,
+      nextPromptComposedAt: caller.nextPromptComposedAt,
+      callCount: caller.callCount,
+      lastCallAt: caller.lastCallAt,
+      createdAt: caller.createdAt,
+      updatedAt: caller.updatedAt,
+    }));
 
-    // If counts requested, add memory counts separately
-    // (workaround for Prisma client caching issues)
-    if (withCounts && callersWithPrompt.length > 0) {
-      const callerIds = callersWithPrompt.map((c) => c.id);
+    // If counts requested, fetch related counts
+    if (withCounts && callersFlattened.length > 0) {
+      const callerIds = callersFlattened.map((c) => c.id);
+
+      // Get memory counts
       const memoryCounts = await prisma.callerMemory.groupBy({
         by: ["callerId"],
         where: {
@@ -81,11 +85,33 @@ export async function GET(req: Request) {
         memoryCounts.map((mc) => [mc.callerId, mc._count.id])
       );
 
-      // Augment callers with memory count
-      for (const caller of callersWithPrompt) {
-        (caller as any)._count = {
-          ...(caller as any)._count,
+      // Get call counts
+      const callCounts = await prisma.call.groupBy({
+        by: ["callerId"],
+        where: {
+          callerId: { in: callerIds },
+        },
+        _count: { id: true },
+      });
+
+      const callCountMap = new Map(
+        callCounts.map((cc) => [cc.callerId, cc._count.id])
+      );
+
+      // Augment callers with counts
+      for (let i = 0; i < callersFlattened.length; i++) {
+        const caller = callers[i];
+        (callersFlattened[i] as any)._count = {
           memories: memoryCountMap.get(caller.id) || 0,
+          calls: callCountMap.get(caller.id) || caller.callCount,
+        };
+      }
+    } else {
+      // Default counts when withCounts is false
+      for (const caller of callersFlattened) {
+        (caller as any)._count = {
+          memories: 0,
+          calls: (caller as any).callCount || 0,
         };
       }
     }
@@ -94,7 +120,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      callers: callersWithPrompt,
+      callers: callersFlattened,
       total,
       limit,
       offset,

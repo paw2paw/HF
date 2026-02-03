@@ -45,6 +45,37 @@ export async function GET(
       },
     });
 
+    // Fetch the linked BDDFeatureSet if compiledSetId exists
+    let featureSet = null;
+    if (spec?.compiledSetId) {
+      featureSet = await prisma.bDDFeatureSet.findUnique({
+        where: { id: spec.compiledSetId },
+        select: {
+          id: true,
+          featureId: true,
+          name: true,
+          description: true,
+          version: true,
+          specType: true,
+          rawSpec: true,
+          parameters: true,
+          constraints: true,
+          promptGuidance: true,
+          scoringSpec: true,
+          definitions: true,
+          thresholds: true,
+          parameterCount: true,
+          constraintCount: true,
+          definitionCount: true,
+          isActive: true,
+          activatedAt: true,
+          compiledAt: true,
+          lastTestAt: true,
+          lastTestResult: true,
+        },
+      });
+    }
+
     if (!spec) {
       return NextResponse.json(
         { ok: false, error: "Spec not found" },
@@ -112,7 +143,7 @@ export async function GET(
       })),
     };
 
-    return NextResponse.json({ ok: true, spec: enhancedSpec });
+    return NextResponse.json({ ok: true, spec: enhancedSpec, featureSet });
   } catch (error: any) {
     return NextResponse.json(
       { ok: false, error: error?.message || "Failed to fetch spec" },
@@ -132,7 +163,7 @@ export async function PUT(
   try {
     const { specId } = await params;
     const body = await req.json();
-    const { name, description, outputType, domain, priority, isActive, version, forceUnlock } = body;
+    const { name, description, outputType, scope, domain, priority, isActive, version, forceUnlock } = body;
 
     // Check if spec is locked
     const existing = await prisma.analysisSpec.findUnique({
@@ -149,7 +180,7 @@ export async function PUT(
     // If locked and not just toggling isActive, block the edit
     if (existing.isLocked && !forceUnlock) {
       // Allow toggling isActive on locked specs (deactivating doesn't change the spec)
-      if (isActive !== undefined && name === undefined && description === undefined && outputType === undefined && domain === undefined && priority === undefined && version === undefined) {
+      if (isActive !== undefined && name === undefined && description === undefined && outputType === undefined && scope === undefined && domain === undefined && priority === undefined && version === undefined) {
         // Just toggling active status is OK
       } else {
         return NextResponse.json(
@@ -167,11 +198,46 @@ export async function PUT(
 
     // Determine if this is a content change (marks spec as dirty)
     const isContentChange = name !== undefined || description !== undefined ||
-                           outputType !== undefined || domain !== undefined ||
-                           priority !== undefined || version !== undefined;
+                           outputType !== undefined || scope !== undefined ||
+                           domain !== undefined || priority !== undefined || version !== undefined;
 
     // Check if spec was previously compiled (to warn user)
     const wasCompiled = existing.compiledAt !== null && !existing.isDirty;
+
+    // If deactivating a SYSTEM spec, cascade to all PlaybookSystemSpec records
+    let affectedPlaybooks: { id: string; name: string }[] = [];
+    if (isActive === false && existing.isActive === true && existing.scope === "SYSTEM") {
+      // Find all playbooks that have this spec enabled
+      const enabledPlaybookSpecs = await prisma.playbookSpec.findMany({
+        where: {
+          specId,
+          isEnabled: true,
+        },
+        include: {
+          playbook: {
+            select: { id: true, name: true },
+          },
+        },
+      });
+
+      affectedPlaybooks = enabledPlaybookSpecs.map(pss => ({
+        id: pss.playbook.id,
+        name: pss.playbook.name,
+      }));
+
+      // Cascade: disable this spec in all playbooks
+      if (enabledPlaybookSpecs.length > 0) {
+        await prisma.playbookSpec.updateMany({
+          where: {
+            specId,
+            isEnabled: true,
+          },
+          data: {
+            isEnabled: false,
+          },
+        });
+      }
+    }
 
     const spec = await prisma.analysisSpec.update({
       where: { id: specId },
@@ -179,6 +245,7 @@ export async function PUT(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(outputType !== undefined && { outputType }),
+        ...(scope !== undefined && { scope }),
         ...(domain !== undefined && { domain }),
         ...(priority !== undefined && { priority }),
         ...(isActive !== undefined && { isActive }),
@@ -195,6 +262,11 @@ export async function PUT(
       ok: true,
       spec,
       wasCompiled,  // Let UI know if it should show a warning
+      // Warn user about affected playbooks when deactivating
+      ...(affectedPlaybooks.length > 0 && {
+        affectedPlaybooks,
+        cascadeWarning: `This spec has been disabled in ${affectedPlaybooks.length} playbook(s)`,
+      }),
     });
   } catch (error: any) {
     if (error?.code === "P2025") {
@@ -221,7 +293,7 @@ export async function PATCH(
   try {
     const { specId } = await params;
     const body = await req.json();
-    const { promptTemplate } = body;
+    const { promptTemplate, config, specRole } = body;
 
     // Check if spec exists and is not locked
     const existing = await prisma.analysisSpec.findUnique({
@@ -247,13 +319,23 @@ export async function PATCH(
       );
     }
 
+    // Determine what changed for dirty reason
+    const changes: string[] = [];
+    if (promptTemplate !== undefined) changes.push("prompt_template");
+    if (config !== undefined) changes.push("config");
+    if (specRole !== undefined) changes.push("spec_role");
+
     const spec = await prisma.analysisSpec.update({
       where: { id: specId },
       data: {
-        promptTemplate: promptTemplate,
-        // Mark as dirty if template changed
-        isDirty: true,
-        dirtyReason: "prompt_template_modified",
+        ...(promptTemplate !== undefined && { promptTemplate }),
+        ...(config !== undefined && { config }),
+        ...(specRole !== undefined && { specRole }),
+        // Mark as dirty if anything changed
+        ...(changes.length > 0 && {
+          isDirty: true,
+          dirtyReason: changes.join("_") + "_modified",
+        }),
       },
     });
 
