@@ -529,13 +529,15 @@ Targets are resolved with override precedence:
 SYSTEM targets (defaults)
     │
     ▼
-SEGMENT targets (company/community/domain overrides)
+PLAYBOOK targets (domain/playbook-specific overrides)
     │
     ▼
 CALLER targets (individual overrides)
 ```
 
 Each layer can override specific parameters while inheriting others.
+
+**Note:** SEGMENT scope was removed. Behavior targets now follow: SYSTEM → PLAYBOOK → CALLER hierarchy.
 
 ### Segment Hierarchy
 
@@ -720,7 +722,9 @@ ProcessedFile         Transcript file tracking
 Caller                Caller records
 ├── CallerPersonality   Aggregated Big 5 traits
 ├── CallerMemory        Extracted memories
-└── CallerMemorySummary Memory aggregations
+├── CallerMemorySummary Memory aggregations
+├── CallerTarget        Personalized behavior targets (ADAPT output)
+└── CallerAttribute     Flexible caller state (curriculum, session planning)
 ```
 
 ### Knowledge Models
@@ -757,7 +761,7 @@ Segment               Groupings (COMPANY/COMMUNITY/DOMAIN/COHORT)
 └── children[]        Hierarchical nesting
 
 BehaviorTarget        Target values for behavior parameters
-├── scope             SYSTEM | SEGMENT | CALLER
+├── scope             SYSTEM | PLAYBOOK | CALLER
 ├── source            SEED | LEARNED | MANUAL
 └── effectiveUntil    Version chain (null = current)
 
