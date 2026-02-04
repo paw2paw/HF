@@ -48,7 +48,8 @@ export default function SimpleSidebarNav({
       {
         id: "workflow",
         items: [
-          { href: "/x/studio", label: "Studio", icon: "🎛️", highlighted: true },
+          { href: "/x/supervisor", label: "Supervisor", icon: "👁️", highlighted: true },
+          { href: "/x/studio", label: "Studio", icon: "🎛️" },
         ],
         dividerAfter: true,
       },

@@ -79,6 +79,7 @@ export default function SidebarNav({
         items: [
           { href: "/domains", label: "Domains", icon: "🌐", working: true },
           { href: "/playbooks", label: "Playbooks", icon: "📚", working: true },
+          { href: "/x/supervisor", label: "Supervisor", icon: "👁️", working: true },
           { href: "/analysis-specs?scope=DOMAIN&locked=1", label: "Domain Specs", icon: "🏢", working: true },
           { href: "/analysis-specs?scope=SYSTEM&locked=1", label: "System Specs", icon: "🛡️", working: true },
           { href: "/prompt-templates", label: "Prompt Templates", icon: "📝", working: true },
