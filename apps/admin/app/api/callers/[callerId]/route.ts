@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { composeCurriculumSection } from "@/lib/prompt/compose-curriculum-section";
+import { getLearnerProfile } from "@/lib/learner/profile";
 
 /**
  * GET /api/callers/[callerId]
@@ -18,7 +20,7 @@ export async function GET(
     const { callerId } = await params;
 
     // Fetch all caller data in parallel
-    const [caller, personality, observations, memories, memorySummary, calls, identities, scores, callerTargets] = await Promise.all([
+    const [caller, personality, observations, memories, memorySummary, calls, identities, scores, callerTargets, curriculum, learnerProfile] = await Promise.all([
       // Basic caller info
       prisma.caller.findUnique({
         where: { id: callerId },
@@ -222,6 +224,39 @@ export async function GET(
           },
         },
       }),
+
+      // Curriculum progress - loads from CONTENT specs using contract-based system
+      (async () => {
+        try {
+          // First fetch caller to get domain
+          const callerData = await prisma.caller.findUnique({
+            where: { id: callerId },
+            select: {
+              domain: {
+                select: { name: true }
+              }
+            },
+          });
+
+          if (callerData?.domain?.name) {
+            return await composeCurriculumSection(callerId, callerData.domain.name);
+          }
+          return null;
+        } catch (error) {
+          console.error('[caller-api] Failed to load curriculum:', error);
+          return null;
+        }
+      })(),
+
+      // Learner profile - inferred learning preferences from behavior
+      (async () => {
+        try {
+          return await getLearnerProfile(callerId);
+        } catch (error) {
+          console.error('[caller-api] Failed to load learner profile:', error);
+          return null;
+        }
+      })(),
     ]);
 
     if (!caller) {
@@ -263,14 +298,29 @@ export async function GET(
           segmentId: true,
         },
       }),
-      // Find the published playbook for the caller's domain
+      // Find the published playbook for the caller's domain with its templates
       caller.domainId
         ? prisma.playbook.findFirst({
             where: {
               domainId: caller.domainId,
               status: "PUBLISHED",
             },
-            select: { id: true },
+            select: {
+              id: true,
+              items: {
+                where: { isEnabled: true, itemType: "PROMPT_TEMPLATE" },
+                select: {
+                  promptTemplate: {
+                    select: {
+                      slug: true,
+                      name: true,
+                      systemPrompt: true,
+                      contextTemplate: true,
+                    },
+                  },
+                },
+              },
+            },
           })
         : Promise.resolve(null),
     ]);
@@ -329,6 +379,29 @@ export async function GET(
       hasRewardScore: !!call.rewardScore,
     }));
 
+    // Extract available slug variable names from playbook templates
+    const availableSlugNames = new Set<string>();
+    if (publishedPlaybook?.items) {
+      // Regex to match {slug.variable_name} patterns
+      const slugPattern = /\{slug\.([a-zA-Z0-9_]+)\}/g;
+
+      for (const item of publishedPlaybook.items) {
+        if (item.promptTemplate) {
+          const templates = [
+            item.promptTemplate.systemPrompt,
+            item.promptTemplate.contextTemplate,
+          ].filter(Boolean);
+
+          for (const template of templates) {
+            let match;
+            while ((match = slugPattern.exec(template as string)) !== null) {
+              availableSlugNames.add(match[1]);
+            }
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       caller: {
@@ -348,6 +421,9 @@ export async function GET(
       identities,
       scores,
       callerTargets,
+      curriculum,
+      learnerProfile,
+      availableSlugNames: Array.from(availableSlugNames).sort(),
       counts: {
         calls: callCount,
         memories: memoryCount,
@@ -356,6 +432,8 @@ export async function GET(
         targets: targetsCount,
         callerTargets: callerTargets.length,
         measurements: measurementsCount,
+        curriculumModules: curriculum?.totalModules || 0,
+        curriculumCompleted: curriculum?.completedCount || 0,
       },
     });
   } catch (error: any) {
@@ -438,6 +516,121 @@ export async function PATCH(
     console.error("Error updating caller:", error);
     return NextResponse.json(
       { ok: false, error: error?.message || "Failed to update caller" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/callers/[callerId]
+ *
+ * Delete a caller and all their data.
+ * Optionally exclude their phone/externalId from future imports.
+ */
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ callerId: string }> }
+) {
+  try {
+    const { callerId } = await params;
+    const body = await req.json().catch(() => ({}));
+    const { exclude = false } = body;
+
+    // Find the caller first
+    const caller = await prisma.caller.findUnique({
+      where: { id: callerId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        externalId: true,
+      },
+    });
+
+    if (!caller) {
+      return NextResponse.json(
+        { ok: false, error: "Caller not found" },
+        { status: 404 }
+      );
+    }
+
+    // If exclude option is set, add to ExcludedCaller table
+    if (exclude && (caller.phone || caller.externalId)) {
+      // Create exclusion record(s)
+      if (caller.phone) {
+        await prisma.excludedCaller.upsert({
+          where: { phone: caller.phone },
+          create: {
+            phone: caller.phone,
+            reason: `Deleted caller: ${caller.name || caller.phone}`,
+          },
+          update: {
+            reason: `Deleted caller: ${caller.name || caller.phone}`,
+          },
+        });
+      }
+      if (caller.externalId) {
+        await prisma.excludedCaller.upsert({
+          where: { externalId: caller.externalId },
+          create: {
+            externalId: caller.externalId,
+            reason: `Deleted caller: ${caller.name || caller.externalId}`,
+          },
+          update: {
+            reason: `Deleted caller: ${caller.name || caller.externalId}`,
+          },
+        });
+      }
+    }
+
+    // Delete all related records (order matters due to FK constraints)
+    // Delete in order of dependency
+    await prisma.$transaction(async (tx) => {
+      // Delete call-related records first
+      const callIds = await tx.call.findMany({
+        where: { callerId },
+        select: { id: true },
+      });
+      const callIdList = callIds.map((c) => c.id);
+
+      if (callIdList.length > 0) {
+        // Delete records that reference calls
+        await tx.callScore.deleteMany({ where: { callId: { in: callIdList } } });
+        await tx.behaviorMeasurement.deleteMany({ where: { callId: { in: callIdList } } });
+        await tx.callTarget.deleteMany({ where: { callId: { in: callIdList } } });
+        await tx.rewardScore.deleteMany({ where: { callId: { in: callIdList } } });
+      }
+
+      // Delete caller-related records
+      await tx.callerMemory.deleteMany({ where: { callerId } });
+      await tx.callerMemorySummary.deleteMany({ where: { callerId } });
+      await tx.personalityObservation.deleteMany({ where: { callerId } });
+      await tx.callerPersonality.deleteMany({ where: { callerId } });
+      await tx.callerPersonalityProfile.deleteMany({ where: { callerId } });
+      await tx.promptSlugSelection.deleteMany({ where: { callerId } });
+      await tx.composedPrompt.deleteMany({ where: { callerId } });
+      await tx.callerTarget.deleteMany({ where: { callerId } });
+      await tx.callerAttribute.deleteMany({ where: { callerId } });
+
+      // Delete caller identities
+      await tx.callerIdentity.deleteMany({ where: { callerId } });
+
+      // Delete calls
+      await tx.call.deleteMany({ where: { callerId } });
+
+      // Finally delete the caller
+      await tx.caller.delete({ where: { id: callerId } });
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: `Deleted caller ${caller.name || caller.phone || callerId}`,
+      excluded: exclude && (caller.phone || caller.externalId),
+    });
+  } catch (error: any) {
+    console.error("Error deleting caller:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Failed to delete caller" },
       { status: 500 }
     );
   }

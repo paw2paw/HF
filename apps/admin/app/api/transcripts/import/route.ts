@@ -64,7 +64,7 @@ function extractNameFromTranscript(transcript: string): string | null {
   const blacklist = new Set([
     'there', 'here', 'this', 'that', 'these', 'those',
     'thinking', 'doing', 'reading', 'writing', 'speaking',
-    'first name', 'last name', 'name', 'user', 'caller',
+    'first name', 'last name', 'first', 'last', 'name', 'user', 'caller',
     'yes', 'no', 'not', 'just', 'really', 'very', 'quite',
     'hi', 'hello', 'hey', 'well', 'okay', 'ok', 'sure'
   ]);
@@ -83,9 +83,10 @@ function extractNameFromTranscript(transcript: string): string | null {
   // Look at first 1500 chars to find name introduction
   const searchText = transcript.slice(0, 1500);
 
-  // Pattern 1: AI greets by name - "AI: Hi, NAME" or "AI: Hello NAME"
+  // Pattern 1: AI greets by name - "AI: Hi, NAME" or "AI: Hello, NAME"
+  // Requires comma after greeting to distinguish from "Hi. First name" (asking for name)
   // Only if NAME looks like a real name (not a tag)
-  const hiMatch = searchText.match(/AI:\s*(?:Hi|Hello|Hey),?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\./);
+  const hiMatch = searchText.match(/AI:\s*(?:Hi|Hello|Hey),\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\./);
   if (hiMatch) {
     const name = hiMatch[1].trim();
     if (isValidName(name)) return name;
@@ -112,9 +113,151 @@ function extractNameFromTranscript(transcript: string): string | null {
 }
 
 /**
+ * Parse a SIMPLE text transcript format:
+ * ```
+ * Caller: Paul
+ * Number: +44 7768 486464
+ * Call: 1
+ *
+ * AI: Hi
+ * Paul: Hi
+ * AI: Ready to learn?
+ * Paul: Yes
+ * ```
+ *
+ * Lines are prefixed with speaker name followed by colon.
+ * "AI:" indicates the assistant, anything else is the user.
+ */
+function parseSimpleTranscript(content: string, filename: string): VAPICall | null {
+  try {
+    // Quick check: if this looks like VAPI format, bail out early
+    // VAPI format has "Transcript" header and "Assistant"/"User" on their own lines
+    if (content.includes("\nTranscript\n") || content.includes("\nTranscript\r\n")) {
+      return null; // Let parseTextTranscript handle it
+    }
+    if (/\n(Assistant|User)\r?\n/i.test(content)) {
+      return null; // VAPI format uses standalone speaker labels
+    }
+
+    const lines = content.split("\n").map((l) => l.trim());
+
+    // Extract metadata from header
+    let callerName: string | null = null;
+    let phone: string | null = null;
+    let _callNumber: number | null = null; // Parsed but not yet used (for future: override callSequence)
+    let dialogueStartIndex = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Caller: NAME
+      const callerMatch = line.match(/^Caller:\s*(.+)/i);
+      if (callerMatch) {
+        callerName = callerMatch[1].trim();
+        continue;
+      }
+
+      // Number: +44... or Phone: +44... or Phone Number: +44...
+      const phoneMatch = line.match(/^(?:Phone\s*)?Number:\s*\+?\s*(.+)/i);
+      if (phoneMatch) {
+        phone = phoneMatch[1].replace(/\s/g, "");
+        continue;
+      }
+
+      // Call: N
+      const callMatch = line.match(/^Call:\s*(\d+)/i);
+      if (callMatch) {
+        _callNumber = parseInt(callMatch[1], 10);
+        continue;
+      }
+
+      // Empty line or first dialogue line marks start of transcript
+      if (line === "") {
+        dialogueStartIndex = i + 1;
+        continue;
+      }
+
+      // If we hit a line with "Speaker: text" format, this is dialogue start
+      if (line.includes(":") && !line.match(/^(Caller|Number|Phone|Call):/i)) {
+        dialogueStartIndex = i;
+        break;
+      }
+    }
+
+    // Parse dialogue lines
+    const transcriptLines: string[] = [];
+    for (let i = dialogueStartIndex; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line) continue;
+
+      // Match "Speaker: text" format
+      const dialogueMatch = line.match(/^([^:]+):\s*(.*)$/);
+      if (dialogueMatch) {
+        const speaker = dialogueMatch[1].trim();
+        const text = dialogueMatch[2].trim();
+
+        if (!text) continue;
+
+        // AI/Assistant -> AI:, anything else -> User:
+        if (speaker.toLowerCase() === "ai" || speaker.toLowerCase() === "assistant") {
+          transcriptLines.push(`AI: ${text}`);
+        } else {
+          transcriptLines.push(`User: ${text}`);
+        }
+      }
+    }
+
+    if (transcriptLines.length === 0) return null;
+
+    const transcript = transcriptLines.join("\n");
+
+    // Generate ID from filename or timestamp
+    const logIdMatch = filename.match(/Log ID ([0-9a-f-]+)/i);
+    const logId = logIdMatch
+      ? logIdMatch[1]
+      : `txt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    // Normalize phone number
+    let normalizedPhone = phone;
+    if (phone) {
+      // Remove spaces and ensure + prefix
+      normalizedPhone = phone.replace(/\s/g, "");
+      if (!normalizedPhone.startsWith("+")) {
+        // UK number starting with 0 -> +44
+        if (normalizedPhone.startsWith("0")) {
+          normalizedPhone = "+44" + normalizedPhone.slice(1);
+        } else {
+          normalizedPhone = "+" + normalizedPhone;
+        }
+      }
+    }
+
+    return {
+      id: logId,
+      transcript,
+      summary: "",
+      customer: normalizedPhone
+        ? { number: normalizedPhone, name: callerName || undefined }
+        : callerName
+          ? { name: callerName }
+          : null,
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      status: "ended",
+      endedReason: "completed",
+      messages: [],
+      createdAt: new Date().toISOString(),
+    };
+  } catch (e) {
+    console.error(`Failed to parse simple transcript: ${filename}`, e);
+    return null;
+  }
+}
+
+/**
  * Parse a plain text transcript file into a call object
  *
- * Format expected:
+ * Format expected (VAPI export style):
  * ```
  * Phone Number: +07768 484848
  * Caller: WNF_STUDENT
@@ -258,9 +401,10 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get("content-type") || "";
 
     let filesToProcess: Array<{ content: string; filename: string }> = [];
-    let domainSlug = "mabel";
+    let domainSlug: string | null = null; // No default domain - callers can exist without one
     let duplicateHandling: "skip" | "overwrite" | "create_new" = "skip";
     let sourceDir: string | null = null;
+    let savedToRaw: string[] = [];
 
     // Handle FormData (browser upload)
     if (contentType.includes("multipart/form-data")) {
@@ -268,12 +412,30 @@ export async function POST(request: NextRequest) {
       const files = formData.getAll("files") as File[];
       duplicateHandling = (formData.get("duplicateHandling") as string || "skip") as any;
       domainSlug = formData.get("domainSlug") as string || "mabel";
+      const saveToRaw = formData.get("saveToRaw") === "true";
 
       if (!files || files.length === 0) {
         return NextResponse.json(
           { ok: false, error: "No files uploaded" },
           { status: 400 }
         );
+      }
+
+      // Optionally save files to raw directory for future imports
+      if (saveToRaw) {
+        const rawDir = getTranscriptsRawDir();
+        try {
+          await fs.mkdir(rawDir, { recursive: true });
+          for (const file of files) {
+            const content = await file.text();
+            const filePath = path.join(rawDir, file.name);
+            await fs.writeFile(filePath, content, "utf-8");
+            savedToRaw.push(file.name);
+          }
+        } catch (e: any) {
+          console.error("Failed to save files to raw:", e);
+          // Continue with import even if save fails
+        }
       }
 
       for (const file of files) {
@@ -327,8 +489,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get domain for callers
-    const domain = await prisma.domain.findUnique({ where: { slug: domainSlug } });
+    // Get domain for callers (optional - callers can exist without a domain)
+    const domain = domainSlug
+      ? await prisma.domain.findUnique({ where: { slug: domainSlug } })
+      : null;
 
     const results = {
       filesProcessed: 0,
@@ -353,7 +517,12 @@ export async function POST(request: NextRequest) {
           const json = JSON.parse(content);
           calls = Array.isArray(json) ? json : (json.calls || [json]);
         } else {
-          const call = parseTextTranscript(content, filename);
+          // Try simple format first (Caller:/Number:/AI:/Name: style)
+          // Fall back to VAPI export format (Transcript/Assistant/User style)
+          let call = parseSimpleTranscript(content, filename);
+          if (!call) {
+            call = parseTextTranscript(content, filename);
+          }
           if (call) calls = [call];
         }
 
@@ -401,6 +570,7 @@ export async function POST(request: NextRequest) {
           const phone = customerInfo?.number || null;
           const callerTag = customerInfo?.name?.trim() || null;
 
+
           // Determine display name:
           // 1) If customer.name exists and isn't a tag, use it
           // 2) Try extracting from transcript
@@ -436,17 +606,37 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Find existing caller by phone or external ID (tag-based)
-          let caller = null;
-          if (phone) {
-            caller = await prisma.caller.findFirst({ where: { phone } });
+          // Check if this caller is excluded from import (optional - table may not exist)
+          let isExcluded = false;
+          try {
+            const excludeConditions: any[] = [];
+            if (phone) excludeConditions.push({ phone });
+            if (callerTag) excludeConditions.push({ externalId: `import-tag:${callerTag}` });
+
+            if (excludeConditions.length > 0 && (prisma as any).excludedCaller) {
+              const excluded = await (prisma as any).excludedCaller.findFirst({
+                where: { OR: excludeConditions },
+              });
+              isExcluded = !!excluded;
+            }
+          } catch {
+            // ExcludedCaller table may not exist - skip exclusion check
           }
-          if (!caller && callerTag) {
-            // Look up by externalId which we set to import-tag:{tag} for tag-based callers
-            caller = await prisma.caller.findFirst({
-              where: { externalId: `import-tag:${callerTag}` }
-            });
+
+          if (isExcluded) {
+            results.skipped += callerCalls.length;
+            results.errors.push(`Skipped ${callerCalls.length} calls from excluded caller: ${phone || callerTag}`);
+            continue;
           }
+
+          // Find existing caller by phone or external ID (single query with OR)
+          const callerConditions: any[] = [];
+          if (phone) callerConditions.push({ phone });
+          if (callerTag) callerConditions.push({ externalId: `import-tag:${callerTag}` });
+
+          let caller = callerConditions.length > 0
+            ? await prisma.caller.findFirst({ where: { OR: callerConditions } })
+            : null;
 
           const isNewCaller = !caller;
           if (!caller) {
@@ -577,6 +767,7 @@ export async function POST(request: NextRequest) {
       callsImported: results.callsImported,
       errors: results.errors,
       ...(sourceDir && { sourceDir }),
+      ...(savedToRaw.length > 0 && { savedToRaw }),
     });
   } catch (error: any) {
     console.error("POST /api/transcripts/import error:", error);

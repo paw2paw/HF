@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
           specRole: true,
           domain: true,
           priority: true,
+          config: true, // Include config for CONTENT specs with metadata
           _count: {
             select: { triggers: true },
           },

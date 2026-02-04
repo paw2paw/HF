@@ -1,19 +1,29 @@
 /**
  * POST /api/calls/[callId]/pipeline
  *
- * Unified pipeline endpoint that runs the full analysis in batched AI calls.
+ * SPEC-DRIVEN pipeline endpoint that runs analysis in configurable stages.
  *
- * Pipeline Stages (in order):
- *   1. LEARN  - Extract data about the caller (memories, personality scores)
- *   2. MEASURE - Score agent behavior in the call
- *   3. ADAPT  - Compute personalized targets for next call
- *   4. COMPOSE - Build the final prompt (optional, mode="prompt")
+ * Pipeline stages are loaded from the SUPERVISE spec (GUARD-001), not hardcoded.
+ * Each stage has:
+ *   - name: Executor function name (e.g., "EXTRACT", "ADAPT")
+ *   - order: Execution order (10, 20, 30...)
+ *   - outputTypes: Which spec outputTypes are processed in this stage
+ *   - requiresMode: Optional - skip stage unless mode matches
+ *
+ * Default stages (configurable in GUARD-001 spec):
+ *   10. EXTRACT    - Learn + Measure caller data (batched)
+ *   20. SCORE_AGENT - Measure agent behavior (batched)
+ *   30. AGGREGATE  - Aggregate personality profiles
+ *   40. REWARD     - Compute reward scores
+ *   50. ADAPT      - Compute personalized targets
+ *   60. SUPERVISE  - Validate and clamp targets
+ *  100. COMPOSE    - Build final prompt (mode="prompt" only)
  *
  * Request body:
  * - callerId: string (required)
  * - mode: "prep" | "prompt" (required)
- *   - prep: Run LEARN + MEASURE + ADAPT stages
- *   - prompt: Run prep + COMPOSE stage
+ *   - prep: Run all stages except COMPOSE
+ *   - prompt: Run all stages including COMPOSE
  * - engine: "mock" | "claude" | "openai" (optional, defaults to "claude")
  */
 
@@ -1122,6 +1132,157 @@ async function computeAdapt(
 }
 
 // =====================================================
+// PIPELINE STAGE CONFIGURATION
+// =====================================================
+
+/**
+ * Pipeline stage definition loaded from SUPERVISE spec
+ */
+interface PipelineStage {
+  name: string;
+  order: number;
+  outputTypes: string[];
+  description?: string;
+  batched?: boolean;
+  requiresMode?: "prep" | "prompt";
+}
+
+/**
+ * Default pipeline stages if no SUPERVISE spec found
+ */
+const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
+  { name: "EXTRACT", order: 10, outputTypes: ["LEARN", "MEASURE"], description: "Extract caller data", batched: true },
+  { name: "SCORE_AGENT", order: 20, outputTypes: ["MEASURE_AGENT"], description: "Score agent behavior", batched: true },
+  { name: "AGGREGATE", order: 30, outputTypes: ["AGGREGATE"], description: "Aggregate personality profiles" },
+  { name: "REWARD", order: 40, outputTypes: ["REWARD"], description: "Compute reward scores" },
+  { name: "ADAPT", order: 50, outputTypes: ["ADAPT"], description: "Compute personalized targets" },
+  { name: "SUPERVISE", order: 60, outputTypes: ["SUPERVISE"], description: "Validate and clamp targets" },
+  { name: "COMPOSE", order: 100, outputTypes: ["COMPOSE"], description: "Build final prompt", requiresMode: "prompt" },
+];
+
+// =====================================================
+// GUARDRAILS LOADER
+// =====================================================
+
+/**
+ * Guardrails configuration loaded from GUARD-001 spec
+ */
+interface GuardrailsConfig {
+  targetClamp: { minValue: number; maxValue: number };
+  confidenceBounds: { minConfidence: number; maxConfidence: number; defaultConfidence: number };
+  mockBehavior: { scoreRangeMin: number; scoreRangeMax: number; nudgeFactor: number };
+  aiSettings: { temperature: number; maxRetries: number };
+  aggregation: {
+    decayHalfLifeDays: number;
+    confidenceGrowthBase: number;
+    confidenceGrowthPerCall: number;
+    maxAggregatedConfidence: number;
+  };
+  pipelineStages: PipelineStage[];
+}
+
+// Default guardrails if no SUPERVISE spec found
+const DEFAULT_GUARDRAILS: GuardrailsConfig = {
+  targetClamp: { minValue: 0.2, maxValue: 0.8 },
+  confidenceBounds: { minConfidence: 0.3, maxConfidence: 0.95, defaultConfidence: 0.7 },
+  mockBehavior: { scoreRangeMin: 0.4, scoreRangeMax: 0.8, nudgeFactor: 0.2 },
+  aiSettings: { temperature: 0.3, maxRetries: 2 },
+  aggregation: {
+    decayHalfLifeDays: 30,
+    confidenceGrowthBase: 0.5,
+    confidenceGrowthPerCall: 0.1,
+    maxAggregatedConfidence: 0.95,
+  },
+  pipelineStages: DEFAULT_PIPELINE_STAGES,
+};
+
+/**
+ * Load guardrails configuration from SUPERVISE spec (GUARD-001 or similar)
+ * Falls back to defaults if no spec found
+ */
+async function loadGuardrails(log: ReturnType<typeof createLogger>): Promise<GuardrailsConfig> {
+  const superviseSpec = await prisma.analysisSpec.findFirst({
+    where: {
+      outputType: "SUPERVISE",
+      isActive: true,
+      isDirty: false,
+    },
+    select: { slug: true, config: true },
+  });
+
+  if (!superviseSpec) {
+    log.info("No SUPERVISE spec found - using default guardrails");
+    return DEFAULT_GUARDRAILS;
+  }
+
+  const config = (superviseSpec.config as any) || {};
+  const parameters: Array<{ id: string; config?: any }> = config.parameters || [];
+
+  // Helper to get parameter config by ID
+  const getParamConfig = (paramId: string): any => {
+    const param = parameters.find((p) => p.id === paramId);
+    return param?.config || {};
+  };
+
+  const targetClampConfig = getParamConfig("target_clamp");
+  const confidenceConfig = getParamConfig("confidence_bounds");
+  const mockConfig = getParamConfig("mock_behavior");
+  const aiConfig = getParamConfig("ai_settings");
+  const aggConfig = getParamConfig("aggregation");
+  const pipelineConfig = getParamConfig("pipeline_stages");
+
+  // Load pipeline stages from spec or use defaults
+  let pipelineStages: PipelineStage[] = DEFAULT_PIPELINE_STAGES;
+  if (pipelineConfig.stages && Array.isArray(pipelineConfig.stages)) {
+    pipelineStages = pipelineConfig.stages.map((s: any) => ({
+      name: s.name,
+      order: s.order,
+      outputTypes: s.outputTypes || [],
+      description: s.description,
+      batched: s.batched,
+      requiresMode: s.requiresMode,
+    }));
+    // Sort by order
+    pipelineStages.sort((a, b) => a.order - b.order);
+  }
+
+  const guardrails: GuardrailsConfig = {
+    targetClamp: {
+      minValue: targetClampConfig.minValue ?? DEFAULT_GUARDRAILS.targetClamp.minValue,
+      maxValue: targetClampConfig.maxValue ?? DEFAULT_GUARDRAILS.targetClamp.maxValue,
+    },
+    confidenceBounds: {
+      minConfidence: confidenceConfig.minConfidence ?? DEFAULT_GUARDRAILS.confidenceBounds.minConfidence,
+      maxConfidence: confidenceConfig.maxConfidence ?? DEFAULT_GUARDRAILS.confidenceBounds.maxConfidence,
+      defaultConfidence: confidenceConfig.defaultConfidence ?? DEFAULT_GUARDRAILS.confidenceBounds.defaultConfidence,
+    },
+    mockBehavior: {
+      scoreRangeMin: mockConfig.scoreRangeMin ?? DEFAULT_GUARDRAILS.mockBehavior.scoreRangeMin,
+      scoreRangeMax: mockConfig.scoreRangeMax ?? DEFAULT_GUARDRAILS.mockBehavior.scoreRangeMax,
+      nudgeFactor: mockConfig.nudgeFactor ?? DEFAULT_GUARDRAILS.mockBehavior.nudgeFactor,
+    },
+    aiSettings: {
+      temperature: aiConfig.temperature ?? DEFAULT_GUARDRAILS.aiSettings.temperature,
+      maxRetries: aiConfig.maxRetries ?? DEFAULT_GUARDRAILS.aiSettings.maxRetries,
+    },
+    aggregation: {
+      decayHalfLifeDays: aggConfig.decayHalfLifeDays ?? DEFAULT_GUARDRAILS.aggregation.decayHalfLifeDays,
+      confidenceGrowthBase: aggConfig.confidenceGrowthBase ?? DEFAULT_GUARDRAILS.aggregation.confidenceGrowthBase,
+      confidenceGrowthPerCall: aggConfig.confidenceGrowthPerCall ?? DEFAULT_GUARDRAILS.aggregation.confidenceGrowthPerCall,
+      maxAggregatedConfidence: aggConfig.maxAggregatedConfidence ?? DEFAULT_GUARDRAILS.aggregation.maxAggregatedConfidence,
+    },
+    pipelineStages,
+  };
+
+  log.info(`Guardrails loaded from "${superviseSpec.slug}"`, {
+    targetClamp: guardrails.targetClamp,
+    pipelineStages: pipelineStages.length,
+  });
+
+  return guardrails;
+}
+
+// =====================================================
 // ADAPT & SUPERVISE SPEC RUNNERS
 // =====================================================
 
@@ -1187,6 +1348,7 @@ async function runAdaptSpecs(
   callId: string,
   callerId: string,
   engine: AIEngine,
+  guardrails: GuardrailsConfig,
   log: ReturnType<typeof createLogger>
 ): Promise<{ targetsCreated: number }> {
   // Load ADAPT specs (by outputType, not specType)
@@ -1247,13 +1409,18 @@ async function runAdaptSpecs(
     select: { transcript: true },
   });
 
+  const { mockBehavior, confidenceBounds, aiSettings } = guardrails;
+
   if (engine === "mock") {
     // Mock: compute targets as slight adjustments from call scores
+    // Using guardrails config for mock behavior
+    const center = (mockBehavior.scoreRangeMin + mockBehavior.scoreRangeMax) / 2;
+
     for (const param of targetParams) {
       const callScore = callScores.find(s => s.parameterId === param.parameterId);
-      // Target is based on caller score with some adjustment toward middle
-      const baseValue = callScore?.score ?? 0.5;
-      const targetValue = baseValue + (0.5 - baseValue) * 0.2; // Nudge 20% toward center
+      // Target is based on caller score with some adjustment toward center
+      const baseValue = callScore?.score ?? center;
+      const targetValue = baseValue + (center - baseValue) * mockBehavior.nudgeFactor;
 
       await prisma.callTarget.upsert({
         where: { callId_parameterId: { callId, parameterId: param.parameterId } },
@@ -1261,15 +1428,15 @@ async function runAdaptSpecs(
           callId,
           parameterId: param.parameterId,
           targetValue,
-          confidence: 0.7,
+          confidence: confidenceBounds.defaultConfidence,
           sourceSpecSlug: "mock_adapt",
-          reasoning: "Mock adaptation based on caller score",
+          reasoning: `Mock adaptation (nudge ${mockBehavior.nudgeFactor} toward ${center})`,
         },
         update: {
           targetValue,
-          confidence: 0.7,
+          confidence: confidenceBounds.defaultConfidence,
           sourceSpecSlug: "mock_adapt",
-          reasoning: "Mock adaptation based on caller score",
+          reasoning: `Mock adaptation (nudge ${mockBehavior.nudgeFactor} toward ${center})`,
         },
       });
       targetsCreated++;
@@ -1291,7 +1458,7 @@ async function runAdaptSpecs(
           { role: "user", content: prompt },
         ],
         maxTokens: 1024,
-        temperature: 0.3,
+        temperature: aiSettings.temperature,
       });
 
       let jsonContent = result.content.trim();
@@ -1337,11 +1504,11 @@ async function runAdaptSpecs(
 }
 
 /**
- * Validate/clamp targets to safe ranges (hardcoded guardrails)
- * Keeps targets within 0.2-0.8 to avoid extremes
+ * Validate/clamp targets to safe ranges using guardrails from SUPERVISE spec
  */
 async function validateTargets(
   callId: string,
+  guardrails: GuardrailsConfig,
   log: ReturnType<typeof createLogger>
 ): Promise<{ adjustments: number }> {
   const targets = await prisma.callTarget.findMany({
@@ -1352,17 +1519,19 @@ async function validateTargets(
     return { adjustments: 0 };
   }
 
+  const { minValue, maxValue } = guardrails.targetClamp;
+
   // Clamp targets to safe range (avoid extremes)
   let adjustments = 0;
   for (const target of targets) {
     let newValue = target.targetValue;
     let adjusted = false;
 
-    if (newValue < 0.2) {
-      newValue = 0.2;
+    if (newValue < minValue) {
+      newValue = minValue;
       adjusted = true;
-    } else if (newValue > 0.8) {
-      newValue = 0.8;
+    } else if (newValue > maxValue) {
+      newValue = maxValue;
       adjusted = true;
     }
 
@@ -1371,14 +1540,14 @@ async function validateTargets(
         where: { id: target.id },
         data: {
           targetValue: newValue,
-          reasoning: `${target.reasoning || ""} [clamped to safe range]`.trim(),
+          reasoning: `${target.reasoning || ""} [clamped to ${minValue}-${maxValue}]`.trim(),
         },
       });
       adjustments++;
     }
   }
 
-  log.info(`Targets validated`, { adjustments });
+  log.info(`Targets validated`, { adjustments, clampRange: { minValue, maxValue } });
   return { adjustments };
 }
 
@@ -1388,6 +1557,7 @@ async function validateTargets(
 async function aggregateCallerTargets(
   callId: string,
   callerId: string,
+  guardrails: GuardrailsConfig,
   log: ReturnType<typeof createLogger>
 ): Promise<{ aggregated: number }> {
   // Get all CallTargets for this caller's calls
@@ -1423,8 +1593,8 @@ async function aggregateCallerTargets(
     });
   }
 
-  // Compute weighted average with time decay (30-day half-life)
-  const halfLifeDays = 30;
+  // Use aggregation settings from guardrails
+  const { decayHalfLifeDays, confidenceGrowthBase, confidenceGrowthPerCall, maxAggregatedConfidence } = guardrails.aggregation;
   const now = new Date();
   let aggregated = 0;
 
@@ -1435,7 +1605,7 @@ async function aggregateCallerTargets(
     for (const t of targets) {
       const ageMs = now.getTime() - t.date.getTime();
       const ageDays = ageMs / (1000 * 60 * 60 * 24);
-      const decayWeight = Math.exp((-Math.log(2) * ageDays) / halfLifeDays);
+      const decayWeight = Math.exp((-Math.log(2) * ageDays) / decayHalfLifeDays);
       const weight = decayWeight * t.confidence;
 
       weightedSum += t.value * weight;
@@ -1445,20 +1615,26 @@ async function aggregateCallerTargets(
     if (totalWeight > 0) {
       const avgValue = weightedSum / totalWeight;
 
+      // Confidence grows with more data: base + (calls * growthPerCall), capped at max
+      const computedConfidence = Math.min(
+        maxAggregatedConfidence,
+        confidenceGrowthBase + targets.length * confidenceGrowthPerCall
+      );
+
       await prisma.callerTarget.upsert({
         where: { callerId_parameterId: { callerId, parameterId } },
         create: {
           callerId,
           parameterId,
           targetValue: avgValue,
-          confidence: Math.min(0.95, 0.5 + targets.length * 0.1), // Confidence grows with more data
+          confidence: computedConfidence,
           callsUsed: targets.length,
           lastUpdatedAt: now,
-          decayHalfLife: halfLifeDays,
+          decayHalfLife: decayHalfLifeDays,
         },
         update: {
           targetValue: avgValue,
-          confidence: Math.min(0.95, 0.5 + targets.length * 0.1),
+          confidence: computedConfidence,
           callsUsed: targets.length,
           lastUpdatedAt: now,
         },
@@ -1469,6 +1645,165 @@ async function aggregateCallerTargets(
 
   log.info(`CallerTargets aggregated`, { aggregated, totalCallTargets: allTargets.length });
   return { aggregated };
+}
+
+// =====================================================
+// SPEC-DRIVEN PIPELINE EXECUTION
+// =====================================================
+
+/**
+ * Pipeline execution context passed to all stage executors
+ */
+interface PipelineContext {
+  callId: string;
+  callerId: string;
+  call: { id: string; transcript: string | null };
+  engine: AIEngine;
+  guardrails: GuardrailsConfig;
+  mode: "prep" | "prompt";
+  log: ReturnType<typeof createLogger>;
+  request: NextRequest;
+  // Accumulated results from previous stages
+  results: Record<string, any>;
+}
+
+/**
+ * Stage executor function type
+ */
+type StageExecutor = (ctx: PipelineContext, stage: PipelineStage) => Promise<Record<string, any>>;
+
+/**
+ * Stage executor registry - maps stage names to executor functions
+ * Each executor handles the specific logic for that stage
+ */
+const stageExecutors: Record<string, StageExecutor> = {
+  // EXTRACT stage: Learn + Measure caller data (batched)
+  EXTRACT: async (ctx, stage) => {
+    ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+    const callerResult = await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+    const deltaResult = await computeAdapt(ctx.callId, ctx.callerId, ctx.log);
+    return {
+      playbookUsed: callerResult.playbookUsed,
+      scoresCreated: callerResult.scoresCreated,
+      memoriesCreated: callerResult.memoriesCreated,
+      deltasComputed: deltaResult.deltasComputed,
+    };
+  },
+
+  // SCORE_AGENT stage: Score agent behavior (batched)
+  SCORE_AGENT: async (ctx, stage) => {
+    ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+    const agentResult = await runBatchedAgentAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+    return {
+      agentMeasurements: agentResult.measurementsCreated,
+    };
+  },
+
+  // AGGREGATE stage: Aggregate personality profiles
+  AGGREGATE: async (ctx, stage) => {
+    ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+    const personalityResult = await aggregatePersonality(ctx.callId, ctx.callerId, ctx.log);
+    return {
+      personalityObservationCreated: personalityResult.observationCreated,
+      personalityProfileUpdated: personalityResult.profileUpdated,
+    };
+  },
+
+  // REWARD stage: Compute reward scores
+  REWARD: async (ctx, stage) => {
+    ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+    const rewardResult = await computeReward(ctx.callId, ctx.log);
+    return {
+      rewardScore: rewardResult.overallScore,
+    };
+  },
+
+  // ADAPT stage: Compute personalized targets
+  ADAPT: async (ctx, stage) => {
+    ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+    const adaptResult = await runAdaptSpecs(ctx.callId, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log);
+    return {
+      callTargetsCreated: adaptResult.targetsCreated,
+    };
+  },
+
+  // SUPERVISE stage: Validate and clamp targets
+  SUPERVISE: async (ctx, stage) => {
+    ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+    const validateResult = await validateTargets(ctx.callId, ctx.guardrails, ctx.log);
+    const callerTargetResult = await aggregateCallerTargets(ctx.callId, ctx.callerId, ctx.guardrails, ctx.log);
+    return {
+      targetsValidated: validateResult.adjustments,
+      callerTargetsAggregated: callerTargetResult.aggregated,
+    };
+  },
+
+  // COMPOSE stage: Build final prompt
+  COMPOSE: async (ctx, stage) => {
+    ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+    const composeResult = await fetch(`${ctx.request.nextUrl.origin}/api/callers/${ctx.callerId}/compose-prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ triggerCallId: ctx.callId }),
+    });
+    const composeData = await composeResult.json();
+
+    if (!composeData.ok) {
+      throw new Error(`Prompt composition failed: ${composeData.error}`);
+    }
+
+    return {
+      promptId: composeData.id,
+      promptLength: composeData.prompt?.length || 0,
+      prompt: composeData.prompt,
+    };
+  },
+};
+
+/**
+ * Run the pipeline using spec-driven stage configuration
+ */
+async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
+  summary: Record<string, any>;
+  prompt?: string;
+}> {
+  const { guardrails, mode, log } = ctx;
+  const stages = guardrails.pipelineStages;
+
+  log.info(`Running spec-driven pipeline with ${stages.length} stages`, {
+    stages: stages.map((s) => s.name),
+    mode,
+  });
+
+  // Execute stages in order
+  for (const stage of stages) {
+    // Skip stages that require a specific mode
+    if (stage.requiresMode && stage.requiresMode !== mode) {
+      log.debug(`Skipping stage ${stage.name} (requires mode=${stage.requiresMode})`);
+      continue;
+    }
+
+    // Get executor for this stage
+    const executor = stageExecutors[stage.name];
+    if (!executor) {
+      log.warn(`No executor for stage ${stage.name} - skipping`);
+      continue;
+    }
+
+    try {
+      const stageResults = await executor(ctx, stage);
+      // Merge results into context
+      Object.assign(ctx.results, stageResults);
+    } catch (error: any) {
+      log.error(`Stage ${stage.name} failed`, { error: error.message });
+      throw error;
+    }
+  }
+
+  return {
+    summary: ctx.results,
+    prompt: ctx.results.prompt,
+  };
 }
 
 export async function POST(
@@ -1517,93 +1852,50 @@ export async function POST(
     }
 
     // =====================================================
-    // PIPELINE EXECUTION
-    // Order: LEARN → MEASURE → ADAPT (→ COMPOSE if mode="prompt")
+    // LOAD GUARDRAILS & PIPELINE CONFIG (SUPERVISE SPEC)
+    // =====================================================
+    const guardrails = await loadGuardrails(log);
+
+    // =====================================================
+    // SPEC-DRIVEN PIPELINE EXECUTION
+    // Stages are loaded from SUPERVISE spec, not hardcoded
     // =====================================================
 
-    // ===== LEARN STAGE =====
-    // Extract data about the caller (memories, personality scores)
-    log.info("LEARN: Extracting caller data");
-    const callerResult = await runBatchedCallerAnalysis(call, callerId, engine, log);
-    const deltaResult = await computeAdapt(callId, callerId, log);
-    const personalityResult = await aggregatePersonality(callId, callerId, log);
-
-    // ===== MEASURE STAGE =====
-    // Score agent behavior in the call
-    log.info("MEASURE: Scoring agent behavior");
-    const agentResult = await runBatchedAgentAnalysis(call, callerId, engine, log);
-    const rewardResult = await computeReward(callId, log);
-
-    // ===== ADAPT STAGE =====
-    // Compute personalized targets for next call
-    log.info("ADAPT: Computing personalized targets");
-    const adaptResult = await runAdaptSpecs(callId, callerId, engine, log);
-    const validateResult = await validateTargets(callId, log);
-    const callerTargetResult = await aggregateCallerTargets(callId, callerId, log);
-
-    // Summary for prep mode
-    const summary = {
-      playbookUsed: callerResult.playbookUsed,
-      scoresCreated: callerResult.scoresCreated,
-      memoriesCreated: callerResult.memoriesCreated,
-      deltasComputed: deltaResult.deltasComputed,
-      callTargetsCreated: adaptResult.targetsCreated,
-      targetsValidated: validateResult.adjustments,
-      callerTargetsAggregated: callerTargetResult.aggregated,
-      agentMeasurements: agentResult.measurementsCreated,
-      rewardScore: rewardResult.overallScore,
-      personalityObservationCreated: personalityResult.observationCreated,
-      personalityProfileUpdated: personalityResult.profileUpdated,
+    const pipelineCtx: PipelineContext = {
+      callId,
+      callerId,
+      call,
+      engine,
+      guardrails,
+      mode: mode as "prep" | "prompt",
+      log,
+      request,
+      results: {},
     };
+
+    const { summary, prompt } = await runSpecDrivenPipeline(pipelineCtx);
 
     if (mode === "prep") {
       log.info("Prep complete", summary);
       return NextResponse.json({
         ok: true,
         mode: "prep",
-        message: `Prep complete: ${summary.scoresCreated} scores, ${summary.memoriesCreated} memories, ${summary.callTargetsCreated} targets, ${summary.agentMeasurements} agent measurements`,
+        message: `Prep complete: ${summary.scoresCreated || 0} scores, ${summary.memoriesCreated || 0} memories, ${summary.callTargetsCreated || 0} targets, ${summary.agentMeasurements || 0} agent measurements`,
         data: summary,
         logs: log.getLogs(),
         duration: log.getDuration(),
       });
     }
 
-    // Mode is "prompt" - compose the prompt
-    log.info("Step 9: Compose prompt");
-
-    // Call the compose-prompt endpoint logic
-    const composeResult = await fetch(`${request.nextUrl.origin}/api/callers/${callerId}/compose-prompt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ triggerCallId: callId }),
-    });
-
-    const composeData = await composeResult.json();
-
-    if (!composeData.ok) {
-      log.error("Prompt composition failed", { error: composeData.error });
-      return NextResponse.json({
-        ok: false,
-        mode: "prompt",
-        error: `Prep succeeded but prompt composition failed: ${composeData.error}`,
-        data: summary,
-        logs: log.getLogs(),
-        duration: log.getDuration(),
-      }, { status: 500 });
-    }
-
-    log.info("Prompt composed successfully");
+    // Mode is "prompt" - COMPOSE stage was already run by spec-driven pipeline
+    log.info("Prompt mode complete");
 
     return NextResponse.json({
       ok: true,
       mode: "prompt",
       message: `Full pipeline complete with prompt`,
-      data: {
-        ...summary,
-        promptId: composeData.id,
-        promptLength: composeData.prompt?.length || 0,
-      },
-      prompt: composeData.prompt,
+      data: summary,
+      prompt,
       logs: log.getLogs(),
       duration: log.getDuration(),
     });

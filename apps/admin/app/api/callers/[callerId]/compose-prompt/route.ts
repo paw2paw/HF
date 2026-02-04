@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getAICompletion, AIEngine, getDefaultEngine } from "@/lib/ai/client";
 import { renderTemplate } from "@/lib/prompt/PromptTemplateCompiler";
 import { getMemoriesByCategory } from "@/lib/constants";
+import { composeCurriculumSection } from "@/lib/prompt/compose-curriculum-section";
+import { getLearnerProfile } from "@/lib/learner/profile";
 
 export const runtime = "nodejs";
 
@@ -47,27 +49,49 @@ export async function POST(
       },
     });
 
-    // Extract config with defaults
-    const config = (composeSpec?.config as any) || {};
-    const thresholds = config.thresholds || { high: 0.7, low: 0.3 };
-    const memoriesLimit = config.memoriesLimit || 50;
-    const memoriesPerCategory = config.memoriesPerCategory || 5;
-    const recentCallsLimit = config.recentCallsLimit || 5;
-    const maxTokens = config.maxTokens || 1500;
-    const temperature = config.temperature || 0.7;
-    const includePersonality = config.includePersonality !== false;
-    const includeMemories = config.includeMemories !== false;
-    const includeBehaviorTargets = config.includeBehaviorTargets !== false;
-    const includeRecentCalls = config.includeRecentCalls !== false;
-    const includeCurriculum = config.includeCurriculum !== false;
-    const includeSessionPlanning = config.includeSessionPlanning !== false;
-    const includeLearnerGoals = config.includeLearnerGoals !== false;
+    // Extract config from spec - specs define behavior, not hardcoded values
+    // The spec has a `parameters` array where each parameter has its own config
+    const specConfig = (composeSpec?.config as any) || {};
+    const specParameters: Array<{ id: string; config?: any }> = specConfig.parameters || [];
+
+    // Helper to get config from a specific parameter by ID
+    const getParamConfig = (paramId: string): any => {
+      const param = specParameters.find(p => p.id === paramId);
+      return param?.config || {};
+    };
+
+    // Extract configs from spec parameters (spec is source of truth)
+    const personalityConfig = getParamConfig("personality_section");
+    const learnerProfileConfig = getParamConfig("learner_profile_section");
+    const memoryConfig = getParamConfig("memory_section");
+    const sessionConfig = getParamConfig("session_context_section");
+    const historyConfig = getParamConfig("recent_history_section");
+    const curriculumConfig = getParamConfig("curriculum_section");
+    const behaviorConfig = getParamConfig("behavior_targets_section");
+    const goalsConfig = getParamConfig("learner_goals_section");
+    const domainConfig = getParamConfig("domain_context_section");
+
+    // Use spec-defined values (with minimal fallbacks for missing specs)
+    const thresholds = personalityConfig.thresholds || specConfig.thresholds || { high: 0.65, low: 0.35 };
+    const memoriesLimit = memoryConfig.memoriesLimit || specConfig.memoriesLimit || 50;
+    const memoriesPerCategory = memoryConfig.memoriesPerCategory || specConfig.memoriesPerCategory || 5;
+    const recentCallsLimit = sessionConfig.recentCallsLimit || specConfig.recentCallsLimit || 5;
+    const maxTokens = historyConfig.maxTokens || specConfig.maxTokens || 1500;
+    const temperature = historyConfig.temperature || specConfig.temperature || 0.7;
+    const includePersonality = personalityConfig.includePersonality !== false;
+    const includeLearnerProfile = learnerProfileConfig.includeLearnerProfile !== false;
+    const includeMemories = memoryConfig.includeMemories !== false;
+    const includeBehaviorTargets = behaviorConfig.includeBehaviorTargets !== false;
+    const includeRecentCalls = sessionConfig.includeRecentCalls !== false;
+    const includeCurriculum = curriculumConfig.includeCurriculum !== false;
+    const includeSessionPlanning = domainConfig.includeSessionPlanning !== false;
+    const includeLearnerGoals = goalsConfig.includeLearnerGoals !== false;
 
     // Use promptTemplate from spec if available, otherwise use default
     const promptTemplate = composeSpec?.promptTemplate || null;
 
     // Fetch caller with all relevant context
-    const [caller, memories, personality, recentCalls, totalCallCount, behaviorTargets, callerTargets, callerAttributes, learnerGoals, publishedPlaybook, allSystemSpecs] = await Promise.all([
+    const [caller, memories, personality, learnerProfile, recentCalls, totalCallCount, behaviorTargets, callerTargets, callerAttributes, learnerGoals, publishedPlaybook, allSystemSpecs] = await Promise.all([
       prisma.caller.findUnique({
         where: { id: callerId },
         select: {
@@ -119,6 +143,16 @@ export async function POST(
           confidenceScore: true,
         },
       }),
+
+      // Learner profile (learning preferences inferred from behavior)
+      (async () => {
+        try {
+          return await getLearnerProfile(callerId);
+        } catch (error) {
+          console.error('[compose-prompt] Failed to load learner profile:', error);
+          return null;
+        }
+      })(),
 
       // Recent calls for context (limit from spec config)
       prisma.call.findMany({
@@ -255,35 +289,9 @@ export async function POST(
           include: {
             // ⚠️ Agent FK relation removed (deprecated) - identity now comes from:
             // 1) PlaybookItems with specRole=IDENTITY, or 2) System Specs
-            // Link to first-class Curriculum entity
-            curriculum: {
-              include: {
-                sourceSpec: {
-                  select: {
-                    id: true,
-                    slug: true,
-                    name: true,
-                    description: true,
-                    specRole: true,
-                    outputType: true,
-                    config: true,
-                    domain: true,
-                  },
-                },
-                modules: {
-                  orderBy: { sortOrder: "asc" },
-                  select: {
-                    id: true,
-                    slug: true,
-                    name: true,
-                    description: true,
-                    sortOrder: true,
-                    masteryThreshold: true,
-                    prerequisites: true,
-                  },
-                },
-              },
-            },
+            // curriculum: removed - FK relation no longer exists on Playbook model
+            // Curriculum data now comes from CONTENT specs' config
+            domain: true,
             // PlaybookItems (DOMAIN specs)
             items: {
               where: {
@@ -307,14 +315,8 @@ export async function POST(
                 },
               },
             },
-            // System spec overrides (for disabling specific system specs)
-            // Note: System specs are implicitly included - this is just for overrides
-            specs: {
-              select: {
-                specId: true,
-                isEnabled: true,
-              },
-            },
+            // specs: removed - PlaybookSystemSpec model no longer exists
+            // System specs are now implicitly included
           },
         });
 
@@ -468,6 +470,49 @@ export async function POST(
       if (personality.technicalLevel) contextParts.push(`- Technical Level: ${personality.technicalLevel}`);
     }
 
+    // Learner profile (if enabled in spec and profile exists)
+    if (includeLearnerProfile && learnerProfile) {
+      const hasAnyProfileData =
+        learnerProfile.learningStyle ||
+        learnerProfile.pacePreference ||
+        learnerProfile.interactionStyle ||
+        learnerProfile.preferredModality ||
+        learnerProfile.questionFrequency ||
+        learnerProfile.feedbackStyle ||
+        Object.keys(learnerProfile.priorKnowledge).length > 0;
+
+      if (hasAnyProfileData) {
+        contextParts.push("\n## Learner Profile");
+
+        if (learnerProfile.learningStyle) {
+          contextParts.push(`- Learning Style: ${learnerProfile.learningStyle}`);
+        }
+        if (learnerProfile.pacePreference) {
+          contextParts.push(`- Pace Preference: ${learnerProfile.pacePreference}`);
+        }
+        if (learnerProfile.interactionStyle) {
+          contextParts.push(`- Interaction Style: ${learnerProfile.interactionStyle}`);
+        }
+        if (learnerProfile.preferredModality) {
+          contextParts.push(`- Preferred Modality: ${learnerProfile.preferredModality}`);
+        }
+        if (learnerProfile.questionFrequency) {
+          contextParts.push(`- Question Frequency: ${learnerProfile.questionFrequency}`);
+        }
+        if (learnerProfile.feedbackStyle) {
+          contextParts.push(`- Feedback Style: ${learnerProfile.feedbackStyle}`);
+        }
+
+        // Prior knowledge by domain
+        if (Object.keys(learnerProfile.priorKnowledge).length > 0) {
+          contextParts.push("- Prior Knowledge:");
+          for (const [domain, level] of Object.entries(learnerProfile.priorKnowledge)) {
+            contextParts.push(`  - ${domain}: ${level}`);
+          }
+        }
+      }
+    }
+
     // Memories (if enabled in spec)
     if (includeMemories && memories.length > 0) {
       contextParts.push("\n## Key Memories");
@@ -518,39 +563,36 @@ export async function POST(
       }
     };
 
-    // Curriculum & Learning Progress (if enabled and attributes exist)
-    if (includeCurriculum && callerAttributes.length > 0) {
-      const curriculumAttrs = callerAttributes.filter(a =>
-        a.key.includes("module") ||
-        a.key.includes("curriculum") ||
-        a.key.includes("mastery") ||
-        a.key.includes("comprehension") ||
-        a.key.includes("progress") ||
-        a.sourceSpecSlug?.includes("CURR")
-      );
+    // Curriculum & Learning Progress (if enabled)
+    // GENERIC CURRICULUM COMPOSER - works for any content spec
+    let curriculumSection: Awaited<ReturnType<typeof composeCurriculumSection>> | null = null;
+    if (includeCurriculum && caller.domainId) {
+      try {
+        curriculumSection = await composeCurriculumSection(callerId, caller.domainId);
 
-      if (curriculumAttrs.length > 0) {
-        contextParts.push("\n## Curriculum Progress");
-        for (const attr of curriculumAttrs) {
-          const value = getAttributeValue(attr);
-          const confidence = attr.confidence ? ` (${(attr.confidence * 100).toFixed(0)}% confidence)` : "";
-          contextParts.push(`- ${attr.key}: ${typeof value === "object" ? JSON.stringify(value) : value}${confidence}`);
+        if (curriculumSection.hasData) {
+          contextParts.push("\n## Curriculum Progress");
+          contextParts.push(`- Curriculum: ${curriculumSection.name}`);
+          contextParts.push(`- Total Modules: ${curriculumSection.totalModules}`);
+          contextParts.push(`- Completed: ${curriculumSection.completedCount}/${curriculumSection.totalModules}`);
+          contextParts.push(`- Progress: ${(curriculumSection.estimatedProgress * 100).toFixed(0)}%`);
+
+          if (curriculumSection.nextModule) {
+            const nextMod = curriculumSection.modules.find(m => m.id === curriculumSection.nextModule);
+            if (nextMod) {
+              contextParts.push(`\n- **NEXT MODULE**: ${nextMod.name}`);
+              if (nextMod.description) {
+                contextParts.push(`  ${nextMod.description}`);
+              }
+            }
+          }
+
+          if (curriculumSection.completedModules.length > 0) {
+            contextParts.push(`- Completed Modules: ${curriculumSection.completedModules.join(", ")}`);
+          }
         }
-      }
-
-      // Look for next content / modules ready to learn
-      const nextContentAttrs = callerAttributes.filter(a =>
-        a.key.includes("next_") ||
-        a.key.includes("ready_for") ||
-        a.key.includes("prerequisite")
-      );
-
-      if (nextContentAttrs.length > 0) {
-        contextParts.push("\n## Next Content to Learn");
-        for (const attr of nextContentAttrs) {
-          const value = getAttributeValue(attr);
-          contextParts.push(`- ${attr.key}: ${typeof value === "object" ? JSON.stringify(value) : value}`);
-        }
+      } catch (error) {
+        console.error("[compose-prompt] Error composing curriculum section:", error);
       }
     }
 
@@ -605,70 +647,47 @@ export async function POST(
 
     // Extract IDENTITY, CONTENT, and VOICE specs from playbook (compositional identity model)
     // IMPORTANT: Do this BEFORE building callerContext so identity/content is included
-    // Priority: 1) playbook.curriculum link, 2) playbook.items, 3) playbook.systemSpecs
-    // Note: Agent FK relation has been deprecated - identity comes from PlaybookItems/SystemSpecs
+    // Priority: 1) playbook.items (DOMAIN specs), 2) System Specs (implicitly included)
+    // Note: Agent FK relation and Curriculum FK have been deprecated
     let identitySpec: { name: string; config: any; description?: string | null } | null = null;
     let contentSpec: { name: string; config: any; description?: string | null } | null = null;
     let voiceSpec: { name: string; config: any; description?: string | null } | null = null;
 
     if (publishedPlaybook) {
-      // 1. Check first-class Curriculum link (preferred)
-      if (publishedPlaybook.curriculum?.sourceSpec) {
-        const spec = publishedPlaybook.curriculum.sourceSpec;
-        contentSpec = {
-          name: spec.name,
-          config: spec.config,
-          description: spec.description,
-        };
-        console.log(`[compose-prompt] Found CONTENT from Curriculum link: ${spec.name}`);
-      }
-
-      // 2. Check PlaybookItems for IDENTITY/CONTENT/VOICE specs
-      if (!identitySpec || !contentSpec || !voiceSpec) {
-        for (const item of publishedPlaybook.items || []) {
-          if (item.spec) {
-            if (!identitySpec && item.spec.specRole === "IDENTITY" && item.spec.domain !== "voice") {
-              identitySpec = {
-                name: item.spec.name,
-                config: item.spec.config,
-                description: item.spec.description,
-              };
-              console.log(`[compose-prompt] Found IDENTITY from PlaybookItem: ${item.spec.name}`);
-            }
-            if (!contentSpec && item.spec.specRole === "CONTENT") {
-              contentSpec = {
-                name: item.spec.name,
-                config: item.spec.config,
-                description: item.spec.description,
-              };
-              console.log(`[compose-prompt] Found CONTENT from PlaybookItem: ${item.spec.name}`);
-            }
-            // VOICE spec has specRole=IDENTITY but domain=voice
-            if (!voiceSpec && item.spec.specRole === "IDENTITY" && item.spec.domain === "voice") {
-              voiceSpec = {
-                name: item.spec.name,
-                config: item.spec.config,
-                description: item.spec.description,
-              };
-              console.log(`[compose-prompt] Found VOICE from PlaybookItem: ${item.spec.name}`);
-            }
+      // 1. Check PlaybookItems for IDENTITY/CONTENT/VOICE specs
+      for (const item of publishedPlaybook.items || []) {
+        if (item.spec) {
+          if (!identitySpec && item.spec.specRole === "IDENTITY" && item.spec.domain !== "voice") {
+            identitySpec = {
+              name: item.spec.name,
+              config: item.spec.config,
+              description: item.spec.description,
+            };
+            console.log(`[compose-prompt] Found IDENTITY from PlaybookItem: ${item.spec.name}`);
+          }
+          if (!contentSpec && item.spec.specRole === "CONTENT") {
+            contentSpec = {
+              name: item.spec.name,
+              config: item.spec.config,
+              description: item.spec.description,
+            };
+            console.log(`[compose-prompt] Found CONTENT from PlaybookItem: ${item.spec.name}`);
+          }
+          // VOICE spec has specRole=IDENTITY but domain=voice, or specRole=VOICE
+          if (!voiceSpec && (item.spec.specRole === "VOICE" || (item.spec.specRole === "IDENTITY" && item.spec.domain === "voice"))) {
+            voiceSpec = {
+              name: item.spec.name,
+              config: item.spec.config,
+              description: item.spec.description,
+            };
+            console.log(`[compose-prompt] Found VOICE from PlaybookItem: ${item.spec.name}`);
           }
         }
       }
 
-      // 3. Check enabled System Specs as fallback (implicitly included, with override support)
+      // 2. Check System Specs as fallback (all system specs are implicitly enabled)
       if (!identitySpec || !contentSpec || !voiceSpec) {
-        // Build set of disabled spec IDs from playbook overrides
-        const disabledSpecIds = new Set<string>();
-        for (const override of publishedPlaybook.specs || []) {
-          if (!override.isEnabled) {
-            disabledSpecIds.add(override.specId);
-          }
-        }
-
-        // Iterate over all system specs, filtering out disabled ones
         for (const spec of allSystemSpecs) {
-          if (disabledSpecIds.has(spec.id)) continue;
 
           const role = spec.specRole as string;
 
@@ -803,61 +822,9 @@ export async function POST(
       }
     }
 
-    // Add curriculum modules from Curriculum entity (database-driven)
-    if (publishedPlaybook?.curriculum) {
-      const curriculum = publishedPlaybook.curriculum;
-      contextParts.push("\n## Learning Modules");
-      contextParts.push(`- Curriculum: ${curriculum.name}`);
-
-      if (curriculum.modules && curriculum.modules.length > 0) {
-        contextParts.push(`- Total Modules: ${curriculum.modules.length}`);
-        contextParts.push("- Module Sequence:");
-        for (const mod of curriculum.modules) {
-          const prereqs = mod.prerequisites?.length ? ` [Prereqs: ${mod.prerequisites.join(", ")}]` : "";
-          contextParts.push(`  ${mod.sortOrder + 1}. ${mod.name}${prereqs}`);
-          if (mod.description) {
-            contextParts.push(`     ${mod.description}`);
-          }
-        }
-
-        // Suggest next module based on caller's progress (if we have curriculum attrs)
-        const progressAttrs = callerAttributes.filter(a =>
-          a.key.includes("mastery_") || a.key.includes("completed_")
-        );
-        const completedModules = new Set<string>();
-        for (const attr of progressAttrs) {
-          const value = getAttributeValue(attr);
-          if (value === true || (typeof value === "number" && value >= 0.7)) {
-            const moduleName = attr.key.replace("mastery_", "").replace("completed_", "");
-            completedModules.add(moduleName);
-          }
-        }
-
-        if (completedModules.size > 0) {
-          contextParts.push(`\n- Completed Modules: ${Array.from(completedModules).join(", ")}`);
-          // Find next module to learn
-          const nextModule = curriculum.modules.find(m =>
-            !completedModules.has(m.slug) &&
-            (m.prerequisites?.every(p => completedModules.has(p)) ?? true)
-          );
-          if (nextModule) {
-            contextParts.push(`- **NEXT TO LEARN**: ${nextModule.name}`);
-            if (nextModule.description) {
-              contextParts.push(`  Focus: ${nextModule.description}`);
-            }
-          }
-        } else {
-          // First call - suggest first module
-          const firstModule = curriculum.modules[0];
-          if (firstModule) {
-            contextParts.push(`- **START WITH**: ${firstModule.name}`);
-            if (firstModule.description) {
-              contextParts.push(`  Focus: ${firstModule.description}`);
-            }
-          }
-        }
-      }
-    }
+    // Detailed curriculum modules - handled by generic curriculum composer above
+    // This section is now redundant and removed to avoid duplication
+    // The composeCurriculumSection() call earlier provides complete curriculum data
 
     // NOW build the callerContext (after identity/content is added)
     const callerContext = contextParts.join("\n");
@@ -1340,7 +1307,9 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
   // SHARED MODULE CALCULATION (used by _quickStart and session_pedagogy)
   // Aligns both sections so they reference the same modules
   // ============================================================
-  const modules = publishedPlaybook?.curriculum?.modules || [];
+  // Curriculum modules now come from CONTENT spec config (curriculum FK was removed from Playbook)
+  const contentCfg = contentSpec?.config as Record<string, any> | null;
+  const modules = contentCfg?.modules || contentCfg?.curriculum?.modules || [];
   const isFirstCall = recentCalls.length === 0;
   const lastCall = recentCalls[0];
   const daysSinceLastCall = lastCall
@@ -1741,7 +1710,7 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
       };
 
       return {
-        name: publishedPlaybook?.curriculum?.name || null,
+        name: contentCfg?.curriculum?.name || contentSpec?.name || null,
         hasData: curriculumAttrs.length > 0 || modules.length > 0,
         totalModules: modules.length,
         // Show both explicit completions and estimated coverage
@@ -2021,7 +1990,7 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
 
         // Use shared module calculations for consistency with session_pedagogy
         if (modules.length > 0) {
-          parts.push(`Curriculum: ${publishedPlaybook?.curriculum?.name} (${modules.length} modules)`);
+          parts.push(`Curriculum: ${contentCfg?.curriculum?.name || contentSpec?.name || "Learning"} (${modules.length} modules)`);
           parts.push(`Progress: ${completedModules.size}/${modules.length} completed`);
 
           // Session-aware guidance (matches session_pedagogy flow)
@@ -2290,19 +2259,16 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
       } : null,
     } : null,
 
-    // Compositional Identity - WHAT the agent knows/teaches (from CONTENT spec + Curriculum entity)
+    // Compositional Identity - WHAT the agent knows/teaches (from CONTENT spec config)
     content: contentSpec ? (() => {
-      // Prefer modules from publishedPlaybook.curriculum (database entity) over contentSpec.config
-      const curriculumModules = publishedPlaybook?.curriculum?.modules || [];
-      const specModules = (contentSpec.config as any)?.modules || [];
-
-      // Use database modules if available, otherwise fall back to spec config
-      const modulesSource = curriculumModules.length > 0 ? curriculumModules : specModules;
+      // Curriculum data now comes from contentSpec.config (curriculum FK was removed from Playbook)
+      const specConfig = contentSpec.config as any;
+      const modulesSource = specConfig?.modules || specConfig?.curriculum?.modules || [];
 
       return {
         specName: contentSpec.name,
         description: contentSpec.description,
-        curriculumName: publishedPlaybook?.curriculum?.name || (contentSpec.config as any)?.name || null,
+        curriculumName: specConfig?.curriculum?.name || specConfig?.name || null,
         curriculumDescription: (contentSpec.config as any)?.description || null,
         targetAudience: (contentSpec.config as any)?.targetAudience || null,
         learningObjectives: (contentSpec.config as any)?.learningObjectives || [],

@@ -27,6 +27,9 @@ export default function DomainsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newDomain, setNewDomain] = useState({ slug: "", name: "", description: "" });
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [sortBy, setSortBy] = useState<"name" | "callers" | "playbooks">("name");
 
   const fetchDomains = () => {
     fetch("/api/domains")
@@ -88,6 +91,35 @@ export default function DomainsPage() {
     return null;
   };
 
+  // Filter and sort domains
+  const filteredAndSortedDomains = domains
+    .filter((domain) => {
+      // Search filter
+      if (search) {
+        const s = search.toLowerCase();
+        const matchesSearch =
+          domain.name.toLowerCase().includes(s) ||
+          domain.slug.toLowerCase().includes(s) ||
+          domain.description?.toLowerCase().includes(s);
+        if (!matchesSearch) return false;
+      }
+      // Status filter
+      if (filterStatus === "active" && !domain.isActive) return false;
+      if (filterStatus === "inactive" && domain.isActive) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "callers":
+          return b.callerCount - a.callerCount;
+        case "playbooks":
+          return b.playbookCount - a.playbookCount;
+        case "name":
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
@@ -113,6 +145,51 @@ export default function DomainsPage() {
         </button>
       </div>
 
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <input
+          type="text"
+          placeholder="Search domains..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 13,
+            width: 220,
+          }}
+        />
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "inactive")}
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 13,
+          }}
+        >
+          <option value="all">All status</option>
+          <option value="active">Active only</option>
+          <option value="inactive">Inactive only</option>
+        </select>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as "name" | "callers" | "playbooks")}
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 13,
+          }}
+        >
+          <option value="name">Sort by name</option>
+          <option value="callers">Most callers</option>
+          <option value="playbooks">Most playbooks</option>
+        </select>
+      </div>
+
       {error && (
         <div style={{ padding: 16, background: "#fef2f2", color: "#dc2626", borderRadius: 8, marginBottom: 20 }}>
           {error}
@@ -121,14 +198,16 @@ export default function DomainsPage() {
 
       {loading ? (
         <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading...</div>
-      ) : domains.length === 0 ? (
+      ) : filteredAndSortedDomains.length === 0 ? (
         <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12, border: "1px solid #e5e7eb" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🌐</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No domains yet</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+            {search || filterStatus !== "all" ? "No domains match filters" : "No domains yet"}
+          </div>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
-          {domains.map((domain) => (
+          {filteredAndSortedDomains.map((domain) => (
             <Link
               key={domain.id}
               href={`/x/domains/${domain.id}`}

@@ -6,7 +6,7 @@
   "date": "2026-01-31",
   "domain": "injection",
   "specType": "SYSTEM",
-  "outputType": "INJECT",
+  "outputType": "COMPOSE",
 
   "story": {
     "asA": "pre-call preparation system",

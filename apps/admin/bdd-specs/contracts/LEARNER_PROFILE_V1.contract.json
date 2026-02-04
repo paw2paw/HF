@@ -1,0 +1,148 @@
+{
+  "contractId": "LEARNER_PROFILE_V1",
+  "version": "1.0",
+  "status": "active",
+  "description": "Standard contract for learner profile and learning preferences. Defines how MEASURE specs observe learning behaviors and store learner characteristics.",
+
+  "appliesTo": {
+    "specRoles": ["MEASURE", "ADAPT", "LEARN"],
+    "domains": ["learning", "education", "curriculum"]
+  },
+
+  "storage": {
+    "keyPattern": "learner_profile:{category}:{key}",
+    "description": "CallerAttribute storage pattern for learner profile data",
+    "keys": {
+      "learningStyle": "learning_style",
+      "pacePreference": "pace_preference",
+      "interactionStyle": "interaction_style",
+      "priorKnowledge": "prior_knowledge:{domain}",
+      "engagementPattern": "engagement_pattern:{metric}",
+      "preferredModality": "preferred_modality",
+      "questionFrequency": "question_frequency",
+      "sessionLength": "session_length_preference",
+      "feedbackStyle": "feedback_style",
+      "lastUpdated": "last_updated"
+    }
+  },
+
+  "dataSchema": {
+    "learningStyle": {
+      "type": "string",
+      "description": "Primary learning approach",
+      "enum": ["visual", "auditory", "kinesthetic", "reading", "mixed"],
+      "required": false
+    },
+    "pacePreference": {
+      "type": "string",
+      "description": "Preferred learning pace",
+      "enum": ["fast", "moderate", "slow", "self_directed"],
+      "required": false
+    },
+    "interactionStyle": {
+      "type": "string",
+      "description": "Preferred interaction mode",
+      "enum": ["conversational", "direct", "exploratory", "guided"],
+      "required": false
+    },
+    "priorKnowledge": {
+      "type": "object",
+      "description": "Domain-specific knowledge levels",
+      "pattern": "{domain}: {level}",
+      "required": false
+    },
+    "engagementPattern": {
+      "type": "object",
+      "description": "Observed engagement metrics",
+      "required": false
+    },
+    "preferredModality": {
+      "type": "string",
+      "description": "How learner prefers to receive information",
+      "enum": ["text", "visual", "mixed", "interactive"],
+      "required": false
+    },
+    "questionFrequency": {
+      "type": "string",
+      "description": "How often learner asks questions",
+      "enum": ["frequent", "occasional", "rare"],
+      "required": false
+    },
+    "sessionLength": {
+      "type": "string",
+      "description": "Preferred session duration",
+      "enum": ["short", "medium", "long", "variable"],
+      "required": false
+    },
+    "feedbackStyle": {
+      "type": "string",
+      "description": "Preferred feedback frequency and type",
+      "enum": ["immediate", "summarized", "minimal", "detailed"],
+      "required": false
+    },
+    "lastUpdated": {
+      "type": "string",
+      "description": "ISO8601 timestamp of last profile update",
+      "pattern": "ISO8601",
+      "required": false
+    }
+  },
+
+  "thresholds": {
+    "confidenceMinimum": 0.6,
+    "observationsRequired": 3,
+    "updateFrequency": 604800000
+  },
+
+  "metadata": {
+    "observation": {
+      "signalParameters": {
+        "type": "array",
+        "description": "List of MEASURE parameter IDs that contribute to profile",
+        "required": true,
+        "example": ["question_asking_rate", "response_length", "engagement_level"]
+      },
+      "aggregationMethod": {
+        "type": "string",
+        "description": "How to aggregate observations into profile",
+        "enum": ["most_recent", "weighted_average", "consensus"],
+        "required": true
+      },
+      "minimumConfidence": {
+        "type": "number",
+        "description": "Minimum confidence threshold for profile updates",
+        "min": 0.0,
+        "max": 1.0,
+        "required": false,
+        "default": 0.6
+      }
+    }
+  },
+
+  "config": {
+    "notes": [
+      "MEASURE specs can observe learning behaviors and map to profile keys",
+      "Profile keys follow storage.keyPattern",
+      "Profile updates happen via aggregate specs or pipeline logic",
+      "ADAPT specs read profile to adjust teaching approach",
+      "Profile is probabilistic - all values have confidence scores"
+    ],
+    "examples": [
+      {
+        "key": "learner_profile:learning_style:primary",
+        "value": "visual",
+        "confidence": 0.8
+      },
+      {
+        "key": "learner_profile:pace_preference",
+        "value": "moderate",
+        "confidence": 0.7
+      },
+      {
+        "key": "learner_profile:prior_knowledge:physics",
+        "value": "intermediate",
+        "confidence": 0.9
+      }
+    ]
+  }
+}

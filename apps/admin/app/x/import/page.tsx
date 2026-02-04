@@ -11,6 +11,7 @@ type TranscriptResult = {
   updated?: number;
   skipped?: number;
   errors?: string[];
+  savedToRaw?: string[];
   callers?: Array<{
     id: string;
     name: string | null;
@@ -43,6 +44,7 @@ export default function ImportPage() {
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [duplicateHandling, setDuplicateHandling] = useState<"skip" | "overwrite" | "create_new">("skip");
+  const [saveToRaw, setSaveToRaw] = useState(true); // Default to saving for future imports
   const transcriptFileInputRef = useRef<HTMLInputElement>(null);
 
   // Spec state
@@ -83,6 +85,7 @@ export default function ImportPage() {
       formData.append("files", file);
     }
     formData.append("duplicateHandling", duplicateHandling);
+    formData.append("saveToRaw", saveToRaw.toString());
 
     try {
       const res = await fetch("/api/transcripts/import", {
@@ -284,6 +287,24 @@ export default function ImportPage() {
                 </label>
               ))}
             </div>
+
+            {/* Save to raw folder option */}
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={saveToRaw}
+                  onChange={(e) => setSaveToRaw(e.target.checked)}
+                  style={{ width: 18, height: 18, marginTop: 2 }}
+                />
+                <div>
+                  <span style={{ fontWeight: 500, fontSize: 13 }}>Save to raw folder</span>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                    Copies files to HF_KB_PATH/sources/transcripts/raw for future bulk imports via Data Management
+                  </div>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* Import Button */}
@@ -346,6 +367,17 @@ export default function ImportPage() {
                         {c.isNew && <span style={{ marginLeft: 4, fontSize: 10 }}>NEW</span>}
                       </Link>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {transcriptResult.savedToRaw && transcriptResult.savedToRaw.length > 0 && (
+                <div style={{ marginTop: 16, padding: 12, background: "#eff6ff", borderRadius: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#1e40af", marginBottom: 4 }}>
+                    📁 Saved to raw folder ({transcriptResult.savedToRaw.length} files):
+                  </div>
+                  <div style={{ fontSize: 12, color: "#1e3a8a" }}>
+                    {transcriptResult.savedToRaw.join(", ")}
                   </div>
                 </div>
               )}

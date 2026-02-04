@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 
 type Caller = {
@@ -33,12 +34,22 @@ type Caller = {
   };
 };
 
+type Domain = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+type SortOption = "name" | "calls" | "memories" | "createdAt";
+
 interface CallersPageProps {
   routePrefix?: string;
 }
 
 export function CallersPage({ routePrefix = "" }: CallersPageProps) {
+  const router = useRouter();
   const [callers, setCallers] = useState<Caller[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -47,6 +58,16 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
   const [snapshotModal, setSnapshotModal] = useState<Caller | null>(null);
   const [snapshotLabel, setSnapshotLabel] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Filter/Sort state
+  const [selectedDomain, setSelectedDomain] = useState<string>("");
+  const [sortBy, setSortBy] = useState<SortOption>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // Delete state
+  const [showDeleteModal, setShowDeleteModal] = useState<Caller | null>(null);
+  const [deleteExclude, setDeleteExclude] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Merge callers state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -74,6 +95,15 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
   useEffect(() => {
     fetchCallers();
+    // Fetch domains for filter
+    fetch("/api/domains")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          setDomains(data.domains || []);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Auto-clear success message
@@ -88,16 +118,49 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
     return caller.name || caller.email || caller.phone || caller.externalId || "Unknown";
   };
 
-  const filteredCallers = callers.filter((caller) => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (
-      caller.name?.toLowerCase().includes(s) ||
-      caller.email?.toLowerCase().includes(s) ||
-      caller.phone?.toLowerCase().includes(s) ||
-      caller.externalId?.toLowerCase().includes(s)
-    );
-  });
+  // Filter and sort callers
+  const filteredAndSortedCallers = useMemo(() => {
+    let result = callers.filter((caller) => {
+      // Search filter
+      if (search) {
+        const s = search.toLowerCase();
+        const matchesSearch =
+          caller.name?.toLowerCase().includes(s) ||
+          caller.email?.toLowerCase().includes(s) ||
+          caller.phone?.toLowerCase().includes(s) ||
+          caller.externalId?.toLowerCase().includes(s);
+        if (!matchesSearch) return false;
+      }
+      // Domain filter
+      if (selectedDomain) {
+        if (caller.domain?.id !== selectedDomain) return false;
+      }
+      return true;
+    });
+
+    // Sort
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case "name":
+          cmp = (getCallerLabel(a)).localeCompare(getCallerLabel(b));
+          break;
+        case "calls":
+          cmp = (a._count?.calls || 0) - (b._count?.calls || 0);
+          break;
+        case "memories":
+          cmp = (a._count?.memories || 0) - (b._count?.memories || 0);
+          break;
+        case "createdAt":
+        default:
+          cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+
+    return result;
+  }, [callers, search, selectedDomain, sortBy, sortDir]);
 
   const getPersonalityBadge = (caller: Caller) => {
     if (!caller.personality || caller.personality.confidenceScore === null) return null;
@@ -199,6 +262,46 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
     }
   };
 
+  const handleDelete = async (caller: Caller) => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/callers/${caller.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exclude: deleteExclude }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(
+          `Deleted ${getCallerLabel(caller)}${deleteExclude ? " (excluded from future imports)" : ""}`
+        );
+        setShowDeleteModal(null);
+        setDeleteExclude(false);
+        fetchCallers();
+      } else {
+        setError(data.error || "Failed to delete caller");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to delete caller");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCardClick = (caller: Caller, e: React.MouseEvent) => {
+    // Don't navigate if clicking action buttons or in selection mode
+    if (selectionMode) {
+      toggleCallerSelection(caller.id);
+      return;
+    }
+    // Check if click was on an interactive element
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("a")) {
+      return;
+    }
+    router.push(`${routePrefix}/callers/${caller.id}`);
+  };
+
   return (
     <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
       <SourcePageHeader
@@ -224,21 +327,67 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         </div>
       )}
 
-      {/* Search and Actions */}
-      <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center" }}>
+      {/* Search, Filters, and Actions */}
+      <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <input
           type="text"
           placeholder="Search by name, email, phone, or ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
-            padding: "10px 14px",
-            borderRadius: 8,
+            padding: "8px 12px",
+            borderRadius: 6,
             border: "1px solid #e5e7eb",
-            fontSize: 14,
-            width: 300,
+            fontSize: 13,
+            width: 260,
           }}
         />
+
+        {/* Domain Filter */}
+        <select
+          value={selectedDomain}
+          onChange={(e) => setSelectedDomain(e.target.value)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid #e5e7eb",
+            fontSize: 13,
+            minWidth: 140,
+          }}
+        >
+          <option value="">All domains</option>
+          {domains.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+
+        {/* Sort */}
+        <select
+          value={`${sortBy}-${sortDir}`}
+          onChange={(e) => {
+            const [newSort, newDir] = e.target.value.split("-") as [SortOption, "asc" | "desc"];
+            setSortBy(newSort);
+            setSortDir(newDir);
+          }}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid #e5e7eb",
+            fontSize: 13,
+          }}
+        >
+          <option value="createdAt-desc">Newest first</option>
+          <option value="createdAt-asc">Oldest first</option>
+          <option value="name-asc">Name A-Z</option>
+          <option value="name-desc">Name Z-A</option>
+          <option value="calls-desc">Most calls</option>
+          <option value="calls-asc">Fewest calls</option>
+          <option value="memories-desc">Most memories</option>
+          <option value="memories-asc">Fewest memories</option>
+        </select>
+
+        <div style={{ flex: 1 }} />
+
         <button
           onClick={() => {
             if (selectionMode) {
@@ -248,13 +397,13 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             }
           }}
           style={{
-            padding: "10px 16px",
-            fontSize: 14,
+            padding: "8px 14px",
+            fontSize: 13,
             fontWeight: 500,
             background: selectionMode ? "#4f46e5" : "#f3f4f6",
             color: selectionMode ? "#fff" : "#374151",
             border: selectionMode ? "none" : "1px solid #e5e7eb",
-            borderRadius: 8,
+            borderRadius: 6,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -281,7 +430,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
       {/* Loading */}
       {loading ? (
         <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading...</div>
-      ) : filteredCallers.length === 0 ? (
+      ) : filteredAndSortedCallers.length === 0 ? (
         <div
           style={{
             padding: 40,
@@ -293,18 +442,18 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         >
           <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
-            {search ? "No callers match your search" : "No callers yet"}
+            {search || selectedDomain ? "No callers match your filters" : "No callers yet"}
           </div>
           <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-            {search ? "Try a different search term" : "Callers are created when processing transcripts"}
+            {search || selectedDomain ? "Try different filters" : "Callers are created when processing transcripts"}
           </div>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 16 }}>
-          {filteredCallers.map((caller) => (
+          {filteredAndSortedCallers.map((caller) => (
             <div
               key={caller.id}
-              onClick={selectionMode ? () => toggleCallerSelection(caller.id) : undefined}
+              onClick={(e) => handleCardClick(caller, e)}
               style={{
                 background: "#fff",
                 border: selectedCallers.has(caller.id)
@@ -313,7 +462,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 borderRadius: 12,
                 padding: selectedCallers.has(caller.id) ? 19 : 20,
                 transition: "all 0.15s ease",
-                cursor: selectionMode ? "pointer" : "default",
+                cursor: "pointer",
                 position: "relative",
               }}
             >
@@ -344,52 +493,46 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               )}
 
               {/* Caller Header */}
-              <Link
-                href={selectionMode ? "#" : `${routePrefix}/callers/${caller.id}`}
-                onClick={(e) => selectionMode && e.preventDefault()}
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, cursor: "pointer" }}>
-                  <div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
-                      {getCallerLabel(caller)}
-                    </div>
-                    {caller.email && caller.name && (
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{caller.email}</div>
-                    )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
+                    {getCallerLabel(caller)}
                   </div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    {caller.domain && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          padding: "3px 8px",
-                          background: "#dbeafe",
-                          color: "#2563eb",
-                          borderRadius: 4,
-                          fontWeight: 500,
-                        }}
-                      >
-                        {caller.domain.name}
-                      </span>
-                    )}
-                    {getPersonalityBadge(caller) && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          padding: "3px 8px",
-                          background: "#f3e8ff",
-                          color: "#7c3aed",
-                          borderRadius: 4,
-                          fontWeight: 500,
-                        }}
-                      >
-                        {getPersonalityBadge(caller)}
-                      </span>
-                    )}
-                  </div>
+                  {caller.email && caller.name && (
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{caller.email}</div>
+                  )}
                 </div>
-              </Link>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  {caller.domain && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "3px 8px",
+                        background: "#dbeafe",
+                        color: "#2563eb",
+                        borderRadius: 4,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {caller.domain.name}
+                    </span>
+                  )}
+                  {getPersonalityBadge(caller) && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "3px 8px",
+                        background: "#f3e8ff",
+                        color: "#7c3aed",
+                        borderRadius: 4,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {getPersonalityBadge(caller)}
+                    </span>
+                  )}
+                </div>
+              </div>
 
               {/* Stats Row */}
               <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
@@ -454,18 +597,19 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               {/* Action Buttons */}
               <div style={{
                 display: "flex",
-                gap: 8,
+                gap: 6,
                 marginTop: 12,
                 paddingTop: 12,
                 borderTop: "1px solid #f3f4f6"
               }}>
                 <button
-                  onClick={() => setSnapshotModal(caller)}
+                  onClick={(e) => { e.stopPropagation(); setSnapshotModal(caller); }}
                   disabled={actionLoading === caller.id}
+                  title="Download snapshot"
                   style={{
                     flex: 1,
-                    padding: "8px 12px",
-                    fontSize: 12,
+                    padding: "7px 10px",
+                    fontSize: 11,
                     fontWeight: 500,
                     background: "#f0fdf4",
                     color: "#166534",
@@ -475,7 +619,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 6,
+                    gap: 4,
                   }}
                 >
                   <span>📥</span> Download
@@ -484,12 +628,12 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 {resetConfirm === caller.id ? (
                   <div style={{ display: "flex", gap: 4, flex: 1 }}>
                     <button
-                      onClick={() => handleReset(caller.id)}
+                      onClick={(e) => { e.stopPropagation(); handleReset(caller.id); }}
                       disabled={actionLoading === caller.id}
                       style={{
                         flex: 1,
-                        padding: "8px 8px",
-                        fontSize: 11,
+                        padding: "7px 6px",
+                        fontSize: 10,
                         fontWeight: 600,
                         background: "#dc2626",
                         color: "#fff",
@@ -501,11 +645,11 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       {actionLoading === caller.id ? "..." : "Confirm"}
                     </button>
                     <button
-                      onClick={() => setResetConfirm(null)}
+                      onClick={(e) => { e.stopPropagation(); setResetConfirm(null); }}
                       disabled={actionLoading === caller.id}
                       style={{
-                        padding: "8px 8px",
-                        fontSize: 11,
+                        padding: "7px 6px",
+                        fontSize: 10,
                         background: "#f3f4f6",
                         color: "#6b7280",
                         border: "none",
@@ -513,18 +657,18 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                         cursor: "pointer",
                       }}
                     >
-                      Cancel
+                      X
                     </button>
                   </div>
                 ) : (
                   <button
-                    onClick={() => setResetConfirm(caller.id)}
+                    onClick={(e) => { e.stopPropagation(); setResetConfirm(caller.id); }}
                     disabled={!hasAnalysisData(caller) || actionLoading === caller.id}
                     title={hasAnalysisData(caller) ? "Reset all analysis (keep calls)" : "No analysis data to reset"}
                     style={{
                       flex: 1,
-                      padding: "8px 12px",
-                      fontSize: 12,
+                      padding: "7px 10px",
+                      fontSize: 11,
                       fontWeight: 500,
                       background: hasAnalysisData(caller) ? "#fef2f2" : "#f9fafb",
                       color: hasAnalysisData(caller) ? "#dc2626" : "#9ca3af",
@@ -534,12 +678,32 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: 6,
+                      gap: 4,
                     }}
                   >
                     <span>🔄</span> Reset
                   </button>
                 )}
+
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowDeleteModal(caller); setDeleteExclude(false); }}
+                  title="Delete caller"
+                  style={{
+                    padding: "7px 10px",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    background: "#fef2f2",
+                    color: "#dc2626",
+                    border: "1px solid #fecaca",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  🗑️
+                </button>
               </div>
 
               {/* Footer */}
@@ -908,6 +1072,135 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 }}
               >
                 {merging ? "Merging..." : "Merge Callers"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1001,
+          }}
+          onClick={() => !deleting && setShowDeleteModal(null)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              padding: 24,
+              width: 440,
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>🗑️</div>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600, textAlign: "center" }}>
+              Delete Caller
+            </h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "#6b7280", textAlign: "center" }}>
+              Delete <strong>{getCallerLabel(showDeleteModal)}</strong> and all their data?
+            </p>
+
+            {/* Stats */}
+            <div
+              style={{
+                background: "#fef2f2",
+                border: "1px solid #fecaca",
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 16,
+                fontSize: 13,
+                color: "#991b1b",
+              }}
+            >
+              <strong>This will permanently delete:</strong>
+              <ul style={{ margin: "8px 0 0 0", paddingLeft: 20 }}>
+                <li>{showDeleteModal._count?.calls || 0} calls and transcripts</li>
+                <li>{showDeleteModal._count?.memories || 0} memories</li>
+                <li>{showDeleteModal._count?.personalityObservations || 0} personality observations</li>
+                <li>All analysis scores and behavior measurements</li>
+              </ul>
+            </div>
+
+            {/* Exclude Option */}
+            {(showDeleteModal.phone || showDeleteModal.externalId) && (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  padding: 12,
+                  background: deleteExclude ? "#fef3c7" : "#f9fafb",
+                  border: deleteExclude ? "2px solid #fbbf24" : "1px solid #e5e7eb",
+                  borderRadius: 8,
+                  marginBottom: 20,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={deleteExclude}
+                  onChange={(e) => setDeleteExclude(e.target.checked)}
+                  style={{ marginTop: 3, width: 18, height: 18 }}
+                />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "#374151" }}>
+                    Exclude from future imports
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                    When running &quot;Import Transcripts&quot;, calls from{" "}
+                    <strong>{showDeleteModal.phone || showDeleteModal.externalId}</strong>{" "}
+                    will be skipped. Use this for spam callers or test data you don&apos;t want re-imported.
+                  </div>
+                </div>
+              </label>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDeleteModal(null)}
+                disabled={deleting}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  background: "#f3f4f6",
+                  color: "#374151",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  opacity: deleting ? 0.5 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(showDeleteModal)}
+                disabled={deleting}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: deleting ? "#d1d5db" : "#dc2626",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                {deleting ? "Deleting..." : "Delete Caller"}
               </button>
             </div>
           </div>

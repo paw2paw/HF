@@ -500,6 +500,21 @@ model Caller {
   @@map("User") // Preserve existing table name
 }
 
+// ExcludedCaller - Phone numbers/IDs to skip during transcript import
+// Used when deleting spam callers or test data that shouldn't be re-imported
+model ExcludedCaller {
+  id         String   @id @default(uuid())
+  phone      String?  // Phone number to exclude
+  externalId String?  // External ID to exclude
+  reason     String?  // Optional reason for exclusion
+  createdAt  DateTime @default(now())
+
+  @@unique([phone])
+  @@unique([externalId])
+  @@index([phone])
+  @@index([externalId])
+}
+
 // CallTarget - Per-call behavior targets computed by ADAPT specs
 // These are computed for each call and then aggregated into CallerTargets
 model CallTarget {
@@ -1376,6 +1391,7 @@ enum AnalysisOutputType {
   AGGREGATE // Aggregate scores into personality profiles → CallerPersonality, CallerPersonalityProfile
   COMPOSE // Compose prompts from gathered context → ComposedPrompt
   REWARD // Compute reward scores from behavior measurements → RewardScore
+  SUPERVISE // Enforce guardrails and safety bounds on computed values
 }
 
 // Spec type: differentiates system-wide specs from domain-specific specs
@@ -1392,6 +1408,7 @@ enum SpecRole {
   MEASURE // Measurement specs (scoring parameters)
   ADAPT // Adaptation specs (behavioral adjustments)
   REWARD // Reward computation specs
+  GUARDRAIL // Guardrail/safety constraint specs
 }
 
 // =========================
@@ -2253,4 +2270,32 @@ model ComposedPrompt {
   @@index([composedAt])
   @@index([triggerCallId])
   @@index([status])
+}
+
+// =========================
+// SYSTEM ADMIN LOGGING
+// =========================
+
+// System-wide error and event logging for administrators
+model SystemLog {
+  id        String   @id @default(uuid())
+  level     String   // DEBUG, INFO, WARN, ERROR, CRITICAL
+  category  String   // CURRICULUM, AI_PROVIDER, SPEC_PROCESSING, etc.
+  message   String   @db.Text
+  context   Json?    // Additional context data
+  error     Json?    // Error details (name, message, stack)
+  
+  // Request context
+  requestId String?
+  userId    String?
+  callerId  String?
+  
+  // Timestamps
+  timestamp DateTime @default(now())
+  
+  // Indexes for admin dashboard queries
+  @@index([level])
+  @@index([category])
+  @@index([timestamp])
+  @@index([callerId])
 }

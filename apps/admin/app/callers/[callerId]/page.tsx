@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 
 // Types
@@ -111,6 +111,37 @@ type CallScore = {
   call: { createdAt: string };
 };
 
+type CurriculumModule = {
+  id: string;
+  name: string;
+  description: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  mastery: number;
+  sequence: number;
+};
+
+type CurriculumProgress = {
+  name: string | null;
+  hasData: boolean;
+  modules: CurriculumModule[];
+  nextModule: string | null;
+  totalModules: number;
+  completedCount: number;
+  estimatedProgress: number;
+};
+
+type LearnerProfile = {
+  learningStyle: string | null;
+  pacePreference: string | null;
+  interactionStyle: string | null;
+  priorKnowledge: Record<string, string>;
+  preferredModality: string | null;
+  questionFrequency: string | null;
+  sessionLength: string | null;
+  feedbackStyle: string | null;
+  lastUpdated: string | null;
+};
+
 type CallerData = {
   caller: CallerProfile;
   personality: PersonalityProfile | null;
@@ -121,6 +152,8 @@ type CallerData = {
   identities: CallerIdentity[];
   scores: CallScore[];
   callerTargets?: any[];
+  curriculum?: CurriculumProgress | null;
+  learnerProfile?: LearnerProfile | null;
   counts: {
     calls: number;
     memories: number;
@@ -128,6 +161,8 @@ type CallerData = {
     prompts: number;
     targets: number;
     measurements: number;
+    curriculumModules?: number;
+    curriculumCompleted?: number;
   };
 };
 
@@ -149,7 +184,7 @@ const TRAIT_INFO = {
   neuroticism: { label: "Neuroticism", color: "#8b5cf6", desc: "Emotional instability, anxiety, moodiness" },
 };
 
-type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "targets" | "agent-behavior" | "prompt" | "ai-call" | "slugs";
+type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "learning" | "targets" | "agent-behavior" | "prompt" | "ai-call" | "slugs";
 
 type ComposedPrompt = {
   id: string;
@@ -166,7 +201,12 @@ type ComposedPrompt = {
 
 export default function CallerDetailPage() {
   const params = useParams();
+  const pathname = usePathname();
   const callerId = params.callerId as string;
+
+  // Detect if we're in /x/ area and adjust back link accordingly
+  const isInXArea = pathname?.startsWith('/x/');
+  const backLink = isInXArea ? '/x/callers' : '/callers';
 
   const [data, setData] = useState<CallerData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,6 +221,7 @@ export default function CallerDetailPage() {
   const [composedPrompts, setComposedPrompts] = useState<ComposedPrompt[]>([]);
   const [promptsLoading, setPromptsLoading] = useState(false);
   const [composing, setComposing] = useState(false);
+  const [promptProgress, setPromptProgress] = useState("");
   const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
 
   // Domain editing state
@@ -205,7 +246,7 @@ export default function CallerDetailPage() {
     }
   }, [callerId]);
 
-  // Compose a new prompt
+  // Compose a new prompt (single)
   const handleComposePrompt = async () => {
     if (!callerId || composing) return;
     setComposing(true);
@@ -229,6 +270,100 @@ export default function CallerDetailPage() {
     } finally {
       setComposing(false);
     }
+  };
+
+  // Process ALL calls oldest-first, generating prompts for each
+  const handlePromptAll = async () => {
+    if (!callerId || !data || composing) return;
+
+    // Get all calls sorted oldest first
+    const calls = data.calls || [];
+    if (calls.length === 0) {
+      alert("No calls to process");
+      return;
+    }
+
+    const sortedCalls = [...calls].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    // Count how many calls already have prompts
+    const existingCount = sortedCalls.filter(call =>
+      composedPrompts.some(p => p.triggerCallId === call.id)
+    ).length;
+
+    // Ask user with 3 options
+    const choice = window.prompt(
+      `Process ${sortedCalls.length} call(s) oldest-first.\n` +
+      (existingCount > 0 ? `(${existingCount} already have prompts)\n\n` : "\n") +
+      `Enter your choice:\n` +
+      `  1 = Prompt ALL (replace existing)\n` +
+      `  2 = Skip Existing\n` +
+      `  3 = Cancel`,
+      existingCount > 0 ? "2" : "1"
+    );
+
+    if (!choice || choice === "3") {
+      return; // Cancelled
+    }
+
+    const replaceExisting = choice === "1";
+
+    setComposing(true);
+    setPromptProgress(`0/${sortedCalls.length}`);
+
+    let processed = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const call of sortedCalls) {
+      // Check if this call already has a prompt (via ComposedPrompt with triggerCallId)
+      const hasPrompt = composedPrompts.some(p => p.triggerCallId === call.id);
+
+      if (hasPrompt && !replaceExisting) {
+        skipped++;
+        processed++;
+        setPromptProgress(`${processed}/${sortedCalls.length} (${skipped} skipped)`);
+        continue;
+      }
+
+      try {
+        // Run the pipeline with mode="prompt" for this call
+        const res = await fetch(`/api/calls/${call.id}/pipeline`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callerId,
+            mode: "prompt",
+            engine: "openai", // or could use a preference
+          }),
+        });
+        const result = await res.json();
+        if (!result.ok) {
+          console.error(`Pipeline failed for call ${call.id}:`, result.error);
+          errors++;
+        }
+      } catch (err: any) {
+        console.error(`Error processing call ${call.id}:`, err);
+        errors++;
+      }
+
+      processed++;
+      setPromptProgress(`${processed}/${sortedCalls.length}${errors > 0 ? ` (${errors} errors)` : ""}`);
+    }
+
+    // Refresh prompts list
+    await fetchPrompts();
+    setComposing(false);
+    setPromptProgress("");
+
+    // Show summary
+    alert(
+      `Prompt ALL complete!\n\n` +
+      `Processed: ${processed} calls\n` +
+      `Skipped: ${skipped}\n` +
+      `Errors: ${errors}`
+    );
   };
 
   useEffect(() => {
@@ -312,7 +447,7 @@ export default function CallerDetailPage() {
         <div style={{ padding: 20, background: "#fef2f2", color: "#dc2626", borderRadius: 8 }}>
           {error || "Caller not found"}
         </div>
-        <Link href="/callers" style={{ display: "inline-block", marginTop: 16, color: "#4f46e5" }}>
+        <Link href={backLink} style={{ display: "inline-block", marginTop: 16, color: "#4f46e5" }}>
           ← Back to Callers
         </Link>
       </div>
@@ -331,6 +466,7 @@ export default function CallerDetailPage() {
     // Caller group
     { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories, group: "caller" },
     { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations, group: "caller" },
+    { id: "learning", label: "Learning", icon: "📚", count: data.counts.curriculumCompleted || 0, group: "caller" },
     // Shared group - data for both caller and agent
     { id: "slugs", label: "Slugs", icon: "🏷️", group: "shared" },
     { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0, group: "shared" },
@@ -343,10 +479,10 @@ export default function CallerDetailPage() {
   ];
 
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: 1400, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Link href="/callers" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>
+      <div style={{ padding: "24px 24px 16px 24px", flexShrink: 0 }}>
+        <Link href={backLink} style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>
           ← Back to Callers
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8 }}>
@@ -466,10 +602,11 @@ export default function CallerDetailPage() {
               )}
             </div>
           </div>
-          {/* Compose Prompt Button */}
+          {/* Prompt ALL Button - processes all calls oldest-first */}
           <button
-            onClick={handleComposePrompt}
+            onClick={handlePromptAll}
             disabled={composing}
+            title="Generate prompts for all calls without prompts (oldest first)"
             style={{
               padding: "10px 20px",
               background: composing ? "#9ca3af" : "#4f46e5",
@@ -484,13 +621,13 @@ export default function CallerDetailPage() {
               gap: 8,
             }}
           >
-            {composing ? "Composing..." : "Compose Prompt"}
+            {composing ? `Prompting... ${promptProgress}` : "Prompt ALL"}
           </button>
         </div>
       </div>
 
       {/* Section Tabs - Grouped: History | Caller | Agent | Action */}
-      <div style={{ display: "flex", gap: 2, marginBottom: 24, borderBottom: "1px solid #e5e7eb", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e5e7eb", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", position: "sticky", top: 0, background: "white", zIndex: 10, padding: "8px 24px 0 24px", marginLeft: -24, marginRight: -24, flexShrink: 0 }}>
         {sections.map((section, index) => {
           const isActive = activeSection === section.id;
           const isSpecial = section.special;
@@ -560,7 +697,8 @@ export default function CallerDetailPage() {
         })}
       </div>
 
-      {/* Section Content */}
+      {/* Section Content - Scrollable */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px 24px" }}>
       {activeSection === null && (
         <OverviewSection data={data} onNavigate={setActiveSection} />
       )}
@@ -604,6 +742,10 @@ export default function CallerDetailPage() {
 
       {activeSection === "scores" && <ScoresSection scores={data.scores} />}
 
+      {activeSection === "learning" && (
+        <LearningSection curriculum={data.curriculum} learnerProfile={data.learnerProfile} callerId={callerId} />
+      )}
+
       {activeSection === "targets" && (
         <TopLevelTargetsSection callerId={callerId} />
       )}
@@ -645,6 +787,7 @@ export default function CallerDetailPage() {
           }}
         />
       )}
+      </div>
     </div>
   );
 }
@@ -1726,7 +1869,7 @@ function CallDetailPanel({
   details: any;
   loading: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "slugs" | "scores" | "targets" | "measurements" | "prompt">("memories");
+  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "scores" | "targets" | "measurements" | "prompt">("transcript");
 
   if (loading) {
     return (
@@ -1745,56 +1888,62 @@ function CallDetailPanel({
   const personalityObservation = details?.personalityObservation;
 
   const tabs = [
+    // Transcript first
+    { id: "transcript", label: "Trans", icon: "📄", count: null },
     // Caller group
-    { id: "memories", label: "Mem", count: memories.length },
+    { id: "memories", label: "Mem", icon: "💭", count: memories.length },
     // Shared group
-    { id: "slugs", label: "Slugs", count: null },
-    { id: "scores", label: "Scores", count: scores.length },
-    { id: "targets", label: "Targets", count: effectiveTargets.length },
+    { id: "scores", label: "Scores", icon: "📊", count: scores.length },
+    { id: "targets", label: "Targets", icon: "🎯", count: effectiveTargets.length },
     // Agent group
-    { id: "measurements", label: "Agent", count: measurements.length },
-    { id: "prompt", label: "Prompt", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
-    // Transcript
-    { id: "transcript", label: "Trans", count: null },
+    { id: "measurements", label: "Agent", icon: "🤖", count: measurements.length },
+    { id: "prompt", label: "Prompt", icon: "📝", count: null }, // 1-1 with call, count not needed
   ];
 
   return (
     <div style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
-      {/* Tabs */}
-      <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", background: "#fff" }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            style={{
-              padding: "10px 16px",
-              fontSize: 12,
-              fontWeight: activeTab === tab.id ? 600 : 400,
-              color: activeTab === tab.id ? "#4f46e5" : "#6b7280",
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === tab.id ? "2px solid #4f46e5" : "2px solid transparent",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {tab.label}
-            {tab.count !== null && (
-              <span
-                style={{
-                  fontSize: 10,
-                  padding: "2px 6px",
-                  background: activeTab === tab.id ? "#e0e7ff" : "#f3f4f6",
-                  borderRadius: 10,
-                }}
-              >
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Tabs - matching header tab styling */}
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e5e7eb", background: "#fff", paddingBottom: 0 }}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                padding: "10px 12px",
+                border: "none",
+                background: "none",
+                fontSize: 13,
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? "#4f46e5" : "#6b7280",
+                cursor: "pointer",
+                borderBottom: isActive ? "2px solid #4f46e5" : "2px solid transparent",
+                marginBottom: -1,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span style={{ fontSize: 12 }}>{tab.icon}</span>
+              {tab.label}
+              {tab.count !== null && tab.count > 0 && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    background: isActive ? "#e0e7ff" : "#f3f4f6",
+                    color: isActive ? "#4f46e5" : "#6b7280",
+                    padding: "1px 5px",
+                    borderRadius: 10,
+                  }}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
 
         {/* Reward score badge */}
         {rewardScore && (
@@ -1821,13 +1970,6 @@ function CallDetailPanel({
 
         {activeTab === "memories" && (
           <MemoriesTab memories={memories} />
-        )}
-
-        {activeTab === "slugs" && (
-          <div style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>
-            <div style={{ fontSize: 14, marginBottom: 8 }}>Slugs are tracked at the caller level</div>
-            <div style={{ fontSize: 12 }}>View the Slugs tab in the main header to see all slug assignments for this caller</div>
-          </div>
         )}
 
         {activeTab === "scores" && (
@@ -4164,6 +4306,277 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
   );
 }
 
+// Learning Section - displays curriculum progress and learner profile
+function LearningSection({
+  curriculum,
+  learnerProfile,
+  callerId
+}: {
+  curriculum: CurriculumProgress | null | undefined;
+  learnerProfile: LearnerProfile | null | undefined;
+  callerId: string;
+}) {
+  const hasCurriculum = curriculum && curriculum.hasData;
+  const hasProfile = learnerProfile && (
+    learnerProfile.learningStyle ||
+    learnerProfile.pacePreference ||
+    learnerProfile.interactionStyle ||
+    learnerProfile.preferredModality ||
+    learnerProfile.questionFrequency ||
+    learnerProfile.feedbackStyle ||
+    Object.keys(learnerProfile.priorKnowledge).length > 0
+  );
+
+  if (!hasCurriculum && !hasProfile) {
+    return (
+      <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", background: "#f9fafb", borderRadius: "12px" }}>
+        <div style={{ fontSize: "48px", marginBottom: "16px" }}>📚</div>
+        <div style={{ fontSize: "16px", fontWeight: "600", color: "#374151" }}>No learning data yet</div>
+        <div style={{ fontSize: "14px", marginTop: "4px" }}>Curriculum and learner profile will appear as the learner interacts with the system</div>
+      </div>
+    );
+  }
+
+  const progressPercent = hasCurriculum ? Math.round(curriculum.estimatedProgress * 100) : 0;
+
+  return (
+    <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "32px" }}>
+      {/* Learner Profile Card */}
+      {hasProfile && learnerProfile && (
+        <div style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "12px",
+          padding: "24px"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+            <div style={{ fontSize: "24px" }}>🧠</div>
+            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#111827", margin: 0 }}>
+              Learner Profile
+            </h3>
+            <div style={{ fontSize: "11px", color: "#6b7280", marginLeft: "auto" }}>
+              Inferred from behavior
+            </div>
+          </div>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "16px"
+          }}>
+            {learnerProfile.learningStyle && (
+              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Learning Style</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+                  {learnerProfile.learningStyle}
+                </div>
+              </div>
+            )}
+
+            {learnerProfile.pacePreference && (
+              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Pace Preference</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+                  {learnerProfile.pacePreference}
+                </div>
+              </div>
+            )}
+
+            {learnerProfile.interactionStyle && (
+              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Interaction Style</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+                  {learnerProfile.interactionStyle}
+                </div>
+              </div>
+            )}
+
+            {learnerProfile.preferredModality && (
+              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Preferred Modality</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+                  {learnerProfile.preferredModality}
+                </div>
+              </div>
+            )}
+
+            {learnerProfile.questionFrequency && (
+              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Question Frequency</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+                  {learnerProfile.questionFrequency}
+                </div>
+              </div>
+            )}
+
+            {learnerProfile.feedbackStyle && (
+              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Feedback Style</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+                  {learnerProfile.feedbackStyle}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Prior Knowledge */}
+          {Object.keys(learnerProfile.priorKnowledge).length > 0 && (
+            <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid #e5e7eb" }}>
+              <div style={{ fontSize: "14px", fontWeight: "600", color: "#374151", marginBottom: "12px" }}>
+                Prior Knowledge
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {Object.entries(learnerProfile.priorKnowledge).map(([domain, level]) => (
+                  <div
+                    key={domain}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 12px",
+                      background: "#eff6ff",
+                      border: "1px solid #bfdbfe",
+                      borderRadius: "6px",
+                      fontSize: "13px"
+                    }}
+                  >
+                    <span style={{ color: "#1e40af", fontWeight: "600", textTransform: "capitalize" }}>{domain}</span>
+                    <span style={{ color: "#6b7280" }}>·</span>
+                    <span style={{ color: "#374151", textTransform: "capitalize" }}>{level}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Curriculum Progress Card */}
+      {hasCurriculum && curriculum && (
+        <div style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "12px",
+          padding: "24px"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+            <div style={{ fontSize: "24px" }}>📚</div>
+            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#111827", margin: 0 }}>
+              {curriculum.name}
+            </h3>
+          </div>
+          <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "#6b7280", marginBottom: "20px" }}>
+            <span>📊 {progressPercent}% complete</span>
+            <span>✅ {curriculum.completedCount} / {curriculum.totalModules} modules</span>
+          </div>
+      {/* Header */}
+      <div style={{ marginBottom: "24px" }}>
+        <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px", color: "#111827" }}>
+          {curriculum.name}
+        </h2>
+        <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "#6b7280" }}>
+          <span>📊 {progressPercent}% complete</span>
+          <span>✅ {curriculum.completedCount} / {curriculum.totalModules} modules</span>
+        </div>
+      </div>
+
+          {/* Progress Bar */}
+          <div style={{
+            height: "8px",
+            background: "#e5e7eb",
+            borderRadius: "4px",
+            marginBottom: "24px",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              height: "100%",
+              background: "#10b981",
+              width: `${progressPercent}%`,
+              transition: "width 0.3s ease"
+            }} />
+          </div>
+
+          {/* Next Module Card */}
+          {curriculum.nextModule && (
+            <div style={{
+              background: "#f0fdf4",
+              border: "1px solid #86efac",
+              borderRadius: "8px",
+              padding: "16px",
+              marginBottom: "24px"
+            }}>
+              <div style={{ fontSize: "12px", color: "#16a34a", fontWeight: "600", marginBottom: "4px" }}>
+                NEXT MODULE
+              </div>
+              <div style={{ fontSize: "16px", fontWeight: "600", color: "#166534" }}>
+                {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
+              </div>
+            </div>
+          )}
+
+          {/* Modules List */}
+          <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px", color: "#374151" }}>
+            All Modules
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {curriculum.modules.map((module, index) => (
+              <div
+                key={module.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "12px",
+                  background: "#f9fafb",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "6px"
+                }}
+              >
+                {/* Status Icon */}
+                <div style={{ fontSize: "20px", flexShrink: 0 }}>
+                  {module.status === 'completed' && '✅'}
+                  {module.status === 'in_progress' && '🔄'}
+                  {module.status === 'not_started' && '⭕'}
+                </div>
+
+                {/* Module Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "14px", fontWeight: "500", color: "#111827" }}>
+                    {index + 1}. {module.name}
+                  </div>
+                  {module.mastery > 0 && (
+                    <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
+                      {Math.round(module.mastery * 100)}% mastery
+                    </div>
+                  )}
+                </div>
+
+                {/* Mastery Bar */}
+                {module.mastery > 0 && (
+                  <div style={{ width: "80px", flexShrink: 0 }}>
+                    <div style={{
+                      height: "4px",
+                      background: "#e5e7eb",
+                      borderRadius: "2px",
+                      overflow: "hidden"
+                    }}>
+                      <div style={{
+                        height: "100%",
+                        background: module.status === 'completed' ? '#10b981' : '#f59e0b',
+                        width: `${module.mastery * 100}%`
+                      }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Unified Prompt Section - combines Human-Readable and LLM-Friendly views
 function UnifiedPromptSection({
   prompts,
@@ -5834,7 +6247,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
     caller: { id: string; name: string; domain: string | null };
     playbook: { id: string; name: string; status: string } | null;
     tree: SlugNode[];
-    counts: { memories: number; scores: number; targets: number; total: number };
+    counts: { memories: number; scores: number; targets: number; available: number; total: number };
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -5883,15 +6296,20 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
   }
 
   if (!slugsData || slugsData.tree.length === 0) {
+    const hasAvailableVars = slugsData?.counts?.available > 0;
     return (
       <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏷️</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No template variables</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+          {hasAvailableVars ? "No values yet" : "No template variables"}
+        </div>
         <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-          This caller has no memories, scores, or personalized targets yet.
+          {hasAvailableVars
+            ? `${slugsData.counts.available} template variables are defined but awaiting values.`
+            : "This caller has no memories, scores, or personalized targets yet."}
         </div>
         <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
-          Process calls through the pipeline to generate caller-specific data.
+          Process calls through the pipeline to populate slug values.
         </div>
       </div>
     );
@@ -5902,6 +6320,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
     MEMORIES: "🧠",
     SCORES: "📊",
     "PERSONALIZED TARGETS": "🎯",
+    "AVAILABLE VARIABLES": "📋",
   };
 
   const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -5909,6 +6328,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
     MEMORIES: { bg: "#fef3c7", border: "#fcd34d", text: "#d97706" },
     SCORES: { bg: "#dbeafe", border: "#93c5fd", text: "#2563eb" },
     "PERSONALIZED TARGETS": { bg: "#fdf2f8", border: "#f9a8d4", text: "#db2777" },
+    "AVAILABLE VARIABLES": { bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" },
   };
 
   return (
@@ -5928,7 +6348,12 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
             Caller Template Variables
           </div>
           <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-            {slugsData.counts.total} variables: {slugsData.counts.memories} memories, {slugsData.counts.scores} scores, {slugsData.counts.targets} targets
+            {slugsData.counts.total} with values: {slugsData.counts.memories} memories, {slugsData.counts.scores} scores, {slugsData.counts.targets} targets
+            {slugsData.counts.available > 0 && (
+              <span style={{ color: "#9ca3af", marginLeft: 8 }}>
+                • {slugsData.counts.available} available in templates
+              </span>
+            )}
           </div>
         </div>
         {slugsData.playbook && (

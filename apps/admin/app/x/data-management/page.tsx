@@ -18,34 +18,36 @@ type Operation = {
   warning: string;
   endpoint: string;
   method?: "GET" | "POST";
+  requiresMode?: boolean; // If true, shows mode selection buttons
 };
 
 const OPERATIONS: Operation[] = [
   {
-    id: "domains",
-    title: "Initialize Default Domains",
-    description: "Creates WNF TUTOR and COMPANION domains with all required playbooks, specs, parameters, and behavior targets.",
-    icon: "🌐",
-    warning: "This will create/recreate WNF TUTOR and COMPANION domains. Existing domains with these slugs will be deleted along with their playbooks. All behavior targets and spec assignments will be reset.",
-    endpoint: "/api/x/seed-domains",
-    method: "POST",
-  },
-  {
-    id: "specs",
-    title: "Sync BDD Specifications",
-    description: "Refreshes Feature Sets and Analysis Specs from /bdd-specs directory. Creates parameters, anchors, and prompt slugs.",
-    icon: "🎯",
-    warning: "This will overwrite AnalysisSpecs and Parameters from /bdd-specs/*.spec.json. Existing specs with matching slugs will be updated. Runtime customizations to specs will be lost.",
-    endpoint: "/api/lab/sync-specs",
+    id: "system",
+    title: "Initialize System (Domains + Specs)",
+    description: "Creates default domains (WNF TUTOR, COMPANION) with playbooks, then syncs all BDD specifications from /bdd-specs directory. This establishes the complete foundation: domains, playbooks, specs, parameters, anchors, and behavior targets.",
+    icon: "🚀",
+    warning: "This will create/recreate WNF TUTOR and COMPANION domains AND sync all specs. Existing domains with these slugs will be deleted along with their playbooks. AnalysisSpecs and Parameters from /bdd-specs/*.spec.json will be updated. All behavior targets and runtime spec customizations will be reset.",
+    endpoint: "/api/x/seed-system",
     method: "POST",
   },
   {
     id: "transcripts",
-    title: "Import Transcripts",
-    description: "Recursively scans /transcripts directory and all subdirectories. Creates or updates Callers and Calls, establishing proper linkages.",
+    title: "Import Transcripts from Raw",
+    description: "Scans HF_KB_PATH/sources/transcripts/raw for .json and .txt files. Creates Callers (by phone) and Calls. Updates caller names if better data is found.",
     icon: "📞",
-    warning: "This will create Callers and Calls from all files in /transcripts directory (including subdirectories). Callers will be assigned to domains (default domain if others don't exist). Existing calls with same externalId will be skipped. Run 'Initialize Domains' first for proper caller assignment.",
+    warning: "Choose whether to REPLACE all existing callers/calls (fresh start) or KEEP existing data (skip duplicates). Run 'Initialize System' first for proper domain assignment.",
     endpoint: "/api/x/seed-transcripts",
+    method: "POST",
+    requiresMode: true,
+  },
+  {
+    id: "cleanup",
+    title: "Cleanup Orphaned Callers",
+    description: "Deletes callers that have 0 calls. These are typically created during failed imports or testing.",
+    icon: "🧹",
+    warning: "This will permanently delete all Caller records that have no associated Calls. This is safe and recommended after imports.",
+    endpoint: "/api/x/cleanup-callers",
     method: "POST",
   },
 ];
@@ -61,13 +63,14 @@ export default function DataManagementPage() {
   const [loadingStats, setLoadingStats] = useState(true);
 
   const [operationStatus, setOperationStatus] = useState<Record<string, OperationStatus>>({
-    domains: "idle",
-    specs: "idle",
+    system: "idle",
     transcripts: "idle",
+    cleanup: "idle",
   });
 
   const [operationResults, setOperationResults] = useState<Record<string, OperationResult>>({});
   const [showModal, setShowModal] = useState<string | null>(null);
+  const [selectedMode, setSelectedMode] = useState<"replace" | "keep" | null>(null);
 
   // Load current stats
   useEffect(() => {
@@ -89,15 +92,18 @@ export default function DataManagementPage() {
     }
   }
 
-  async function executeOperation(op: Operation) {
+  async function executeOperation(op: Operation, mode?: "replace" | "keep") {
     setShowModal(null);
+    setSelectedMode(null);
     setOperationStatus((prev) => ({ ...prev, [op.id]: "running" }));
     setOperationResults((prev) => ({ ...prev, [op.id]: {} }));
 
     try {
+      const body = mode ? JSON.stringify({ mode }) : undefined;
       const res = await fetch(op.endpoint, {
         method: op.method || "POST",
         headers: { "Content-Type": "application/json" },
+        ...(body && { body }),
       });
 
       const data = await res.json();
@@ -181,11 +187,7 @@ export default function DataManagementPage() {
         </div>
         <ol style={{ fontSize: 13, color: "#1e3a8a", margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
           <li>
-            <strong>Initialize Default Domains</strong> - Establishes WNF TUTOR and COMPANION with
-            their specs
-          </li>
-          <li>
-            <strong>Sync BDD Specifications</strong> - Adds additional specs from file system
+            <strong>Initialize System</strong> - Syncs all BDD specs, then creates WNF TUTOR and COMPANION domains with playbooks and behavior targets
           </li>
           <li>
             <strong>Import Transcripts</strong> - Creates callers and calls, assigns to domains
@@ -201,7 +203,14 @@ export default function DataManagementPage() {
             operation={op}
             status={operationStatus[op.id]}
             result={operationResults[op.id]}
-            onExecute={() => setShowModal(op.id)}
+            onExecute={(mode) => {
+              if (op.requiresMode && mode) {
+                setSelectedMode(mode);
+                setShowModal(op.id);
+              } else if (!op.requiresMode) {
+                setShowModal(op.id);
+              }
+            }}
           />
         ))}
       </div>
@@ -210,8 +219,12 @@ export default function DataManagementPage() {
       {showModal && (
         <ConfirmationModal
           operation={OPERATIONS.find((op) => op.id === showModal)!}
-          onConfirm={() => executeOperation(OPERATIONS.find((op) => op.id === showModal)!)}
-          onCancel={() => setShowModal(null)}
+          mode={selectedMode}
+          onConfirm={() => executeOperation(OPERATIONS.find((op) => op.id === showModal)!, selectedMode || undefined)}
+          onCancel={() => {
+            setShowModal(null);
+            setSelectedMode(null);
+          }}
         />
       )}
     </div>
@@ -236,7 +249,7 @@ function OperationCard({
   operation: Operation;
   status: OperationStatus;
   result?: OperationResult;
-  onExecute: () => void;
+  onExecute: (mode?: "replace" | "keep") => void;
 }) {
   const isRunning = status === "running";
   const isSuccess = status === "success";
@@ -315,24 +328,63 @@ function OperationCard({
             </div>
           )}
 
-          {/* Button */}
-          <button
-            onClick={onExecute}
-            disabled={isRunning}
-            style={{
-              padding: "10px 20px",
-              background: isRunning ? "#d1d5db" : "#4f46e5",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: isRunning ? "not-allowed" : "pointer",
-              opacity: isRunning ? 0.6 : 1,
-            }}
-          >
-            {isRunning ? "Running..." : `Run ${operation.title}`}
-          </button>
+          {/* Buttons */}
+          {operation.requiresMode ? (
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                onClick={() => onExecute("replace")}
+                disabled={isRunning}
+                style={{
+                  padding: "10px 20px",
+                  background: isRunning ? "#d1d5db" : "#dc2626",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: isRunning ? "not-allowed" : "pointer",
+                  opacity: isRunning ? 0.6 : 1,
+                }}
+              >
+                🗑️ Replace ALL
+              </button>
+              <button
+                onClick={() => onExecute("keep")}
+                disabled={isRunning}
+                style={{
+                  padding: "10px 20px",
+                  background: isRunning ? "#d1d5db" : "#059669",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: isRunning ? "not-allowed" : "pointer",
+                  opacity: isRunning ? 0.6 : 1,
+                }}
+              >
+                📥 Keep ALL (Skip Duplicates)
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => onExecute()}
+              disabled={isRunning}
+              style={{
+                padding: "10px 20px",
+                background: isRunning ? "#d1d5db" : "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isRunning ? "not-allowed" : "pointer",
+                opacity: isRunning ? 0.6 : 1,
+              }}
+            >
+              {isRunning ? "Running..." : `Run ${operation.title}`}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -341,13 +393,41 @@ function OperationCard({
 
 function ConfirmationModal({
   operation,
+  mode,
   onConfirm,
   onCancel,
 }: {
   operation: Operation;
+  mode: "replace" | "keep" | null;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  // Get mode-specific warning if applicable
+  const getWarning = () => {
+    if (operation.requiresMode && mode) {
+      if (mode === "replace") {
+        return "⚠️ DESTRUCTIVE: This will DELETE all existing Callers and Calls from the database, then import fresh from /transcripts directory. All analysis artifacts, behavior targets, and caller histories will be permanently removed. This cannot be undone.";
+      } else {
+        return "This will import transcripts from /transcripts directory. Existing callers/calls will be kept, and only new data will be added. Calls with matching externalId will be skipped.";
+      }
+    }
+    return operation.warning;
+  };
+
+  const getButtonColor = () => {
+    if (operation.requiresMode && mode === "replace") {
+      return "#dc2626"; // Red for destructive
+    }
+    return "#dc2626"; // Red for all confirmations
+  };
+
+  const getTitle = () => {
+    if (operation.requiresMode && mode) {
+      return `${operation.title} - ${mode === "replace" ? "Replace ALL" : "Keep ALL"}`;
+    }
+    return operation.title;
+  };
+
   return (
     <div
       style={{
@@ -375,23 +455,25 @@ function ConfirmationModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ fontSize: 48, textAlign: "center", marginBottom: 16 }}>⚠️</div>
+        <div style={{ fontSize: 48, textAlign: "center", marginBottom: 16 }}>
+          {operation.requiresMode && mode === "replace" ? "🗑️" : "⚠️"}
+        </div>
         <div style={{ fontSize: 20, fontWeight: 700, color: "#1f2937", marginBottom: 12, textAlign: "center" }}>
-          {operation.title}
+          {getTitle()}
         </div>
         <div
           style={{
             padding: 16,
-            background: "#fef3c7",
-            border: "1px solid #fde047",
+            background: operation.requiresMode && mode === "replace" ? "#fee2e2" : "#fef3c7",
+            border: `1px solid ${operation.requiresMode && mode === "replace" ? "#fca5a5" : "#fde047"}`,
             borderRadius: 8,
             fontSize: 14,
-            color: "#92400e",
+            color: operation.requiresMode && mode === "replace" ? "#991b1b" : "#92400e",
             lineHeight: 1.6,
             marginBottom: 24,
           }}
         >
-          {operation.warning}
+          {getWarning()}
         </div>
 
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
@@ -414,7 +496,7 @@ function ConfirmationModal({
             onClick={onConfirm}
             style={{
               padding: "10px 20px",
-              background: "#dc2626",
+              background: getButtonColor(),
               color: "white",
               border: "none",
               borderRadius: 8,

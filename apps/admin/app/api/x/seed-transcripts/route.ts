@@ -7,9 +7,52 @@ import { NextResponse } from "next/server";
  * and all subdirectories. This is a wrapper around the existing
  * /api/transcripts/import endpoint that automatically finds and imports
  * all .json and .txt transcript files.
+ *
+ * Body:
+ * - mode: "replace" | "keep" (optional, defaults to "keep")
+ *   - "replace": Deletes ALL existing Callers and Calls before importing
+ *   - "keep": Keeps existing data, skips duplicates
  */
 export async function POST(request: Request) {
   try {
+    // Parse body to get mode
+    const body = await request.json().catch(() => ({}));
+    const mode = body.mode || "keep";
+
+    // If replace mode, delete all existing callers and calls first
+    if (mode === "replace") {
+      const { PrismaClient } = await import("@prisma/client");
+      const prisma = new PrismaClient();
+
+      try {
+        console.log("🗑️  REPLACE mode: Deleting all existing Callers and Calls...");
+
+        // Delete in correct order due to foreign key constraints
+        // First: tables that reference Call
+        await prisma.personalityObservation.deleteMany({});
+        await prisma.callScore.deleteMany({});
+        await prisma.callTarget.deleteMany({});
+        await prisma.composedPrompt.deleteMany({});
+        // Then: Call itself
+        await prisma.call.deleteMany({});
+        // Then: tables that reference Caller
+        await prisma.callerTarget.deleteMany({});
+        await prisma.behaviorTarget.deleteMany({ where: { scope: "CALLER" } });
+        await prisma.callerMemorySummary.deleteMany({});
+        await prisma.callerMemory.deleteMany({});
+        await prisma.callerPersonality.deleteMany({});
+        await prisma.callerPersonalityProfile.deleteMany({});
+        await prisma.callerIdentity.deleteMany({});
+        await prisma.callerAttribute.deleteMany({});
+        // Finally: Caller itself
+        await prisma.caller.deleteMany({});
+
+        console.log("   ✓ All Callers and Calls deleted");
+      } finally {
+        await prisma.$disconnect();
+      }
+    }
+
     // Determine domain - check if companion domain exists, otherwise use default
     const domainSlug = await determineDomainSlug();
 
@@ -29,10 +72,12 @@ export async function POST(request: Request) {
     const importResult = await importResponse.json();
 
     if (importResult.ok) {
+      const modeLabel = mode === "replace" ? " (replaced all existing)" : " (kept existing, skipped duplicates)";
       return NextResponse.json({
         ok: true,
-        message: `Imported ${importResult.callsImported} calls from ${importResult.created} new callers (${importResult.filesProcessed} files processed)`,
+        message: `Imported ${importResult.callsImported} calls from ${importResult.created} new callers (${importResult.filesProcessed} files processed)${modeLabel}`,
         sourceDir: importResult.sourceDir,
+        mode,
         details: importResult,
       });
     } else {

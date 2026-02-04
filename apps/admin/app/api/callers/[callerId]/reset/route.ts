@@ -21,7 +21,7 @@ import { Prisma } from "@prisma/client";
  * - CallTarget (per-call computed targets)
  * - CallerTarget (aggregated caller-level targets)
  * - BehaviorTarget (CALLER-scoped, via CallerIdentity) [DEPRECATED]
- * - Clears CallerIdentity fields (nextPrompt, callerPrompt, snapshots, stats)
+ * - Clears CallerIdentity fields (promptStackId, nextPrompt, callerPrompt, snapshots, stats)
  *
  * Preserves:
  * - Caller record
@@ -142,6 +142,8 @@ export async function POST(
       const identitiesUpdated = await tx.callerIdentity.updateMany({
         where: { callerId },
         data: {
+          // Prompt stack assignment
+          promptStackId: null,
           // Next call prompt state
           nextPrompt: null,
           nextPromptComposedAt: null,

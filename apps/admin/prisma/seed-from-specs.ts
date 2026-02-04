@@ -21,7 +21,6 @@ import {
   SpecType,
   SpecRole,
   MemoryCategory,
-  AgentScope,
 } from "@prisma/client";
 import {
   parseJsonSpec,
@@ -29,6 +28,7 @@ import {
   JsonFeatureSpec,
 } from "../lib/bdd/ai-parser";
 import { compileSpecToTemplate } from "../lib/bdd/compile-specs";
+import { ContractRegistry, ensureContractsLoaded } from "../lib/contracts/registry";
 
 const prisma = new PrismaClient();
 
@@ -70,7 +70,11 @@ export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; r
     return specs;
   }
 
-  const files = fs.readdirSync(specsFolder).filter(f => f.endsWith(".spec.json"));
+  const files = fs.readdirSync(specsFolder).filter(f =>
+    f.endsWith(".spec.json") &&
+    !f.includes("schema") &&
+    !f.includes("config")
+  );
   console.log(`   Found ${files.length} spec files in ${specsFolder}`);
 
   for (const filename of files) {
@@ -170,6 +174,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   const compiledConstraints = (featureSet.constraints as any[]) || [];
   const compiledDefinitions = (featureSet.definitions as Record<string, any>) || {};
   const scoringSpec = featureSet.scoringSpec as any;
+  const rawSpecData = featureSet.rawSpec as any;
 
   // Map specType string to valid SpecType enum (only SYSTEM and DOMAIN are valid)
   const rawSpecType = featureSet.specType || "DOMAIN";
@@ -188,6 +193,8 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     specRole = SpecRole.CONTENT;
   } else if (declaredSpecRole === SpecRole.VOICE) {
     specRole = SpecRole.VOICE;
+  } else if (declaredSpecRole === SpecRole.GUARDRAIL) {
+    specRole = SpecRole.GUARDRAIL;
   } else {
     // Map outputType to specRole for META/unspecified specs
     switch (declaredOutputType) {
@@ -201,6 +208,9 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
         break;
       case AnalysisOutputType.REWARD:
         specRole = SpecRole.REWARD;
+        break;
+      case AnalysisOutputType.SUPERVISE:
+        specRole = SpecRole.GUARDRAIL;
         break;
       default:
         specRole = SpecRole.MEASURE; // Default for COMPOSE, AGGREGATE, etc.
@@ -267,6 +277,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
       directionality: "positive",
       computedBy: `spec:${featureSet.featureId}`,
       parameterType,
+      isAdjustable: param.isAdjustable || false,
       interpretationHigh,
       interpretationLow,
     };
@@ -390,11 +401,50 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     where: { slug: specSlug },
   });
 
-  // Build config from parameters for IDENTITY and CONTENT specs (based on specRole)
-  // This makes the config available to compose-prompt for building LLM prompts
+  // Build config from parameters based on spec type
+  // This makes the config available to compose-prompt and pipeline for reading spec-defined values
   let config: Record<string, any> | null = null;
-  if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT) {
-    config = {};
+
+  // For COMPOSE specs: preserve the full parameters array so code can look up by parameter ID
+  // This is critical - specs define behavior, not hardcoded values in code
+  // For CONTENT specs, we need the full parameter structure (section, name, description) for curriculum composer
+  if (outputType === AnalysisOutputType.COMPOSE) {
+    // If this is a CONTENT spec, preserve full parameter structure from featureSet
+    if (specRole === SpecRole.CONTENT && featureSet.parameters) {
+      config = {
+        parameters: featureSet.parameters,
+      };
+      console.log(`      Built COMPOSE config with ${(featureSet.parameters as any[]).length} parameters (full structure preserved for CONTENT spec)`);
+    } else {
+      // For other COMPOSE specs, use compiled params
+      config = {
+        parameters: compiledParams.map(p => ({
+          id: p.id || p.parameterId,
+          config: p.config || {},
+        })),
+      };
+      console.log(`      Built COMPOSE config with ${compiledParams.length} parameters`);
+    }
+    // Also flatten top-level for backward compatibility
+    for (const param of compiledParams) {
+      if (param.config) {
+        Object.assign(config, param.config);
+      }
+    }
+    // Copy metadata from rawSpec if present (required for contract-based specs)
+    if (rawSpecData?.metadata) {
+      config.metadata = rawSpecData.metadata;
+      console.log(`      Copied metadata from rawSpec (sections: ${Object.keys(rawSpecData.metadata).join(", ")})`);
+    }
+  }
+  // For IDENTITY and CONTENT specs: preserve parameters array AND flatten for backward compat
+  else if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT) {
+    // NEW: Preserve full parameter structure (needed for generic curriculum composer)
+    config = {
+      parameters: featureSet.parameters || [],
+    };
+
+    // Also flatten top-level config properties for backward compatibility
     for (const param of compiledParams) {
       const paramId = param.id || param.parameterId;
       // Extract the config object from each parameter
@@ -407,7 +457,22 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
         config[paramId] = param.config;
       }
     }
-    console.log(`      Built config for ${specRole} spec with keys: ${Object.keys(config).join(", ")}`);
+    // Copy metadata from rawSpec if present (required for contract-based specs)
+    if (rawSpecData?.metadata) {
+      config.metadata = rawSpecData.metadata;
+      console.log(`      Copied metadata from rawSpec (sections: ${Object.keys(rawSpecData.metadata).join(", ")})`);
+    }
+    console.log(`      Built config for ${specRole} spec with ${(config.parameters as any[]).length} parameters and keys: ${Object.keys(config).slice(0, 5).join(", ")}...`);
+  }
+  // For ADAPT, AGGREGATE, etc.: preserve parameters array for pipeline to read configs
+  else if (compiledParams.length > 0 && compiledParams.some(p => p.config)) {
+    config = {
+      parameters: compiledParams.map(p => ({
+        id: p.id || p.parameterId,
+        config: p.config || {},
+      })),
+    };
+    console.log(`      Built config with ${compiledParams.length} parameters for ${outputType} spec`);
   }
 
   // Compile the spec to generate promptTemplate from rawSpec in database
@@ -463,6 +528,39 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
       },
     });
     results.specsCreated++;
+  }
+
+  // Validate contract implementation if spec declares "implements"
+  const implementedContracts = rawSpecData?.implements || [];
+  if (implementedContracts.length > 0) {
+    console.log(`      ℹ️ Spec declares implementation of: ${implementedContracts.join(", ")}`);
+
+    for (const contractId of implementedContracts) {
+      const validation = ContractRegistry.validateSpec(
+        featureSet.featureId,
+        specData.config || {},
+        {
+          contractId,
+          version: undefined, // Use any version
+          role: "producer", // Specs produce data according to contracts
+          produces: [],
+          consumes: [],
+        }
+      );
+
+      if (!validation.valid) {
+        const errorMsg = `Contract validation failed for ${featureSet.featureId} implementing ${contractId}:\n` +
+          validation.errors.map(e => `  - ${e}`).join("\n");
+        console.error(`      ✗ ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+
+      if (validation.warnings.length > 0) {
+        console.log(`      ⚠️ Contract warnings: ${validation.warnings.join(", ")}`);
+      }
+
+      console.log(`      ✓ Contract validation passed: ${contractId}`);
+    }
   }
 
   // ⚠️ DEPRECATED: Agent creation from IDENTITY specs is disabled
@@ -575,7 +673,6 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   });
 
   // Check if spec has explicit triggers array (from rawSpec in database)
-  const rawSpecData = featureSet.rawSpec as any;
   const explicitTriggers = rawSpecData?.triggers || [];
 
   // If spec has explicit triggers, use those instead of auto-generating
@@ -968,6 +1065,9 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
 export async function seedFromSpecs(): Promise<SeedSpecResult[]> {
   console.log("\n📋 SEEDING FROM BDD SPEC FILES\n");
   console.log("━".repeat(60));
+
+  // Load contracts before validating specs
+  ensureContractsLoaded();
 
   const specFiles = loadSpecFiles();
 

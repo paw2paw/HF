@@ -188,7 +188,6 @@ async function getCallerContext(callerId: string): Promise<string | null> {
           id: true,
           createdAt: true,
           callSequence: true,
-          status: true,
           transcript: true,
         },
       }),
