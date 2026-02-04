@@ -89,6 +89,7 @@ model Parameter {
   behaviorTargets      BehaviorTarget[]
   behaviorMeasurements BehaviorMeasurement[]
   callerTargets        CallerTarget[] // Personalized targets computed by ADAPT specs
+  callTargets          CallTarget[]   // Per-call targets computed by ADAPT specs
 }
 
 model ParameterMapping {
@@ -499,6 +500,37 @@ model Caller {
   @@map("User") // Preserve existing table name
 }
 
+// CallTarget - Per-call behavior targets computed by ADAPT specs
+// These are computed for each call and then aggregated into CallerTargets
+model CallTarget {
+  id String @id @default(uuid())
+
+  callId String
+  call   Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  parameterId String
+  parameter   Parameter @relation(fields: [parameterId], references: [parameterId])
+
+  // Target value for this behavior parameter (0.0 - 1.0)
+  targetValue Float
+
+  // Confidence in this target (0.0 - 1.0)
+  confidence Float @default(0.7)
+
+  // Which spec computed this target
+  sourceSpecSlug String?
+
+  // Explanation of why this target was chosen
+  reasoning String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([callId, parameterId], name: "callId_parameterId")
+  @@index([callId])
+  @@index([parameterId])
+}
+
 // CallerTarget - Personalized behavior targets computed by ADAPT specs
 // These override static BehaviorTargets and adapt based on caller's characteristics
 model CallerTarget {
@@ -609,6 +641,9 @@ model Call {
 
   // Prompts triggered by this call
   triggeredPrompts ComposedPrompt[]
+
+  // Per-call behavior targets (computed by ADAPT specs)
+  callTargets CallTarget[]
 
   @@index([source])
   @@index([externalId])

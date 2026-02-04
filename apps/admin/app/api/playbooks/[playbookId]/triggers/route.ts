@@ -74,24 +74,7 @@ export async function GET(
             },
           },
         },
-        specs: {
-          include: {
-            spec: {
-              include: {
-                triggers: {
-                  include: {
-                    actions: {
-                      include: {
-                        parameter: true,
-                      },
-                      orderBy: { weight: "desc" },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        // specs: removed - PlaybookSystemSpec model no longer exists
       },
     });
 
@@ -104,7 +87,7 @@ export async function GET(
 
     // Load all SYSTEM specs (implicitly included)
     const allSystemSpecs = await prisma.analysisSpec.findMany({
-      where: { specType: "SYSTEM", isActive: true },
+      where: { scope: "SYSTEM", isActive: true },
       include: {
         triggers: {
           include: {
@@ -119,18 +102,8 @@ export async function GET(
       },
     });
 
-    // Build disabled set from overrides
-    const disabledSpecIds = new Set<string>();
-    for (const override of playbook.specs || []) {
-      if (!override.isEnabled) {
-        disabledSpecIds.add(override.specId);
-      }
-    }
-
-    // Filter system specs
-    const enabledSystemSpecs = allSystemSpecs.filter(
-      (spec) => !disabledSpecIds.has(spec.id)
-    );
+    // All system specs are now implicitly enabled (PlaybookSystemSpec model was removed)
+    const enabledSystemSpecs = allSystemSpecs;
 
     // Combine all enabled specs
     const allEnabledSpecs = [

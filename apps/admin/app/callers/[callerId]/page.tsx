@@ -107,7 +107,7 @@ type CallScore = {
   analysisSpecId: string | null;
   createdAt: string;
   parameter: { name: string; definition: string | null };
-  analysisSpec: { id: string; slug: string; name: string } | null;
+  analysisSpec: { id: string; slug: string; name: string; outputType: string } | null;
   call: { createdAt: string };
 };
 
@@ -120,6 +120,7 @@ type CallerData = {
   calls: Call[];
   identities: CallerIdentity[];
   scores: CallScore[];
+  callerTargets?: any[];
   counts: {
     calls: number;
     memories: number;
@@ -192,7 +193,7 @@ export default function CallerDetailPage() {
     if (!callerId) return;
     setPromptsLoading(true);
     try {
-      const res = await fetch(`/api/callers/${callerId}/compose-prompt?limit=20`);
+      const res = await fetch(`/api/callers/${callerId}/compose-prompt?limit=3`);
       const result = await res.json();
       if (result.ok) {
         setComposedPrompts(result.prompts);
@@ -321,19 +322,20 @@ export default function CallerDetailPage() {
   // Sections organized into logical groups:
   // - History: call recordings and transcripts
   // - Caller: who they are (personality, memories)
-  // - Agent: how we respond (targets, scores, behavior, prompt)
+  // - Shared: variables, measurements for both agent and caller (slugs, scores, targets)
+  // - Agent: how we respond (behavior, prompt)
   // - Action: make a call
-  const sections: { id: SectionId; label: string; icon: string; count?: number; special?: boolean; group: "history" | "caller" | "agent" | "action" }[] = [
-    // History group - call data
+  const sections: { id: SectionId; label: string; icon: string; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "agent" | "action" }[] = [
+    // History
     { id: "calls", label: "Calls", icon: "📞", count: data.counts.calls, group: "history" },
-    { id: "transcripts", label: "Trans", icon: "📜", count: data.counts.calls, group: "history" },
-    // Caller group - who they are
-    { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations, group: "caller" },
+    // Caller group
     { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories, group: "caller" },
-    { id: "slugs", label: "Slugs", icon: "🏷️", group: "caller" },
-    // Agent group - how we respond
-    { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0, group: "agent" },
-    { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0, group: "agent" },
+    { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations, group: "caller" },
+    // Shared group - data for both caller and agent
+    { id: "slugs", label: "Slugs", icon: "🏷️", group: "shared" },
+    { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0, group: "shared" },
+    { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0, group: "shared" },
+    // Agent-specific group
     { id: "agent-behavior", label: "Agent", icon: "🤖", count: data.counts.measurements || 0, group: "agent" },
     { id: "prompt", label: "Prompt", icon: "📝", count: data.counts.prompts, group: "agent" },
     // Action group
@@ -1507,111 +1509,6 @@ function CallsSection({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {/* Header with bulk operations */}
-      <div style={{ background: "#f9fafb", borderRadius: 8, padding: "12px 16px" }}>
-        {/* Row 1: Bulk pipeline buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginRight: 8 }}>
-            Run on all {calls.length} calls:
-          </span>
-
-          {/* Prep button - runs full pipeline but stops before prompt composition */}
-          <button
-            onClick={() => runPipelineOnAllCalls("prep")}
-            disabled={bulkRunning !== null}
-            title="Run full analysis pipeline (measure, learn, agent, reward, adapt) - stops before prompt composition"
-            style={{
-              padding: "4px 12px",
-              fontSize: 10,
-              fontWeight: 600,
-              background: bulkRunning === "prep" ? "#fef3c7" : "#dbeafe",
-              color: bulkRunning === "prep" ? "#d97706" : "#2563eb",
-              border: "1px solid",
-              borderColor: bulkRunning === "prep" ? "#fcd34d" : "#93c5fd",
-              borderRadius: 4,
-              cursor: bulkRunning ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {bulkRunning === "prep" ? "⏳" : "📊"} PREP
-          </button>
-
-          {/* Prompt button - runs full pipeline including prompt composition */}
-          <button
-            onClick={() => runPipelineOnAllCalls("prompt")}
-            disabled={bulkRunning !== null}
-            title="Run full pipeline AND compose next prompt"
-            style={{
-              padding: "4px 12px",
-              fontSize: 10,
-              fontWeight: 600,
-              background: bulkRunning === "prompt" ? "#fef3c7" : "#4f46e5",
-              color: bulkRunning === "prompt" ? "#d97706" : "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor: bulkRunning ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {bulkRunning === "prompt" ? "⏳" : "📝"} PROMPT
-          </button>
-        </div>
-
-        {/* Progress indicator */}
-        {bulkProgress && (
-          <div style={{ marginBottom: 8, padding: "8px 12px", background: "#fff", borderRadius: 6, border: "1px solid #e5e7eb" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>
-                Processing call {bulkProgress.current} of {bulkProgress.total}
-                {bulkRunning && <span style={{ color: "#6b7280" }}> ({bulkRunning === "prep" ? "Preparing" : "Composing prompt"})</span>}
-              </div>
-              <div style={{ flex: 1, height: 6, background: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
-                <div
-                  style={{
-                    width: `${(bulkProgress.current / bulkProgress.total) * 100}%`,
-                    height: "100%",
-                    background: "#4f46e5",
-                    transition: "width 0.3s ease",
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: 11, color: "#6b7280" }}>
-                {Math.round((bulkProgress.current / bulkProgress.total) * 100)}%
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Row 2: Legend and expand/collapse */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 12, fontSize: 10, color: "#6b7280" }}>
-            <span style={{ color: "#2563eb" }}>● Ready</span>
-            <span style={{ color: "#16a34a" }}>● Done</span>
-            <span style={{ color: "#d97706" }}>● Running</span>
-            <span style={{ color: "#dc2626" }}>● Error</span>
-          </div>
-          <button
-            onClick={toggleAll}
-            style={{
-              padding: "4px 12px",
-              fontSize: 11,
-              fontWeight: 500,
-              background: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 4,
-              cursor: "pointer",
-              color: "#6b7280",
-            }}
-          >
-            {allExpanded ? "Collapse All" : "Expand All"}
-          </button>
-        </div>
-      </div>
-
       {calls.map((call) => {
         const isExpanded = expandedCall === call.id;
         const callPipelineStatus = pipelineStatus[call.id] || { prep: "ready", prompt: "ready" };
@@ -1848,13 +1745,17 @@ function CallDetailPanel({
   const personalityObservation = details?.personalityObservation;
 
   const tabs = [
-    { id: "transcript", label: "Transcript", count: null },
-    { id: "memories", label: "Memories", count: memories.length },
+    // Caller group
+    { id: "memories", label: "Mem", count: memories.length },
+    // Shared group
+    { id: "slugs", label: "Slugs", count: null },
     { id: "scores", label: "Scores", count: scores.length },
-    { id: "personality", label: "Personality", count: personalityObservation ? 1 : 0 },
     { id: "targets", label: "Targets", count: effectiveTargets.length },
-    { id: "measurements", label: "Agent Behavior", count: measurements.length },
+    // Agent group
+    { id: "measurements", label: "Agent", count: measurements.length },
     { id: "prompt", label: "Prompt", count: triggeredPrompts.length > 0 ? triggeredPrompts.length : null },
+    // Transcript
+    { id: "transcript", label: "Trans", count: null },
   ];
 
   return (
@@ -1931,7 +1832,11 @@ function CallDetailPanel({
         )}
 
         {activeTab === "targets" && (
-          <TargetsTab targets={effectiveTargets} measurements={measurements} />
+          <TargetsTab
+            callerTargets={data?.callerTargets || []}
+            behaviorTargets={effectiveTargets}
+            measurements={measurements}
+          />
         )}
 
         {activeTab === "measurements" && (
@@ -2895,28 +2800,20 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
   );
 }
 
-// Targets Tab - shows effective behavior targets with layer cascade
-function TargetsTab({ targets, measurements }: { targets: any[]; measurements: any[] }) {
+// Shared Two-Column Targets Display Component
+function TwoColumnTargetsDisplay({
+  callerTargets,
+  behaviorTargets,
+  measurements = [],
+}: {
+  callerTargets: any[];
+  behaviorTargets: any[];
+  measurements?: any[];
+}) {
   const [expandedTarget, setExpandedTarget] = useState<string | null>(null);
-
-  if (targets.length === 0) {
-    return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
-        No behavior targets configured for this caller.
-      </div>
-    );
-  }
 
   // Create measurement lookup
   const measurementMap = new Map(measurements.map((m: any) => [m.parameterId, m.actualValue]));
-
-  // Group targets by domainGroup
-  const grouped: Record<string, any[]> = {};
-  for (const t of targets) {
-    const group = t.parameter?.domainGroup || "Other";
-    if (!grouped[group]) grouped[group] = [];
-    grouped[group].push(t);
-  }
 
   const scopeColors: Record<string, { bg: string; text: string }> = {
     SYSTEM: { bg: "#f3f4f6", text: "#6b7280" },
@@ -2925,60 +2822,47 @@ function TargetsTab({ targets, measurements }: { targets: any[]; measurements: a
     CALLER: { bg: "#dcfce7", text: "#16a34a" },
   };
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Legend */}
-      <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap" }}>
-        <span style={{ fontWeight: 600 }}>Layer cascade:</span>
-        {["SYSTEM", "PLAYBOOK", "SEGMENT", "CALLER"].map((scope) => (
-          <span
-            key={scope}
-            style={{
-              padding: "2px 8px",
-              borderRadius: 4,
-              background: scopeColors[scope].bg,
-              color: scopeColors[scope].text,
-              fontWeight: 500,
-            }}
-          >
-            {scope}
-          </span>
-        ))}
-        <span style={{ color: "#9ca3af" }}>(later overrides earlier)</span>
-      </div>
+  // Group targets by domainGroup
+  const groupTargets = (targets: any[]) => {
+    const grouped: Record<string, any[]> = {};
+    for (const t of targets) {
+      const group = t.parameter?.domainGroup || "Other";
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(t);
+    }
+    return grouped;
+  };
 
-      {Object.entries(grouped).map(([group, groupTargets]) => (
-        <div key={group}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", marginBottom: 8 }}>
-            {group}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {groupTargets.map((target: any) => {
-              const isExpanded = expandedTarget === target.parameterId;
-              const actual = measurementMap.get(target.parameterId);
-              const delta = actual !== undefined ? actual - target.targetValue : null;
+  const groupedCallerTargets = groupTargets(callerTargets);
+  const groupedBehaviorTargets = groupTargets(behaviorTargets);
 
-              return (
-                <div
-                  key={target.parameterId}
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Header */}
-                  <div
-                    onClick={() => setExpandedTarget(isExpanded ? null : target.parameterId)}
-                    style={{
-                      padding: 12,
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
+  const renderTargetCard = (target: any, prefix: string) => {
+    const isExpanded = expandedTarget === `${prefix}-${target.parameterId}`;
+    const actual = measurementMap.get(target.parameterId);
+    const delta = actual !== undefined ? actual - target.targetValue : null;
+
+    return (
+      <div
+        key={`${prefix}-${target.parameterId}`}
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          overflow: "hidden",
+          marginBottom: 8,
+        }}
+      >
+        {/* Header */}
+        <div
+          onClick={() => setExpandedTarget(isExpanded ? null : `${prefix}-${target.parameterId}`)}
+          style={{
+            padding: 12,
+            cursor: "pointer",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
                       {/* Target value gauge */}
                       <div style={{ width: 50, textAlign: "center" }}>
@@ -3134,19 +3018,247 @@ function TargetsTab({ targets, measurements }: { targets: any[]; measurements: a
                       )}
                     </div>
                   )}
-                </div>
-              );
-            })}
-          </div>
+      </div>
+    );
+  };
+
+  const renderColumn = (targets: Record<string, any[]>, prefix: string, emptyMessage: string) => {
+    if (Object.keys(targets).length === 0) {
+      return (
+        <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+          {emptyMessage}
         </div>
-      ))}
+      );
+    }
+
+    return (
+      <div>
+        {Object.entries(targets).map(([group, groupTargets]) => (
+          <div key={`${prefix}-${group}`} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", marginBottom: 8 }}>
+              {group}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {groupTargets.map((target: any) => renderTargetCard(target, prefix))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  if (callerTargets.length === 0 && behaviorTargets.length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No behavior targets</div>
+        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+          CallerTargets are computed by ADAPT specs after calls are processed
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap", marginBottom: 16 }}>
+        <span style={{ fontWeight: 600 }}>Layer cascade:</span>
+        {["SYSTEM", "PLAYBOOK", "CALLER"].map((scope) => (
+          <span
+            key={scope}
+            style={{
+              padding: "2px 8px",
+              borderRadius: 4,
+              background: scopeColors[scope].bg,
+              color: scopeColors[scope].text,
+              fontWeight: 500,
+            }}
+          >
+            {scope}
+          </span>
+        ))}
+        <span style={{ color: "#9ca3af" }}>(later overrides earlier)</span>
+      </div>
+
+      {/* Two-column layout */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Personalized Targets Column */}
+        <div>
+          <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dcfce7", borderRadius: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>
+              ✨ Personalized Targets ({callerTargets.length})
+            </div>
+            <div style={{ fontSize: 11, color: "#15803d", marginTop: 2 }}>
+              Adapted specifically for this caller
+            </div>
+          </div>
+          {renderColumn(groupedCallerTargets, "caller", "No personalized targets yet")}
+        </div>
+
+        {/* Playbook Defaults Column */}
+        <div>
+          <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dbeafe", borderRadius: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
+              📋 Playbook Defaults ({behaviorTargets.length})
+            </div>
+            <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
+              Baseline targets from playbook
+            </div>
+          </div>
+          {renderColumn(groupedBehaviorTargets, "behavior", "No playbook defaults")}
+        </div>
+      </div>
     </div>
   );
 }
 
-// Scores Tab - enhanced with reasoning display
+// Targets Tab - uses shared TwoColumnTargetsDisplay
+function TargetsTab({
+  callerTargets,
+  behaviorTargets,
+  measurements,
+}: {
+  callerTargets: any[];
+  behaviorTargets: any[];
+  measurements: any[];
+}) {
+  return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} measurements={measurements} />;
+}
+
+// Scores Tab - split into Agent Scores and Caller Scores
 function ScoresTab({ scores }: { scores: any[] }) {
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
+
+  // Split scores by outputType
+  const agentScores = scores.filter(s => s.analysisSpec?.outputType === "MEASURE_AGENT");
+  const callerScores = scores.filter(s => s.analysisSpec?.outputType !== "MEASURE_AGENT");
+
+  const renderScoreCard = (score: any) => {
+    const isExpanded = expandedScore === score.id;
+
+    return (
+      <div
+        key={score.id}
+        style={{
+          background: "#fff",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div
+          onClick={() => setExpandedScore(isExpanded ? null : score.id)}
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 16,
+            padding: 12,
+            cursor: "pointer",
+          }}
+        >
+          {/* Score gauge */}
+          <div style={{ width: 60, textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                color: score.score >= 0.7 ? "#10b981" : score.score >= 0.4 ? "#f59e0b" : "#ef4444",
+              }}
+            >
+              {(score.score * 100).toFixed(0)}
+            </div>
+            <div style={{ fontSize: 10, color: "#9ca3af" }}>
+              {(score.confidence * 100).toFixed(0)}% conf
+            </div>
+          </div>
+
+          {/* Details */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+              {score.parameter?.name || score.parameterId}
+            </div>
+            {score.parameter?.definition && (
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6 }}>
+                {score.parameter.definition}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 10, color: "#9ca3af", flexWrap: "wrap" }}>
+              <span>Scored by {score.scoredBy || "unknown"}</span>
+              {score.analysisSpec && (
+                <>
+                  <span>•</span>
+                  <span style={{ background: "#f3e8ff", color: "#7c3aed", padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>
+                    {score.analysisSpec.slug || score.analysisSpec.name}
+                  </span>
+                </>
+              )}
+              {(score.reasoning || (score.evidence && score.evidence.length > 0)) && (
+                <span style={{ color: "#4f46e5" }}>{isExpanded ? "▼ less" : "▶ more"}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded: show reasoning and evidence */}
+        {isExpanded && (
+          <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, background: "#fafafa" }}>
+            {/* Source Spec info */}
+            {score.analysisSpec && (
+              <div style={{ marginBottom: 12, padding: 8, background: "#f3e8ff", borderRadius: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", marginBottom: 4 }}>
+                  Source Spec
+                </div>
+                <div style={{ fontSize: 12, color: "#4b5563" }}>
+                  <strong>{score.analysisSpec.name}</strong> ({score.analysisSpec.slug})
+                </div>
+              </div>
+            )}
+
+            {/* Reasoning */}
+            {score.reasoning && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
+                  Reasoning
+                </div>
+                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>
+                  {score.reasoning}
+                </div>
+              </div>
+            )}
+
+            {/* Evidence */}
+            {score.evidence && score.evidence.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
+                  Evidence ({score.evidence.length} excerpt{score.evidence.length > 1 ? "s" : ""})
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {score.evidence.map((e: string, idx: number) => (
+                    <div
+                      key={idx}
+                      style={{
+                        fontSize: 11,
+                        color: "#4b5563",
+                        fontStyle: "italic",
+                        padding: 8,
+                        background: "#fff",
+                        borderRadius: 4,
+                        borderLeft: "3px solid #c7d2fe",
+                      }}
+                    >
+                      "{e}"
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (scores.length === 0) {
     return (
@@ -3157,132 +3269,48 @@ function ScoresTab({ scores }: { scores: any[] }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {scores.map((score: any) => {
-        const isExpanded = expandedScore === score.id;
-
-        return (
-        <div
-          key={score.id}
-          style={{
-            background: "#fff",
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
-            overflow: "hidden",
-          }}
-        >
-          {/* Header */}
-          <div
-            onClick={() => setExpandedScore(isExpanded ? null : score.id)}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 16,
-              padding: 12,
-              cursor: "pointer",
-            }}
-          >
-            {/* Score gauge */}
-            <div style={{ width: 60, textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  color: score.score >= 0.7 ? "#10b981" : score.score >= 0.4 ? "#f59e0b" : "#ef4444",
-                }}
-              >
-                {(score.score * 100).toFixed(0)}
-              </div>
-              <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                {(score.confidence * 100).toFixed(0)}% conf
-              </div>
-            </div>
-
-            {/* Details */}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-                {score.parameter?.name || score.parameterId}
-              </div>
-              {score.parameter?.definition && (
-                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6 }}>
-                  {score.parameter.definition}
-                </div>
-              )}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 10, color: "#9ca3af", flexWrap: "wrap" }}>
-                <span>Scored by {score.scoredBy || "unknown"}</span>
-                {score.analysisSpec && (
-                  <>
-                    <span>•</span>
-                    <span style={{ background: "#f3e8ff", color: "#7c3aed", padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>
-                      {score.analysisSpec.slug || score.analysisSpec.name}
-                    </span>
-                  </>
-                )}
-                {(score.reasoning || (score.evidence && score.evidence.length > 0)) && (
-                  <span style={{ color: "#4f46e5" }}>{isExpanded ? "▼ less" : "▶ more"}</span>
-                )}
-              </div>
-            </div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* Agent Scores Column */}
+      <div>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>
+            🤖 Agent Scores ({agentScores.length})
           </div>
-
-          {/* Expanded: show reasoning and evidence */}
-          {isExpanded && (
-            <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, background: "#fafafa" }}>
-              {/* Source Spec info */}
-              {score.analysisSpec && (
-                <div style={{ marginBottom: 12, padding: 8, background: "#f3e8ff", borderRadius: 6 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", marginBottom: 4 }}>
-                    Source Spec
-                  </div>
-                  <div style={{ fontSize: 12, color: "#4b5563" }}>
-                    <strong>{score.analysisSpec.name}</strong> ({score.analysisSpec.slug})
-                  </div>
-                </div>
-              )}
-
-              {/* Reasoning */}
-              {score.reasoning && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
-                    Reasoning
-                  </div>
-                  <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>
-                    {score.reasoning}
-                  </div>
-                </div>
-              )}
-
-              {/* Evidence */}
-              {score.evidence && score.evidence.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
-                    Evidence ({score.evidence.length} excerpt{score.evidence.length > 1 ? "s" : ""})
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {score.evidence.map((e: string, idx: number) => (
-                      <div
-                        key={idx}
-                        style={{
-                          fontSize: 11,
-                          color: "#4b5563",
-                          fontStyle: "italic",
-                          padding: 8,
-                          background: "#fff",
-                          borderRadius: 4,
-                          borderLeft: "3px solid #c7d2fe",
-                        }}
-                      >
-                        "{e}"
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>
+            How well the agent performed
+          </div>
         </div>
-      );
-      })}
+        {agentScores.length === 0 ? (
+          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+            No agent scores yet
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {agentScores.map(renderScoreCard)}
+          </div>
+        )}
+      </div>
+
+      {/* Caller Scores Column */}
+      <div>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dbeafe", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
+            👤 Caller Scores ({callerScores.length})
+          </div>
+          <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
+            Caller behavior and state
+          </div>
+        </div>
+        {callerScores.length === 0 ? (
+          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+            No caller scores yet
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {callerScores.map(renderScoreCard)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -3877,7 +3905,7 @@ function PersonalitySection({
   );
 }
 
-// Scores Section
+// Scores Section - split into Agent vs Caller scores
 function ScoresSection({ scores }: { scores: CallScore[] }) {
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
   const [expandedParam, setExpandedParam] = useState<string | null>(null);
@@ -3892,193 +3920,243 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
     );
   }
 
-  // Group scores by parameter
-  const grouped: Record<string, CallScore[]> = {};
-  for (const score of scores) {
-    const key = score.parameterId;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(score);
-  }
+  // Split scores by outputType
+  const agentScores = scores.filter(s => s.analysisSpec?.outputType === "MEASURE_AGENT");
+  const callerScores = scores.filter(s => s.analysisSpec?.outputType !== "MEASURE_AGENT");
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {Object.entries(grouped).map(([parameterId, paramScores]) => {
-        const avg = paramScores.reduce((sum, s) => sum + s.score, 0) / paramScores.length;
-        const paramName = paramScores[0]?.parameter?.name || parameterId;
-        const isParamExpanded = expandedParam === parameterId;
+  // Group scores by parameter for each type
+  const groupByParameter = (scoreList: CallScore[]) => {
+    const grouped: Record<string, CallScore[]> = {};
+    for (const score of scoreList) {
+      const key = score.parameterId;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(score);
+    }
+    return grouped;
+  };
 
-        return (
-          <div key={parameterId} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
-            {/* Header */}
-            <button
-              onClick={() => setExpandedParam(isParamExpanded ? null : parameterId)}
-              style={{
-                width: "100%",
-                padding: 16,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: isParamExpanded ? "#f9fafb" : "#fff",
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{paramName}</div>
-                <div style={{ fontSize: 12, color: "#6b7280" }}>{paramScores[0]?.parameter?.definition || ""}</div>
+  const agentGrouped = groupByParameter(agentScores);
+  const callerGrouped = groupByParameter(callerScores);
+
+  const renderParameterCard = (parameterId: string, paramScores: CallScore[]) => {
+    const avg = paramScores.reduce((sum, s) => sum + s.score, 0) / paramScores.length;
+    const paramName = paramScores[0]?.parameter?.name || parameterId;
+    const isParamExpanded = expandedParam === parameterId;
+
+    return (
+      <div key={parameterId} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+        {/* Header */}
+        <button
+          onClick={() => setExpandedParam(isParamExpanded ? null : parameterId)}
+          style={{
+            width: "100%",
+            padding: 16,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            background: isParamExpanded ? "#f9fafb" : "#fff",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{paramName}</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>{paramScores[0]?.parameter?.definition || ""}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: avg >= 0.7 ? "#10b981" : avg >= 0.4 ? "#f59e0b" : "#ef4444" }}>
+                {(avg * 100).toFixed(0)}%
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: avg >= 0.7 ? "#10b981" : avg >= 0.4 ? "#f59e0b" : "#ef4444" }}>
-                    {(avg * 100).toFixed(0)}%
-                  </div>
-                  <div style={{ fontSize: 11, color: "#9ca3af" }}>avg of {paramScores.length}</div>
-                </div>
-                <span style={{ color: "#9ca3af" }}>{isParamExpanded ? "▼" : "▶"}</span>
-              </div>
-            </button>
+              <div style={{ fontSize: 11, color: "#9ca3af" }}>avg of {paramScores.length}</div>
+            </div>
+            <span style={{ color: "#9ca3af" }}>{isParamExpanded ? "▼" : "▶"}</span>
+          </div>
+        </button>
 
-            {/* Collapsed: show score pills */}
-            {!isParamExpanded && (
-              <div style={{ padding: "0 16px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {paramScores.slice(0, 10).map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      setExpandedParam(parameterId);
-                      setExpandedScore(s.id);
-                    }}
-                    style={{
-                      padding: "4px 10px",
-                      background: s.score >= 0.7 ? "#dcfce7" : s.score >= 0.4 ? "#fef3c7" : "#fee2e2",
-                      borderRadius: 6,
-                      fontSize: 12,
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ fontWeight: 500 }}>{(s.score * 100).toFixed(0)}%</span>
-                    <span style={{ marginLeft: 6, color: "#9ca3af" }}>
-                      {new Date(s.call.createdAt).toLocaleDateString()}
-                    </span>
-                  </button>
-                ))}
-                {paramScores.length > 10 && (
-                  <span style={{ fontSize: 12, color: "#9ca3af", alignSelf: "center" }}>+{paramScores.length - 10} more</span>
-                )}
-              </div>
-            )}
-
-            {/* Expanded: show full score details */}
-            {isParamExpanded && (
-              <div style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
-                {paramScores.map((s) => {
-                  const isScoreExpanded = expandedScore === s.id;
-                  return (
-                    <div key={s.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                      {/* Score row header */}
-                      <button
-                        onClick={() => setExpandedScore(isScoreExpanded ? null : s.id)}
-                        style={{
-                          width: "100%",
-                          padding: "12px 16px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 16,
-                          background: isScoreExpanded ? "#fff" : "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                      >
-                        {/* Score value */}
-                        <div
-                          style={{
-                            width: 50,
-                            padding: "4px 8px",
-                            textAlign: "center",
-                            background: s.score >= 0.7 ? "#dcfce7" : s.score >= 0.4 ? "#fef3c7" : "#fee2e2",
-                            color: s.score >= 0.7 ? "#16a34a" : s.score >= 0.4 ? "#d97706" : "#dc2626",
-                            borderRadius: 6,
-                            fontWeight: 600,
-                            fontSize: 14,
-                          }}
-                        >
-                          {(s.score * 100).toFixed(0)}
-                        </div>
-
-                        {/* Confidence */}
-                        <div style={{ width: 60, fontSize: 11, color: "#6b7280" }}>
-                          {(s.confidence * 100).toFixed(0)}% conf
-                        </div>
-
-                        {/* Date */}
-                        <div style={{ width: 140, fontSize: 12, color: "#374151" }}>
-                          {new Date(s.call.createdAt).toLocaleString()}
-                        </div>
-
-                        {/* Scored by */}
-                        <div style={{ flex: 1, fontSize: 11, color: "#9ca3af" }}>
-                          {s.scoredBy || "unknown"}
-                        </div>
-
-                        {/* Analysis Spec badge */}
-                        {s.analysisSpec && (
-                          <span style={{
-                            fontSize: 10,
-                            padding: "2px 6px",
-                            background: "#f3e8ff",
-                            color: "#7c3aed",
-                            borderRadius: 4,
-                            fontWeight: 500,
-                          }}>
-                            {s.analysisSpec.slug || s.analysisSpec.name}
-                          </span>
-                        )}
-
-                        <span style={{ color: "#9ca3af", fontSize: 12 }}>{isScoreExpanded ? "▼" : "▶"}</span>
-                      </button>
-
-                      {/* Expanded score detail */}
-                      {isScoreExpanded && (
-                        <div style={{ padding: "12px 16px 16px", background: "#fff", marginLeft: 66 }}>
-                          {/* Evidence */}
-                          {s.evidence && s.evidence.length > 0 && (
-                            <div style={{ marginBottom: 12 }}>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Evidence</div>
-                              {s.evidence.map((e: string, i: number) => (
-                                <div key={i} style={{ fontSize: 12, color: "#374151", padding: "4px 0", borderLeft: "2px solid #e5e7eb", paddingLeft: 8, marginBottom: 4 }}>
-                                  {e}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Reasoning */}
-                          {s.reasoning && (
-                            <div style={{ marginBottom: 12 }}>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Reasoning</div>
-                              <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic" }}>{s.reasoning}</div>
-                            </div>
-                          )}
-
-                          {/* Metadata row */}
-                          <div style={{ display: "flex", gap: 16, fontSize: 10, color: "#9ca3af" }}>
-                            <span>Call ID: {s.callId?.slice(0, 8)}...</span>
-                            <span>Scored: {new Date(s.scoredAt).toLocaleString()}</span>
-                            {s.analysisSpecId && <span>Spec ID: {s.analysisSpecId.slice(0, 8)}...</span>}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Collapsed: show score pills */}
+        {!isParamExpanded && (
+          <div style={{ padding: "0 16px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {paramScores.slice(0, 10).map((s) => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  setExpandedParam(parameterId);
+                  setExpandedScore(s.id);
+                }}
+                style={{
+                  padding: "4px 10px",
+                  background: s.score >= 0.7 ? "#dcfce7" : s.score >= 0.4 ? "#fef3c7" : "#fee2e2",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>{(s.score * 100).toFixed(0)}%</span>
+                <span style={{ marginLeft: 6, color: "#9ca3af" }}>
+                  {new Date(s.call.createdAt).toLocaleDateString()}
+                </span>
+              </button>
+            ))}
+            {paramScores.length > 10 && (
+              <span style={{ fontSize: 12, color: "#9ca3af", alignSelf: "center" }}>+{paramScores.length - 10} more</span>
             )}
           </div>
-        );
-      })}
+        )}
+
+        {/* Expanded: show full score details */}
+        {isParamExpanded && (
+          <div style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+            {paramScores.map((s) => {
+              const isScoreExpanded = expandedScore === s.id;
+              return (
+                <div key={s.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                  {/* Score row header */}
+                  <button
+                    onClick={() => setExpandedScore(isScoreExpanded ? null : s.id)}
+                    style={{
+                      width: "100%",
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 16,
+                      background: isScoreExpanded ? "#fff" : "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    {/* Score value */}
+                    <div
+                      style={{
+                        width: 50,
+                        padding: "4px 8px",
+                        textAlign: "center",
+                        background: s.score >= 0.7 ? "#dcfce7" : s.score >= 0.4 ? "#fef3c7" : "#fee2e2",
+                        color: s.score >= 0.7 ? "#16a34a" : s.score >= 0.4 ? "#d97706" : "#dc2626",
+                        borderRadius: 6,
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}
+                    >
+                      {(s.score * 100).toFixed(0)}
+                    </div>
+
+                    {/* Confidence */}
+                    <div style={{ width: 60, fontSize: 11, color: "#6b7280" }}>
+                      {(s.confidence * 100).toFixed(0)}% conf
+                    </div>
+
+                    {/* Date */}
+                    <div style={{ width: 140, fontSize: 12, color: "#374151" }}>
+                      {new Date(s.call.createdAt).toLocaleString()}
+                    </div>
+
+                    {/* Scored by */}
+                    <div style={{ flex: 1, fontSize: 11, color: "#9ca3af" }}>
+                      {s.scoredBy || "unknown"}
+                    </div>
+
+                    {/* Analysis Spec badge */}
+                    {s.analysisSpec && (
+                      <span style={{
+                        fontSize: 10,
+                        padding: "2px 6px",
+                        background: "#f3e8ff",
+                        color: "#7c3aed",
+                        borderRadius: 4,
+                        fontWeight: 500,
+                      }}>
+                        {s.analysisSpec.slug || s.analysisSpec.name}
+                      </span>
+                    )}
+
+                    <span style={{ color: "#9ca3af", fontSize: 12 }}>{isScoreExpanded ? "▼" : "▶"}</span>
+                  </button>
+
+                  {/* Expanded score detail */}
+                  {isScoreExpanded && (
+                    <div style={{ padding: "12px 16px 16px", background: "#fff", marginLeft: 66 }}>
+                      {/* Evidence */}
+                      {s.evidence && s.evidence.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Evidence</div>
+                          {s.evidence.map((e: string, i: number) => (
+                            <div key={i} style={{ fontSize: 12, color: "#374151", padding: "4px 0", borderLeft: "2px solid #e5e7eb", paddingLeft: 8, marginBottom: 4 }}>
+                              {e}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Reasoning */}
+                      {s.reasoning && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Reasoning</div>
+                          <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic" }}>{s.reasoning}</div>
+                        </div>
+                      )}
+
+                      {/* Metadata row */}
+                      <div style={{ display: "flex", gap: 16, fontSize: 10, color: "#9ca3af" }}>
+                        <span>Call ID: {s.callId?.slice(0, 8)}...</span>
+                        <span>Scored: {new Date(s.scoredAt).toLocaleString()}</span>
+                        {s.analysisSpecId && <span>Spec ID: {s.analysisSpecId.slice(0, 8)}...</span>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* Agent Scores Column */}
+      <div>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>
+            🤖 Agent Scores ({agentScores.length})
+          </div>
+          <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>
+            How well the agent performed
+          </div>
+        </div>
+        {Object.entries(agentGrouped).map(([parameterId, paramScores]) =>
+          renderParameterCard(parameterId, paramScores)
+        )}
+        {agentScores.length === 0 && (
+          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+            No agent scores yet
+          </div>
+        )}
+      </div>
+
+      {/* Caller Scores Column */}
+      <div>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dbeafe", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
+            👤 Caller Scores ({callerScores.length})
+          </div>
+          <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
+            Caller behavior and state
+          </div>
+        </div>
+        {Object.entries(callerGrouped).map(([parameterId, paramScores]) =>
+          renderParameterCard(parameterId, paramScores)
+        )}
+        {callerScores.length === 0 && (
+          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+            No caller scores yet
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -5598,403 +5676,7 @@ function TopLevelTargetsSection({ callerId }: { callerId: string }) {
     );
   }
 
-  const hasCallerTargets = callerTargets.length > 0;
-  const hasBehaviorTargets = behaviorTargets.length > 0;
-
-  if (!hasCallerTargets && !hasBehaviorTargets) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No behavior targets</div>
-        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-          CallerTargets are computed by ADAPT specs after calls are processed
-        </div>
-        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
-          Run the pipeline on calls to generate personalized targets
-        </div>
-      </div>
-    );
-  }
-
-  const scopeColors: Record<string, { bg: string; text: string }> = {
-    SYSTEM: { bg: "#f3f4f6", text: "#6b7280" },
-    PLAYBOOK: { bg: "#e0e7ff", text: "#4f46e5" },
-    SEGMENT: { bg: "#fef3c7", text: "#d97706" },
-    CALLER: { bg: "#dcfce7", text: "#16a34a" },
-    PERSONALIZED: { bg: "#fce7f3", text: "#db2777" },
-  };
-
-  // Group CallerTargets by domain
-  const groupedCallerTargets: Record<string, any[]> = {};
-  for (const t of callerTargets) {
-    const group = t.parameter?.domainGroup || "Other";
-    if (!groupedCallerTargets[group]) groupedCallerTargets[group] = [];
-    groupedCallerTargets[group].push(t);
-  }
-
-  // Group BehaviorTargets by domain
-  const groupedBehaviorTargets: Record<string, any[]> = {};
-  for (const t of behaviorTargets) {
-    const group = t.parameter?.domainGroup || "Other";
-    if (!groupedBehaviorTargets[group]) groupedBehaviorTargets[group] = [];
-    groupedBehaviorTargets[group].push(t);
-  }
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* CallerTargets Section - Personalized */}
-      {hasCallerTargets && (
-        <>
-          <div style={{
-            padding: 12,
-            background: "linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)",
-            borderRadius: 8,
-            border: "1px solid #f9a8d4"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 16 }}>✨</span>
-              <span style={{ fontWeight: 700, color: "#be185d" }}>Personalized Targets</span>
-              <span style={{
-                fontSize: 10,
-                padding: "2px 6px",
-                background: "#db2777",
-                color: "#fff",
-                borderRadius: 4,
-                fontWeight: 600
-              }}>
-                {callerTargets.length} active
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: "#9d174d" }}>
-              Computed by ADAPT specs based on call history. These override playbook defaults.
-            </div>
-          </div>
-
-          {Object.entries(groupedCallerTargets).map(([group, groupTargets]) => (
-            <div key={`caller-${group}`}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#be185d", textTransform: "uppercase", marginBottom: 8 }}>
-                {group}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {groupTargets.map((target: any) => {
-                  const isExpanded = expandedTarget === `caller-${target.parameterId}`;
-                  const value = target.targetValue;
-
-                  return (
-                    <div
-                      key={`caller-${target.parameterId}`}
-                      style={{
-                        background: "#fff",
-                        border: "2px solid #f9a8d4",
-                        borderRadius: 8,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <button
-                        onClick={() => setExpandedTarget(isExpanded ? null : `caller-${target.parameterId}`)}
-                        style={{
-                          width: "100%",
-                          padding: 12,
-                          cursor: "pointer",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          background: "transparent",
-                          border: "none",
-                          textAlign: "left",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                          {/* Target value */}
-                          <div style={{ width: 50, textAlign: "center" }}>
-                            <div
-                              style={{
-                                fontSize: 18,
-                                fontWeight: 700,
-                                color: value >= 0.7 ? "#10b981" : value >= 0.3 ? "#f59e0b" : "#ef4444",
-                              }}
-                            >
-                              {(value * 100).toFixed(0)}
-                            </div>
-                            <div style={{ fontSize: 9, color: "#9ca3af" }}>target</div>
-                          </div>
-
-                          {/* Parameter info */}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                                {target.parameter?.name || target.parameterId}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  padding: "2px 6px",
-                                  borderRadius: 4,
-                                  background: "#fce7f3",
-                                  color: "#db2777",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                PERSONALIZED
-                              </span>
-                              <span style={{ fontSize: 10, color: "#9ca3af" }}>
-                                {target.callsUsed} calls
-                              </span>
-                            </div>
-                            {target.parameter?.definition && (
-                              <div style={{ fontSize: 11, color: "#6b7280" }}>
-                                {target.parameter.definition}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <span style={{ color: "#9ca3af", fontSize: 12 }}>
-                          {isExpanded ? "▼" : "▶"}
-                        </span>
-                      </button>
-
-                      {/* Expanded details */}
-                      {isExpanded && (
-                        <div style={{ borderTop: "1px solid #f9a8d4", padding: 12, background: "#fdf2f8" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                            <div>
-                              <div style={{ fontSize: 10, color: "#9d174d", fontWeight: 600, marginBottom: 4 }}>
-                                Low Interpretation
-                              </div>
-                              <div style={{ fontSize: 11, color: "#6b7280" }}>
-                                {target.parameter?.interpretationLow || "—"}
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 10, color: "#9d174d", fontWeight: 600, marginBottom: 4 }}>
-                                High Interpretation
-                              </div>
-                              <div style={{ fontSize: 11, color: "#6b7280" }}>
-                                {target.parameter?.interpretationHigh || "—"}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ marginTop: 12, display: "flex", gap: 16, fontSize: 11, color: "#6b7280" }}>
-                            <div>
-                              <strong>Confidence:</strong> {((target.confidence || 0.7) * 100).toFixed(0)}%
-                            </div>
-                            <div>
-                              <strong>Updated:</strong> {formatDate(target.lastUpdatedAt || target.updatedAt)}
-                            </div>
-                            <div>
-                              <strong>Decay:</strong> {target.decayHalfLife || 30} days
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-
-      {/* Behavior Targets Section - Playbook Defaults */}
-      {hasBehaviorTargets && (
-        <>
-          <button
-            onClick={() => setShowBehaviorTargets(!showBehaviorTargets)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: 12,
-              background: "#f9fafb",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              cursor: "pointer",
-              width: "100%",
-              textAlign: "left",
-            }}
-          >
-            <span style={{ fontSize: 16 }}>📋</span>
-            <span style={{ fontWeight: 600, color: "#374151", flex: 1 }}>
-              Playbook Defaults
-            </span>
-            <span style={{ fontSize: 11, color: "#6b7280" }}>
-              {behaviorTargets.length} parameters
-            </span>
-            <span style={{ color: "#9ca3af", fontSize: 12 }}>
-              {showBehaviorTargets ? "▼" : "▶"}
-            </span>
-          </button>
-
-          {showBehaviorTargets && (
-            <div style={{ marginLeft: 16 }}>
-              {/* Legend */}
-              <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap", padding: 12, background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", marginBottom: 16 }}>
-                <span style={{ fontWeight: 600 }}>Target Cascade:</span>
-                {["SYSTEM", "PLAYBOOK", "SEGMENT", "CALLER"].map((scope) => (
-                  <span
-                    key={scope}
-                    style={{
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      background: scopeColors[scope].bg,
-                      color: scopeColors[scope].text,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {scope}
-                  </span>
-                ))}
-                <span style={{ color: "#9ca3af" }}>(later overrides earlier)</span>
-              </div>
-
-              {Object.entries(groupedBehaviorTargets).map(([group, groupTargets]) => (
-                <div key={`behavior-${group}`} style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", marginBottom: 8 }}>
-                    {group}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {groupTargets.map((target: any) => {
-                      const isExpanded = expandedTarget === `behavior-${target.parameterId}`;
-
-                      return (
-                        <div
-                          key={`behavior-${target.parameterId}`}
-                          style={{
-                            background: "#fff",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 8,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <button
-                            onClick={() => setExpandedTarget(isExpanded ? null : `behavior-${target.parameterId}`)}
-                            style={{
-                              width: "100%",
-                              padding: 12,
-                              cursor: "pointer",
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              background: "transparent",
-                              border: "none",
-                              textAlign: "left",
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                              {/* Target value */}
-                              <div style={{ width: 50, textAlign: "center" }}>
-                                <div
-                                  style={{
-                                    fontSize: 18,
-                                    fontWeight: 700,
-                                    color: target.targetValue >= 0.7 ? "#10b981" : target.targetValue >= 0.3 ? "#f59e0b" : "#ef4444",
-                                  }}
-                                >
-                                  {(target.targetValue * 100).toFixed(0)}
-                                </div>
-                                <div style={{ fontSize: 9, color: "#9ca3af" }}>default</div>
-                              </div>
-
-                              {/* Parameter info */}
-                              <div style={{ flex: 1 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                  <span style={{ fontWeight: 600, fontSize: 13 }}>
-                                    {target.parameter?.name || target.parameterId}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: 10,
-                                      padding: "2px 6px",
-                                      borderRadius: 4,
-                                      background: scopeColors[target.effectiveScope]?.bg || "#f3f4f6",
-                                      color: scopeColors[target.effectiveScope]?.text || "#6b7280",
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    {target.effectiveScope}
-                                  </span>
-                                </div>
-                                {target.parameter?.definition && (
-                                  <div style={{ fontSize: 11, color: "#6b7280" }}>
-                                    {target.parameter.definition}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <span style={{ color: "#9ca3af", fontSize: 12 }}>
-                              {isExpanded ? "▼" : "▶"}
-                            </span>
-                          </button>
-
-                          {/* Layer cascade details */}
-                          {isExpanded && target.layers && (
-                            <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, background: "#fafafa" }}>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
-                                Layer Cascade
-                              </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {target.layers.map((layer: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 8,
-                                      padding: 8,
-                                      background: "#fff",
-                                      borderRadius: 6,
-                                      border: "1px solid #e5e7eb",
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        fontSize: 10,
-                                        padding: "2px 8px",
-                                        borderRadius: 4,
-                                        background: scopeColors[layer.scope]?.bg || "#f3f4f6",
-                                        color: scopeColors[layer.scope]?.text || "#6b7280",
-                                        fontWeight: 500,
-                                        minWidth: 70,
-                                        textAlign: "center",
-                                      }}
-                                    >
-                                      {layer.scope}
-                                    </span>
-                                    <span style={{ fontSize: 14, fontWeight: 600 }}>
-                                      {(layer.value * 100).toFixed(0)}%
-                                    </span>
-                                    <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                                      ({layer.source})
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+  return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} />;
 }
 
 // Top-Level Agent Behavior Section - shows measurements across all calls
