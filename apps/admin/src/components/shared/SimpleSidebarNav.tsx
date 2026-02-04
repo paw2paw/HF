@@ -48,7 +48,6 @@ export default function SimpleSidebarNav({
       {
         id: "workflow",
         items: [
-          { href: "/x/supervisor", label: "Supervisor", icon: "👁️", highlighted: true },
           { href: "/x/studio", label: "Studio", icon: "🎛️" },
         ],
         dividerAfter: true,
@@ -78,6 +77,17 @@ export default function SimpleSidebarNav({
           { href: "/x/domains", label: "Domains", icon: "🌐" },
           { href: "/x/playbooks", label: "Playbooks", icon: "📚" },
           { href: "/x/specs", label: "Specs", icon: "🎯" },
+        ],
+        dividerAfter: true,
+      },
+
+      // ============================================================
+      // SUPERVISOR (Bottom)
+      // ============================================================
+      {
+        id: "supervisor",
+        items: [
+          { href: "/x/supervisor", label: "Supervisor", icon: "👁️", highlighted: true },
         ],
         dividerAfter: false,
       },
