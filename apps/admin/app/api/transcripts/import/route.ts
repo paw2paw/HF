@@ -39,8 +39,23 @@ interface VAPICall {
 }
 
 /**
+ * Check if a string looks like a tag/identifier rather than a real name
+ * Tags are typically: ALL_CAPS_WITH_UNDERSCORES, CamelCaseIdentifiers, or contain numbers
+ */
+function looksLikeTag(name: string): boolean {
+  if (!name) return true;
+  // All caps with underscores (e.g., WNF_STUDENT, TEST_USER)
+  if (/^[A-Z][A-Z0-9_]+$/.test(name)) return true;
+  // Contains underscores or is all caps
+  if (name.includes('_')) return true;
+  // Contains numbers in weird places
+  if (/[0-9]/.test(name)) return true;
+  return false;
+}
+
+/**
  * Extract caller name from transcript content
- * Looks for patterns like "Hi, NAME" or "Hello NAME" at the start
+ * Looks for patterns where the caller introduces themselves or AI greets them
  */
 function extractNameFromTranscript(transcript: string): string | null {
   if (!transcript) return null;
@@ -50,22 +65,46 @@ function extractNameFromTranscript(transcript: string): string | null {
     'there', 'here', 'this', 'that', 'these', 'those',
     'thinking', 'doing', 'reading', 'writing', 'speaking',
     'first name', 'last name', 'name', 'user', 'caller',
-    'yes', 'no', 'not', 'just', 'really', 'very', 'quite'
+    'yes', 'no', 'not', 'just', 'really', 'very', 'quite',
+    'hi', 'hello', 'hey', 'well', 'okay', 'ok', 'sure'
   ]);
 
-  // Only look at first 200 chars (first AI message)
-  const firstPart = transcript.slice(0, 200);
+  // Helper to validate a potential name
+  const isValidName = (name: string): boolean => {
+    if (!name || name.length < 2) return false;
+    const nameLower = name.toLowerCase();
+    if (blacklist.has(nameLower)) return false;
+    if (looksLikeTag(name)) return false;
+    // Must start with capital and be mostly letters
+    if (!/^[A-Z][a-z]+/.test(name)) return false;
+    return true;
+  };
 
-  // Pattern: "AI: Hi, NAME" or "AI: Hello NAME" - must be at start of transcript
-  // Name must start with capital letter and be at least 2 chars
-  const hiMatch = firstPart.match(/^AI:\s*(?:Hi|Hello|Hey),?\s+([A-Z][a-z]{1,}(?:\s+[A-Z][a-z]+)?)\b/);
+  // Look at first 1500 chars to find name introduction
+  const searchText = transcript.slice(0, 1500);
+
+  // Pattern 1: AI greets by name - "AI: Hi, NAME" or "AI: Hello NAME"
+  // Only if NAME looks like a real name (not a tag)
+  const hiMatch = searchText.match(/AI:\s*(?:Hi|Hello|Hey),?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\./);
   if (hiMatch) {
     const name = hiMatch[1].trim();
-    const nameLower = name.toLowerCase();
+    if (isValidName(name)) return name;
+  }
 
-    // Reject if in blacklist or too short
-    if (!blacklist.has(nameLower) && name.length >= 2) {
-      return name;
+  // Pattern 2: User introduces themselves - "My name is NAME" or "I'm NAME"
+  const introPatterns = [
+    /User:\s*.*?\bmy name is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/i,
+    /User:\s*.*?\bI'm\s+([A-Z][a-z]+)\b/,
+    /User:\s*.*?\bI am\s+([A-Z][a-z]+)\b/i,
+    /User:\s*.*?\bThis is\s+([A-Z][a-z]+)\s+(?:speaking|here)/i,
+    /User:\s*.*?\bcall me\s+([A-Z][a-z]+)\b/i,
+  ];
+
+  for (const pattern of introPatterns) {
+    const match = searchText.match(pattern);
+    if (match) {
+      const name = match[1].trim();
+      if (isValidName(name)) return name;
     }
   }
 
@@ -323,19 +362,33 @@ export async function POST(request: NextRequest) {
           (c) => c.transcript && c.transcript.trim().length > 0
         );
 
-        // Group calls by caller phone number
-        const callsByPhone = new Map<string, VAPICall[]>();
+        // Group calls by caller identifier (phone or tag)
+        // Priority: phone number > caller tag from header > unique ID
+        const callsByCaller = new Map<string, VAPICall[]>();
         for (const call of validCalls) {
-          const phone = typeof call.customer === "object" ? call.customer?.number : null;
-          const key = phone || `unknown-${call.id}`;
-          const existing = callsByPhone.get(key) || [];
+          const customer = typeof call.customer === "object" ? call.customer : null;
+          const phone = customer?.number || null;
+          const callerTag = customer?.name || null;
+
+          // Use phone as primary key, caller tag as secondary, unique ID as fallback
+          let key: string;
+          if (phone && !phone.startsWith("unknown")) {
+            key = `phone:${phone}`;
+          } else if (callerTag && callerTag.trim()) {
+            // Use caller tag (e.g., WNF_STUDENT) to group calls from same person
+            key = `tag:${callerTag.trim()}`;
+          } else {
+            key = `unknown-${call.id}`;
+          }
+
+          const existing = callsByCaller.get(key) || [];
           existing.push(call);
-          callsByPhone.set(key, existing);
+          callsByCaller.set(key, existing);
         }
 
         // Sort each caller's calls by date
-        for (const [, phoneCalls] of callsByPhone) {
-          phoneCalls.sort((a, b) => {
+        for (const [, callerCalls] of callsByCaller) {
+          callerCalls.sort((a, b) => {
             const dateA = new Date(a.startedAt || a.createdAt).getTime();
             const dateB = new Date(b.startedAt || b.createdAt).getTime();
             return dateA - dateB;
@@ -343,34 +396,94 @@ export async function POST(request: NextRequest) {
         }
 
         // Create callers and their calls
-        for (const [phone, phoneCalls] of callsByPhone) {
-          const customerInfo = phoneCalls[0].customer as { name?: string; number?: string } | null;
+        for (const [callerKey, callerCalls] of callsByCaller) {
+          const customerInfo = callerCalls[0].customer as { name?: string; number?: string } | null;
+          const phone = customerInfo?.number || null;
+          const callerTag = customerInfo?.name?.trim() || null;
 
-          // Try to get name from: 1) customer data, 2) transcript, 3) default
-          let callerName = customerInfo?.name?.trim();
-          if (!callerName) {
-            callerName = extractNameFromTranscript(phoneCalls[0].transcript);
-          }
-          if (!callerName) {
-            callerName = `Caller ${phone.slice(-4)}`;
+          // Determine display name:
+          // 1) If customer.name exists and isn't a tag, use it
+          // 2) Try extracting from transcript
+          // 3) If we have a tag, generate a friendlier name from it
+          // 4) Fallback to phone suffix or generic name
+          let callerName: string | null = null;
+
+          // First, check if customer.name is a real name (not a tag)
+          if (callerTag && !looksLikeTag(callerTag)) {
+            callerName = callerTag;
           }
 
-          // Find or create caller
-          let caller = phone.startsWith("unknown-")
-            ? null
-            : await prisma.caller.findFirst({ where: { phone } });
+          // Try extracting from transcript
+          if (!callerName) {
+            callerName = extractNameFromTranscript(callerCalls[0].transcript);
+          }
+
+          // Generate name from tag (e.g., WNF_STUDENT -> "WNF Student")
+          if (!callerName && callerTag && looksLikeTag(callerTag)) {
+            // Convert WNF_STUDENT to "WNF Student"
+            callerName = callerTag
+              .split('_')
+              .map((part, i) => i === 0 ? part : part.charAt(0) + part.slice(1).toLowerCase())
+              .join(' ');
+          }
+
+          // Fallback to phone suffix or generic
+          if (!callerName) {
+            if (phone && phone.length >= 4) {
+              callerName = `Caller ${phone.slice(-4)}`;
+            } else {
+              callerName = `Caller ${Date.now().toString(36).slice(-4)}`;
+            }
+          }
+
+          // Find existing caller by phone or external ID (tag-based)
+          let caller = null;
+          if (phone) {
+            caller = await prisma.caller.findFirst({ where: { phone } });
+          }
+          if (!caller && callerTag) {
+            // Look up by externalId which we set to import-tag:{tag} for tag-based callers
+            caller = await prisma.caller.findFirst({
+              where: { externalId: `import-tag:${callerTag}` }
+            });
+          }
 
           const isNewCaller = !caller;
           if (!caller) {
+            // Determine externalId: prefer phone-based, fallback to tag-based
+            let externalId: string;
+            if (phone) {
+              externalId = `import-phone:${phone}`;
+            } else if (callerTag) {
+              externalId = `import-tag:${callerTag}`;
+            } else {
+              externalId = `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            }
+
             caller = await prisma.caller.create({
               data: {
                 name: callerName,
-                phone: phone.startsWith("unknown-") ? null : phone,
+                phone: phone || null,
                 domainId: domain?.id,
-                externalId: `import-${phone}`,
+                externalId,
               },
             });
             results.callersCreated++;
+          } else if (callerName && callerName !== caller.name) {
+            // Update existing caller's name if we have a better one
+            // Better = actual name from JSON vs generated fallback like "Caller XXXX"
+            const currentNameIsFallback = caller.name?.startsWith('Caller ') ||
+                                          caller.name?.startsWith('WNF ') ||
+                                          !caller.name;
+            const newNameIsReal = !callerName.startsWith('Caller ') &&
+                                  !looksLikeTag(callerName);
+
+            if (currentNameIsFallback && newNameIsReal) {
+              caller = await prisma.caller.update({
+                where: { id: caller.id },
+                data: { name: callerName },
+              });
+            }
           }
 
           // Track for response
@@ -399,7 +512,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Create each call
-          for (const vapiCall of phoneCalls) {
+          for (const vapiCall of callerCalls) {
             // Check if this call already exists (by externalId)
             const existingCall = await prisma.call.findFirst({
               where: { externalId: vapiCall.id },
