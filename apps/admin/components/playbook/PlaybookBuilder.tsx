@@ -3852,8 +3852,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                     {/* Specs in this category */}
                     {expandedTriggerCategories.has(category.outputType) && (
                       <div style={{ padding: "8px 0" }}>
-                        {category.specs.map((spec) => (
-                          <div key={spec.specId}>
+                        {category.specs.map((spec, specIdx) => (
+                          <div key={`${category.outputType}-${spec.specId}-${specIdx}`}>
                             {/* Spec Header */}
                             <div
                               onClick={() => toggleTriggerSpecExpand(spec.specId)}

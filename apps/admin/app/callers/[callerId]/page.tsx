@@ -1726,7 +1726,7 @@ function CallDetailPanel({
   details: any;
   loading: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "scores" | "personality" | "targets" | "measurements" | "prompt">("transcript");
+  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "slugs" | "scores" | "targets" | "measurements" | "prompt">("memories");
 
   if (loading) {
     return (
@@ -1823,12 +1823,15 @@ function CallDetailPanel({
           <MemoriesTab memories={memories} />
         )}
 
-        {activeTab === "scores" && (
-          <ScoresTab scores={scores} />
+        {activeTab === "slugs" && (
+          <div style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>
+            <div style={{ fontSize: 14, marginBottom: 8 }}>Slugs are tracked at the caller level</div>
+            <div style={{ fontSize: 12 }}>View the Slugs tab in the main header to see all slug assignments for this caller</div>
+          </div>
         )}
 
-        {activeTab === "personality" && (
-          <PersonalityObservationTab observation={personalityObservation} />
+        {activeTab === "scores" && (
+          <ScoresTab scores={scores} />
         )}
 
         {activeTab === "targets" && (

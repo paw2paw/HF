@@ -18,10 +18,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, MemoryCategory } from "@prisma/client";
+import { MemoryCategory } from "@prisma/client";
 import { getAICompletion, AIEngine, isEngineAvailable } from "@/lib/ai/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // =====================================================
 // SPEC SELECTION BY TYPE
