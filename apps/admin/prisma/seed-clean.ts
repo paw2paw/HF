@@ -148,18 +148,14 @@ async function loadTranscripts() {
     return;
   }
 
-  // Get default domain (create if needed)
-  let domain = await prisma.domain.findFirst({ where: { slug: "default" } });
+  // Get first available domain (must exist - run seed-domains.ts first)
+  const domain = await prisma.domain.findFirst();
   if (!domain) {
-    domain = await prisma.domain.create({
-      data: {
-        slug: "default",
-        name: "Default",
-        description: "Default domain for imported transcripts",
-      },
-    });
-    console.log("   Created default domain\n");
+    console.log("   ⚠️  No domain found. Run seed-domains.ts first to create domains.");
+    console.log("   Skipping transcript import.\n");
+    return;
   }
+  console.log(`   Using domain: ${domain.name} (${domain.slug})\n`);
 
   // Find all JSON/TXT files
   const files = fs.readdirSync(TRANSCRIPTS_DIR).filter(
@@ -270,51 +266,11 @@ function parseTextTranscript(content: string, filename: string): VAPICall | null
 async function createInfrastructure() {
   console.log("\n🏗️  CREATING INFRASTRUCTURE\n");
 
-  // Create default domain if not exists
-  let domain = await prisma.domain.findFirst({ where: { slug: "default" } });
-  if (!domain) {
-    domain = await prisma.domain.create({
-      data: {
-        slug: "default",
-        name: "Default",
-        description: "Default domain",
-      },
-    });
-    console.log("   ✓ Created default domain");
-  }
-
-  // Create default playbook
-  let playbook = await prisma.playbook.findFirst({
-    where: { domainId: domain.id },
-  });
-  if (!playbook) {
-    playbook = await prisma.playbook.create({
-      data: {
-        name: "Default Playbook",
-        description: "Auto-created playbook",
-        domainId: domain.id,
-        status: "DRAFT",
-        version: "1.0",
-      },
-    });
-    console.log("   ✓ Created default playbook");
-
-    // Link all SYSTEM specs to playbook
-    const systemSpecs = await prisma.analysisSpec.findMany({
-      where: { scope: "SYSTEM", isActive: true },
-    });
-
-    for (const spec of systemSpecs) {
-      await prisma.playbookSpec.create({
-        data: {
-          playbookId: playbook.id,
-          specId: spec.id,
-          isEnabled: true,
-        },
-      });
-    }
-    console.log(`   ✓ Linked ${systemSpecs.length} system specs to playbook`);
-  }
+  // NOTE: Default domain and playbook creation removed
+  // Use seed-domains.ts and BDD-based seeding for proper domain/playbook setup
+  console.log("   ℹ️  Skipping default domain/playbook creation");
+  console.log("   → Use seed-domains.ts for proper domain setup");
+  console.log("   → Use BDD specs for playbook creation");
 
   console.log("\n   ✅ Infrastructure ready\n");
 }
