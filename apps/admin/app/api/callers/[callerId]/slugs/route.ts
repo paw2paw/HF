@@ -98,6 +98,7 @@ export async function GET(
     // Load playbook for this caller's domain
     let playbook = null;
     let playbookSpecs: any[] = [];
+    const availableSlugNames = new Set<string>();
 
     if (caller.domainId) {
       playbook = await prisma.playbook.findFirst({
@@ -107,12 +108,18 @@ export async function GET(
         },
         orderBy: { status: "asc" },
         include: {
-          curriculum: {
-            include: { modules: { orderBy: { sortOrder: "asc" } } },
-          },
+          // curriculum: removed - FK relation no longer exists on Playbook model
           items: {
-            where: { isEnabled: true, itemType: "SPEC" },
-            include: { spec: true },
+            where: { isEnabled: true },
+            include: {
+              spec: true,
+              promptTemplate: {
+                select: {
+                  systemPrompt: true,
+                  contextTemplate: true,
+                },
+              },
+            },
           },
         },
       });
@@ -127,6 +134,24 @@ export async function GET(
           ...systemSpecs,
           ...playbook.items.filter((i) => i.spec).map((i) => i.spec!),
         ];
+
+        // Extract available slug names from prompt templates
+        const slugPattern = /\{slug\.([a-zA-Z0-9_]+)\}/g;
+        for (const item of playbook.items) {
+          if (item.promptTemplate) {
+            const templates = [
+              item.promptTemplate.systemPrompt,
+              item.promptTemplate.contextTemplate,
+            ].filter(Boolean);
+
+            for (const template of templates) {
+              let match;
+              while ((match = slugPattern.exec(template as string)) !== null) {
+                availableSlugNames.add(match[1]);
+              }
+            }
+          }
+        }
       }
     }
 
@@ -323,11 +348,55 @@ export async function GET(
       tree.push(targetsCategory);
     }
 
+    // === AVAILABLE TEMPLATE VARIABLES ===
+    // Show slug names defined in templates that don't have values yet
+    if (availableSlugNames.size > 0) {
+      // Collect slug names that already have values
+      const slugsWithValues = new Set<string>();
+
+      // From memories
+      memories.forEach((mem) => slugsWithValues.add(mem.key));
+
+      // From scores
+      latestCall?.scores.forEach((score) => slugsWithValues.add(score.parameterId));
+
+      // From targets
+      callerTargets.forEach((target) => slugsWithValues.add(target.parameterId));
+
+      // Find slugs that don't have values yet
+      const slugsWithoutValues = Array.from(availableSlugNames).filter(
+        (name) => !slugsWithValues.has(name)
+      );
+
+      if (slugsWithoutValues.length > 0) {
+        const availableCategory: SlugNode = {
+          id: "category-available",
+          type: "category",
+          name: "AVAILABLE VARIABLES",
+          meta: {
+            icon: "📋",
+            description: `${slugsWithoutValues.length} template variables awaiting values`,
+            count: slugsWithoutValues.length,
+          },
+          children: slugsWithoutValues.sort().map((name) => ({
+            id: `available-${name}`,
+            type: "variable" as const,
+            name,
+            path: `{slug.${name}}`,
+            value: "(will be populated after pipeline runs)",
+            meta: { available: true, hasValue: false },
+          })),
+        };
+        tree.push(availableCategory);
+      }
+    }
+
     // Count totals
     const counts = {
       memories: memories.length,
       scores: latestCall?.scores.length || 0,
       targets: callerTargets.length,
+      available: availableSlugNames.size,
       total: memories.length + (latestCall?.scores.length || 0) + callerTargets.length,
     };
 
