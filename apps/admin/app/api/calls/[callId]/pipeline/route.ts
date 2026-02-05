@@ -31,6 +31,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { MemoryCategory } from "@prisma/client";
 import { getAICompletion, AIEngine, isEngineAvailable } from "@/lib/ai/client";
 import { prisma } from "@/lib/prisma";
+import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
+import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
 
 // =====================================================
 // SPEC SELECTION BY TYPE
@@ -1699,13 +1701,26 @@ const stageExecutors: Record<string, StageExecutor> = {
     };
   },
 
-  // AGGREGATE stage: Aggregate personality profiles
+  // AGGREGATE stage: Aggregate personality profiles and run AGGREGATE specs
   AGGREGATE: async (ctx, stage) => {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+
+    // 1. Aggregate personality (legacy hardcoded aggregation)
     const personalityResult = await aggregatePersonality(ctx.callId, ctx.callerId, ctx.log);
+
+    // 2. Run generic AGGREGATE specs (learner profile, curriculum, etc.)
+    const aggregateResult = await runAggregateSpecs(ctx.callerId);
+    ctx.log.info(`Aggregate specs completed`, {
+      specsRun: aggregateResult.specsRun,
+      profileUpdates: aggregateResult.profileUpdates,
+      errors: aggregateResult.errors
+    });
+
     return {
       personalityObservationCreated: personalityResult.observationCreated,
       personalityProfileUpdated: personalityResult.profileUpdated,
+      aggregateSpecsRun: aggregateResult.specsRun,
+      profileUpdates: aggregateResult.profileUpdates,
     };
   },
 
@@ -1721,9 +1736,24 @@ const stageExecutors: Record<string, StageExecutor> = {
   // ADAPT stage: Compute personalized targets
   ADAPT: async (ctx, stage) => {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+
+    // 1. Run AI-based adapt specs (creates CallTarget entries)
     const adaptResult = await runAdaptSpecs(ctx.callId, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log);
+
+    // 2. Run rule-based adapt specs (creates/updates CallerTarget entries based on learner profile)
+    const ruleBasedResult = await runRuleBasedAdapt(ctx.callerId);
+    ctx.log.info(`Rule-based adapt completed`, {
+      specsRun: ruleBasedResult.specsRun,
+      targetsCreated: ruleBasedResult.targetsCreated,
+      targetsUpdated: ruleBasedResult.targetsUpdated,
+      errors: ruleBasedResult.errors
+    });
+
     return {
       callTargetsCreated: adaptResult.targetsCreated,
+      callerTargetsCreated: ruleBasedResult.targetsCreated,
+      callerTargetsUpdated: ruleBasedResult.targetsUpdated,
+      adaptSpecsRun: ruleBasedResult.specsRun,
     };
   },
 

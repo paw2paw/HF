@@ -22,6 +22,24 @@ enum ParameterType {
   BEHAVIOR // Agent behavior targets - how the agent should communicate (role_switch, empathy_rate, etc.)
 }
 
+// Goal types - different kinds of objectives for callers
+enum GoalType {
+  LEARN // Knowledge/skill acquisition (curriculum-based)
+  ACHIEVE // Specific milestones or outcomes
+  CHANGE // Behavior change, habit formation
+  CONNECT // Relationship building, companionship
+  SUPPORT // Emotional support, wellbeing
+  CREATE // Creative projects, build something
+}
+
+// Goal lifecycle status
+enum GoalStatus {
+  ACTIVE // Currently being pursued
+  COMPLETED // Successfully achieved
+  PAUSED // Temporarily suspended
+  ARCHIVED // No longer relevant
+}
+
 model Parameter {
   id                   String   @id @default(uuid())
   parameterId          String   @unique
@@ -493,6 +511,9 @@ model Caller {
   // Caller-specific attributes (curriculum progress, session state, etc.)
   callerAttributes CallerAttribute[]
 
+  // Caller's goals (learn, achieve, connect, etc.)
+  goals Goal[]
+
   createdAt DateTime @default(now())
 
   @@index([externalId])
@@ -622,6 +643,50 @@ model CallerAttribute {
   @@index([key])
   @@index([scope])
   @@index([validUntil])
+}
+
+// Goal - Represents a caller's objective (learn, achieve, connect, etc.)
+// Goals are instantiated from playbook templates when caller joins a domain
+// Can be tracked, updated, and completed over time
+model Goal {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Origin tracking
+  playbookId String? // Which playbook this goal came from (if template-based)
+  playbook   Playbook? @relation(fields: [playbookId], references: [id])
+
+  // Goal definition
+  type        GoalType // LEARN, ACHIEVE, CHANGE, CONNECT, SUPPORT, CREATE
+  name        String // "Master Quantum Mechanics"
+  description String? // Detailed description of the goal
+  status      GoalStatus @default(ACTIVE) // ACTIVE, COMPLETED, PAUSED, ARCHIVED
+
+  // Implementation link (for LEARN goals, points to curriculum)
+  contentSpecId String? // For LEARN goals -> links to CONTENT spec
+  contentSpec   AnalysisSpec? @relation(fields: [contentSpecId], references: [id])
+
+  // Progress tracking
+  progress        Float @default(0) // 0.0 - 1.0 overall progress
+  progressMetrics Json? // Type-specific progress data (modules completed, milestones reached, etc.)
+
+  // Metadata
+  priority Int @default(5) // 1-10, higher = more important
+
+  // Lifecycle timestamps
+  startedAt   DateTime?
+  completedAt DateTime?
+  targetDate  DateTime? // Optional deadline
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([callerId, status])
+  @@index([type])
+  @@index([status])
+  @@index([playbookId])
 }
 
 model Call {
@@ -1595,6 +1660,9 @@ model AnalysisSpec {
   // Playbook items that reference this spec
   playbookItems PlaybookItem[]
 
+  // Goals that use this spec as content (for LEARN goals with curriculum)
+  goals Goal[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1720,6 +1788,9 @@ model Playbook {
   publishedAt DateTime?
   publishedBy String? // User or system that published
 
+  // Configuration (goals, settings, etc.)
+  config Json? // Stores goals and other playbook configuration
+
   // Validation status (computed on publish)
   validationErrors Json? // Array of { itemId, error, severity }
   validationPassed Boolean @default(false)
@@ -1739,6 +1810,9 @@ model Playbook {
 
   // Behavior targets specific to this playbook (overrides SYSTEM defaults)
   behaviorTargets BehaviorTarget[]
+
+  // Goals instantiated from this playbook template
+  goals Goal[]
 
   @@index([domainId])
   @@index([status])

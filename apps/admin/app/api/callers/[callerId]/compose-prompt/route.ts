@@ -1633,6 +1633,25 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
       confidence: personality.confidenceScore,
     } : null,
 
+    learnerProfile: learnerProfile && (
+      learnerProfile.learningStyle ||
+      learnerProfile.pacePreference ||
+      learnerProfile.interactionStyle ||
+      learnerProfile.preferredModality ||
+      learnerProfile.questionFrequency ||
+      learnerProfile.feedbackStyle ||
+      Object.keys(learnerProfile.priorKnowledge).length > 0
+    ) ? {
+      learningStyle: learnerProfile.learningStyle,
+      pacePreference: learnerProfile.pacePreference,
+      interactionStyle: learnerProfile.interactionStyle,
+      preferredModality: learnerProfile.preferredModality,
+      questionFrequency: learnerProfile.questionFrequency,
+      feedbackStyle: learnerProfile.feedbackStyle,
+      priorKnowledge: learnerProfile.priorKnowledge,
+      lastUpdated: learnerProfile.lastUpdated,
+    } : null,
+
     memories: {
       totalCount: deduplicatedMemories.length,
       byCategory: memoryGroups,

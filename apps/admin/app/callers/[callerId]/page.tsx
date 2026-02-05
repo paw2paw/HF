@@ -470,7 +470,7 @@ export default function CallerDetailPage() {
     // Shared group - data for both caller and agent
     { id: "slugs", label: "Slugs", icon: "🏷️", group: "shared" },
     { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0, group: "shared" },
-    { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0, group: "shared" },
+    { id: "targets", label: "Agent", icon: "🤖", count: data.counts.targets || 0, group: "shared" },
     // Agent-specific group
     { id: "agent-behavior", label: "Agent", icon: "🤖", count: data.counts.measurements || 0, group: "agent" },
     { id: "prompt", label: "Prompt", icon: "📝", count: data.counts.prompts, group: "agent" },
@@ -1894,7 +1894,7 @@ function CallDetailPanel({
     { id: "memories", label: "Mem", icon: "💭", count: memories.length },
     // Shared group
     { id: "scores", label: "Scores", icon: "📊", count: scores.length },
-    { id: "targets", label: "Targets", icon: "🎯", count: effectiveTargets.length },
+    { id: "targets", label: "Agent", icon: "🤖", count: effectiveTargets.length },
     // Agent group
     { id: "measurements", label: "Agent", icon: "🤖", count: measurements.length },
     { id: "prompt", label: "Prompt", icon: "📝", count: null }, // 1-1 with call, count not needed
@@ -1978,7 +1978,7 @@ function CallDetailPanel({
 
         {activeTab === "targets" && (
           <TargetsTab
-            callerTargets={data?.callerTargets || []}
+            callerTargets={details?.callerTargets || []}
             behaviorTargets={effectiveTargets}
             measurements={measurements}
           />
@@ -3195,10 +3195,10 @@ function TwoColumnTargetsDisplay({
   if (callerTargets.length === 0 && behaviorTargets.length === 0) {
     return (
       <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No behavior targets</div>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No agent behavior configuration</div>
         <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-          CallerTargets are computed by ADAPT specs after calls are processed
+          Agent behavior is configured via playbook. Personalized adjustments are computed by ADAPT specs after calls.
         </div>
       </div>
     );
@@ -3206,6 +3206,16 @@ function TwoColumnTargetsDisplay({
 
   return (
     <div>
+      {/* Header */}
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#1e40af", marginBottom: 4 }}>
+          🤖 Agent Behavior Configuration
+        </div>
+        <div style={{ fontSize: 12, color: "#1e3a8a" }}>
+          Defines how the AI agent behaves in conversations with this caller
+        </div>
+      </div>
+
       {/* Legend */}
       <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap", marginBottom: 16 }}>
         <span style={{ fontWeight: 600 }}>Layer cascade:</span>
@@ -3228,30 +3238,30 @@ function TwoColumnTargetsDisplay({
 
       {/* Two-column layout */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {/* Personalized Targets Column */}
+        {/* Personalized Adjustments Column */}
         <div>
           <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dcfce7", borderRadius: 6 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>
-              ✨ Personalized Targets ({callerTargets.length})
+              ✨ Personalized Adjustments ({callerTargets.length})
             </div>
             <div style={{ fontSize: 11, color: "#15803d", marginTop: 2 }}>
-              Adapted specifically for this caller
+              How agent behavior adapts for this caller
             </div>
           </div>
-          {renderColumn(groupedCallerTargets, "caller", "No personalized targets yet")}
+          {renderColumn(groupedCallerTargets, "caller", "No personalized adjustments yet")}
         </div>
 
-        {/* Playbook Defaults Column */}
+        {/* Base Configuration Column */}
         <div>
           <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dbeafe", borderRadius: 6 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
-              📋 Playbook Defaults ({behaviorTargets.length})
+              ⚙️ Base Configuration ({behaviorTargets.length})
             </div>
             <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
-              Baseline targets from playbook
+              Agent behavior baseline from playbook
             </div>
           </div>
-          {renderColumn(groupedBehaviorTargets, "behavior", "No playbook defaults")}
+          {renderColumn(groupedBehaviorTargets, "behavior", "No base configuration")}
         </div>
       </div>
     </div>

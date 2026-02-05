@@ -14,6 +14,15 @@
       "status": "PUBLISHED",
       "version": "1.0",
       "identitySpecs": ["COMPANION-001"],
+      "goals": [
+        {
+          "type": "CONNECT",
+          "name": "Build Meaningful Connection",
+          "description": "Develop an authentic relationship through intellectually stimulating conversations",
+          "isDefault": true,
+          "priority": 10
+        }
+      ],
       "includeSpecs": {
         "required": ["VOICE-001", "PERS-001", "MEM-001"],
         "optional": [],
@@ -42,6 +51,16 @@
       "version": "1.0",
       "identitySpecs": ["TUT-WNF-001"],
       "contentSpecs": ["WNF-CONTENT-001"],
+      "goals": [
+        {
+          "type": "LEARN",
+          "name": "Master Why Nations Fail",
+          "description": "Understand institutional economics and why some nations prosper while others fail",
+          "contentSpecSlug": "WNF-CONTENT-001",
+          "isDefault": true,
+          "priority": 10
+        }
+      ],
       "includeSpecs": {
         "required": ["CURR-001", "GOAL-001", "MEM-001"],
         "optional": ["CA-001", "SESSION-001"],
@@ -70,6 +89,16 @@
       "version": "1.0",
       "identitySpecs": ["TUT-001"],
       "contentSpecs": ["QM-CONTENT-001"],
+      "goals": [
+        {
+          "type": "LEARN",
+          "name": "Master Quantum Mechanics",
+          "description": "Understand fundamental concepts of quantum mechanics including wave-particle duality, uncertainty, superposition, and entanglement",
+          "contentSpecSlug": "QM-CONTENT-001",
+          "isDefault": true,
+          "priority": 10
+        }
+      ],
       "includeSpecs": {
         "required": ["CURR-001", "GOAL-001", "MEM-001"],
         "optional": ["CA-001", "SESSION-001"],

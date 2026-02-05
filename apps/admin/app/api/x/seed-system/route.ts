@@ -5,6 +5,15 @@ import { seedFromSpecs } from "../../../../prisma/seed-from-specs";
 import * as fs from "fs";
 import * as path from "path";
 
+interface GoalConfig {
+  type: "LEARN" | "ACHIEVE" | "CHANGE" | "CONNECT" | "SUPPORT" | "CREATE";
+  name: string;
+  description: string;
+  contentSpecSlug?: string; // For LEARN goals
+  isDefault?: boolean;
+  priority?: number;
+}
+
 interface PlaybookConfig {
   id: string;
   name: string;
@@ -18,6 +27,7 @@ interface PlaybookConfig {
   version: string;
   identitySpecs?: string[]; // Spec IDs for identity
   contentSpecs?: string[]; // Spec IDs for content
+  goals?: GoalConfig[]; // Goals for this playbook
   includeSpecs: {
     required: string[]; // Required spec IDs
     optional: string[]; // Optional spec IDs
@@ -177,7 +187,7 @@ async function createPlaybookFromConfig(
   });
   console.log(`   ✓ Created domain: ${domain.name}`);
 
-  // Create playbook
+  // Create playbook with goals in config
   const playbook = await prisma.playbook.create({
     data: {
       name: config.name,
@@ -185,6 +195,9 @@ async function createPlaybookFromConfig(
       domainId: domain.id,
       status: config.status,
       version: config.version,
+      config: {
+        goals: config.goals || [], // Store goals from config
+      },
     },
   });
   console.log(`   ✓ Created playbook: ${playbook.name}`);
@@ -364,7 +377,27 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
       where: { parameterId: param.parameterId },
     });
 
-    if (!existing) {
+    if (existing) {
+      // Update existing parameter to ensure correct type and adjustable flag
+      await prisma.parameter.update({
+        where: { parameterId: param.parameterId },
+        data: {
+          parameterType: "BEHAVIOR",
+          isAdjustable: true,
+          // Also update other fields to ensure consistency
+          name: param.name,
+          definition: param.definition,
+          sectionId: param.sectionId,
+          domainGroup: param.domainGroup,
+          interpretationHigh: param.interpretationHigh,
+          interpretationLow: param.interpretationLow,
+          scaleType: "0-1",
+          directionality: "neutral",
+          computedBy: "measure_agent",
+        },
+      });
+    } else {
+      // Create new parameter
       await prisma.parameter.create({
         data: {
           parameterId: param.parameterId,

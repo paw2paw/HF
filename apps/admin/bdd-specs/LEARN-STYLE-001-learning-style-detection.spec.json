@@ -9,8 +9,6 @@
   "outputType": "MEASURE",
   "specRole": "MEASURE",
 
-  "implements": ["LEARNER_PROFILE_V1"],
-
   "metadata": {
     "observation": {
       "signalParameters": [

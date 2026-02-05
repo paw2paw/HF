@@ -508,9 +508,74 @@ export async function PATCH(
       data: updateData,
     });
 
+    // If domain was changed, instantiate goals from playbook
+    const goalsCreated: string[] = [];
+    if (domainId) {
+      // Archive old goals (don't delete, preserve history)
+      await prisma.goal.updateMany({
+        where: {
+          callerId,
+          status: { in: ['ACTIVE', 'PAUSED'] },
+        },
+        data: { status: 'ARCHIVED' },
+      });
+
+      // Find published playbook for new domain
+      const playbook = await prisma.playbook.findFirst({
+        where: {
+          domainId,
+          status: 'PUBLISHED',
+        },
+        select: {
+          id: true,
+          name: true,
+          config: true,
+        },
+      });
+
+      if (playbook?.config) {
+        const config = playbook.config as any;
+        const goals = config.goals || [];
+
+        // Create goal instances for caller
+        for (const goalConfig of goals) {
+          // Find contentSpec if it's a LEARN goal
+          let contentSpecId = null;
+          if (goalConfig.type === 'LEARN' && goalConfig.contentSpecSlug) {
+            const contentSpec = await prisma.analysisSpec.findFirst({
+              where: {
+                slug: { contains: goalConfig.contentSpecSlug.toLowerCase().replace(/_/g, '-') },
+                isActive: true,
+              },
+              select: { id: true },
+            });
+            contentSpecId = contentSpec?.id || null;
+          }
+
+          // Create goal
+          const goal = await prisma.goal.create({
+            data: {
+              callerId,
+              playbookId: playbook.id,
+              type: goalConfig.type,
+              name: goalConfig.name,
+              description: goalConfig.description || null,
+              contentSpecId,
+              status: 'ACTIVE',
+              priority: goalConfig.priority || 5,
+              startedAt: new Date(),
+            },
+          });
+
+          goalsCreated.push(goal.name);
+        }
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       caller: updatedCaller,
+      goalsCreated: goalsCreated.length > 0 ? goalsCreated : undefined,
     });
   } catch (error: any) {
     console.error("Error updating caller:", error);

@@ -8,8 +8,6 @@
   "specType": "SYSTEM",
   "outputType": "AGGREGATE",
 
-  "implements": ["LEARNER_PROFILE_V1"],
-
   "metadata": {
     "observation": {
       "signalParameters": [
