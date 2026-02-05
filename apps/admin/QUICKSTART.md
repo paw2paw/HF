@@ -293,6 +293,44 @@ npm run db:seed:all
 
 ---
 
+## Development Scripts
+
+### Server Management Commands
+
+| Command | Database Reset | Server Restart | Cache Clear | Use When |
+|---------|---------------|----------------|-------------|----------|
+| `npm run dev` | ❌ | ❌ | ❌ | Normal development |
+| `npm run devX` | ❌ | ✅ | ✅ | Server stuck, cache issues |
+| `npm run devD` | ✅ | ❌ | ❌ | Need fresh data only |
+| `npm run devZZZ` | ✅ | ✅ | ✅ | Complete nuclear reset |
+
+### What Each Command Does
+
+**`npm run devX`** - Smart Hard Restart
+- Intelligently finds and kills Next.js processes
+- Clears `.next` build cache
+- Starts fresh dev server
+- Use when: Server is stuck or acting weird
+
+**`npm run devD`** - Data Reset Only
+1. ✅ Checks dev server is running
+2. 🗑️ Clears ALL database data
+3. 🔧 Reloads domains, playbooks, specs, parameters
+4. 📝 Imports all transcripts (callers + calls)
+5. ✨ Keeps server running (no restart)
+- Use when: You want fresh data but don't want to restart/rebuild
+
+**`npm run devZZZ`** - Nuclear Reset
+1. 🗑️ Clears database
+2. 🔪 Kills server + clears cache
+3. 🌐 Starts fresh server
+4. 🌱 Seeds data
+5. 📝 Imports transcripts
+6. 📊 Tails logs (stays running)
+- Use when: Complete fresh start needed
+
+---
+
 ## Troubleshooting
 
 ### Ops Disabled Error
@@ -330,6 +368,9 @@ npm test -- --reporter=verbose
 ```bash
 # Development
 npm run dev                    # Start dev server
+npm run devX                   # Hard restart (kill server + clear cache)
+npm run devD                   # Data reset only (keep server running)
+npm run devZZZ                 # Nuclear reset (DB + server + data)
 npm test                       # Run tests
 npm run prisma:studio          # Database GUI
 

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "devX": "lsof -ti:3000 | xargs kill -9 2>/dev/null || true && pkill -9 -f 'next-server' || true && rm -rf .next && npm run dev",
+    "devX": "pkill -9 -f 'next dev' || true && pkill -9 -f 'next-server' || true && lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true && rm -rf .next && npm run dev",
+    "devD": "./scripts/dev-d.sh",
     "devZZZ": "./scripts/dev-zzz.sh",
     "dev:start": "./scripts/dev-start.sh",
     "dev:start:docker": "./scripts/dev-start.sh docker",

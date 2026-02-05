@@ -26,7 +26,7 @@ const OPERATIONS: Operation[] = [
     id: "system",
     title: "Initialize System (Domains + Specs)",
     description: "Creates default domains (WNF TUTOR, COMPANION) with playbooks, then syncs all BDD specifications from /bdd-specs directory. This establishes the complete foundation: domains, playbooks, specs, parameters, anchors, and behavior targets.",
-    icon: "🚀",
+    icon: "\u{1F680}",
     warning: "This will create/recreate WNF TUTOR and COMPANION domains AND sync all specs. Existing domains with these slugs will be deleted along with their playbooks. AnalysisSpecs and Parameters from /bdd-specs/*.spec.json will be updated. All behavior targets and runtime spec customizations will be reset.",
     endpoint: "/api/x/seed-system",
     method: "POST",
@@ -35,7 +35,7 @@ const OPERATIONS: Operation[] = [
     id: "transcripts",
     title: "Import Transcripts from Raw",
     description: "Scans HF_KB_PATH/sources/transcripts/raw for .json and .txt files. Creates Callers (by phone) and Calls. Updates caller names if better data is found.",
-    icon: "📞",
+    icon: "\u{1F4DE}",
     warning: "Choose whether to REPLACE all existing callers/calls (fresh start) or KEEP existing data (skip duplicates). Run 'Initialize System' first for proper domain assignment.",
     endpoint: "/api/x/seed-transcripts",
     method: "POST",
@@ -45,7 +45,7 @@ const OPERATIONS: Operation[] = [
     id: "cleanup",
     title: "Cleanup Orphaned Callers",
     description: "Deletes callers that have 0 calls. These are typically created during failed imports or testing.",
-    icon: "🧹",
+    icon: "\u{1F9F9}",
     warning: "This will permanently delete all Caller records that have no associated Calls. This is safe and recommended after imports.",
     endpoint: "/api/x/cleanup-callers",
     method: "POST",
@@ -136,10 +136,10 @@ export default function DataManagementPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1f2937", margin: 0 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
           Data Management
         </h1>
-        <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+        <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           Re-load database from source files (transcripts, specs, domains)
         </p>
       </div>
@@ -148,17 +148,17 @@ export default function DataManagementPage() {
       <div
         style={{
           padding: 20,
-          background: "#f9fafb",
+          background: "var(--background)",
           borderRadius: 12,
-          border: "1px solid #e5e7eb",
+          border: "1px solid var(--border-default)",
           marginBottom: 24,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
           Current Database State
         </div>
         {loadingStats ? (
-          <div style={{ fontSize: 14, color: "#6b7280" }}>Loading...</div>
+          <div style={{ fontSize: 14, color: "var(--text-muted)" }}>Loading...</div>
         ) : stats ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
             <StatItem label="Domains" value={stats.domains} />
@@ -168,7 +168,7 @@ export default function DataManagementPage() {
             <StatItem label="Calls" value={stats.calls} />
           </div>
         ) : (
-          <div style={{ fontSize: 14, color: "#ef4444" }}>Failed to load stats</div>
+          <div style={{ fontSize: 14, color: "var(--status-error-text)" }}>Failed to load stats</div>
         )}
       </div>
 
@@ -176,16 +176,16 @@ export default function DataManagementPage() {
       <div
         style={{
           padding: 16,
-          background: "#eff6ff",
+          background: "var(--status-info-bg)",
           borderRadius: 8,
-          border: "1px solid #dbeafe",
+          border: "1px solid var(--status-info-border)",
           marginBottom: 24,
         }}
       >
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af", marginBottom: 6 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 6 }}>
           💡 Recommended Execution Order
         </div>
-        <ol style={{ fontSize: 13, color: "#1e3a8a", margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
+        <ol style={{ fontSize: 13, color: "var(--status-info-text)", margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
           <li>
             <strong>Initialize System</strong> - Syncs all BDD specs, then creates WNF TUTOR and COMPANION domains with playbooks and behavior targets
           </li>
@@ -234,8 +234,8 @@ export default function DataManagementPage() {
 function StatItem({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "#1f2937" }}>{value}</div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
     </div>
   );
 }
@@ -259,10 +259,10 @@ function OperationCard({
     <div
       style={{
         padding: 24,
-        background: "white",
+        background: "var(--surface-primary)",
         borderRadius: 12,
         border: `2px solid ${
-          isSuccess ? "#10b981" : isError ? "#ef4444" : "#e5e7eb"
+          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
         }`,
       }}
     >
@@ -272,10 +272,10 @@ function OperationCard({
 
         {/* Content */}
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#1f2937", marginBottom: 6 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
             {operation.title}
           </div>
-          <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.5, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
             {operation.description}
           </div>
 
@@ -284,11 +284,11 @@ function OperationCard({
             <div
               style={{
                 padding: 12,
-                background: "#fef3c7",
-                border: "1px solid #fde047",
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
                 borderRadius: 8,
                 fontSize: 14,
-                color: "#92400e",
+                color: "var(--status-warning-text)",
                 marginBottom: 12,
               }}
             >
@@ -300,11 +300,11 @@ function OperationCard({
             <div
               style={{
                 padding: 12,
-                background: "#d1fae5",
-                border: "1px solid #86efac",
+                background: "var(--status-success-bg)",
+                border: "1px solid var(--status-success-border)",
                 borderRadius: 8,
                 fontSize: 14,
-                color: "#065f46",
+                color: "var(--status-success-text)",
                 marginBottom: 12,
               }}
             >
@@ -316,11 +316,11 @@ function OperationCard({
             <div
               style={{
                 padding: 12,
-                background: "#fee2e2",
-                border: "1px solid #fca5a5",
+                background: "var(--status-error-bg)",
+                border: "1px solid var(--status-error-border)",
                 borderRadius: 8,
                 fontSize: 14,
-                color: "#991b1b",
+                color: "var(--status-error-text)",
                 marginBottom: 12,
               }}
             >
@@ -336,7 +336,7 @@ function OperationCard({
                 disabled={isRunning}
                 style={{
                   padding: "10px 20px",
-                  background: isRunning ? "#d1d5db" : "#dc2626",
+                  background: isRunning ? "var(--button-disabled-bg)" : "var(--button-destructive-bg)",
                   color: "white",
                   border: "none",
                   borderRadius: 8,
@@ -353,7 +353,7 @@ function OperationCard({
                 disabled={isRunning}
                 style={{
                   padding: "10px 20px",
-                  background: isRunning ? "#d1d5db" : "#059669",
+                  background: isRunning ? "var(--button-disabled-bg)" : "var(--button-success-bg)",
                   color: "white",
                   border: "none",
                   borderRadius: 8,
@@ -372,7 +372,7 @@ function OperationCard({
               disabled={isRunning}
               style={{
                 padding: "10px 20px",
-                background: isRunning ? "#d1d5db" : "#4f46e5",
+                background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
                 color: "white",
                 border: "none",
                 borderRadius: 8,
@@ -416,9 +416,9 @@ function ConfirmationModal({
 
   const getButtonColor = () => {
     if (operation.requiresMode && mode === "replace") {
-      return "#dc2626"; // Red for destructive
+      return "var(--button-destructive-bg)"; // Red for destructive
     }
-    return "#dc2626"; // Red for all confirmations
+    return "var(--button-destructive-bg)"; // Red for all confirmations
   };
 
   const getTitle = () => {
@@ -446,7 +446,7 @@ function ConfirmationModal({
     >
       <div
         style={{
-          background: "white",
+          background: "var(--modal-bg)",
           borderRadius: 16,
           padding: 32,
           maxWidth: 500,
@@ -458,17 +458,17 @@ function ConfirmationModal({
         <div style={{ fontSize: 48, textAlign: "center", marginBottom: 16 }}>
           {operation.requiresMode && mode === "replace" ? "🗑️" : "⚠️"}
         </div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "#1f2937", marginBottom: 12, textAlign: "center" }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textAlign: "center" }}>
           {getTitle()}
         </div>
         <div
           style={{
             padding: 16,
-            background: operation.requiresMode && mode === "replace" ? "#fee2e2" : "#fef3c7",
-            border: `1px solid ${operation.requiresMode && mode === "replace" ? "#fca5a5" : "#fde047"}`,
+            background: operation.requiresMode && mode === "replace" ? "var(--status-error-bg)" : "var(--status-warning-bg)",
+            border: `1px solid ${operation.requiresMode && mode === "replace" ? "var(--status-error-border)" : "var(--status-warning-border)"}`,
             borderRadius: 8,
             fontSize: 14,
-            color: operation.requiresMode && mode === "replace" ? "#991b1b" : "#92400e",
+            color: operation.requiresMode && mode === "replace" ? "var(--status-error-text)" : "var(--status-warning-text)",
             lineHeight: 1.6,
             marginBottom: 24,
           }}
@@ -481,9 +481,9 @@ function ConfirmationModal({
             onClick={onCancel}
             style={{
               padding: "10px 20px",
-              background: "white",
-              color: "#374151",
-              border: "1px solid #d1d5db",
+              background: "var(--surface-primary)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--input-border)",
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 600,

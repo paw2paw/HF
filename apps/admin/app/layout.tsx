@@ -58,7 +58,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       style={{ gridTemplateColumns: `${sidebarWidth} 1fr` }}
     >
       {/* Sidebar */}
-      <aside className="h-screen overflow-hidden border-r border-neutral-200 bg-white">
+      <aside className="h-screen overflow-hidden border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
         <div className="h-full px-2 py-4">
           {isSimplifiedUI ? (
             <SimpleSidebarNav
@@ -92,7 +92,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="h-screen overflow-hidden bg-neutral-50 text-neutral-900 antialiased">
+      <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased">
         <EntityProvider>
           <ChatProvider>
             <LayoutInner>{children}</LayoutInner>

@@ -67,6 +67,37 @@ curl -X POST http://localhost:3000/api/callers/analyze-all
 
 ---
 
+## UI/UX Enhancements
+
+### 📈 Advanced Behaviour Measurement Visualization
+**Status**: Future Enhancement
+**Priority**: Low
+**Estimated Effort**: 1-2 days
+
+**Current State:**
+- Behaviour tab now uses same LED slider visualization as Targets tab (✅ Completed 2026-02-05)
+- Shows measurements vs targets side-by-side
+
+**Future Enhancement (Option 2):**
+Create a dedicated measurement visualization that goes beyond simple sliders:
+- **Trend over time**: Show measurements across multiple calls with line chart
+- **Target reference line**: Visual indicator of where the target is
+- **Trend indicators**: Arrows showing improvement/decline (↗️ improving, ↘️ declining, → stable)
+- **Statistical insights**: Show min/max/avg/std deviation
+- **Call-level drill-down**: Click a measurement to see which call it came from
+- **Anomaly detection**: Highlight measurements that are significantly outside normal range
+
+**Benefits:**
+- More actionable insights for understanding agent behavior over time
+- Easier to spot patterns and anomalies
+- Better understanding of whether behavior is improving or regressing
+
+**Files to Create:**
+- `components/measurements/TrendChart.tsx` - Time-series visualization
+- `components/measurements/MeasurementTimeline.tsx` - Call-by-call view
+
+---
+
 **Quick Commands:**
 ```bash
 npm run devZZZ          # Nuclear reset

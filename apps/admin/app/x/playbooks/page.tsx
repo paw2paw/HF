@@ -70,9 +70,9 @@ export default function PlaybooksPage() {
   };
 
   const statusColors: Record<string, { bg: string; text: string }> = {
-    DRAFT: { bg: "#fef3c7", text: "#92400e" },
-    PUBLISHED: { bg: "#dcfce7", text: "#166534" },
-    ARCHIVED: { bg: "#f3f4f6", text: "#6b7280" },
+    DRAFT: { bg: "var(--badge-yellow-bg)", text: "var(--status-warning-text)" },
+    PUBLISHED: { bg: "var(--badge-green-bg)", text: "var(--status-success-text)" },
+    ARCHIVED: { bg: "var(--surface-secondary)", text: "var(--text-muted)" },
   };
 
   // Filter playbooks
@@ -104,8 +104,8 @@ export default function PlaybooksPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1f2937", margin: 0 }}>Playbooks</h1>
-          <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Playbooks</h1>
+          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
             Bundles of specs and templates per domain
           </p>
         </div>
@@ -113,8 +113,8 @@ export default function PlaybooksPage() {
           onClick={() => setShowCreate(true)}
           style={{
             padding: "10px 16px",
-            background: "#4f46e5",
-            color: "#fff",
+            background: "var(--button-primary-bg)",
+            color: "var(--surface-primary)",
             border: "none",
             borderRadius: 8,
             fontWeight: 500,
@@ -134,7 +134,7 @@ export default function PlaybooksPage() {
           onChange={(e) => setSearch(e.target.value)}
           style={{
             padding: "8px 12px",
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--input-border)",
             borderRadius: 6,
             fontSize: 13,
             width: 220,
@@ -145,7 +145,7 @@ export default function PlaybooksPage() {
           onChange={(e) => setFilterDomain(e.target.value)}
           style={{
             padding: "8px 12px",
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--input-border)",
             borderRadius: 6,
             fontSize: 13,
           }}
@@ -160,7 +160,7 @@ export default function PlaybooksPage() {
           onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
           style={{
             padding: "8px 12px",
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--input-border)",
             borderRadius: 6,
             fontSize: 13,
           }}
@@ -173,17 +173,17 @@ export default function PlaybooksPage() {
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: "#fef2f2", color: "#dc2626", borderRadius: 8, marginBottom: 20 }}>
+        <div style={{ padding: 16, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading...</div>
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
       ) : filteredPlaybooks.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+        <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
             {search || filterStatus !== "all" || filterDomain ? "No playbooks match filters" : "No playbooks yet"}
           </div>
           {!search && filterStatus === "all" && !filterDomain && (
@@ -192,8 +192,8 @@ export default function PlaybooksPage() {
               style={{
                 marginTop: 16,
                 padding: "10px 20px",
-                background: "#4f46e5",
-                color: "#fff",
+                background: "var(--button-primary-bg)",
+                color: "var(--surface-primary)",
                 border: "none",
                 borderRadius: 8,
                 fontWeight: 500,
@@ -213,7 +213,7 @@ export default function PlaybooksPage() {
                 <h2 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: "#374151",
+                  color: "var(--text-secondary)",
                   marginBottom: 8,
                   textTransform: "uppercase",
                   letterSpacing: "0.05em"
@@ -222,7 +222,7 @@ export default function PlaybooksPage() {
                   <span style={{
                     marginLeft: 8,
                     fontSize: 12,
-                    color: "#9ca3af",
+                    color: "var(--text-placeholder)",
                     fontWeight: 400,
                     textTransform: "none",
                     letterSpacing: "normal"
@@ -230,7 +230,7 @@ export default function PlaybooksPage() {
                     ({playbooksInDomain.length})
                   </span>
                 </h2>
-                <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
                   {playbooksInDomain.map((pb) => (
                     <Link
                       key={pb.id}
@@ -240,18 +240,18 @@ export default function PlaybooksPage() {
                       <div
                         style={{
                           padding: "12px 16px",
-                          borderBottom: "1px solid #f3f4f6",
+                          borderBottom: "1px solid var(--border-subtle)",
                           cursor: "pointer",
                           transition: "background-color 0.15s",
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
                         }}
-                        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+                        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "var(--hover-bg)")}
                         onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-                          <span style={{ fontSize: 14, fontWeight: 500, color: "#1f2937" }}>{pb.name}</span>
+                          <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{pb.name}</span>
                           <span
                             style={{
                               fontSize: 10,
@@ -264,9 +264,9 @@ export default function PlaybooksPage() {
                           >
                             {pb.status}
                           </span>
-                          <span style={{ fontSize: 11, color: "#9ca3af" }}>v{pb.version}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>v{pb.version}</span>
                         </div>
-                        <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                           {pb._count.items} items
                         </div>
                       </div>
@@ -293,7 +293,7 @@ export default function PlaybooksPage() {
           onClick={() => setShowCreate(false)}
         >
           <div
-            style={{ background: "#fff", borderRadius: 12, padding: 24, width: 400 }}
+            style={{ background: "var(--modal-bg)", borderRadius: 12, padding: 24, width: 400 }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New Playbook</h2>
@@ -302,7 +302,7 @@ export default function PlaybooksPage() {
               <select
                 value={newPlaybook.domainId}
                 onChange={(e) => setNewPlaybook({ ...newPlaybook, domainId: e.target.value })}
-                style={{ width: "100%", padding: 10, border: "1px solid #d1d5db", borderRadius: 6 }}
+                style={{ width: "100%", padding: 10, border: "1px solid var(--input-border)", borderRadius: 6 }}
               >
                 <option value="">Select...</option>
                 {domains.map((d) => (
@@ -316,13 +316,13 @@ export default function PlaybooksPage() {
                 type="text"
                 value={newPlaybook.name}
                 onChange={(e) => setNewPlaybook({ ...newPlaybook, name: e.target.value })}
-                style={{ width: "100%", padding: 10, border: "1px solid #d1d5db", borderRadius: 6 }}
+                style={{ width: "100%", padding: 10, border: "1px solid var(--input-border)", borderRadius: 6 }}
               />
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button
                 onClick={() => setShowCreate(false)}
-                style={{ padding: "8px 16px", background: "#f3f4f6", border: "none", borderRadius: 6, cursor: "pointer" }}
+                style={{ padding: "8px 16px", background: "var(--surface-secondary)", border: "none", borderRadius: 6, cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -331,8 +331,8 @@ export default function PlaybooksPage() {
                 disabled={creating || !newPlaybook.name || !newPlaybook.domainId}
                 style={{
                   padding: "8px 16px",
-                  background: "#4f46e5",
-                  color: "#fff",
+                  background: "var(--button-primary-bg)",
+                  color: "var(--surface-primary)",
                   border: "none",
                   borderRadius: 6,
                   cursor: "pointer",

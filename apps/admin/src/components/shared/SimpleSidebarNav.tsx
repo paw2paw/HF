@@ -150,10 +150,10 @@ export default function SimpleSidebarNav({
   };
 
   return (
-    <div className="flex h-full flex-col bg-white p-3 text-neutral-900 overflow-hidden">
+    <div className="flex h-full flex-col bg-white dark:bg-neutral-900 p-3 text-neutral-900 dark:text-neutral-100 overflow-hidden">
       <div className="mb-3 flex items-center justify-between gap-2">
         {!collapsed ? (
-          <div className="text-sm font-extrabold tracking-tight text-neutral-900">HumanFirst</div>
+          <div className="text-sm font-extrabold tracking-tight text-neutral-900 dark:text-neutral-100">HumanFirst</div>
         ) : (
           <div className="w-6" />
         )}
@@ -162,7 +162,7 @@ export default function SimpleSidebarNav({
           type="button"
           onClick={onToggle}
           aria-label="Toggle sidebar"
-          className="inline-flex items-center justify-center rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          className="inline-flex items-center justify-center rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1 text-sm text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
         >
           {collapsed ? "→" : "←"}
         </button>
@@ -180,7 +180,7 @@ export default function SimpleSidebarNav({
           {sections.map((section) => (
             <div key={section.id} className="flex flex-col">
               {section.title && !collapsed ? (
-                <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
                   {section.title}
                 </div>
               ) : null}
@@ -190,7 +190,7 @@ export default function SimpleSidebarNav({
                   const active = isActive(l.href);
                   const itemIndex = flatNavItems.findIndex(fi => fi.href === l.href);
                   const isFocused = itemIndex === focusedIndex;
-                  const baseClass = l.highlighted && !active ? "bg-indigo-50/70 " : "";
+                  const baseClass = l.highlighted && !active ? "bg-indigo-50/70 dark:bg-indigo-950/70 " : "";
                   return (
                     <Link
                       key={l.href}
@@ -206,8 +206,8 @@ export default function SimpleSidebarNav({
                         (active
                           ? "bg-indigo-600 text-white font-semibold"
                           : isFocused
-                          ? "bg-neutral-100 text-neutral-900 font-medium"
-                          : "text-neutral-900 font-medium hover:bg-neutral-100")
+                          ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-medium"
+                          : "text-neutral-900 dark:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800")
                       }
                     >
                       {l.icon && (
@@ -221,7 +221,7 @@ export default function SimpleSidebarNav({
                 })}
               </div>
 
-              {section.dividerAfter ? <div className="my-3 border-t border-neutral-300" /> : null}
+              {section.dividerAfter ? <div className="my-3 border-t border-neutral-300 dark:border-neutral-700" /> : null}
             </div>
           ))}
         </nav>
@@ -229,23 +229,23 @@ export default function SimpleSidebarNav({
         {/* Chat Toggle Button */}
         <ChatToggleButton collapsed={collapsed} />
 
-        <div className="mt-3 pt-3 border-t border-neutral-200">
+        <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-800">
           {!collapsed ? (
             <>
               <Link
                 href="/cockpit"
-                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-neutral-500 hover:text-neutral-700 rounded transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 rounded transition-colors"
               >
                 <span>⚙️</span>
                 <span>Full Admin →</span>
               </Link>
-              <div className="text-center text-[10px] text-neutral-400 mt-2">HumanFirst Studio</div>
+              <div className="text-center text-[10px] text-neutral-400 dark:text-neutral-500 mt-2">HumanFirst Studio</div>
             </>
           ) : (
             <Link
               href="/cockpit"
               title="Full Admin"
-              className="flex items-center justify-center py-1.5 text-neutral-500 hover:text-neutral-700"
+              className="flex items-center justify-center py-1.5 text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
             >
               <span>⚙️</span>
             </Link>
@@ -272,7 +272,7 @@ function ChatToggleButton({ collapsed }: { collapsed: boolean }) {
   };
 
   return (
-    <div className="mt-auto pt-3 border-t border-neutral-200">
+    <div className="mt-auto pt-3 border-t border-neutral-200 dark:border-neutral-800">
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -280,8 +280,8 @@ function ChatToggleButton({ collapsed }: { collapsed: boolean }) {
           className={
             "flex flex-1 items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors " +
             (isOpen
-              ? "bg-indigo-100 text-indigo-700 font-medium"
-              : "text-neutral-700 hover:bg-neutral-100")
+              ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium"
+              : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800")
           }
           title={collapsed ? "AI Chat (Cmd+K)" : undefined}
         >
@@ -291,7 +291,7 @@ function ChatToggleButton({ collapsed }: { collapsed: boolean }) {
           {!collapsed && (
             <>
               <span className="flex-1 text-left truncate">AI Chat</span>
-              <span className="text-[10px] text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">
                 ⌘K
               </span>
             </>
@@ -301,7 +301,7 @@ function ChatToggleButton({ collapsed }: { collapsed: boolean }) {
           <button
             type="button"
             onClick={() => setChatLayout(nextLayout(chatLayout) as any)}
-            className="px-2 py-2 text-sm text-neutral-500 hover:bg-neutral-100 rounded-md"
+            className="px-2 py-2 text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md"
             title={`Layout: ${chatLayout} (click to change)`}
           >
             {layoutLabels[chatLayout]}

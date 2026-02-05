@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
+import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 
 // Types
 type Domain = {
@@ -194,20 +195,20 @@ type CallerData = {
 
 // Memory category colors - matches MEMORY_CATEGORY_META in lib/constants.ts
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  FACT: { bg: "#dbeafe", text: "#2563eb" },
-  PREFERENCE: { bg: "#fef3c7", text: "#d97706" },
-  EVENT: { bg: "#dcfce7", text: "#16a34a" },
-  TOPIC: { bg: "#f3e8ff", text: "#9333ea" },
-  RELATIONSHIP: { bg: "#fce7f3", text: "#db2777" },
-  CONTEXT: { bg: "#e5e7eb", text: "#4b5563" },
+  FACT: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)" },
+  PREFERENCE: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)" },
+  EVENT: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)" },
+  TOPIC: { bg: "var(--badge-purple-bg)", text: "var(--badge-purple-text)" },
+  RELATIONSHIP: { bg: "var(--badge-pink-bg)", text: "var(--badge-pink-text)" },
+  CONTEXT: { bg: "var(--surface-secondary)", text: "var(--text-secondary)" },
 };
 
 const TRAIT_INFO = {
-  openness: { label: "Openness", color: "#3b82f6", desc: "Curiosity, creativity, openness to new experiences" },
-  conscientiousness: { label: "Conscientiousness", color: "#10b981", desc: "Organization, dependability, self-discipline" },
-  extraversion: { label: "Extraversion", color: "#f59e0b", desc: "Sociability, assertiveness, positive emotions" },
-  agreeableness: { label: "Agreeableness", color: "#ec4899", desc: "Cooperation, trust, helpfulness" },
-  neuroticism: { label: "Neuroticism", color: "#8b5cf6", desc: "Emotional instability, anxiety, moodiness" },
+  openness: { label: "Openness", color: "var(--trait-openness)", desc: "Curiosity, creativity, openness to new experiences" },
+  conscientiousness: { label: "Conscientiousness", color: "var(--trait-conscientiousness)", desc: "Organization, dependability, self-discipline" },
+  extraversion: { label: "Extraversion", color: "var(--trait-extraversion)", desc: "Sociability, assertiveness, positive emotions" },
+  agreeableness: { label: "Agreeableness", color: "var(--trait-agreeableness)", desc: "Cooperation, trust, helpfulness" },
+  neuroticism: { label: "Neuroticism", color: "var(--trait-neuroticism)", desc: "Emotional instability, anxiety, moodiness" },
 };
 
 type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "learning" | "targets" | "agent-behavior" | "prompt" | "ai-call" | "slugs";
@@ -463,17 +464,17 @@ export default function CallerDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading caller profile...</div>
+      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading caller profile...</div>
     );
   }
 
   if (error || !data) {
     return (
       <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ padding: 20, background: "#fef2f2", color: "#dc2626", borderRadius: 8 }}>
+        <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
           {error || "Caller not found"}
         </div>
-        <Link href={backLink} style={{ display: "inline-block", marginTop: 16, color: "#4f46e5" }}>
+        <Link href={backLink} style={{ display: "inline-block", marginTop: 16, color: "var(--button-primary-bg)" }}>
           ← Back to Callers
         </Link>
       </div>
@@ -508,7 +509,7 @@ export default function CallerDetailPage() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: 1400, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ padding: "24px 24px 16px 24px", flexShrink: 0 }}>
-        <Link href={backLink} style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>
+        <Link href={backLink} style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>
           ← Back to Callers
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8 }}>
@@ -517,7 +518,7 @@ export default function CallerDetailPage() {
               width: 64,
               height: 64,
               borderRadius: "50%",
-              background: "#e5e7eb",
+              background: "var(--border-default)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -539,9 +540,9 @@ export default function CallerDetailPage() {
                     style={{
                       padding: "4px 8px",
                       fontSize: 12,
-                      border: "1px solid #e5e7eb",
+                      border: "1px solid var(--border-default)",
                       borderRadius: 4,
-                      background: "white",
+                      background: "var(--surface-primary)",
                     }}
                   >
                     <option value="">No Domain</option>
@@ -554,8 +555,8 @@ export default function CallerDetailPage() {
                     style={{
                       padding: "2px 6px",
                       fontSize: 11,
-                      background: "#f3f4f6",
-                      border: "1px solid #e5e7eb",
+                      background: "var(--surface-secondary)",
+                      border: "1px solid var(--border-default)",
                       borderRadius: 4,
                       cursor: "pointer",
                     }}
@@ -570,8 +571,8 @@ export default function CallerDetailPage() {
                     padding: "4px 10px",
                     fontSize: 11,
                     fontWeight: 500,
-                    background: data.caller.domain ? "#dbeafe" : "#f3f4f6",
-                    color: data.caller.domain ? "#2563eb" : "#6b7280",
+                    background: data.caller.domain ? "var(--badge-blue-bg)" : "var(--surface-secondary)",
+                    color: data.caller.domain ? "var(--badge-blue-text)" : "var(--text-muted)",
                     border: "1px solid transparent",
                     borderRadius: 4,
                     cursor: "pointer",
@@ -588,25 +589,25 @@ export default function CallerDetailPage() {
             </div>
             <div style={{ display: "flex", gap: 16, marginTop: 4, alignItems: "center", flexWrap: "wrap" }}>
               {data.caller.phone && (
-                <span style={{ fontSize: 13, color: "#6b7280" }}>📱 {data.caller.phone}</span>
+                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>📱 {data.caller.phone}</span>
               )}
               {data.caller.email && (
-                <span style={{ fontSize: 13, color: "#6b7280" }}>✉️ {data.caller.email}</span>
+                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>✉️ {data.caller.email}</span>
               )}
               {data.caller.externalId && (
-                <span style={{ fontSize: 11, fontFamily: "monospace", color: "#9ca3af" }}>
+                <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-placeholder)" }}>
                   ID: {data.caller.externalId}
                 </span>
               )}
               {/* Compact Personality Profile */}
               {data.personality && (
-                <div style={{ display: "flex", gap: 6, marginLeft: 8, padding: "4px 8px", background: "#f3f4f6", borderRadius: 6 }}>
-                  <span style={{ fontSize: 11, color: "#6b7280" }}>🧠</span>
+                <div style={{ display: "flex", gap: 6, marginLeft: 8, padding: "4px 8px", background: "var(--surface-secondary)", borderRadius: 6 }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>🧠</span>
                   {Object.entries(TRAIT_INFO).map(([key, info]) => {
                     const value = data.personality?.[key as keyof typeof TRAIT_INFO] as number | null;
                     if (value === null) return null;
                     const level = value >= 0.7 ? "HIGH" : value <= 0.3 ? "LOW" : "MED";
-                    const levelColor = level === "HIGH" ? "#16a34a" : level === "LOW" ? "#dc2626" : "#6b7280";
+                    const levelColor = level === "HIGH" ? "var(--status-success-text)" : level === "LOW" ? "var(--status-error-text)" : "var(--text-muted)";
                     return (
                       <span
                         key={key}
@@ -616,7 +617,7 @@ export default function CallerDetailPage() {
                           fontWeight: 600,
                           color: levelColor,
                           padding: "1px 4px",
-                          background: level === "HIGH" ? "#dcfce7" : level === "LOW" ? "#fef2f2" : "#e5e7eb",
+                          background: level === "HIGH" ? "var(--status-success-bg)" : level === "LOW" ? "var(--status-error-bg)" : "var(--border-default)",
                           borderRadius: 3,
                         }}
                       >
@@ -678,7 +679,7 @@ export default function CallerDetailPage() {
             title="Run personality & memory analysis on this caller's calls"
             style={{
               padding: "10px 20px",
-              background: "#10b981",
+              background: "var(--button-success-bg)",
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -700,7 +701,7 @@ export default function CallerDetailPage() {
             title="Generate prompts for all calls without prompts (oldest first)"
             style={{
               padding: "10px 20px",
-              background: composing ? "#9ca3af" : "#4f46e5",
+              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -718,7 +719,7 @@ export default function CallerDetailPage() {
       </div>
 
       {/* Section Tabs - Grouped: History | Caller | Agent | Action */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e5e7eb", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", position: "sticky", top: 0, background: "white", zIndex: 10, padding: "8px 24px 0 24px", marginLeft: -24, marginRight: -24, flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-default)", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", zIndex: 10, padding: "8px 24px 0 24px", marginLeft: -24, marginRight: -24, flexShrink: 0 }}>
         {sections.map((section, index) => {
           const isActive = activeSection === section.id;
           const isSpecial = section.special;
@@ -727,8 +728,8 @@ export default function CallerDetailPage() {
 
           // Special styling for the Call tab (green background)
           const specialStyles = isSpecial ? {
-            background: isActive ? "#059669" : "#d1fae5",
-            color: isActive ? "#ffffff" : "#065f46",
+            background: isActive ? "var(--button-success-bg)" : "var(--status-success-bg)",
+            color: isActive ? "var(--text-on-dark)" : "var(--status-success-text)",
             borderRadius: 6,
             marginLeft: 8,
             borderBottom: "2px solid transparent",
@@ -742,7 +743,7 @@ export default function CallerDetailPage() {
                   style={{
                     width: 1,
                     height: 24,
-                    background: "#d1d5db",
+                    background: "var(--button-disabled-bg)",
                     margin: "0 6px",
                     flexShrink: 0,
                   }}
@@ -756,9 +757,9 @@ export default function CallerDetailPage() {
                   background: "none",
                   fontSize: 13,
                   fontWeight: isActive ? 600 : 400,
-                  color: isActive ? "#4f46e5" : "#6b7280",
+                  color: isActive ? "var(--button-primary-bg)" : "var(--text-muted)",
                   cursor: "pointer",
-                  borderBottom: isActive ? "2px solid #4f46e5" : "2px solid transparent",
+                  borderBottom: isActive ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
                   marginBottom: -1,
                   display: "flex",
                   alignItems: "center",
@@ -773,8 +774,8 @@ export default function CallerDetailPage() {
                   <span
                     style={{
                       fontSize: 10,
-                      background: isActive ? "#e0e7ff" : "#f3f4f6",
-                      color: isActive ? "#4f46e5" : "#6b7280",
+                      background: isActive ? "var(--status-info-bg)" : "var(--surface-secondary)",
+                      color: isActive ? "var(--button-primary-bg)" : "var(--text-muted)",
                       padding: "1px 5px",
                       borderRadius: 10,
                     }}
@@ -807,6 +808,8 @@ export default function CallerDetailPage() {
               .then((result) => {
                 if (result.ok) setData(result);
               });
+            // Refresh prompts list to show newly composed prompts
+            fetchPrompts();
           }}
         />
       )}
@@ -894,8 +897,8 @@ function OverviewSection({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
       {/* Quick Stats */}
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>Quick Stats</h3>
+      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Quick Stats</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <StatCard label="Total Calls" value={data.counts.calls} icon="📞" onClick={() => onNavigate("calls")} />
           <StatCard label="Memories" value={data.counts.memories} icon="💭" onClick={() => onNavigate("memories")} />
@@ -911,17 +914,17 @@ function OverviewSection({
       {/* Personality Summary */}
       {data.personality && (
         <div
-          style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, cursor: "pointer" }}
+          style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
           onClick={() => onNavigate("personality")}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>Personality Profile</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Personality Profile</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {Object.entries(TRAIT_INFO).map(([key, info]) => {
               const value = data.personality?.[key as keyof typeof TRAIT_INFO] as number | null;
               return (
                 <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 12, color: "#6b7280", width: 100 }}>{info.label}</span>
-                  <div style={{ flex: 1, height: 8, background: "#e5e7eb", borderRadius: 4, overflow: "hidden" }}>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", width: 100 }}>{info.label}</span>
+                  <div style={{ flex: 1, height: 8, background: "var(--border-default)", borderRadius: 4, overflow: "hidden" }}>
                     <div
                       style={{
                         height: "100%",
@@ -931,7 +934,7 @@ function OverviewSection({
                       }}
                     />
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "#374151", width: 40, textAlign: "right" }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", width: 40, textAlign: "right" }}>
                     {value !== null ? (value * 100).toFixed(0) : "—"}
                   </span>
                 </div>
@@ -944,14 +947,14 @@ function OverviewSection({
       {/* Key Facts */}
       {data.memorySummary && data.memorySummary.keyFacts.length > 0 && (
         <div
-          style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, cursor: "pointer" }}
+          style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
           onClick={() => onNavigate("memories")}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>Key Facts</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Key Facts</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {data.memorySummary.keyFacts.slice(0, 5).map((fact, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span style={{ color: "#6b7280" }}>{fact.key}</span>
+                <span style={{ color: "var(--text-muted)" }}>{fact.key}</span>
                 <span style={{ fontWeight: 500 }}>{fact.value}</span>
               </div>
             ))}
@@ -962,10 +965,10 @@ function OverviewSection({
       {/* Preferences */}
       {data.memorySummary && Object.keys(data.memorySummary.preferences).length > 0 && (
         <div
-          style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, cursor: "pointer" }}
+          style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
           onClick={() => onNavigate("memories")}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>Preferences</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Preferences</h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {Object.entries(data.memorySummary.preferences).slice(0, 6).map(([key, value]) => (
               <span
@@ -987,18 +990,18 @@ function OverviewSection({
 
       {/* Recent Calls */}
       <div
-        style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, cursor: "pointer" }}
+        style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
         onClick={() => onNavigate("calls")}
       >
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>Recent Calls</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Recent Calls</h3>
         {data.calls.length === 0 ? (
-          <div style={{ color: "#9ca3af", fontSize: 13 }}>No calls yet</div>
+          <div style={{ color: "var(--text-placeholder)", fontSize: 13 }}>No calls yet</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {data.calls.slice(0, 3).map((call) => (
               <div key={call.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span style={{ color: "#374151" }}>{call.source}</span>
-                <span style={{ color: "#9ca3af" }}>{new Date(call.createdAt).toLocaleDateString()}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{call.source}</span>
+                <span style={{ color: "var(--text-placeholder)" }}>{new Date(call.createdAt).toLocaleDateString()}</span>
               </div>
             ))}
           </div>
@@ -1024,16 +1027,16 @@ function StatCard({
       onClick={onClick}
       style={{
         padding: 12,
-        background: "#f9fafb",
+        background: "var(--background)",
         borderRadius: 8,
         cursor: onClick ? "pointer" : "default",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <span>{icon}</span>
-        <span style={{ fontSize: 11, color: "#6b7280" }}>{label}</span>
+        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{label}</span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 600, color: "#1f2937" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
     </div>
   );
 }
@@ -1098,11 +1101,11 @@ function OpPill({
   onShowLogs?: () => void;
 }) {
   const colors: Record<OpStatus, { bg: string; text: string; border: string }> = {
-    ready: { bg: "#dbeafe", text: "#2563eb", border: "#93c5fd" },
-    running: { bg: "#fef3c7", text: "#d97706", border: "#fcd34d" },
-    success: { bg: "#dcfce7", text: "#16a34a", border: "#86efac" },
-    error: { bg: "#fee2e2", text: "#dc2626", border: "#fca5a5" },
-    disabled: { bg: "#f3f4f6", text: "#9ca3af", border: "#e5e7eb" },
+    ready: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", border: "var(--status-info-border)" },
+    running: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", border: "var(--status-warning-border)" },
+    success: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", border: "var(--status-success-border)" },
+    error: { bg: "var(--status-error-bg)", text: "var(--status-error-text)", border: "var(--status-error-border)" },
+    disabled: { bg: "var(--surface-secondary)", text: "var(--text-placeholder)", border: "var(--border-default)" },
   };
 
   const style = colors[disabled ? "disabled" : status];
@@ -1157,8 +1160,8 @@ function LogsPanel({
 
   if (!result) {
     return (
-      <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", background: "#f9fafb" }}>
-        <div style={{ color: "#9ca3af", fontSize: 13 }}>No logs available for this operation</div>
+      <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
+        <div style={{ color: "var(--text-placeholder)", fontSize: 13 }}>No logs available for this operation</div>
       </div>
     );
   }
@@ -1168,7 +1171,7 @@ function LogsPanel({
   const hiddenCount = result.logs.length - filteredLogs.length;
 
   return (
-    <div style={{ borderTop: "1px solid #e5e7eb", background: "#1f2937" }}>
+    <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--surface-dark)" }}>
       {/* Header */}
       <div
         style={{
@@ -1176,25 +1179,25 @@ function LogsPanel({
           justifyContent: "space-between",
           alignItems: "center",
           padding: "8px 16px",
-          borderBottom: "1px solid #374151",
+          borderBottom: "1px solid var(--border-dark)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{opName}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-on-dark)" }}>{opName}</span>
           <span
             style={{
               fontSize: 10,
               padding: "2px 6px",
               borderRadius: 4,
-              background: result.ok ? "#065f46" : "#7f1d1d",
-              color: result.ok ? "#6ee7b7" : "#fca5a5",
+              background: result.ok ? "var(--terminal-success-bg)" : "var(--terminal-error-bg)",
+              color: result.ok ? "var(--terminal-success-text)" : "var(--terminal-error-text)",
             }}
           >
             {result.ok ? "SUCCESS" : "ERROR"}
           </span>
-          <span style={{ fontSize: 11, color: "#9ca3af" }}>{result.duration}ms</span>
+          <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>{result.duration}ms</span>
           {hiddenCount > 0 && (
-            <span style={{ fontSize: 10, color: "#6b7280" }}>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
               ({hiddenCount} hidden, level: {logLevel})
             </span>
           )}
@@ -1204,7 +1207,7 @@ function LogsPanel({
           style={{
             background: "none",
             border: "none",
-            color: "#9ca3af",
+            color: "var(--text-placeholder)",
             cursor: "pointer",
             padding: 4,
             fontSize: 14,
@@ -1225,11 +1228,11 @@ function LogsPanel({
         }}
       >
         {logLevel === "off" ? (
-          <div style={{ padding: "8px 16px", color: "#6b7280" }}>
+          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>
             Logging is off. Change in Cockpit settings to see logs.
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div style={{ padding: "8px 16px", color: "#6b7280" }}>No log entries</div>
+          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>No log entries</div>
         ) : (
           filteredLogs.map((log, i) => (
             <div
@@ -1238,12 +1241,12 @@ function LogsPanel({
                 display: "flex",
                 padding: "4px 16px",
                 borderLeft: `3px solid ${
-                  log.level === "error" ? "#dc2626" : log.level === "warn" ? "#d97706" : log.level === "debug" ? "#6b7280" : "#3b82f6"
+                  log.level === "error" ? "var(--status-error-text)" : log.level === "warn" ? "var(--status-warning-text)" : log.level === "debug" ? "var(--text-muted)" : "var(--status-info-text)"
                 }`,
                 background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
               }}
             >
-              <span style={{ color: "#6b7280", width: 80, flexShrink: 0 }}>
+              <span style={{ color: "var(--text-muted)", width: 80, flexShrink: 0 }}>
                 {new Date(log.timestamp).toLocaleTimeString()}
               </span>
               <span
@@ -1253,20 +1256,20 @@ function LogsPanel({
                   fontWeight: 600,
                   color:
                     log.level === "error"
-                      ? "#fca5a5"
+                      ? "var(--terminal-error-text)"
                       : log.level === "warn"
-                      ? "#fcd34d"
+                      ? "var(--terminal-warning-text)"
                       : log.level === "debug"
-                      ? "#9ca3af"
-                      : "#93c5fd",
+                      ? "var(--text-placeholder)"
+                      : "var(--terminal-info-text)",
                 }}
               >
                 {log.level.toUpperCase()}
               </span>
-              <span style={{ color: "#e5e7eb", flex: 1 }}>
+              <span style={{ color: "var(--text-on-dark)", flex: 1 }}>
                 {log.message}
                 {log.data && (
-                  <span style={{ color: "#9ca3af", marginLeft: 8 }}>
+                  <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
                     {typeof log.data === "object" ? JSON.stringify(log.data) : String(log.data)}
                   </span>
                 )}
@@ -1278,7 +1281,7 @@ function LogsPanel({
 
       {/* Error message if present */}
       {result.error && (
-        <div style={{ padding: "8px 16px", background: "#7f1d1d", color: "#fca5a5", fontSize: 12 }}>
+        <div style={{ padding: "8px 16px", background: "var(--terminal-error-bg)", color: "var(--terminal-error-text)", fontSize: 12 }}>
           Error: {result.error}
         </div>
       )}
@@ -1300,8 +1303,8 @@ function PipelineLogsPanel({
 
   if (!result) {
     return (
-      <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", background: "#f9fafb" }}>
-        <div style={{ color: "#9ca3af", fontSize: 13 }}>No logs available for this operation</div>
+      <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
+        <div style={{ color: "var(--text-placeholder)", fontSize: 13 }}>No logs available for this operation</div>
       </div>
     );
   }
@@ -1315,7 +1318,7 @@ function PipelineLogsPanel({
     (result.data.scoresCreated || 0) + (result.data.agentMeasurements || 0) === 0;
 
   return (
-    <div style={{ borderTop: "1px solid #e5e7eb", background: "#1f2937" }}>
+    <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--surface-dark)" }}>
       {/* Header */}
       <div
         style={{
@@ -1323,25 +1326,25 @@ function PipelineLogsPanel({
           justifyContent: "space-between",
           alignItems: "center",
           padding: "8px 16px",
-          borderBottom: "1px solid #374151",
+          borderBottom: "1px solid var(--border-dark)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{modeName}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-on-dark)" }}>{modeName}</span>
           <span
             style={{
               fontSize: 10,
               padding: "2px 6px",
               borderRadius: 4,
-              background: isZeroResults ? "#78350f" : result.ok ? "#065f46" : "#7f1d1d",
-              color: isZeroResults ? "#fcd34d" : result.ok ? "#6ee7b7" : "#fca5a5",
+              background: isZeroResults ? "var(--terminal-warning-bg)" : result.ok ? "var(--terminal-success-bg)" : "var(--terminal-error-bg)",
+              color: isZeroResults ? "var(--terminal-warning-text)" : result.ok ? "var(--terminal-success-text)" : "var(--terminal-error-text)",
             }}
           >
             {isZeroResults ? "⚠️ 0 RESULTS" : result.ok ? "SUCCESS" : "ERROR"}
           </span>
-          <span style={{ fontSize: 11, color: "#9ca3af" }}>{result.duration}ms</span>
+          <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>{result.duration}ms</span>
           {hiddenCount > 0 && (
-            <span style={{ fontSize: 10, color: "#6b7280" }}>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
               ({hiddenCount} hidden, level: {logLevel})
             </span>
           )}
@@ -1351,7 +1354,7 @@ function PipelineLogsPanel({
           style={{
             background: "none",
             border: "none",
-            color: "#9ca3af",
+            color: "var(--text-placeholder)",
             cursor: "pointer",
             padding: 4,
             fontSize: 14,
@@ -1368,23 +1371,23 @@ function PipelineLogsPanel({
             display: "flex",
             gap: 16,
             padding: "6px 16px",
-            borderBottom: "1px solid #374151",
-            background: "#111827",
+            borderBottom: "1px solid var(--border-dark)",
+            background: "var(--surface-dark)",
             fontSize: 11,
           }}
         >
-          <span style={{ color: "#9ca3af" }}>
-            📊 Scores: <strong style={{ color: (result.data.scoresCreated || 0) > 0 ? "#6ee7b7" : "#fca5a5" }}>{result.data.scoresCreated || 0}</strong>
+          <span style={{ color: "var(--text-placeholder)" }}>
+            📊 Scores: <strong style={{ color: (result.data.scoresCreated || 0) > 0 ? "var(--terminal-success-text)" : "var(--terminal-error-text)" }}>{result.data.scoresCreated || 0}</strong>
           </span>
-          <span style={{ color: "#9ca3af" }}>
-            🤖 Behaviour: <strong style={{ color: (result.data.agentMeasurements || 0) > 0 ? "#6ee7b7" : "#fca5a5" }}>{result.data.agentMeasurements || 0}</strong>
+          <span style={{ color: "var(--text-placeholder)" }}>
+            🤖 Behaviour: <strong style={{ color: (result.data.agentMeasurements || 0) > 0 ? "var(--terminal-success-text)" : "var(--terminal-error-text)" }}>{result.data.agentMeasurements || 0}</strong>
           </span>
-          <span style={{ color: "#9ca3af" }}>
-            💾 Memories: <strong style={{ color: "#93c5fd" }}>{result.data.memoriesCreated || 0}</strong>
+          <span style={{ color: "var(--text-placeholder)" }}>
+            💾 Memories: <strong style={{ color: "var(--terminal-info-text)" }}>{result.data.memoriesCreated || 0}</strong>
           </span>
           {result.data.playbookUsed && (
-            <span style={{ color: "#9ca3af" }}>
-              📋 Playbook: <strong style={{ color: "#c4b5fd" }}>{result.data.playbookUsed}</strong>
+            <span style={{ color: "var(--text-placeholder)" }}>
+              📋 Playbook: <strong style={{ color: "var(--terminal-purple-text)" }}>{result.data.playbookUsed}</strong>
             </span>
           )}
         </div>
@@ -1401,11 +1404,11 @@ function PipelineLogsPanel({
         }}
       >
         {logLevel === "off" ? (
-          <div style={{ padding: "8px 16px", color: "#6b7280" }}>
+          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>
             Logging is off. Change in Cockpit settings to see logs.
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div style={{ padding: "8px 16px", color: "#6b7280" }}>No log entries</div>
+          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>No log entries</div>
         ) : (
           filteredLogs.map((log, i) => (
             <div
@@ -1414,12 +1417,12 @@ function PipelineLogsPanel({
                 display: "flex",
                 padding: "4px 16px",
                 borderLeft: `3px solid ${
-                  log.level === "error" ? "#dc2626" : log.level === "warn" ? "#d97706" : log.level === "debug" ? "#6b7280" : "#3b82f6"
+                  log.level === "error" ? "var(--status-error-text)" : log.level === "warn" ? "var(--status-warning-text)" : log.level === "debug" ? "var(--text-muted)" : "var(--status-info-text)"
                 }`,
                 background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
               }}
             >
-              <span style={{ color: "#6b7280", width: 80, flexShrink: 0 }}>
+              <span style={{ color: "var(--text-muted)", width: 80, flexShrink: 0 }}>
                 {new Date(log.timestamp).toLocaleTimeString()}
               </span>
               <span
@@ -1429,20 +1432,20 @@ function PipelineLogsPanel({
                   fontWeight: 600,
                   color:
                     log.level === "error"
-                      ? "#fca5a5"
+                      ? "var(--terminal-error-text)"
                       : log.level === "warn"
-                      ? "#fcd34d"
+                      ? "var(--terminal-warning-text)"
                       : log.level === "debug"
-                      ? "#9ca3af"
-                      : "#93c5fd",
+                      ? "var(--text-placeholder)"
+                      : "var(--terminal-info-text)",
                 }}
               >
                 {log.level.toUpperCase()}
               </span>
-              <span style={{ color: "#e5e7eb", flex: 1 }}>
+              <span style={{ color: "var(--text-on-dark)", flex: 1 }}>
                 {log.message}
                 {log.data && (
-                  <span style={{ color: "#9ca3af", marginLeft: 8 }}>
+                  <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
                     {typeof log.data === "object" ? JSON.stringify(log.data) : String(log.data)}
                   </span>
                 )}
@@ -1454,7 +1457,7 @@ function PipelineLogsPanel({
 
       {/* Error message if present */}
       {result.error && (
-        <div style={{ padding: "8px 16px", background: "#7f1d1d", color: "#fca5a5", fontSize: 12 }}>
+        <div style={{ padding: "8px 16px", background: "var(--terminal-error-bg)", color: "var(--terminal-error-text)", fontSize: 12 }}>
           Error: {result.error}
         </div>
       )}
@@ -1464,10 +1467,10 @@ function PipelineLogsPanel({
 
 // Log Level Colors
 const LOG_LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
-  info: { bg: "#dbeafe", text: "#2563eb" },
-  warn: { bg: "#fef3c7", text: "#d97706" },
-  error: { bg: "#fee2e2", text: "#dc2626" },
-  debug: { bg: "#f3f4f6", text: "#6b7280" },
+  info: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)" },
+  warn: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
+  error: { bg: "var(--status-error-bg)", text: "var(--status-error-text)" },
+  debug: { bg: "var(--surface-secondary)", text: "var(--text-muted)" },
 };
 
 // Get logging level from localStorage
@@ -1734,9 +1737,9 @@ function CallsSection({
 
   if (calls.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📞</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No calls yet</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No calls yet</div>
       </div>
     );
   }
@@ -1759,11 +1762,11 @@ function CallsSection({
             (result.data.scoresCreated || 0) + (result.data.agentMeasurements || 0) === 0;
 
           const colors: Record<PipelineStatus | "warning", { bg: string; text: string; border: string }> = {
-            ready: { bg: "#dbeafe", text: "#2563eb", border: "#93c5fd" },
-            running: { bg: "#fef3c7", text: "#d97706", border: "#fcd34d" },
-            success: { bg: "#dcfce7", text: "#16a34a", border: "#86efac" },
-            error: { bg: "#fee2e2", text: "#dc2626", border: "#fca5a5" },
-            warning: { bg: "#fef3c7", text: "#b45309", border: "#fcd34d" }, // Amber for zero results
+            ready: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", border: "var(--status-info-border)" },
+            running: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", border: "var(--status-warning-border)" },
+            success: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", border: "var(--status-success-border)" },
+            error: { bg: "var(--status-error-bg)", text: "var(--status-error-text)", border: "var(--status-error-border)" },
+            warning: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", border: "var(--status-warning-border)" }, // Amber for zero results
           };
 
           if (status === "success" && isZeroResults) {
@@ -1773,14 +1776,14 @@ function CallsSection({
         };
 
         return (
-          <div key={call.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+          <div key={call.id} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
             <div
               style={{
                 padding: "12px 16px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                background: isExpanded ? "#f9fafb" : "#fff",
+                background: isExpanded ? "var(--background)" : "var(--surface-primary)",
               }}
             >
               {/* Left: Call info */}
@@ -1800,9 +1803,9 @@ function CallsSection({
                 <span style={{ fontSize: 14 }}>📞</span>
                 <span style={{ fontSize: 14, fontWeight: 500 }}>{call.source}</span>
                 {call.externalId && (
-                  <span style={{ fontSize: 11, color: "#9ca3af", fontFamily: "monospace" }}>{call.externalId}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-placeholder)", fontFamily: "monospace" }}>{call.externalId}</span>
                 )}
-                <span style={{ fontSize: 12, color: "#6b7280" }}>{new Date(call.createdAt).toLocaleString()}</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(call.createdAt).toLocaleString()}</span>
               </button>
 
               {/* Right: Prep + Prompt buttons + Logs */}
@@ -1861,8 +1864,8 @@ function CallsSection({
                     fontWeight: 600,
                     ...getStatusStyle(callPipelineStatus.prompt, "prompt"),
                     border: callPipelineStatus.prompt === "ready" ? "none" : `1px solid ${getStatusStyle(callPipelineStatus.prompt, "prompt").border}`,
-                    background: callPipelineStatus.prompt === "ready" ? "#4f46e5" : getStatusStyle(callPipelineStatus.prompt, "prompt").bg,
-                    color: callPipelineStatus.prompt === "ready" ? "#fff" : getStatusStyle(callPipelineStatus.prompt, "prompt").text,
+                    background: callPipelineStatus.prompt === "ready" ? "var(--button-primary-bg)" : getStatusStyle(callPipelineStatus.prompt, "prompt").bg,
+                    color: callPipelineStatus.prompt === "ready" ? "var(--text-on-dark)" : getStatusStyle(callPipelineStatus.prompt, "prompt").text,
                     borderRadius: 4,
                     cursor: isRunningOnThisCall || bulkRunning ? "not-allowed" : "pointer",
                     display: "flex",
@@ -1897,9 +1900,9 @@ function CallsSection({
                       padding: "3px 8px",
                       fontSize: 10,
                       fontWeight: 600,
-                      background: showingLogs ? "#1f2937" : "#f3f4f6",
-                      color: showingLogs ? "#fff" : "#6b7280",
-                      border: "1px solid #e5e7eb",
+                      background: showingLogs ? "var(--surface-dark)" : "var(--surface-secondary)",
+                      color: showingLogs ? "var(--text-on-dark)" : "var(--text-muted)",
+                      border: "1px solid var(--border-default)",
                       borderRadius: 4,
                       cursor: "pointer",
                       display: "flex",
@@ -1919,7 +1922,7 @@ function CallsSection({
                     border: "none",
                     cursor: "pointer",
                     padding: "4px 8px",
-                    color: "#9ca3af",
+                    color: "var(--text-placeholder)",
                   }}
                 >
                   {isExpanded ? "▼" : "▶"}
@@ -1964,8 +1967,8 @@ function CallDetailPanel({
 
   if (loading) {
     return (
-      <div style={{ padding: 24, borderTop: "1px solid #e5e7eb", background: "#fafafa", textAlign: "center" }}>
-        <div style={{ color: "#6b7280", fontSize: 13 }}>Loading analysis data...</div>
+      <div style={{ padding: 24, borderTop: "1px solid var(--border-default)", background: "var(--background)", textAlign: "center" }}>
+        <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading analysis data...</div>
       </div>
     );
   }
@@ -1992,9 +1995,9 @@ function CallDetailPanel({
   ];
 
   return (
-    <div style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+    <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
       {/* Tabs - matching header tab styling */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e5e7eb", background: "#fff", paddingBottom: 0 }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-default)", background: "var(--surface-primary)", paddingBottom: 0 }}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -2008,9 +2011,9 @@ function CallDetailPanel({
                 background: "none",
                 fontSize: 13,
                 fontWeight: isActive ? 600 : 400,
-                color: isActive ? "#4f46e5" : "#6b7280",
+                color: isActive ? "var(--button-primary-bg)" : "var(--text-muted)",
                 cursor: "pointer",
-                borderBottom: isActive ? "2px solid #4f46e5" : "2px solid transparent",
+                borderBottom: isActive ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
                 marginBottom: -1,
                 display: "flex",
                 alignItems: "center",
@@ -2024,8 +2027,8 @@ function CallDetailPanel({
                 <span
                   style={{
                     fontSize: 10,
-                    background: isActive ? "#e0e7ff" : "#f3f4f6",
-                    color: isActive ? "#4f46e5" : "#6b7280",
+                    background: isActive ? "var(--status-info-bg)" : "var(--surface-secondary)",
+                    color: isActive ? "var(--button-primary-bg)" : "var(--text-muted)",
                     padding: "1px 5px",
                     borderRadius: 10,
                   }}
@@ -2040,12 +2043,12 @@ function CallDetailPanel({
         {/* Reward score badge */}
         {rewardScore && (
           <div style={{ marginLeft: "auto", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: "#6b7280" }}>Reward:</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Reward:</span>
             <span
               style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: rewardScore.overallScore >= 0.7 ? "#10b981" : rewardScore.overallScore >= 0.4 ? "#f59e0b" : "#ef4444",
+                color: rewardScore.overallScore >= 0.7 ? "var(--status-success-text)" : rewardScore.overallScore >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
               }}
             >
               {(rewardScore.overallScore * 100).toFixed(0)}%
@@ -2094,7 +2097,7 @@ function PromptTab({ prompts }: { prompts: any[] }) {
 
   if (prompts.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
         No prompt generated after this call. Run the Prompt pipeline step to generate one.
       </div>
     );
@@ -2108,9 +2111,9 @@ function PromptTab({ prompts }: { prompts: any[] }) {
           <div
             key={prompt.id}
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 8,
-              border: "1px solid #e5e7eb",
+              border: "1px solid var(--border-default)",
               overflow: "hidden",
             }}
           >
@@ -2123,7 +2126,7 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                 alignItems: "center",
                 justifyContent: "space-between",
                 cursor: "pointer",
-                borderBottom: isExpanded ? "1px solid #e5e7eb" : "none",
+                borderBottom: isExpanded ? "1px solid var(--border-default)" : "none",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2131,28 +2134,28 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                   style={{
                     fontSize: 10,
                     padding: "2px 8px",
-                    background: prompt.status === "SUCCESS" ? "#dcfce7" : "#fef3c7",
-                    color: prompt.status === "SUCCESS" ? "#166534" : "#92400e",
+                    background: prompt.status === "SUCCESS" ? "var(--status-success-bg)" : "var(--status-warning-bg)",
+                    color: prompt.status === "SUCCESS" ? "var(--status-success-text)" : "var(--status-warning-text)",
                     borderRadius: 4,
                     fontWeight: 500,
                   }}
                 >
                   {prompt.status || "COMPOSED"}
                 </span>
-                <span style={{ fontSize: 12, color: "#6b7280" }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   {new Date(prompt.composedAt).toLocaleString()}
                 </span>
                 {prompt.model && (
-                  <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>
                     via {prompt.model}
                   </span>
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>
                   {prompt.prompt?.length || 0} chars
                 </span>
-                <span style={{ color: "#6b7280" }}>{isExpanded ? "▼" : "▶"}</span>
+                <span style={{ color: "var(--text-muted)" }}>{isExpanded ? "▼" : "▶"}</span>
               </div>
             </div>
 
@@ -2162,8 +2165,8 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                 {/* Prompt text */}
                 <div
                   style={{
-                    background: "#1f2937",
-                    color: "#f3f4f6",
+                    background: "var(--surface-dark)",
+                    color: "var(--text-on-dark)",
                     padding: 12,
                     borderRadius: 6,
                     fontSize: 13,
@@ -2172,7 +2175,7 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                     fontFamily: "monospace",
                     maxHeight: 400,
                     overflowY: "auto",
-                    border: "1px solid #374151",
+                    border: "1px solid var(--border-dark)",
                   }}
                 >
                   {prompt.prompt || "No prompt content"}
@@ -2181,14 +2184,14 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                 {/* Inputs used */}
                 {prompt.inputs && Object.keys(prompt.inputs).length > 0 && (
                   <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
                       Inputs Used:
                     </div>
-                    <div style={{ fontSize: 11, color: "#4b5563" }}>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                       {Object.entries(prompt.inputs).map(([key, value]) => (
                         <div key={key} style={{ marginBottom: 2 }}>
                           <span style={{ fontWeight: 500 }}>{key}:</span>{" "}
-                          <span style={{ color: "#6b7280" }}>
+                          <span style={{ color: "var(--text-muted)" }}>
                             {typeof value === "object" ? JSON.stringify(value).slice(0, 100) : String(value).slice(0, 100)}
                             {String(value).length > 100 ? "..." : ""}
                           </span>
@@ -2208,7 +2211,7 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                     style={{
                       padding: "6px 12px",
                       fontSize: 12,
-                      background: "#4f46e5",
+                      background: "var(--button-primary-bg)",
                       color: "white",
                       border: "none",
                       borderRadius: 6,
@@ -2235,7 +2238,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
   if (prompts.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
         No prompt generated after this call. Run the Prompt pipeline step to generate one.
       </div>
     );
@@ -2254,31 +2257,31 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
             style={{
               fontSize: 10,
               padding: "2px 8px",
-              background: latestPrompt.status === "SUCCESS" ? "#dcfce7" : "#fef3c7",
-              color: latestPrompt.status === "SUCCESS" ? "#166534" : "#92400e",
+              background: latestPrompt.status === "SUCCESS" ? "var(--status-success-bg)" : "var(--status-warning-bg)",
+              color: latestPrompt.status === "SUCCESS" ? "var(--status-success-text)" : "var(--status-warning-text)",
               borderRadius: 4,
               fontWeight: 500,
             }}
           >
             {latestPrompt.status || "COMPOSED"}
           </span>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
             {new Date(latestPrompt.composedAt).toLocaleString()}
           </span>
           {latestPrompt.model && (
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>via {latestPrompt.model}</span>
+            <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>via {latestPrompt.model}</span>
           )}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
             <button
               onClick={() => setViewMode("human")}
               style={{
                 padding: "6px 12px",
                 fontSize: 11,
                 fontWeight: 500,
-                background: viewMode === "human" ? "#4f46e5" : "#fff",
-                color: viewMode === "human" ? "#fff" : "#374151",
+                background: viewMode === "human" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                color: viewMode === "human" ? "var(--text-on-dark)" : "var(--text-secondary)",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -2291,8 +2294,8 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                 padding: "6px 12px",
                 fontSize: 11,
                 fontWeight: 500,
-                background: viewMode === "llm" ? "#4f46e5" : "#fff",
-                color: viewMode === "llm" ? "#fff" : "#374151",
+                background: viewMode === "llm" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                color: viewMode === "llm" ? "var(--text-on-dark)" : "var(--text-secondary)",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -2308,8 +2311,8 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div
             style={{
-              background: "#1f2937",
-              color: "#f3f4f6",
+              background: "var(--surface-dark)",
+              color: "var(--text-on-dark)",
               padding: 16,
               borderRadius: 8,
               fontSize: 13,
@@ -2318,7 +2321,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
               fontFamily: "ui-monospace, monospace",
               maxHeight: 400,
               overflowY: "auto",
-              border: "1px solid #374151",
+              border: "1px solid var(--border-dark)",
             }}
           >
             {latestPrompt.prompt || "No prompt content"}
@@ -2326,11 +2329,11 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
           {/* Inputs used */}
           {inputs && Object.keys(inputs).length > 0 && (
-            <div style={{ padding: 12, background: "#fefce8", borderRadius: 8, border: "1px solid #fde68a" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>
+            <div style={{ padding: 12, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8 }}>
                 Composition Inputs
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, color: "#78350f" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, color: "var(--status-warning-text)" }}>
                 {inputs.memoriesCount !== undefined && <span>Memories: {inputs.memoriesCount}</span>}
                 {inputs.personalityAvailable !== undefined && <span>Personality: {inputs.personalityAvailable ? "Yes" : "No"}</span>}
                 {inputs.recentCallsCount !== undefined && <span>Recent Calls: {inputs.recentCallsCount}</span>}
@@ -2348,7 +2351,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
             style={{
               padding: "8px 16px",
               fontSize: 12,
-              background: "#4f46e5",
+              background: "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 6,
@@ -2365,23 +2368,23 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
       {viewMode === "llm" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {!llm ? (
-            <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", background: "#f9fafb", borderRadius: 8 }}>
+            <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", background: "var(--background)", borderRadius: 8 }}>
               No LLM-friendly JSON available for this prompt.
             </div>
           ) : (
             <>
               {/* Pretty/Raw Toggle */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "#6b7280" }}>Structured JSON for AI agent consumption</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Structured JSON for AI agent consumption</span>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                  <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
                     <button
                       onClick={() => setLlmViewMode("pretty")}
                       style={{
                         padding: "4px 10px",
                         fontSize: 11,
-                        background: llmViewMode === "pretty" ? "#4f46e5" : "#fff",
-                        color: llmViewMode === "pretty" ? "#fff" : "#374151",
+                        background: llmViewMode === "pretty" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                        color: llmViewMode === "pretty" ? "var(--text-on-dark)" : "var(--text-secondary)",
                         border: "none",
                         cursor: "pointer",
                       }}
@@ -2393,8 +2396,8 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                       style={{
                         padding: "4px 10px",
                         fontSize: 11,
-                        background: llmViewMode === "raw" ? "#4f46e5" : "#fff",
-                        color: llmViewMode === "raw" ? "#fff" : "#374151",
+                        background: llmViewMode === "raw" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                        color: llmViewMode === "raw" ? "var(--text-on-dark)" : "var(--text-secondary)",
                         border: "none",
                         cursor: "pointer",
                       }}
@@ -2409,9 +2412,9 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                     }}
                     style={{
                       padding: "4px 10px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #e5e7eb",
+                      background: "var(--surface-secondary)",
+                      color: "var(--text-secondary)",
+                      border: "1px solid var(--border-default)",
                       borderRadius: 6,
                       fontSize: 11,
                       cursor: "pointer",
@@ -2425,8 +2428,8 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
               {llmViewMode === "raw" ? (
                 <div
                   style={{
-                    background: "#1f2937",
-                    color: "#a5f3fc",
+                    background: "var(--surface-dark)",
+                    color: "var(--text-on-dark-muted)",
                     padding: 16,
                     borderRadius: 8,
                     fontSize: 12,
@@ -2434,7 +2437,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                     whiteSpace: "pre-wrap",
                     maxHeight: 500,
                     overflowY: "auto",
-                    border: "1px solid #374151",
+                    border: "1px solid var(--border-dark)",
                   }}
                 >
                   {JSON.stringify(llm, null, 2)}
@@ -2443,14 +2446,14 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {/* Memories */}
                   {llm.memories && llm.memories.totalCount > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
-                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#0891b2" }}>
+                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--badge-cyan-text)" }}>
                         💭 Memories ({llm.memories.totalCount})
                       </h4>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {llm.memories.byCategory && Object.entries(llm.memories.byCategory).slice(0, 3).map(([category, items]: [string, any]) => (
                           <div key={category}>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "#6b7280", marginBottom: 4 }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "var(--text-muted)", marginBottom: 4 }}>
                               {category}
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -2459,7 +2462,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                                   key={i}
                                   style={{
                                     padding: 6,
-                                    background: CATEGORY_COLORS[category]?.bg || "#f3f4f6",
+                                    background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
                                     borderRadius: 4,
                                     fontSize: 11,
                                   }}
@@ -2476,8 +2479,8 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
                   {/* Behavior Targets */}
                   {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
-                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#059669" }}>
+                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--status-success-text)" }}>
                         🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
                       </h4>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
@@ -2486,7 +2489,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                             key={i}
                             style={{
                               padding: 8,
-                              background: t.targetLevel === "HIGH" ? "#dcfce7" : t.targetLevel === "LOW" ? "#fef2f2" : "#f3f4f6",
+                              background: t.targetLevel === "HIGH" ? "var(--status-success-bg)" : t.targetLevel === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
                               borderRadius: 4,
                             }}
                           >
@@ -2495,7 +2498,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                               style={{
                                 fontSize: 12,
                                 fontWeight: 700,
-                                color: t.targetLevel === "HIGH" ? "#16a34a" : t.targetLevel === "LOW" ? "#dc2626" : "#6b7280",
+                                color: t.targetLevel === "HIGH" ? "var(--status-success-text)" : t.targetLevel === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
                               }}
                             >
                               {t.targetLevel}
@@ -2508,11 +2511,11 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
                   {/* AI Instructions */}
                   {llm.instructions && (
-                    <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: 12 }}>
-                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#92400e" }}>
+                    <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 8, padding: 12 }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--status-warning-text)" }}>
                         📋 AI Instructions
                       </h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "#78350f" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "var(--status-warning-text)" }}>
                         {llm.instructions.use_memories && (
                           <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
                         )}
@@ -2543,37 +2546,37 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 function PersonalityObservationTab({ observation }: { observation: any }) {
   if (!observation) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
         No personality observation for this call. Run the Personality analysis to generate one.
       </div>
     );
   }
 
   const traits = [
-    { key: "openness", label: "Openness", color: "#3b82f6", desc: "Curiosity, creativity, openness to new experiences" },
-    { key: "conscientiousness", label: "Conscientiousness", color: "#10b981", desc: "Organization, dependability, self-discipline" },
-    { key: "extraversion", label: "Extraversion", color: "#f59e0b", desc: "Sociability, assertiveness, positive emotions" },
-    { key: "agreeableness", label: "Agreeableness", color: "#ec4899", desc: "Cooperation, trust, helpfulness" },
-    { key: "neuroticism", label: "Neuroticism", color: "#8b5cf6", desc: "Emotional instability, anxiety, moodiness" },
+    { key: "openness", label: "Openness", color: "var(--trait-openness)", desc: "Curiosity, creativity, openness to new experiences" },
+    { key: "conscientiousness", label: "Conscientiousness", color: "var(--trait-conscientiousness)", desc: "Organization, dependability, self-discipline" },
+    { key: "extraversion", label: "Extraversion", color: "var(--trait-extraversion)", desc: "Sociability, assertiveness, positive emotions" },
+    { key: "agreeableness", label: "Agreeableness", color: "var(--trait-agreeableness)", desc: "Cooperation, trust, helpfulness" },
+    { key: "neuroticism", label: "Neuroticism", color: "var(--trait-neuroticism)", desc: "Emotional instability, anxiety, moodiness" },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Header with confidence and metadata */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Personality Observation</div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
             Observed {new Date(observation.observedAt).toLocaleString()}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: "#6b7280" }}>Confidence</div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Confidence</div>
           <div
             style={{
               fontSize: 18,
               fontWeight: 700,
-              color: observation.confidence >= 0.7 ? "#10b981" : observation.confidence >= 0.4 ? "#f59e0b" : "#ef4444",
+              color: observation.confidence >= 0.7 ? "var(--status-success-text)" : observation.confidence >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
             }}
           >
             {(observation.confidence * 100).toFixed(0)}%
@@ -2582,8 +2585,8 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
       </div>
 
       {/* Trait scores */}
-      <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 12 }}>Big Five Traits</div>
+      <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", padding: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>Big Five Traits</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {traits.map((trait) => {
             const value = observation[trait.key];
@@ -2593,21 +2596,21 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
               <div key={trait.key}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <div>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{trait.label}</span>
-                    <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 8 }}>{trait.desc}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{trait.label}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: 8 }}>{trait.desc}</span>
                   </div>
                   <span
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
-                      color: value >= 0.7 ? "#10b981" : value >= 0.3 ? "#f59e0b" : "#6b7280",
+                      color: value >= 0.7 ? "var(--status-success-text)" : value >= 0.3 ? "var(--status-warning-text)" : "var(--text-muted)",
                     }}
                   >
                     {(value * 100).toFixed(0)}%
                   </span>
                 </div>
                 {/* Progress bar */}
-                <div style={{ height: 8, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ height: 8, background: "var(--surface-secondary)", borderRadius: 4, overflow: "hidden" }}>
                   <div
                     style={{
                       height: "100%",
@@ -2626,7 +2629,7 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
 
       {/* Decay factor info */}
       {observation.decayFactor !== undefined && observation.decayFactor < 1 && (
-        <div style={{ fontSize: 11, color: "#9ca3af", display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ fontSize: 11, color: "var(--text-placeholder)", display: "flex", alignItems: "center", gap: 6 }}>
           <span>Decay factor:</span>
           <span style={{ fontWeight: 500 }}>{observation.decayFactor.toFixed(2)}</span>
           <span>(older observations have less weight)</span>
@@ -2643,7 +2646,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
 
   if (prompts.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
         No prompt composition data available. Run the Prompt pipeline step to generate one.
       </div>
     );
@@ -2678,8 +2681,8 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      borderBottom: "1px solid #e5e7eb",
-      background: "#f9fafb",
+      borderBottom: "1px solid var(--border-default)",
+      background: "var(--background)",
     },
     content: {
       padding: 12,
@@ -2691,20 +2694,20 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Format Toggle */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-        <div style={{ fontSize: 12, color: "#6b7280" }}>Prompt Format:</div>
-        <div style={{ display: "flex", gap: 4, background: "#f3f4f6", borderRadius: 6, padding: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Prompt Format:</div>
+        <div style={{ display: "flex", gap: 4, background: "var(--surface-secondary)", borderRadius: 6, padding: 2 }}>
           <button
             onClick={() => setViewMode("human")}
             style={{
               padding: "6px 12px",
               fontSize: 11,
               fontWeight: 500,
-              background: viewMode === "human" ? "#fff" : "transparent",
+              background: viewMode === "human" ? "var(--surface-primary)" : "transparent",
               border: "none",
               borderRadius: 4,
               cursor: "pointer",
-              color: viewMode === "human" ? "#4f46e5" : "#6b7280",
+              color: viewMode === "human" ? "var(--button-primary-bg)" : "var(--text-muted)",
               boxShadow: viewMode === "human" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
             }}
           >
@@ -2716,11 +2719,11 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               padding: "6px 12px",
               fontSize: 11,
               fontWeight: 500,
-              background: viewMode === "llm" ? "#fff" : "transparent",
+              background: viewMode === "llm" ? "var(--surface-primary)" : "transparent",
               border: "none",
               borderRadius: 4,
               cursor: "pointer",
-              color: viewMode === "llm" ? "#10b981" : "#6b7280",
+              color: viewMode === "llm" ? "var(--status-success-text)" : "var(--text-muted)",
               boxShadow: viewMode === "llm" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
             }}
           >
@@ -2736,11 +2739,11 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
             <>
               {/* Instructions Summary */}
               {llmPrompt.instructions && (
-                <div style={{ background: "#ecfdf5", borderRadius: 8, border: "1px solid #10b981", padding: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#059669", textTransform: "uppercase", marginBottom: 8 }}>
+                <div style={{ background: "var(--status-success-bg)", borderRadius: 8, border: "1px solid var(--status-success-border)", padding: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-success-text)", textTransform: "uppercase", marginBottom: 8 }}>
                     AI Instructions
                   </div>
-                  <div style={{ fontSize: 12, color: "#065f46" }}>
+                  <div style={{ fontSize: 12, color: "var(--status-success-text)" }}>
                     <div style={{ marginBottom: 6 }}><strong>Memories:</strong> {llmPrompt.instructions.use_memories}</div>
                     <div style={{ marginBottom: 6 }}><strong>Preferences:</strong> {llmPrompt.instructions.use_preferences}</div>
                     <div style={{ marginBottom: 6 }}><strong>Topics:</strong> {llmPrompt.instructions.use_topics}</div>
@@ -2759,17 +2762,17 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               )}
 
               {/* Caller Data */}
-              <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-caller" ? null : "llm-caller")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Caller Data</span>
-                  <span style={{ color: "#6b7280" }}>{expandedSection === "llm-caller" ? "−" : "+"}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Caller Data</span>
+                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-caller" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-caller" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.caller, null, 2)}
                     </pre>
                   </div>
@@ -2778,17 +2781,17 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
 
               {/* Personality */}
               {llmPrompt.personality && (
-                <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+                <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
                   <div
                     onClick={() => setExpandedSection(expandedSection === "llm-personality" ? null : "llm-personality")}
                     style={sectionStyles.header as any}
                   >
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Personality Profile</span>
-                    <span style={{ color: "#6b7280" }}>{expandedSection === "llm-personality" ? "−" : "+"}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Personality Profile</span>
+                    <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-personality" ? "−" : "+"}</span>
                   </div>
                   {expandedSection === "llm-personality" && (
                     <div style={sectionStyles.content}>
-                      <pre style={{ margin: 0, fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+                      <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
                         {JSON.stringify(llmPrompt.personality, null, 2)}
                       </pre>
                     </div>
@@ -2797,19 +2800,19 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               )}
 
               {/* Memories */}
-              <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-memories" ? null : "llm-memories")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
                     Memories ({llmPrompt.memories?.totalCount || 0})
                   </span>
-                  <span style={{ color: "#6b7280" }}>{expandedSection === "llm-memories" ? "−" : "+"}</span>
+                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-memories" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-memories" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.memories, null, 2)}
                     </pre>
                   </div>
@@ -2817,19 +2820,19 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
 
               {/* Behavior Targets */}
-              <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-targets" ? null : "llm-targets")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
                     Behavior Targets ({llmPrompt.behaviorTargets?.totalCount || 0})
                   </span>
-                  <span style={{ color: "#6b7280" }}>{expandedSection === "llm-targets" ? "−" : "+"}</span>
+                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-targets" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-targets" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.behaviorTargets, null, 2)}
                     </pre>
                   </div>
@@ -2837,19 +2840,19 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
 
               {/* Call History */}
-              <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-history" ? null : "llm-history")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
                     Call History ({llmPrompt.callHistory?.totalCalls || 0})
                   </span>
-                  <span style={{ color: "#6b7280" }}>{expandedSection === "llm-history" ? "−" : "+"}</span>
+                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-history" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-history" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.callHistory, null, 2)}
                     </pre>
                   </div>
@@ -2857,12 +2860,12 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
 
               {/* Full JSON */}
-              <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-full" ? null : "llm-full")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Full LLM Prompt JSON</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Full LLM Prompt JSON</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <button
                       onClick={(e) => {
@@ -2873,7 +2876,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                       style={{
                         padding: "4px 8px",
                         fontSize: 10,
-                        background: "#10b981",
+                        background: "var(--button-success-bg)",
                         color: "white",
                         border: "none",
                         borderRadius: 4,
@@ -2882,7 +2885,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                     >
                       Copy JSON
                     </button>
-                    <span style={{ color: "#6b7280" }}>{expandedSection === "llm-full" ? "−" : "+"}</span>
+                    <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-full" ? "−" : "+"}</span>
                   </div>
                 </div>
                 {expandedSection === "llm-full" && (
@@ -2890,8 +2893,8 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                     <pre style={{
                       margin: 0,
                       fontSize: 10,
-                      color: "#f3f4f6",
-                      background: "#1f2937",
+                      color: "var(--text-on-dark)",
+                      background: "var(--surface-dark)",
                       padding: 12,
                       borderRadius: 6,
                       whiteSpace: "pre-wrap",
@@ -2905,7 +2908,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
             </>
           ) : (
-            <div style={{ textAlign: "center", padding: 40, color: "#9ca3af", background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)", background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
               <div style={{ fontSize: 14, marginBottom: 8 }}>No LLM-friendly prompt available</div>
               <div style={{ fontSize: 12 }}>Re-compose the prompt to generate the JSON version</div>
             </div>
@@ -2915,48 +2918,48 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
         // Human-Readable View (original)
         <>
           {/* Summary stats */}
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", padding: 12, background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", padding: 12, background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
             <div>
-              <div style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>Memories</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#111827" }}>{inputs.memoriesCount || 0}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Memories</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{inputs.memoriesCount || 0}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>Recent Calls</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#111827" }}>{inputs.recentCallsCount || 0}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Recent Calls</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{inputs.recentCallsCount || 0}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>Behavior Targets</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#111827" }}>{inputs.behaviorTargetsCount || 0}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Behavior Targets</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{inputs.behaviorTargetsCount || 0}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>Personality</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: inputs.personalityAvailable ? "#10b981" : "#ef4444" }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Personality</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: inputs.personalityAvailable ? "var(--status-success-text)" : "var(--status-error-text)" }}>
                 {inputs.personalityAvailable ? "Yes" : "No"}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>Spec Used</div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "#4f46e5" }}>{inputs.specUsed || "defaults"}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Spec Used</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: "var(--button-primary-bg)" }}>{inputs.specUsed || "defaults"}</div>
             </div>
           </div>
 
           {/* Spec Config */}
           {inputs.specConfig && (
-            <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+            <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
               <div
                 onClick={() => setExpandedSection(expandedSection === "config" ? null : "config")}
                 style={sectionStyles.header as any}
               >
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Spec Configuration</span>
-                <span style={{ color: "#6b7280" }}>{expandedSection === "config" ? "−" : "+"}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Spec Configuration</span>
+                <span style={{ color: "var(--text-muted)" }}>{expandedSection === "config" ? "−" : "+"}</span>
               </div>
               {expandedSection === "config" && (
                 <div style={sectionStyles.content}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
                     {Object.entries(inputs.specConfig).map(([key, value]) => (
                       <div key={key}>
-                        <div style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>{key}</div>
-                        <div style={{ fontSize: 13, color: "#111827" }}>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>{key}</div>
+                        <div style={{ fontSize: 13, color: "var(--text-primary)" }}>
                           {typeof value === "object" ? JSON.stringify(value) : String(value)}
                         </div>
                       </div>
@@ -2969,15 +2972,15 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
 
           {/* Caller Context Sections */}
           {Object.entries(sections).map(([sectionName, lines]) => (
-            <div key={sectionName} style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+            <div key={sectionName} style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
               <div
                 onClick={() => setExpandedSection(expandedSection === sectionName ? null : sectionName)}
                 style={sectionStyles.header as any}
               >
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{sectionName}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{sectionName}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "#9ca3af" }}>{lines.length} items</span>
-                  <span style={{ color: "#6b7280" }}>{expandedSection === sectionName ? "−" : "+"}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>{lines.length} items</span>
+                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === sectionName ? "−" : "+"}</span>
                 </div>
               </div>
               {expandedSection === sectionName && (
@@ -2985,13 +2988,13 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                   {lines.length > 0 ? (
                     <ul style={{ margin: 0, paddingLeft: 20 }}>
                       {lines.map((line, i) => (
-                        <li key={i} style={{ marginBottom: 4, color: "#374151" }}>
+                        <li key={i} style={{ marginBottom: 4, color: "var(--text-secondary)" }}>
                           {line.replace(/^- /, "")}
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <div style={{ color: "#9ca3af", fontStyle: "italic" }}>No data</div>
+                    <div style={{ color: "var(--text-placeholder)", fontStyle: "italic" }}>No data</div>
                   )}
                 </div>
               )}
@@ -2999,19 +3002,19 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
           ))}
 
           {/* Raw Context (collapsed by default) */}
-          <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+          <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
             <div
               onClick={() => setExpandedSection(expandedSection === "raw" ? null : "raw")}
               style={sectionStyles.header as any}
             >
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Raw Context</span>
-              <span style={{ color: "#6b7280" }}>{expandedSection === "raw" ? "−" : "+"}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Raw Context</span>
+              <span style={{ color: "var(--text-muted)" }}>{expandedSection === "raw" ? "−" : "+"}</span>
             </div>
             {expandedSection === "raw" && (
               <div style={sectionStyles.content}>
                 <pre style={{
-                  background: "#1f2937",
-                  color: "#f3f4f6",
+                  background: "var(--surface-dark)",
+                  color: "var(--text-on-dark)",
                   padding: 12,
                   borderRadius: 6,
                   fontSize: 11,
@@ -3030,7 +3033,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
       )}
 
       {/* Timestamp */}
-      <div style={{ fontSize: 11, color: "#9ca3af", textAlign: "right" }}>
+      <div style={{ fontSize: 11, color: "var(--text-placeholder)", textAlign: "right" }}>
         Composed: {latestPrompt.composedAt ? new Date(latestPrompt.composedAt).toLocaleString() : "Unknown"}
       </div>
     </div>
@@ -3053,10 +3056,10 @@ function TwoColumnTargetsDisplay({
   const measurementMap = new Map(measurements.map((m: any) => [m.parameterId, m.actualValue]));
 
   const scopeColors: Record<string, { bg: string; text: string }> = {
-    SYSTEM: { bg: "#f3f4f6", text: "#6b7280" },
-    PLAYBOOK: { bg: "#e0e7ff", text: "#4f46e5" },
-    SEGMENT: { bg: "#fef3c7", text: "#d97706" },
-    CALLER: { bg: "#dcfce7", text: "#16a34a" },
+    SYSTEM: { bg: "var(--surface-secondary)", text: "var(--text-muted)" },
+    PLAYBOOK: { bg: "var(--status-info-bg)", text: "var(--button-primary-bg)" },
+    SEGMENT: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
+    CALLER: { bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
   };
 
   // Group targets by domainGroup
@@ -3079,20 +3082,24 @@ function TwoColumnTargetsDisplay({
     const targetValue = target.targetValue;
     const delta = actual !== undefined ? actual - targetValue : null;
 
-    // Determine colors based on scope
-    const scopeColor = scopeColors[target.effectiveScope]?.text || "#6b7280";
-    const glowColor = scopeColor;
-
-    // Calculate gradient color based on value
-    const getGradientForValue = (value: number) => {
-      if (value >= 0.7) {
-        return "linear-gradient(180deg, #10b981 0%, #059669 100%)"; // green
-      } else if (value >= 0.3) {
-        return "linear-gradient(180deg, #f59e0b 0%, #d97706 100%)"; // amber
-      } else {
-        return "linear-gradient(180deg, #ef4444 0%, #dc2626 100%)"; // red
-      }
+    // Map scope to slider colors
+    const getScopeColor = (scope: string) => {
+      const colorMap: Record<string, { primary: string; glow: string }> = {
+        SYSTEM: { primary: "var(--text-placeholder)", glow: "var(--text-muted)" },
+        PLAYBOOK: { primary: "var(--badge-indigo-text)", glow: "var(--button-primary-bg)" },
+        SEGMENT: { primary: "var(--status-warning-border)", glow: "var(--status-warning-text)" },
+        CALLER: { primary: "var(--status-success-text)", glow: "var(--status-success-text)" },
+      };
+      return colorMap[scope] || { primary: "var(--text-placeholder)", glow: "var(--text-muted)" };
     };
+
+    const sliderColor = getScopeColor(target.effectiveScope);
+    const scopeColor = scopeColors[target.effectiveScope]?.text || "var(--text-muted)";
+
+    // Build tooltip text
+    const tooltipText = actual !== undefined
+      ? `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}% (left bar)\nActual: ${(actual * 100).toFixed(0)}% (right bar)\nDelta: ${delta! >= 0 ? "+" : ""}${(delta! * 100).toFixed(0)}%\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`
+      : `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}%\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`;
 
     return (
       <div
@@ -3104,133 +3111,18 @@ function TwoColumnTargetsDisplay({
           position: "relative",
         }}
       >
-        {/* Vertical LED slider */}
-        <div
+        {/* Use shared VerticalSlider component */}
+        <VerticalSlider
+          value={targetValue}
+          secondaryValue={actual}
+          color={sliderColor}
           onClick={() => setExpandedTarget(isExpanded ? null : `${prefix}-${target.parameterId}`)}
-          title={
-            actual !== undefined
-              ? `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}% (left bar)\nActual: ${(actual * 100).toFixed(0)}% (right bar)\nDelta: ${delta! >= 0 ? "+" : ""}${(delta! * 100).toFixed(0)}%\n\nColors: Green (≥70%), Amber (30-70%), Red (<30%)\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`
-              : `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}%\n\nColors: Green (≥70%), Amber (30-70%), Red (<30%)\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`
-          }
-          style={{
-            width: 56,
-            height: 140,
-            background: "#18181b",
-            borderRadius: 8,
-            position: "relative",
-            overflow: "hidden",
-            cursor: "pointer",
-            border: isExpanded ? `2px solid ${scopeColor}` : "2px solid #27272a",
-            boxShadow: isExpanded ? `0 0 12px ${scopeColor}40` : "none",
-            transition: "border-color 0.2s, box-shadow 0.2s",
-          }}
-        >
-          {/* Target value bar */}
-          <div
-            style={{
-              position: "absolute",
-              left: 2,
-              right: actual !== undefined ? "50%" : 2,
-              bottom: 2,
-              height: `${Math.max(2, targetValue * 100)}%`,
-              background: getGradientForValue(targetValue),
-              borderRadius: "2px",
-              transition: "height 0.2s ease-out",
-              boxShadow: `0 0 8px ${scopeColor}40`,
-            }}
-          />
-
-          {/* Actual value bar (if available) */}
-          {actual !== undefined && (
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                right: 2,
-                bottom: 2,
-                height: `${Math.max(2, actual * 100)}%`,
-                background: getGradientForValue(actual),
-                borderRadius: "2px",
-                transition: "height 0.2s ease-out",
-                opacity: 0.85,
-              }}
-            />
-          )}
-
-          {/* LED segments overlay */}
-          {[...Array(10)].map((_, i) => (
-            <div
-              key={i}
-              style={{
-                position: "absolute",
-                left: 2,
-                right: 2,
-                bottom: `${i * 10 + 5}%`,
-                height: 1,
-                background: "#18181b",
-                opacity: 0.5,
-              }}
-            />
-          ))}
-
-          {/* Value labels inside slider */}
-          <div
-            style={{
-              position: "absolute",
-              top: 4,
-              left: 0,
-              right: 0,
-              display: "flex",
-              justifyContent: "center",
-              gap: 4,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#fafafa",
-                textShadow: "0 1px 2px rgba(0,0,0,0.5)",
-              }}
-            >
-              {(targetValue * 100).toFixed(0)}
-            </div>
-            {actual !== undefined && (
-              <>
-                <div style={{ fontSize: 11, color: "#71717a" }}>|</div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "#fafafa",
-                    textShadow: "0 1px 2px rgba(0,0,0,0.5)",
-                  }}
-                >
-                  {(actual * 100).toFixed(0)}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Delta indicator */}
-          {delta !== null && Math.abs(delta) > 0.05 && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 4,
-                left: 0,
-                right: 0,
-                fontSize: 9,
-                fontWeight: 700,
-                color: delta >= 0 ? "#10b981" : "#ef4444",
-                textAlign: "center",
-                textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-              }}
-            >
-              {delta >= 0 ? "+" : ""}{(delta * 100).toFixed(0)}
-            </div>
-          )}
-        </div>
+          isActive={isExpanded}
+          tooltip={tooltipText}
+          width={56}
+          height={140}
+          showGauge={false}
+        />
 
         {/* Label */}
         <div
@@ -3238,7 +3130,7 @@ function TwoColumnTargetsDisplay({
             marginTop: 8,
             fontSize: 9,
             fontWeight: 500,
-            color: isExpanded ? scopeColor : "#71717a",
+            color: isExpanded ? scopeColor : "var(--text-muted)",
             textAlign: "center",
             maxWidth: 70,
             lineHeight: 1.2,
@@ -3269,8 +3161,8 @@ function TwoColumnTargetsDisplay({
             fontSize: 8,
             padding: "1px 4px",
             borderRadius: 3,
-            background: scopeColors[target.effectiveScope]?.bg || "#f3f4f6",
-            color: scopeColors[target.effectiveScope]?.text || "#6b7280",
+            background: scopeColors[target.effectiveScope]?.bg || "var(--surface-secondary)",
+            color: scopeColors[target.effectiveScope]?.text || "var(--text-muted)",
             fontWeight: 500,
             cursor: "help",
           }}
@@ -3287,7 +3179,7 @@ function TwoColumnTargetsDisplay({
               left: "50%",
               transform: "translateX(-50%)",
               marginTop: 8,
-              background: "#fff",
+              background: "var(--surface-primary)",
               border: `2px solid ${scopeColor}`,
               borderRadius: 8,
               padding: 12,
@@ -3296,7 +3188,7 @@ function TwoColumnTargetsDisplay({
               boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
               Layer Cascade
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3308,9 +3200,9 @@ function TwoColumnTargetsDisplay({
                     alignItems: "center",
                     gap: 8,
                     padding: 6,
-                    background: "#f9fafb",
+                    background: "var(--background)",
                     borderRadius: 4,
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid var(--border-default)",
                   }}
                 >
                   <span
@@ -3318,8 +3210,8 @@ function TwoColumnTargetsDisplay({
                       fontSize: 9,
                       padding: "2px 6px",
                       borderRadius: 3,
-                      background: scopeColors[layer.scope]?.bg || "#f3f4f6",
-                      color: scopeColors[layer.scope]?.text || "#6b7280",
+                      background: scopeColors[layer.scope]?.bg || "var(--surface-secondary)",
+                      color: scopeColors[layer.scope]?.text || "var(--text-muted)",
                       fontWeight: 500,
                       minWidth: 60,
                       textAlign: "center",
@@ -3330,11 +3222,11 @@ function TwoColumnTargetsDisplay({
                   <span style={{ fontSize: 13, fontWeight: 600 }}>
                     {(layer.value * 100).toFixed(0)}%
                   </span>
-                  <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                  <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
                     ({layer.source})
                   </span>
                   {idx === target.layers?.length - 1 && (
-                    <span style={{ fontSize: 9, color: "#10b981", fontWeight: 500 }}>
+                    <span style={{ fontSize: 9, color: "var(--status-success-text)", fontWeight: 500 }}>
                       ✓
                     </span>
                   )}
@@ -3344,18 +3236,18 @@ function TwoColumnTargetsDisplay({
 
             {/* Interpretation hints */}
             {(target.parameter?.interpretationHigh || target.parameter?.interpretationLow) && (
-              <div style={{ marginTop: 12, fontSize: 10, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
-                <div style={{ color: "#6b7280", marginBottom: 4, fontWeight: 500 }}>Interpretation:</div>
+              <div style={{ marginTop: 12, fontSize: 10, borderTop: "1px solid var(--border-default)", paddingTop: 8 }}>
+                <div style={{ color: "var(--text-muted)", marginBottom: 4, fontWeight: 500 }}>Interpretation:</div>
                 {target.parameter?.interpretationHigh && (
                   <div style={{ marginBottom: 4 }}>
-                    <span style={{ fontWeight: 500, color: "#10b981" }}>High:</span>{" "}
-                    <span style={{ color: "#6b7280" }}>{target.parameter.interpretationHigh}</span>
+                    <span style={{ fontWeight: 500, color: "var(--status-success-text)" }}>High:</span>{" "}
+                    <span style={{ color: "var(--text-muted)" }}>{target.parameter.interpretationHigh}</span>
                   </div>
                 )}
                 {target.parameter?.interpretationLow && (
                   <div>
-                    <span style={{ fontWeight: 500, color: "#ef4444" }}>Low:</span>{" "}
-                    <span style={{ color: "#6b7280" }}>{target.parameter.interpretationLow}</span>
+                    <span style={{ fontWeight: 500, color: "var(--status-error-text)" }}>Low:</span>{" "}
+                    <span style={{ color: "var(--text-muted)" }}>{target.parameter.interpretationLow}</span>
                   </div>
                 )}
               </div>
@@ -3369,7 +3261,7 @@ function TwoColumnTargetsDisplay({
   const renderColumn = (targets: Record<string, any[]>, prefix: string, emptyMessage: string) => {
     if (Object.keys(targets).length === 0) {
       return (
-        <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+        <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
           {emptyMessage}
         </div>
       );
@@ -3384,7 +3276,7 @@ function TwoColumnTargetsDisplay({
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                color: "#6b7280",
+                color: "var(--text-muted)",
                 textTransform: "uppercase",
                 marginBottom: 12,
                 cursor: "help",
@@ -3412,10 +3304,10 @@ function TwoColumnTargetsDisplay({
 
   if (callerTargets.length === 0 && behaviorTargets.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No behaviour configuration</div>
-        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No behaviour configuration</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           Behaviour is configured via playbook. Personalized adjustments are computed by ADAPT specs after calls.
         </div>
       </div>
@@ -3425,11 +3317,11 @@ function TwoColumnTargetsDisplay({
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 16, padding: "12px 16px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#1e40af", marginBottom: 4 }}>
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "var(--status-info-bg)", border: "1px solid var(--status-info-border)", borderRadius: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 4 }}>
           🤖 Behaviour Configuration
         </div>
-        <div style={{ fontSize: 12, color: "#1e3a8a" }}>
+        <div style={{ fontSize: 12, color: "var(--status-info-text)" }}>
           Defines how the AI agent behaves in conversations with this caller
         </div>
       </div>
@@ -3441,7 +3333,7 @@ function TwoColumnTargetsDisplay({
           display: "flex",
           gap: 12,
           fontSize: 11,
-          color: "#6b7280",
+          color: "var(--text-muted)",
           flexWrap: "wrap",
           marginBottom: 16,
           cursor: "help",
@@ -3462,7 +3354,7 @@ function TwoColumnTargetsDisplay({
             {scope}
           </span>
         ))}
-        <span style={{ color: "#9ca3af" }}>(later overrides earlier)</span>
+        <span style={{ color: "var(--text-placeholder)" }}>(later overrides earlier)</span>
       </div>
 
       {/* Two-column layout */}
@@ -3474,15 +3366,15 @@ function TwoColumnTargetsDisplay({
             style={{
               marginBottom: 12,
               padding: "8px 12px",
-              background: "#dcfce7",
+              background: "var(--status-success-bg)",
               borderRadius: 6,
               cursor: "help",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-success-text)" }}>
               ✨ Personalized Adjustments ({callerTargets.length})
             </div>
-            <div style={{ fontSize: 11, color: "#15803d", marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: "var(--status-success-text)", marginTop: 2 }}>
               How behaviour adapts for this caller
             </div>
           </div>
@@ -3496,15 +3388,15 @@ function TwoColumnTargetsDisplay({
             style={{
               marginBottom: 12,
               padding: "8px 12px",
-              background: "#dbeafe",
+              background: "var(--badge-blue-bg)",
               borderRadius: 6,
               cursor: "help",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-info-text)" }}>
               ⚙️ Base Configuration ({behaviorTargets.length})
             </div>
-            <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: "var(--status-info-text)", marginTop: 2 }}>
               Behaviour baseline from playbook
             </div>
           </div>
@@ -3543,9 +3435,9 @@ function ScoresTab({ scores }: { scores: any[] }) {
       <div
         key={score.id}
         style={{
-          background: "#fff",
+          background: "var(--surface-primary)",
           borderRadius: 8,
-          border: "1px solid #e5e7eb",
+          border: "1px solid var(--border-default)",
           overflow: "hidden",
         }}
       >
@@ -3566,12 +3458,12 @@ function ScoresTab({ scores }: { scores: any[] }) {
               style={{
                 fontSize: 24,
                 fontWeight: 700,
-                color: score.score >= 0.7 ? "#10b981" : score.score >= 0.4 ? "#f59e0b" : "#ef4444",
+                color: score.score >= 0.7 ? "var(--status-success-text)" : score.score >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
               }}
             >
               {(score.score * 100).toFixed(0)}
             </div>
-            <div style={{ fontSize: 10, color: "#9ca3af" }}>
+            <div style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
               {(score.confidence * 100).toFixed(0)}% conf
             </div>
           </div>
@@ -3582,22 +3474,22 @@ function ScoresTab({ scores }: { scores: any[] }) {
               {score.parameter?.name || score.parameterId}
             </div>
             {score.parameter?.definition && (
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>
                 {score.parameter.definition}
               </div>
             )}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 10, color: "#9ca3af", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 10, color: "var(--text-placeholder)", flexWrap: "wrap" }}>
               <span>Scored by {score.scoredBy || "unknown"}</span>
               {score.analysisSpec && (
                 <>
                   <span>•</span>
-                  <span style={{ background: "#f3e8ff", color: "#7c3aed", padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>
+                  <span style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>
                     {score.analysisSpec.slug || score.analysisSpec.name}
                   </span>
                 </>
               )}
               {(score.reasoning || (score.evidence && score.evidence.length > 0)) && (
-                <span style={{ color: "#4f46e5" }}>{isExpanded ? "▼ less" : "▶ more"}</span>
+                <span style={{ color: "var(--button-primary-bg)" }}>{isExpanded ? "▼ less" : "▶ more"}</span>
               )}
             </div>
           </div>
@@ -3605,14 +3497,14 @@ function ScoresTab({ scores }: { scores: any[] }) {
 
         {/* Expanded: show reasoning and evidence */}
         {isExpanded && (
-          <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, background: "#fafafa" }}>
+          <div style={{ borderTop: "1px solid var(--border-default)", padding: 12, background: "var(--background)" }}>
             {/* Source Spec info */}
             {score.analysisSpec && (
-              <div style={{ marginBottom: 12, padding: 8, background: "#f3e8ff", borderRadius: 6 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", marginBottom: 4 }}>
+              <div style={{ marginBottom: 12, padding: 8, background: "var(--badge-purple-bg)", borderRadius: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--badge-purple-text)", marginBottom: 4 }}>
                   Source Spec
                 </div>
-                <div style={{ fontSize: 12, color: "#4b5563" }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                   <strong>{score.analysisSpec.name}</strong> ({score.analysisSpec.slug})
                 </div>
               </div>
@@ -3621,10 +3513,10 @@ function ScoresTab({ scores }: { scores: any[] }) {
             {/* Reasoning */}
             {score.reasoning && (
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
                   Reasoning
                 </div>
-                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   {score.reasoning}
                 </div>
               </div>
@@ -3633,7 +3525,7 @@ function ScoresTab({ scores }: { scores: any[] }) {
             {/* Evidence */}
             {score.evidence && score.evidence.length > 0 && (
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
                   Evidence ({score.evidence.length} excerpt{score.evidence.length > 1 ? "s" : ""})
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3642,12 +3534,12 @@ function ScoresTab({ scores }: { scores: any[] }) {
                       key={idx}
                       style={{
                         fontSize: 11,
-                        color: "#4b5563",
+                        color: "var(--text-secondary)",
                         fontStyle: "italic",
                         padding: 8,
-                        background: "#fff",
+                        background: "var(--surface-primary)",
                         borderRadius: 4,
-                        borderLeft: "3px solid #c7d2fe",
+                        borderLeft: "3px solid var(--status-info-border)",
                       }}
                     >
                       "{e}"
@@ -3664,7 +3556,7 @@ function ScoresTab({ scores }: { scores: any[] }) {
 
   if (scores.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
         No scores yet. Run MEASURE to analyze this call.
       </div>
     );
@@ -3674,16 +3566,16 @@ function ScoresTab({ scores }: { scores: any[] }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       {/* Behaviour Scores Column */}
       <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--status-warning-bg)", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-warning-text)" }}>
             🤖 Behaviour Scores ({agentScores.length})
           </div>
-          <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--status-warning-text)", marginTop: 2 }}>
             How well the agent performed
           </div>
         </div>
         {agentScores.length === 0 ? (
-          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
             No agent scores yet
           </div>
         ) : (
@@ -3695,16 +3587,16 @@ function ScoresTab({ scores }: { scores: any[] }) {
 
       {/* Caller Scores Column */}
       <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dbeafe", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--badge-blue-bg)", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-info-text)" }}>
             👤 Caller Scores ({callerScores.length})
           </div>
-          <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--status-info-text)", marginTop: 2 }}>
             Caller behavior and state
           </div>
         </div>
         {callerScores.length === 0 ? (
-          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
             No caller scores yet
           </div>
         ) : (
@@ -3723,18 +3615,18 @@ function MemoriesTab({ memories }: { memories: any[] }) {
 
   if (memories.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
         No memories extracted. Run LEARN to extract memories from this call.
       </div>
     );
   }
 
   const categoryColors: Record<string, { bg: string; text: string }> = {
-    FACT: { bg: "#dbeafe", text: "#2563eb" },
-    PREFERENCE: { bg: "#fef3c7", text: "#d97706" },
-    EVENT: { bg: "#dcfce7", text: "#16a34a" },
-    TOPIC: { bg: "#f3e8ff", text: "#9333ea" },
-    CONTEXT: { bg: "#e5e7eb", text: "#4b5563" },
+    FACT: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)" },
+    PREFERENCE: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)" },
+    EVENT: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)" },
+    TOPIC: { bg: "var(--badge-purple-bg)", text: "var(--badge-purple-text)" },
+    CONTEXT: { bg: "var(--surface-secondary)", text: "var(--text-secondary)" },
   };
 
   return (
@@ -3747,9 +3639,9 @@ function MemoriesTab({ memories }: { memories: any[] }) {
           <div
             key={memory.id}
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 8,
-              border: "1px solid #e5e7eb",
+              border: "1px solid var(--border-default)",
               overflow: "hidden",
             }}
           >
@@ -3762,7 +3654,7 @@ function MemoriesTab({ memories }: { memories: any[] }) {
                 alignItems: "center",
                 gap: 12,
                 padding: 10,
-                background: isExpanded ? "#f9fafb" : "#fff",
+                background: isExpanded ? "var(--background)" : "var(--surface-primary)",
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
@@ -3782,11 +3674,11 @@ function MemoriesTab({ memories }: { memories: any[] }) {
                 {memory.category}
               </span>
               <span style={{ fontSize: 13, fontWeight: 500 }}>{memory.key}</span>
-              <span style={{ fontSize: 13, color: "#6b7280", flex: 1 }}>= "{memory.value}"</span>
-              <span style={{ fontSize: 10, color: "#9ca3af", flexShrink: 0 }}>
+              <span style={{ fontSize: 13, color: "var(--text-muted)", flex: 1 }}>= "{memory.value}"</span>
+              <span style={{ fontSize: 10, color: "var(--text-placeholder)", flexShrink: 0 }}>
                 {(memory.confidence * 100).toFixed(0)}% conf
               </span>
-              <span style={{ fontSize: 12, color: "#9ca3af", flexShrink: 0 }}>
+              <span style={{ fontSize: 12, color: "var(--text-placeholder)", flexShrink: 0 }}>
                 {isExpanded ? "▼" : "▶"}
               </span>
             </button>
@@ -3796,8 +3688,8 @@ function MemoriesTab({ memories }: { memories: any[] }) {
               <div
                 style={{
                   padding: "12px 16px",
-                  background: "#f9fafb",
-                  borderTop: "1px solid #e5e7eb",
+                  background: "var(--background)",
+                  borderTop: "1px solid var(--border-default)",
                   display: "flex",
                   flexDirection: "column",
                   gap: 12,
@@ -3806,15 +3698,15 @@ function MemoriesTab({ memories }: { memories: any[] }) {
                 {/* Source spec/extractor */}
                 {memory.extractedBy && (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
                       EXTRACTED BY
                     </div>
                     <div
                       style={{
                         fontSize: 12,
                         padding: "6px 10px",
-                        background: "#ede9fe",
-                        color: "#7c3aed",
+                        background: "var(--badge-purple-bg)",
+                        color: "var(--badge-purple-text)",
                         borderRadius: 4,
                         display: "inline-block",
                       }}
@@ -3827,17 +3719,17 @@ function MemoriesTab({ memories }: { memories: any[] }) {
                 {/* Evidence */}
                 {memory.evidence && (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
                       EVIDENCE
                     </div>
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#374151",
-                        background: "#fff",
+                        color: "var(--text-secondary)",
+                        background: "var(--surface-primary)",
                         padding: 10,
                         borderRadius: 4,
-                        border: "1px solid #e5e7eb",
+                        border: "1px solid var(--border-default)",
                         fontStyle: "italic",
                         lineHeight: 1.5,
                       }}
@@ -3849,7 +3741,7 @@ function MemoriesTab({ memories }: { memories: any[] }) {
 
                 {/* Extraction timestamp */}
                 {memory.extractedAt && (
-                  <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                  <div style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
                     Extracted: {new Date(memory.extractedAt).toLocaleString()}
                     {memory.expiresAt && (
                       <span> · Expires: {new Date(memory.expiresAt).toLocaleString()}</span>
@@ -3865,13 +3757,43 @@ function MemoriesTab({ memories }: { memories: any[] }) {
   );
 }
 
-// Measurements Tab
+// Measurements Tab - Now uses slider visualization for consistency with Targets tab
 function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; rewardScore: any }) {
+  if (measurements.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+        No behaviour measurements. Run BEHAVIOUR to measure behaviour.
+      </div>
+    );
+  }
+
+  // Transform measurements into format compatible with TwoColumnTargetsDisplay
+  // We treat measurements as if they were "behavior targets" since we want to show them with sliders
+  const measurementTargets = measurements.map((m: any) => ({
+    parameterId: m.parameterId,
+    targetValue: m.targetValue || 0.5, // Use target from measurement if available
+    effectiveScope: "MEASUREMENT" as any, // Custom scope to indicate these are measurements
+    parameter: m.parameter,
+  }));
+
+  // Format measurements for the display
+  const formattedMeasurements = measurements.map((m: any) => ({
+    parameterId: m.parameterId,
+    actualValue: m.actualValue,
+  }));
+
+  // Use TwoColumnTargetsDisplay but only show behavior targets (measurements)
+  // Since these are single-call measurements, we don't show caller targets
+  return <TwoColumnTargetsDisplay callerTargets={[]} behaviorTargets={measurementTargets} measurements={formattedMeasurements} />;
+}
+
+// Legacy card-based measurements view (kept for reference, can be removed later)
+function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: any[]; rewardScore: any }) {
   const [expandedMeasurement, setExpandedMeasurement] = useState<string | null>(null);
 
   if (measurements.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
         No behaviour measurements. Run BEHAVIOUR to measure behaviour.
       </div>
     );
@@ -3891,9 +3813,9 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
           <div
             key={m.id}
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 8,
-              border: "1px solid #e5e7eb",
+              border: "1px solid var(--border-default)",
               overflow: "hidden",
             }}
           >
@@ -3906,7 +3828,7 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
                 alignItems: "center",
                 gap: 16,
                 padding: 12,
-                background: isExpanded ? "#f9fafb" : "#fff",
+                background: isExpanded ? "var(--background)" : "var(--surface-primary)",
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
@@ -3914,19 +3836,19 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
             >
               {/* Actual value */}
               <div style={{ width: 60, textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#374151" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-secondary)" }}>
                   {(m.actualValue * 100).toFixed(0)}
                 </div>
-                <div style={{ fontSize: 10, color: "#9ca3af" }}>actual</div>
+                <div style={{ fontSize: 10, color: "var(--text-placeholder)" }}>actual</div>
               </div>
 
               {/* Target comparison if available */}
               {diff && (
                 <div style={{ width: 60, textAlign: "center" }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "#6b7280" }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-muted)" }}>
                     {(diff.target * 100).toFixed(0)}
                   </div>
-                  <div style={{ fontSize: 10, color: "#9ca3af" }}>target</div>
+                  <div style={{ fontSize: 10, color: "var(--text-placeholder)" }}>target</div>
                 </div>
               )}
 
@@ -3938,8 +3860,8 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
                     borderRadius: 4,
                     fontSize: 11,
                     fontWeight: 600,
-                    background: diff.diff < 0.1 ? "#dcfce7" : diff.diff < 0.3 ? "#fef3c7" : "#fee2e2",
-                    color: diff.diff < 0.1 ? "#16a34a" : diff.diff < 0.3 ? "#d97706" : "#dc2626",
+                    background: diff.diff < 0.1 ? "var(--status-success-bg)" : diff.diff < 0.3 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
+                    color: diff.diff < 0.1 ? "var(--status-success-text)" : diff.diff < 0.3 ? "var(--status-warning-text)" : "var(--status-error-text)",
                   }}
                 >
                   {diff.diff < 0.1 ? "On Target" : diff.diff < 0.3 ? "Close" : "Off Target"}
@@ -3952,33 +3874,33 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
                   {m.parameter?.name || m.parameterId}
                 </div>
                 {m.evidence && m.evidence.length > 0 && (
-                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
                     {m.evidence[0]}
                   </div>
                 )}
               </div>
 
               {/* Expand indicator */}
-              <span style={{ color: "#9ca3af", fontSize: 12 }}>{isExpanded ? "▼" : "▶"}</span>
+              <span style={{ color: "var(--text-placeholder)", fontSize: 12 }}>{isExpanded ? "▼" : "▶"}</span>
             </button>
 
             {/* Expanded detail */}
             {isExpanded && (
-              <div style={{ padding: "12px 16px 16px", borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+              <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
                 {/* Parameter definition */}
                 {m.parameter?.definition && (
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Definition</div>
-                    <div style={{ fontSize: 12, color: "#374151" }}>{m.parameter.definition}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Definition</div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{m.parameter.definition}</div>
                   </div>
                 )}
 
                 {/* All evidence items */}
                 {m.evidence && m.evidence.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Evidence</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Evidence</div>
                     {m.evidence.map((e: string, i: number) => (
-                      <div key={i} style={{ fontSize: 12, color: "#374151", padding: "4px 0", borderLeft: "2px solid #e5e7eb", paddingLeft: 8, marginBottom: 4 }}>
+                      <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0", borderLeft: "2px solid var(--border-default)", paddingLeft: 8, marginBottom: 4 }}>
                         {e}
                       </div>
                     ))}
@@ -3988,21 +3910,21 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
                 {/* Target comparison details */}
                 {diff && (
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Target Comparison</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Target Comparison</div>
                     <div style={{ display: "flex", gap: 24, fontSize: 12 }}>
                       <div>
-                        <span style={{ color: "#6b7280" }}>Actual: </span>
-                        <span style={{ fontWeight: 600, color: "#374151" }}>{(diff.actual * 100).toFixed(1)}%</span>
+                        <span style={{ color: "var(--text-muted)" }}>Actual: </span>
+                        <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{(diff.actual * 100).toFixed(1)}%</span>
                       </div>
                       <div>
-                        <span style={{ color: "#6b7280" }}>Target: </span>
-                        <span style={{ fontWeight: 600, color: "#374151" }}>{(diff.target * 100).toFixed(1)}%</span>
+                        <span style={{ color: "var(--text-muted)" }}>Target: </span>
+                        <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{(diff.target * 100).toFixed(1)}%</span>
                       </div>
                       <div>
-                        <span style={{ color: "#6b7280" }}>Difference: </span>
+                        <span style={{ color: "var(--text-muted)" }}>Difference: </span>
                         <span style={{
                           fontWeight: 600,
-                          color: diff.diff < 0.1 ? "#16a34a" : diff.diff < 0.3 ? "#d97706" : "#dc2626"
+                          color: diff.diff < 0.1 ? "var(--status-success-text)" : diff.diff < 0.3 ? "var(--status-warning-text)" : "var(--status-error-text)"
                         }}>
                           {(diff.diff * 100).toFixed(1)}%
                         </span>
@@ -4013,25 +3935,25 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
 
                 {/* Confidence */}
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Confidence</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Confidence</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ flex: 1, maxWidth: 200, height: 6, background: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ flex: 1, maxWidth: 200, height: 6, background: "var(--border-default)", borderRadius: 3, overflow: "hidden" }}>
                       <div
                         style={{
                           width: `${(m.confidence || 0.75) * 100}%`,
                           height: "100%",
-                          background: m.confidence >= 0.8 ? "#10b981" : m.confidence >= 0.6 ? "#f59e0b" : "#ef4444",
+                          background: m.confidence >= 0.8 ? "var(--status-success-text)" : m.confidence >= 0.6 ? "var(--status-warning-text)" : "var(--status-error-text)",
                         }}
                       />
                     </div>
-                    <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500 }}>
                       {((m.confidence || 0.75) * 100).toFixed(0)}%
                     </span>
                   </div>
                 </div>
 
                 {/* Metadata */}
-                <div style={{ display: "flex", gap: 16, fontSize: 10, color: "#9ca3af" }}>
+                <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-placeholder)" }}>
                   <span>Parameter ID: {m.parameterId}</span>
                   <span>Measurement ID: {m.id?.slice(0, 8)}...</span>
                   {m.createdAt && <span>Measured: {new Date(m.createdAt).toLocaleString()}</span>}
@@ -4056,13 +3978,13 @@ function TranscriptTab({ transcript }: { transcript: string }) {
         wordBreak: "break-word",
         margin: 0,
         fontFamily: "ui-monospace, monospace",
-        color: "#374151",
+        color: "var(--text-secondary)",
         maxHeight: 400,
         overflow: "auto",
-        background: "#fff",
+        background: "var(--surface-primary)",
         padding: 12,
         borderRadius: 6,
-        border: "1px solid #e5e7eb",
+        border: "1px solid var(--border-default)",
       }}
     >
       {transcript}
@@ -4111,10 +4033,10 @@ function MemoriesSection({
 
       {/* Memories List */}
       {memories.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+        <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>💭</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No memories extracted yet</div>
-          <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>Run the Memory Extractor agent</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No memories extracted yet</div>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run the Memory Extractor agent</div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -4122,7 +4044,7 @@ function MemoriesSection({
             const isExpanded = expandedMemory === memory.id;
             const categoryStyle = CATEGORY_COLORS[memory.category] || CATEGORY_COLORS.FACT;
             return (
-              <div key={memory.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+              <div key={memory.id} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
                 <button
                   onClick={() => setExpandedMemory(isExpanded ? null : memory.id)}
                   style={{
@@ -4131,7 +4053,7 @@ function MemoriesSection({
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    background: isExpanded ? "#f9fafb" : "#fff",
+                    background: isExpanded ? "var(--background)" : "var(--surface-primary)",
                     border: "none",
                     cursor: "pointer",
                     textAlign: "left",
@@ -4150,19 +4072,19 @@ function MemoriesSection({
                     >
                       {memory.category}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{memory.key}</span>
-                    <span style={{ fontSize: 13, color: "#6b7280" }}>= "{memory.value}"</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>{memory.key}</span>
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>= "{memory.value}"</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "#9ca3af" }}>{(memory.confidence * 100).toFixed(0)}%</span>
-                    <span style={{ fontSize: 12, color: "#9ca3af" }}>{isExpanded ? "▼" : "▶"}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{(memory.confidence * 100).toFixed(0)}%</span>
+                    <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>{isExpanded ? "▼" : "▶"}</span>
                   </div>
                 </button>
                 {isExpanded && memory.evidence && (
-                  <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", background: "#fafafa", fontSize: 13 }}>
-                    <div style={{ fontWeight: 500, color: "#6b7280", marginBottom: 4 }}>Evidence:</div>
-                    <div style={{ fontStyle: "italic", color: "#4b5563" }}>"{memory.evidence}"</div>
-                    <div style={{ marginTop: 8, fontSize: 11, color: "#9ca3af" }}>
+                  <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)", fontSize: 13 }}>
+                    <div style={{ fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Evidence:</div>
+                    <div style={{ fontStyle: "italic", color: "var(--text-secondary)" }}>"{memory.evidence}"</div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-placeholder)" }}>
                       Extracted {new Date(memory.extractedAt).toLocaleString()}
                     </div>
                   </div>
@@ -4186,10 +4108,10 @@ function PersonalitySection({
 }) {
   if (!personality && observations.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No personality data yet</div>
-        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>Run the Personality Analyzer agent</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No personality data yet</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run the Personality Analyzer agent</div>
       </div>
     );
   }
@@ -4198,11 +4120,11 @@ function PersonalitySection({
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
       {/* Aggregated Profile */}
       {personality && (
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>
             Aggregated Profile
             {personality.confidenceScore !== null && (
-              <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>
+              <span style={{ fontWeight: 400, color: "var(--text-placeholder)", marginLeft: 8 }}>
                 ({(personality.confidenceScore * 100).toFixed(0)}% confidence)
               </span>
             )}
@@ -4216,7 +4138,7 @@ function PersonalitySection({
                     <span style={{ fontSize: 13, fontWeight: 500 }}>{info.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{value !== null ? (value * 100).toFixed(0) : "—"}</span>
                   </div>
-                  <div style={{ height: 10, background: "#e5e7eb", borderRadius: 5, overflow: "hidden" }}>
+                  <div style={{ height: 10, background: "var(--border-default)", borderRadius: 5, overflow: "hidden" }}>
                     <div
                       style={{
                         height: "100%",
@@ -4226,13 +4148,13 @@ function PersonalitySection({
                       }}
                     />
                   </div>
-                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{info.desc}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginTop: 4 }}>{info.desc}</div>
                 </div>
               );
             })}
           </div>
           {personality.lastAggregatedAt && (
-            <div style={{ marginTop: 16, fontSize: 11, color: "#9ca3af" }}>
+            <div style={{ marginTop: 16, fontSize: 11, color: "var(--text-placeholder)" }}>
               Last updated: {new Date(personality.lastAggregatedAt).toLocaleString()} ({personality.observationsUsed} observations)
             </div>
           )}
@@ -4241,24 +4163,24 @@ function PersonalitySection({
 
       {/* Communication Preferences */}
       {personality && (personality.preferredTone || personality.preferredLength || personality.technicalLevel) && (
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>Communication Preferences</h3>
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Communication Preferences</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {personality.preferredTone && (
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>Preferred Tone</span>
+                <span style={{ color: "var(--text-muted)" }}>Preferred Tone</span>
                 <span style={{ fontWeight: 500, textTransform: "capitalize" }}>{personality.preferredTone}</span>
               </div>
             )}
             {personality.preferredLength && (
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>Response Length</span>
+                <span style={{ color: "var(--text-muted)" }}>Response Length</span>
                 <span style={{ fontWeight: 500, textTransform: "capitalize" }}>{personality.preferredLength}</span>
               </div>
             )}
             {personality.technicalLevel && (
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>Technical Level</span>
+                <span style={{ color: "var(--text-muted)" }}>Technical Level</span>
                 <span style={{ fontWeight: 500, textTransform: "capitalize" }}>{personality.technicalLevel}</span>
               </div>
             )}
@@ -4268,21 +4190,21 @@ function PersonalitySection({
 
       {/* Observations Timeline */}
       {observations.length > 0 && (
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, gridColumn: "1 / -1" }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 16 }}>
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, gridColumn: "1 / -1" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>
             Observation History ({observations.length})
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {observations.slice(0, 10).map((obs) => (
-              <div key={obs.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <span style={{ fontSize: 11, color: "#9ca3af", width: 140 }}>{new Date(obs.observedAt).toLocaleString()}</span>
+              <div key={obs.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                <span style={{ fontSize: 11, color: "var(--text-placeholder)", width: 140 }}>{new Date(obs.observedAt).toLocaleString()}</span>
                 <div style={{ display: "flex", gap: 8, flex: 1 }}>
                   {Object.entries(TRAIT_INFO).map(([key, info]) => {
                     const value = obs[key as keyof typeof TRAIT_INFO] as number | null;
                     return (
                       <div key={key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <span style={{ fontSize: 10, color: "#9ca3af" }}>{info.label.charAt(0)}</span>
-                        <div style={{ width: 40, height: 6, background: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
+                        <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{info.label.charAt(0)}</span>
+                        <div style={{ width: 40, height: 6, background: "var(--border-default)", borderRadius: 3, overflow: "hidden" }}>
                           <div
                             style={{
                               height: "100%",
@@ -4295,7 +4217,7 @@ function PersonalitySection({
                     );
                   })}
                 </div>
-                <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
                   {obs.confidence !== null ? `${(obs.confidence * 100).toFixed(0)}% conf` : ""}
                 </span>
               </div>
@@ -4314,10 +4236,10 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
 
   if (!scores || scores.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No scores yet</div>
-        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>Run analysis to generate parameter scores</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No scores yet</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run analysis to generate parameter scores</div>
       </div>
     );
   }
@@ -4346,7 +4268,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
     const isParamExpanded = expandedParam === parameterId;
 
     return (
-      <div key={parameterId} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+      <div key={parameterId} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
         {/* Header */}
         <button
           onClick={() => setExpandedParam(isParamExpanded ? null : parameterId)}
@@ -4356,7 +4278,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            background: isParamExpanded ? "#f9fafb" : "#fff",
+            background: isParamExpanded ? "var(--background)" : "var(--surface-primary)",
             border: "none",
             cursor: "pointer",
             textAlign: "left",
@@ -4364,16 +4286,16 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
         >
           <div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{paramName}</div>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>{paramScores[0]?.parameter?.definition || ""}</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{paramScores[0]?.parameter?.definition || ""}</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: avg >= 0.7 ? "#10b981" : avg >= 0.4 ? "#f59e0b" : "#ef4444" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: avg >= 0.7 ? "var(--status-success-text)" : avg >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)" }}>
                 {(avg * 100).toFixed(0)}%
               </div>
-              <div style={{ fontSize: 11, color: "#9ca3af" }}>avg of {paramScores.length}</div>
+              <div style={{ fontSize: 11, color: "var(--text-placeholder)" }}>avg of {paramScores.length}</div>
             </div>
-            <span style={{ color: "#9ca3af" }}>{isParamExpanded ? "▼" : "▶"}</span>
+            <span style={{ color: "var(--text-placeholder)" }}>{isParamExpanded ? "▼" : "▶"}</span>
           </div>
         </button>
 
@@ -4389,7 +4311,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                 }}
                 style={{
                   padding: "4px 10px",
-                  background: s.score >= 0.7 ? "#dcfce7" : s.score >= 0.4 ? "#fef3c7" : "#fee2e2",
+                  background: s.score >= 0.7 ? "var(--status-success-bg)" : s.score >= 0.4 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
                   borderRadius: 6,
                   fontSize: 12,
                   border: "none",
@@ -4397,24 +4319,24 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                 }}
               >
                 <span style={{ fontWeight: 500 }}>{(s.score * 100).toFixed(0)}%</span>
-                <span style={{ marginLeft: 6, color: "#9ca3af" }}>
+                <span style={{ marginLeft: 6, color: "var(--text-placeholder)" }}>
                   {new Date(s.call.createdAt).toLocaleDateString()}
                 </span>
               </button>
             ))}
             {paramScores.length > 10 && (
-              <span style={{ fontSize: 12, color: "#9ca3af", alignSelf: "center" }}>+{paramScores.length - 10} more</span>
+              <span style={{ fontSize: 12, color: "var(--text-placeholder)", alignSelf: "center" }}>+{paramScores.length - 10} more</span>
             )}
           </div>
         )}
 
         {/* Expanded: show full score details */}
         {isParamExpanded && (
-          <div style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+          <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
             {paramScores.map((s) => {
               const isScoreExpanded = expandedScore === s.id;
               return (
-                <div key={s.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                <div key={s.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   {/* Score row header */}
                   <button
                     onClick={() => setExpandedScore(isScoreExpanded ? null : s.id)}
@@ -4424,7 +4346,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                       display: "flex",
                       alignItems: "center",
                       gap: 16,
-                      background: isScoreExpanded ? "#fff" : "transparent",
+                      background: isScoreExpanded ? "var(--surface-primary)" : "transparent",
                       border: "none",
                       cursor: "pointer",
                       textAlign: "left",
@@ -4436,8 +4358,8 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                         width: 50,
                         padding: "4px 8px",
                         textAlign: "center",
-                        background: s.score >= 0.7 ? "#dcfce7" : s.score >= 0.4 ? "#fef3c7" : "#fee2e2",
-                        color: s.score >= 0.7 ? "#16a34a" : s.score >= 0.4 ? "#d97706" : "#dc2626",
+                        background: s.score >= 0.7 ? "var(--status-success-bg)" : s.score >= 0.4 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
+                        color: s.score >= 0.7 ? "var(--status-success-text)" : s.score >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
                         borderRadius: 6,
                         fontWeight: 600,
                         fontSize: 14,
@@ -4447,17 +4369,17 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                     </div>
 
                     {/* Confidence */}
-                    <div style={{ width: 60, fontSize: 11, color: "#6b7280" }}>
+                    <div style={{ width: 60, fontSize: 11, color: "var(--text-muted)" }}>
                       {(s.confidence * 100).toFixed(0)}% conf
                     </div>
 
                     {/* Date */}
-                    <div style={{ width: 140, fontSize: 12, color: "#374151" }}>
+                    <div style={{ width: 140, fontSize: 12, color: "var(--text-secondary)" }}>
                       {new Date(s.call.createdAt).toLocaleString()}
                     </div>
 
                     {/* Scored by */}
-                    <div style={{ flex: 1, fontSize: 11, color: "#9ca3af" }}>
+                    <div style={{ flex: 1, fontSize: 11, color: "var(--text-placeholder)" }}>
                       {s.scoredBy || "unknown"}
                     </div>
 
@@ -4466,8 +4388,8 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                       <span style={{
                         fontSize: 10,
                         padding: "2px 6px",
-                        background: "#f3e8ff",
-                        color: "#7c3aed",
+                        background: "var(--badge-purple-bg)",
+                        color: "var(--badge-purple-text)",
                         borderRadius: 4,
                         fontWeight: 500,
                       }}>
@@ -4475,18 +4397,18 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                       </span>
                     )}
 
-                    <span style={{ color: "#9ca3af", fontSize: 12 }}>{isScoreExpanded ? "▼" : "▶"}</span>
+                    <span style={{ color: "var(--text-placeholder)", fontSize: 12 }}>{isScoreExpanded ? "▼" : "▶"}</span>
                   </button>
 
                   {/* Expanded score detail */}
                   {isScoreExpanded && (
-                    <div style={{ padding: "12px 16px 16px", background: "#fff", marginLeft: 66 }}>
+                    <div style={{ padding: "12px 16px 16px", background: "var(--surface-primary)", marginLeft: 66 }}>
                       {/* Evidence */}
                       {s.evidence && s.evidence.length > 0 && (
                         <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Evidence</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Evidence</div>
                           {s.evidence.map((e: string, i: number) => (
-                            <div key={i} style={{ fontSize: 12, color: "#374151", padding: "4px 0", borderLeft: "2px solid #e5e7eb", paddingLeft: 8, marginBottom: 4 }}>
+                            <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0", borderLeft: "2px solid var(--border-default)", paddingLeft: 8, marginBottom: 4 }}>
                               {e}
                             </div>
                           ))}
@@ -4496,13 +4418,13 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                       {/* Reasoning */}
                       {s.reasoning && (
                         <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>Reasoning</div>
-                          <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic" }}>{s.reasoning}</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Reasoning</div>
+                          <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>{s.reasoning}</div>
                         </div>
                       )}
 
                       {/* Metadata row */}
-                      <div style={{ display: "flex", gap: 16, fontSize: 10, color: "#9ca3af" }}>
+                      <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-placeholder)" }}>
                         <span>Call ID: {s.callId?.slice(0, 8)}...</span>
                         <span>Scored: {new Date(s.scoredAt).toLocaleString()}</span>
                         {s.analysisSpecId && <span>Spec ID: {s.analysisSpecId.slice(0, 8)}...</span>}
@@ -4522,11 +4444,11 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       {/* Behaviour Scores Column */}
       <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--status-warning-bg)", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-warning-text)" }}>
             🤖 Behaviour Scores ({agentScores.length})
           </div>
-          <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--status-warning-text)", marginTop: 2 }}>
             How well the agent performed
           </div>
         </div>
@@ -4534,7 +4456,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
           renderParameterCard(parameterId, paramScores)
         )}
         {agentScores.length === 0 && (
-          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
             No agent scores yet
           </div>
         )}
@@ -4542,11 +4464,11 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
 
       {/* Caller Scores Column */}
       <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dbeafe", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--badge-blue-bg)", borderRadius: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-info-text)" }}>
             👤 Caller Scores ({callerScores.length})
           </div>
-          <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--status-info-text)", marginTop: 2 }}>
             Caller behavior and state
           </div>
         </div>
@@ -4554,7 +4476,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
           renderParameterCard(parameterId, paramScores)
         )}
         {callerScores.length === 0 && (
-          <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
             No caller scores yet
           </div>
         )}
@@ -4589,9 +4511,9 @@ function LearningSection({
 
   if (!hasCurriculum && !hasProfile && !hasGoals) {
     return (
-      <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", background: "#f9fafb", borderRadius: "12px" }}>
+      <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)", background: "var(--background)", borderRadius: "12px" }}>
         <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎯</div>
-        <div style={{ fontSize: "16px", fontWeight: "600", color: "#374151" }}>No goals yet</div>
+        <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-secondary)" }}>No goals yet</div>
         <div style={{ fontSize: "14px", marginTop: "4px" }}>Goals are created automatically when a caller is assigned to a domain</div>
       </div>
     );
@@ -4600,19 +4522,19 @@ function LearningSection({
   const progressPercent = hasCurriculum ? Math.round(curriculum.estimatedProgress * 100) : 0;
 
   const GOAL_TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-    LEARN: { label: "Learn", icon: "📚", color: "#3b82f6" },
-    ACHIEVE: { label: "Achieve", icon: "🏆", color: "#f59e0b" },
-    CHANGE: { label: "Change", icon: "🔄", color: "#8b5cf6" },
-    CONNECT: { label: "Connect", icon: "🤝", color: "#ec4899" },
-    SUPPORT: { label: "Support", icon: "💚", color: "#10b981" },
-    CREATE: { label: "Create", icon: "🎨", color: "#06b6d4" },
+    LEARN: { label: "Learn", icon: "📚", color: "var(--trait-openness)" },
+    ACHIEVE: { label: "Achieve", icon: "🏆", color: "var(--trait-extraversion)" },
+    CHANGE: { label: "Change", icon: "🔄", color: "var(--trait-neuroticism)" },
+    CONNECT: { label: "Connect", icon: "🤝", color: "var(--trait-agreeableness)" },
+    SUPPORT: { label: "Support", icon: "💚", color: "var(--status-success-text)" },
+    CREATE: { label: "Create", icon: "🎨", color: "var(--badge-cyan-text)" },
   };
 
   const GOAL_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    ACTIVE: { label: "Active", color: "#10b981" },
-    COMPLETED: { label: "Completed", color: "#3b82f6" },
-    PAUSED: { label: "Paused", color: "#f59e0b" },
-    ARCHIVED: { label: "Archived", color: "#6b7280" },
+    ACTIVE: { label: "Active", color: "var(--status-success-text)" },
+    COMPLETED: { label: "Completed", color: "var(--trait-openness)" },
+    PAUSED: { label: "Paused", color: "var(--trait-extraversion)" },
+    ARCHIVED: { label: "Archived", color: "var(--text-muted)" },
   };
 
   return (
@@ -4620,25 +4542,25 @@ function LearningSection({
       {/* Goals Section */}
       {hasGoals && goals && (
         <div style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          border: "1px solid var(--border-default)",
           borderRadius: "12px",
           padding: "24px"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
             <div style={{ fontSize: "24px" }}>🎯</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#111827", margin: 0 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>
               Goals
             </h3>
-            <div style={{ fontSize: "11px", color: "#6b7280", marginLeft: "auto" }}>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>
               {goals.filter(g => g.status === 'ACTIVE').length} active · {goals.length} total
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {goals.map((goal) => {
-              const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "#6b7280" };
-              const statusConfig = GOAL_STATUS_CONFIG[goal.status] || { label: goal.status, color: "#6b7280" };
+              const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "var(--text-muted)" };
+              const statusConfig = GOAL_STATUS_CONFIG[goal.status] || { label: goal.status, color: "var(--text-muted)" };
               const progressPercent = Math.round(goal.progress * 100);
 
               return (
@@ -4646,7 +4568,7 @@ function LearningSection({
                   key={goal.id}
                   style={{
                     padding: "16px",
-                    background: "#f9fafb",
+                    background: "var(--background)",
                     border: `1px solid ${typeConfig.color}30`,
                     borderRadius: "8px",
                   }}
@@ -4680,16 +4602,16 @@ function LearningSection({
                           {statusConfig.label}
                         </span>
                         {goal.priority > 5 && (
-                          <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                             Priority: {goal.priority}
                           </span>
                         )}
                       </div>
-                      <h4 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>
+                      <h4 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>
                         {goal.name}
                       </h4>
                       {goal.description && (
-                        <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#6b7280" }}>
+                        <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "var(--text-muted)" }}>
                           {goal.description}
                         </p>
                       )}
@@ -4700,7 +4622,7 @@ function LearningSection({
                   </div>
 
                   {/* Progress bar */}
-                  <div style={{ height: "6px", background: "#e5e7eb", borderRadius: "3px", marginBottom: "12px", overflow: "hidden" }}>
+                  <div style={{ height: "6px", background: "var(--border-default)", borderRadius: "3px", marginBottom: "12px", overflow: "hidden" }}>
                     <div
                       style={{
                         height: "100%",
@@ -4712,7 +4634,7 @@ function LearningSection({
                   </div>
 
                   {/* Goal metadata */}
-                  <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#6b7280", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "var(--text-muted)", flexWrap: "wrap" }}>
                     {goal.playbook && (
                       <div>
                         <strong>Playbook:</strong> {goal.playbook.name} v{goal.playbook.version}
@@ -4742,11 +4664,11 @@ function LearningSection({
 
                   {/* For LEARN goals, show curriculum progress if available */}
                   {goal.type === 'LEARN' && hasCurriculum && curriculum && (
-                    <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" }}>
-                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#374151", marginBottom: "8px" }}>
+                    <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-default)" }}>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-secondary)", marginBottom: "8px" }}>
                         Curriculum: {curriculum.name}
                       </div>
-                      <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "8px" }}>
+                      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>
                         ✅ {curriculum.completedCount} / {curriculum.totalModules} modules completed
                       </div>
                       {curriculum.nextModule && (
@@ -4754,10 +4676,10 @@ function LearningSection({
                           style={{
                             fontSize: "12px",
                             padding: "8px 12px",
-                            background: "#f0fdf4",
-                            border: "1px solid #86efac",
+                            background: "var(--status-success-bg)",
+                            border: "1px solid var(--status-success-border)",
                             borderRadius: "6px",
-                            color: "#166534",
+                            color: "var(--status-success-text)",
                           }}
                         >
                           <strong>Next:</strong> {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
@@ -4775,17 +4697,17 @@ function LearningSection({
       {/* Learner Profile Card */}
       {hasProfile && learnerProfile && (
         <div style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          border: "1px solid var(--border-default)",
           borderRadius: "12px",
           padding: "24px"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
             <div style={{ fontSize: "24px" }}>🧠</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#111827", margin: 0 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>
               Learner Profile
             </h3>
-            <div style={{ fontSize: "11px", color: "#6b7280", marginLeft: "auto" }}>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>
               Inferred from behavior
             </div>
           </div>
@@ -4796,54 +4718,54 @@ function LearningSection({
             gap: "16px"
           }}>
             {learnerProfile.learningStyle && (
-              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Learning Style</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Learning Style</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
                   {learnerProfile.learningStyle}
                 </div>
               </div>
             )}
 
             {learnerProfile.pacePreference && (
-              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Pace Preference</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Pace Preference</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
                   {learnerProfile.pacePreference}
                 </div>
               </div>
             )}
 
             {learnerProfile.interactionStyle && (
-              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Interaction Style</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Interaction Style</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
                   {learnerProfile.interactionStyle}
                 </div>
               </div>
             )}
 
             {learnerProfile.preferredModality && (
-              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Preferred Modality</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Preferred Modality</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
                   {learnerProfile.preferredModality}
                 </div>
               </div>
             )}
 
             {learnerProfile.questionFrequency && (
-              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Question Frequency</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Question Frequency</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
                   {learnerProfile.questionFrequency}
                 </div>
               </div>
             )}
 
             {learnerProfile.feedbackStyle && (
-              <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>Feedback Style</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827", textTransform: "capitalize" }}>
+              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Feedback Style</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
                   {learnerProfile.feedbackStyle}
                 </div>
               </div>
@@ -4852,8 +4774,8 @@ function LearningSection({
 
           {/* Prior Knowledge */}
           {Object.keys(learnerProfile.priorKnowledge).length > 0 && (
-            <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid #e5e7eb" }}>
-              <div style={{ fontSize: "14px", fontWeight: "600", color: "#374151", marginBottom: "12px" }}>
+            <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid var(--border-default)" }}>
+              <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-secondary)", marginBottom: "12px" }}>
                 Prior Knowledge
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
@@ -4865,15 +4787,15 @@ function LearningSection({
                       alignItems: "center",
                       gap: "6px",
                       padding: "6px 12px",
-                      background: "#eff6ff",
-                      border: "1px solid #bfdbfe",
+                      background: "var(--status-info-bg)",
+                      border: "1px solid var(--status-info-border)",
                       borderRadius: "6px",
                       fontSize: "13px"
                     }}
                   >
-                    <span style={{ color: "#1e40af", fontWeight: "600", textTransform: "capitalize" }}>{domain}</span>
-                    <span style={{ color: "#6b7280" }}>·</span>
-                    <span style={{ color: "#374151", textTransform: "capitalize" }}>{level}</span>
+                    <span style={{ color: "var(--status-info-text)", fontWeight: "600", textTransform: "capitalize" }}>{domain}</span>
+                    <span style={{ color: "var(--text-muted)" }}>·</span>
+                    <span style={{ color: "var(--text-secondary)", textTransform: "capitalize" }}>{level}</span>
                   </div>
                 ))}
               </div>
@@ -4885,27 +4807,27 @@ function LearningSection({
       {/* Curriculum Progress Card */}
       {hasCurriculum && curriculum && (
         <div style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          border: "1px solid var(--border-default)",
           borderRadius: "12px",
           padding: "24px"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
             <div style={{ fontSize: "24px" }}>📚</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#111827", margin: 0 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>
               {curriculum.name}
             </h3>
           </div>
-          <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "#6b7280", marginBottom: "20px" }}>
+          <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "var(--text-muted)", marginBottom: "20px" }}>
             <span>📊 {progressPercent}% complete</span>
             <span>✅ {curriculum.completedCount} / {curriculum.totalModules} modules</span>
           </div>
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px", color: "#111827" }}>
+        <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px", color: "var(--text-primary)" }}>
           {curriculum.name}
         </h2>
-        <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "#6b7280" }}>
+        <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "var(--text-muted)" }}>
           <span>📊 {progressPercent}% complete</span>
           <span>✅ {curriculum.completedCount} / {curriculum.totalModules} modules</span>
         </div>
@@ -4914,14 +4836,14 @@ function LearningSection({
           {/* Progress Bar */}
           <div style={{
             height: "8px",
-            background: "#e5e7eb",
+            background: "var(--border-default)",
             borderRadius: "4px",
             marginBottom: "24px",
             overflow: "hidden"
           }}>
             <div style={{
               height: "100%",
-              background: "#10b981",
+              background: "var(--button-success-bg)",
               width: `${progressPercent}%`,
               transition: "width 0.3s ease"
             }} />
@@ -4930,23 +4852,23 @@ function LearningSection({
           {/* Next Module Card */}
           {curriculum.nextModule && (
             <div style={{
-              background: "#f0fdf4",
-              border: "1px solid #86efac",
+              background: "var(--status-success-bg)",
+              border: "1px solid var(--status-success-border)",
               borderRadius: "8px",
               padding: "16px",
               marginBottom: "24px"
             }}>
-              <div style={{ fontSize: "12px", color: "#16a34a", fontWeight: "600", marginBottom: "4px" }}>
+              <div style={{ fontSize: "12px", color: "var(--status-success-text)", fontWeight: "600", marginBottom: "4px" }}>
                 NEXT MODULE
               </div>
-              <div style={{ fontSize: "16px", fontWeight: "600", color: "#166534" }}>
+              <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--status-success-text)" }}>
                 {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
               </div>
             </div>
           )}
 
           {/* Modules List */}
-          <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px", color: "#374151" }}>
+          <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px", color: "var(--text-secondary)" }}>
             All Modules
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -4958,8 +4880,8 @@ function LearningSection({
                   alignItems: "center",
                   gap: "12px",
                   padding: "12px",
-                  background: "#f9fafb",
-                  border: "1px solid #e5e7eb",
+                  background: "var(--background)",
+                  border: "1px solid var(--border-default)",
                   borderRadius: "6px"
                 }}
               >
@@ -4972,11 +4894,11 @@ function LearningSection({
 
                 {/* Module Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "14px", fontWeight: "500", color: "#111827" }}>
+                  <div style={{ fontSize: "14px", fontWeight: "500", color: "var(--text-primary)" }}>
                     {index + 1}. {module.name}
                   </div>
                   {module.mastery > 0 && (
-                    <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
                       {Math.round(module.mastery * 100)}% mastery
                     </div>
                   )}
@@ -4987,13 +4909,13 @@ function LearningSection({
                   <div style={{ width: "80px", flexShrink: 0 }}>
                     <div style={{
                       height: "4px",
-                      background: "#e5e7eb",
+                      background: "var(--border-default)",
                       borderRadius: "2px",
                       overflow: "hidden"
                     }}>
                       <div style={{
                         height: "100%",
-                        background: module.status === 'completed' ? '#10b981' : '#f59e0b',
+                        background: module.status === 'completed' ? 'var(--status-success-text)' : 'var(--status-warning-text)',
                         width: `${module.mastery * 100}%`
                       }} />
                     </div>
@@ -5034,7 +4956,7 @@ function UnifiedPromptSection({
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading prompts...</div>
+      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading prompts...</div>
     );
   }
 
@@ -5045,14 +4967,14 @@ function UnifiedPromptSection({
           style={{
             padding: 40,
             textAlign: "center",
-            background: "#f9fafb",
+            background: "var(--background)",
             borderRadius: 12,
-            border: "1px dashed #e5e7eb",
+            border: "1px dashed var(--border-default)",
           }}
         >
           <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No Prompt Available</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No Prompt Available</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
             Compose a prompt to generate personalized next-call guidance for this caller.
           </div>
           <button
@@ -5061,7 +4983,7 @@ function UnifiedPromptSection({
             style={{
               marginTop: 20,
               padding: "12px 24px",
-              background: composing ? "#9ca3af" : "#4f46e5",
+              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -5085,21 +5007,21 @@ function UnifiedPromptSection({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Next Prompt</h3>
-          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
             Generated {new Date(activePrompt.composedAt).toLocaleString()} • {activePrompt.status.toUpperCase()}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* Main View Toggle: Human vs LLM */}
-          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
             <button
               onClick={() => setViewMode("human")}
               style={{
                 padding: "8px 16px",
                 fontSize: 12,
                 fontWeight: 500,
-                background: viewMode === "human" ? "#4f46e5" : "#fff",
-                color: viewMode === "human" ? "#fff" : "#374151",
+                background: viewMode === "human" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                color: viewMode === "human" ? "var(--text-on-dark)" : "var(--text-secondary)",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -5112,8 +5034,8 @@ function UnifiedPromptSection({
                 padding: "8px 16px",
                 fontSize: 12,
                 fontWeight: 500,
-                background: viewMode === "llm" ? "#4f46e5" : "#fff",
-                color: viewMode === "llm" ? "#fff" : "#374151",
+                background: viewMode === "llm" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                color: viewMode === "llm" ? "var(--text-on-dark)" : "var(--text-secondary)",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -5125,9 +5047,9 @@ function UnifiedPromptSection({
             onClick={onRefresh}
             style={{
               padding: "8px 12px",
-              background: "#f3f4f6",
-              color: "#374151",
-              border: "1px solid #e5e7eb",
+              background: "var(--surface-secondary)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border-default)",
               borderRadius: 6,
               fontSize: 12,
               cursor: "pointer",
@@ -5140,7 +5062,7 @@ function UnifiedPromptSection({
             disabled={composing}
             style={{
               padding: "8px 16px",
-              background: composing ? "#9ca3af" : "#4f46e5",
+              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 6,
@@ -5160,8 +5082,8 @@ function UnifiedPromptSection({
           {/* Prompt Content */}
           <div
             style={{
-              background: "#1f2937",
-              color: "#f3f4f6",
+              background: "var(--surface-dark)",
+              color: "var(--text-on-dark)",
               padding: 20,
               borderRadius: 12,
               fontSize: 14,
@@ -5170,7 +5092,7 @@ function UnifiedPromptSection({
               fontFamily: "ui-monospace, monospace",
               maxHeight: 500,
               overflowY: "auto",
-              border: "1px solid #374151",
+              border: "1px solid var(--border-dark)",
             }}
           >
             {activePrompt.prompt}
@@ -5178,28 +5100,28 @@ function UnifiedPromptSection({
 
           {/* Composition Inputs */}
           {activePrompt.inputs && (
-            <div style={{ padding: 12, background: "#fefce8", borderRadius: 8, border: "1px solid #fde68a" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>
+            <div style={{ padding: 12, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8 }}>
                 Composition Inputs
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
                 {activePrompt.inputs.memoriesCount !== undefined && (
-                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                     Memories: {activePrompt.inputs.memoriesCount}
                   </span>
                 )}
                 {activePrompt.inputs.personalityAvailable !== undefined && (
-                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                     Personality: {activePrompt.inputs.personalityAvailable ? "Yes" : "No"}
                   </span>
                 )}
                 {activePrompt.inputs.recentCallsCount !== undefined && (
-                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                     Recent Calls: {activePrompt.inputs.recentCallsCount}
                   </span>
                 )}
                 {activePrompt.inputs.behaviorTargetsCount !== undefined && (
-                  <span style={{ fontSize: 12, color: "#78350f" }}>
+                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                     Behavior Targets: {activePrompt.inputs.behaviorTargetsCount}
                   </span>
                 )}
@@ -5216,8 +5138,8 @@ function UnifiedPromptSection({
               }}
               style={{
                 padding: "8px 16px",
-                background: "#4f46e5",
-                color: "#fff",
+                background: "var(--button-primary-bg)",
+                color: "var(--text-on-dark)",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 12,
@@ -5232,7 +5154,7 @@ function UnifiedPromptSection({
           {/* Prompt History */}
           {prompts.length > 1 && (
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
                 Prompt History ({prompts.length})
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -5242,8 +5164,8 @@ function UnifiedPromptSection({
                     onClick={() => setExpandedPrompt(expandedPrompt === p.id ? null : p.id)}
                     style={{
                       padding: 12,
-                      background: "#f9fafb",
-                      border: "1px solid #e5e7eb",
+                      background: "var(--background)",
+                      border: "1px solid var(--border-default)",
                       borderRadius: 8,
                       cursor: "pointer",
                     }}
@@ -5254,27 +5176,27 @@ function UnifiedPromptSection({
                           style={{
                             fontSize: 10,
                             padding: "2px 6px",
-                            background: p.status === "active" ? "#dcfce7" : "#e5e7eb",
-                            color: p.status === "active" ? "#166534" : "#6b7280",
+                            background: p.status === "active" ? "var(--status-success-bg)" : "var(--border-default)",
+                            color: p.status === "active" ? "var(--status-success-text)" : "var(--text-muted)",
                             borderRadius: 4,
                             textTransform: "uppercase",
                           }}
                         >
                           {p.status}
                         </span>
-                        <span style={{ fontSize: 12, color: "#374151" }}>
+                        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                           {new Date(p.composedAt).toLocaleString()}
                         </span>
                       </div>
-                      <span style={{ fontSize: 12, color: "#9ca3af" }}>{expandedPrompt === p.id ? "−" : "+"}</span>
+                      <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>{expandedPrompt === p.id ? "−" : "+"}</span>
                     </div>
                     {expandedPrompt === p.id && (
                       <div
                         style={{
                           marginTop: 12,
                           padding: 12,
-                          background: "#1f2937",
-                          color: "#f3f4f6",
+                          background: "var(--surface-dark)",
+                          color: "var(--text-on-dark)",
                           borderRadius: 6,
                           fontSize: 12,
                           whiteSpace: "pre-wrap",
@@ -5302,12 +5224,12 @@ function UnifiedPromptSection({
               style={{
                 padding: 40,
                 textAlign: "center",
-                background: "#f9fafb",
+                background: "var(--background)",
                 borderRadius: 12,
-                border: "1px dashed #e5e7eb",
+                border: "1px dashed var(--border-default)",
               }}
             >
-              <div style={{ fontSize: 14, color: "#6b7280" }}>
+              <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
                 No structured LLM data available for this prompt. Compose a new prompt to generate.
               </div>
             </div>
@@ -5315,16 +5237,16 @@ function UnifiedPromptSection({
             <>
               {/* Pretty/Raw Toggle */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12, color: "#6b7280" }}>Structured JSON for AI agent consumption</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Structured JSON for AI agent consumption</span>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                  <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
                     <button
                       onClick={() => setLlmViewMode("pretty")}
                       style={{
                         padding: "4px 10px",
                         fontSize: 11,
-                        background: llmViewMode === "pretty" ? "#4f46e5" : "#fff",
-                        color: llmViewMode === "pretty" ? "#fff" : "#374151",
+                        background: llmViewMode === "pretty" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                        color: llmViewMode === "pretty" ? "var(--text-on-dark)" : "var(--text-secondary)",
                         border: "none",
                         cursor: "pointer",
                       }}
@@ -5336,8 +5258,8 @@ function UnifiedPromptSection({
                       style={{
                         padding: "4px 10px",
                         fontSize: 11,
-                        background: llmViewMode === "raw" ? "#4f46e5" : "#fff",
-                        color: llmViewMode === "raw" ? "#fff" : "#374151",
+                        background: llmViewMode === "raw" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                        color: llmViewMode === "raw" ? "var(--text-on-dark)" : "var(--text-secondary)",
                         border: "none",
                         cursor: "pointer",
                       }}
@@ -5352,9 +5274,9 @@ function UnifiedPromptSection({
                     }}
                     style={{
                       padding: "4px 10px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #e5e7eb",
+                      background: "var(--surface-secondary)",
+                      color: "var(--text-secondary)",
+                      border: "1px solid var(--border-default)",
                       borderRadius: 6,
                       fontSize: 11,
                       cursor: "pointer",
@@ -5368,8 +5290,8 @@ function UnifiedPromptSection({
               {llmViewMode === "raw" ? (
                 <div
                   style={{
-                    background: "#1f2937",
-                    color: "#a5f3fc",
+                    background: "var(--surface-dark)",
+                    color: "var(--text-on-dark-muted)",
                     padding: 20,
                     borderRadius: 12,
                     fontSize: 12,
@@ -5377,7 +5299,7 @@ function UnifiedPromptSection({
                     whiteSpace: "pre-wrap",
                     maxHeight: 600,
                     overflowY: "auto",
-                    border: "1px solid #374151",
+                    border: "1px solid var(--border-dark)",
                   }}
                 >
                   {JSON.stringify(llm, null, 2)}
@@ -5386,14 +5308,14 @@ function UnifiedPromptSection({
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {/* Memories */}
                   {llm.memories && llm.memories.totalCount > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#0891b2" }}>
+                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--badge-cyan-text)" }}>
                         💭 Memories ({llm.memories.totalCount})
                       </h4>
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
                           <div key={category}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "#6b7280", marginBottom: 6 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "var(--text-muted)", marginBottom: 6 }}>
                               {category}
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -5402,13 +5324,13 @@ function UnifiedPromptSection({
                                   key={i}
                                   style={{
                                     padding: 8,
-                                    background: CATEGORY_COLORS[category]?.bg || "#f3f4f6",
+                                    background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
                                     borderRadius: 6,
                                     fontSize: 12,
                                   }}
                                 >
                                   <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
-                                  <span style={{ marginLeft: 8, fontSize: 10, color: "#9ca3af" }}>
+                                  <span style={{ marginLeft: 8, fontSize: 10, color: "var(--text-placeholder)" }}>
                                     ({(m.confidence * 100).toFixed(0)}%)
                                   </span>
                                 </div>
@@ -5422,8 +5344,8 @@ function UnifiedPromptSection({
 
                   {/* Behavior Targets */}
                   {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#059669" }}>
+                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-success-text)" }}>
                         🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
                       </h4>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -5432,7 +5354,7 @@ function UnifiedPromptSection({
                             key={i}
                             style={{
                               padding: 10,
-                              background: t.targetLevel === "HIGH" ? "#dcfce7" : t.targetLevel === "LOW" ? "#fef2f2" : "#f3f4f6",
+                              background: t.targetLevel === "HIGH" ? "var(--status-success-bg)" : t.targetLevel === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
                               borderRadius: 6,
                             }}
                           >
@@ -5441,12 +5363,12 @@ function UnifiedPromptSection({
                               style={{
                                 fontSize: 13,
                                 fontWeight: 700,
-                                color: t.targetLevel === "HIGH" ? "#16a34a" : t.targetLevel === "LOW" ? "#dc2626" : "#6b7280",
+                                color: t.targetLevel === "HIGH" ? "var(--status-success-text)" : t.targetLevel === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
                               }}
                             >
                               {t.targetLevel}
                             </div>
-                            <div style={{ fontSize: 10, color: "#6b7280" }}>
+                            <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
                               {(t.targetValue * 100).toFixed(0)}%
                             </div>
                           </div>
@@ -5457,11 +5379,11 @@ function UnifiedPromptSection({
 
                   {/* Call History Summary */}
                   {llm.callHistory && llm.callHistory.totalCalls > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#6366f1" }}>
+                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--badge-indigo-text)" }}>
                         📞 Call History ({llm.callHistory.totalCalls} calls)
                       </h4>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                         Recent calls included in prompt context
                       </div>
                     </div>
@@ -5469,11 +5391,11 @@ function UnifiedPromptSection({
 
                   {/* AI Instructions */}
                   {llm.instructions && (
-                    <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#92400e" }}>
+                    <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 12, padding: 16 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-warning-text)" }}>
                         📋 AI Instructions
                       </h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "#78350f" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "var(--status-warning-text)" }}>
                         {llm.instructions.use_memories && (
                           <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
                         )}
@@ -5522,14 +5444,14 @@ function PromptsSection({
   onRefresh: () => void;
 }) {
   const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    active: { bg: "#dcfce7", text: "#166534" },
-    superseded: { bg: "#e5e7eb", text: "#6b7280" },
-    expired: { bg: "#fee2e2", text: "#dc2626" },
+    active: { bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
+    superseded: { bg: "var(--surface-secondary)", text: "var(--text-muted)" },
+    expired: { bg: "var(--status-error-bg)", text: "var(--status-error-text)" },
   };
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading prompts...</div>
+      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading prompts...</div>
     );
   }
 
@@ -5539,7 +5461,7 @@ function PromptsSection({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Composed Prompts</h3>
-          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
             AI-generated next-call guidance prompts for this caller
           </p>
         </div>
@@ -5548,9 +5470,9 @@ function PromptsSection({
             onClick={onRefresh}
             style={{
               padding: "8px 16px",
-              background: "#f3f4f6",
-              color: "#374151",
-              border: "1px solid #e5e7eb",
+              background: "var(--surface-secondary)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border-default)",
               borderRadius: 6,
               fontSize: 13,
               cursor: "pointer",
@@ -5563,7 +5485,7 @@ function PromptsSection({
             disabled={composing}
             style={{
               padding: "8px 16px",
-              background: composing ? "#9ca3af" : "#4f46e5",
+              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 6,
@@ -5582,14 +5504,14 @@ function PromptsSection({
           style={{
             padding: 40,
             textAlign: "center",
-            background: "#f9fafb",
+            background: "var(--background)",
             borderRadius: 12,
-            border: "1px dashed #e5e7eb",
+            border: "1px dashed var(--border-default)",
           }}
         >
           <div style={{ fontSize: 32, marginBottom: 12 }}>📝</div>
-          <div style={{ fontSize: 14, color: "#6b7280" }}>No prompts composed yet</div>
-          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>
+          <div style={{ fontSize: 14, color: "var(--text-muted)" }}>No prompts composed yet</div>
+          <div style={{ fontSize: 13, color: "var(--text-placeholder)", marginTop: 4 }}>
             Click "Compose New Prompt" to generate a personalized next-call guidance prompt using AI
           </div>
         </div>
@@ -5603,8 +5525,8 @@ function PromptsSection({
               <div
                 key={prompt.id}
                 style={{
-                  background: "#fff",
-                  border: prompt.status === "active" ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                  background: "var(--surface-primary)",
+                  border: prompt.status === "active" ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
                   borderRadius: 12,
                   overflow: "hidden",
                 }}
@@ -5618,7 +5540,7 @@ function PromptsSection({
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    background: prompt.status === "active" ? "#f0f9ff" : "#fff",
+                    background: prompt.status === "active" ? "var(--status-info-bg)" : "var(--surface-primary)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -5635,10 +5557,10 @@ function PromptsSection({
                     >
                       {prompt.status}
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "#111827" }}>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                       {new Date(prompt.composedAt).toLocaleString()}
                     </span>
-                    <span style={{ fontSize: 12, color: "#4b5563" }}>
+                    <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                       via {prompt.triggerType}
                     </span>
                     {prompt.model && (
@@ -5646,8 +5568,8 @@ function PromptsSection({
                         style={{
                           fontSize: 11,
                           padding: "2px 6px",
-                          background: "#e0e7ff",
-                          color: "#3730a3",
+                          background: "var(--status-info-bg)",
+                          color: "var(--badge-indigo-text)",
                           borderRadius: 4,
                           fontFamily: "monospace",
                         }}
@@ -5656,17 +5578,17 @@ function PromptsSection({
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: 16, color: "#6b7280" }}>{isExpanded ? "−" : "+"}</span>
+                  <span style={{ fontSize: 16, color: "var(--text-muted)" }}>{isExpanded ? "−" : "+"}</span>
                 </div>
 
                 {/* Expanded Content */}
                 {isExpanded && (
-                  <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", background: "#fff" }}>
+                  <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--surface-primary)" }}>
                     {/* Prompt Preview */}
                     <div
                       style={{
-                        background: "#1f2937",
-                        color: "#f3f4f6",
+                        background: "var(--surface-dark)",
+                        color: "var(--text-on-dark)",
                         padding: 16,
                         borderRadius: 8,
                         fontSize: 13,
@@ -5675,7 +5597,7 @@ function PromptsSection({
                         fontFamily: "monospace",
                         maxHeight: 400,
                         overflowY: "auto",
-                        border: "1px solid #374151",
+                        border: "1px solid var(--border-dark)",
                       }}
                     >
                       {prompt.prompt}
@@ -5683,28 +5605,28 @@ function PromptsSection({
 
                     {/* Metadata */}
                     {prompt.inputs && (
-                      <div style={{ marginTop: 16, padding: 12, background: "#fefce8", borderRadius: 8, border: "1px solid #fde68a" }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>
+                      <div style={{ marginTop: 16, padding: 12, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8 }}>
                           Composition Inputs
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
                           {prompt.inputs.memoriesCount !== undefined && (
-                            <span style={{ fontSize: 12, color: "#78350f" }}>
+                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                               Memories: {prompt.inputs.memoriesCount}
                             </span>
                           )}
                           {prompt.inputs.personalityAvailable !== undefined && (
-                            <span style={{ fontSize: 12, color: "#78350f" }}>
+                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                               Personality: {prompt.inputs.personalityAvailable ? "Yes" : "No"}
                             </span>
                           )}
                           {prompt.inputs.recentCallsCount !== undefined && (
-                            <span style={{ fontSize: 12, color: "#78350f" }}>
+                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                               Recent Calls: {prompt.inputs.recentCallsCount}
                             </span>
                           )}
                           {prompt.inputs.behaviorTargetsCount !== undefined && (
-                            <span style={{ fontSize: 12, color: "#78350f" }}>
+                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                               Behavior Targets: {prompt.inputs.behaviorTargetsCount}
                             </span>
                           )}
@@ -5715,7 +5637,7 @@ function PromptsSection({
                     {/* Trigger Call Link */}
                     {prompt.triggerCall && (
                       <div style={{ marginTop: 12 }}>
-                        <span style={{ fontSize: 12, color: "#4b5563" }}>
+                        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                           Triggered by call on {new Date(prompt.triggerCall.createdAt).toLocaleDateString()} ({prompt.triggerCall.source})
                         </span>
                       </div>
@@ -5731,8 +5653,8 @@ function PromptsSection({
                         }}
                         style={{
                           padding: "8px 16px",
-                          background: "#4f46e5",
-                          color: "#fff",
+                          background: "var(--button-primary-bg)",
+                          color: "var(--text-on-dark)",
                           border: "none",
                           borderRadius: 6,
                           fontSize: 12,
@@ -5775,7 +5697,7 @@ function LlmPromptSection({
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading LLM prompt...</div>
+      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading LLM prompt...</div>
     );
   }
 
@@ -5786,14 +5708,14 @@ function LlmPromptSection({
           style={{
             padding: 40,
             textAlign: "center",
-            background: "#f9fafb",
+            background: "var(--background)",
             borderRadius: 12,
-            border: "1px dashed #e5e7eb",
+            border: "1px dashed var(--border-default)",
           }}
         >
           <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No LLM Prompt Available</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No LLM Prompt Available</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
             {!activePrompt
               ? "Compose a prompt first to generate structured LLM data."
               : "This prompt was created before the llmPrompt feature. Compose a new prompt to get structured JSON data."}
@@ -5804,7 +5726,7 @@ function LlmPromptSection({
             style={{
               marginTop: 20,
               padding: "12px 24px",
-              background: composing ? "#9ca3af" : "#4f46e5",
+              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -5828,19 +5750,19 @@ function LlmPromptSection({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>LLM-Friendly Prompt Data</h3>
-          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
             Structured JSON for AI agent consumption • Generated {new Date(activePrompt.composedAt).toLocaleString()}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
             <button
               onClick={() => setViewMode("pretty")}
               style={{
                 padding: "6px 12px",
                 fontSize: 12,
-                background: viewMode === "pretty" ? "#4f46e5" : "#fff",
-                color: viewMode === "pretty" ? "#fff" : "#374151",
+                background: viewMode === "pretty" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                color: viewMode === "pretty" ? "var(--text-on-dark)" : "var(--text-secondary)",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -5852,8 +5774,8 @@ function LlmPromptSection({
               style={{
                 padding: "6px 12px",
                 fontSize: 12,
-                background: viewMode === "raw" ? "#4f46e5" : "#fff",
-                color: viewMode === "raw" ? "#fff" : "#374151",
+                background: viewMode === "raw" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                color: viewMode === "raw" ? "var(--text-on-dark)" : "var(--text-secondary)",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -5868,9 +5790,9 @@ function LlmPromptSection({
             }}
             style={{
               padding: "6px 12px",
-              background: "#f3f4f6",
-              color: "#374151",
-              border: "1px solid #e5e7eb",
+              background: "var(--surface-secondary)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border-default)",
               borderRadius: 6,
               fontSize: 12,
               cursor: "pointer",
@@ -5883,7 +5805,7 @@ function LlmPromptSection({
             disabled={composing}
             style={{
               padding: "6px 12px",
-              background: composing ? "#9ca3af" : "#4f46e5",
+              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 6,
@@ -5901,8 +5823,8 @@ function LlmPromptSection({
         /* Raw JSON View */
         <div
           style={{
-            background: "#1f2937",
-            color: "#a5f3fc",
+            background: "var(--surface-dark)",
+            color: "var(--text-on-dark-muted)",
             padding: 20,
             borderRadius: 12,
             fontSize: 12,
@@ -5910,7 +5832,7 @@ function LlmPromptSection({
             whiteSpace: "pre-wrap",
             maxHeight: 600,
             overflowY: "auto",
-            border: "1px solid #374151",
+            border: "1px solid var(--border-dark)",
           }}
         >
           {JSON.stringify(llm, null, 2)}
@@ -5920,26 +5842,26 @@ function LlmPromptSection({
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Caller Info */}
           {llm.caller && (
-            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#4f46e5" }}>
+            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--button-primary-bg)" }}>
                 👤 Caller
               </h4>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                 {llm.caller.name && (
-                  <div style={{ padding: 10, background: "#f0f9ff", borderRadius: 6 }}>
-                    <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>Name</div>
+                  <div style={{ padding: 10, background: "var(--status-info-bg)", borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Name</div>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.name}</div>
                   </div>
                 )}
                 {llm.caller.contactInfo?.email && (
-                  <div style={{ padding: 10, background: "#f0f9ff", borderRadius: 6 }}>
-                    <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>Email</div>
+                  <div style={{ padding: 10, background: "var(--status-info-bg)", borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Email</div>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.contactInfo.email}</div>
                   </div>
                 )}
                 {llm.caller.contactInfo?.phone && (
-                  <div style={{ padding: 10, background: "#f0f9ff", borderRadius: 6 }}>
-                    <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>Phone</div>
+                  <div style={{ padding: 10, background: "var(--status-info-bg)", borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Phone</div>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.contactInfo.phone}</div>
                   </div>
                 )}
@@ -5949,8 +5871,8 @@ function LlmPromptSection({
 
           {/* Personality */}
           {llm.personality && (
-            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#8b5cf6" }}>
+            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--trait-neuroticism)" }}>
                 🧠 Personality Profile
               </h4>
               {llm.personality.traits && (
@@ -5960,7 +5882,7 @@ function LlmPromptSection({
                       key={trait}
                       style={{
                         padding: 10,
-                        background: data.level === "HIGH" ? "#dcfce7" : data.level === "LOW" ? "#fef2f2" : "#f3f4f6",
+                        background: data.level === "HIGH" ? "var(--status-success-bg)" : data.level === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
                         borderRadius: 6,
                         textAlign: "center",
                       }}
@@ -5972,12 +5894,12 @@ function LlmPromptSection({
                         style={{
                           fontSize: 14,
                           fontWeight: 700,
-                          color: data.level === "HIGH" ? "#16a34a" : data.level === "LOW" ? "#dc2626" : "#6b7280",
+                          color: data.level === "HIGH" ? "var(--status-success-text)" : data.level === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
                         }}
                       >
                         {data.level || "—"}
                       </div>
-                      <div style={{ fontSize: 10, color: "#6b7280", marginTop: 4 }}>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
                         {data.score !== null ? `${(data.score * 100).toFixed(0)}%` : "N/A"}
                       </div>
                     </div>
@@ -5987,17 +5909,17 @@ function LlmPromptSection({
               {llm.personality.preferences && Object.values(llm.personality.preferences).some((v) => v) && (
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                   {llm.personality.preferences.tone && (
-                    <span style={{ fontSize: 11, padding: "4px 8px", background: "#e0e7ff", color: "#3730a3", borderRadius: 4 }}>
+                    <span style={{ fontSize: 11, padding: "4px 8px", background: "var(--status-info-bg)", color: "var(--badge-indigo-text)", borderRadius: 4 }}>
                       Tone: {llm.personality.preferences.tone}
                     </span>
                   )}
                   {llm.personality.preferences.responseLength && (
-                    <span style={{ fontSize: 11, padding: "4px 8px", background: "#fef3c7", color: "#92400e", borderRadius: 4 }}>
+                    <span style={{ fontSize: 11, padding: "4px 8px", background: "var(--status-warning-bg)", color: "var(--status-warning-text)", borderRadius: 4 }}>
                       Length: {llm.personality.preferences.responseLength}
                     </span>
                   )}
                   {llm.personality.preferences.technicalLevel && (
-                    <span style={{ fontSize: 11, padding: "4px 8px", background: "#f3e8ff", color: "#7c3aed", borderRadius: 4 }}>
+                    <span style={{ fontSize: 11, padding: "4px 8px", background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", borderRadius: 4 }}>
                       Tech: {llm.personality.preferences.technicalLevel}
                     </span>
                   )}
@@ -6008,14 +5930,14 @@ function LlmPromptSection({
 
           {/* Memories */}
           {llm.memories && llm.memories.totalCount > 0 && (
-            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#0891b2" }}>
+            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--badge-cyan-text)" }}>
                 💭 Memories ({llm.memories.totalCount})
               </h4>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
                   <div key={category}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "#6b7280", marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "var(--text-muted)", marginBottom: 6 }}>
                       {category}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -6024,13 +5946,13 @@ function LlmPromptSection({
                           key={i}
                           style={{
                             padding: 8,
-                            background: CATEGORY_COLORS[category]?.bg || "#f3f4f6",
+                            background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
                             borderRadius: 6,
                             fontSize: 12,
                           }}
                         >
                           <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
-                          <span style={{ marginLeft: 8, fontSize: 10, color: "#9ca3af" }}>
+                          <span style={{ marginLeft: 8, fontSize: 10, color: "var(--text-placeholder)" }}>
                             ({(m.confidence * 100).toFixed(0)}%)
                           </span>
                         </div>
@@ -6044,8 +5966,8 @@ function LlmPromptSection({
 
           {/* Behavior Targets */}
           {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#059669" }}>
+            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-success-text)" }}>
                 🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
               </h4>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -6054,7 +5976,7 @@ function LlmPromptSection({
                     key={i}
                     style={{
                       padding: 10,
-                      background: t.targetLevel === "HIGH" ? "#dcfce7" : t.targetLevel === "LOW" ? "#fef2f2" : "#f3f4f6",
+                      background: t.targetLevel === "HIGH" ? "var(--status-success-bg)" : t.targetLevel === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
                       borderRadius: 6,
                     }}
                   >
@@ -6063,12 +5985,12 @@ function LlmPromptSection({
                       style={{
                         fontSize: 13,
                         fontWeight: 700,
-                        color: t.targetLevel === "HIGH" ? "#16a34a" : t.targetLevel === "LOW" ? "#dc2626" : "#6b7280",
+                        color: t.targetLevel === "HIGH" ? "var(--status-success-text)" : t.targetLevel === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
                       }}
                     >
                       {t.targetLevel}
                     </div>
-                    <div style={{ fontSize: 10, color: "#6b7280" }}>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
                       {(t.targetValue * 100).toFixed(0)}%
                     </div>
                   </div>
@@ -6079,11 +6001,11 @@ function LlmPromptSection({
 
           {/* Instructions Summary */}
           {llm.instructions && (
-            <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#92400e" }}>
+            <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-warning-text)" }}>
                 📋 AI Instructions
               </h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "#78350f" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "var(--status-warning-text)" }}>
                 {llm.instructions.use_memories && (
                   <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
                 )}
@@ -6129,41 +6051,41 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
     return (
       <div style={{ display: "grid", gap: 20 }}>
         {/* Caller Info Card */}
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
           <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Caller Identification</h4>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
             {caller.phone && (
-              <div style={{ padding: 12, background: "#f0fdf4", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "#166534", fontWeight: 500 }}>Phone</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#15803d", marginTop: 4 }}>{caller.phone}</div>
+              <div style={{ padding: 12, background: "var(--status-success-bg)", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: "var(--status-success-text)", fontWeight: 500 }}>Phone</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-success-text)", marginTop: 4 }}>{caller.phone}</div>
               </div>
             )}
             {caller.email && (
-              <div style={{ padding: 12, background: "#eff6ff", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "#1d4ed8", fontWeight: 500 }}>Email</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#1e40af", marginTop: 4 }}>{caller.email}</div>
+              <div style={{ padding: 12, background: "var(--status-info-bg)", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: "var(--status-info-text)", fontWeight: 500 }}>Email</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-info-text)", marginTop: 4 }}>{caller.email}</div>
               </div>
             )}
             {caller.externalId && (
-              <div style={{ padding: 12, background: "#f5f3ff", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "#6d28d9", fontWeight: 500 }}>External ID</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#5b21b6", marginTop: 4 }}>{caller.externalId}</div>
+              <div style={{ padding: 12, background: "var(--badge-purple-bg)", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: "var(--badge-purple-text)", fontWeight: 500 }}>External ID</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--badge-purple-text)", marginTop: 4 }}>{caller.externalId}</div>
               </div>
             )}
             {caller.name && (
-              <div style={{ padding: 12, background: "#fef3c7", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "#92400e", fontWeight: 500 }}>Name</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#b45309", marginTop: 4 }}>{caller.name}</div>
+              <div style={{ padding: 12, background: "var(--status-warning-bg)", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: "var(--status-warning-text)", fontWeight: 500 }}>Name</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-warning-text)", marginTop: 4 }}>{caller.name}</div>
               </div>
             )}
           </div>
         </div>
 
         {/* Key Memories for Prompt Composition */}
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
           <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Key Memories ({memories.length})</h4>
           {memories.length === 0 ? (
-            <div style={{ color: "#9ca3af", fontSize: 13, padding: 20, textAlign: "center" }}>
+            <div style={{ color: "var(--text-placeholder)", fontSize: 13, padding: 20, textAlign: "center" }}>
               No memories extracted yet. Run analysis on calls to extract memories.
             </div>
           ) : (
@@ -6174,7 +6096,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                     style={{
                       fontSize: 11,
                       fontWeight: 600,
-                      color: CATEGORY_COLORS[category]?.text || "#6b7280",
+                      color: CATEGORY_COLORS[category]?.text || "var(--text-muted)",
                       marginBottom: 8,
                     }}
                   >
@@ -6186,17 +6108,17 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                         key={m.id}
                         style={{
                           padding: 10,
-                          background: CATEGORY_COLORS[category]?.bg || "#f3f4f6",
+                          background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
                           borderRadius: 6,
                           fontSize: 12,
                         }}
                       >
                         <div style={{ fontWeight: 500, marginBottom: 2 }}>{m.key}</div>
-                        <div style={{ color: "#4b5563" }}>{m.value}</div>
+                        <div style={{ color: "var(--text-secondary)" }}>{m.value}</div>
                       </div>
                     ))}
                     {mems.length > 5 && (
-                      <div style={{ fontSize: 11, color: "#9ca3af", padding: "4px 10px" }}>
+                      <div style={{ fontSize: 11, color: "var(--text-placeholder)", padding: "4px 10px" }}>
                         + {mems.length - 5} more
                       </div>
                     )}
@@ -6208,12 +6130,12 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
         </div>
 
         {/* Prompt Composition Notice */}
-        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 12, padding: 20 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
             <span style={{ fontSize: 24 }}>💡</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#92400e" }}>No composed prompt yet</div>
-              <div style={{ fontSize: 13, color: "#b45309", marginTop: 4 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-warning-text)" }}>No composed prompt yet</div>
+              <div style={{ fontSize: 13, color: "var(--status-warning-text)", marginTop: 4 }}>
                 To compose a personalized prompt for this caller, run the <code>prompt:compose-next</code> operation from the Ops page.
                 This will combine their personality profile, memories, and behavior targets into a ready-to-use prompt.
               </div>
@@ -6223,8 +6145,8 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                   display: "inline-block",
                   marginTop: 12,
                   padding: "8px 16px",
-                  background: "#4f46e5",
-                  color: "#fff",
+                  background: "var(--button-primary-bg)",
+                  color: "var(--text-on-dark)",
                   borderRadius: 6,
                   textDecoration: "none",
                   fontSize: 13,
@@ -6242,7 +6164,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
   return (
     <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
       {/* Identity List */}
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
         <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Identities ({identities.length})</h4>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {identities.map((identity) => (
@@ -6251,8 +6173,8 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
               onClick={() => setSelectedIdentity(identity)}
               style={{
                 padding: 10,
-                background: selectedIdentity?.id === identity.id ? "#eef2ff" : "#f9fafb",
-                border: `1px solid ${selectedIdentity?.id === identity.id ? "#a5b4fc" : "#e5e7eb"}`,
+                background: selectedIdentity?.id === identity.id ? "var(--status-info-bg)" : "var(--background)",
+                border: `1px solid ${selectedIdentity?.id === identity.id ? "var(--status-info-border)" : "var(--border-default)"}`,
                 borderRadius: 8,
                 cursor: "pointer",
                 textAlign: "left",
@@ -6262,11 +6184,11 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                 {identity.name || identity.externalId || identity.id.slice(0, 8)}
               </div>
               {identity.segment && (
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
                   {identity.segment.name}
                 </div>
               )}
-              <div style={{ fontSize: 10, marginTop: 4, color: identity.nextPrompt ? "#10b981" : "#9ca3af" }}>
+              <div style={{ fontSize: 10, marginTop: 4, color: identity.nextPrompt ? "var(--status-success-text)" : "var(--text-placeholder)" }}>
                 {identity.nextPrompt ? "✓ Prompt ready" : "No prompt"}
               </div>
             </button>
@@ -6275,12 +6197,12 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
       </div>
 
       {/* Prompt Display */}
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
+      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
         {!selectedIdentity?.nextPrompt ? (
           <div style={{ padding: 40, textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✨</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No prompt composed</div>
-            <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No prompt composed</div>
+            <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
               Run prompt composition to generate a personalized prompt for this identity
             </div>
             <Link
@@ -6289,8 +6211,8 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                 display: "inline-block",
                 marginTop: 16,
                 padding: "10px 20px",
-                background: "#4f46e5",
-                color: "#fff",
+                background: "var(--button-primary-bg)",
+                color: "var(--text-on-dark)",
                 borderRadius: 8,
                 textDecoration: "none",
                 fontSize: 14,
@@ -6304,7 +6226,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Composed Prompt</h3>
-                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: "var(--text-placeholder)", marginTop: 2 }}>
                   {selectedIdentity.nextPromptComposedAt
                     ? `Composed ${new Date(selectedIdentity.nextPromptComposedAt).toLocaleString()}`
                     : ""}
@@ -6314,8 +6236,8 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                 onClick={() => navigator.clipboard.writeText(selectedIdentity.nextPrompt || "")}
                 style={{
                   padding: "8px 16px",
-                  background: "#f3f4f6",
-                  border: "1px solid #d1d5db",
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--input-border)",
                   borderRadius: 6,
                   cursor: "pointer",
                   fontSize: 13,
@@ -6326,7 +6248,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
             </div>
 
             {selectedIdentity.nextPromptInputs && (
-              <div style={{ display: "flex", gap: 16, marginBottom: 16, padding: 12, background: "#f0fdf4", borderRadius: 8, fontSize: 12 }}>
+              <div style={{ display: "flex", gap: 16, marginBottom: 16, padding: 12, background: "var(--status-success-bg)", borderRadius: 8, fontSize: 12 }}>
                 <span>🎯 {selectedIdentity.nextPromptInputs.targetCount || 0} targets</span>
                 <span>💭 {selectedIdentity.nextPromptInputs.memoryCount || 0} memories</span>
               </div>
@@ -6334,8 +6256,8 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
 
             <div
               style={{
-                background: "#f9fafb",
-                border: "1px solid #e5e7eb",
+                background: "var(--background)",
+                border: "1px solid var(--border-default)",
                 borderRadius: 10,
                 padding: 20,
                 fontSize: 14,
@@ -6360,10 +6282,10 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
 
   if (!calls || calls.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📜</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No transcripts</div>
-        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>No calls have been recorded for this caller</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No transcripts</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>No calls have been recorded for this caller</div>
       </div>
     );
   }
@@ -6378,8 +6300,8 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
           <div
             key={call.id}
             style={{
-              background: "#fff",
-              border: "1px solid #e5e7eb",
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
               borderRadius: 12,
               overflow: "hidden",
             }}
@@ -6405,7 +6327,7 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
                   <div style={{ fontSize: 14, fontWeight: 500 }}>
                     {new Date(call.createdAt).toLocaleDateString()} at {new Date(call.createdAt).toLocaleTimeString()}
                   </div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                     {call.source} • {wordCount} words
                     {call.externalId && ` • ${call.externalId}`}
                   </div>
@@ -6415,27 +6337,27 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
                 {/* Analysis badges */}
                 <div style={{ display: "flex", gap: 4 }}>
                   {call.hasScores && (
-                    <span style={{ padding: "2px 6px", fontSize: 10, background: "#dcfce7", color: "#16a34a", borderRadius: 4 }}>
+                    <span style={{ padding: "2px 6px", fontSize: 10, background: "var(--status-success-bg)", color: "var(--status-success-text)", borderRadius: 4 }}>
                       Scored
                     </span>
                   )}
                   {call.hasMemories && (
-                    <span style={{ padding: "2px 6px", fontSize: 10, background: "#dbeafe", color: "#2563eb", borderRadius: 4 }}>
+                    <span style={{ padding: "2px 6px", fontSize: 10, background: "var(--badge-blue-bg)", color: "var(--status-info-text)", borderRadius: 4 }}>
                       Memories
                     </span>
                   )}
                 </div>
-                <span style={{ color: "#9ca3af" }}>{isExpanded ? "▼" : "▶"}</span>
+                <span style={{ color: "var(--text-placeholder)" }}>{isExpanded ? "▼" : "▶"}</span>
               </div>
             </button>
 
             {/* Transcript content */}
             {isExpanded && (
-              <div style={{ borderTop: "1px solid #e5e7eb", padding: 16 }}>
+              <div style={{ borderTop: "1px solid var(--border-default)", padding: 16 }}>
                 <div
                   style={{
-                    background: "#1f2937",
-                    color: "#f3f4f6",
+                    background: "var(--surface-dark)",
+                    color: "var(--text-on-dark)",
                     padding: 16,
                     borderRadius: 8,
                     fontSize: 13,
@@ -6457,8 +6379,8 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
                     style={{
                       padding: "8px 16px",
                       fontSize: 12,
-                      background: "#4f46e5",
-                      color: "#fff",
+                      background: "var(--button-primary-bg)",
+                      color: "var(--text-on-dark)",
                       border: "none",
                       borderRadius: 6,
                       cursor: "pointer",
@@ -6518,7 +6440,7 @@ function TopLevelTargetsSection({ callerId }: { callerId: string }) {
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
-        <div style={{ color: "#6b7280" }}>Loading targets...</div>
+        <div style={{ color: "var(--text-muted)" }}>Loading targets...</div>
       </div>
     );
   }
@@ -6527,20 +6449,23 @@ function TopLevelTargetsSection({ callerId }: { callerId: string }) {
 }
 
 // Top-Level Behaviour Section - shows measurements across all calls
+// Uses slider visualization (like Targets tab) for consistency
 function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
   const [measurements, setMeasurements] = useState<any[]>([]);
+  const [behaviorTargets, setBehaviorTargets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMeasurements();
+    fetchData();
   }, [callerId]);
 
-  const fetchMeasurements = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch all measurements for this caller's calls
+      // Fetch caller data and calls
       const res = await fetch(`/api/callers/${callerId}`);
       const data = await res.json();
+
       if (data.ok && data.calls.length > 0) {
         // Fetch measurements from each call
         const allMeasurements: any[] = [];
@@ -6557,9 +6482,17 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
           }
         }
         setMeasurements(allMeasurements);
+
+        // Fetch behavior targets from the most recent call
+        const mostRecentCall = data.calls[0];
+        const callDetailRes = await fetch(`/api/calls/${mostRecentCall.id}`);
+        const callDetail = await callDetailRes.json();
+        if (callDetail.ok) {
+          setBehaviorTargets(callDetail.effectiveTargets || []);
+        }
       }
     } catch (err) {
-      console.error("Error fetching measurements:", err);
+      console.error("Error fetching behaviour data:", err);
     } finally {
       setLoading(false);
     }
@@ -6568,24 +6501,24 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
-        <div style={{ color: "#6b7280" }}>Loading behaviour data...</div>
+        <div style={{ color: "var(--text-muted)" }}>Loading behaviour data...</div>
       </div>
     );
   }
 
   if (measurements.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No behavior measurements</div>
-        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No behavior measurements</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           Run the behavior measurement analysis to track how the agent performs against targets
         </div>
       </div>
     );
   }
 
-  // Group by parameter
+  // Group measurements by parameter and calculate averages
   const grouped: Record<string, any[]> = {};
   for (const m of measurements) {
     const key = m.parameterId;
@@ -6593,68 +6526,19 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
     grouped[key].push(m);
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {Object.entries(grouped).map(([parameterId, paramMeasurements]) => {
-        const avg = paramMeasurements.reduce((sum, m) => sum + m.actualValue, 0) / paramMeasurements.length;
-        const paramName = paramMeasurements[0]?.parameter?.name || parameterId;
+  // Transform measurements into format for TwoColumnTargetsDisplay
+  // We show average measurements as the primary value
+  const avgMeasurements = Object.entries(grouped).map(([parameterId, paramMeasurements]) => {
+    const avg = paramMeasurements.reduce((sum, m) => sum + m.actualValue, 0) / paramMeasurements.length;
+    return {
+      parameterId,
+      actualValue: avg,
+    };
+  });
 
-        return (
-          <div
-            key={parameterId}
-            style={{
-              background: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 16,
-            }}
-          >
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{paramName}</div>
-                <div style={{ fontSize: 11, color: "#6b7280" }}>
-                  {paramMeasurements[0]?.parameter?.definition || ""}
-                </div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 700,
-                    color: avg >= 0.7 ? "#10b981" : avg >= 0.4 ? "#f59e0b" : "#ef4444",
-                  }}
-                >
-                  {(avg * 100).toFixed(0)}%
-                </div>
-                <div style={{ fontSize: 11, color: "#9ca3af" }}>avg of {paramMeasurements.length}</div>
-              </div>
-            </div>
-
-            {/* Trend visualization */}
-            <div style={{ display: "flex", gap: 4, alignItems: "end", height: 40 }}>
-              {paramMeasurements
-                .sort((a, b) => new Date(a.callCreatedAt).getTime() - new Date(b.callCreatedAt).getTime())
-                .slice(-20)
-                .map((m, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      flex: 1,
-                      background: m.actualValue >= 0.7 ? "#dcfce7" : m.actualValue >= 0.4 ? "#fef3c7" : "#fee2e2",
-                      borderRadius: 2,
-                      height: `${Math.max(m.actualValue * 100, 10)}%`,
-                      minHeight: 4,
-                    }}
-                    title={`${new Date(m.callCreatedAt).toLocaleDateString()}: ${(m.actualValue * 100).toFixed(0)}%`}
-                  />
-                ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  // Use TwoColumnTargetsDisplay with measurements emphasized
+  // Empty callerTargets since this is about agent behavior, not caller-specific targets
+  return <TwoColumnTargetsDisplay callerTargets={[]} behaviorTargets={behaviorTargets} measurements={avgMeasurements} />;
 }
 
 // =====================================================
@@ -6721,7 +6605,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
-        <div style={{ color: "#6b7280" }}>Loading slugs...</div>
+        <div style={{ color: "var(--text-muted)" }}>Loading slugs...</div>
       </div>
     );
   }
@@ -6729,17 +6613,17 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
   if (!slugsData || slugsData.tree.length === 0) {
     const hasAvailableVars = slugsData?.counts?.available > 0;
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏷️</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
           {hasAvailableVars ? "No values yet" : "No template variables"}
         </div>
-        <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           {hasAvailableVars
             ? `${slugsData.counts.available} template variables are defined but awaiting values.`
             : "This caller has no memories, scores, or personalized targets yet."}
         </div>
-        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+        <div style={{ fontSize: 12, color: "var(--text-placeholder)", marginTop: 8 }}>
           Process calls through the pipeline to populate slug values.
         </div>
       </div>
@@ -6755,11 +6639,11 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
   };
 
   const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
-    IDENTITY: { bg: "#f0fdf4", border: "#86efac", text: "#16a34a" },
-    MEMORIES: { bg: "#fef3c7", border: "#fcd34d", text: "#d97706" },
-    SCORES: { bg: "#dbeafe", border: "#93c5fd", text: "#2563eb" },
-    "PERSONALIZED TARGETS": { bg: "#fdf2f8", border: "#f9a8d4", text: "#db2777" },
-    "AVAILABLE VARIABLES": { bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" },
+    IDENTITY: { bg: "var(--status-success-bg)", border: "var(--status-success-border)", text: "var(--status-success-text)" },
+    MEMORIES: { bg: "var(--status-warning-bg)", border: "var(--status-warning-border)", text: "var(--status-warning-text)" },
+    SCORES: { bg: "var(--badge-blue-bg)", border: "var(--status-info-border)", text: "var(--badge-blue-text)" },
+    "PERSONALIZED TARGETS": { bg: "var(--badge-pink-bg)", border: "var(--badge-pink-border)", text: "var(--badge-pink-text)" },
+    "AVAILABLE VARIABLES": { bg: "var(--surface-secondary)", border: "var(--input-border)", text: "var(--text-muted)" },
   };
 
   return (
@@ -6770,18 +6654,18 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
         justifyContent: "space-between",
         alignItems: "center",
         padding: 12,
-        background: "#f9fafb",
+        background: "var(--background)",
         borderRadius: 8,
-        border: "1px solid #e5e7eb",
+        border: "1px solid var(--border-default)",
       }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>
             Caller Template Variables
           </div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
             {slugsData.counts.total} with values: {slugsData.counts.memories} memories, {slugsData.counts.scores} scores, {slugsData.counts.targets} targets
             {slugsData.counts.available > 0 && (
-              <span style={{ color: "#9ca3af", marginLeft: 8 }}>
+              <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
                 • {slugsData.counts.available} available in templates
               </span>
             )}
@@ -6793,8 +6677,8 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
             style={{
               fontSize: 11,
               padding: "4px 8px",
-              background: "#e0e7ff",
-              color: "#4f46e5",
+              background: "var(--status-info-bg)",
+              color: "var(--button-primary-bg)",
               borderRadius: 4,
               textDecoration: "none",
             }}
@@ -6806,14 +6690,14 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
 
       {/* Tree view */}
       <div style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
         borderRadius: 12,
         overflow: "hidden",
       }}>
         {slugsData.tree.map((category) => {
           const isExpanded = expandedNodes.has(category.id);
-          const colors = categoryColors[category.name] || { bg: "#f3f4f6", border: "#e5e7eb", text: "#374151" };
+          const colors = categoryColors[category.name] || { bg: "var(--surface-secondary)", border: "var(--border-default)", text: "var(--text-secondary)" };
           const icon = categoryIcons[category.name] || "📁";
 
           return (
@@ -6831,7 +6715,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
                   cursor: "pointer",
                 }}
               >
-                <span style={{ fontSize: 12, color: "#6b7280" }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   {isExpanded ? "▼" : "▶"}
                 </span>
                 <span style={{ fontSize: 16 }}>{icon}</span>
@@ -6841,7 +6725,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
                     fontSize: 10,
                     padding: "2px 6px",
                     background: colors.text,
-                    color: "#fff",
+                    color: "var(--text-on-dark)",
                     borderRadius: 4,
                   }}>
                     {category.meta.count}
@@ -6851,7 +6735,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
 
               {/* Category children */}
               {isExpanded && category.children && (
-                <div style={{ borderBottom: "1px solid #e5e7eb" }}>
+                <div style={{ borderBottom: "1px solid var(--border-default)" }}>
                   {category.children.map((spec) => (
                     <SlugSpecNode
                       key={spec.id}
@@ -6892,20 +6776,20 @@ function SlugSpecNode({
           alignItems: "center",
           gap: 8,
           padding: "8px 16px 8px 32px",
-          background: isExpanded ? "#f9fafb" : "#fff",
-          borderBottom: "1px solid #f3f4f6",
+          background: isExpanded ? "var(--background)" : "var(--surface-primary)",
+          borderBottom: "1px solid var(--border-subtle)",
           cursor: hasChildren ? "pointer" : "default",
         }}
       >
         {hasChildren ? (
-          <span style={{ fontSize: 10, color: "#9ca3af" }}>
+          <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
             {isExpanded ? "▼" : "▶"}
           </span>
         ) : (
           <span style={{ width: 10 }} />
         )}
         <span style={{ fontSize: 12 }}>📄</span>
-        <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)" }}>
           {spec.name}
         </span>
         {spec.specSlug && (
@@ -6914,7 +6798,7 @@ function SlugSpecNode({
             onClick={(e) => e.stopPropagation()}
             style={{
               fontSize: 10,
-              color: "#6b7280",
+              color: "var(--text-muted)",
               textDecoration: "none",
             }}
           >
@@ -6922,7 +6806,7 @@ function SlugSpecNode({
           </Link>
         )}
         {spec.meta?.count !== undefined && (
-          <span style={{ fontSize: 10, color: "#9ca3af" }}>
+          <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
             ({spec.meta.count} items)
           </span>
         )}
@@ -6955,27 +6839,27 @@ function SlugVariableNode({ variable }: { variable: SlugNode }) {
         alignItems: "flex-start",
         gap: 8,
         padding: "6px 16px 6px 56px",
-        background: "#fafafa",
-        borderBottom: "1px solid #f3f4f6",
+        background: "var(--background)",
+        borderBottom: "1px solid var(--border-subtle)",
         fontSize: 12,
       }}
     >
       <code style={{
         padding: "2px 6px",
-        background: "#e5e7eb",
+        background: "var(--border-default)",
         borderRadius: 4,
         fontFamily: "monospace",
         fontSize: 11,
-        color: "#4b5563",
+        color: "var(--text-secondary)",
         whiteSpace: "nowrap",
       }}>
         {variable.path || variable.name}
       </code>
-      <span style={{ color: "#9ca3af" }}>=</span>
+      <span style={{ color: "var(--text-placeholder)" }}>=</span>
       <span
         style={{
           flex: 1,
-          color: "#374151",
+          color: "var(--text-secondary)",
           wordBreak: "break-word",
           cursor: isLong ? "pointer" : "default",
         }}
@@ -6988,8 +6872,8 @@ function SlugVariableNode({ variable }: { variable: SlugNode }) {
         <span style={{
           fontSize: 10,
           padding: "1px 4px",
-          background: variable.meta.confidence > 0.7 ? "#dcfce7" : "#fef3c7",
-          color: variable.meta.confidence > 0.7 ? "#16a34a" : "#d97706",
+          background: variable.meta.confidence > 0.7 ? "var(--status-success-bg)" : "var(--status-warning-bg)",
+          color: variable.meta.confidence > 0.7 ? "var(--status-success-text)" : "var(--status-warning-text)",
           borderRadius: 3,
         }}>
           {(variable.meta.confidence * 100).toFixed(0)}%
@@ -7242,9 +7126,9 @@ function AICallSection({
       <div
         style={{
           padding: "16px 20px",
-          background: callState === "active" ? "#dcfce7" : callState === "processing" ? "#fef3c7" : "#f9fafb",
+          background: callState === "active" ? "var(--status-success-bg)" : callState === "processing" ? "var(--status-warning-bg)" : "var(--background)",
           borderRadius: "12px 12px 0 0",
-          borderBottom: "1px solid #e5e7eb",
+          borderBottom: "1px solid var(--border-default)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -7256,7 +7140,7 @@ function AICallSection({
               width: 48,
               height: 48,
               borderRadius: "50%",
-              background: callState === "active" ? "#22c55e" : "#e5e7eb",
+              background: callState === "active" ? "var(--button-success-bg)" : "var(--border-default)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -7267,7 +7151,7 @@ function AICallSection({
           </div>
           <div>
             <div style={{ fontWeight: 600, fontSize: 16 }}>{callerName}</div>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
               {callState === "idle" && "Ready to call"}
               {callState === "active" && "Call in progress..."}
               {callState === "processing" && "Processing call..."}
@@ -7283,7 +7167,7 @@ function AICallSection({
               onClick={handleStartCall}
               style={{
                 padding: "12px 24px",
-                background: "#22c55e",
+                background: "var(--button-success-bg)",
                 color: "white",
                 border: "none",
                 borderRadius: 24,
@@ -7304,7 +7188,7 @@ function AICallSection({
               onClick={handleEndCall}
               style={{
                 padding: "12px 24px",
-                background: "#ef4444",
+                background: "var(--button-destructive-bg)",
                 color: "white",
                 border: "none",
                 borderRadius: 24,
@@ -7326,7 +7210,7 @@ function AICallSection({
               disabled={callState === "processing"}
               style={{
                 padding: "12px 24px",
-                background: callState === "processing" ? "#9ca3af" : "#4f46e5",
+                background: callState === "processing" ? "var(--text-placeholder)" : "var(--button-primary-bg)",
                 color: "white",
                 border: "none",
                 borderRadius: 24,
@@ -7351,7 +7235,7 @@ function AICallSection({
           flex: 1,
           overflow: "auto",
           padding: 20,
-          background: callState === "active" ? "#f0fdf4" : "#ffffff",
+          background: callState === "active" ? "var(--status-success-bg)" : "var(--surface-primary)",
           display: "flex",
           flexDirection: "column",
           gap: 12,
@@ -7365,7 +7249,7 @@ function AICallSection({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              color: "#6b7280",
+              color: "var(--text-muted)",
               gap: 16,
             }}
           >
@@ -7375,14 +7259,14 @@ function AICallSection({
               Click "Start Call" to begin a simulated voice conversation with {callerName}.
               The AI will use the composed prompt and remember this caller's history.
             </div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-placeholder)", marginTop: 8 }}>
               Call #{nextCallSequence} for this caller
             </div>
           </div>
         )}
 
         {callState !== "idle" && messages.length === 0 && !isStreaming && (
-          <div style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+          <div style={{ color: "var(--text-placeholder)", textAlign: "center", padding: 20 }}>
             Starting call...
           </div>
         )}
@@ -7400,13 +7284,13 @@ function AICallSection({
                 maxWidth: "80%",
                 padding: "12px 16px",
                 borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                background: msg.role === "user" ? "#4f46e5" : "#ffffff",
-                color: msg.role === "user" ? "white" : "#111827",
-                border: msg.role === "user" ? "none" : "1px solid #e5e7eb",
+                background: msg.role === "user" ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                color: msg.role === "user" ? "white" : "var(--text-primary)",
+                border: msg.role === "user" ? "none" : "1px solid var(--border-default)",
                 boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
               }}
             >
-              <div style={{ fontSize: 10, color: msg.role === "user" ? "rgba(255,255,255,0.7)" : "#9ca3af", marginBottom: 4 }}>
+              <div style={{ fontSize: 10, color: msg.role === "user" ? "rgba(255,255,255,0.7)" : "var(--text-placeholder)", marginBottom: 4 }}>
                 {msg.role === "user" ? "You" : "AI"}
               </div>
               <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
@@ -7421,10 +7305,10 @@ function AICallSection({
           <div
             style={{
               padding: 12,
-              background: callState === "ended" ? "#dcfce7" : "#fef3c7",
+              background: callState === "ended" ? "var(--status-success-bg)" : "var(--status-warning-bg)",
               borderRadius: 8,
               fontSize: 13,
-              color: callState === "ended" ? "#166534" : "#92400e",
+              color: callState === "ended" ? "var(--status-success-text)" : "var(--status-warning-text)",
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -7444,8 +7328,8 @@ function AICallSection({
         <div
           style={{
             padding: 16,
-            borderTop: "1px solid #e5e7eb",
-            background: "#f0fdf4",
+            borderTop: "1px solid var(--border-default)",
+            background: "var(--status-success-bg)",
             borderRadius: "0 0 12px 12px",
           }}
         >
@@ -7461,12 +7345,12 @@ function AICallSection({
               style={{
                 flex: 1,
                 padding: "12px 16px",
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--input-border)",
                 borderRadius: 24,
                 fontSize: 14,
                 outline: "none",
-                background: "#ffffff",
-                color: "#111827",
+                background: "var(--surface-primary)",
+                color: "var(--text-primary)",
               }}
             />
             <button
@@ -7474,7 +7358,7 @@ function AICallSection({
               disabled={isStreaming || !inputValue.trim()}
               style={{
                 padding: "12px 20px",
-                background: isStreaming || !inputValue.trim() ? "#d1d5db" : "#4f46e5",
+                background: isStreaming || !inputValue.trim() ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
                 color: "white",
                 border: "none",
                 borderRadius: 24,
@@ -7494,13 +7378,13 @@ function AICallSection({
         <div
           style={{
             padding: 16,
-            borderTop: "1px solid #e5e7eb",
-            background: "#f9fafb",
+            borderTop: "1px solid var(--border-default)",
+            background: "var(--background)",
             borderRadius: "0 0 12px 12px",
           }}
         >
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Call Summary</div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
             {messages.filter((m) => m.role === "user").length} user messages,{" "}
             {messages.filter((m) => m.role === "assistant").length} AI responses
           </div>

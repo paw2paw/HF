@@ -56,6 +56,72 @@
   /* Badge/pill colors */
   --badge-purple-bg: #f3e8ff;
   --badge-purple-text: #7c3aed;
+  --badge-blue-bg: #dbeafe;
+  --badge-blue-text: #2563eb;
+  --badge-green-bg: #dcfce7;
+  --badge-green-text: #16a34a;
+  --badge-yellow-bg: #fef3c7;
+  --badge-yellow-text: #d97706;
+
+  /* Buttons */
+  --button-primary-bg: #4f46e5;
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #f3f4f6;
+  --button-secondary-text: #374151;
+  --button-destructive-bg: #dc2626;
+  --button-destructive-text: #ffffff;
+  --button-success-bg: #059669;
+  --button-disabled-bg: #d1d5db;
+
+  /* Inputs */
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+
+  /* Modal */
+  --modal-bg: #ffffff;
+
+  /* Status borders */
+  --status-success-border: #bbf7d0;
+  --status-warning-border: #fde047;
+  --status-error-border: #fecaca;
+  --status-info-border: #dbeafe;
+
+  /* Misc */
+  --hover-bg: #f9fafb;
+  --code-bg: #e2e8f0;
+  --code-text: #1e293b;
+
+  /* Text on dark backgrounds (buttons, dark panels) */
+  --text-on-dark: #ffffff;
+  --text-on-dark-muted: #a5f3fc;
+
+  /* Dark surfaces (terminal panels, code blocks) */
+  --surface-dark: #1f2937;
+  --border-dark: #374151;
+
+  /* Terminal/log panel colors (always dark bg) */
+  --terminal-success-bg: #065f46;
+  --terminal-success-text: #6ee7b7;
+  --terminal-error-bg: #7f1d1d;
+  --terminal-error-text: #fca5a5;
+  --terminal-warning-bg: #78350f;
+  --terminal-warning-text: #fcd34d;
+  --terminal-info-text: #93c5fd;
+  --terminal-purple-text: #c4b5fd;
+
+  /* Additional badge colors */
+  --badge-pink-bg: #fce7f3;
+  --badge-pink-text: #db2777;
+  --badge-pink-border: #f9a8d4;
+  --badge-cyan-text: #06b6d4;
+  --badge-indigo-text: #4f46e5;
+
+  /* Personality trait colors */
+  --trait-openness: #3b82f6;
+  --trait-conscientiousness: #10b981;
+  --trait-extraversion: #f59e0b;
+  --trait-agreeableness: #ec4899;
+  --trait-neuroticism: #8b5cf6;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -115,6 +181,72 @@
     /* Badge/pill colors */
     --badge-purple-bg: #2e1065;
     --badge-purple-text: #c4b5fd;
+    --badge-blue-bg: #172554;
+    --badge-blue-text: #60a5fa;
+    --badge-green-bg: #052e16;
+    --badge-green-text: #4ade80;
+    --badge-yellow-bg: #422006;
+    --badge-yellow-text: #fbbf24;
+
+    /* Buttons */
+    --button-primary-bg: #4f46e5;
+    --button-primary-text: #ffffff;
+    --button-secondary-bg: #2a2a2a;
+    --button-secondary-text: #e5e5e5;
+    --button-destructive-bg: #dc2626;
+    --button-destructive-text: #ffffff;
+    --button-success-bg: #059669;
+    --button-disabled-bg: #3a3a3a;
+
+    /* Inputs */
+    --input-bg: #1f1f1f;
+    --input-border: #3a3a3a;
+
+    /* Modal */
+    --modal-bg: #1f1f1f;
+
+    /* Status borders */
+    --status-success-border: #065f46;
+    --status-warning-border: #78350f;
+    --status-error-border: #7f1d1d;
+    --status-info-border: #1e3a5f;
+
+    /* Misc */
+    --hover-bg: #1a1a1a;
+    --code-bg: #2a2a2a;
+    --code-text: #e2e8f0;
+
+    /* Text on dark backgrounds */
+    --text-on-dark: #e5e5e5;
+    --text-on-dark-muted: #67e8f9;
+
+    /* Dark surfaces (terminal panels) - slightly lighter in dark mode for contrast */
+    --surface-dark: #0f0f0f;
+    --border-dark: #2a2a2a;
+
+    /* Terminal/log panel colors */
+    --terminal-success-bg: #052e16;
+    --terminal-success-text: #4ade80;
+    --terminal-error-bg: #450a0a;
+    --terminal-error-text: #f87171;
+    --terminal-warning-bg: #422006;
+    --terminal-warning-text: #fbbf24;
+    --terminal-info-text: #60a5fa;
+    --terminal-purple-text: #c4b5fd;
+
+    /* Additional badge colors */
+    --badge-pink-bg: #500724;
+    --badge-pink-text: #f9a8d4;
+    --badge-pink-border: #9d174d;
+    --badge-cyan-text: #22d3ee;
+    --badge-indigo-text: #818cf8;
+
+    /* Personality trait colors */
+    --trait-openness: #60a5fa;
+    --trait-conscientiousness: #34d399;
+    --trait-extraversion: #fbbf24;
+    --trait-agreeableness: #f472b6;
+    --trait-neuroticism: #a78bfa;
   }
 }
 

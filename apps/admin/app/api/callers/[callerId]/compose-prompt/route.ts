@@ -490,7 +490,7 @@ export async function POST(
         learnerProfile.preferredModality ||
         learnerProfile.questionFrequency ||
         learnerProfile.feedbackStyle ||
-        Object.keys(learnerProfile.priorKnowledge).length > 0;
+        Object.keys(learnerProfile.priorKnowledge || {}).length > 0;
 
       if (hasAnyProfileData) {
         contextParts.push("\n## Learner Profile");
@@ -515,7 +515,7 @@ export async function POST(
         }
 
         // Prior knowledge by domain
-        if (Object.keys(learnerProfile.priorKnowledge).length > 0) {
+        if (learnerProfile.priorKnowledge && Object.keys(learnerProfile.priorKnowledge).length > 0) {
           contextParts.push("- Prior Knowledge:");
           for (const [domain, level] of Object.entries(learnerProfile.priorKnowledge)) {
             contextParts.push(`  - ${domain}: ${level}`);
@@ -961,6 +961,35 @@ export async function POST(
             };
           }
         })(),
+
+        // Learner profile (learning preferences)
+        learnerProfile: learnerProfile && (
+          learnerProfile.learningStyle ||
+          learnerProfile.pacePreference ||
+          learnerProfile.interactionStyle ||
+          learnerProfile.preferredModality ||
+          learnerProfile.questionFrequency ||
+          learnerProfile.feedbackStyle ||
+          Object.keys(learnerProfile.priorKnowledge || {}).length > 0
+        ) ? {
+          learningStyle: learnerProfile.learningStyle,
+          pacePreference: learnerProfile.pacePreference,
+          interactionStyle: learnerProfile.interactionStyle,
+          preferredModality: learnerProfile.preferredModality,
+          questionFrequency: learnerProfile.questionFrequency,
+          feedbackStyle: learnerProfile.feedbackStyle,
+          priorKnowledge: learnerProfile.priorKnowledge || {},
+          lastUpdated: learnerProfile.lastUpdated,
+        } : null,
+        hasLearnerProfile: learnerProfile && (
+          learnerProfile.learningStyle ||
+          learnerProfile.pacePreference ||
+          learnerProfile.interactionStyle ||
+          learnerProfile.preferredModality ||
+          learnerProfile.questionFrequency ||
+          learnerProfile.feedbackStyle ||
+          Object.keys(learnerProfile.priorKnowledge || {}).length > 0
+        ),
 
         // Memories organized by type - using centralized helper
         memories: getMemoriesByCategory(memories, memoriesPerCategory),

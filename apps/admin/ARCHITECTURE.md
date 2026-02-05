@@ -669,6 +669,41 @@ const knowledgePath = resolveDataNodePath("data:knowledge");   // .../sources/kn
 const derivedPath = resolveDataNodePath("data:knowledge_derived"); // .../derived/knowledge
 ```
 
+### Default Paths Configuration
+
+**Environment Variable:**
+```bash
+HF_KB_PATH="/path/to/your/knowledge/base"  # Set in .env.local
+```
+
+**Default Fallback:**
+- If `HF_KB_PATH` is not set, defaults to `~/hf_kb`
+
+**Where to Maintain Default Paths:**
+
+| Location | Purpose | What to Update |
+|----------|---------|----------------|
+| `lib/data-paths.ts` | Root path resolution | Default fallback path (line 82: `~/hf_kb`) |
+| `lib/agents.json` | Data node definitions | Relative paths from KB root (`sources/*`, `derived/*`) |
+| `.env.local` | User override | Set `HF_KB_PATH` to custom location |
+
+**KB Directory Structure:**
+```
+$HF_KB_PATH/              # Default: ~/hf_kb
+├── sources/              # Input data
+│   ├── knowledge/        # MD, PDF, TXT files
+│   ├── transcripts/      # JSON transcript files
+│   └── parameters/       # Parameters CSV
+├── derived/              # Processed outputs
+│   ├── knowledge/        # Chunked knowledge
+│   ├── embeddings/       # Vector embeddings
+│   ├── transcripts/      # Processed transcripts
+│   └── analysis/         # Analysis outputs
+└── exports/              # Export artifacts
+    ├── reports/
+    └── snapshots/
+```
+
 ### Data Node IDs
 
 | Node ID | Path | Role |

@@ -290,13 +290,13 @@ export default function SidebarNav({
   };
 
   return (
-    <div className="flex h-full flex-col bg-white p-3 text-neutral-900 overflow-hidden">
+    <div className="flex h-full flex-col bg-white dark:bg-neutral-900 p-3 text-neutral-900 dark:text-neutral-100 overflow-hidden">
       <div className="mb-3 flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onToggle}
           aria-label="Toggle sidebar"
-          className="inline-flex items-center justify-center rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          className="inline-flex items-center justify-center rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1 text-sm text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
         >
           {collapsed ? "→" : "←"}
         </button>
@@ -322,8 +322,8 @@ export default function SidebarNav({
                     type="button"
                     onClick={() => (canCollapse ? toggleSection(section.id) : undefined)}
                     className={
-                      "flex items-center justify-between gap-2 rounded-md px-2 pb-1 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-600 " +
-                      (canCollapse ? "hover:bg-neutral-50" : "")
+                      "flex items-center justify-between gap-2 rounded-md px-2 pb-1 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-400 " +
+                      (canCollapse ? "hover:bg-neutral-50 dark:hover:bg-neutral-800" : "")
                     }
                     aria-label={
                       canCollapse
@@ -336,7 +336,7 @@ export default function SidebarNav({
                   >
                     <span>{section.title}</span>
                     {canCollapse ? (
-                      <span className="text-[12px] leading-none text-neutral-500" aria-hidden>
+                      <span className="text-[12px] leading-none text-neutral-500 dark:text-neutral-400" aria-hidden>
                         {sectionIsCollapsed ? "▸" : "▾"}
                       </span>
                     ) : null}
@@ -367,12 +367,12 @@ export default function SidebarNav({
                             (active
                               ? "bg-indigo-600 text-white font-semibold"
                               : isFocused
-                              ? "bg-neutral-100 text-neutral-900 font-medium"
+                              ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-medium"
                               : isSubItem
-                              ? "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                              ? "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100"
                               : l.working
-                              ? "text-neutral-900 font-medium hover:bg-neutral-100"
-                              : "text-neutral-900 hover:bg-neutral-100")
+                              ? "text-neutral-900 dark:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                              : "text-neutral-900 dark:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800")
                           }
                         >
                           {l.icon && (
@@ -394,14 +394,14 @@ export default function SidebarNav({
                   </div>
                 )}
 
-                {section.dividerAfter ? <div className="my-3 border-t border-neutral-300" /> : null}
+                {section.dividerAfter ? <div className="my-3 border-t border-neutral-300 dark:border-neutral-700" /> : null}
               </div>
             );
           })}
         </nav>
 
         <div className="mt-3">
-          {!collapsed ? <div className="text-center text-[11px] text-neutral-600">HumanFirst Admin</div> : null}
+          {!collapsed ? <div className="text-center text-[11px] text-neutral-600 dark:text-neutral-400">HumanFirst Admin</div> : null}
         </div>
       </div>
     </div>
@@ -419,8 +419,8 @@ function ChatToggleButton({ collapsed }: { collapsed: boolean }) {
         className={
           "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors " +
           (isOpen
-            ? "bg-indigo-100 text-indigo-700 font-medium"
-            : "text-neutral-700 hover:bg-neutral-100")
+            ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium"
+            : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800")
         }
         title={collapsed ? "AI Chat (Cmd+K)" : undefined}
       >
@@ -430,7 +430,7 @@ function ChatToggleButton({ collapsed }: { collapsed: boolean }) {
         {!collapsed && (
           <>
             <span className="flex-1 text-left truncate">AI Chat</span>
-            <span className="text-[10px] text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">
               ⌘K
             </span>
           </>

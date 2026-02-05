@@ -314,11 +314,11 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
       {successMessage && (
         <div style={{
           padding: "12px 16px",
-          background: "#f0fdf4",
-          color: "#166534",
+          background: "var(--status-success-bg)",
+          color: "var(--status-success-text)",
           borderRadius: 8,
           marginBottom: 20,
-          border: "1px solid #bbf7d0",
+          border: "1px solid var(--status-success-border)",
           display: "flex",
           alignItems: "center",
           gap: 8,
@@ -337,7 +337,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           style={{
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border-default)",
             fontSize: 13,
             width: 260,
           }}
@@ -350,7 +350,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           style={{
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border-default)",
             fontSize: 13,
             minWidth: 140,
           }}
@@ -372,7 +372,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           style={{
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border-default)",
             fontSize: 13,
           }}
         >
@@ -400,9 +400,9 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             padding: "8px 14px",
             fontSize: 13,
             fontWeight: 500,
-            background: selectionMode ? "#4f46e5" : "#f3f4f6",
-            color: selectionMode ? "#fff" : "#374151",
-            border: selectionMode ? "none" : "1px solid #e5e7eb",
+            background: selectionMode ? "var(--button-primary-bg)" : "var(--button-secondary-bg)",
+            color: selectionMode ? "var(--button-primary-text)" : "var(--button-secondary-text)",
+            border: selectionMode ? "none" : "1px solid var(--border-default)",
             borderRadius: 6,
             cursor: "pointer",
             display: "flex",
@@ -416,7 +416,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 20, background: "#fef2f2", color: "#dc2626", borderRadius: 8, marginBottom: 20 }}>
+        <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
           {error}
           <button
             onClick={() => setError(null)}
@@ -429,22 +429,22 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
       {/* Loading */}
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading...</div>
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
       ) : filteredAndSortedCallers.length === 0 ? (
         <div
           style={{
             padding: 40,
             textAlign: "center",
-            background: "#f9fafb",
+            background: "var(--background)",
             borderRadius: 12,
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border-default)",
           }}
         >
           <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
             {search || selectedDomain ? "No callers match your filters" : "No callers yet"}
           </div>
-          <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
             {search || selectedDomain ? "Try different filters" : "Callers are created when processing transcripts"}
           </div>
         </div>
@@ -455,10 +455,10 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               key={caller.id}
               onClick={(e) => handleCardClick(caller, e)}
               style={{
-                background: "#fff",
+                background: "var(--surface-primary)",
                 border: selectedCallers.has(caller.id)
-                  ? "2px solid #4f46e5"
-                  : "1px solid #e5e7eb",
+                  ? "2px solid var(--button-primary-bg)"
+                  : "1px solid var(--border-default)",
                 borderRadius: 12,
                 padding: selectedCallers.has(caller.id) ? 19 : 20,
                 transition: "all 0.15s ease",
@@ -478,8 +478,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     borderRadius: 4,
                     border: selectedCallers.has(caller.id)
                       ? "none"
-                      : "2px solid #d1d5db",
-                    background: selectedCallers.has(caller.id) ? "#4f46e5" : "#fff",
+                      : "2px solid var(--border-strong)",
+                    background: selectedCallers.has(caller.id) ? "var(--button-primary-bg)" : "var(--surface-primary)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -495,11 +495,11 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               {/* Caller Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
                     {getCallerLabel(caller)}
                   </div>
                   {caller.email && caller.name && (
-                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{caller.email}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{caller.email}</div>
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -508,8 +508,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       style={{
                         fontSize: 10,
                         padding: "3px 8px",
-                        background: "#dbeafe",
-                        color: "#2563eb",
+                        background: "var(--badge-blue-bg)",
+                        color: "var(--badge-blue-text)",
                         borderRadius: 4,
                         fontWeight: 500,
                       }}
@@ -522,8 +522,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       style={{
                         fontSize: 10,
                         padding: "3px 8px",
-                        background: "#f3e8ff",
-                        color: "#7c3aed",
+                        background: "var(--badge-purple-bg)",
+                        color: "var(--badge-purple-text)",
                         borderRadius: 4,
                         fontWeight: 500,
                       }}
@@ -538,20 +538,20 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 14 }}>📞</span>
-                  <span style={{ fontSize: 13, color: "#6b7280" }}>
+                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
                     {caller._count?.calls || 0} calls
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 14 }}>💭</span>
-                  <span style={{ fontSize: 13, color: "#6b7280" }}>
+                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
                     {caller._count?.memories || 0} memories
                   </span>
                 </div>
                 {caller.nextPrompt && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 14 }}>✨</span>
-                    <span style={{ fontSize: 13, color: "#10b981" }}>Prompt ready</span>
+                    <span style={{ fontSize: 13, color: "var(--status-success-text)" }}>Prompt ready</span>
                   </div>
                 )}
               </div>
@@ -562,7 +562,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   <div style={{ display: "flex", gap: 4 }}>
                     {[
                       { label: "O", value: caller.personality.openness, color: "#3b82f6" },
-                      { label: "C", value: caller.personality.conscientiousness, color: "#10b981" },
+                      { label: "C", value: caller.personality.conscientiousness, color: "var(--status-success-text)" },
                       { label: "E", value: caller.personality.extraversion, color: "#f59e0b" },
                       { label: "A", value: caller.personality.agreeableness, color: "#ec4899" },
                       { label: "N", value: caller.personality.neuroticism, color: "#8b5cf6" },
@@ -571,7 +571,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                         <div
                           style={{
                             height: 4,
-                            background: "#e5e7eb",
+                            background: "var(--border-default)",
                             borderRadius: 2,
                             overflow: "hidden",
                           }}
@@ -585,7 +585,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                             }}
                           />
                         </div>
-                        <div style={{ fontSize: 9, color: "#9ca3af", textAlign: "center", marginTop: 2 }}>
+                        <div style={{ fontSize: 9, color: "var(--text-placeholder)", textAlign: "center", marginTop: 2 }}>
                           {trait.label}
                         </div>
                       </div>
@@ -600,7 +600,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 gap: 6,
                 marginTop: 12,
                 paddingTop: 12,
-                borderTop: "1px solid #f3f4f6"
+                borderTop: "1px solid var(--border-subtle)"
               }}>
                 <button
                   onClick={(e) => { e.stopPropagation(); setSnapshotModal(caller); }}
@@ -611,9 +611,9 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     padding: "7px 10px",
                     fontSize: 11,
                     fontWeight: 500,
-                    background: "#f0fdf4",
-                    color: "#166534",
-                    border: "1px solid #bbf7d0",
+                    background: "var(--status-success-bg)",
+                    color: "var(--status-success-text)",
+                    border: "1px solid var(--status-success-border)",
                     borderRadius: 6,
                     cursor: "pointer",
                     display: "flex",
@@ -635,7 +635,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                         padding: "7px 6px",
                         fontSize: 10,
                         fontWeight: 600,
-                        background: "#dc2626",
+                        background: "var(--button-destructive-bg)",
                         color: "#fff",
                         border: "none",
                         borderRadius: 6,
@@ -650,8 +650,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       style={{
                         padding: "7px 6px",
                         fontSize: 10,
-                        background: "#f3f4f6",
-                        color: "#6b7280",
+                        background: "var(--button-secondary-bg)",
+                        color: "var(--text-muted)",
                         border: "none",
                         borderRadius: 6,
                         cursor: "pointer",
@@ -670,9 +670,9 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       padding: "7px 10px",
                       fontSize: 11,
                       fontWeight: 500,
-                      background: hasAnalysisData(caller) ? "#fef2f2" : "#f9fafb",
-                      color: hasAnalysisData(caller) ? "#dc2626" : "#9ca3af",
-                      border: `1px solid ${hasAnalysisData(caller) ? "#fecaca" : "#e5e7eb"}`,
+                      background: hasAnalysisData(caller) ? "var(--status-error-bg)" : "var(--background)",
+                      color: hasAnalysisData(caller) ? "var(--status-error-text)" : "var(--text-placeholder)",
+                      border: `1px solid ${hasAnalysisData(caller) ? "var(--status-error-border)" : "var(--border-default)"}`,
                       borderRadius: 6,
                       cursor: hasAnalysisData(caller) ? "pointer" : "not-allowed",
                       display: "flex",
@@ -692,9 +692,9 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     padding: "7px 10px",
                     fontSize: 11,
                     fontWeight: 500,
-                    background: "#fef2f2",
-                    color: "#dc2626",
-                    border: "1px solid #fecaca",
+                    background: "var(--status-error-bg)",
+                    color: "var(--status-error-text)",
+                    border: "1px solid var(--status-error-border)",
                     borderRadius: 6,
                     cursor: "pointer",
                     display: "flex",
@@ -707,7 +707,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               </div>
 
               {/* Footer */}
-              <div style={{ marginTop: 8, fontSize: 11, color: "#9ca3af" }}>
+              <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-placeholder)" }}>
                 Added {new Date(caller.createdAt).toLocaleDateString()}
               </div>
             </div>
@@ -734,7 +734,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         >
           <div
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 12,
               padding: 24,
               width: 400,
@@ -745,7 +745,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
               Download Snapshot
             </h3>
-            <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#6b7280" }}>
+            <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "var(--text-muted)" }}>
               Download analysis data for <strong>{getCallerLabel(snapshotModal)}</strong>
             </p>
 
@@ -762,22 +762,22 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: 6,
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid var(--border-default)",
                   fontSize: 14,
                 }}
               />
-              <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "#9ca3af" }}>
+              <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "var(--text-placeholder)" }}>
                 Label helps identify this snapshot when comparing multiple runs
               </p>
             </div>
 
             <div style={{
-              background: "#f8fafc",
+              background: "var(--surface-secondary)",
               padding: 12,
               borderRadius: 8,
               marginBottom: 16,
               fontSize: 13,
-              color: "#475569",
+              color: "var(--text-secondary)",
             }}>
               <strong>Comparison Workflow:</strong>
               <ol style={{ margin: "8px 0 0 0", paddingLeft: 20, lineHeight: 1.6 }}>
@@ -786,7 +786,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 <li>Change playbook/settings</li>
                 <li>Re-run analysis</li>
                 <li>Download snapshot (label: &quot;variant-a&quot;)</li>
-                <li>Use <code style={{ background: "#e2e8f0", padding: "2px 4px", borderRadius: 3 }}>diff</code> or JSON comparison tool</li>
+                <li>Use <code style={{ background: "var(--code-bg)", padding: "2px 4px", borderRadius: 3 }}>diff</code> or JSON comparison tool</li>
               </ol>
             </div>
 
@@ -799,8 +799,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 style={{
                   padding: "10px 16px",
                   fontSize: 14,
-                  background: "#f3f4f6",
-                  color: "#374151",
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
                   border: "none",
                   borderRadius: 6,
                   cursor: "pointer",
@@ -814,7 +814,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   padding: "10px 16px",
                   fontSize: 14,
                   fontWeight: 500,
-                  background: "#4f46e5",
+                  background: "var(--button-primary-bg)",
                   color: "#fff",
                   border: "none",
                   borderRadius: 6,
@@ -836,8 +836,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             bottom: 24,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "#1f2937",
-            color: "#fff",
+            background: "var(--surface-tertiary)",
+            color: "var(--text-primary)",
             padding: "12px 24px",
             borderRadius: 12,
             display: "flex",
@@ -860,7 +860,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               padding: "8px 16px",
               fontSize: 14,
               fontWeight: 600,
-              background: selectedCallers.size < 2 ? "#9ca3af" : "#4f46e5",
+              background: selectedCallers.size < 2 ? "var(--text-placeholder)" : "var(--button-primary-bg)",
               color: "#fff",
               border: "none",
               borderRadius: 6,
@@ -876,8 +876,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               padding: "8px 16px",
               fontSize: 14,
               background: "transparent",
-              color: "#9ca3af",
-              border: "1px solid #4b5563",
+              color: "var(--text-placeholder)",
+              border: "1px solid var(--border-strong)",
               borderRadius: 6,
               cursor: "pointer",
             }}
@@ -906,7 +906,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         >
           <div
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 12,
               padding: 24,
               width: 500,
@@ -919,7 +919,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
               Merge {selectedCallers.size} Callers
             </h3>
-            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "#6b7280" }}>
+            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)" }}>
               Select which caller will receive all merged data. The other{" "}
               {selectedCallers.size - 1} caller{selectedCallers.size > 2 ? "s" : ""} will be deleted.
             </p>
@@ -927,12 +927,12 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             {!mergeTarget && (
               <div style={{
                 padding: "12px 16px",
-                background: "#fef3c7",
-                border: "1px solid #fbbf24",
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
                 borderRadius: 8,
                 marginBottom: 16,
                 fontSize: 14,
-                color: "#92400e",
+                color: "var(--status-warning-text)",
               }}>
                 ⚠️ Please select a target caller below
               </div>
@@ -940,7 +940,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
             {/* Target selection */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 10, color: "#374151" }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 10, color: "var(--text-secondary)" }}>
                 Merge into:
               </label>
               {getSelectedCallersList().map((caller) => (
@@ -952,8 +952,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     gap: 12,
                     padding: 12,
                     marginBottom: 8,
-                    background: mergeTarget === caller.id ? "#eef2ff" : "#f9fafb",
-                    border: mergeTarget === caller.id ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                    background: mergeTarget === caller.id ? "var(--status-info-bg)" : "var(--background)",
+                    border: mergeTarget === caller.id ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
                     borderRadius: 8,
                     cursor: "pointer",
                   }}
@@ -967,15 +967,15 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     style={{ marginTop: 2 }}
                   />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: "#1f2937" }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                       {getCallerLabel(caller)}
                     </div>
                     {caller.email && caller.name && (
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
                         {caller.email}
                       </div>
                     )}
-                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4, display: "flex", gap: 12 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 12 }}>
                       <span>{caller._count?.calls || 0} calls</span>
                       <span>{caller._count?.memories || 0} memories</span>
                     </div>
@@ -987,13 +987,13 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             {/* Warning */}
             <div
               style={{
-                background: "#fef3c7",
-                border: "1px solid #fcd34d",
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
                 borderRadius: 8,
                 padding: 12,
                 marginBottom: 20,
                 fontSize: 13,
-                color: "#92400e",
+                color: "var(--status-warning-text)",
               }}
             >
               <strong>Warning:</strong> This action cannot be undone. The{" "}
@@ -1005,13 +1005,13 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             {mergeTarget && (
               <div
                 style={{
-                  background: "#f0fdf4",
-                  border: "1px solid #bbf7d0",
+                  background: "var(--status-success-bg)",
+                  border: "1px solid var(--status-success-border)",
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 20,
                   fontSize: 13,
-                  color: "#166534",
+                  color: "var(--status-success-text)",
                 }}
               >
                 <strong>Data to be merged:</strong>
@@ -1046,8 +1046,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 style={{
                   padding: "10px 16px",
                   fontSize: 14,
-                  background: "#f3f4f6",
-                  color: "#374151",
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
                   border: "none",
                   borderRadius: 6,
                   cursor: merging ? "not-allowed" : "pointer",
@@ -1064,7 +1064,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   padding: "10px 16px",
                   fontSize: 14,
                   fontWeight: 500,
-                  background: !mergeTarget || merging ? "#d1d5db" : "#4f46e5",
+                  background: !mergeTarget || merging ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
                   color: "#fff",
                   border: "none",
                   borderRadius: 6,
@@ -1097,7 +1097,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         >
           <div
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 12,
               padding: 24,
               width: 440,
@@ -1109,20 +1109,20 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600, textAlign: "center" }}>
               Delete Caller
             </h3>
-            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "#6b7280", textAlign: "center" }}>
+            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)", textAlign: "center" }}>
               Delete <strong>{getCallerLabel(showDeleteModal)}</strong> and all their data?
             </p>
 
             {/* Stats */}
             <div
               style={{
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
+                background: "var(--status-error-bg)",
+                border: "1px solid var(--status-error-border)",
                 borderRadius: 8,
                 padding: 12,
                 marginBottom: 16,
                 fontSize: 13,
-                color: "#991b1b",
+                color: "var(--status-error-text)",
               }}
             >
               <strong>This will permanently delete:</strong>
@@ -1142,8 +1142,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   alignItems: "flex-start",
                   gap: 12,
                   padding: 12,
-                  background: deleteExclude ? "#fef3c7" : "#f9fafb",
-                  border: deleteExclude ? "2px solid #fbbf24" : "1px solid #e5e7eb",
+                  background: deleteExclude ? "var(--status-warning-bg)" : "var(--background)",
+                  border: deleteExclude ? "2px solid var(--status-warning-border)" : "1px solid var(--border-default)",
                   borderRadius: 8,
                   marginBottom: 20,
                   cursor: "pointer",
@@ -1156,10 +1156,10 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   style={{ marginTop: 3, width: 18, height: 18 }}
                 />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "#374151" }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-secondary)" }}>
                     Exclude from future imports
                   </div>
-                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
                     When running &quot;Import Transcripts&quot;, calls from{" "}
                     <strong>{showDeleteModal.phone || showDeleteModal.externalId}</strong>{" "}
                     will be skipped. Use this for spam callers or test data you don&apos;t want re-imported.
@@ -1176,8 +1176,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 style={{
                   padding: "10px 16px",
                   fontSize: 14,
-                  background: "#f3f4f6",
-                  color: "#374151",
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
                   border: "none",
                   borderRadius: 6,
                   cursor: deleting ? "not-allowed" : "pointer",
@@ -1193,7 +1193,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   padding: "10px 16px",
                   fontSize: 14,
                   fontWeight: 500,
-                  background: deleting ? "#d1d5db" : "#dc2626",
+                  background: deleting ? "var(--button-disabled-bg)" : "var(--button-destructive-bg)",
                   color: "#fff",
                   border: "none",
                   borderRadius: 6,
