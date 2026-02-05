@@ -12,7 +12,7 @@
  *
  * Default stages (configurable in GUARD-001 spec):
  *   10. EXTRACT    - Learn + Measure caller data (batched)
- *   20. SCORE_AGENT - Measure agent behavior (batched)
+ *   20. SCORE_AGENT - Measure behaviour (batched)
  *   30. AGGREGATE  - Aggregate personality profiles
  *   40. REWARD     - Compute reward scores
  *   50. ADAPT      - Compute personalized targets
@@ -33,6 +33,7 @@ import { getAICompletion, AIEngine, isEngineAvailable } from "@/lib/ai/client";
 import { prisma } from "@/lib/prisma";
 import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
+import { trackGoalProgress } from "@/lib/goals/track-progress";
 
 // =====================================================
 // SPEC SELECTION BY TYPE
@@ -360,7 +361,7 @@ function buildBatchedCallerPrompt(
 
 /**
  * Build a BATCHED prompt for MEASURE specs
- * This scores all agent behavior parameters in ONE AI call
+ * This scores all behaviour parameters in ONE AI call
  */
 function buildBatchedAgentPrompt(
   transcript: string,
@@ -1456,7 +1457,7 @@ async function runAdaptSpecs(
       const result = await getAICompletion({
         engine,
         messages: [
-          { role: "system", content: "You are an expert at personalizing AI agent behavior based on caller profiles. Always respond with valid JSON." },
+          { role: "system", content: "You are an expert at personalizing AI behaviour based on caller profiles. Always respond with valid JSON." },
           { role: "user", content: prompt },
         ],
         maxTokens: 1024,
@@ -1749,11 +1750,20 @@ const stageExecutors: Record<string, StageExecutor> = {
       errors: ruleBasedResult.errors
     });
 
+    // 3. Track goal progress based on call outcomes
+    const goalResult = await trackGoalProgress(ctx.callerId, ctx.callId);
+    ctx.log.info(`Goal tracking completed`, {
+      goalsUpdated: goalResult.updated,
+      goalsCompleted: goalResult.completed,
+    });
+
     return {
       callTargetsCreated: adaptResult.targetsCreated,
       callerTargetsCreated: ruleBasedResult.targetsCreated,
       callerTargetsUpdated: ruleBasedResult.targetsUpdated,
       adaptSpecsRun: ruleBasedResult.specsRun,
+      goalsUpdated: goalResult.updated,
+      goalsCompleted: goalResult.completed,
     };
   },
 

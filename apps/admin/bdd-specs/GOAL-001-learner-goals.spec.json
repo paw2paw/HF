@@ -204,5 +204,35 @@
     { "id": "MEM-001", "title": "Memory Extraction", "relationship": "goals are a specialized type of memory" },
     { "id": "REW-001", "title": "Reward Computation", "relationship": "goal progress feeds reward signal" },
     { "id": "SESSION-001", "title": "Session Arc Planning", "relationship": "goals inform session planning" }
-  ]
+  ],
+
+  "implementation": {
+    "model": "Goal",
+    "database": "Prisma Goal model in schema.prisma",
+    "fields": {
+      "type": "GoalType enum (LEARN, ACHIEVE, CHANGE, CONNECT, SUPPORT, CREATE)",
+      "status": "GoalStatus enum (ACTIVE, PAUSED, COMPLETED, ARCHIVED)",
+      "progress": "Float 0-1 representing completion percentage",
+      "priority": "Int 1-10 for goal prioritization",
+      "playbookId": "NULL for caller-expressed goals, foreign key for playbook goals",
+      "contentSpecId": "Links LEARN goals to curriculum content"
+    },
+    "sources": [
+      "Playbook config: Goals defined in playbooks-config.json, instantiated when caller assigned to domain",
+      "Caller-expressed: Goals extracted from conversations via this spec (GOAL-001)",
+      "ADAPT-suggested: Goals suggested by ADAPT specs based on learner behavior (future)"
+    ],
+    "tracking": {
+      "module": "lib/goals/track-progress.ts",
+      "pipeline_stage": "ADAPT (stage 50)",
+      "frequency": "After each call analysis",
+      "auto_completion": "Goals marked COMPLETED when progress >= 1.0"
+    },
+    "usage": {
+      "prompt_composition": "Included in compose-prompt via learner_goals section",
+      "ui": "/x/goals (all goals), /callers/[id]?tab=learning (caller goals)",
+      "api": "GET /api/goals, GET /api/callers/[id] includes goals"
+    },
+    "migration_note": "Previously goals were inferred from CallerMemory entries with TOPIC category or goal-related keys. Now uses dedicated Goal model for both playbook-defined and caller-expressed goals."
+  }
 }

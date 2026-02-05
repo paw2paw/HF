@@ -512,6 +512,48 @@ try {
 
 ---
 
+## Denormalized Counts Pattern
+
+**When adding count columns to models, follow this hierarchy:**
+
+1. **✅ PREFER: Prisma `_count` relations** (calculated dynamically):
+```typescript
+const playbooks = await prisma.playbook.findMany({
+  include: {
+    _count: { select: { items: true, behaviorTargets: true } }
+  }
+});
+// Use: playbook._count.items
+```
+
+2. **⚠️ IF NEEDED: Denormalized counts** (cached in column for performance):
+   - **MUST add PostgreSQL triggers** to maintain automatically
+   - See example: `prisma/migrations/add_playbook_count_triggers.sql`
+   - ✅ Good: Playbook.measureSpecCount (has triggers)
+   - ❌ Bad: Manual count updates in API routes
+
+3. **✓ OK: Static snapshot counts** (set once, never change):
+   - Set during creation/compilation
+   - Example: CompiledAnalysisSet.measureSpecCount (frozen at compile time)
+
+**Example Trigger Pattern:**
+```sql
+CREATE FUNCTION update_counts() RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE "Parent" SET count = (
+    SELECT COUNT(*) FROM "Child" WHERE "parentId" = NEW."parentId"
+  ) WHERE id = NEW."parentId";
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_count
+AFTER INSERT OR UPDATE OR DELETE ON "Child"
+FOR EACH ROW EXECUTE FUNCTION update_counts();
+```
+
+---
+
 ## Key Files Reference
 
 | File | Purpose |
@@ -561,15 +603,31 @@ These commands are pre-approved for automatic execution without permission promp
 # Docker & Colima
 colima status
 colima start
+colima stop
 colima delete -f && colima start
 docker ps
+docker ps -a
 docker ps | grep postgres
+docker restart hf_postgres
 docker logs hf_postgres --tail 10
+docker logs hf_postgres --tail 20
 docker exec hf_postgres psql -U hf_user -d hf -c "SELECT 1"
+docker exec hf_postgres psql -U hf_user -d hf -c "\d \"User\""
+docker exec hf_postgres psql -U hf_user -d hf -c "\d \"Caller\""
+docker exec hf_postgres psql -U hf_user -d hf -c "\d \"Call\""
+docker exec hf_postgres psql -U hf_user -d hf -c "SELECT COUNT(*) FROM \"User\";"
+docker exec hf_postgres psql -U hf_user -d hf -c "SELECT COUNT(*) FROM \"Call\";"
 docker-compose up -d postgres
+nc -zv localhost 5432
+lsof -i :5432
 
 # Database operations
 npx prisma studio
+npx prisma generate
+npx prisma migrate status
+npx prisma db push
+npx prisma db push --accept-data-loss
+npx prisma db seed
 
 # Development
 npm run dev
@@ -578,15 +636,22 @@ npm run devZZZ
 npm test
 npm run test:watch
 npm run test:coverage
+lsof -ti:3000
+pkill -9 -f 'next-server'
+rm -rf .next
+npx wait-on http://localhost:3000 -t 30000
 
-# Seeding
+# Seeding & API Testing
+curl -s -X POST http://localhost:3000/api/x/seed-system
 curl -s -X POST http://localhost:3000/api/x/seed-system | jq '.'
+curl -s -X POST http://localhost:3000/api/x/seed-transcripts -H "Content-Type: application/json" -d '{"mode": "keep"}'
 curl -s -X POST http://localhost:3000/api/x/seed-transcripts -H "Content-Type: application/json" -d '{"mode": "keep"}' | jq '.'
 
 # Git operations
 git status
 git diff
 git log --oneline -10
+git log --oneline -20
 ```
 
 **Note**: This list is automatically updated when you approve new commands during development.

@@ -1830,6 +1830,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       <div style={{ display: "flex", gap: 0, marginTop: 16, borderBottom: "1px solid #e5e7eb" }}>
         <button
           onClick={() => setActiveTab("explorer")}
+          title="Browse the playbook specification tree"
           style={{
             padding: "12px 24px",
             fontSize: 14,
@@ -1846,6 +1847,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </button>
         <button
           onClick={() => setActiveTab("items")}
+          title="Agent, caller, and content specifications"
           style={{
             padding: "12px 24px",
             fontSize: 14,
@@ -1862,6 +1864,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </button>
         <button
           onClick={() => setActiveTab("targets")}
+          title="Configure playbook targets and thresholds"
           style={{
             padding: "12px 24px",
             fontSize: 14,
@@ -1878,6 +1881,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </button>
         <button
           onClick={() => setActiveTab("slugs")}
+          title="URL slug mappings for playbook routing"
           style={{
             padding: "12px 24px",
             fontSize: 14,
@@ -1894,6 +1898,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </button>
         <button
           onClick={() => setActiveTab("parameters")}
+          title="Parameter definitions and configuration"
           style={{
             padding: "12px 24px",
             fontSize: 14,
@@ -1910,6 +1915,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </button>
         <button
           onClick={() => setActiveTab("triggers")}
+          title="Trigger configurations and rules"
           style={{
             padding: "12px 24px",
             fontSize: 14,
@@ -2999,17 +3005,47 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 // Group parameters by domainGroup
                 const groups: Record<string, typeof targetsData.parameters> = {};
                 for (const param of targetsData.parameters) {
-                  const group = param.domainGroup || "Other";
+                  const group = param.domainGroup || "other";
                   if (!groups[group]) groups[group] = [];
                   groups[group].push(param);
                 }
 
-                const groupColors: Record<string, { primary: string; glow: string }> = {
-                  "Communication Style": { primary: "#a78bfa", glow: "#8b5cf6" },
-                  "Engagement": { primary: "#34d399", glow: "#10b981" },
-                  "Teaching": { primary: "#fbbf24", glow: "#f59e0b" },
-                  "Adaptability": { primary: "#60a5fa", glow: "#3b82f6" },
-                  "Other": { primary: "#9ca3af", glow: "#6b7280" },
+                // Dynamic color generation based on group name (NO HARDCODING!)
+                // Uses a color palette that assigns consistent colors based on hash
+                const colorPalette = [
+                  { primary: "#a78bfa", glow: "#8b5cf6" }, // purple
+                  { primary: "#34d399", glow: "#10b981" }, // green
+                  { primary: "#fbbf24", glow: "#f59e0b" }, // yellow
+                  { primary: "#60a5fa", glow: "#3b82f6" }, // blue
+                  { primary: "#f472b6", glow: "#ec4899" }, // pink
+                  { primary: "#fb923c", glow: "#f97316" }, // orange
+                  { primary: "#a3e635", glow: "#84cc16" }, // lime
+                  { primary: "#2dd4bf", glow: "#14b8a6" }, // teal
+                  { primary: "#c084fc", glow: "#a855f7" }, // violet
+                  { primary: "#9ca3af", glow: "#6b7280" }, // gray (fallback)
+                ];
+
+                // Simple string hash function for consistent color assignment
+                const hashString = (str: string): number => {
+                  let hash = 0;
+                  for (let i = 0; i < str.length; i++) {
+                    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                    hash = hash & hash; // Convert to 32-bit integer
+                  }
+                  return Math.abs(hash);
+                };
+
+                const getColorForGroup = (groupName: string) => {
+                  const index = hashString(groupName) % colorPalette.length;
+                  return colorPalette[index];
+                };
+
+                // Format group name for display (snake_case → Title Case)
+                const formatGroupName = (name: string): string => {
+                  return name
+                    .split(/[_-]/)
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(" ");
                 };
 
                 // Gauge tick marks
@@ -3018,7 +3054,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 return (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
                     {Object.entries(groups).map(([groupName, params]) => {
-                      const colors = groupColors[groupName] || groupColors["Other"];
+                      const colors = getColorForGroup(groupName);
                       return (
                         <div
                           key={groupName}
@@ -3050,10 +3086,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                               fontSize: 12,
                               fontWeight: 600,
                               color: "#e4e4e7",
-                              textTransform: "uppercase",
                               letterSpacing: "0.5px",
                             }}>
-                              {groupName}
+                              {formatGroupName(groupName)}
                             </span>
                           </div>
 

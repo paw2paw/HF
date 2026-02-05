@@ -77,6 +77,7 @@ export default function SimpleSidebarNav({
           { href: "/x/domains", label: "Domains", icon: "🌐" },
           { href: "/x/playbooks", label: "Playbooks", icon: "📚" },
           { href: "/x/specs", label: "Specs", icon: "🎯" },
+          { href: "/x/goals", label: "Goals", icon: "🎯" },
         ],
         dividerAfter: true,
       },

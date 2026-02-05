@@ -534,7 +534,7 @@ const opHandlers: Record<string, OpHandler> = {
     };
   },
 
-  // MEASURE_AGENT - Score agent behavior
+  // MEASURE_AGENT - Score behaviour
   "measure-agent": async ({ callId, callerId, engine, log }) => {
     log.info("Starting MEASURE_AGENT op", { callId, engine });
 

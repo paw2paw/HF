@@ -151,7 +151,7 @@ const DOMAIN_COLORS: Record<string, { bg: string; text: string; border: string }
 // Colors for OutputType (pipeline stage - WHAT the spec does)
 const OUTPUT_TYPE_COLORS: Record<OutputType, { bg: string; text: string; label: string; icon: string; desc: string }> = {
   LEARN: { bg: "#fef3c7", text: "#d97706", label: "① LEARN", icon: "💾", desc: "Extracts caller data (memories, scores)" },
-  MEASURE: { bg: "#e0e7ff", text: "#4f46e5", label: "② MEASURE", icon: "📊", desc: "Scores agent behavior" },
+  MEASURE: { bg: "#e0e7ff", text: "#4f46e5", label: "② MEASURE", icon: "📊", desc: "Scores behaviour" },
   ADAPT: { bg: "#ccfbf1", text: "#0d9488", label: "③ ADAPT", icon: "🎯", desc: "Computes personalized targets" },
   COMPOSE: { bg: "#fef9c3", text: "#a16207", label: "④ COMPOSE", icon: "✍️", desc: "Builds prompt sections" },
 };
@@ -628,7 +628,7 @@ function AnalysisSpecsContent() {
             {scopeLocked && selectedScope ? (
               selectedScope === "CALLER" ? "Auto-generated specs (view only) - created by the learning system" :
               selectedScope === "DOMAIN" ? "Domain-level specs for measuring aggregate patterns" :
-              "System specs for measuring agent behavior and compliance"
+              "System specs for measuring behaviour and compliance"
             ) : (
               "Define what to analyze: MEASURE caller, LEARN facts, AGENT behavior, or ADAPT goals"
             )}
@@ -1254,7 +1254,7 @@ function AnalysisSpecsContent() {
                     reads: ["Call.transcript", "BehaviorTarget"],
                     generates: ["BehaviorMeasurement", "RewardScore"],
                     phase: "② MEASURE",
-                    description: "Scores agent behavior against targets"
+                    description: "Scores behaviour against targets"
                   },
                   ADAPT: {
                     reads: ["CallScore[]", "CallerProfile"],
@@ -1438,7 +1438,7 @@ function AnalysisSpecsContent() {
                 const actionsWithGuidance = selectedSpec.triggers?.flatMap(t => t.actions.filter(a => a.description && a.description.length > 50)) || [];
 
                 if (selectedSpec.outputType === "MEASURE") {
-                  // MEASURE specs score agent behavior - need parameters with targets
+                  // MEASURE specs score behaviour - need parameters with targets
                   const missingItems = [];
                   if (!hasTriggers) missingItems.push("triggers");
                   if (!hasActions) missingItems.push("actions");
@@ -1452,7 +1452,7 @@ function AnalysisSpecsContent() {
                           Still needed: {missingItems.join(", ")}
                         </div>
                         <div style={{ marginTop: 4, fontSize: 11, color: "#6366f1" }}>
-                          MEASURE specs score agent behavior against targets
+                          MEASURE specs score behaviour against targets
                         </div>
                       </div>
                     );
@@ -1888,7 +1888,7 @@ function PromptTemplateSection({
     LEARN: `{{#if hasMemories}}Use these memories about the caller in your conversation:
 {{#each memories.facts}}- {{this.key}}: {{this.value}}
 {{/each}}{{/if}}`,
-    MEASURE: `Agent behavior score for {{param.name}}: {{value}} ({{label}}).
+    MEASURE: `Behaviour score for {{param.name}}: {{value}} ({{label}}).
 {{#if high}}Agent is performing well on this dimension.{{/if}}
 {{#if medium}}Agent behavior is acceptable but could improve.{{/if}}
 {{#if low}}Agent needs adjustment on this behavior.{{/if}}`,

@@ -5,8 +5,10 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") || "100");
+    const callerId = url.searchParams.get("callerId");
 
     const calls = await prisma.call.findMany({
+      where: callerId ? { callerId } : undefined,
       orderBy: { createdAt: "desc" },
       take: limit,
       include: {

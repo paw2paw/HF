@@ -9,6 +9,21 @@ import { getLearnerProfile } from "@/lib/learner/profile";
 export const runtime = "nodejs";
 
 /**
+ * Helper function to get emoji for goal type
+ */
+function getGoalTypeEmoji(type: string): string {
+  const emojiMap: Record<string, string> = {
+    LEARN: "📚",
+    ACHIEVE: "🏆",
+    CHANGE: "🔄",
+    CONNECT: "🤝",
+    SUPPORT: "💚",
+    CREATE: "🎨",
+  };
+  return emojiMap[type] || "🎯";
+}
+
+/**
  * POST /api/callers/[callerId]/compose-prompt
  *
  * Compose a personalized next-call prompt for a caller using AI.
@@ -238,31 +253,27 @@ export async function POST(
         },
       }),
 
-      // Learner goals (from GOAL-001 or similar) - broadened to catch various goal expressions
-      prisma.callerMemory.findMany({
+      // Learner goals - fetch from Goal model
+      // Includes both playbook goals and caller-expressed goals
+      prisma.goal.findMany({
         where: {
           callerId,
-          supersededById: null,
-          OR: [
-            // Explicit goal keys
-            { key: { in: ["learning_goal", "session_goal", "current_objective", "next_topic", "goal", "wants_to_learn", "interested_in"] } },
-            // Goal-related keys with any prefix
-            { key: { contains: "goal" } },
-            { key: { contains: "objective" } },
-            { key: { contains: "want" } },
-            // TOPIC category entries (implicit interests/goals)
-            { category: "TOPIC" },
-          ],
+          status: { in: ['ACTIVE', 'PAUSED'] }, // Don't include ARCHIVED or COMPLETED
         },
-        orderBy: [{ confidence: "desc" }, { createdAt: "desc" }],
-        take: 15,
-        select: {
-          key: true,
-          value: true,
-          confidence: true,
-          category: true,
-          createdAt: true,
+        include: {
+          contentSpec: {
+            select: { id: true, name: true, slug: true },
+          },
+          playbook: {
+            select: { id: true, name: true },
+          },
         },
+        orderBy: [
+          { priority: 'desc' },     // Higher priority first
+          { progress: 'asc' },      // Lower progress = needs more attention
+          { startedAt: 'desc' },    // Recent goals first
+        ],
+        take: 10, // Limit to top 10 goals for prompt
       }),
 
       // Get caller's domain and playbook with IDENTITY and CONTENT specs
@@ -618,9 +629,34 @@ export async function POST(
     // Learner Goals (if enabled)
     if (includeLearnerGoals && learnerGoals.length > 0) {
       contextParts.push("\n## Learner Goals");
-      for (const goal of learnerGoals) {
-        const confidence = goal.confidence ? ` (${(goal.confidence * 100).toFixed(0)}% confidence)` : "";
-        contextParts.push(`- ${goal.key}: ${goal.value}${confidence}`);
+
+      // Separate playbook goals from caller-expressed goals
+      const playbookGoals = learnerGoals.filter(g => g.playbookId !== null);
+      const callerGoals = learnerGoals.filter(g => g.playbookId === null);
+
+      if (playbookGoals.length > 0) {
+        contextParts.push("\n### Strategic Goals (from playbook):");
+        for (const goal of playbookGoals) {
+          const progressStr = goal.progress > 0 ? ` [${Math.round(goal.progress * 100)}% complete]` : "";
+          const typeEmoji = getGoalTypeEmoji(goal.type);
+          const priorityStr = goal.priority > 7 ? " (HIGH PRIORITY)" : "";
+          contextParts.push(`- ${typeEmoji} ${goal.name}${progressStr}${priorityStr}`);
+          if (goal.description) {
+            contextParts.push(`  └─ ${goal.description}`);
+          }
+        }
+      }
+
+      if (callerGoals.length > 0) {
+        contextParts.push("\n### Caller-Expressed Goals:");
+        for (const goal of callerGoals) {
+          const progressStr = goal.progress > 0 ? ` [${Math.round(goal.progress * 100)}% complete]` : "";
+          const typeEmoji = getGoalTypeEmoji(goal.type);
+          contextParts.push(`- ${typeEmoji} ${goal.name}${progressStr}`);
+          if (goal.description) {
+            contextParts.push(`  └─ "${goal.description}"`);
+          }
+        }
       }
     }
 
@@ -1197,11 +1233,24 @@ interface LlmPromptInput {
     sourceSpecSlug: string | null;
   }>;
   learnerGoals: Array<{
-    key: string;
-    value: string;
-    confidence: number | null;
-    category?: string;
-    createdAt?: Date;
+    id: string;
+    type: string;
+    name: string;
+    description: string | null;
+    status: string;
+    priority: number;
+    progress: number;
+    playbookId: string | null;
+    contentSpec: {
+      id: string;
+      name: string;
+      slug: string;
+    } | null;
+    playbook: {
+      id: string;
+      name: string;
+    } | null;
+    startedAt: Date | null;
   }>;
   callerDomain: {
     id: string;
@@ -1425,12 +1474,12 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
         if (learnerGoals.length === 0) {
           return "No specific goals yet - discover what they want to learn in this session";
         }
-        // Prioritize explicit goals over topic interests
-        const explicitGoals = learnerGoals.filter(g =>
-          g.key.includes("goal") || g.key.includes("want") || g.key.includes("objective")
-        );
-        const topGoals = explicitGoals.length > 0 ? explicitGoals : learnerGoals;
-        return topGoals.slice(0, 3).map(g => g.value).join("; ");
+        // Prioritize high-priority and low-progress goals (need more attention)
+        const topGoals = learnerGoals.slice(0, 3);
+        return topGoals.map(g => {
+          const progressStr = g.progress > 0 ? ` (${Math.round(g.progress * 100)}% complete)` : "";
+          return `${g.name}${progressStr}`;
+        }).join("; ");
       })(),
       // Curriculum progress summary for quick reference
       curriculum_progress: modules.length > 0 ? (() => {
@@ -1795,13 +1844,16 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
       };
     })(),
 
-    // Learner Goals (from GOAL-001)
+    // Learner Goals (from Goal model)
     learnerGoals: {
       hasData: learnerGoals.length > 0,
       goals: learnerGoals.map(g => ({
-        type: g.key,
-        description: g.value,
-        confidence: g.confidence,
+        type: g.type,
+        name: g.name,
+        description: g.description,
+        progress: g.progress,
+        priority: g.priority,
+        isPlaybookGoal: g.playbookId !== null,
       })),
     },
 
@@ -2056,7 +2108,7 @@ function buildLlmFriendlyPrompt(input: LlmPromptInput): Record<string, any> {
         if (goals.length === 0) {
           return "No specific session goals set - explore learner interests and set goals collaboratively.";
         }
-        return `Session goals: ${goals.map(g => g.value).join("; ")}`;
+        return `Session goals: ${goals.map(g => g.name).join("; ")}`;
       })(),
 
       // Session Pedagogy - Review vs New Material (uses shared module calculation)

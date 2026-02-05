@@ -74,7 +74,7 @@ type GeneratedPrompt = {
 const SPEC_TYPE_INFO: Record<string, { label: string; description: string; icon: string }> = {
   // Output Types (pipeline stages)
   LEARN: { label: "① Learn", description: "Extracts caller data (memories, scores)", icon: "🧠" },
-  MEASURE: { label: "② Measure", description: "Scores agent behavior against targets", icon: "📊" },
+  MEASURE: { label: "② Measure", description: "Scores behaviour against targets", icon: "📊" },
   ADAPT: { label: "③ Adapt", description: "Computes personalized targets", icon: "🔄" },
   COMPOSE: { label: "④ Compose", description: "Builds prompt sections", icon: "✍️" },
   // Spec Roles (for COMPOSE specs - define prompt sections)

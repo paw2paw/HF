@@ -469,10 +469,30 @@ model BehaviorMeasurement {
 }
 
 // =========================
-// CALLERS (formerly Users)
+// SYSTEM USERS & CALLERS
 // =========================
-// Note: "User" is reserved for future system users/permissions
-// "Caller" represents people who interact with the agent (customers, contacts)
+// "User" = Admin/operator accounts who use this system
+// "Caller" = End-users who interact with the AI agent (customers, students, contacts)
+
+enum UserRole {
+  ADMIN    // Full system access
+  OPERATOR // Can run operations, view data
+  VIEWER   // Read-only access
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?  // For authentication
+  role         UserRole @default(VIEWER)
+  name         String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@index([role])
+}
 
 model Caller {
   id         String  @id @default(uuid())
@@ -518,7 +538,6 @@ model Caller {
 
   @@index([externalId])
   @@index([domainId])
-  @@map("User") // Preserve existing table name
 }
 
 // ExcludedCaller - Phone numbers/IDs to skip during transcript import
@@ -697,7 +716,7 @@ model Call {
   createdAt  DateTime @default(now())
 
   // Caller tracking
-  callerId String? @map("userId")
+  callerId String? 
 
   caller Caller? @relation(fields: [callerId], references: [id])
 
@@ -735,7 +754,7 @@ model CallScore {
   id            String  @id @default(uuid())
   analysisRunId String? // Optional - can be scored by agent without a run
   callId        String
-  callerId      String? @map("userId") // Denormalized for efficient queries
+  callerId      String?  // Denormalized for efficient queries
   parameterId   String
 
   // Scoring result
@@ -991,7 +1010,7 @@ model FailedCall {
 // Personality observation from a single call (time series data)
 model PersonalityObservation {
   id       String @id @default(uuid())
-  callerId String @map("userId")
+  callerId String 
   callId   String @unique
 
   // Observed personality traits from this call (0-1 scale)
@@ -1020,7 +1039,7 @@ model PersonalityObservation {
 // Aggregated personality profile (computed from observations with decay)
 model CallerPersonality {
   id       String @id @default(uuid())
-  callerId String @unique @map("userId")
+  callerId String @unique 
 
   // Aggregated personality traits (0-1 scale)
   // Computed from PersonalityObservations with time decay
@@ -1052,7 +1071,7 @@ model CallerPersonality {
 // Used by PromptSlugComposer to look up any parameter value
 model CallerPersonalityProfile {
   id       String @id @default(uuid())
-  callerId String @unique @map("userId")
+  callerId String @unique 
 
   // All parameter values as JSON object
   // { "B5-O": 0.72, "B5-C": 0.65, "engagement": 0.8, ... }
@@ -1097,7 +1116,7 @@ enum MemorySource {
 // Individual memory entries extracted from calls
 model CallerMemory {
   id       String  @id @default(uuid())
-  callerId String  @map("userId")
+  callerId String  
   callId   String? // Source call (null if inferred from multiple)
 
   // Memory classification
@@ -1148,7 +1167,7 @@ model CallerMemory {
 // Aggregated memory summary per caller (like a "profile card")
 model CallerMemorySummary {
   id       String @id @default(uuid())
-  callerId String @unique @map("userId")
+  callerId String @unique 
 
   // Aggregated memory counts by category
   factCount       Int @default(0)
@@ -1374,7 +1393,7 @@ model AgentRun {
 model PromptSlugSelection {
   id       String  @id @default(uuid())
   callId   String
-  callerId String? @map("userId")
+  callerId String? 
 
   // Selected prompt slug
   promptSlug String
@@ -2244,7 +2263,7 @@ model CallerIdentity {
   id String @id @default(uuid())
 
   // Caller reference (the person this identity belongs to)
-  callerId String? @map("userId")
+  callerId String? 
   caller   Caller? @relation(fields: [callerId], references: [id])
 
   // External identifier (phone number, account ID, etc.)
@@ -2292,11 +2311,10 @@ model CallerIdentity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([callerId], map: "Caller_userId_idx")
+  @@index([callerId])
   @@index([externalId])
   @@index([promptStackId])
   @@index([segmentId])
-  @@map("Caller") // Preserve existing table name
 }
 
 // =========================

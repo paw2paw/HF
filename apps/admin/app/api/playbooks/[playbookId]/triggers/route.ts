@@ -153,7 +153,7 @@ export async function GET(
     // Build categorized output
     const outputTypeInfo: Record<string, { icon: string; description: string }> = {
       MEASURE: { icon: "📊", description: "Measures traits → produces CallScore values" },
-      MEASURE_AGENT: { icon: "🤖", description: "Measures agent behavior → produces CallScore values" },
+      MEASURE_AGENT: { icon: "🤖", description: "Measures behaviour → produces CallScore values" },
       LEARN: { icon: "🧠", description: "Extracts insights → produces CallerMemory entries" },
       ADAPT: { icon: "🔄", description: "Adapts behavior → produces BehaviorTarget values" },
       COMPOSE: { icon: "✍️", description: "Composes prompts → produces prompt sections" },

@@ -20,7 +20,7 @@ export async function GET(
     const { callerId } = await params;
 
     // Fetch all caller data in parallel
-    const [caller, personality, observations, memories, memorySummary, calls, identities, scores, callerTargets, curriculum, learnerProfile] = await Promise.all([
+    const [caller, personality, observations, memories, memorySummary, calls, identities, scores, callerTargets, curriculum, learnerProfile, goals] = await Promise.all([
       // Basic caller info
       prisma.caller.findUnique({
         where: { id: callerId },
@@ -257,6 +257,24 @@ export async function GET(
           return null;
         }
       })(),
+
+      // Goals for this caller
+      prisma.goal.findMany({
+        where: { callerId },
+        include: {
+          playbook: {
+            select: { id: true, name: true, version: true },
+          },
+          contentSpec: {
+            select: { id: true, slug: true, name: true },
+          },
+        },
+        orderBy: [
+          { status: 'asc' },
+          { priority: 'desc' },
+          { createdAt: 'desc' },
+        ],
+      }),
     ]);
 
     if (!caller) {
@@ -423,6 +441,7 @@ export async function GET(
       callerTargets,
       curriculum,
       learnerProfile,
+      goals,
       availableSlugNames: Array.from(availableSlugNames).sort(),
       counts: {
         calls: callCount,
@@ -434,6 +453,8 @@ export async function GET(
         measurements: measurementsCount,
         curriculumModules: curriculum?.totalModules || 0,
         curriculumCompleted: curriculum?.completedCount || 0,
+        goals: goals.length,
+        activeGoals: goals.filter(g => g.status === 'ACTIVE').length,
       },
     });
   } catch (error: any) {

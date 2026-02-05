@@ -26,7 +26,7 @@ export async function GET() {
       { opid: "kb:links:extract", status: "implemented" },
       { opid: "personality:analyze", status: "implemented" },
       { opid: "memory:extract", status: "implemented" },
-      { opid: "behavior:measure", status: "implemented", description: "Measure agent behaviors from transcripts" },
+      { opid: "behavior:measure", status: "implemented", description: "Measure behaviour from transcripts" },
       { opid: "reward:compute", status: "implemented", description: "Compute rewards comparing behaviors to targets" },
       { opid: "targets:update", status: "implemented", description: "Update targets based on reward signals" },
       { opid: "prompt:compose-next", status: "implemented", description: "Compose personalized prompts for callers" },

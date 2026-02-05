@@ -181,6 +181,7 @@ export default function DomainDetailPage({
         <div style={{ display: "flex", gap: 24 }}>
           <button
             onClick={() => setActiveTab("playbooks")}
+            title="View and manage playbooks for this domain"
             style={{
               padding: "12px 0",
               background: "none",
@@ -196,6 +197,7 @@ export default function DomainDetailPage({
           </button>
           <button
             onClick={() => setActiveTab("callers")}
+            title="View and manage callers in this domain"
             style={{
               padding: "12px 0",
               background: "none",

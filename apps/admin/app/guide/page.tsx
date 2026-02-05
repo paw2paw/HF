@@ -210,7 +210,7 @@ where λ = ln(2) / halfLifeDays
     icon: "🎯",
     content: `
       <h2>Behavior-Driven Learning</h2>
-      <p>The reward system enables continuous learning by measuring agent behaviors, comparing them to targets, and adjusting based on outcomes.</p>
+      <p>The reward system enables continuous learning by measuring behaviour, comparing them to targets, and adjusting based on outcomes.</p>
 
       <h3>Core Components</h3>
       <table>
@@ -264,7 +264,7 @@ Call Completed
       │
       ▼
 ┌─────────────────────┐
-│  measure_agent      │  Measure agent behavior
+│  measure_agent      │  Measure behaviour
 │  → BehaviorMeasure  │
 └─────────┬───────────┘
           │

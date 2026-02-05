@@ -142,6 +142,29 @@ type LearnerProfile = {
   lastUpdated: string | null;
 };
 
+type Goal = {
+  id: string;
+  type: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: number;
+  progress: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  targetDate: string | null;
+  playbook: {
+    id: string;
+    name: string;
+    version: string;
+  } | null;
+  contentSpec: {
+    id: string;
+    slug: string;
+    name: string;
+  } | null;
+};
+
 type CallerData = {
   caller: CallerProfile;
   personality: PersonalityProfile | null;
@@ -154,6 +177,7 @@ type CallerData = {
   callerTargets?: any[];
   curriculum?: CurriculumProgress | null;
   learnerProfile?: LearnerProfile | null;
+  goals?: Goal[];
   counts: {
     calls: number;
     memories: number;
@@ -163,6 +187,8 @@ type CallerData = {
     measurements: number;
     curriculumModules?: number;
     curriculumCompleted?: number;
+    goals?: number;
+    activeGoals?: number;
   };
 };
 
@@ -458,7 +484,7 @@ export default function CallerDetailPage() {
   // - History: call recordings and transcripts
   // - Caller: who they are (personality, memories)
   // - Shared: variables, measurements for both agent and caller (slugs, scores, targets)
-  // - Agent: how we respond (behavior, prompt)
+  // - Behaviour: how we respond (behavior, prompt)
   // - Action: make a call
   const sections: { id: SectionId; label: string; icon: string; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "agent" | "action" }[] = [
     // History
@@ -466,13 +492,13 @@ export default function CallerDetailPage() {
     // Caller group
     { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories, group: "caller" },
     { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations, group: "caller" },
-    { id: "learning", label: "Learning", icon: "📚", count: data.counts.curriculumCompleted || 0, group: "caller" },
+    { id: "learning", label: "Goals", icon: "🎯", count: data.counts.activeGoals || 0, group: "caller" },
+    { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0, group: "caller" },
     // Shared group - data for both caller and agent
     { id: "slugs", label: "Slugs", icon: "🏷️", group: "shared" },
     { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0, group: "shared" },
-    { id: "targets", label: "Agent", icon: "🤖", count: data.counts.targets || 0, group: "shared" },
-    // Agent-specific group
-    { id: "agent-behavior", label: "Agent", icon: "🤖", count: data.counts.measurements || 0, group: "agent" },
+    // Behaviour-specific group
+    { id: "agent-behavior", label: "Behaviour", icon: "🤖", count: data.counts.measurements || 0, group: "agent" },
     { id: "prompt", label: "Prompt", icon: "📝", count: data.counts.prompts, group: "agent" },
     // Action group
     { id: "ai-call", label: "Call", icon: "📞", special: true, group: "action" },
@@ -602,6 +628,71 @@ export default function CallerDetailPage() {
               )}
             </div>
           </div>
+          {/* Analyze Button - runs analysis to extract personality & memories */}
+          <button
+            onClick={async (e) => {
+              if (!confirm("Run analysis on this caller's calls to extract personality traits and memories?\n\nThis will:\n• Extract personality traits (Big 5)\n• Extract memories from conversations\n• Update caller profile")) return;
+
+              const btn = e.currentTarget;
+              const originalText = btn.textContent;
+
+              try {
+                btn.disabled = true;
+                btn.textContent = "Analyzing...";
+
+                // Get all calls for this caller
+                const callsRes = await fetch(`/api/calls?callerId=${callerId}`);
+                const callsData = await callsRes.json();
+
+                if (!callsData.ok || !callsData.calls?.length) {
+                  alert("No calls found for this caller");
+                  return;
+                }
+
+                // Analyze each call
+                let analyzed = 0;
+                for (const call of callsData.calls) {
+                  btn.textContent = `Analyzing ${++analyzed}/${callsData.calls.length}...`;
+
+                  await fetch(`/api/analysis/run`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      transcript: call.transcript,
+                      callId: call.id,
+                      callerId: callerId,
+                      outputTypes: ["MEASURE", "LEARN"],
+                      storeResults: true
+                    })
+                  });
+                }
+
+                alert(`✅ Analysis complete!\n\nAnalyzed ${analyzed} call(s)\nRefreshing page to show results...`);
+                window.location.reload();
+              } catch (err: any) {
+                alert(`❌ Error: ${err.message}`);
+                btn.disabled = false;
+                btn.textContent = originalText || "🧠 Analyze";
+              }
+            }}
+            title="Run personality & memory analysis on this caller's calls"
+            style={{
+              padding: "10px 20px",
+              background: "#10b981",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            🧠 Analyze
+          </button>
+
           {/* Prompt ALL Button - processes all calls oldest-first */}
           <button
             onClick={handlePromptAll}
@@ -743,7 +834,7 @@ export default function CallerDetailPage() {
       {activeSection === "scores" && <ScoresSection scores={data.scores} />}
 
       {activeSection === "learning" && (
-        <LearningSection curriculum={data.curriculum} learnerProfile={data.learnerProfile} callerId={callerId} />
+        <LearningSection curriculum={data.curriculum} learnerProfile={data.learnerProfile} goals={data.goals} callerId={callerId} />
       )}
 
       {activeSection === "targets" && (
@@ -982,7 +1073,7 @@ type OpDefinition = {
 const OPS: OpDefinition[] = [
   { id: "measure", label: "Measure Caller", shortLabel: "MEASURE", prereqs: [] },
   { id: "learn", label: "Extract Memories", shortLabel: "LEARN", prereqs: [] },
-  { id: "measure-agent", label: "Measure Agent", shortLabel: "AGENT", prereqs: [] },
+  { id: "measure-agent", label: "Measure Behaviour", shortLabel: "BEHAVIOUR", prereqs: [] },
   { id: "reward", label: "Compute Reward", shortLabel: "REWARD", prereqs: ["measure-agent"] },
   { id: "adapt", label: "Update Targets", shortLabel: "ADAPT", prereqs: ["reward"] },
 ];
@@ -1286,7 +1377,7 @@ function PipelineLogsPanel({
             📊 Scores: <strong style={{ color: (result.data.scoresCreated || 0) > 0 ? "#6ee7b7" : "#fca5a5" }}>{result.data.scoresCreated || 0}</strong>
           </span>
           <span style={{ color: "#9ca3af" }}>
-            🤖 Agent: <strong style={{ color: (result.data.agentMeasurements || 0) > 0 ? "#6ee7b7" : "#fca5a5" }}>{result.data.agentMeasurements || 0}</strong>
+            🤖 Behaviour: <strong style={{ color: (result.data.agentMeasurements || 0) > 0 ? "#6ee7b7" : "#fca5a5" }}>{result.data.agentMeasurements || 0}</strong>
           </span>
           <span style={{ color: "#9ca3af" }}>
             💾 Memories: <strong style={{ color: "#93c5fd" }}>{result.data.memoriesCreated || 0}</strong>
@@ -1889,15 +1980,15 @@ function CallDetailPanel({
 
   const tabs = [
     // Transcript first
-    { id: "transcript", label: "Trans", icon: "📄", count: null },
+    { id: "transcript", label: "Trans", icon: "📄", count: null, tooltip: "View the full call transcript" },
     // Caller group
-    { id: "memories", label: "Mem", icon: "💭", count: memories.length },
+    { id: "memories", label: "Mem", icon: "💭", count: memories.length, tooltip: "Memories extracted from the caller" },
     // Shared group
-    { id: "scores", label: "Scores", icon: "📊", count: scores.length },
-    { id: "targets", label: "Agent", icon: "🤖", count: effectiveTargets.length },
-    // Agent group
-    { id: "measurements", label: "Agent", icon: "🤖", count: measurements.length },
-    { id: "prompt", label: "Prompt", icon: "📝", count: null }, // 1-1 with call, count not needed
+    { id: "scores", label: "Scores", icon: "📊", count: scores.length, tooltip: "Behavior and caller scores" },
+    { id: "targets", label: "Targets", icon: "🎯", count: effectiveTargets.length, tooltip: "Effective targets for this call" },
+    // Behaviour group
+    { id: "measurements", label: "Behaviour", icon: "🤖", count: measurements.length, tooltip: "Behavioral measurements and analysis" },
+    { id: "prompt", label: "Prompt", icon: "📝", count: null, tooltip: "Composed prompt sent to the AI" }, // 1-1 with call, count not needed
   ];
 
   return (
@@ -1910,6 +2001,7 @@ function CallDetailPanel({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
+              title={tab.tooltip}
               style={{
                 padding: "10px 12px",
                 border: "none",
@@ -2984,185 +3076,292 @@ function TwoColumnTargetsDisplay({
   const renderTargetCard = (target: any, prefix: string) => {
     const isExpanded = expandedTarget === `${prefix}-${target.parameterId}`;
     const actual = measurementMap.get(target.parameterId);
-    const delta = actual !== undefined ? actual - target.targetValue : null;
+    const targetValue = target.targetValue;
+    const delta = actual !== undefined ? actual - targetValue : null;
+
+    // Determine colors based on scope
+    const scopeColor = scopeColors[target.effectiveScope]?.text || "#6b7280";
+    const glowColor = scopeColor;
+
+    // Calculate gradient color based on value
+    const getGradientForValue = (value: number) => {
+      if (value >= 0.7) {
+        return "linear-gradient(180deg, #10b981 0%, #059669 100%)"; // green
+      } else if (value >= 0.3) {
+        return "linear-gradient(180deg, #f59e0b 0%, #d97706 100%)"; // amber
+      } else {
+        return "linear-gradient(180deg, #ef4444 0%, #dc2626 100%)"; // red
+      }
+    };
 
     return (
       <div
         key={`${prefix}-${target.parameterId}`}
         style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          overflow: "hidden",
-          marginBottom: 8,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          position: "relative",
         }}
       >
-        {/* Header */}
+        {/* Vertical LED slider */}
         <div
           onClick={() => setExpandedTarget(isExpanded ? null : `${prefix}-${target.parameterId}`)}
+          title={
+            actual !== undefined
+              ? `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}% (left bar)\nActual: ${(actual * 100).toFixed(0)}% (right bar)\nDelta: ${delta! >= 0 ? "+" : ""}${(delta! * 100).toFixed(0)}%\n\nColors: Green (≥70%), Amber (30-70%), Red (<30%)\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`
+              : `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}%\n\nColors: Green (≥70%), Amber (30-70%), Red (<30%)\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`
+          }
           style={{
-            padding: 12,
+            width: 56,
+            height: 140,
+            background: "#18181b",
+            borderRadius: 8,
+            position: "relative",
+            overflow: "hidden",
             cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            border: isExpanded ? `2px solid ${scopeColor}` : "2px solid #27272a",
+            boxShadow: isExpanded ? `0 0 12px ${scopeColor}40` : "none",
+            transition: "border-color 0.2s, box-shadow 0.2s",
           }}
         >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                      {/* Target value gauge */}
-                      <div style={{ width: 50, textAlign: "center" }}>
-                        <div
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 700,
-                            color: target.targetValue >= 0.7 ? "#10b981" : target.targetValue >= 0.3 ? "#f59e0b" : "#ef4444",
-                          }}
-                        >
-                          {(target.targetValue * 100).toFixed(0)}
-                        </div>
-                        <div style={{ fontSize: 9, color: "#9ca3af" }}>target</div>
-                      </div>
+          {/* Target value bar */}
+          <div
+            style={{
+              position: "absolute",
+              left: 2,
+              right: actual !== undefined ? "50%" : 2,
+              bottom: 2,
+              height: `${Math.max(2, targetValue * 100)}%`,
+              background: getGradientForValue(targetValue),
+              borderRadius: "2px",
+              transition: "height 0.2s ease-out",
+              boxShadow: `0 0 8px ${scopeColor}40`,
+            }}
+          />
 
-                      {/* Parameter info */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                          <span style={{ fontWeight: 600, fontSize: 13 }}>
-                            {target.parameter?.name || target.parameterId}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "2px 6px",
-                              borderRadius: 4,
-                              background: scopeColors[target.effectiveScope]?.bg || "#f3f4f6",
-                              color: scopeColors[target.effectiveScope]?.text || "#6b7280",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {target.effectiveScope}
-                          </span>
-                        </div>
-                        {target.parameter?.definition && (
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>
-                            {target.parameter.definition}
-                          </div>
-                        )}
-                      </div>
+          {/* Actual value bar (if available) */}
+          {actual !== undefined && (
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                right: 2,
+                bottom: 2,
+                height: `${Math.max(2, actual * 100)}%`,
+                background: getGradientForValue(actual),
+                borderRadius: "2px",
+                transition: "height 0.2s ease-out",
+                opacity: 0.85,
+              }}
+            />
+          )}
 
-                      {/* Actual vs Target comparison */}
-                      {actual !== undefined && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ textAlign: "center" }}>
-                            <div
-                              style={{
-                                fontSize: 16,
-                                fontWeight: 600,
-                                color: actual >= 0.7 ? "#10b981" : actual >= 0.3 ? "#f59e0b" : "#ef4444",
-                              }}
-                            >
-                              {(actual * 100).toFixed(0)}
-                            </div>
-                            <div style={{ fontSize: 9, color: "#9ca3af" }}>actual</div>
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 600,
-                              color: delta! >= 0 ? "#10b981" : "#ef4444",
-                            }}
-                          >
-                            {delta! >= 0 ? "+" : ""}{(delta! * 100).toFixed(0)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+          {/* LED segments overlay */}
+          {[...Array(10)].map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                left: 2,
+                right: 2,
+                bottom: `${i * 10 + 5}%`,
+                height: 1,
+                background: "#18181b",
+                opacity: 0.5,
+              }}
+            />
+          ))}
 
-                    <span style={{ color: "#9ca3af", fontSize: 12, marginLeft: 8 }}>
-                      {isExpanded ? "▼" : "▶"}
+          {/* Value labels inside slider */}
+          <div
+            style={{
+              position: "absolute",
+              top: 4,
+              left: 0,
+              right: 0,
+              display: "flex",
+              justifyContent: "center",
+              gap: 4,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#fafafa",
+                textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+              }}
+            >
+              {(targetValue * 100).toFixed(0)}
+            </div>
+            {actual !== undefined && (
+              <>
+                <div style={{ fontSize: 11, color: "#71717a" }}>|</div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#fafafa",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+                  }}
+                >
+                  {(actual * 100).toFixed(0)}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Delta indicator */}
+          {delta !== null && Math.abs(delta) > 0.05 && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: 4,
+                left: 0,
+                right: 0,
+                fontSize: 9,
+                fontWeight: 700,
+                color: delta >= 0 ? "#10b981" : "#ef4444",
+                textAlign: "center",
+                textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+              }}
+            >
+              {delta >= 0 ? "+" : ""}{(delta * 100).toFixed(0)}
+            </div>
+          )}
+        </div>
+
+        {/* Label */}
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 9,
+            fontWeight: 500,
+            color: isExpanded ? scopeColor : "#71717a",
+            textAlign: "center",
+            maxWidth: 70,
+            lineHeight: 1.2,
+            textTransform: "uppercase",
+            letterSpacing: "0.3px",
+            cursor: "pointer",
+          }}
+          onClick={() => setExpandedTarget(isExpanded ? null : `${prefix}-${target.parameterId}`)}
+        >
+          {target.parameter?.name?.replace("BEH-", "").replace(/-/g, " ") || target.parameterId}
+        </div>
+
+        {/* Scope indicator */}
+        <div
+          title={
+            target.effectiveScope === "SYSTEM"
+              ? "SYSTEM: Default value from system configuration"
+              : target.effectiveScope === "PLAYBOOK"
+              ? "PLAYBOOK: Value set by the playbook for this domain"
+              : target.effectiveScope === "CALLER"
+              ? "CALLER: Personalized value adjusted for this individual caller"
+              : target.effectiveScope === "SEGMENT"
+              ? "SEGMENT: Value adjusted for this caller's segment"
+              : "Effective scope for this target value"
+          }
+          style={{
+            marginTop: 4,
+            fontSize: 8,
+            padding: "1px 4px",
+            borderRadius: 3,
+            background: scopeColors[target.effectiveScope]?.bg || "#f3f4f6",
+            color: scopeColors[target.effectiveScope]?.text || "#6b7280",
+            fontWeight: 500,
+            cursor: "help",
+          }}
+        >
+          {target.effectiveScope}
+        </div>
+
+        {/* Expanded: show layer cascade below */}
+        {isExpanded && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              marginTop: 8,
+              background: "#fff",
+              border: `2px solid ${scopeColor}`,
+              borderRadius: 8,
+              padding: 12,
+              zIndex: 10,
+              minWidth: 280,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+              Layer Cascade
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {target.layers?.map((layer: any, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: 6,
+                    background: "#f9fafb",
+                    borderRadius: 4,
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 9,
+                      padding: "2px 6px",
+                      borderRadius: 3,
+                      background: scopeColors[layer.scope]?.bg || "#f3f4f6",
+                      color: scopeColors[layer.scope]?.text || "#6b7280",
+                      fontWeight: 500,
+                      minWidth: 60,
+                      textAlign: "center",
+                    }}
+                  >
+                    {layer.scope}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>
+                    {(layer.value * 100).toFixed(0)}%
+                  </span>
+                  <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                    ({layer.source})
+                  </span>
+                  {idx === target.layers?.length - 1 && (
+                    <span style={{ fontSize: 9, color: "#10b981", fontWeight: 500 }}>
+                      ✓
                     </span>
-                  </div>
-
-                  {/* Expanded: show layer cascade */}
-                  {isExpanded && target.layers && (
-                    <div style={{ borderTop: "1px solid #e5e7eb", padding: 12, background: "#fafafa" }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
-                        Layer Cascade
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {target.layers.map((layer: any, idx: number) => (
-                          <div
-                            key={idx}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              padding: 8,
-                              background: "#fff",
-                              borderRadius: 6,
-                              border: "1px solid #e5e7eb",
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: 10,
-                                padding: "2px 8px",
-                                borderRadius: 4,
-                                background: scopeColors[layer.scope]?.bg || "#f3f4f6",
-                                color: scopeColors[layer.scope]?.text || "#6b7280",
-                                fontWeight: 500,
-                                minWidth: 70,
-                                textAlign: "center",
-                              }}
-                            >
-                              {layer.scope}
-                            </span>
-                            <span style={{ fontSize: 14, fontWeight: 600 }}>
-                              {(layer.value * 100).toFixed(0)}%
-                            </span>
-                            <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                              ({layer.source})
-                            </span>
-                            {layer.playbookName && (
-                              <span style={{ fontSize: 11, color: "#4f46e5" }}>
-                                "{layer.playbookName}"
-                              </span>
-                            )}
-                            {layer.segmentName && (
-                              <span style={{ fontSize: 11, color: "#d97706" }}>
-                                "{layer.segmentName}"
-                              </span>
-                            )}
-                            {idx === target.layers.length - 1 && (
-                              <span style={{ fontSize: 10, color: "#10b981", fontWeight: 500 }}>
-                                ✓ effective
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Interpretation hints */}
-                      {(target.parameter?.interpretationHigh || target.parameter?.interpretationLow) && (
-                        <div style={{ marginTop: 12, fontSize: 11 }}>
-                          <div style={{ color: "#6b7280", marginBottom: 4 }}>Interpretation:</div>
-                          <div style={{ display: "flex", gap: 16 }}>
-                            {target.parameter?.interpretationHigh && (
-                              <div>
-                                <span style={{ fontWeight: 500, color: "#10b981" }}>High:</span>{" "}
-                                <span style={{ color: "#6b7280" }}>{target.parameter.interpretationHigh}</span>
-                              </div>
-                            )}
-                            {target.parameter?.interpretationLow && (
-                              <div>
-                                <span style={{ fontWeight: 500, color: "#ef4444" }}>Low:</span>{" "}
-                                <span style={{ color: "#6b7280" }}>{target.parameter.interpretationLow}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   )}
+                </div>
+              ))}
+            </div>
+
+            {/* Interpretation hints */}
+            {(target.parameter?.interpretationHigh || target.parameter?.interpretationLow) && (
+              <div style={{ marginTop: 12, fontSize: 10, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
+                <div style={{ color: "#6b7280", marginBottom: 4, fontWeight: 500 }}>Interpretation:</div>
+                {target.parameter?.interpretationHigh && (
+                  <div style={{ marginBottom: 4 }}>
+                    <span style={{ fontWeight: 500, color: "#10b981" }}>High:</span>{" "}
+                    <span style={{ color: "#6b7280" }}>{target.parameter.interpretationHigh}</span>
+                  </div>
+                )}
+                {target.parameter?.interpretationLow && (
+                  <div>
+                    <span style={{ fontWeight: 500, color: "#ef4444" }}>Low:</span>{" "}
+                    <span style={{ color: "#6b7280" }}>{target.parameter.interpretationLow}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -3179,11 +3378,30 @@ function TwoColumnTargetsDisplay({
     return (
       <div>
         {Object.entries(targets).map(([group, groupTargets]) => (
-          <div key={`${prefix}-${group}`} style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", marginBottom: 8 }}>
-              {group}
+          <div key={`${prefix}-${group}`} style={{ marginBottom: 24 }}>
+            <div
+              title={`${group} parameters - ${groupTargets.length} target${groupTargets.length !== 1 ? "s" : ""}\n\nThese sliders show target values (left bar) and actual measured values (right bar) for behavior parameters in the ${group} category.\n\nClick any slider to see the layer cascade showing how SYSTEM → PLAYBOOK → CALLER targets combine.`}
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#6b7280",
+                textTransform: "uppercase",
+                marginBottom: 12,
+                cursor: "help",
+                display: "inline-block",
+              }}
+            >
+              {group} ({groupTargets.length})
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* Grid layout for vertical sliders */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
+                gap: 16,
+                justifyItems: "center",
+              }}
+            >
               {groupTargets.map((target: any) => renderTargetCard(target, prefix))}
             </div>
           </div>
@@ -3196,9 +3414,9 @@ function TwoColumnTargetsDisplay({
     return (
       <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No agent behavior configuration</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No behaviour configuration</div>
         <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-          Agent behavior is configured via playbook. Personalized adjustments are computed by ADAPT specs after calls.
+          Behaviour is configured via playbook. Personalized adjustments are computed by ADAPT specs after calls.
         </div>
       </div>
     );
@@ -3209,7 +3427,7 @@ function TwoColumnTargetsDisplay({
       {/* Header */}
       <div style={{ marginBottom: 16, padding: "12px 16px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: "#1e40af", marginBottom: 4 }}>
-          🤖 Agent Behavior Configuration
+          🤖 Behaviour Configuration
         </div>
         <div style={{ fontSize: 12, color: "#1e3a8a" }}>
           Defines how the AI agent behaves in conversations with this caller
@@ -3217,7 +3435,18 @@ function TwoColumnTargetsDisplay({
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap", marginBottom: 16 }}>
+      <div
+        title="Layer Cascade Explanation\n\nTarget values follow a cascade system where later layers override earlier ones:\n\n1. SYSTEM (gray) - Default values from system configuration\n2. PLAYBOOK (blue) - Domain-specific values from the playbook\n3. CALLER (green) - Personalized adjustments for this individual\n\nExample: If SYSTEM sets warmth to 60%, PLAYBOOK raises it to 75%, and CALLER adjusts to 85%, the effective value is 85%.\n\nClick any slider to see the complete cascade for that parameter."
+        style={{
+          display: "flex",
+          gap: 12,
+          fontSize: 11,
+          color: "#6b7280",
+          flexWrap: "wrap",
+          marginBottom: 16,
+          cursor: "help",
+        }}
+      >
         <span style={{ fontWeight: 600 }}>Layer cascade:</span>
         {["SYSTEM", "PLAYBOOK", "CALLER"].map((scope) => (
           <span
@@ -3240,12 +3469,21 @@ function TwoColumnTargetsDisplay({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {/* Personalized Adjustments Column */}
         <div>
-          <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dcfce7", borderRadius: 6 }}>
+          <div
+            title="Personalized Adjustments\n\nThese are behavior targets that have been automatically adjusted for this specific caller based on their interactions and preferences.\n\nADAPT specs analyze each call and fine-tune these parameters to optimize the AI's behavior for this individual.\n\nLeft bar: Target value\nRight bar: Most recent actual value from call analysis\n\nThese override the base playbook configuration."
+            style={{
+              marginBottom: 12,
+              padding: "8px 12px",
+              background: "#dcfce7",
+              borderRadius: 6,
+              cursor: "help",
+            }}
+          >
             <div style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>
               ✨ Personalized Adjustments ({callerTargets.length})
             </div>
             <div style={{ fontSize: 11, color: "#15803d", marginTop: 2 }}>
-              How agent behavior adapts for this caller
+              How behaviour adapts for this caller
             </div>
           </div>
           {renderColumn(groupedCallerTargets, "caller", "No personalized adjustments yet")}
@@ -3253,12 +3491,21 @@ function TwoColumnTargetsDisplay({
 
         {/* Base Configuration Column */}
         <div>
-          <div style={{ marginBottom: 12, padding: "8px 12px", background: "#dbeafe", borderRadius: 6 }}>
+          <div
+            title="Base Configuration\n\nThese are the baseline behavior targets defined by the playbook for this domain.\n\nThey provide the starting point before any personalization occurs.\n\nLeft bar: Target value\nRight bar: Most recent actual value from call analysis\n\nCaller-specific adjustments (left column) will override these base values."
+            style={{
+              marginBottom: 12,
+              padding: "8px 12px",
+              background: "#dbeafe",
+              borderRadius: 6,
+              cursor: "help",
+            }}
+          >
             <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
               ⚙️ Base Configuration ({behaviorTargets.length})
             </div>
             <div style={{ fontSize: 11, color: "#1e3a8a", marginTop: 2 }}>
-              Agent behavior baseline from playbook
+              Behaviour baseline from playbook
             </div>
           </div>
           {renderColumn(groupedBehaviorTargets, "behavior", "No base configuration")}
@@ -3281,7 +3528,7 @@ function TargetsTab({
   return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} measurements={measurements} />;
 }
 
-// Scores Tab - split into Agent Scores and Caller Scores
+// Scores Tab - split into Behaviour Scores and Caller Scores
 function ScoresTab({ scores }: { scores: any[] }) {
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
 
@@ -3425,11 +3672,11 @@ function ScoresTab({ scores }: { scores: any[] }) {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      {/* Agent Scores Column */}
+      {/* Behaviour Scores Column */}
       <div>
         <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>
-            🤖 Agent Scores ({agentScores.length})
+            🤖 Behaviour Scores ({agentScores.length})
           </div>
           <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>
             How well the agent performed
@@ -3625,7 +3872,7 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
   if (measurements.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>
-        No behavior measurements. Run AGENT to measure agent behavior.
+        No behaviour measurements. Run BEHAVIOUR to measure behaviour.
       </div>
     );
   }
@@ -4060,7 +4307,7 @@ function PersonalitySection({
   );
 }
 
-// Scores Section - split into Agent vs Caller scores
+// Scores Section - split into Behaviour vs Caller scores
 function ScoresSection({ scores }: { scores: CallScore[] }) {
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
   const [expandedParam, setExpandedParam] = useState<string | null>(null);
@@ -4273,11 +4520,11 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      {/* Agent Scores Column */}
+      {/* Behaviour Scores Column */}
       <div>
         <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>
-            🤖 Agent Scores ({agentScores.length})
+            🤖 Behaviour Scores ({agentScores.length})
           </div>
           <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>
             How well the agent performed
@@ -4316,14 +4563,16 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
   );
 }
 
-// Learning Section - displays curriculum progress and learner profile
+// Learning Section - displays goals, curriculum progress and learner profile
 function LearningSection({
   curriculum,
   learnerProfile,
+  goals,
   callerId
 }: {
   curriculum: CurriculumProgress | null | undefined;
   learnerProfile: LearnerProfile | null | undefined;
+  goals: Goal[] | undefined;
   callerId: string;
 }) {
   const hasCurriculum = curriculum && curriculum.hasData;
@@ -4336,21 +4585,193 @@ function LearningSection({
     learnerProfile.feedbackStyle ||
     Object.keys(learnerProfile.priorKnowledge).length > 0
   );
+  const hasGoals = goals && goals.length > 0;
 
-  if (!hasCurriculum && !hasProfile) {
+  if (!hasCurriculum && !hasProfile && !hasGoals) {
     return (
       <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", background: "#f9fafb", borderRadius: "12px" }}>
-        <div style={{ fontSize: "48px", marginBottom: "16px" }}>📚</div>
-        <div style={{ fontSize: "16px", fontWeight: "600", color: "#374151" }}>No learning data yet</div>
-        <div style={{ fontSize: "14px", marginTop: "4px" }}>Curriculum and learner profile will appear as the learner interacts with the system</div>
+        <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎯</div>
+        <div style={{ fontSize: "16px", fontWeight: "600", color: "#374151" }}>No goals yet</div>
+        <div style={{ fontSize: "14px", marginTop: "4px" }}>Goals are created automatically when a caller is assigned to a domain</div>
       </div>
     );
   }
 
   const progressPercent = hasCurriculum ? Math.round(curriculum.estimatedProgress * 100) : 0;
 
+  const GOAL_TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+    LEARN: { label: "Learn", icon: "📚", color: "#3b82f6" },
+    ACHIEVE: { label: "Achieve", icon: "🏆", color: "#f59e0b" },
+    CHANGE: { label: "Change", icon: "🔄", color: "#8b5cf6" },
+    CONNECT: { label: "Connect", icon: "🤝", color: "#ec4899" },
+    SUPPORT: { label: "Support", icon: "💚", color: "#10b981" },
+    CREATE: { label: "Create", icon: "🎨", color: "#06b6d4" },
+  };
+
+  const GOAL_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+    ACTIVE: { label: "Active", color: "#10b981" },
+    COMPLETED: { label: "Completed", color: "#3b82f6" },
+    PAUSED: { label: "Paused", color: "#f59e0b" },
+    ARCHIVED: { label: "Archived", color: "#6b7280" },
+  };
+
   return (
     <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "32px" }}>
+      {/* Goals Section */}
+      {hasGoals && goals && (
+        <div style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "12px",
+          padding: "24px"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+            <div style={{ fontSize: "24px" }}>🎯</div>
+            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#111827", margin: 0 }}>
+              Goals
+            </h3>
+            <div style={{ fontSize: "11px", color: "#6b7280", marginLeft: "auto" }}>
+              {goals.filter(g => g.status === 'ACTIVE').length} active · {goals.length} total
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {goals.map((goal) => {
+              const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "#6b7280" };
+              const statusConfig = GOAL_STATUS_CONFIG[goal.status] || { label: goal.status, color: "#6b7280" };
+              const progressPercent = Math.round(goal.progress * 100);
+
+              return (
+                <div
+                  key={goal.id}
+                  style={{
+                    padding: "16px",
+                    background: "#f9fafb",
+                    border: `1px solid ${typeConfig.color}30`,
+                    borderRadius: "8px",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "12px" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "16px" }}>{typeConfig.icon}</span>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            padding: "2px 8px",
+                            background: `${typeConfig.color}15`,
+                            color: typeConfig.color,
+                            borderRadius: "4px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {typeConfig.label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            padding: "2px 8px",
+                            background: `${statusConfig.color}15`,
+                            color: statusConfig.color,
+                            borderRadius: "4px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {statusConfig.label}
+                        </span>
+                        {goal.priority > 5 && (
+                          <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                            Priority: {goal.priority}
+                          </span>
+                        )}
+                      </div>
+                      <h4 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#1f2937" }}>
+                        {goal.name}
+                      </h4>
+                      {goal.description && (
+                        <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#6b7280" }}>
+                          {goal.description}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ fontSize: "24px", fontWeight: "700", color: typeConfig.color }}>
+                      {progressPercent}%
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div style={{ height: "6px", background: "#e5e7eb", borderRadius: "3px", marginBottom: "12px", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${progressPercent}%`,
+                        background: typeConfig.color,
+                        transition: "width 0.3s ease",
+                      }}
+                    />
+                  </div>
+
+                  {/* Goal metadata */}
+                  <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#6b7280", flexWrap: "wrap" }}>
+                    {goal.playbook && (
+                      <div>
+                        <strong>Playbook:</strong> {goal.playbook.name} v{goal.playbook.version}
+                      </div>
+                    )}
+                    {goal.contentSpec && (
+                      <div>
+                        <strong>Content:</strong> {goal.contentSpec.name}
+                      </div>
+                    )}
+                    {goal.startedAt && (
+                      <div>
+                        <strong>Started:</strong> {new Date(goal.startedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                    {goal.completedAt && (
+                      <div>
+                        <strong>Completed:</strong> {new Date(goal.completedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                    {goal.targetDate && (
+                      <div>
+                        <strong>Target:</strong> {new Date(goal.targetDate).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* For LEARN goals, show curriculum progress if available */}
+                  {goal.type === 'LEARN' && hasCurriculum && curriculum && (
+                    <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" }}>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#374151", marginBottom: "8px" }}>
+                        Curriculum: {curriculum.name}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "8px" }}>
+                        ✅ {curriculum.completedCount} / {curriculum.totalModules} modules completed
+                      </div>
+                      {curriculum.nextModule && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            padding: "8px 12px",
+                            background: "#f0fdf4",
+                            border: "1px solid #86efac",
+                            borderRadius: "6px",
+                            color: "#166534",
+                          }}
+                        >
+                          <strong>Next:</strong> {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Learner Profile Card */}
       {hasProfile && learnerProfile && (
         <div style={{
@@ -6105,7 +6526,7 @@ function TopLevelTargetsSection({ callerId }: { callerId: string }) {
   return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} />;
 }
 
-// Top-Level Agent Behavior Section - shows measurements across all calls
+// Top-Level Behaviour Section - shows measurements across all calls
 function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -6147,7 +6568,7 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
-        <div style={{ color: "#6b7280" }}>Loading agent behavior data...</div>
+        <div style={{ color: "#6b7280" }}>Loading behaviour data...</div>
       </div>
     );
   }

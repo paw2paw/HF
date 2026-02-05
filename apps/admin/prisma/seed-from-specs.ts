@@ -385,6 +385,80 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     }
   }
 
+  // 3b. For ADAPT specs: Auto-create behavior parameters from adaptation rules
+  if (outputType === AnalysisOutputType.ADAPT) {
+    console.log(`      🔗 Processing ADAPT spec - extracting target parameters from adaptation rules...`);
+
+    // Extract all targetParameter values from adaptation rules in all parameters
+    const targetParameterIds = new Set<string>();
+    const targetParameterMetadata = new Map<string, { section?: string; rationale?: string }>();
+
+    for (const param of compiledParams) {
+      if (param.config?.adaptationRules && Array.isArray(param.config.adaptationRules)) {
+        for (const rule of param.config.adaptationRules) {
+          if (rule.actions && Array.isArray(rule.actions)) {
+            for (const action of rule.actions) {
+              if (action.targetParameter) {
+                targetParameterIds.add(action.targetParameter);
+
+                // Store metadata for parameter creation
+                if (!targetParameterMetadata.has(action.targetParameter)) {
+                  targetParameterMetadata.set(action.targetParameter, {
+                    section: param.section,
+                    rationale: action.rationale,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`      Found ${targetParameterIds.size} unique target parameters: ${Array.from(targetParameterIds).join(", ")}`);
+
+    // Create missing behavior parameters
+    for (const parameterId of targetParameterIds) {
+      const existing = await prisma.parameter.findUnique({
+        where: { parameterId },
+      });
+
+      if (!existing) {
+        const metadata = targetParameterMetadata.get(parameterId);
+
+        // Infer name from parameterId (convert kebab-case to Title Case)
+        const name = parameterId
+          .split("-")
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+
+        // Infer domainGroup from section or use default
+        const domainGroup = metadata?.section || scoringSpec?.domain || "teaching";
+
+        // Create the parameter
+        await prisma.parameter.create({
+          data: {
+            parameterId,
+            name,
+            definition: metadata?.rationale || `Behavior parameter auto-created from ${featureSet.featureId} adaptation rules`,
+            sectionId: metadata?.section || "teaching",
+            domainGroup,
+            scaleType: "0-1",
+            directionality: "positive",
+            computedBy: `spec:${featureSet.featureId}`,
+            parameterType: ParameterType.BEHAVIOR,
+            isAdjustable: true,
+            interpretationHigh: null,
+            interpretationLow: null,
+          },
+        });
+
+        results.parametersCreated++;
+        console.log(`      ✓ Auto-created BEHAVIOR parameter: ${parameterId} (${domainGroup})`);
+      }
+    }
+  }
+
   // 4. Create AnalysisSpec for the feature
   const specSlug = `spec-${featureSet.featureId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 

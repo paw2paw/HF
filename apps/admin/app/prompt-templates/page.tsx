@@ -122,7 +122,7 @@ export default function PromptTemplatesPage() {
           <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>No prompt templates yet</div>
           <div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-            Create prompt templates to configure agent behavior
+            Create prompt templates to configure behaviour
           </div>
         </div>
       ) : (
