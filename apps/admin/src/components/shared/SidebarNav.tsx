@@ -203,8 +203,21 @@ export default function SidebarNav({
           { href: "/cockpit", label: "Cockpit", icon: "🧭", working: true },
           { href: "/flow", label: "Flow", icon: "🔀", working: true },
           { href: "/ops", label: "Ops", icon: "🛠️", working: true },
-          { href: "/x/metering", label: "Metering", icon: "📊", working: true },
           { href: "/guide", label: "Guide", icon: "📖", working: true },
+        ],
+        collapsible: true,
+        defaultCollapsed: true,
+      },
+
+      // ============================================================
+      // SYSTEM: Admin tools and monitoring (/x/ routes)
+      // ============================================================
+      {
+        id: "system",
+        title: "System",
+        items: [
+          { href: "/x/admin", label: "Admin", icon: "⚙️", working: true },
+          { href: "/x/metering", label: "Metering", icon: "📊", working: true },
         ],
         collapsible: true,
         defaultCollapsed: true,
