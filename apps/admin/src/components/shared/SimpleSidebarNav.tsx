@@ -84,6 +84,19 @@ export default function SimpleSidebarNav({
       },
 
       // ============================================================
+      // OPERATIONS
+      // ============================================================
+      {
+        id: "operations",
+        title: "Operations",
+        items: [
+          { href: "/x/pipeline", label: "Pipeline", icon: "🔀" },
+          { href: "/x/metering", label: "Metering", icon: "📊" },
+        ],
+        dividerAfter: true,
+      },
+
+      // ============================================================
       // SUPERVISOR (Bottom)
       // ============================================================
       {

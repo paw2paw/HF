@@ -142,7 +142,7 @@ export default function SidebarNav({
         title: "Setup",
         items: [
           { href: "/admin", label: "Parameters", icon: "📐", working: true },
-          { href: "/analysis-specs", label: "All Specs", icon: "🎯", working: true },
+          { href: "/analysis-specs", label: "All Specs", icon: "📐", working: true },
           { href: "/prompt-slugs", label: "Prompt Slugs", icon: "🔀", working: true },
           { href: "/prompt-blocks", label: "Prompt Blocks", icon: "🧱", working: true },
           { href: "/memories", label: "Memory Config", icon: "🧠", working: true },

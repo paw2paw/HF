@@ -522,7 +522,7 @@ export default function CallerDetailPage() {
     { id: "scores", label: "Scores", icon: "📈", count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0, group: "shared" },
     // Behaviour-specific group (includes targets + measurements)
     { id: "agent-behavior", label: "Behaviour", icon: "🤖", count: (data.counts.targets || 0) + (data.counts.measurements || 0), group: "agent" },
-    { id: "prompt", label: "Prompt", icon: "📝", count: data.counts.prompts, group: "agent" },
+    { id: "prompt", label: "Prompt", icon: "📝", count: composedPrompts.length || null, group: "agent" },
     // Action group
     { id: "ai-call", label: "Call", icon: "📞", special: true, group: "action" },
   ];
