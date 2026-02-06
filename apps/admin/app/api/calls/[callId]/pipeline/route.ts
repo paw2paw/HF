@@ -201,6 +201,48 @@ async function getPlaybookSpecs(
   };
 }
 
+// =====================================================
+// BATCHED PARAMETER LOOKUP (OPTIMIZATION)
+// =====================================================
+
+/**
+ * Batch-load parameters by IDs in a single query instead of N queries.
+ * Reduces DB round-trips from O(N) to O(1).
+ */
+async function batchLoadParameters(
+  specs: Array<{ triggers: Array<{ actions: Array<{ parameterId: string | null }> }> }>
+): Promise<Map<string, { parameterId: string; name: string; definition: string | null }>> {
+  // Collect unique parameter IDs first
+  const paramIds = new Set<string>();
+  for (const spec of specs) {
+    for (const trigger of spec.triggers) {
+      for (const action of trigger.actions) {
+        if (action.parameterId) {
+          paramIds.add(action.parameterId);
+        }
+      }
+    }
+  }
+
+  if (paramIds.size === 0) {
+    return new Map();
+  }
+
+  // Single batched query
+  const params = await prisma.parameter.findMany({
+    where: { parameterId: { in: Array.from(paramIds) } },
+    select: { parameterId: true, name: true, definition: true },
+  });
+
+  // Build lookup map
+  const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
+  for (const param of params) {
+    paramMap.set(param.parameterId, param);
+  }
+
+  return paramMap;
+}
+
 // Category mappings for normalizing LLM output to valid MemoryCategory enum values
 // Mirrors the taxonomy config from system-memory-taxonomy spec
 const CATEGORY_MAPPINGS: Record<string, MemoryCategory> = {
@@ -465,23 +507,8 @@ async function runBatchedCallerAnalysis(
     log.warn("Running in fallback mode - no playbook constraint");
   }
 
-  // Collect unique parameters to score
-  const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
-  for (const spec of measureSpecs) {
-    for (const trigger of spec.triggers) {
-      for (const action of trigger.actions) {
-        if (action.parameterId && !paramMap.has(action.parameterId)) {
-          const param = await prisma.parameter.findUnique({
-            where: { parameterId: action.parameterId },
-            select: { parameterId: true, name: true, definition: true },
-          });
-          if (param) {
-            paramMap.set(param.parameterId, param);
-          }
-        }
-      }
-    }
-  }
+  // Collect unique parameters to score (batched lookup - O(1) instead of O(N))
+  const paramMap = await batchLoadParameters(measureSpecs);
 
   // Collect LEARN actions
   const learnActions: Array<{ category: string; keyPrefix: string; keyHint: string; description: string }> = [];
@@ -695,23 +722,8 @@ async function runBatchedAgentAnalysis(
     log.debug("Agent analysis running in fallback mode");
   }
 
-  // Collect unique agent parameters
-  const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
-  for (const spec of agentSpecs) {
-    for (const trigger of spec.triggers) {
-      for (const action of trigger.actions) {
-        if (action.parameterId && !paramMap.has(action.parameterId)) {
-          const param = await prisma.parameter.findUnique({
-            where: { parameterId: action.parameterId },
-            select: { parameterId: true, name: true, definition: true },
-          });
-          if (param) {
-            paramMap.set(param.parameterId, param);
-          }
-        }
-      }
-    }
-  }
+  // Collect unique agent parameters (batched lookup - O(1) instead of O(N))
+  const paramMap = await batchLoadParameters(agentSpecs);
 
   const agentParams = Array.from(paramMap.values());
   log.info(`Batched agent analysis`, { params: agentParams.length });
@@ -1381,21 +1393,8 @@ async function runAdaptSpecs(
     include: { triggers: { include: { actions: true } } },
   });
 
-  // Collect unique parameters that ADAPT specs compute targets for
-  const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
-  for (const spec of fullSpecs) {
-    for (const trigger of spec.triggers) {
-      for (const action of trigger.actions) {
-        if (action.parameterId && !paramMap.has(action.parameterId)) {
-          const param = await prisma.parameter.findUnique({
-            where: { parameterId: action.parameterId },
-            select: { parameterId: true, name: true, definition: true },
-          });
-          if (param) paramMap.set(param.parameterId, param);
-        }
-      }
-    }
-  }
+  // Collect unique parameters that ADAPT specs compute targets for (batched lookup - O(1) instead of O(N))
+  const paramMap = await batchLoadParameters(fullSpecs);
 
   const targetParams = Array.from(paramMap.values());
   log.info(`Running ADAPT specs`, { specCount: adaptSpecs.length, targetParams: targetParams.length });
