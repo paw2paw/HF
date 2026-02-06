@@ -4,6 +4,36 @@ import path from "node:path";
 import os from "node:os";
 import { prisma } from "@/lib/prisma";
 
+// =============================================================
+// TYPES
+// =============================================================
+
+export interface ImportConflict {
+  /** Unique key for this conflict (e.g., "phone:+447768111111") */
+  conflictKey: string;
+  /** Type of match that caused the conflict */
+  matchType: "phone" | "tag";
+  /** The matching value (phone number or tag) */
+  matchValue: string;
+  /** Info about the existing caller in the database */
+  existingCaller: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    callCount: number;
+  };
+  /** Info about the incoming caller from the transcript */
+  incomingCaller: {
+    name: string | null;
+    phone: string | null;
+    callCount: number;
+    firstTranscriptPreview: string;
+  };
+  /** User's resolution choice */
+  resolution?: "merge" | "create_new" | "skip";
+}
+
 function expandTilde(p: string): string {
   const t = (p || "").trim();
   if (!t) return "";
@@ -289,10 +319,23 @@ function parseTextTranscript(content: string, filename: string): VAPICall | null
     const callerName = callerMatch ? callerMatch[1].trim() : null;
 
     // Find where transcript starts
+    // Look for explicit "Transcript" header first, otherwise find conversation start
+    // after metadata block (first double-newline or first standalone Assistant/User label)
+    let transcriptContent: string;
     const transcriptStart = content.indexOf("Transcript");
-    if (transcriptStart === -1) return null;
-
-    const transcriptContent = content.slice(transcriptStart + "Transcript".length).trim();
+    if (transcriptStart !== -1) {
+      transcriptContent = content.slice(transcriptStart + "Transcript".length).trim();
+    } else {
+      // No "Transcript" header - find end of metadata block
+      // Metadata lines: "Phone Number:", "Caller:", "Call:"
+      // Conversation starts after the last metadata line + blank line(s)
+      const metaEndMatch = content.match(/^(?:(?:Phone\s*Number|Caller|Call):.*\n)+\s*\n/im);
+      if (metaEndMatch) {
+        transcriptContent = content.slice(metaEndMatch.index! + metaEndMatch[0].length).trim();
+      } else {
+        return null;
+      }
+    }
 
     // Parse the transcript by finding speaker labels and extracting text between them
     // The format is: [text][timestamp][SpeakerLabel][text][timestamp][SpeakerLabel]...
@@ -388,13 +431,193 @@ async function scanTranscriptsDir(dir: string): Promise<string[]> {
 }
 
 /**
+ * Parse files into grouped calls by caller
+ * Shared logic between preview and import
+ */
+interface ParsedCallerGroup {
+  callerKey: string;
+  phone: string | null;
+  callerTag: string | null;
+  callerName: string | null;
+  calls: VAPICall[];
+}
+
+function parseFilesToCallerGroups(
+  filesToProcess: Array<{ content: string; filename: string }>
+): { groups: ParsedCallerGroup[]; errors: string[] } {
+  const errors: string[] = [];
+  const callsByCaller = new Map<string, { calls: VAPICall[]; phone: string | null; callerTag: string | null }>();
+
+  for (const { content, filename } of filesToProcess) {
+    try {
+      const isJson = filename.toLowerCase().endsWith(".json");
+      let calls: VAPICall[] = [];
+
+      if (isJson) {
+        const json = JSON.parse(content);
+        calls = Array.isArray(json) ? json : (json.calls || [json]);
+      } else {
+        let call = parseSimpleTranscript(content, filename);
+        if (!call) {
+          call = parseTextTranscript(content, filename);
+        }
+        if (call) calls = [call];
+      }
+
+      const validCalls = calls.filter(
+        (c) => c.transcript && c.transcript.trim().length > 0
+      );
+
+      for (const call of validCalls) {
+        const customer = typeof call.customer === "object" ? call.customer : null;
+        const phone = customer?.number || null;
+        const callerTag = customer?.name || null;
+
+        let key: string;
+        if (phone && !phone.startsWith("unknown")) {
+          key = `phone:${phone}`;
+        } else if (callerTag && callerTag.trim()) {
+          key = `tag:${callerTag.trim()}`;
+        } else {
+          key = `unknown-${call.id}`;
+        }
+
+        const existing = callsByCaller.get(key) || { calls: [], phone: null, callerTag: null };
+        existing.calls.push(call);
+        existing.phone = phone || existing.phone;
+        existing.callerTag = callerTag || existing.callerTag;
+        callsByCaller.set(key, existing);
+      }
+    } catch (e: any) {
+      errors.push(`${filename}: ${e.message}`);
+    }
+  }
+
+  // Convert to array and sort calls by date
+  const groups: ParsedCallerGroup[] = [];
+  for (const [callerKey, data] of callsByCaller) {
+    data.calls.sort((a, b) => {
+      const dateA = new Date(a.startedAt || a.createdAt).getTime();
+      const dateB = new Date(b.startedAt || b.createdAt).getTime();
+      return dateA - dateB;
+    });
+
+    // Determine caller name
+    let callerName: string | null = null;
+    const callerTag = data.callerTag;
+
+    if (callerTag && !looksLikeTag(callerTag)) {
+      callerName = callerTag;
+    }
+    if (!callerName) {
+      callerName = extractNameFromTranscript(data.calls[0].transcript);
+    }
+    if (!callerName && callerTag && looksLikeTag(callerTag)) {
+      callerName = callerTag
+        .split('_')
+        .map((part, i) => i === 0 ? part : part.charAt(0) + part.slice(1).toLowerCase())
+        .join(' ');
+    }
+    if (!callerName) {
+      if (data.phone && data.phone.length >= 4) {
+        callerName = `Caller ${data.phone.slice(-4)}`;
+      } else {
+        callerName = `Caller ${Date.now().toString(36).slice(-4)}`;
+      }
+    }
+
+    groups.push({
+      callerKey,
+      phone: data.phone,
+      callerTag: data.callerTag,
+      callerName,
+      calls: data.calls,
+    });
+  }
+
+  return { groups, errors };
+}
+
+/**
+ * Detect conflicts between incoming callers and existing database callers
+ */
+async function detectConflicts(groups: ParsedCallerGroup[]): Promise<ImportConflict[]> {
+  const conflicts: ImportConflict[] = [];
+
+  for (const group of groups) {
+    const { callerKey, phone, callerTag, callerName, calls } = group;
+
+    // Build conditions to find existing caller
+    const callerConditions: any[] = [];
+    if (phone) callerConditions.push({ phone });
+    if (callerTag) callerConditions.push({ externalId: `import-tag:${callerTag}` });
+
+    if (callerConditions.length === 0) continue;
+
+    const existingCaller = await prisma.caller.findFirst({
+      where: { OR: callerConditions },
+      include: {
+        _count: { select: { calls: true } },
+      },
+    });
+
+    if (!existingCaller) continue;
+
+    // Check if there's a name mismatch (potential conflict)
+    const existingName = existingCaller.name || "";
+    const incomingName = callerName || "";
+
+    // Conflict exists if:
+    // 1. Names are different AND
+    // 2. Neither is a fallback name (Caller XXXX, WNF Student, etc.)
+    const existingIsFallback = !existingName ||
+      existingName.startsWith('Caller ') ||
+      looksLikeTag(existingName.replace(/\s/g, '_'));
+    const incomingIsFallback = !incomingName ||
+      incomingName.startsWith('Caller ') ||
+      looksLikeTag(incomingName.replace(/\s/g, '_'));
+
+    // Always show conflict if names differ significantly (unless both are fallbacks)
+    const namesDiffer = existingName.toLowerCase() !== incomingName.toLowerCase();
+    const shouldShowConflict = namesDiffer && !(existingIsFallback && incomingIsFallback);
+
+    if (shouldShowConflict) {
+      conflicts.push({
+        conflictKey: callerKey,
+        matchType: callerKey.startsWith("phone:") ? "phone" : "tag",
+        matchValue: callerKey.startsWith("phone:") ? phone! : callerTag!,
+        existingCaller: {
+          id: existingCaller.id,
+          name: existingCaller.name,
+          phone: existingCaller.phone,
+          email: existingCaller.email,
+          callCount: existingCaller._count.calls,
+        },
+        incomingCaller: {
+          name: callerName,
+          phone,
+          callCount: calls.length,
+          firstTranscriptPreview: calls[0].transcript.slice(0, 200) + "...",
+        },
+      });
+    }
+  }
+
+  return conflicts;
+}
+
+/**
  * POST /api/transcripts/import
  * Import transcript files into the database
  *
- * Supports three modes:
+ * Supports multiple modes:
  * 1. JSON body with { filePaths: string[] } - specific server-side file paths
  * 2. JSON body with { fromKbPath: true } - auto-discover from HF_KB_PATH/sources/transcripts/raw
  * 3. FormData with files - browser uploads
+ *
+ * Special mode:
+ * - preview=true: Don't import, just detect conflicts and return them
+ * - conflictResolutions: Map of conflictKey -> resolution for user-resolved conflicts
  */
 export async function POST(request: NextRequest) {
   try {
@@ -405,6 +628,8 @@ export async function POST(request: NextRequest) {
     let duplicateHandling: "skip" | "overwrite" | "create_new" = "skip";
     let sourceDir: string | null = null;
     let savedToRaw: string[] = [];
+    let previewMode = false;
+    let conflictResolutions: Record<string, "merge" | "create_new" | "skip"> = {};
 
     // Handle FormData (browser upload)
     if (contentType.includes("multipart/form-data")) {
@@ -413,6 +638,13 @@ export async function POST(request: NextRequest) {
       duplicateHandling = (formData.get("duplicateHandling") as string || "skip") as any;
       domainSlug = formData.get("domainSlug") as string || "mabel";
       const saveToRaw = formData.get("saveToRaw") === "true";
+      previewMode = formData.get("preview") === "true";
+      const resolutionsJson = formData.get("conflictResolutions") as string;
+      if (resolutionsJson) {
+        try {
+          conflictResolutions = JSON.parse(resolutionsJson);
+        } catch {}
+      }
 
       if (!files || files.length === 0) {
         return NextResponse.json(
@@ -421,8 +653,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Optionally save files to raw directory for future imports
-      if (saveToRaw) {
+      // Optionally save files to raw directory for future imports (only on actual import, not preview)
+      if (saveToRaw && !previewMode) {
         const rawDir = getTranscriptsRawDir();
         try {
           await fs.mkdir(rawDir, { recursive: true });
@@ -446,9 +678,18 @@ export async function POST(request: NextRequest) {
     // Handle JSON body (server-side paths or auto-discovery)
     else {
       const body = await request.json();
-      const { filePaths, fromKbPath = false, domainSlug: ds = "mabel", duplicateHandling: dh = "skip" } = body;
+      const {
+        filePaths,
+        fromKbPath = false,
+        domainSlug: ds = "mabel",
+        duplicateHandling: dh = "skip",
+        preview = false,
+        conflictResolutions: cr = {},
+      } = body;
       domainSlug = ds;
       duplicateHandling = dh;
+      previewMode = preview;
+      conflictResolutions = cr;
 
       // Mode: Auto-discover from KB path
       if (fromKbPath) {
@@ -489,277 +730,226 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Parse files into caller groups
+    const { groups, errors: parseErrors } = parseFilesToCallerGroups(filesToProcess);
+
+    // PREVIEW MODE: Detect conflicts and return them
+    if (previewMode) {
+      const conflicts = await detectConflicts(groups);
+      return NextResponse.json({
+        ok: true,
+        preview: true,
+        conflicts,
+        summary: {
+          filesCount: filesToProcess.length,
+          callersCount: groups.length,
+          callsCount: groups.reduce((sum, g) => sum + g.calls.length, 0),
+          conflictsCount: conflicts.length,
+        },
+        parseErrors,
+      });
+    }
+
     // Get domain for callers (optional - callers can exist without a domain)
     const domain = domainSlug
       ? await prisma.domain.findUnique({ where: { slug: domainSlug } })
       : null;
 
     const results = {
-      filesProcessed: 0,
+      filesProcessed: filesToProcess.length,
       callsImported: 0,
       callersCreated: 0,
+      callersMerged: 0,
       skipped: 0,
       updated: 0,
-      errors: [] as string[],
+      errors: [...parseErrors] as string[],
     };
 
     // Track created/updated callers for response
-    const importedCallers: Array<{ id: string; name: string | null; email: string | null; isNew: boolean }> = [];
+    const importedCallers: Array<{ id: string; name: string | null; email: string | null; isNew: boolean; merged?: boolean }> = [];
 
-    // Process each file
-    for (const { content, filename } of filesToProcess) {
+    // Process each caller group (using pre-parsed groups)
+    for (const group of groups) {
+      const { callerKey, phone, callerTag, callerName, calls: callerCalls } = group;
+
+      // Check if this caller is excluded from import (optional - table may not exist)
+      let isExcluded = false;
       try {
-        const isJson = filename.toLowerCase().endsWith(".json");
+        const excludeConditions: any[] = [];
+        if (phone) excludeConditions.push({ phone });
+        if (callerTag) excludeConditions.push({ externalId: `import-tag:${callerTag}` });
 
-        let calls: VAPICall[] = [];
-
-        if (isJson) {
-          const json = JSON.parse(content);
-          calls = Array.isArray(json) ? json : (json.calls || [json]);
-        } else {
-          // Try simple format first (Caller:/Number:/AI:/Name: style)
-          // Fall back to VAPI export format (Transcript/Assistant/User style)
-          let call = parseSimpleTranscript(content, filename);
-          if (!call) {
-            call = parseTextTranscript(content, filename);
-          }
-          if (call) calls = [call];
-        }
-
-        // Filter to calls with actual transcripts
-        const validCalls = calls.filter(
-          (c) => c.transcript && c.transcript.trim().length > 0
-        );
-
-        // Group calls by caller identifier (phone or tag)
-        // Priority: phone number > caller tag from header > unique ID
-        const callsByCaller = new Map<string, VAPICall[]>();
-        for (const call of validCalls) {
-          const customer = typeof call.customer === "object" ? call.customer : null;
-          const phone = customer?.number || null;
-          const callerTag = customer?.name || null;
-
-          // Use phone as primary key, caller tag as secondary, unique ID as fallback
-          let key: string;
-          if (phone && !phone.startsWith("unknown")) {
-            key = `phone:${phone}`;
-          } else if (callerTag && callerTag.trim()) {
-            // Use caller tag (e.g., WNF_STUDENT) to group calls from same person
-            key = `tag:${callerTag.trim()}`;
-          } else {
-            key = `unknown-${call.id}`;
-          }
-
-          const existing = callsByCaller.get(key) || [];
-          existing.push(call);
-          callsByCaller.set(key, existing);
-        }
-
-        // Sort each caller's calls by date
-        for (const [, callerCalls] of callsByCaller) {
-          callerCalls.sort((a, b) => {
-            const dateA = new Date(a.startedAt || a.createdAt).getTime();
-            const dateB = new Date(b.startedAt || b.createdAt).getTime();
-            return dateA - dateB;
+        if (excludeConditions.length > 0 && (prisma as any).excludedCaller) {
+          const excluded = await (prisma as any).excludedCaller.findFirst({
+            where: { OR: excludeConditions },
           });
+          isExcluded = !!excluded;
+        }
+      } catch {
+        // ExcludedCaller table may not exist - skip exclusion check
+      }
+
+      if (isExcluded) {
+        results.skipped += callerCalls.length;
+        results.errors.push(`Skipped ${callerCalls.length} calls from excluded caller: ${phone || callerTag}`);
+        continue;
+      }
+
+      // Find existing caller by phone or external ID
+      const callerConditions: any[] = [];
+      if (phone) callerConditions.push({ phone });
+      if (callerTag) callerConditions.push({ externalId: `import-tag:${callerTag}` });
+
+      let existingCaller = callerConditions.length > 0
+        ? await prisma.caller.findFirst({ where: { OR: callerConditions } })
+        : null;
+
+      // Check conflict resolution if there's an existing caller with different name
+      let caller: typeof existingCaller = null;
+      let isNewCaller = false;
+      let isMerged = false;
+
+      if (existingCaller) {
+        // Check if user provided a resolution for this conflict
+        const resolution = conflictResolutions[callerKey];
+
+        if (resolution === "skip") {
+          results.skipped += callerCalls.length;
+          continue;
+        } else if (resolution === "create_new") {
+          // Create as new caller (with modified phone to avoid conflict)
+          isNewCaller = true;
+          let externalId = `import-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+          caller = await prisma.caller.create({
+            data: {
+              name: callerName,
+              phone: null, // Don't duplicate the phone
+              domainId: domain?.id,
+              externalId,
+            },
+          });
+          results.callersCreated++;
+        } else {
+          // Default or "merge": use existing caller
+          caller = existingCaller;
+          isMerged = true;
+          results.callersMerged++;
+
+          // Update name if incoming name is better
+          const currentNameIsFallback = caller.name?.startsWith('Caller ') ||
+                                        caller.name?.startsWith('WNF ') ||
+                                        !caller.name;
+          const newNameIsReal = callerName &&
+                                !callerName.startsWith('Caller ') &&
+                                !looksLikeTag(callerName);
+
+          if (currentNameIsFallback && newNameIsReal) {
+            caller = await prisma.caller.update({
+              where: { id: caller.id },
+              data: { name: callerName },
+            });
+          }
+        }
+      } else {
+        // No existing caller - create new
+        isNewCaller = true;
+        let externalId: string;
+        if (phone) {
+          externalId = `import-phone:${phone}`;
+        } else if (callerTag) {
+          externalId = `import-tag:${callerTag}`;
+        } else {
+          externalId = `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         }
 
-        // Create callers and their calls
-        for (const [callerKey, callerCalls] of callsByCaller) {
-          const customerInfo = callerCalls[0].customer as { name?: string; number?: string } | null;
-          const phone = customerInfo?.number || null;
-          const callerTag = customerInfo?.name?.trim() || null;
+        caller = await prisma.caller.create({
+          data: {
+            name: callerName,
+            phone: phone || null,
+            domainId: domain?.id,
+            externalId,
+          },
+        });
+        results.callersCreated++;
+      }
 
+      // Track for response
+      if (caller && !importedCallers.find(c => c.id === caller!.id)) {
+        importedCallers.push({
+          id: caller.id,
+          name: caller.name,
+          email: caller.email,
+          isNew: isNewCaller,
+          merged: isMerged,
+        });
+      }
 
-          // Determine display name:
-          // 1) If customer.name exists and isn't a tag, use it
-          // 2) Try extracting from transcript
-          // 3) If we have a tag, generate a friendlier name from it
-          // 4) Fallback to phone suffix or generic name
-          let callerName: string | null = null;
+      // Get current call sequence for this caller
+      let callSequence = 1;
+      let previousCallId: string | null = null;
 
-          // First, check if customer.name is a real name (not a tag)
-          if (callerTag && !looksLikeTag(callerTag)) {
-            callerName = callerTag;
-          }
+      const existingCalls = await prisma.call.findMany({
+        where: { callerId: caller!.id },
+        orderBy: { callSequence: "desc" },
+        take: 1,
+      });
 
-          // Try extracting from transcript
-          if (!callerName) {
-            callerName = extractNameFromTranscript(callerCalls[0].transcript);
-          }
+      if (existingCalls.length > 0 && existingCalls[0].callSequence) {
+        callSequence = existingCalls[0].callSequence + 1;
+        previousCallId = existingCalls[0].id;
+      }
 
-          // Generate name from tag (e.g., WNF_STUDENT -> "WNF Student")
-          if (!callerName && callerTag && looksLikeTag(callerTag)) {
-            // Convert WNF_STUDENT to "WNF Student"
-            callerName = callerTag
-              .split('_')
-              .map((part, i) => i === 0 ? part : part.charAt(0) + part.slice(1).toLowerCase())
-              .join(' ');
-          }
+      // Create each call
+      for (const vapiCall of callerCalls) {
+        // Check if this call already exists (by externalId)
+        const existingCall = await prisma.call.findFirst({
+          where: { externalId: vapiCall.id },
+        });
 
-          // Fallback to phone suffix or generic
-          if (!callerName) {
-            if (phone && phone.length >= 4) {
-              callerName = `Caller ${phone.slice(-4)}`;
-            } else {
-              callerName = `Caller ${Date.now().toString(36).slice(-4)}`;
-            }
-          }
-
-          // Check if this caller is excluded from import (optional - table may not exist)
-          let isExcluded = false;
-          try {
-            const excludeConditions: any[] = [];
-            if (phone) excludeConditions.push({ phone });
-            if (callerTag) excludeConditions.push({ externalId: `import-tag:${callerTag}` });
-
-            if (excludeConditions.length > 0 && (prisma as any).excludedCaller) {
-              const excluded = await (prisma as any).excludedCaller.findFirst({
-                where: { OR: excludeConditions },
-              });
-              isExcluded = !!excluded;
-            }
-          } catch {
-            // ExcludedCaller table may not exist - skip exclusion check
-          }
-
-          if (isExcluded) {
-            results.skipped += callerCalls.length;
-            results.errors.push(`Skipped ${callerCalls.length} calls from excluded caller: ${phone || callerTag}`);
+        if (existingCall) {
+          if (duplicateHandling === "skip") {
+            previousCallId = existingCall.id;
+            if (existingCall.callSequence) callSequence = existingCall.callSequence + 1;
+            results.skipped++;
+            continue;
+          } else if (duplicateHandling === "overwrite") {
+            await prisma.call.update({
+              where: { id: existingCall.id },
+              data: { transcript: vapiCall.transcript },
+            });
+            results.updated++;
+            previousCallId = existingCall.id;
+            if (existingCall.callSequence) callSequence = existingCall.callSequence + 1;
             continue;
           }
-
-          // Find existing caller by phone or external ID (single query with OR)
-          const callerConditions: any[] = [];
-          if (phone) callerConditions.push({ phone });
-          if (callerTag) callerConditions.push({ externalId: `import-tag:${callerTag}` });
-
-          let caller = callerConditions.length > 0
-            ? await prisma.caller.findFirst({ where: { OR: callerConditions } })
-            : null;
-
-          const isNewCaller = !caller;
-          if (!caller) {
-            // Determine externalId: prefer phone-based, fallback to tag-based
-            let externalId: string;
-            if (phone) {
-              externalId = `import-phone:${phone}`;
-            } else if (callerTag) {
-              externalId = `import-tag:${callerTag}`;
-            } else {
-              externalId = `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            }
-
-            caller = await prisma.caller.create({
-              data: {
-                name: callerName,
-                phone: phone || null,
-                domainId: domain?.id,
-                externalId,
-              },
-            });
-            results.callersCreated++;
-          } else if (callerName && callerName !== caller.name) {
-            // Update existing caller's name if we have a better one
-            // Better = actual name from JSON vs generated fallback like "Caller XXXX"
-            const currentNameIsFallback = caller.name?.startsWith('Caller ') ||
-                                          caller.name?.startsWith('WNF ') ||
-                                          !caller.name;
-            const newNameIsReal = !callerName.startsWith('Caller ') &&
-                                  !looksLikeTag(callerName);
-
-            if (currentNameIsFallback && newNameIsReal) {
-              caller = await prisma.caller.update({
-                where: { id: caller.id },
-                data: { name: callerName },
-              });
-            }
-          }
-
-          // Track for response
-          if (!importedCallers.find(c => c.id === caller!.id)) {
-            importedCallers.push({
-              id: caller.id,
-              name: caller.name,
-              email: caller.email,
-              isNew: isNewCaller,
-            });
-          }
-
-          // Get current call sequence for this caller
-          let callSequence = 1;
-          let previousCallId: string | null = null;
-
-          const existingCalls = await prisma.call.findMany({
-            where: { callerId: caller.id },
-            orderBy: { callSequence: "desc" },
-            take: 1,
-          });
-
-          if (existingCalls.length > 0 && existingCalls[0].callSequence) {
-            callSequence = existingCalls[0].callSequence + 1;
-            previousCallId = existingCalls[0].id;
-          }
-
-          // Create each call
-          for (const vapiCall of callerCalls) {
-            // Check if this call already exists (by externalId)
-            const existingCall = await prisma.call.findFirst({
-              where: { externalId: vapiCall.id },
-            });
-
-            if (existingCall) {
-              if (duplicateHandling === "skip") {
-                // Skip - keep existing, just update sequence tracking
-                previousCallId = existingCall.id;
-                if (existingCall.callSequence) callSequence = existingCall.callSequence + 1;
-                results.skipped++;
-                continue;
-              } else if (duplicateHandling === "overwrite") {
-                // Overwrite - update existing call
-                await prisma.call.update({
-                  where: { id: existingCall.id },
-                  data: {
-                    transcript: vapiCall.transcript,
-                  },
-                });
-                results.updated++;
-                previousCallId = existingCall.id;
-                if (existingCall.callSequence) callSequence = existingCall.callSequence + 1;
-                continue;
-              }
-              // create_new - fall through to create a new call with different externalId
-            }
-
-            const createdCall = await prisma.call.create({
-              data: {
-                source: "import",
-                externalId: duplicateHandling === "create_new" && existingCall
-                  ? `${vapiCall.id}-${Date.now()}`
-                  : vapiCall.id,
-                callerId: caller.id,
-                transcript: vapiCall.transcript,
-                callSequence,
-                previousCallId,
-                createdAt: new Date(vapiCall.startedAt || vapiCall.createdAt),
-              },
-            });
-
-            results.callsImported++;
-            previousCallId = createdCall.id;
-            callSequence++;
-          }
+          // create_new - fall through
         }
 
-        results.filesProcessed++;
-      } catch (e: any) {
-        results.errors.push(`${filename}: ${e.message}`);
+        const createdCall = await prisma.call.create({
+          data: {
+            source: "import",
+            externalId: duplicateHandling === "create_new" && existingCall
+              ? `${vapiCall.id}-${Date.now()}`
+              : vapiCall.id,
+            callerId: caller!.id,
+            transcript: vapiCall.transcript,
+            callSequence,
+            previousCallId,
+            createdAt: new Date(vapiCall.startedAt || vapiCall.createdAt),
+          },
+        });
+
+        results.callsImported++;
+        previousCallId = createdCall.id;
+        callSequence++;
       }
     }
 
     return NextResponse.json({
       ok: true,
       created: results.callersCreated,
+      merged: results.callersMerged,
       updated: results.updated,
       skipped: results.skipped,
       callers: importedCallers,
