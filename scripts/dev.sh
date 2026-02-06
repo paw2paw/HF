@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ENUMS
+//
+
+enum CallStatus {
+  CREATED
+  ACTIVE
+  COMPLETED
+  FAILED
+}
+
+enum TranscriptSource {
+  VAPI
+  UPLOAD
+  MANUAL
+}
+
+enum PromptLayerType {
+  SYSTEM
+  CONTEXT
+  PERSONALITY
+  RULE
+  OPTIMISATION
+}
+
+enum MemoryType {
+  FACT
+  PREFERENCE
+  TRAIT
+  EVENT
+}
+
+enum AnalysisType {
+  SUMMARY
+  PERSONALITY
+  SENTIMENT
+  NEXT_BEST_MOVE
+}
+
+//
+// CORE ACTORS
+//
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  calls     Call[]
+  memories  Memory[]
+}
+
+model Agent {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  calls       Call[]
+}
+
+//
+// CALL LIFECYCLE
+//
+
+model Call {
+  id            String      @id @default(cuid())
+  externalRef   String?     @unique
+  status        CallStatus
+  startedAt     DateTime?
+  endedAt       DateTime?
+
+  userId        String
+  agentId       String
+
+  user          User        @relation(fields: [userId], references: [id])
+  agent         Agent       @relation(fields: [agentId], references: [id])
+
+  transcript    Transcript?
+  promptRuns    PromptRun[]
+  analyses      AnalysisRun[]
+  memories      Memory[]
+
+  createdAt     DateTime    @default(now())
+}
+
+//
+// TRANSCRIPTS
+//
+
+model Transcript {
+  id         String           @id @default(cuid())
+  callId     String           @unique
+  source     TranscriptSource
+  language   String?
+  rawText    String
+
+  call       Call             @relation(fields: [callId], references: [id])
+  createdAt  DateTime         @default(now())
+}
+
+//
+// PROMPT COMPOSITION & EXECUTION
+//
+
+model PromptTemplate {
+  id          String           @id @default(cuid())
+  name        String
+  layerType   PromptLayerType
+  content     String
+  version     Int
+  isActive    Boolean          @default(true)
+
+  createdAt   DateTime         @default(now())
+}
+
+model PromptRun {
+  id          String   @id @default(cuid())
+  callId      String
+  agentId     String
+
+  call        Call     @relation(fields: [callId], references: [id])
+  agent       Agent    @relation(fields: [agentId], references: [id])
+
+  layers      PromptLayerSnapshot[]
+  createdAt   DateTime @default(now())
+}
+
+model PromptLayerSnapshot {
+  id            String           @id @default(cuid())
+  promptRunId   String
+  templateId    String?
+  layerType     PromptLayerType
+  renderedText  String
+
+  promptRun     PromptRun        @relation(fields: [promptRunId], references: [id])
+  template      PromptTemplate?  @relation(fields: [templateId], references: [id])
+
+  createdAt     DateTime         @default(now())
+}
+
+//
+// ANALYSIS & EXTRACTION
+//
+
+model AnalysisRun {
+  id          String        @id @default(cuid())
+  callId      String
+  type        AnalysisType
+  modelUsed   String?
+  outputJson  Json
+
+  call        Call          @relation(fields: [callId], references: [id])
+  facts       ExtractedFact[]
+
+  createdAt   DateTime     @default(now())
+}
+
+model ExtractedFact {
+  id            String       @id @default(cuid())
+  analysisRunId String
+  key           String
+  value         String
+  confidence    Float?
+
+  analysisRun   AnalysisRun  @relation(fields: [analysisRunId], references: [id])
+}
+
+//
+// MEMORY SYSTEM
+//
+
+model Memory {
+  id          String      @id @default(cuid())
+  userId      String
+  callId      String?
+  type        MemoryType
+  content     String
+  weight      Float       @default(1.0)
+  confidence  Float?
+  expiresAt   DateTime?
+
+  user        User        @relation(fields: [userId], references: [id])
+  call        Call?       @relation(fields: [callId], references: [id])
+
+  createdAt   DateTime    @default(now())
+}

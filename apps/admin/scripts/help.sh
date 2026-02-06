@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# Help - Show all available npm scripts with descriptions
+
+echo ""
+echo "📚 HF Admin - Available Commands"
+echo "=========================================="
+echo ""
+
+echo "🚀 Development Servers:"
+echo "  npm run dev            - Start Next.js dev server (local only)"
+echo "  npm run dev:share      - 🌍 Start server + ngrok tunnel"
+echo "  npm run devX           - Hard restart (kill processes, clear cache)"
+echo "  npm run devD           - Docker-based development"
+echo "  npm run devZZZ         - 💣 NUCLEAR RESET + auto-share 🌍"
+echo "  npm run devS           - 🌱 Reload specs + auto-share 🌍"
+echo ""
+
+echo "🔍 Monitoring:"
+echo "  npm run logs           - Open positioned terminal with live logs"
+echo "  npm run dev:status     - Check dev server status"
+echo "  npm run dev:stop       - Stop background dev servers"
+echo ""
+
+echo "🗄️  Database:"
+echo "  npm run prisma:status  - Check migration status"
+echo "  npm run prisma:dev     - Run migrations"
+echo "  npm run prisma:studio  - Open Prisma Studio (DB viewer)"
+echo "  npm run prisma:seed    - Seed database"
+echo "  npm run db:reset       - Reset database schema"
+echo "  npm run db:seed:all    - Seed all data"
+echo ""
+
+echo "🧪 Testing:"
+echo "  npm run tests          - Run tests + build (quick validation)"
+echo "  npm run test           - Run unit tests only"
+echo "  npm run test:watch     - Run tests in watch mode"
+echo "  npm run test:coverage  - Generate coverage report"
+echo "  npm run test:integration - Run integration tests"
+echo "  npm run test:e2e       - Run E2E tests (Playwright)"
+echo "  npm run test:all       - Run all tests (unit + integration + e2e)"
+echo ""
+
+echo "🛠️  Utilities:"
+echo "  npm run build          - Build for production"
+echo "  npm run start          - Start production server"
+echo "  npm run lint           - Run ESLint"
+echo "  npm run ctl            - CLI control tool"
+echo "  npm run control        - CLI control menu"
+echo ""
+
+echo "📖 Quick Reference:"
+echo ""
+echo "  Fresh start with data:       npm run devZZZ"
+echo "  Just reload specs:           npm run devS"
+echo "  View database:               npm run prisma:studio"
+echo "  Watch logs:                  npm run logs"
+echo "  Hard restart server:         npm run devX"
+echo ""
+
+echo "💡 Tip: Run 'npm run devS' after editing BDD specs to reload configs"
+echo "    without losing your test data!"
+echo ""

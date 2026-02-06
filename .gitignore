@@ -24,7 +24,6 @@ build/
 *.log
 
 # local-only
-scripts/
 supabase/
 
 .runtime/
