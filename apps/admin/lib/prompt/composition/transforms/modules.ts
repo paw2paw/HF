@@ -1,6 +1,8 @@
 /**
  * Module & Curriculum Transforms
- * Extracted from route.ts lines 1397-1458, 1776-1857
+ *
+ * Contract-driven module extraction - uses CURRICULUM_PROGRESS_V1 contract.
+ * NO HARDCODED MODULE PATHS - specs define where modules are via metadata.moduleSelector
  *
  * computeSharedState() is the CRITICAL function — it computes
  * shared module state used by _quickStart, curriculum, session_pedagogy,
@@ -18,9 +20,163 @@ import type {
   CallerAttributeData,
 } from "../types";
 
+// =============================================================================
+// CURRICULUM METADATA TYPES (from CURRICULUM_PROGRESS_V1 contract)
+// =============================================================================
+
+interface CurriculumMetadata {
+  type: 'sequential' | 'branching' | 'open-ended';
+  trackingMode: 'module-based' | 'competency-based';
+  moduleSelector: string;  // e.g., "section=content"
+  moduleOrder: string;     // e.g., "sortBySequence"
+  progressKey: string;     // e.g., "current_module"
+  masteryThreshold: number;
+}
+
+// =============================================================================
+// MODULE EXTRACTION - Contract-driven, no hardcoding
+// =============================================================================
+
+/**
+ * Extract curriculum metadata from content spec config.
+ * Falls back to legacy paths for backward compatibility.
+ */
+function extractCurriculumMetadata(contentSpec: any): CurriculumMetadata | null {
+  const config = contentSpec?.config as Record<string, any> | null;
+  if (!config) return null;
+
+  // Primary: metadata.curriculum (contract-compliant)
+  const meta = config.metadata?.curriculum;
+  if (meta) {
+    return {
+      type: meta.type || 'sequential',
+      trackingMode: meta.trackingMode || 'module-based',
+      moduleSelector: meta.moduleSelector || 'section=content',
+      moduleOrder: meta.moduleOrder || 'sortBySequence',
+      progressKey: meta.progressKey || 'current_module',
+      masteryThreshold: meta.masteryThreshold ?? 0.7,
+    };
+  }
+
+  // No metadata - return null (will use legacy fallback)
+  return null;
+}
+
+/**
+ * Extract modules from spec using metadata selector.
+ * This is the CONTRACT-DRIVEN approach - modules are identified by a selector pattern.
+ *
+ * Example: moduleSelector="section=content" finds all parameters where section="content"
+ */
+function extractModulesFromParameters(
+  contentSpec: any,
+  metadata: CurriculumMetadata
+): ModuleData[] {
+  const config = contentSpec?.config as Record<string, any> | null;
+  const params = config?.parameters || [];
+
+  // Parse selector (e.g., "section=content" → filter by section="content")
+  const [selectorKey, selectorValue] = metadata.moduleSelector.split('=');
+  if (!selectorKey || !selectorValue) {
+    console.warn(`[modules] Invalid moduleSelector format: ${metadata.moduleSelector}`);
+    return [];
+  }
+
+  // Filter parameters that match selector
+  const moduleParams = params.filter((p: any) => p[selectorKey] === selectorValue);
+
+  // Transform parameters into modules
+  const modules: ModuleData[] = moduleParams.map((p: any, index: number) => ({
+    id: p.id,
+    slug: p.id, // Use id as slug for consistency
+    name: p.name || p.config?.chapterTitle || p.id,
+    description: p.description || p.config?.description || '',
+    content: p.config || {},
+    sequence: p.sequence ?? p.config?.sequence ?? index,
+    sortOrder: p.sequence ?? p.config?.sequence ?? index,
+    prerequisites: p.config?.prerequisites || [],
+    masteryThreshold: metadata.masteryThreshold,
+  }));
+
+  // Sort modules based on metadata.moduleOrder
+  return sortModules(modules, metadata.moduleOrder);
+}
+
+/**
+ * Sort modules according to spec-defined ordering rule.
+ */
+function sortModules(modules: ModuleData[], orderRule: string): ModuleData[] {
+  switch (orderRule) {
+    case 'sortBySequence':
+      return modules.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+
+    case 'sortBySectionThenId':
+      return modules.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+
+    case 'explicit':
+      // Spec provides explicit order - already ordered
+      return modules;
+
+    default:
+      return modules.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  }
+}
+
+/**
+ * Legacy module extraction - for backward compatibility with specs that
+ * use direct modules array instead of contract-driven parameters.
+ */
+function extractLegacyModules(contentSpec: any): ModuleData[] {
+  const config = contentSpec?.config as Record<string, any> | null;
+  if (!config) return [];
+
+  // Try various legacy paths
+  const rawModules = config.modules || config.curriculum?.modules || [];
+
+  return rawModules.map((m: any, index: number) => ({
+    id: m.id || m.slug,
+    slug: m.slug || m.id,
+    name: m.name || m.title,
+    description: m.description || '',
+    content: m.content || m,
+    sequence: m.sequence ?? m.sortOrder ?? index,
+    sortOrder: m.sortOrder ?? m.sequence ?? index,
+    prerequisites: m.prerequisites || [],
+    masteryThreshold: m.masteryThreshold ?? 0.7,
+  }));
+}
+
+/**
+ * Extract modules from content spec - uses contract-driven approach first,
+ * falls back to legacy paths for backward compatibility.
+ */
+function extractModules(contentSpec: any): { modules: ModuleData[]; metadata: CurriculumMetadata | null } {
+  // Try contract-driven extraction first
+  const metadata = extractCurriculumMetadata(contentSpec);
+
+  if (metadata) {
+    const modules = extractModulesFromParameters(contentSpec, metadata);
+    if (modules.length > 0) {
+      console.log(`[modules] Contract-driven extraction: found ${modules.length} modules via selector "${metadata.moduleSelector}"`);
+      return { modules, metadata };
+    }
+  }
+
+  // Fallback to legacy direct modules array
+  const legacyModules = extractLegacyModules(contentSpec);
+  if (legacyModules.length > 0) {
+    console.log(`[modules] Legacy extraction: found ${legacyModules.length} modules from direct array`);
+  }
+
+  return { modules: legacyModules, metadata };
+}
+
+// =============================================================================
+// SHARED STATE COMPUTATION
+// =============================================================================
+
 /**
  * Compute shared module state from loaded data.
- * Extracted from route.ts lines 1397-1458.
  * Called once in executor setup, stored in AssembledContext.sharedState.
  */
 export function computeSharedState(
@@ -28,8 +184,10 @@ export function computeSharedState(
   resolvedSpecs: ResolvedSpecs,
   specConfig: Record<string, any>,
 ): SharedComputedState {
-  const contentCfg = resolvedSpecs.contentSpec?.config as Record<string, any> | null;
-  const modules: ModuleData[] = contentCfg?.modules || contentCfg?.curriculum?.modules || [];
+  // Extract modules using contract-driven approach
+  const { modules, metadata } = extractModules(resolvedSpecs.contentSpec);
+  const masteryThreshold = metadata?.masteryThreshold ?? 0.7;
+
   const isFirstCall = data.recentCalls.length === 0;
   const lastCall = data.recentCalls[0];
   const daysSinceLastCall = lastCall
@@ -37,14 +195,28 @@ export function computeSharedState(
     : 0;
 
   // Track completed modules from callerAttributes
+  // Use contract-defined storage pattern if available
   const completedModules = new Set<string>();
+  const specSlug = resolvedSpecs.contentSpec?.slug || '';
+  const progressKeyPrefix = metadata?.progressKey
+    ? `curriculum:${specSlug}:mastery:`
+    : '';
+
   data.callerAttributes
-    .filter(a => a.key.includes("mastery_") || a.key.includes("completed_"))
+    .filter(a =>
+      a.key.includes("mastery_") ||
+      a.key.includes("completed_") ||
+      (progressKeyPrefix && a.key.startsWith(progressKeyPrefix))
+    )
     .forEach(a => {
       const val = getAttributeValue(a);
-      if (val === true || (typeof val === "number" && val >= 0.7)) {
-        const slug = a.key.replace("mastery_", "").replace("completed_", "");
-        completedModules.add(slug);
+      if (val === true || (typeof val === "number" && val >= masteryThreshold)) {
+        // Extract module ID from various key formats
+        let moduleId = a.key
+          .replace("mastery_", "")
+          .replace("completed_", "")
+          .replace(progressKeyPrefix, "");
+        completedModules.add(moduleId);
       }
     });
 
@@ -53,12 +225,16 @@ export function computeSharedState(
     ? completedModules.size
     : Math.min(Math.floor(data.recentCalls.length / 2), modules.length - 1);
 
+  // Find last completed module index
   const lastCompletedIndex = completedModules.size > 0
-    ? Math.max(...modules.map((m: any, i: number) => completedModules.has(m.slug) ? i : -1))
+    ? Math.max(...modules.map((m: ModuleData, i: number) =>
+        completedModules.has(m.slug || m.id || '') ? i : -1
+      ))
     : Math.max(0, estimatedProgress - 1);
 
   // Module to review = last completed (or first if no progress)
   const moduleToReview = modules[lastCompletedIndex] || modules[0] || null;
+
   // Next module = one after last completed
   const nextModuleIndex = lastCompletedIndex + 1;
   const nextModule = nextModuleIndex < modules.length ? modules[nextModuleIndex] : null;
@@ -91,12 +267,17 @@ export function computeSharedState(
     reviewType,
     reviewReason,
     thresholds,
+    // Include metadata for downstream transforms
+    curriculumMetadata: metadata,
   };
 }
 
+// =============================================================================
+// CURRICULUM SECTION TRANSFORM
+// =============================================================================
+
 /**
  * Build the curriculum section for llmPrompt.
- * Extracted from route.ts lines 1776-1857.
  */
 registerTransform("computeModuleProgress", (
   _rawData: any,
@@ -104,9 +285,11 @@ registerTransform("computeModuleProgress", (
 ) => {
   const { sharedState, loadedData, resolvedSpecs } = context;
   const { modules, completedModules, estimatedProgress, lastCompletedIndex, nextModule } = sharedState;
-  const contentCfg = resolvedSpecs.contentSpec?.config as Record<string, any> | null;
+  const contentSpec = resolvedSpecs.contentSpec;
+  const contentCfg = contentSpec?.config as Record<string, any> | null;
   const callerAttributes = loadedData.callerAttributes;
   const totalCallCount = loadedData.callCount;
+  const masteryThreshold = (sharedState as any).curriculumMetadata?.masteryThreshold ?? 0.7;
 
   const curriculumAttrs = callerAttributes.filter((a: CallerAttributeData) =>
     a.key.includes("module") ||
@@ -126,36 +309,44 @@ registerTransform("computeModuleProgress", (
   const completedModulesList = Array.from(completedModules);
   const coveredModules = completedModulesList.length > 0
     ? completedModulesList
-    : modules.slice(0, Math.max(0, estimatedProgress)).map((m: any) => m.slug);
+    : modules.slice(0, Math.max(0, estimatedProgress)).map((m: ModuleData) => m.slug || m.id || '');
 
-  const getModuleStatus = (m: any, idx: number): "completed" | "in_progress" | "not_started" => {
-    if (completedModules.has(m.slug)) return "completed";
+  const getModuleKey = (m: ModuleData): string => m.slug || m.id || '';
+
+  const getModuleStatus = (m: ModuleData, idx: number): "completed" | "in_progress" | "not_started" => {
+    if (completedModules.has(getModuleKey(m))) return "completed";
     if (idx <= lastCompletedIndex && totalCallCount > 0) return "in_progress";
     return "not_started";
   };
 
   return {
-    name: contentCfg?.curriculum?.name || resolvedSpecs.contentSpec?.name || null,
+    name: contentCfg?.metadata?.curriculum?.name || contentCfg?.curriculum?.name || contentSpec?.name || null,
     hasData: curriculumAttrs.length > 0 || modules.length > 0,
     totalModules: modules.length,
     completedModules: completedModulesList,
     coveredModules,
     completedCount: completedModules.size,
     estimatedProgress,
-    modules: modules.map((m: any, idx: number) => ({
-      slug: m.slug,
+    masteryThreshold,
+    modules: modules.map((m: ModuleData, idx: number) => ({
+      id: m.id,
+      slug: m.slug || m.id || '',
       name: m.name,
       description: m.description,
-      order: m.sortOrder,
+      order: m.sortOrder ?? m.sequence,
       prerequisites: m.prerequisites,
-      masteryThreshold: m.masteryThreshold,
-      isCompleted: completedModules.has(m.slug),
+      masteryThreshold: m.masteryThreshold ?? masteryThreshold,
+      isCompleted: completedModules.has(getModuleKey(m)),
       status: getModuleStatus(m, idx),
+      // Include module content for LLM context
+      content: m.content,
     })),
     nextModule: nextModule ? {
-      slug: nextModule.slug,
+      id: nextModule.id,
+      slug: nextModule.slug || nextModule.id,
       name: nextModule.name,
       description: nextModule.description,
+      content: nextModule.content,
     } : null,
     currentProgress: curriculumAttrs.map((a: CallerAttributeData) => ({
       key: a.key,

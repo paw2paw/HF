@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { AIEngine, getDefaultEngine } from "@/lib/ai/client";
-import { getMeteredAICompletion } from "@/lib/metering";
-import { renderTemplate } from "@/lib/prompt/PromptTemplateCompiler";
-import { getMemoriesByCategory } from "@/lib/constants";
 import { executeComposition, getDefaultSections } from "@/lib/prompt/composition";
+import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
 
 export const runtime = "nodejs";
 
@@ -27,9 +24,9 @@ export async function POST(
     const { callerId } = await params;
     const body = await request.json();
     const {
-      engine = getDefaultEngine(),
       triggerType = "manual",
       triggerCallId,
+      targetOverrides, // Preview overrides for behavior targets (not persisted)
     } = body;
 
     // Load COMPOSE spec config - specifically look for the system compose spec
@@ -69,8 +66,6 @@ export async function POST(
     const maxTokens = historyConfig.maxTokens || specConfig.maxTokens || 1500;
     const temperature = historyConfig.temperature || specConfig.temperature || 0.7;
 
-    const promptTemplate = composeSpec?.promptTemplate || null;
-
     // Build the full config for the composition pipeline
     const fullSpecConfig = {
       ...specConfig,
@@ -80,6 +75,8 @@ export async function POST(
       recentCallsLimit,
       maxTokens,
       temperature,
+      // Include target overrides for preview (not persisted)
+      targetOverrides: targetOverrides || {},
     };
 
     // Get section definitions from spec (or use hardcoded defaults for backward compat)
@@ -98,125 +95,20 @@ export async function POST(
     console.log(`[compose-prompt] Identity: ${resolvedSpecs.identitySpec?.name || "NONE"}, Content: ${resolvedSpecs.contentSpec?.name || "NONE"}, Voice: ${resolvedSpecs.voiceSpec?.name || "NONE"}`);
 
     // ============================================================
-    // BUILD AI PROMPT
-    // Use spec template if available, otherwise use default prompts.
-    // The AI generates a prose version; llmPrompt is the structured JSON.
+    // RENDER PROMPT SUMMARY (deterministic, no AI call)
     // ============================================================
-    let systemPrompt: string;
-    let userPrompt: string;
-
-    if (promptTemplate) {
-      // Build template context from composition result
-      const scoreToLabel = (score: number | null): string => {
-        if (score === null) return "unknown";
-        if (score >= thresholds.high) return "high";
-        if (score <= thresholds.low) return "low";
-        return "moderate";
-      };
-
-      const personality = loadedData.personality;
-      const templateContext: Record<string, any> = {
-        caller: {
-          id: loadedData.caller?.id,
-          name: loadedData.caller?.name || "Unknown",
-          callCount: loadedData.callCount,
-          lastCallDate: loadedData.recentCalls[0]
-            ? new Date(loadedData.recentCalls[0].createdAt).toLocaleDateString()
-            : "N/A",
-        },
-
-        personality: personality ? {
-          openness: personality.openness !== null ? (personality.openness * 100).toFixed(0) + "%" : null,
-          opennessLabel: scoreToLabel(personality.openness),
-          conscientiousness: personality.conscientiousness !== null ? (personality.conscientiousness * 100).toFixed(0) + "%" : null,
-          conscientiousnessLabel: scoreToLabel(personality.conscientiousness),
-          extraversion: personality.extraversion !== null ? (personality.extraversion * 100).toFixed(0) + "%" : null,
-          extraversionLabel: scoreToLabel(personality.extraversion),
-          agreeableness: personality.agreeableness !== null ? (personality.agreeableness * 100).toFixed(0) + "%" : null,
-          agreeablenessLabel: scoreToLabel(personality.agreeableness),
-          neuroticism: personality.neuroticism !== null ? (personality.neuroticism * 100).toFixed(0) + "%" : null,
-          neuroticismLabel: scoreToLabel(personality.neuroticism),
-        } : null,
-
-        // Behavior targets grouped by domain (for template rendering)
-        targets: (() => {
-          const byDomain = composition.sections.behaviorTargets?.byDomain || {};
-          const mapToTarget = (targets: any[]) => targets.map((t: any) => ({
-            name: t.name || t.parameterId,
-            level: scoreToLabel(t.targetValue),
-            qualifier: t.interpretationHigh || "",
-          }));
-          return Object.fromEntries(
-            Object.entries(byDomain).map(([k, v]: [string, any]) => [
-              k.toLowerCase().replace(/\s+/g, ""),
-              mapToTarget(v),
-            ])
-          );
-        })(),
-
-        learnerProfile: loadedData.learnerProfile || null,
-        hasLearnerProfile: !!loadedData.learnerProfile,
-
-        memories: getMemoriesByCategory(loadedData.memories, memoriesPerCategory),
-        hasMemories: loadedData.memories.length > 0,
-
-        callerContext,
-      };
-
-      const renderedTemplate = renderTemplate(promptTemplate, templateContext);
-      console.log("[compose-prompt] Rendered template preview (first 500 chars):", renderedTemplate.substring(0, 500));
-
-      const parts = renderedTemplate.split("---\n");
-      if (parts.length >= 2) {
-        systemPrompt = parts[0].trim();
-        userPrompt = parts.slice(1).join("---\n").trim();
-      } else {
-        systemPrompt = "You are an expert at creating personalized agent guidance prompts.";
-        userPrompt = renderedTemplate;
-      }
-    } else {
-      systemPrompt = `You are an expert at creating personalized agent guidance prompts.
-Your task is to compose a prompt that will guide a conversational AI agent on how to best communicate with a specific caller.
-
-The prompt should:
-1. Be written as direct instructions to an AI agent (e.g., "Use a warm, friendly tone...")
-2. Incorporate the caller's personality traits and adapt communication style accordingly
-3. Reference specific memories and facts about the caller naturally
-4. Follow the behavior targets for tone, length, formality, etc.
-5. Be actionable and specific, not vague
-6. Be between 200-500 words
-
-Format the output as a clean, well-structured agent guidance prompt with clear sections.`;
-
-      userPrompt = `Based on the following caller context, compose a personalized agent guidance prompt for the next conversation with this caller.
-
-${callerContext}
-
-Generate a complete agent guidance prompt that will help the AI agent provide the best possible experience for this specific caller.`;
-    }
-
-    // ============================================================
-    // CALL AI + STORE RESULT
-    // ============================================================
-    const aiResult = await getMeteredAICompletion({
-      engine: engine as AIEngine,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      maxTokens,
-      temperature,
-    }, { callerId, sourceOp: "compose-prompt" });
+    const promptSummary = renderPromptSummary(llmPrompt);
+    console.log(`[compose-prompt] Rendered summary: ${promptSummary.length} chars`);
 
     // Store the composed prompt
     const composedPrompt = await prisma.composedPrompt.create({
       data: {
         callerId,
-        prompt: aiResult.content,
+        prompt: promptSummary,
         llmPrompt,
         triggerType,
         triggerCallId: triggerCallId || null,
-        model: aiResult.model,
+        model: "deterministic", // No AI model used
         status: "active",
         inputs: {
           callerContext,
@@ -224,8 +116,8 @@ Generate a complete agent guidance prompt that will help the AI agent provide th
           personalityAvailable: !!loadedData.personality,
           recentCallsCount: loadedData.recentCalls.length,
           behaviorTargetsCount: metadata.mergedTargetCount,
-          playbookUsed: loadedData.playbook?.name || null,
-          playbookStatus: loadedData.playbook?.status || null,
+          playbooksUsed: loadedData.playbooks.map(p => p.name),
+          playbooksCount: loadedData.playbooks.length,
           identitySpec: resolvedSpecs.identitySpec?.name || null,
           contentSpec: resolvedSpecs.contentSpec?.name || null,
           specUsed: composeSpec?.slug || "(defaults)",
@@ -263,15 +155,15 @@ Generate a complete agent guidance prompt that will help the AI agent provide th
       ok: true,
       prompt: composedPrompt,
       metadata: {
-        engine: aiResult.engine,
-        model: aiResult.model,
-        usage: aiResult.usage,
+        engine: "deterministic",
+        model: "renderPromptSummary",
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         inputContext: {
           memoriesCount: loadedData.memories.length,
           personalityAvailable: !!loadedData.personality,
           recentCallsCount: loadedData.recentCalls.length,
           behaviorTargetsCount: metadata.mergedTargetCount,
-          playbookName: loadedData.playbook?.name || null,
+          playbooksUsed: loadedData.playbooks.map(p => p.name),
           identitySpec: resolvedSpecs.identitySpec?.name || null,
           contentSpec: resolvedSpecs.contentSpec?.name || null,
         },

@@ -46,6 +46,7 @@ export interface FallbackAction {
 
 export interface ResolvedSpec {
   name: string;
+  slug?: string;
   config: any;
   description?: string | null;
 }
@@ -70,7 +71,8 @@ export interface LoadedDataContext {
   callerTargets: CallerTargetData[];
   callerAttributes: CallerAttributeData[];
   goals: GoalData[];
-  playbook: PlaybookData | null;
+  /** Stacked playbooks for domain, ordered by sortOrder (first = highest priority) */
+  playbooks: PlaybookData[];
   systemSpecs: SystemSpecData[];
 }
 
@@ -88,6 +90,15 @@ export interface AssembledContext {
 // === SHARED COMPUTED STATE ===
 // Computed once, shared across transforms (modules, session flow, etc.)
 
+export interface CurriculumMetadata {
+  type: 'sequential' | 'branching' | 'open-ended';
+  trackingMode: 'module-based' | 'competency-based';
+  moduleSelector: string;
+  moduleOrder: string;
+  progressKey: string;
+  masteryThreshold: number;
+}
+
 export interface SharedComputedState {
   modules: ModuleData[];
   isFirstCall: boolean;
@@ -100,6 +111,8 @@ export interface SharedComputedState {
   reviewType: string;
   reviewReason: string;
   thresholds: { high: number; low: number };
+  /** Curriculum metadata from CONTENT spec (if contract-compliant) */
+  curriculumMetadata?: CurriculumMetadata | null;
 }
 
 export interface ModuleData {
@@ -108,10 +121,13 @@ export interface ModuleData {
   name: string;
   description?: string | null;
   sortOrder?: number;
+  sequence?: number;
   masteryThreshold?: number | null;
   prerequisites?: string[];
   concepts?: string[];
   learningOutcomes?: string[];
+  /** Module content from spec config - the actual curriculum material */
+  content?: Record<string, any>;
   [key: string]: any;
 }
 
