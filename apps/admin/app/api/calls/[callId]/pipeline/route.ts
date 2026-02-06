@@ -29,7 +29,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { MemoryCategory } from "@prisma/client";
-import { getAICompletion, AIEngine, isEngineAvailable } from "@/lib/ai/client";
+import { AIEngine, isEngineAvailable } from "@/lib/ai/client";
+import { getMeteredAICompletion } from "@/lib/metering";
 import { prisma } from "@/lib/prisma";
 import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
@@ -550,7 +551,7 @@ async function runBatchedCallerAnalysis(
     const prompt = buildBatchedCallerPrompt(transcript, measureParams, learnActions);
 
     try {
-      const result = await getAICompletion({
+      const result = await getMeteredAICompletion({
         engine,
         messages: [
           { role: "system", content: "You are an expert behavioral analyst. Always respond with valid JSON." },
@@ -558,7 +559,7 @@ async function runBatchedCallerAnalysis(
         ],
         maxTokens: 2048,
         temperature: 0.3,
-      });
+      }, { callId: call.id, callerId, sourceOp: "pipeline:extract" });
 
       log.debug("AI caller analysis response", { model: result.model, tokens: result.usage });
 
@@ -751,7 +752,7 @@ async function runBatchedAgentAnalysis(
       // ~100 tokens per param (score + confidence + evidence array)
       const estimatedTokens = Math.max(2048, agentParams.length * 120);
 
-      const result = await getAICompletion({
+      const result = await getMeteredAICompletion({
         engine,
         messages: [
           { role: "system", content: "You are an expert at evaluating conversational AI behavior. Always respond with valid JSON. Keep evidence arrays brief (1-2 short quotes max per parameter)." },
@@ -759,7 +760,7 @@ async function runBatchedAgentAnalysis(
         ],
         maxTokens: estimatedTokens,
         temperature: 0.3,
-      });
+      }, { callId: call.id, callerId, sourceOp: "pipeline:score_agent" });
 
       log.debug("AI agent analysis response", { model: result.model, contentLength: result.content.length });
 
@@ -1454,7 +1455,7 @@ async function runAdaptSpecs(
     );
 
     try {
-      const result = await getAICompletion({
+      const result = await getMeteredAICompletion({
         engine,
         messages: [
           { role: "system", content: "You are an expert at personalizing AI behaviour based on caller profiles. Always respond with valid JSON." },
@@ -1462,7 +1463,7 @@ async function runAdaptSpecs(
         ],
         maxTokens: 1024,
         temperature: aiSettings.temperature,
-      });
+      }, { callId, callerId, sourceOp: "pipeline:adapt" });
 
       let jsonContent = result.content.trim();
       if (jsonContent.startsWith("```")) {

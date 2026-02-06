@@ -9,6 +9,7 @@ import { measureAgent } from "../../../lib/ops/measure-agent";
 import { computeReward } from "../../../lib/ops/compute-reward";
 import { updateTargets } from "../../../lib/ops/update-targets";
 import { composeNextPrompt, backfillUsedPromptIds } from "../../../lib/ops/compose-next-prompt";
+import { runUsageRollup, cleanupOldUsageData } from "../../../lib/metering/rollup";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,8 @@ export async function GET() {
       { opid: "targets:update", status: "implemented", description: "Update targets based on reward signals" },
       { opid: "prompt:compose-next", status: "implemented", description: "Compose personalized prompts for callers (creates ComposedPrompt records)" },
       { opid: "prompt:backfill", status: "implemented", description: "Backfill usedPromptId for existing calls" },
+      { opid: "metering:rollup", status: "implemented", description: "Aggregate usage events into rollups (hour/day/week/month)" },
+      { opid: "metering:cleanup", status: "implemented", description: "Clean up old usage events (30 day retention)" },
       { opid: "knowledge:embed", status: "not_implemented" },
       { opid: "kb:parameters:import", status: "not_implemented" },
       { opid: "kb:parameters:snapshot", status: "not_implemented" },
@@ -274,6 +277,45 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           success: result.errors.length === 0,
+          opid,
+          result,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // ========================================
+      // METERING OPERATIONS
+      // ========================================
+      case "metering:rollup": {
+        const validPeriods = ["HOUR", "DAY", "WEEK", "MONTH"];
+        const period = validPeriods.includes(settings.period?.toUpperCase())
+          ? settings.period.toUpperCase()
+          : "HOUR";
+
+        const result = await runUsageRollup({
+          period: period as "HOUR" | "DAY" | "WEEK" | "MONTH",
+          force: settings.force ?? false,
+          verbose: settings.verbose ?? false,
+          since: settings.since ? new Date(settings.since) : undefined,
+        });
+
+        return NextResponse.json({
+          success: result.success,
+          opid,
+          result,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      case "metering:cleanup": {
+        const result = await cleanupOldUsageData({
+          eventRetentionDays: settings.eventRetentionDays ?? 30,
+          hourlyRetentionDays: settings.hourlyRetentionDays ?? 90,
+          verbose: settings.verbose ?? false,
+        });
+
+        return NextResponse.json({
+          success: result.success,
           opid,
           result,
           timestamp: new Date().toISOString(),

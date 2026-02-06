@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAICompletionStream, getDefaultEngine, AIEngine, AIMessage } from "@/lib/ai/client";
+import { createMeteredStream } from "@/lib/metering";
 import { buildSystemPrompt } from "./system-prompts";
 import { executeCommand, parseCommand } from "@/lib/chat/commands";
 
@@ -66,7 +67,12 @@ export async function POST(request: NextRequest) {
       temperature: mode === "CALL" ? 0.85 : 0.7,
     });
 
-    return new Response(stream, {
+    // Wrap stream with metering to track estimated token usage
+    const meteredStream = createMeteredStream(stream, selectedEngine, messages, {
+      sourceOp: "chat",
+    });
+
+    return new Response(meteredStream, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Transfer-Encoding": "chunked",

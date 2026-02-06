@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAICompletion, AIEngine, getDefaultEngine } from "@/lib/ai/client";
+import { AIEngine, getDefaultEngine } from "@/lib/ai/client";
+import { getMeteredAICompletion } from "@/lib/metering";
 import { renderTemplate } from "@/lib/prompt/PromptTemplateCompiler";
 import { getMemoriesByCategory } from "@/lib/constants";
 import { executeComposition, getDefaultSections } from "@/lib/prompt/composition";
@@ -197,7 +198,7 @@ Generate a complete agent guidance prompt that will help the AI agent provide th
     // ============================================================
     // CALL AI + STORE RESULT
     // ============================================================
-    const aiResult = await getAICompletion({
+    const aiResult = await getMeteredAICompletion({
       engine: engine as AIEngine,
       messages: [
         { role: "system", content: systemPrompt },
@@ -205,7 +206,7 @@ Generate a complete agent guidance prompt that will help the AI agent provide th
       ],
       maxTokens,
       temperature,
-    });
+    }, { callerId, sourceOp: "compose-prompt" });
 
     // Store the composed prompt
     const composedPrompt = await prisma.composedPrompt.create({

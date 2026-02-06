@@ -6,7 +6,8 @@
  * More flexible than regex-based parsing - handles variations in format.
  */
 
-import { getAICompletion, getDefaultEngine, AIEngine } from "../ai/client";
+import { getDefaultEngine, AIEngine } from "../ai/client";
+import { getMeteredAICompletion } from "../metering";
 
 // ============================================================================
 // JSON Spec Types (matching feature-spec-schema.json)
@@ -464,7 +465,7 @@ export async function parseWithAI(
   const systemPrompt = fileType === "PARAMETER" ? PARAMETER_PARSE_PROMPT : STORY_PARSE_PROMPT;
 
   try {
-    const result = await getAICompletion({
+    const result = await getMeteredAICompletion({
       engine: selectedEngine,
       messages: [
         { role: "system", content: systemPrompt },
@@ -472,7 +473,7 @@ export async function parseWithAI(
       ],
       maxTokens: 8000,
       temperature: 0.1, // Low temperature for structured extraction
-    });
+    }, { sourceOp: "bdd:parse" });
 
     // Parse the JSON response
     let parsed;
@@ -651,7 +652,7 @@ export async function parseHybridWithAI(
   const selectedEngine = engine || getDefaultEngine();
 
   try {
-    const result = await getAICompletion({
+    const result = await getMeteredAICompletion({
       engine: selectedEngine,
       messages: [
         { role: "system", content: HYBRID_PARSE_PROMPT },
@@ -659,7 +660,7 @@ export async function parseHybridWithAI(
       ],
       maxTokens: 12000, // Higher limit for combined data
       temperature: 0.1,
-    });
+    }, { sourceOp: "bdd:parse-hybrid" });
 
     // Parse the JSON response
     let parsed;

@@ -108,6 +108,12 @@ model Parameter {
   behaviorMeasurements BehaviorMeasurement[]
   callerTargets        CallerTarget[] // Personalized targets computed by ADAPT specs
   callTargets          CallTarget[]   // Per-call targets computed by ADAPT specs
+
+  // Provenance: which BDDFeatureSet created this parameter (if any)
+  sourceFeatureSetId String?
+  sourceFeatureSet   BDDFeatureSet? @relation(fields: [sourceFeatureSetId], references: [id], onDelete: SetNull)
+
+  @@index([sourceFeatureSetId])
 }
 
 model ParameterMapping {
@@ -1540,6 +1546,12 @@ model BDDFeatureSet {
   isActive    Boolean   @default(false)
   activatedAt DateTime?
 
+  // Reverse relations: entities created by this feature set
+  createdSpecs      AnalysisSpec[]
+  createdParameters Parameter[]
+  createdPromptSlugs PromptSlug[]
+  createdAnchors    ParameterScoringAnchor[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1632,9 +1644,13 @@ model AnalysisSpec {
 
   // Compilation status tracking
   compiledAt    DateTime? // When this spec was last compiled
-  compiledSetId String? // Which compiled set includes this spec
+  compiledSetId String? // Which compiled set includes this spec (deprecated - use sourceFeatureSetId)
   isDirty       Boolean   @default(true) // True if spec changed since last compile
   dirtyReason   String? // What changed: "trigger_added", "action_modified", etc.
+
+  // Provenance: which BDDFeatureSet created this spec (if any)
+  sourceFeatureSetId String?
+  sourceFeatureSet   BDDFeatureSet? @relation(fields: [sourceFeatureSetId], references: [id], onDelete: SetNull)
 
   // Locking (when used by callers)
   isLocked     Boolean   @default(false)
@@ -1698,6 +1714,7 @@ model AnalysisSpec {
   @@index([specRole])
   @@index([isActive])
   @@index([compiledSetId])
+  @@index([sourceFeatureSetId])
   @@index([isLocked])
   // Keep old name as map for migration compatibility
   @@map("BddFeature")
@@ -1919,6 +1936,10 @@ model ParameterScoringAnchor {
   // Source tracking
   source String? // "synthetic", "real_call:abc123", "expert_created"
 
+  // Provenance: which BDDFeatureSet created this anchor (if any)
+  sourceFeatureSetId String?
+  sourceFeatureSet   BDDFeatureSet? @relation(fields: [sourceFeatureSetId], references: [id], onDelete: SetNull)
+
   // Ordering (show lower scores first for calibration)
   sortOrder Int @default(0)
 
@@ -1930,6 +1951,7 @@ model ParameterScoringAnchor {
   @@index([parameterId])
   @@index([score])
   @@index([isGold])
+  @@index([sourceFeatureSetId])
 }
 
 // Aggregated effectiveness stats per prompt slug + personality bucket
@@ -2066,6 +2088,10 @@ model PromptSlug {
   isActive Boolean @default(true)
   version  String  @default("1.0")
 
+  // Provenance: which BDDFeatureSet created this slug (if any)
+  sourceFeatureSetId String?
+  sourceFeatureSet   BDDFeatureSet? @relation(fields: [sourceFeatureSetId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2077,6 +2103,7 @@ model PromptSlug {
 
   @@index([sourceType])
   @@index([isActive])
+  @@index([sourceFeatureSetId])
 }
 
 // Junction table: PromptSlug ↔ Parameter (many-to-many)
@@ -2385,18 +2412,248 @@ model SystemLog {
   message   String   @db.Text
   context   Json?    // Additional context data
   error     Json?    // Error details (name, message, stack)
-  
+
   // Request context
   requestId String?
   userId    String?
   callerId  String?
-  
+
   // Timestamps
   timestamp DateTime @default(now())
-  
+
   // Indexes for admin dashboard queries
   @@index([level])
   @@index([category])
   @@index([timestamp])
   @@index([callerId])
+}
+
+// =========================
+// USAGE METERING SYSTEM
+// =========================
+// Tracks resource usage and costs across AI, Database, Compute, Storage, and External APIs
+// Supports rollups for efficient period-based queries (hour/day/week/month)
+
+enum UsageCategory {
+  AI        // LLM API calls (Claude, OpenAI)
+  DATABASE  // Expensive DB queries (>100ms)
+  COMPUTE   // CPU-intensive operations (pipeline runs, analysis)
+  STORAGE   // File storage operations
+  EXTERNAL  // Third-party API calls (webhooks, external services)
+}
+
+enum RollupPeriod {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+}
+
+// Individual usage events - fine-grained tracking
+model UsageEvent {
+  id        String        @id @default(uuid())
+
+  // Categorization
+  category  UsageCategory
+  operation String        // e.g., "ai:claude:input", "db:Caller.findMany", "compute:pipeline"
+
+  // Attribution
+  userId    String?       // Admin user who triggered this
+  callerId  String?       // Related caller
+  callId    String?       // Related call
+
+  // Quantity and cost
+  quantity  Float         @default(1)
+  unitType  String        @default("count")  // "tokens", "ms", "bytes", "count"
+  costCents Float         @default(0)        // Calculated cost in cents
+
+  // Context
+  engine    String?       // "claude", "openai", "postgres"
+  model     String?       // "claude-sonnet-4", "gpt-4o"
+  sourceOp  String?       // Which operation triggered this: "pipeline:run", "chat", "compose-prompt"
+  metadata  Json?         // Additional context
+
+  createdAt DateTime      @default(now())
+
+  @@index([category])
+  @@index([operation])
+  @@index([userId])
+  @@index([callerId])
+  @@index([createdAt])
+  @@index([sourceOp])
+}
+
+// Pre-aggregated rollups for dashboard performance
+model UsageRollup {
+  id          String        @id @default(uuid())
+
+  // Time period
+  period      RollupPeriod
+  periodStart DateTime      // Start of the period (truncated hour/day/week/month)
+  periodEnd   DateTime      // End of the period
+
+  // Dimensions
+  category    UsageCategory
+  operation   String?       // null = total for category
+  userId      String?       // null = all users
+
+  // Aggregates
+  eventCount  Int           @default(0)
+  totalQty    Float         @default(0)  // Sum of quantity
+  totalCost   Float         @default(0)  // Sum of costCents
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([period, periodStart, category, operation, userId])
+  @@index([period, periodStart])
+  @@index([category])
+  @@index([userId])
+}
+
+// Cost rate configuration (admin-editable)
+// Allows customization of cost rates per category/operation
+model UsageCostRate {
+  id            String        @id @default(uuid())
+
+  category      UsageCategory
+  operation     String?       // null = default for category
+
+  // Rate definition
+  costPerUnit   Float         // Cost in cents per unit
+  unitType      String        // What unit: "tokens", "ms", "bytes", "count"
+
+  // Validity period (for historical rates)
+  effectiveFrom  DateTime     @default(now())
+  effectiveUntil DateTime?    // null = currently active
+
+  // Metadata
+  description    String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([category, operation])
+  @@index([effectiveFrom])
+}
+
+// =========================
+// PIPELINE TRACING SYSTEM
+// =========================
+// Records execution traces for the LEARN and ADAPT pipelines
+// Used for debugging, visualization, and understanding pipeline behavior
+
+enum PipelinePhase {
+  LEARN  // Post-call analysis: transcripts → measure → memory → reward
+  ADAPT  // Pre-call preparation: compose prompt
+}
+
+enum PipelineStepStatus {
+  PENDING    // Queued but not started
+  RUNNING    // Currently executing
+  SUCCESS    // Completed successfully
+  FAILED     // Execution failed
+  SKIPPED    // Skipped (condition not met)
+}
+
+// Top-level pipeline execution record
+// Groups all steps for a single pipeline invocation
+model PipelineRun {
+  id          String        @id @default(uuid())
+
+  // Which pipeline phase this run belongs to
+  phase       PipelinePhase
+
+  // Context: what triggered this run
+  callerId    String?
+  callId      String?       // For LEARN phase: the call being analyzed
+  triggeredBy String?       // "manual" | "post_call" | "scheduled" | "api"
+
+  // Overall status (computed from steps)
+  status      PipelineStepStatus @default(PENDING)
+
+  // Timing
+  startedAt   DateTime      @default(now())
+  finishedAt  DateTime?
+  durationMs  Int?          // Total duration
+
+  // Summary stats (computed at completion)
+  stepsTotal     Int        @default(0)
+  stepsSucceeded Int        @default(0)
+  stepsFailed    Int        @default(0)
+  stepsSkipped   Int        @default(0)
+
+  // Error summary (if any step failed)
+  errorSummary   String?
+
+  // Metadata
+  metadata    Json?         // Additional context (e.g., dry run, version info)
+
+  createdAt   DateTime      @default(now())
+
+  // Steps in this run
+  steps       PipelineStep[]
+
+  @@index([phase])
+  @@index([callerId])
+  @@index([callId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+// Individual step execution within a pipeline run
+// Records inputs, outputs, timing, and status for each operation
+model PipelineStep {
+  id          String              @id @default(uuid())
+  runId       String
+
+  // Step identification
+  operation   String              // e.g., "transcripts:process", "personality:analyze"
+  label       String?             // Human-readable label
+
+  // Ordering
+  sortOrder   Int                 @default(0)
+
+  // Status and timing
+  status      PipelineStepStatus  @default(PENDING)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  durationMs  Int?
+
+  // === CONFIGURATION ===
+  // Which spec configured this step (if data-driven)
+  specId      String?             // AnalysisSpec ID
+  specSlug    String?             // Denormalized for display
+
+  // === INPUTS ===
+  // Snapshot of data that went into this step
+  inputs      Json?               // { transcript: "...", callerId: "..." }
+  inputCounts Json?               // { memories: 12, targets: 5 } - summary counts
+
+  // === OUTPUTS ===
+  // What this step produced
+  outputs     Json?               // { personality: {...}, memories: [...] }
+  outputCounts Json?              // { memoriesCreated: 4, scoresComputed: 8 }
+
+  // Links to created records (for navigation)
+  createdRecordIds Json?          // { memories: ["id1", "id2"], scores: ["id3"] }
+
+  // === ERROR HANDLING ===
+  error       String?             // Error message if failed
+  errorStack  String?   @db.Text  // Full stack trace
+
+  // === COMPOSITION DETAILS ===
+  // For COMPOSE steps: additional metadata about section processing
+  sectionsActivated String[]      // Which sections were included
+  sectionsSkipped   String[]      // Which sections were skipped (with reasons)
+  sectionTimings    Json?         // { personality: 12, memories: 45, ... } in ms
+
+  run         PipelineRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime            @default(now())
+
+  @@index([runId])
+  @@index([operation])
+  @@index([status])
+  @@index([specId])
 }

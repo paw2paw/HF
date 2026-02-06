@@ -11,7 +11,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getAICompletion, AIEngine, isEngineAvailable } from "@/lib/ai/client";
+import { AIEngine, isEngineAvailable } from "@/lib/ai/client";
+import { getMeteredAICompletion } from "@/lib/metering";
 
 const prisma = new PrismaClient();
 
@@ -74,7 +75,8 @@ async function scoreWithAI(
   parameterName: string,
   parameterDefinition: string | null,
   engine: AIEngine,
-  log: ReturnType<typeof createLogger>
+  log: ReturnType<typeof createLogger>,
+  context?: { callId?: string; callerId?: string }
 ): Promise<{ score: number; confidence: number; reasoning: string }> {
   if (engine === "mock") {
     // Mock scoring
@@ -107,7 +109,7 @@ TRANSCRIPT:
 ${transcript.slice(0, 4000)}`;
 
   try {
-    const result = await getAICompletion({
+    const result = await getMeteredAICompletion({
       engine,
       messages: [
         { role: "system", content: "You are an expert call analyst. Always respond with valid JSON." },
@@ -115,7 +117,7 @@ ${transcript.slice(0, 4000)}`;
       ],
       maxTokens: 256,
       temperature: 0.3,
-    });
+    }, { callId: context?.callId, callerId: context?.callerId, sourceOp: "ops:measure" });
 
     log.debug(`AI response for ${parameterName}`, { engine, model: result.model });
 
@@ -192,7 +194,8 @@ async function extractWithAI(
   transcript: string,
   prompt: string,
   engine: AIEngine,
-  log: ReturnType<typeof createLogger>
+  log: ReturnType<typeof createLogger>,
+  context?: { callId?: string; callerId?: string }
 ): Promise<{ found: boolean; key?: string; value?: string; confidence: number; evidence?: string }> {
   if (engine === "mock") {
     // Mock extraction - look for common patterns
@@ -232,7 +235,7 @@ TRANSCRIPT:
 ${transcript.slice(0, 4000)}`;
 
   try {
-    const result = await getAICompletion({
+    const result = await getMeteredAICompletion({
       engine,
       messages: [
         { role: "system", content: "You are an expert at extracting structured information from conversations. Always respond with valid JSON." },
@@ -240,7 +243,7 @@ ${transcript.slice(0, 4000)}`;
       ],
       maxTokens: 256,
       temperature: 0.2,
-    });
+    }, { callId: context?.callId, callerId: context?.callerId, sourceOp: "ops:learn" });
 
     log.debug("AI extraction response", { engine, model: result.model });
 
@@ -328,7 +331,8 @@ const opHandlers: Record<string, OpHandler> = {
               parameter?.name || action.parameterId,
               parameter?.definition || null,
               engine,
-              log
+              log,
+              { callId: call.id, callerId }
             );
 
             log.debug(`Scoring ${action.parameterId}`, { score: finalScore, confidence, engine });
@@ -456,7 +460,8 @@ const opHandlers: Record<string, OpHandler> = {
             transcript,
             extractionPrompt,
             engine,
-            log
+            log,
+            { callId: call.id, callerId }
           );
 
           if (extraction.found && extraction.value) {
