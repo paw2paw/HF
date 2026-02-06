@@ -27,6 +27,7 @@ type ParameterInfo = {
   parameterType: string;
   interpretationHigh: string | null;
   interpretationLow: string | null;
+  sourceFeatureSet: { id: string; featureId: string; name: string; version: string } | null;
   scoringAnchors: ScoringAnchorInfo[];
   usedBySpecs: { specId: string; specSlug: string; specName: string }[];
 };
@@ -60,6 +61,9 @@ export async function GET(
                       include: {
                         parameter: {
                           include: {
+                            sourceFeatureSet: {
+                              select: { id: true, featureId: true, name: true, version: true },
+                            },
                             scoringAnchors: {
                               orderBy: { score: "asc" },
                             },
@@ -94,6 +98,9 @@ export async function GET(
               include: {
                 parameter: {
                   include: {
+                    sourceFeatureSet: {
+                      select: { id: true, featureId: true, name: true, version: true },
+                    },
                     scoringAnchors: {
                       orderBy: { score: "asc" },
                     },
@@ -136,6 +143,7 @@ export async function GET(
                 parameterType: param.parameterType,
                 interpretationHigh: param.interpretationHigh,
                 interpretationLow: param.interpretationLow,
+                sourceFeatureSet: param.sourceFeatureSet || null,
                 scoringAnchors: param.scoringAnchors.map((a) => ({
                   id: a.id,
                   score: a.score,
