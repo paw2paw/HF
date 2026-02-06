@@ -63,8 +63,8 @@ type SpecDetail = {
   description: string | null;
   scope: "CALLER" | "DOMAIN" | "SYSTEM";
   specType: "SYSTEM" | "DOMAIN";
-  outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE";
-  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD";
+  outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
+  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
   domain: string | null;
   priority: number;
   isActive: boolean;
@@ -81,8 +81,8 @@ type Spec = {
   description: string | null;
   scope: "CALLER" | "DOMAIN" | "SYSTEM";
   specType: "SYSTEM" | "DOMAIN";
-  outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE";
-  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD";
+  outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
+  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
   domain: string | null;
   priority: number;
   isActive?: boolean;
@@ -363,10 +363,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
           setSystemSpecToggles(toggleMap);
 
-          // Initialize config overrides from playbook.specs (PlaybookSpec records)
+          // Initialize config overrides from the same systemSpecs array
           const overrideMap = new Map<string, Record<string, any> | null>();
-          const playbookSpecs = playbookData.playbook.specs || [];
-          for (const pss of playbookSpecs) {
+          for (const pss of playbookSystemSpecs) {
             if (pss.configOverride) {
               overrideMap.set(pss.specId, pss.configOverride);
             }
@@ -1186,8 +1185,12 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     const styles: Record<string, { bg: string; color: string }> = {
       LEARN: { bg: "var(--badge-purple-bg)", color: "var(--badge-purple-text)" },
       MEASURE: { bg: "var(--status-success-bg)", color: "var(--status-success-text)" },
+      MEASURE_AGENT: { bg: "var(--status-success-bg)", color: "var(--status-success-text)" },
       ADAPT: { bg: "var(--status-warning-bg)", color: "var(--status-warning-text)" },
+      AGGREGATE: { bg: "var(--badge-blue-bg)", color: "var(--badge-blue-text)" },
       COMPOSE: { bg: "var(--badge-pink-bg)", color: "var(--badge-pink-text)" },
+      REWARD: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)" },
+      SUPERVISE: { bg: "var(--status-error-bg)", color: "var(--status-error-text)" },
     };
     const s = styles[outputType] || { bg: "var(--surface-secondary)", color: "var(--text-muted)" };
     return (
@@ -1203,11 +1206,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       // COMPOSE spec roles (for prompt assembly)
       IDENTITY: { bg: "var(--badge-blue-bg)", color: "var(--status-info-text)", label: "WHO" },
       CONTENT: { bg: "var(--status-success-bg)", color: "var(--status-success-text)", label: "WHAT" },
-      CONTEXT: { bg: "var(--status-warning-bg)", color: "var(--status-warning-text)", label: "CALLER" },
-      // Legacy (kept for migration)
-      META: { bg: "var(--surface-secondary)", color: "var(--text-muted)", label: "META" },
+      VOICE: { bg: "var(--status-warning-bg)", color: "var(--status-warning-text)", label: "VOICE" },
+      MEASURE: { bg: "var(--status-success-bg)", color: "var(--status-success-text)", label: "MEASURE" },
+      ADAPT: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", label: "ADAPT" },
+      REWARD: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", label: "REWARD" },
+      GUARDRAIL: { bg: "var(--status-error-bg)", color: "var(--status-error-text)", label: "GUARD" },
     };
-    const s = styles[specRole] || styles.META;
+    const fallback = { bg: "var(--surface-secondary)", color: "var(--text-muted)", label: specRole };
+    const s = styles[specRole] || fallback;
     return (
       <span style={{ fontSize: 8, padding: "1px 4px", background: s.bg, color: s.color, borderRadius: 3, fontWeight: 600 }}>
         {s.label}
@@ -1251,14 +1257,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     const { specRole, outputType } = item.spec;
 
     // COMPOSE specs define prompt sections (WHO/WHAT/CALLER)
-    if (specRole === "IDENTITY" || specRole === "CONTENT" || specRole === "CONTEXT") return "COMPOSE";
+    if (specRole === "IDENTITY" || specRole === "CONTENT") return "COMPOSE";
     if (outputType === "COMPOSE") return "COMPOSE";
 
     // LEARN and MEASURE observe/extract data from calls
-    if (outputType === "LEARN" || outputType === "MEASURE") return "OBSERVE";
+    if (outputType === "LEARN" || outputType === "MEASURE" || outputType === "MEASURE_AGENT" || outputType === "AGGREGATE") return "OBSERVE";
 
-    // ADAPT computes personalized targets
-    if (outputType === "ADAPT") return "EVALUATE";
+    // ADAPT, REWARD, SUPERVISE evaluate and adjust
+    if (outputType === "ADAPT" || outputType === "REWARD" || outputType === "SUPERVISE") return "EVALUATE";
 
     return "OBSERVE"; // Default
   };
@@ -1287,10 +1293,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     (item.spec?.specRole === "MEASURE" ||
      item.spec?.specRole === "ADAPT" ||
      item.spec?.specRole === "REWARD" ||
+     item.spec?.specRole === "GUARDRAIL" ||
      item.spec?.outputType === "LEARN" ||
      item.spec?.outputType === "MEASURE" ||
      item.spec?.outputType === "MEASURE_AGENT" ||
-     item.spec?.outputType === "AGGREGATE")
+     item.spec?.outputType === "AGGREGATE" ||
+     item.spec?.outputType === "REWARD" ||
+     item.spec?.outputType === "SUPERVISE" ||
+     item.spec?.outputType === "COMPOSE")
   );
 
   // Available specs filtered by category for palette
@@ -1301,12 +1311,29 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     s.specRole === "MEASURE" ||
     s.specRole === "ADAPT" ||
     s.specRole === "REWARD" ||
+    s.specRole === "GUARDRAIL" ||
     s.outputType === "LEARN" ||
     s.outputType === "MEASURE" ||
     s.outputType === "MEASURE_AGENT" ||
-    s.outputType === "AGGREGATE"
+    s.outputType === "AGGREGATE" ||
+    s.outputType === "REWARD" ||
+    s.outputType === "SUPERVISE" ||
+    s.outputType === "COMPOSE"
   ) || [];
   const availableContentSpecs = availableItems?.domainSpecs.filter(s => s.specRole === "CONTENT") || [];
+
+  // Enabled system specs that belong in each column (read-only references)
+  const systemAgentSpecs = (availableItems?.systemSpecs || []).filter(s =>
+    (s.specRole === "IDENTITY" || s.specRole === "VOICE") && systemSpecToggles.get(s.id) !== false
+  );
+  const systemCallerSpecs = (availableItems?.systemSpecs || []).filter(s =>
+    (s.specRole === "MEASURE" || s.specRole === "ADAPT" || s.specRole === "REWARD" || s.specRole === "GUARDRAIL" ||
+     s.outputType === "LEARN" || s.outputType === "MEASURE" || s.outputType === "MEASURE_AGENT" || s.outputType === "AGGREGATE" ||
+     s.outputType === "REWARD" || s.outputType === "SUPERVISE") && systemSpecToggles.get(s.id) !== false
+  );
+  const systemContentSpecs = (availableItems?.systemSpecs || []).filter(s =>
+    s.specRole === "CONTENT" && systemSpecToggles.get(s.id) !== false
+  );
 
   // Legacy aliases for backward compatibility
   const identityItems = agentItems;
@@ -2019,16 +2046,15 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 }
 
                 // Category order and labels
-                const specRoleOrder = ["IDENTITY", "CONTENT", "VOICE", "MEASURE", "ADAPT", "CONSTRAIN", "REWARD", "META"];
+                const specRoleOrder = ["IDENTITY", "CONTENT", "VOICE", "MEASURE", "ADAPT", "GUARDRAIL", "REWARD"];
                 const specRoleLabels: Record<string, string> = {
                   IDENTITY: "🎭 WHO (Identity)",
                   CONTENT: "📚 WHAT (Content)",
                   VOICE: "🗣️ SPEECH (Voice)",
                   MEASURE: "📊 OBSERVE (Measure)",
                   ADAPT: "🎯 ADJUST (Adapt)",
-                  CONSTRAIN: "🛡️ GUARD (Constrain)",
+                  GUARDRAIL: "🛡️ GUARD (Guardrail)",
                   REWARD: "⭐ EVALUATE (Reward)",
-                  META: "⚙️ META",
                 };
                 const sortedGroups = Array.from(grouped.entries()).sort(
                   (a, b) => specRoleOrder.indexOf(a[0]) - specRoleOrder.indexOf(b[0])
@@ -2095,16 +2121,21 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                       Inactive
                                     </span>
                                   )}
-                                  <span style={{
-                                    fontWeight: 600,
-                                    fontSize: 12,
-                                    color: !isGloballyActive ? "var(--status-error-text)" : effectiveEnabled ? "var(--status-success-text)" : "var(--text-muted)",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}>
+                                  <Link
+                                    href={`${routePrefix}/specs/${spec.id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{
+                                      fontWeight: 600,
+                                      fontSize: 12,
+                                      color: !isGloballyActive ? "var(--status-error-text)" : effectiveEnabled ? "var(--status-success-text)" : "var(--text-muted)",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      textDecoration: "none",
+                                    }}
+                                  >
                                     {spec.name}
-                                  </span>
+                                  </Link>
                                 </div>
                                 {!isGloballyActive && (
                                   <div style={{
@@ -2242,7 +2273,36 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {agentItems.length === 0 ? (
+          {/* System IDENTITY/VOICE specs shown as read-only references */}
+          {systemAgentSpecs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: agentItems.length > 0 ? 8 : 0 }}>
+              {systemAgentSpecs.map((spec) => (
+                <div
+                  key={spec.id}
+                  style={{
+                    background: "var(--surface-secondary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    opacity: 0.85,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
+                    {specRoleBadge(spec.specRole)}
+                    <Link href={`${routePrefix}/specs/${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
+                  </div>
+                  {spec.description && (
+                    <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0 0", lineHeight: 1.3 }}>
+                      {spec.description.length > 80 ? spec.description.slice(0, 80) + "..." : spec.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {agentItems.length === 0 && systemAgentSpecs.length === 0 ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -2255,7 +2315,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 {isEditable ? "Click specs above to define agent identity" : "No agent identity configured"}
               </p>
             </div>
-          ) : (
+          ) : agentItems.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {agentItems.map((item) => {
                 const index = items.indexOf(item);
@@ -2311,9 +2371,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                   ⚙️
                                 </span>
                               )}
-                              <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              <Link
+                                href={`${routePrefix}/specs/${item.specId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none" }}
+                              >
                                 {item.spec.name}
-                              </span>
+                              </Link>
                             </>
                           )}
                           {item.promptTemplate && (
@@ -2646,7 +2710,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 </div>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Column 3: Caller Specs (Understanding the caller) */}
@@ -2688,7 +2752,36 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {callerItems.length === 0 ? (
+          {/* System CALLER specs shown as read-only references */}
+          {systemCallerSpecs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: callerItems.length > 0 ? 8 : 0 }}>
+              {systemCallerSpecs.map((spec) => (
+                <div
+                  key={spec.id}
+                  style={{
+                    background: "var(--surface-secondary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    opacity: 0.85,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
+                    {outputTypeBadge(spec.outputType)}
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>{spec.name}</span>
+                  </div>
+                  {spec.description && (
+                    <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0 0", lineHeight: 1.3 }}>
+                      {spec.description.length > 80 ? spec.description.slice(0, 80) + "..." : spec.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {callerItems.length === 0 && systemCallerSpecs.length === 0 ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -2701,7 +2794,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 {isEditable ? "Click specs above to add caller analysis" : "No caller analysis configured"}
               </p>
             </div>
-          ) : (
+          ) : callerItems.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {callerItems.map((item) => {
                 const isItemExpanded = expandedItems.has(item.id);
@@ -2731,7 +2824,11 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         {item.spec && (
                           <>
                             {outputTypeBadge(item.spec.outputType)}
-                            <span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.spec.name}</span>
+                            <Link
+                              href={`${routePrefix}/specs/${item.specId}`}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none", color: "inherit" }}
+                            >{item.spec.name}</Link>
                             {item.spec.scope === "SYSTEM" && (
                               <span style={{ fontSize: 11, color: "var(--text-placeholder)", flexShrink: 0 }}>⚙️</span>
                             )}
@@ -2781,7 +2878,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 );
               })}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Column 4: Content Specs (What the AI knows) */}
@@ -2823,7 +2920,36 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {contentItems.length === 0 ? (
+          {/* System CONTENT specs shown as read-only references */}
+          {systemContentSpecs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: contentItems.length > 0 ? 8 : 0 }}>
+              {systemContentSpecs.map((spec) => (
+                <div
+                  key={spec.id}
+                  style={{
+                    background: "var(--surface-secondary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    opacity: 0.85,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
+                    {specRoleBadge(spec.specRole)}
+                    <Link href={`${routePrefix}/specs/${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
+                  </div>
+                  {spec.description && (
+                    <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0 0", lineHeight: 1.3 }}>
+                      {spec.description.length > 80 ? spec.description.slice(0, 80) + "..." : spec.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {contentItems.length === 0 && systemContentSpecs.length === 0 ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -2836,7 +2962,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 {isEditable ? "Click specs above to add domain content analysis" : "No content analysis configured"}
               </p>
             </div>
-          ) : (
+          ) : contentItems.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {contentItems.map((item) => {
                 const index = items.indexOf(item);
@@ -2867,7 +2993,11 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         {item.spec && (
                           <>
                             {outputTypeBadge(item.spec.outputType)}
-                            <span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.spec.name}</span>
+                            <Link
+                              href={`${routePrefix}/specs/${item.specId}`}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none", color: "inherit" }}
+                            >{item.spec.name}</Link>
                             {item.spec.scope === "SYSTEM" && (
                               <span style={{ fontSize: 11, color: "var(--text-placeholder)", flexShrink: 0 }}>⚙️</span>
                             )}
@@ -2885,7 +3015,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {isEditable && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); removeItem(index); }}
+                            onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
                             style={{
                               padding: "4px 8px",
                               fontSize: 11,
@@ -2925,7 +3055,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 );
               })}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
       </>
@@ -3073,7 +3203,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                   onChange={(value) => handleTargetChange(param.parameterId, value)}
                                   isModified={hasPendingChange || hasPlaybookOverride}
                                   label={param.name.replace("BEH-", "").replace(/-/g, " ")}
-                                  tooltip={param.definition}
+                                  tooltip={param.definition ?? undefined}
                                   width={56}
                                   height={140}
                                   showGauge={true}
@@ -3288,6 +3418,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   { key: "MEASURE", label: "📊 Measure", count: slugsData.counts.measure },
                   { key: "LEARN", label: "🧠 Learn", count: slugsData.counts.learn },
                   { key: "ADAPT", label: "🔄 Adapt", count: slugsData.counts.adapt },
+                  { key: "REWARD", label: "⭐ Reward", count: slugsData.counts.reward || 0 },
+                  { key: "GUARDRAIL", label: "🛡️ Guard", count: slugsData.counts.guardrail || 0 },
+                  { key: "COMPOSE", label: "🧩 Compose", count: slugsData.counts.compose || 0 },
                 ].map(stat => (
                   <button
                     key={stat.key}
@@ -3322,7 +3455,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 overflowY: "auto",
               }}>
                 {slugsData.tree
-                  .filter(category => !activeFilter || category.id.toUpperCase() === activeFilter)
+                  .filter(category => !activeFilter || category.name.toUpperCase() === activeFilter)
                   .map((category) => (
                   <SlugTreeCategory
                     key={category.id}
@@ -4384,15 +4517,21 @@ const slugCategoryIcons: Record<string, string> = {
   MEASURE: "📊",
   LEARN: "🧠",
   ADAPT: "🔄",
+  REWARD: "⭐",
+  GUARDRAIL: "🛡️",
+  COMPOSE: "🧩",
 };
 
 const slugCategoryColors: Record<string, { bg: string; border: string; headerBg: string }> = {
-  IDENTITY: { bg: "#eff6ff", border: "#93c5fd", headerBg: "#dbeafe" },
-  CONTENT: { bg: "#f0fdf4", border: "#86efac", headerBg: "#dcfdf5" },
-  VOICE: { bg: "var(--status-warning-bg)", border: "#fcd34d", headerBg: "#fef3c7" },
-  MEASURE: { bg: "var(--status-success-bg)", border: "#6ee7b7", headerBg: "var(--status-success-bg)" },
-  LEARN: { bg: "#fdf4ff", border: "#e879f9", headerBg: "#fae8ff" },
-  ADAPT: { bg: "#fef3c7", border: "#fcd34d", headerBg: "#fef9c3" },
+  IDENTITY: { bg: "var(--badge-blue-bg)", border: "var(--status-info-border)", headerBg: "var(--badge-blue-bg)" },
+  CONTENT: { bg: "var(--badge-green-bg)", border: "var(--status-success-border)", headerBg: "var(--badge-green-bg)" },
+  VOICE: { bg: "var(--status-warning-bg)", border: "var(--status-warning-border)", headerBg: "var(--badge-yellow-bg)" },
+  MEASURE: { bg: "var(--status-success-bg)", border: "var(--status-success-border)", headerBg: "var(--status-success-bg)" },
+  LEARN: { bg: "var(--badge-purple-bg)", border: "var(--badge-purple-text)", headerBg: "var(--badge-purple-bg)" },
+  ADAPT: { bg: "var(--badge-yellow-bg)", border: "var(--status-warning-border)", headerBg: "var(--badge-yellow-bg)" },
+  REWARD: { bg: "var(--badge-yellow-bg)", border: "var(--status-warning-border)", headerBg: "var(--badge-yellow-bg)" },
+  GUARDRAIL: { bg: "var(--status-error-bg)", border: "var(--status-error-border)", headerBg: "var(--status-error-bg)" },
+  COMPOSE: { bg: "var(--badge-pink-bg)", border: "var(--badge-pink-border)", headerBg: "var(--badge-pink-bg)" },
 };
 
 function SlugTreeCategory({
@@ -4505,10 +4644,14 @@ function SlugTreeSpec({
         )}
         {!hasChildren && <span style={{ width: 12 }} />}
         <span style={{ fontSize: 14 }}>📋</span>
-        <span style={{ fontWeight: 500, fontSize: 13, flex: 1 }}>{spec.name}</span>
-        {spec.specSlug && (
+        {spec.specId ? (
+          <Link href={`${routePrefix}/specs/${spec.specId}`} onClick={(e) => e.stopPropagation()} style={{ fontWeight: 500, fontSize: 13, flex: 1, textDecoration: "none", color: "inherit" }}>{spec.name}</Link>
+        ) : (
+          <span style={{ fontWeight: 500, fontSize: 13, flex: 1 }}>{spec.name}</span>
+        )}
+        {spec.specSlug && spec.specId && (
           <Link
-            href={`${routePrefix}/analysis-specs?search=${spec.specSlug}`}
+            href={`${routePrefix}/specs/${spec.specId}`}
             onClick={(e) => e.stopPropagation()}
             style={{
               fontSize: 10,

@@ -123,7 +123,7 @@ Checks for mismatches between:
 Outputs a score (1.0 = consistent, lower = conflicts found) and a list of detected conflicts.`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 100,
       isActive: true,
@@ -189,7 +189,7 @@ Return a JSON object:
       description: `PRE-CALL LINT: Validates that state values are consistent across prompt sections.`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 100,
       isActive: true,
@@ -240,7 +240,7 @@ Common patterns to detect:
 These stale instructions confuse the model and create contradictory guidance.`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 95,
       isActive: true,
@@ -305,7 +305,7 @@ Return:
       description: `PRE-CALL LINT: Detects placeholder text that contradicts actual data.`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 95,
       isActive: true,
@@ -348,7 +348,7 @@ Outputs one of:
 - acknowledge-and-proceed: Explicitly acknowledge the tension and ask permission`,
       scope: SpecificationScope.DOMAIN,
       outputType: AnalysisOutputType.ADAPT,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "session-quality",
       priority: 90,
       isActive: true,
@@ -421,7 +421,7 @@ Return:
       description: `RUNTIME ADAPT: When caller memory conflicts with required content, output a handling strategy.`,
       scope: SpecificationScope.DOMAIN,
       outputType: AnalysisOutputType.ADAPT,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "session-quality",
       priority: 90,
       isActive: true,
@@ -465,7 +465,7 @@ Different domains may have different targets:
 - Support: HIGH (0.7+) - resolve the issue`,
       scope: SpecificationScope.DOMAIN,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "session-quality",
       priority: 80,
       isActive: true,
@@ -545,7 +545,7 @@ Return:
       description: `POST-CALL MEASURE: Score how well the agent stuck to the planned session topics.`,
       scope: SpecificationScope.DOMAIN,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "session-quality",
       priority: 80,
       isActive: true,
@@ -588,7 +588,7 @@ Common conflicts:
 Outputs priority rules and specific guidance for the current target configuration.`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.ADAPT,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 85,
       isActive: true,
@@ -671,7 +671,7 @@ Return:
       description: `RUNTIME ADAPT: Resolves conflicts between competing behavior targets.`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.ADAPT,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 85,
       isActive: true,
@@ -715,7 +715,7 @@ Duplicate content:
 - Makes prompts harder to maintain`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 70,
       isActive: true,
@@ -780,7 +780,7 @@ Return:
       description: `PRE-CALL LINT: Flags when the same data appears in multiple prompt sections.`,
       scope: SpecificationScope.SYSTEM,
       outputType: AnalysisOutputType.MEASURE,
-      specRole: SpecRole.META,
+      specRole: SpecRole.MEASURE, // META not in schema, using MEASURE
       domain: "prompt-lint",
       priority: 70,
       isActive: true,

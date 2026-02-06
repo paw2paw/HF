@@ -6,6 +6,54 @@
 
 ## High Priority
 
+### ⚙️ Agent Configuration UI
+**Status**: Not Started
+**Priority**: High
+**Estimated Effort**: 2-3 days
+
+**Requirements:**
+- Create UI for admin users to edit playbook configurations
+- Allow editing of voice rules (response length, pacing, turn-taking)
+- Allow editing of behavior targets (warmth, question rate, formality, etc.)
+- Live preview of how changes affect the prompt
+- Validation to prevent invalid configurations
+- Version history / rollback capability
+
+**Current State:**
+- Voice rules defined in `bdd-specs/VOICE-001-voice-guidance.spec.json`
+- Behavior targets defined in `bdd-specs/playbooks-config.json`
+- Must edit JSON files manually to tune agent behavior
+
+**What Admins Need:**
+- Sliders for behavior targets (0.0 - 1.0 range)
+- Text inputs for voice rules (sentence counts, timing)
+- Dropdowns for constraint severity levels
+- "Test prompt" button to see resulting prompt with current settings
+- Save/publish workflow (draft → published)
+
+**Files to Create:**
+- `app/x/playbooks/[playbookId]/configure/page.tsx` - Main config UI
+- `components/playbooks/BehaviorTargetEditor.tsx` - Slider controls
+- `components/playbooks/VoiceRulesEditor.tsx` - Voice config
+- `app/api/playbooks/[playbookId]/config/route.ts` - Save endpoint
+
+**Acceptance Criteria:**
+- [ ] Admin can adjust behavior targets via UI sliders
+- [ ] Admin can edit voice rules (max sentences, timing)
+- [ ] Changes are validated before saving
+- [ ] "Preview Prompt" shows resulting system prompt
+- [ ] Changes require explicit save/publish action
+- [ ] Version history tracks configuration changes
+
+**Why This Matters:**
+User feedback: "this kind of edit is EXACTLY what I want Admin users to be able to do, from UI"
+- Currently requires editing JSON specs manually
+- Non-technical admins can't tune agent behavior
+- No way to preview impact of changes before applying
+- Hard to experiment with different configurations
+
+---
+
 ### 🔐 Authentication & Admin Users
 **Status**: Not Started  
 **Priority**: High  

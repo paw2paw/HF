@@ -510,6 +510,11 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
       config.metadata = rawSpecData.metadata;
       console.log(`      Copied metadata from rawSpec (sections: ${Object.keys(rawSpecData.metadata).join(", ")})`);
     }
+    // Copy sections from rawSpec if present (for COMP-001 composition pipeline)
+    if (rawSpecData?.sections) {
+      config.sections = rawSpecData.sections;
+      console.log(`      Copied ${rawSpecData.sections.length} composition sections from rawSpec`);
+    }
   }
   // For IDENTITY and CONTENT specs: preserve parameters array AND flatten for backward compat
   else if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT) {
@@ -1131,6 +1136,38 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   });
 
   return results;
+}
+
+/**
+ * Re-seed a single spec by featureId.
+ * Reads the file from disk, parses it, upserts the BDDFeatureSet, and activates all derived records.
+ */
+export async function reseedSingleSpec(
+  featureId: string
+): Promise<SeedSpecResult> {
+  ensureContractsLoaded();
+
+  const specsFolder = getSpecsFolder();
+  const files = fs.readdirSync(specsFolder).filter(
+    (f) => f.startsWith(featureId) && f.endsWith(".spec.json")
+  );
+
+  if (files.length === 0) {
+    throw new Error(`No source file found for ${featureId} in ${specsFolder}`);
+  }
+
+  const filename = files[0];
+  const filePath = path.join(specsFolder, filename);
+  const content = fs.readFileSync(filePath, "utf-8");
+  const rawJson = JSON.parse(content);
+  const parseResult = parseJsonSpec(content);
+
+  if (!parseResult.success) {
+    throw new Error(`Failed to parse ${filename}: ${parseResult.errors.join(", ")}`);
+  }
+
+  const featureSet = await upsertFeatureSet(parseResult.data, filename, rawJson);
+  return activateFeatureSet(featureSet.id);
 }
 
 /**

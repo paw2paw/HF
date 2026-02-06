@@ -99,7 +99,6 @@ export async function POST(req: Request) {
           parameterCount: cleanParameters.length,
           constraintCount: cleanConstraints.length,
           definitionCount: Object.keys(cleanDefinitions).length,
-          compiledAt: new Date(),
         },
       });
     } else {
@@ -121,7 +120,6 @@ export async function POST(req: Request) {
           parameterCount: cleanParameters.length,
           constraintCount: cleanConstraints.length,
           definitionCount: Object.keys(cleanDefinitions).length,
-          compiledAt: new Date(),
         },
       });
     }
@@ -131,14 +129,11 @@ export async function POST(req: Request) {
       where: { id: { in: ids } },
       data: {
         status: "COMPILED",
-        compiledAt: new Date(),
-        featureSetId: featureSet.id,
       },
     });
 
-    // Count stories and parameters processed
-    const storiesProcessed = uploads.filter((u) => u.fileType === "STORY").length;
-    const parametersProcessed = uploads.filter((u) => u.fileType === "PARAMETER").length;
+    // Count uploads processed
+    const uploadsProcessed = uploads.length;
 
     return NextResponse.json({
       ok: true,
@@ -153,8 +148,7 @@ export async function POST(req: Request) {
         definitionCount: featureSet.definitionCount,
       },
       compilationDetails: {
-        storiesProcessed,
-        parametersProcessed,
+        uploadsProcessed,
         scoringSpec: !!scoringSpec,
         isUpdate: !!existing,
       },

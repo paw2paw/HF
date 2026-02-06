@@ -238,8 +238,6 @@ export async function GET() {
         version: true,
         specType: true,
         isActive: true,
-        activatedAt: true,
-        compiledAt: true,
         rawSpec: true,
       },
       orderBy: { featureId: "asc" },

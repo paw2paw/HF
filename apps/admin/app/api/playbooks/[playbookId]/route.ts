@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
+ * Extract systemSpecs toggle state from playbook.config and attach to response.
+ * Stored in config.systemSpecToggles as { [specId]: { isEnabled, configOverride } }
+ */
+function withSystemSpecs(playbook: any) {
+  const config = (playbook.config as Record<string, any>) || {};
+  const toggles = config.systemSpecToggles || {};
+  const systemSpecs = Object.entries(toggles).map(([specId, data]: [string, any]) => ({
+    specId,
+    isEnabled: data.isEnabled ?? true,
+    configOverride: data.configOverride || null,
+  }));
+  return { ...playbook, systemSpecs };
+}
+
+/**
  * GET /api/playbooks/[playbookId]
  * Get playbook details with all items
  */
@@ -57,7 +72,7 @@ export async function GET(
             },
           },
         },
-        // specs: removed - PlaybookSpec model doesn't exist yet. System specs are handled via scope="SYSTEM" filter
+        // systemSpecs are derived from config.systemSpecToggles via withSystemSpecs()
         parentVersion: {
           select: {
             id: true,
@@ -80,7 +95,7 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
-      playbook,
+      playbook: withSystemSpecs(playbook),
     });
   } catch (error: any) {
     console.error("Error fetching playbook:", error);
@@ -146,12 +161,19 @@ export async function PATCH(
       }
 
       if (spec.scope === "SYSTEM") {
-        // TODO: System spec toggles not yet implemented - PlaybookSpec model doesn't exist
-        // System specs are implicitly enabled for all playbooks
-        return NextResponse.json(
-          { ok: false, error: "System spec toggles are not yet supported" },
-          { status: 400 }
-        );
+        // Save single system spec toggle to config.systemSpecToggles
+        const currentConfig = (existing.config as Record<string, any>) || {};
+        const toggles = currentConfig.systemSpecToggles || {};
+        toggles[specId] = {
+          isEnabled: enabled,
+          configOverride: toggles[specId]?.configOverride || null,
+        };
+        await prisma.playbook.update({
+          where: { id: playbookId },
+          data: {
+            config: { ...currentConfig, systemSpecToggles: toggles },
+          },
+        });
       } else {
         // Toggle domain spec via PlaybookItem
         const existingItem = await prisma.playbookItem.findFirst({
@@ -198,11 +220,11 @@ export async function PATCH(
               },
             },
           },
-          // specs: removed - PlaybookSpec model doesn't exist
+          // systemSpecs are derived from config.systemSpecToggles via withSystemSpecs()
         },
       });
 
-      return NextResponse.json({ ok: true, playbook: updated });
+      return NextResponse.json({ ok: true, playbook: withSystemSpecs(updated) });
     }
 
     // Update metadata (including optional agentId) - only for non-published
@@ -240,13 +262,22 @@ export async function PATCH(
       }
     }
 
-    // TODO: System spec toggles not yet implemented - PlaybookSpec model doesn't exist
-    // System specs are implicitly enabled for all playbooks
+    // Save system spec toggles to playbook.config.systemSpecToggles
     if (specs !== undefined) {
-      return NextResponse.json(
-        { ok: false, error: "System spec toggles are not yet supported" },
-        { status: 400 }
-      );
+      const systemSpecToggles: Record<string, { isEnabled: boolean; configOverride: any }> = {};
+      for (const s of specs as Array<{ specId: string; isEnabled: boolean; configOverride: any }>) {
+        systemSpecToggles[s.specId] = {
+          isEnabled: s.isEnabled,
+          configOverride: s.configOverride || null,
+        };
+      }
+      const currentConfig = (existing.config as Record<string, any>) || {};
+      await prisma.playbook.update({
+        where: { id: playbookId },
+        data: {
+          config: { ...currentConfig, systemSpecToggles },
+        },
+      });
     }
 
     // Fetch updated playbook
@@ -285,13 +316,13 @@ export async function PATCH(
             },
           },
         },
-        // specs: removed - PlaybookSpec model doesn't exist
+        // systemSpecs are derived from config.systemSpecToggles via withSystemSpecs()
       },
     });
 
     return NextResponse.json({
       ok: true,
-      playbook: updated,
+      playbook: withSystemSpecs(updated),
     });
   } catch (error: any) {
     console.error("Error updating playbook:", error);

@@ -1,7 +1,7 @@
 {
   "id": "COMP-001",
   "title": "Next Call Prompt Composition",
-  "version": "1.1",
+  "version": "2.0",
   "status": "Draft",
   "date": "2026-01-30",
   "domain": "prompt-composition",
@@ -304,6 +304,195 @@
         "whenHigh": "Apply domain-specific guidance and content.",
         "whenLow": "Use general approach until domain is established."
       }
+    }
+  ],
+
+  "sections": [
+    {
+      "id": "caller_info",
+      "name": "Caller Information",
+      "priority": 1,
+      "dataSource": "caller",
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "omit" },
+      "transform": null,
+      "outputKey": "caller"
+    },
+    {
+      "id": "personality",
+      "name": "Personality Profile",
+      "priority": 2,
+      "dataSource": "personality",
+      "activateWhen": { "condition": "dataExists" },
+      "fallback": { "action": "null" },
+      "transform": "mapPersonalityTraits",
+      "outputKey": "personality"
+    },
+    {
+      "id": "learner_profile",
+      "name": "Learner Profile",
+      "priority": 3,
+      "dataSource": "learnerProfile",
+      "activateWhen": { "condition": "dataExists" },
+      "fallback": { "action": "null" },
+      "transform": "mapLearnerProfile",
+      "outputKey": "learnerProfile"
+    },
+    {
+      "id": "memories",
+      "name": "Caller Memories",
+      "priority": 4,
+      "dataSource": "memories",
+      "activateWhen": { "condition": "dataExists" },
+      "fallback": { "action": "emptyObject", "value": { "totalCount": 0, "byCategory": {}, "all": [] } },
+      "transform": "deduplicateAndGroupMemories",
+      "config": { "memoriesPerCategory": 5 },
+      "outputKey": "memories"
+    },
+    {
+      "id": "behavior_targets",
+      "name": "Behavior Targets",
+      "priority": 5,
+      "dataSource": ["behaviorTargets", "callerTargets"],
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "emptyObject", "value": { "totalCount": 0, "byDomain": {}, "all": [] } },
+      "transform": "mergeAndGroupTargets",
+      "outputKey": "behaviorTargets"
+    },
+    {
+      "id": "call_history",
+      "name": "Call History",
+      "priority": 6,
+      "dataSource": ["recentCalls", "callCount"],
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "emptyObject", "value": { "totalCalls": 0, "mostRecent": null, "recent": [] } },
+      "transform": "computeCallHistory",
+      "outputKey": "callHistory"
+    },
+    {
+      "id": "curriculum",
+      "name": "Curriculum Progress",
+      "priority": 7,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "contentSpecExists" },
+      "fallback": { "action": "null" },
+      "transform": "computeModuleProgress",
+      "outputKey": "curriculum"
+    },
+    {
+      "id": "session_planning",
+      "name": "Session Planning",
+      "priority": 8,
+      "dataSource": "callerAttributes",
+      "activateWhen": { "condition": "dataExists" },
+      "fallback": { "action": "emptyObject", "value": { "hasData": false, "context": [] } },
+      "transform": "filterSessionAttributes",
+      "outputKey": "sessionPlanning"
+    },
+    {
+      "id": "learner_goals",
+      "name": "Learner Goals",
+      "priority": 9,
+      "dataSource": "goals",
+      "activateWhen": { "condition": "dataExists" },
+      "fallback": { "action": "emptyObject", "value": { "hasData": false, "goals": [] } },
+      "transform": "mapGoals",
+      "outputKey": "learnerGoals"
+    },
+    {
+      "id": "domain_context",
+      "name": "Domain Context",
+      "priority": 10,
+      "dataSource": ["callerDomain", "callerAttributes"],
+      "activateWhen": { "condition": "callerHasDomain" },
+      "fallback": { "action": "null" },
+      "transform": "computeDomainContext",
+      "outputKey": "domain"
+    },
+    {
+      "id": "identity",
+      "name": "Agent Identity",
+      "priority": 11,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "null" },
+      "transform": "extractIdentitySpec",
+      "outputKey": "identity"
+    },
+    {
+      "id": "content",
+      "name": "Content Spec",
+      "priority": 12,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "contentSpecExists" },
+      "fallback": { "action": "null" },
+      "transform": "extractContentSpec",
+      "outputKey": "content"
+    },
+    {
+      "id": "instructions_pedagogy",
+      "name": "Session Pedagogy",
+      "priority": 13,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "null" },
+      "transform": "computeSessionPedagogy",
+      "outputKey": "instructions_pedagogy",
+      "dependsOn": ["curriculum"]
+    },
+    {
+      "id": "instructions_voice",
+      "name": "Voice Guidance",
+      "priority": 14,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "null" },
+      "transform": "computeVoiceGuidance",
+      "outputKey": "instructions_voice"
+    },
+    {
+      "id": "instructions",
+      "name": "Instructions",
+      "priority": 15,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "emptyObject" },
+      "transform": "computeInstructions",
+      "outputKey": "instructions",
+      "dependsOn": ["memories", "personality", "behavior_targets", "curriculum", "learner_goals", "identity", "content", "instructions_pedagogy", "instructions_voice"]
+    },
+    {
+      "id": "quick_start",
+      "name": "Quick Start",
+      "priority": 0,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "emptyObject" },
+      "transform": "computeQuickStart",
+      "outputKey": "_quickStart",
+      "dependsOn": ["caller_info", "memories", "behavior_targets", "curriculum", "learner_goals", "identity"]
+    },
+    {
+      "id": "preamble",
+      "name": "Preamble",
+      "priority": -1,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "always" },
+      "fallback": { "action": "emptyObject" },
+      "transform": "computePreamble",
+      "outputKey": "_preamble",
+      "dependsOn": ["identity"]
+    },
+    {
+      "id": "first_call_bootstrap",
+      "name": "First Call Bootstrap",
+      "priority": 0,
+      "dataSource": "_assembled",
+      "activateWhen": { "condition": "callCount == 0" },
+      "fallback": { "action": "skip" },
+      "transform": null,
+      "outputKey": "_firstCallBootstrap",
+      "dependsOn": ["quick_start", "instructions"]
     }
   ],
 

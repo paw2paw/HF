@@ -7,48 +7,30 @@
  */
 
 import { PrismaClient, BehaviorTargetScope, BehaviorTargetSource } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
 
 const prisma = new PrismaClient();
 
-// Default target values for BEHAVIOR parameters
-// These are sensible starting points that can be overridden at PLAYBOOK/SEGMENT/CALLER levels
-const DEFAULT_BEHAVIOR_TARGETS: Record<string, { value: number; description: string }> = {
-  // Communication Style
-  "BEH-FORMALITY": { value: 0.5, description: "Moderate formality - adapt to caller" },
-  "BEH-RESPONSE-LEN": { value: 0.5, description: "Balanced response length" },
-  "BEH-ROLE-SWITCH": { value: 0.4, description: "Some flexibility in role" },
+// Load default targets from the canonical registry (single source of truth)
+function loadDefaultTargets(): Record<string, { value: number; description: string }> {
+  const registryPath = path.join(process.cwd(), "bdd-specs", "behavior-parameters.registry.json");
+  if (!fs.existsSync(registryPath)) {
+    console.warn("⚠️ Registry not found, using fallback defaults");
+    return {};
+  }
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
+  const targets: Record<string, { value: number; description: string }> = {};
+  for (const param of registry.parameters) {
+    targets[param.parameterId] = {
+      value: param.defaultTarget ?? 0.5,
+      description: param.name,
+    };
+  }
+  return targets;
+}
 
-  // Efficiency
-  "BEH-CLARITY": { value: 0.8, description: "High clarity in communication" },
-  "BEH-DIRECTNESS": { value: 0.6, description: "Moderately direct" },
-
-  // Empathy
-  "BEH-EMPATHY-RATE": { value: 0.6, description: "Empathetic but not overwhelming" },
-  "BEH-PERSONALIZATION": { value: 0.7, description: "High personalization" },
-  "BEH-WARMTH": { value: 0.6, description: "Warm and friendly" },
-
-  // Engagement
-  "BEH-ACTIVE-LISTEN": { value: 0.6, description: "Active listening behaviors" },
-  "BEH-PROACTIVE": { value: 0.5, description: "Balanced proactivity" },
-  "BEH-QUESTION-RATE": { value: 0.4, description: "Ask questions when needed" },
-
-  // Adaptability
-  "BEH-PACE-MATCH": { value: 0.5, description: "Match caller pace moderately" },
-  "BEH-MIRROR-STYLE": { value: 0.5, description: "Mirror style moderately" },
-
-  // MVP Behaviors
-  "MVP-BEH-WARMTH": { value: 0.7, description: "Warm tone in MVP" },
-  "MVP-BEH-DIRECTNESS": { value: 0.6, description: "Moderately direct in MVP" },
-  "MVP-BEH-EMPATHY": { value: 0.75, description: "High empathy in MVP" },
-
-  // EXP Behaviors (experimental)
-  "EXP-BEH-WARMTH": { value: 0.65, description: "Experimental warmth target" },
-  "EXP-BEH-EMPATHY": { value: 0.7, description: "Experimental empathy target" },
-  "EXP-BEH-FORMAL": { value: 0.5, description: "Experimental formality target" },
-  "EXP-BEH-PACE": { value: 0.5, description: "Experimental pace target" },
-  "EXP-BEH-DETAIL": { value: 0.6, description: "Experimental detail level target" },
-  "EXP-BEH-PROACTIVE": { value: 0.5, description: "Experimental proactivity target" },
-};
+const DEFAULT_BEHAVIOR_TARGETS = loadDefaultTargets();
 
 async function main() {
   console.log("Seeding Behavior Targets system...\n");

@@ -277,7 +277,7 @@ export async function POST(
       description: featureSet.description || `Analysis spec generated from BDD Lab feature ${featureSet.featureId}`,
       scope: SpecificationScope.DOMAIN,
       outputType: AnalysisOutputType.MEASURE,
-      specType, // Use specType from feature set
+      specType: specType as SpecType, // Use specType from feature set
       domain: "lab",
       priority: 10,
       isActive: true,
@@ -360,7 +360,7 @@ export async function POST(
         description: learnSpec.definition || learnSpec.description || `Extract ${learnSpec.category || "facts"} from transcript`,
         scope: SpecificationScope.DOMAIN,
         outputType: AnalysisOutputType.LEARN,
-        specType, // Use specType from feature set (LEARN specs usually SYSTEM)
+        specType: specType as SpecType, // Use specType from feature set (LEARN specs usually SYSTEM)
         domain: learnSpec.domain || "memory",
         priority: learnSpec.priority || 5,
         isActive: true,

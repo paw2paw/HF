@@ -1105,7 +1105,7 @@ Communication approach:
         description: spec.description,
         scope: SpecificationScope.SYSTEM,
         outputType: AnalysisOutputType.ADAPT,
-        specType: SpecType.ADAPT,
+        specType: SpecType.SYSTEM, // ADAPT output type, SYSTEM scope
         domain: "personality-adaptation",
         priority: 60,
         isActive: true,
@@ -1800,7 +1800,7 @@ Recommended actions:
         description: spec.description,
         scope: SpecificationScope.SYSTEM,
         outputType: AnalysisOutputType.MEASURE_AGENT, // SUPERVISE specs measure/validate agent behavior
-        specType: SpecType.SUPERVISE,
+        specType: SpecType.SYSTEM, // SUPERVISE output type, SYSTEM scope
         domain: spec.category,
         priority: 90, // High priority - run after other analysis
         isActive: true,
@@ -2090,7 +2090,7 @@ Recommended approach:
         description: spec.description,
         scope: SpecificationScope.SYSTEM,
         outputType: AnalysisOutputType.ADAPT,
-        specType: SpecType.ADAPT,
+        specType: SpecType.SYSTEM, // ADAPT output type, SYSTEM scope
         domain: spec.category,
         priority: 55, // Slightly lower than personality ADAPT
         isActive: true,
@@ -2109,9 +2109,9 @@ Recommended approach:
                 description: trigger.guidance,
                 sortOrder: 0,
                 // Link to the target parameter for CallerTarget computation
-                ...(trigger.targetParameterId ? {
+                ...("targetParameterId" in trigger && trigger.targetParameterId ? {
                   parameterId: trigger.targetParameterId,
-                  weight: trigger.targetValue ?? 0.5, // Store targetValue in weight
+                  weight: (trigger as any).targetValue ?? 0.5, // Store targetValue in weight
                 } : {}),
               }],
             },
@@ -2599,11 +2599,10 @@ async function seedWNFDomain() {
   // Look up the Curriculum entity
   const curriculum = await prisma.curriculum.findUnique({
     where: { slug: "wnf-content-001" },
-    include: { modules: true },
   });
 
   if (curriculum) {
-    console.log(`   ✓ Found Curriculum: ${curriculum.name} (${curriculum.modules.length} modules)`);
+    console.log(`   ✓ Found Curriculum: ${curriculum.name}`);
   }
 
   // Create PUBLISHED playbook
@@ -2612,7 +2611,7 @@ async function seedWNFDomain() {
       name: "WNF Tutor Playbook",
       description: "Why Nations Fail voice tutoring playbook with TUT-001 identity, WNF content, and voice optimization",
       domainId: domain.id,
-      curriculumId: curriculum?.id || null,
+      // Note: curriculumId removed - not in current schema
       status: "PUBLISHED",
       version: "1.0.0",
       publishedAt: new Date(),

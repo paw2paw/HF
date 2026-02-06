@@ -247,7 +247,7 @@ export async function POST(req: Request) {
           await tx.callerPersonalityProfile.update({
             where: { callerId: targetCallerId },
             data: {
-              parameterValues: mergedValues,
+              parameterValues: mergedValues as any,
               callsUsed: totalCalls,
               specsUsed: totalSpecs,
               lastUpdatedAt: new Date(),
@@ -312,9 +312,9 @@ export async function POST(req: Request) {
               preferenceCount,
               eventCount,
               topicCount,
-              keyFacts,
-              topTopics,
-              preferences,
+              keyFacts: keyFacts as any,
+              topTopics: topTopics as any,
+              preferences: preferences as any,
               lastAggregatedAt: new Date(),
             },
           });

@@ -621,7 +621,8 @@ function compileRewardSpec(
 }
 
 /**
- * Compile COMPOSE spec
+ * Compile COMPOSE spec - renders the full prompt composition guide
+ * including system instructions, section guides, execution rules, and adaptation rules
  */
 function compileComposeSpec(
   spec: JsonFeatureSpec,
@@ -634,12 +635,111 @@ function compileComposeSpec(
   lines.push(`*${spec.story.soThat}*`);
   lines.push("");
 
-  // Composition steps from parameters
   for (const param of spec.parameters) {
+    const cfg = param.config || {};
+    const paramName = param.name.toLowerCase();
+
     lines.push(`### ${param.name}`);
     lines.push(param.description);
     lines.push("");
+
+    // System instruction (preamble)
+    if (cfg.systemInstruction) {
+      lines.push(`> ${cfg.systemInstruction}`);
+      lines.push("");
+    }
+
+    // Section guide (priority-ordered reference for the LLM)
+    if (cfg.sectionGuide && typeof cfg.sectionGuide === "object") {
+      lines.push("**Section Reference:**");
+      lines.push("");
+
+      // Sort by priority for readability
+      const priorityOrder: Record<string, number> = { "HIGHEST": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3 };
+      const entries = Object.entries(cfg.sectionGuide as Record<string, any>).sort(
+        ([, a], [, b]) => (priorityOrder[(a as any).priority?.split(" ")[0]] ?? 9) - (priorityOrder[(b as any).priority?.split(" ")[0]] ?? 9)
+      );
+
+      for (const [key, guide] of entries) {
+        const g = guide as any;
+        lines.push(`| **${key}** | ${g.priority || ""} |`);
+        if (g.description) lines.push(`| | ${g.description} |`);
+        if (g.usage) lines.push(`| | *${g.usage}* |`);
+        lines.push("");
+      }
+    }
+
+    // Execution rules
+    if (cfg.executionRules && Array.isArray(cfg.executionRules)) {
+      lines.push("**Execution Rules:**");
+      for (let i = 0; i < cfg.executionRules.length; i++) {
+        lines.push(`${i + 1}. ${cfg.executionRules[i]}`);
+      }
+      lines.push("");
+    }
+
+    // Adaptation rules
+    if (cfg.adaptationRules && typeof cfg.adaptationRules === "object") {
+      lines.push("**Adaptation Rules:**");
+      for (const [situation, rule] of Object.entries(cfg.adaptationRules as Record<string, string>)) {
+        // Convert camelCase to readable: "whenReviewFails" → "When review fails"
+        const readable = situation
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^when\s/i, "When ")
+          .toLowerCase()
+          .replace(/^\w/, (c) => c.toUpperCase());
+        lines.push(`- **${readable}**: ${rule}`);
+      }
+      lines.push("");
+    }
+
+    // Config flags and thresholds (for composition sections)
+    const configFlags = Object.entries(cfg).filter(
+      ([k, v]) => typeof v === "boolean" || typeof v === "number"
+    );
+    if (configFlags.length > 0) {
+      const flagStrs = configFlags.map(([k, v]) => `${k}: \`${v}\``);
+      lines.push(`Config: ${flagStrs.join(" | ")}`);
+      lines.push("");
+    }
+
+    // Thresholds object
+    if (cfg.thresholds && typeof cfg.thresholds === "object") {
+      const t = cfg.thresholds as Record<string, number>;
+      const threshStrs = Object.entries(t).map(([k, v]) => `${k}=${v}`);
+      lines.push(`Thresholds: ${threshStrs.join(", ")}`);
+      lines.push("");
+    }
+
+    // Interpretation scale
+    if (param.interpretationScale && param.interpretationScale.length > 0) {
+      lines.push("**Interpretation:**");
+      for (const range of param.interpretationScale) {
+        lines.push(`- **${range.label}** (${range.min}–${range.max}): ${range.implication || ""}`);
+      }
+      lines.push("");
+    }
+
+    // Prompt guidance
+    const guidance = param.promptGuidance;
+    if (guidance) {
+      if (guidance.whenHigh) lines.push(`**When Rich**: ${guidance.whenHigh}`);
+      if (guidance.whenLow) lines.push(`**When Sparse**: ${guidance.whenLow}`);
+      lines.push("");
+    }
+
     sections.push(param.id);
+  }
+
+  // Constraints
+  if (spec.constraints && spec.constraints.length > 0) {
+    lines.push("### Composition Constraints");
+    for (const c of spec.constraints) {
+      const icon = c.severity === "warning" ? "⚠️" : "ℹ️";
+      lines.push(`${icon} ${c.description}`);
+    }
+    lines.push("");
+    sections.push("constraints");
   }
 
   return lines.join("\n");

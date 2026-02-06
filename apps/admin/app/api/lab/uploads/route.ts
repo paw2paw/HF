@@ -19,23 +19,14 @@ export async function GET(req: Request) {
 
     const uploads = await prisma.bDDUpload.findMany({
       where,
-      orderBy: { uploadedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       take: limit,
       select: {
         id: true,
         filename: true,
-        fileType: true,
         status: true,
-        storyId: true,
-        parameterIds: true,
-        name: true,
-        version: true,
-        parseErrors: true,
-        errorMessage: true,
-        validatedAt: true,
-        compiledAt: true,
-        uploadedAt: true,
-        featureSetId: true,
+        error: true,
+        createdAt: true,
       },
     });
 
@@ -107,16 +98,14 @@ export async function POST(req: Request) {
       const upload = await prisma.bDDUpload.create({
         data: {
           filename: file.name,
-          fileType,
-          xmlContent: content,
+          content,
           status: "UPLOADED",
         },
         select: {
           id: true,
           filename: true,
-          fileType: true,
           status: true,
-          uploadedAt: true,
+          createdAt: true,
         },
       });
 

@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
     const features = await prisma.bDDFeatureSet.findMany({
       where,
-      orderBy: { compiledAt: "desc" },
+      orderBy: { featureId: "asc" },
       take: limit,
       select: {
         id: true,
@@ -33,13 +33,6 @@ export async function GET(req: Request) {
         constraintCount: true,
         definitionCount: true,
         isActive: true,
-        activatedAt: true,
-        compiledAt: true,
-        lastTestAt: true,
-        lastTestResult: true,
-        _count: {
-          select: { uploads: true },
-        },
       },
     });
 

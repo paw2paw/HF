@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:share": "./scripts/dev-share.sh",
     "devX": "pkill -9 -f 'next dev' || true && pkill -9 -f 'next-server' || true && lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true && rm -rf .next && npm run dev",
     "devD": "./scripts/dev-d.sh",
+    "devS": "./scripts/dev-s.sh",
     "devZZZ": "./scripts/dev-zzz.sh",
+    "logs": "./scripts/show-logs.sh",
+    "help": "./scripts/help.sh",
     "dev:start": "./scripts/dev-start.sh",
     "dev:start:docker": "./scripts/dev-start.sh docker",
     "dev:stop": "./scripts/dev-start.sh stop",

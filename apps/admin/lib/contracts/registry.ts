@@ -130,30 +130,31 @@ class ContractRegistryClass {
 
         // Check each required field
         for (const [fieldName, fieldDef] of Object.entries(fields as any)) {
-          if (fieldDef.required && sectionMeta[fieldName] === undefined) {
+          if ((fieldDef as any).required && sectionMeta[fieldName] === undefined) {
             result.errors.push(`Missing required field: metadata.${section}.${fieldName}`);
             result.valid = false;
           }
 
           // Validate enum values
-          if (fieldDef.enum && sectionMeta[fieldName]) {
-            if (!fieldDef.enum.includes(sectionMeta[fieldName])) {
+          if ((fieldDef as any).enum && sectionMeta[fieldName]) {
+            if (!(fieldDef as any).enum.includes(sectionMeta[fieldName])) {
               result.errors.push(
-                `Invalid value for ${section}.${fieldName}: "${sectionMeta[fieldName]}" not in [${fieldDef.enum.join(', ')}]`
+                `Invalid value for ${section}.${fieldName}: "${sectionMeta[fieldName]}" not in [${(fieldDef as any).enum.join(', ')}]`
               );
               result.valid = false;
             }
           }
 
           // Validate number ranges
-          if (fieldDef.type === 'number' && sectionMeta[fieldName] !== undefined) {
+          const fd = fieldDef as any;
+          if (fd.type === 'number' && sectionMeta[fieldName] !== undefined) {
             const val = sectionMeta[fieldName];
-            if (fieldDef.min !== undefined && val < fieldDef.min) {
-              result.errors.push(`${section}.${fieldName} must be >= ${fieldDef.min}`);
+            if (fd.min !== undefined && val < fd.min) {
+              result.errors.push(`${section}.${fieldName} must be >= ${fd.min}`);
               result.valid = false;
             }
-            if (fieldDef.max !== undefined && val > fieldDef.max) {
-              result.errors.push(`${section}.${fieldName} must be <= ${fieldDef.max}`);
+            if (fd.max !== undefined && val > fd.max) {
+              result.errors.push(`${section}.${fieldName} must be <= ${fd.max}`);
               result.valid = false;
             }
           }

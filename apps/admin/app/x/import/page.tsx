@@ -5,11 +5,46 @@ import Link from "next/link";
 
 type ImportTab = "transcripts" | "specs";
 
+interface ImportConflict {
+  conflictKey: string;
+  matchType: "phone" | "tag";
+  matchValue: string;
+  existingCaller: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    callCount: number;
+  };
+  incomingCaller: {
+    name: string | null;
+    phone: string | null;
+    callCount: number;
+    firstTranscriptPreview: string;
+  };
+  resolution?: "merge" | "create_new" | "skip";
+}
+
+interface PreviewResult {
+  ok: boolean;
+  preview: true;
+  conflicts: ImportConflict[];
+  summary: {
+    filesCount: number;
+    callersCount: number;
+    callsCount: number;
+    conflictsCount: number;
+  };
+  parseErrors?: string[];
+}
+
 type TranscriptResult = {
   ok: boolean;
   created?: number;
+  merged?: number;
   updated?: number;
   skipped?: number;
+  callsImported?: number;
   errors?: string[];
   savedToRaw?: string[];
   callers?: Array<{
@@ -17,6 +52,7 @@ type TranscriptResult = {
     name: string | null;
     email: string | null;
     isNew: boolean;
+    merged?: boolean;
   }>;
 };
 
@@ -35,6 +71,8 @@ type SpecResult = {
   }>;
 };
 
+type ImportStep = "select" | "conflicts" | "result";
+
 export default function ImportPage() {
   const [activeTab, setActiveTab] = useState<ImportTab>("transcripts");
 
@@ -44,8 +82,13 @@ export default function ImportPage() {
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [duplicateHandling, setDuplicateHandling] = useState<"skip" | "overwrite" | "create_new">("skip");
-  const [saveToRaw, setSaveToRaw] = useState(true); // Default to saving for future imports
+  const [saveToRaw, setSaveToRaw] = useState(true);
   const transcriptFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Conflict resolution state
+  const [importStep, setImportStep] = useState<ImportStep>("select");
+  const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
+  const [conflictResolutions, setConflictResolutions] = useState<Record<string, "merge" | "create_new" | "skip">>({});
 
   // Spec state
   const [specFiles, setSpecFiles] = useState<File[]>([]);
@@ -61,6 +104,9 @@ export default function ImportPage() {
       setTranscriptFiles(Array.from(e.target.files));
       setTranscriptResult(null);
       setTranscriptError(null);
+      setPreviewResult(null);
+      setConflictResolutions({});
+      setImportStep("select");
     }
   };
 
@@ -70,9 +116,58 @@ export default function ImportPage() {
       setTranscriptFiles(Array.from(e.dataTransfer.files));
       setTranscriptResult(null);
       setTranscriptError(null);
+      setPreviewResult(null);
+      setConflictResolutions({});
+      setImportStep("select");
     }
   };
 
+  // Preview to detect conflicts
+  const handleTranscriptPreview = async () => {
+    if (transcriptFiles.length === 0) return;
+
+    setTranscriptImporting(true);
+    setTranscriptError(null);
+
+    const formData = new FormData();
+    for (const file of transcriptFiles) {
+      formData.append("files", file);
+    }
+    formData.append("preview", "true");
+
+    try {
+      const res = await fetch("/api/transcripts/import", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.ok && data.preview) {
+        setPreviewResult(data);
+        // Initialize resolutions to "merge" (default)
+        const resolutions: Record<string, "merge" | "create_new" | "skip"> = {};
+        for (const conflict of data.conflicts) {
+          resolutions[conflict.conflictKey] = "merge";
+        }
+        setConflictResolutions(resolutions);
+
+        if (data.conflicts.length > 0) {
+          setImportStep("conflicts");
+        } else {
+          // No conflicts, proceed directly to import
+          await handleTranscriptImport();
+        }
+      } else {
+        setTranscriptError(data.error || "Preview failed");
+      }
+    } catch (err: unknown) {
+      setTranscriptError(err instanceof Error ? err.message : "Preview failed");
+    } finally {
+      setTranscriptImporting(false);
+    }
+  };
+
+  // Actual import with conflict resolutions
   const handleTranscriptImport = async () => {
     if (transcriptFiles.length === 0) return;
 
@@ -86,6 +181,7 @@ export default function ImportPage() {
     }
     formData.append("duplicateHandling", duplicateHandling);
     formData.append("saveToRaw", saveToRaw.toString());
+    formData.append("conflictResolutions", JSON.stringify(conflictResolutions));
 
     try {
       const res = await fetch("/api/transcripts/import", {
@@ -97,6 +193,7 @@ export default function ImportPage() {
       if (data.ok) {
         setTranscriptResult(data);
         setTranscriptFiles([]);
+        setImportStep("result");
         if (transcriptFileInputRef.current) {
           transcriptFileInputRef.current.value = "";
         }
@@ -107,6 +204,22 @@ export default function ImportPage() {
       setTranscriptError(err instanceof Error ? err.message : "Import failed");
     } finally {
       setTranscriptImporting(false);
+    }
+  };
+
+  const handleConflictResolution = (conflictKey: string, resolution: "merge" | "create_new" | "skip") => {
+    setConflictResolutions(prev => ({ ...prev, [conflictKey]: resolution }));
+  };
+
+  const resetImport = () => {
+    setTranscriptFiles([]);
+    setTranscriptResult(null);
+    setTranscriptError(null);
+    setPreviewResult(null);
+    setConflictResolutions({});
+    setImportStep("select");
+    if (transcriptFileInputRef.current) {
+      transcriptFileInputRef.current.value = "";
     }
   };
 
@@ -170,14 +283,14 @@ export default function ImportPage() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1f2937", margin: 0 }}>Import</h1>
-        <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Import</h1>
+        <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           Upload transcripts or BDD specs to populate the database
         </p>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border-default)" }}>
         {[
           { id: "transcripts" as const, label: "📞 Transcripts", desc: "Call recordings" },
           { id: "specs" as const, label: "📋 BDD Specs", desc: "Analysis specs" },
@@ -189,10 +302,10 @@ export default function ImportPage() {
               padding: "12px 20px",
               fontSize: 14,
               fontWeight: activeTab === tab.id ? 600 : 400,
-              background: activeTab === tab.id ? "#f9fafb" : "transparent",
-              color: activeTab === tab.id ? "#4f46e5" : "#6b7280",
+              background: activeTab === tab.id ? "var(--surface-secondary)" : "transparent",
+              color: activeTab === tab.id ? "var(--accent-primary)" : "var(--text-muted)",
               border: "none",
-              borderBottom: activeTab === tab.id ? "2px solid #4f46e5" : "2px solid transparent",
+              borderBottom: activeTab === tab.id ? "2px solid var(--accent-primary)" : "2px solid transparent",
               cursor: "pointer",
               marginBottom: -1,
             }}
@@ -205,150 +318,306 @@ export default function ImportPage() {
       {/* Transcripts Tab */}
       {activeTab === "transcripts" && (
         <div>
-          {/* Drop Zone */}
-          <div
-            onDrop={handleTranscriptDrop}
-            onDragOver={(e) => e.preventDefault()}
-            onClick={() => transcriptFileInputRef.current?.click()}
-            style={{
-              border: "2px dashed #d1d5db",
-              borderRadius: 12,
-              padding: 40,
-              textAlign: "center",
-              cursor: "pointer",
-              background: transcriptFiles.length > 0 ? "#f0fdf4" : "#f9fafb",
-              transition: "all 0.15s",
-            }}
-          >
-            <input
-              ref={transcriptFileInputRef}
-              type="file"
-              multiple
-              accept=".json,.txt,.csv"
-              onChange={handleTranscriptFileChange}
-              style={{ display: "none" }}
-            />
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📥</div>
-            {transcriptFiles.length > 0 ? (
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#166534" }}>
-                  {transcriptFiles.length} file(s) selected
-                </div>
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                  {transcriptFiles.map((f) => f.name).join(", ")}
-                </div>
+          {/* Step 1: File Selection */}
+          {importStep === "select" && (
+            <>
+              {/* Drop Zone */}
+              <div
+                onDrop={handleTranscriptDrop}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => transcriptFileInputRef.current?.click()}
+                style={{
+                  border: "2px dashed var(--border-default)",
+                  borderRadius: 12,
+                  padding: 40,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  background: transcriptFiles.length > 0 ? "var(--success-bg)" : "var(--surface-secondary)",
+                  transition: "all 0.15s",
+                }}
+              >
+                <input
+                  ref={transcriptFileInputRef}
+                  type="file"
+                  multiple
+                  accept=".json,.txt,.csv"
+                  onChange={handleTranscriptFileChange}
+                  style={{ display: "none" }}
+                />
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📥</div>
+                {transcriptFiles.length > 0 ? (
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--success-text)" }}>
+                      {transcriptFiles.length} file(s) selected
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                      {transcriptFiles.map((f) => f.name).join(", ")}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)" }}>
+                      Drop transcript files here or click to browse
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                      Supports JSON, TXT, CSV formats
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 500, color: "#374151" }}>
-                  Drop transcript files here or click to browse
-                </div>
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                  Supports JSON, TXT, CSV formats
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Options */}
-          <div style={{ marginTop: 20, padding: 16, background: "#f9fafb", borderRadius: 8 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
-              If caller already exists:
-            </label>
-            <div style={{ display: "flex", gap: 12 }}>
-              {[
-                { value: "skip", label: "Skip", desc: "Keep existing, ignore new" },
-                { value: "overwrite", label: "Overwrite", desc: "Replace existing data" },
-                { value: "create_new", label: "Create New", desc: "Create as new caller" },
-              ].map((opt) => (
-                <label
-                  key={opt.value}
+              {/* Options */}
+              <div style={{ marginTop: 20, padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-primary)" }}>
+                  If call already exists (by ID):
+                </label>
+                <div style={{ display: "flex", gap: 12 }}>
+                  {[
+                    { value: "skip", label: "Skip", desc: "Keep existing call" },
+                    { value: "overwrite", label: "Overwrite", desc: "Replace transcript" },
+                    { value: "create_new", label: "Create New", desc: "Create duplicate" },
+                  ].map((opt) => (
+                    <label
+                      key={opt.value}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        background: duplicateHandling === opt.value ? "var(--accent-bg)" : "var(--surface-primary)",
+                        border: duplicateHandling === opt.value ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="duplicateHandling"
+                        value={opt.value}
+                        checked={duplicateHandling === opt.value}
+                        onChange={(e) => setDuplicateHandling(e.target.value as any)}
+                        style={{ marginRight: 8 }}
+                      />
+                      <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{opt.label}</span>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, marginLeft: 20 }}>
+                        {opt.desc}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Save to raw folder option */}
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-default)" }}>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={saveToRaw}
+                      onChange={(e) => setSaveToRaw(e.target.checked)}
+                      style={{ width: 18, height: 18, marginTop: 2 }}
+                    />
+                    <div>
+                      <span style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)" }}>Save to raw folder</span>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                        Copies files to HF_KB_PATH/sources/transcripts/raw for future bulk imports
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Import Button */}
+              <div style={{ marginTop: 20 }}>
+                <button
+                  onClick={handleTranscriptPreview}
+                  disabled={transcriptFiles.length === 0 || transcriptImporting}
                   style={{
-                    flex: 1,
-                    padding: 12,
-                    background: duplicateHandling === opt.value ? "#eef2ff" : "#fff",
-                    border: duplicateHandling === opt.value ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                    padding: "12px 24px",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    background: transcriptFiles.length === 0 || transcriptImporting ? "var(--text-placeholder)" : "var(--accent-primary)",
+                    color: transcriptFiles.length === 0 || transcriptImporting ? "var(--text-muted)" : "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    cursor: transcriptFiles.length === 0 || transcriptImporting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {transcriptImporting ? "Checking..." : "Import Transcripts"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Step 2: Conflict Resolution */}
+          {importStep === "conflicts" && previewResult && (
+            <div>
+              <div style={{ marginBottom: 20, padding: 16, background: "var(--warning-bg)", borderRadius: 8, border: "1px solid var(--warning-border)" }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)", marginBottom: 8 }}>
+                  ⚠️ {previewResult.conflicts.length} Caller Conflict{previewResult.conflicts.length > 1 ? "s" : ""} Detected
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                  The following callers match existing records by phone number but have different names.
+                  Choose how to handle each one:
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div style={{ marginBottom: 20, display: "flex", gap: 16, fontSize: 13, color: "var(--text-secondary)" }}>
+                <span>{previewResult.summary.filesCount} file(s)</span>
+                <span>{previewResult.summary.callersCount} caller(s)</span>
+                <span>{previewResult.summary.callsCount} call(s)</span>
+              </div>
+
+              {/* Conflict Cards */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
+                {previewResult.conflicts.map((conflict) => (
+                  <div
+                    key={conflict.conflictKey}
+                    style={{
+                      background: "var(--surface-primary)",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 12,
+                      padding: 20,
+                    }}
+                  >
+                    {/* Match info */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                        Match by {conflict.matchType}: <code style={{ background: "var(--surface-secondary)", padding: "2px 6px", borderRadius: 4 }}>{conflict.matchValue}</code>
+                      </div>
+                    </div>
+
+                    {/* Side by side comparison */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                      {/* Existing Caller */}
+                      <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase" }}>
+                          Existing in Database
+                        </div>
+                        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                          {conflict.existingCaller.name || "(no name)"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                          {conflict.existingCaller.phone && <div>📱 {conflict.existingCaller.phone}</div>}
+                          {conflict.existingCaller.email && <div>📧 {conflict.existingCaller.email}</div>}
+                          <div>📞 {conflict.existingCaller.callCount} call(s) on record</div>
+                        </div>
+                        <Link
+                          href={`/x/callers/${conflict.existingCaller.id}`}
+                          target="_blank"
+                          style={{ fontSize: 11, color: "var(--accent-primary)", marginTop: 8, display: "inline-block" }}
+                        >
+                          View caller →
+                        </Link>
+                      </div>
+
+                      {/* Incoming Caller */}
+                      <div style={{ padding: 16, background: "var(--accent-bg)", borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase" }}>
+                          From Import
+                        </div>
+                        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                          {conflict.incomingCaller.name || "(no name)"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                          {conflict.incomingCaller.phone && <div>📱 {conflict.incomingCaller.phone}</div>}
+                          <div>📞 {conflict.incomingCaller.callCount} call(s) to import</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8, fontStyle: "italic" }}>
+                          &ldquo;{conflict.incomingCaller.firstTranscriptPreview}&rdquo;
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Resolution Options */}
+                    <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                      {[
+                        { value: "merge" as const, label: "Merge", desc: "Add calls to existing caller", color: "var(--success-text)" },
+                        { value: "create_new" as const, label: "Create New", desc: "Create as separate caller", color: "var(--accent-primary)" },
+                        { value: "skip" as const, label: "Skip", desc: "Don't import these calls", color: "var(--text-muted)" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => handleConflictResolution(conflict.conflictKey, opt.value)}
+                          style={{
+                            flex: 1,
+                            padding: "10px 12px",
+                            background: conflictResolutions[conflict.conflictKey] === opt.value ? "var(--surface-secondary)" : "transparent",
+                            border: conflictResolutions[conflict.conflictKey] === opt.value ? `2px solid ${opt.color}` : "1px solid var(--border-default)",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            textAlign: "left",
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: 13, color: conflictResolutions[conflict.conflictKey] === opt.value ? opt.color : "var(--text-primary)" }}>
+                            {opt.label}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{opt.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={() => setImportStep("select")}
+                  style={{
+                    padding: "12px 24px",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    background: "transparent",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
                     borderRadius: 8,
                     cursor: "pointer",
                   }}
                 >
-                  <input
-                    type="radio"
-                    name="duplicateHandling"
-                    value={opt.value}
-                    checked={duplicateHandling === opt.value}
-                    onChange={(e) => setDuplicateHandling(e.target.value as any)}
-                    style={{ marginRight: 8 }}
-                  />
-                  <span style={{ fontWeight: 500 }}>{opt.label}</span>
-                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2, marginLeft: 20 }}>
-                    {opt.desc}
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            {/* Save to raw folder option */}
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={saveToRaw}
-                  onChange={(e) => setSaveToRaw(e.target.checked)}
-                  style={{ width: 18, height: 18, marginTop: 2 }}
-                />
-                <div>
-                  <span style={{ fontWeight: 500, fontSize: 13 }}>Save to raw folder</span>
-                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                    Copies files to HF_KB_PATH/sources/transcripts/raw for future bulk imports via Data Management
-                  </div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Import Button */}
-          <div style={{ marginTop: 20 }}>
-            <button
-              onClick={handleTranscriptImport}
-              disabled={transcriptFiles.length === 0 || transcriptImporting}
-              style={{
-                padding: "12px 24px",
-                fontSize: 15,
-                fontWeight: 600,
-                background: transcriptFiles.length === 0 || transcriptImporting ? "#e5e7eb" : "#4f46e5",
-                color: transcriptFiles.length === 0 || transcriptImporting ? "#9ca3af" : "#fff",
-                border: "none",
-                borderRadius: 8,
-                cursor: transcriptFiles.length === 0 || transcriptImporting ? "not-allowed" : "pointer",
-              }}
-            >
-              {transcriptImporting ? "Importing..." : "Import Transcripts"}
-            </button>
-          </div>
-
-          {/* Error */}
-          {transcriptError && (
-            <div style={{ marginTop: 20, padding: 16, background: "#fef2f2", color: "#dc2626", borderRadius: 8 }}>
-              {transcriptError}
+                  ← Back
+                </button>
+                <button
+                  onClick={handleTranscriptImport}
+                  disabled={transcriptImporting}
+                  style={{
+                    padding: "12px 24px",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    background: transcriptImporting ? "var(--text-placeholder)" : "var(--success-text)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    cursor: transcriptImporting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {transcriptImporting ? "Importing..." : "Confirm & Import"}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Result */}
-          {transcriptResult && (
-            <div style={{ marginTop: 20, padding: 20, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#166534", marginBottom: 12 }}>
-                Import Complete
+          {/* Step 3: Result */}
+          {importStep === "result" && transcriptResult && (
+            <div style={{ padding: 20, background: "var(--success-bg)", border: "1px solid var(--success-border)", borderRadius: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--success-text)", marginBottom: 12 }}>
+                ✓ Import Complete
               </div>
-              <div style={{ display: "flex", gap: 24, fontSize: 14, color: "#374151" }}>
-                {transcriptResult.created !== undefined && <span>Created: {transcriptResult.created}</span>}
-                {transcriptResult.updated !== undefined && <span>Updated: {transcriptResult.updated}</span>}
-                {transcriptResult.skipped !== undefined && <span>Skipped: {transcriptResult.skipped}</span>}
+              <div style={{ display: "flex", gap: 24, fontSize: 14, color: "var(--text-primary)", flexWrap: "wrap" }}>
+                {transcriptResult.created !== undefined && transcriptResult.created > 0 && (
+                  <span>🆕 {transcriptResult.created} new caller(s)</span>
+                )}
+                {transcriptResult.merged !== undefined && transcriptResult.merged > 0 && (
+                  <span>🔗 {transcriptResult.merged} merged</span>
+                )}
+                {transcriptResult.callsImported !== undefined && (
+                  <span>📞 {transcriptResult.callsImported} call(s) imported</span>
+                )}
+                {transcriptResult.skipped !== undefined && transcriptResult.skipped > 0 && (
+                  <span style={{ color: "var(--text-muted)" }}>⏭️ {transcriptResult.skipped} skipped</span>
+                )}
               </div>
 
               {transcriptResult.callers && transcriptResult.callers.length > 0 && (
                 <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Imported callers:</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>Callers:</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {transcriptResult.callers.map((c) => (
                       <Link
@@ -356,15 +625,19 @@ export default function ImportPage() {
                         href={`/x/callers/${c.id}`}
                         style={{
                           padding: "6px 12px",
-                          background: c.isNew ? "#dbeafe" : "#f3f4f6",
-                          color: c.isNew ? "#1d4ed8" : "#374151",
+                          background: c.isNew ? "var(--accent-bg)" : c.merged ? "var(--warning-bg)" : "var(--surface-secondary)",
+                          color: c.isNew ? "var(--accent-primary)" : "var(--text-primary)",
                           borderRadius: 6,
                           fontSize: 13,
                           textDecoration: "none",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
                         }}
                       >
                         {c.name || c.email || c.id.slice(0, 8)}
-                        {c.isNew && <span style={{ marginLeft: 4, fontSize: 10 }}>NEW</span>}
+                        {c.isNew && <span style={{ fontSize: 10, background: "var(--accent-primary)", color: "#fff", padding: "1px 4px", borderRadius: 3 }}>NEW</span>}
+                        {c.merged && <span style={{ fontSize: 10, background: "var(--warning-text)", color: "#fff", padding: "1px 4px", borderRadius: 3 }}>MERGED</span>}
                       </Link>
                     ))}
                   </div>
@@ -372,28 +645,49 @@ export default function ImportPage() {
               )}
 
               {transcriptResult.savedToRaw && transcriptResult.savedToRaw.length > 0 && (
-                <div style={{ marginTop: 16, padding: 12, background: "#eff6ff", borderRadius: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "#1e40af", marginBottom: 4 }}>
-                    📁 Saved to raw folder ({transcriptResult.savedToRaw.length} files):
-                  </div>
-                  <div style={{ fontSize: 12, color: "#1e3a8a" }}>
-                    {transcriptResult.savedToRaw.join(", ")}
+                <div style={{ marginTop: 16, padding: 12, background: "var(--accent-bg)", borderRadius: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--accent-primary)", marginBottom: 4 }}>
+                    📁 Saved to raw folder ({transcriptResult.savedToRaw.length} files)
                   </div>
                 </div>
               )}
 
               {transcriptResult.errors && transcriptResult.errors.length > 0 && (
-                <div style={{ marginTop: 16, padding: 12, background: "#fef3c7", borderRadius: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "#92400e", marginBottom: 4 }}>
+                <div style={{ marginTop: 16, padding: 12, background: "var(--warning-bg)", borderRadius: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--warning-text)", marginBottom: 4 }}>
                     Warnings:
                   </div>
                   {transcriptResult.errors.map((err, i) => (
-                    <div key={i} style={{ fontSize: 12, color: "#78350f" }}>
+                    <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                       {err}
                     </div>
                   ))}
                 </div>
               )}
+
+              <button
+                onClick={resetImport}
+                style={{
+                  marginTop: 20,
+                  padding: "10px 20px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: "var(--surface-primary)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                }}
+              >
+                Import More
+              </button>
+            </div>
+          )}
+
+          {/* Error */}
+          {transcriptError && (
+            <div style={{ marginTop: 20, padding: 16, background: "var(--error-bg)", color: "var(--error-text)", borderRadius: 8 }}>
+              {transcriptError}
             </div>
           )}
         </div>
@@ -408,12 +702,12 @@ export default function ImportPage() {
             onDragOver={(e) => e.preventDefault()}
             onClick={() => specFileInputRef.current?.click()}
             style={{
-              border: "2px dashed #d1d5db",
+              border: "2px dashed var(--border-default)",
               borderRadius: 12,
               padding: 40,
               textAlign: "center",
               cursor: "pointer",
-              background: specFiles.length > 0 ? "#fef3c7" : "#f9fafb",
+              background: specFiles.length > 0 ? "var(--warning-bg)" : "var(--surface-secondary)",
               transition: "all 0.15s",
             }}
           >
@@ -428,19 +722,19 @@ export default function ImportPage() {
             <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
             {specFiles.length > 0 ? (
               <div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#92400e" }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)" }}>
                   {specFiles.length} spec file(s) selected
                 </div>
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
                   {specFiles.map((f) => f.name).join(", ")}
                 </div>
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: 16, fontWeight: 500, color: "#374151" }}>
+                <div style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)" }}>
                   Drop .spec.json files here or click to browse
                 </div>
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
                   BDD specification files (e.g., CA-001-cognitive-activation.spec.json)
                 </div>
               </div>
@@ -448,7 +742,7 @@ export default function ImportPage() {
           </div>
 
           {/* Options */}
-          <div style={{ marginTop: 20, padding: 16, background: "#f9fafb", borderRadius: 8 }}>
+          <div style={{ marginTop: 20, padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input
                 type="checkbox"
@@ -457,8 +751,8 @@ export default function ImportPage() {
                 style={{ width: 18, height: 18 }}
               />
               <div>
-                <span style={{ fontWeight: 500 }}>Auto-activate specs</span>
-                <div style={{ fontSize: 11, color: "#6b7280" }}>
+                <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>Auto-activate specs</span>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
                   Create Parameters, ScoringAnchors, and AnalysisSpec records automatically
                 </div>
               </div>
@@ -474,8 +768,8 @@ export default function ImportPage() {
                 padding: "12px 24px",
                 fontSize: 15,
                 fontWeight: 600,
-                background: specFiles.length === 0 || specImporting ? "#e5e7eb" : "#f59e0b",
-                color: specFiles.length === 0 || specImporting ? "#9ca3af" : "#fff",
+                background: specFiles.length === 0 || specImporting ? "var(--text-placeholder)" : "var(--warning-text)",
+                color: specFiles.length === 0 || specImporting ? "var(--text-muted)" : "#fff",
                 border: "none",
                 borderRadius: 8,
                 cursor: specFiles.length === 0 || specImporting ? "not-allowed" : "pointer",
@@ -487,59 +781,59 @@ export default function ImportPage() {
 
           {/* Error */}
           {specError && (
-            <div style={{ marginTop: 20, padding: 16, background: "#fef2f2", color: "#dc2626", borderRadius: 8 }}>
+            <div style={{ marginTop: 20, padding: 16, background: "var(--error-bg)", color: "var(--error-text)", borderRadius: 8 }}>
               {specError}
             </div>
           )}
 
           {/* Result */}
           {specResult && (
-            <div style={{ marginTop: 20, padding: 20, background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 12 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#92400e", marginBottom: 12 }}>
+            <div style={{ marginTop: 20, padding: 20, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)", marginBottom: 12 }}>
                 Import Complete
               </div>
-              <div style={{ display: "flex", gap: 24, fontSize: 14, color: "#374151" }}>
+              <div style={{ display: "flex", gap: 24, fontSize: 14, color: "var(--text-primary)" }}>
                 <span>Created: {specResult.created || 0}</span>
                 <span>Updated: {specResult.updated || 0}</span>
-                {(specResult.errors || 0) > 0 && <span style={{ color: "#dc2626" }}>Errors: {specResult.errors}</span>}
+                {(specResult.errors || 0) > 0 && <span style={{ color: "var(--error-text)" }}>Errors: {specResult.errors}</span>}
               </div>
 
               {specResult.results && specResult.results.length > 0 && (
                 <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Results:</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>Results:</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {specResult.results.map((r) => (
                       <div
                         key={r.specId}
                         style={{
                           padding: "8px 12px",
-                          background: r.status === "error" ? "#fef2f2" : r.status === "created" ? "#f0fdf4" : "#f3f4f6",
-                          border: r.status === "error" ? "1px solid #fecaca" : "1px solid #e5e7eb",
+                          background: r.status === "error" ? "var(--error-bg)" : r.status === "created" ? "var(--success-bg)" : "var(--surface-secondary)",
+                          border: r.status === "error" ? "1px solid var(--error-border)" : "1px solid var(--border-default)",
                           borderRadius: 6,
                           fontSize: 13,
                         }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontWeight: 500 }}>{r.specId}</span>
+                          <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{r.specId}</span>
                           <span
                             style={{
                               padding: "2px 8px",
                               borderRadius: 4,
                               fontSize: 11,
                               fontWeight: 600,
-                              background: r.status === "error" ? "#dc2626" : r.status === "created" ? "#10b981" : "#6b7280",
+                              background: r.status === "error" ? "var(--error-text)" : r.status === "created" ? "var(--success-text)" : "var(--text-muted)",
                               color: "#fff",
                             }}
                           >
                             {r.status.toUpperCase()}
                           </span>
                         </div>
-                        <div style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>{r.name}</div>
+                        <div style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>{r.name}</div>
                         {r.error && (
-                          <div style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>{r.error}</div>
+                          <div style={{ color: "var(--error-text)", fontSize: 11, marginTop: 4 }}>{r.error}</div>
                         )}
                         {r.compileWarnings && r.compileWarnings.length > 0 && (
-                          <div style={{ color: "#92400e", fontSize: 11, marginTop: 4 }}>
+                          <div style={{ color: "var(--warning-text)", fontSize: 11, marginTop: 4 }}>
                             Warnings: {r.compileWarnings.join(", ")}
                           </div>
                         )}
@@ -552,11 +846,11 @@ export default function ImportPage() {
           )}
 
           {/* Help Section */}
-          <div style={{ marginTop: 32, padding: 20, background: "#f9fafb", borderRadius: 8 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginTop: 32, padding: 20, background: "var(--surface-secondary)", borderRadius: 8 }}>
+            <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
               About BDD Specs
             </h3>
-            <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
               <p><strong>BDD Specs</strong> define analysis parameters, triggers, actions, and prompt guidance.</p>
               <p>Each spec creates:</p>
               <ul style={{ margin: "8px 0", paddingLeft: 20 }}>

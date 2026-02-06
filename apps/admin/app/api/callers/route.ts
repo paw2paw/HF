@@ -55,12 +55,7 @@ export async function GET(req: Request) {
       domainId: caller.domainId || null,
       domain: caller.domain || null,
       personality: caller.personality || null,
-      nextPrompt: caller.nextPrompt,
-      nextPromptComposedAt: caller.nextPromptComposedAt,
-      callCount: caller.callCount,
-      lastCallAt: caller.lastCallAt,
       createdAt: caller.createdAt,
-      updatedAt: caller.updatedAt,
     }));
 
     // If counts requested, fetch related counts
@@ -103,7 +98,7 @@ export async function GET(req: Request) {
         const caller = callers[i];
         (callersFlattened[i] as any)._count = {
           memories: memoryCountMap.get(caller.id) || 0,
-          calls: callCountMap.get(caller.id) || caller.callCount,
+          calls: callCountMap.get(caller.id) || 0,
         };
       }
     } else {
@@ -111,7 +106,7 @@ export async function GET(req: Request) {
       for (const caller of callersFlattened) {
         (caller as any)._count = {
           memories: 0,
-          calls: (caller as any).callCount || 0,
+          calls: 0,
         };
       }
     }

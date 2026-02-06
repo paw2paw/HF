@@ -620,7 +620,7 @@ async function runBatchedCallerAnalysis(
                 callId: call.id,
                 category: mappedCategory,
                 key: mem.key,
-                value: mem.value,
+                value: String(mem.value),
                 evidence: mem.evidence || "AI extraction",
                 confidence: mem.confidence || 0.8,
                 extractedBy: `${engine}_batched_v1`,

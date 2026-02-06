@@ -14,11 +14,37 @@ export async function POST(
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
-    // TODO: BDDFeatureSet model doesn't exist in schema - recompile functionality not implemented
-    return NextResponse.json(
-      { ok: false, error: "Recompile functionality not available - BDDFeatureSet model doesn't exist in schema" },
-      { status: 501 }
-    );
+    const { specId } = await params;
+
+    // Find the spec and its linked BDDFeatureSet
+    const spec = await prisma.analysisSpec.findUnique({
+      where: { id: specId },
+    });
+
+    if (!spec) {
+      return NextResponse.json(
+        { ok: false, error: "Spec not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!spec.compiledSetId) {
+      return NextResponse.json(
+        { ok: false, error: "Spec has no linked BDDFeatureSet - cannot recompile" },
+        { status: 400 }
+      );
+    }
+
+    const featureSet = await prisma.bDDFeatureSet.findUnique({
+      where: { id: spec.compiledSetId },
+    });
+
+    if (!featureSet) {
+      return NextResponse.json(
+        { ok: false, error: "Linked BDDFeatureSet not found" },
+        { status: 404 }
+      );
+    }
 
     if (!featureSet.rawSpec) {
       return NextResponse.json(
@@ -74,11 +100,13 @@ export async function POST(
       },
     });
 
-    // Also update the feature set compilation timestamp
+    // Touch the feature set updatedAt timestamp
     await prisma.bDDFeatureSet.update({
       where: { id: featureSet.id },
       data: {
-        compiledAt: new Date(),
+        // updatedAt is auto-managed by @updatedAt
+        // Just touch the record to update the timestamp
+        isActive: featureSet.isActive,
       },
     });
 

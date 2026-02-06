@@ -476,7 +476,7 @@ async function storeAnalysisResults(
       category: e.category as MemoryCategory,
       source: "EXTRACTED" as const,  // Keep DB value for backwards compatibility
       key: e.key,
-      value: e.value,
+      value: String(e.value),
       evidence: e.evidence,
       confidence: 0.8,
       extractedBy: "unified_analysis",

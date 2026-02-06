@@ -215,8 +215,7 @@ async function loadTranscripts() {
             externalId: call.id || `import-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             callerId,
             transcript: call.transcript,
-            startedAt: call.startedAt ? new Date(call.startedAt) : null,
-            endedAt: call.endedAt ? new Date(call.endedAt) : null,
+            // Note: startedAt/endedAt removed - not in current schema
           },
         });
         callsCreated++;

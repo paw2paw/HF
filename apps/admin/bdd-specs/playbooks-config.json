@@ -35,6 +35,8 @@
         "BEH-DIRECTNESS": 0.5,
         "BEH-PROACTIVE": 0.7,
         "BEH-QUESTION-RATE": 0.6,
+        "BEH-QUESTION-FREQUENCY": 0.45,
+        "BEH-INSIGHT-FREQUENCY": 0.6,
         "BEH-PACE-MATCH": 0.9
       }
     },
@@ -73,6 +75,7 @@
         "BEH-DIRECTNESS": 0.6,
         "BEH-PROACTIVE": 0.8,
         "BEH-QUESTION-RATE": 0.75,
+        "BEH-QUESTION-FREQUENCY": 0.6,
         "BEH-PACE-MATCH": 0.8
       }
     },
@@ -87,7 +90,7 @@
       },
       "status": "PUBLISHED",
       "version": "1.0",
-      "identitySpecs": ["TUT-001"],
+      "identitySpecs": ["TUT-QM-001"],
       "contentSpecs": ["QM-CONTENT-001"],
       "goals": [
         {
@@ -110,7 +113,8 @@
         "BEH-FORMALITY": 0.55,
         "BEH-DIRECTNESS": 0.55,
         "BEH-PROACTIVE": 0.75,
-        "BEH-QUESTION-RATE": 0.75,
+        "BEH-QUESTION-RATE": 0.55,
+        "BEH-QUESTION-FREQUENCY": 0.6,
         "BEH-PACE-MATCH": 0.85
       }
     }

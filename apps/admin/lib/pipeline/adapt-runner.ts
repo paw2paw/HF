@@ -172,14 +172,10 @@ async function applyAdaptationRules(
             parameterId: action.targetParameter,
             targetValue,
             confidence: 0.8, // Adaptation confidence
-            sourceSpecSlug: specSlug,
-            reasoning: action.rationale,
           },
           update: {
             targetValue,
             confidence: 0.8,
-            sourceSpecSlug: specSlug,
-            reasoning: action.rationale,
           },
         });
 

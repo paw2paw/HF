@@ -201,6 +201,9 @@ export async function GET(
     const measureSpecs: typeof enabledSystemSpecs = [];
     const learnSpecs: typeof enabledSystemSpecs = [];
     const adaptSpecs: typeof enabledSystemSpecs = [];
+    const rewardSpecs: typeof enabledSystemSpecs = [];
+    const guardrailSpecs: typeof enabledSystemSpecs = [];
+    const composeSpecs: typeof enabledSystemSpecs = [];
     const otherSpecs: typeof enabledSystemSpecs = [];
 
     // Combine all enabled specs (deduplicated by spec ID)
@@ -239,6 +242,14 @@ export async function GET(
         learnSpecs.push(spec);
       } else if (output === "ADAPT") {
         adaptSpecs.push(spec);
+      } else if (output === "AGGREGATE") {
+        measureSpecs.push(spec); // Aggregation is post-processing on measurements
+      } else if (output === "REWARD" || role === "REWARD") {
+        rewardSpecs.push(spec);
+      } else if (output === "SUPERVISE" || role === "GUARDRAIL") {
+        guardrailSpecs.push(spec);
+      } else if (output === "COMPOSE") {
+        composeSpecs.push(spec);
       } else {
         otherSpecs.push(spec);
       }
@@ -500,6 +511,115 @@ export async function GET(
       tree.push(adaptCategory);
     }
 
+    // REWARD category
+    if (rewardSpecs.length > 0) {
+      const rewardCategory: SlugNode = {
+        id: "category-reward",
+        type: "category",
+        name: "REWARD",
+        meta: { icon: "⭐", description: "Computes reward scores → RewardScore", specCount: rewardSpecs.length },
+        children: [],
+      };
+
+      for (const spec of rewardSpecs) {
+        const specNode: SlugNode = {
+          id: spec.id,
+          type: "spec",
+          name: spec.name,
+          specId: spec.id,
+          specSlug: spec.slug,
+          meta: { description: spec.description, scope: spec.scope },
+          children: [],
+        };
+
+        const parameters = new Map<string, { name: string; id: string }>();
+        for (const trigger of spec.triggers || []) {
+          for (const action of trigger.actions || []) {
+            if (action.parameter) {
+              parameters.set(action.parameterId!, {
+                name: action.parameter.name,
+                id: action.parameter.id,
+              });
+            }
+          }
+        }
+
+        if (parameters.size > 0) {
+          specNode.children!.push({
+            id: `${spec.id}-produces`,
+            type: "produces",
+            name: "Produces",
+            meta: { outputType: "RewardScore" },
+            children: Array.from(parameters.entries()).map(([paramId, param]) => ({
+              id: `${spec.id}-reward-${paramId}`,
+              type: "variable" as const,
+              name: param.name,
+              path: `{rewards.${paramId}}`,
+              meta: { parameterId: paramId, linkTo: `/parameters?id=${param.id}` },
+            })),
+          });
+        }
+
+        rewardCategory.children!.push(specNode);
+      }
+
+      tree.push(rewardCategory);
+    }
+
+    // GUARDRAIL category (specRole=GUARDRAIL or outputType=SUPERVISE)
+    if (guardrailSpecs.length > 0) {
+      const guardrailCategory: SlugNode = {
+        id: "category-guardrail",
+        type: "category",
+        name: "GUARDRAIL",
+        meta: { icon: "🛡️", description: "Enforces safety bounds on computed values", specCount: guardrailSpecs.length },
+        children: [],
+      };
+
+      for (const spec of guardrailSpecs) {
+        const config = spec.config as Record<string, any> | null;
+        const specNode: SlugNode = {
+          id: spec.id,
+          type: "spec",
+          name: spec.name,
+          specId: spec.id,
+          specSlug: spec.slug,
+          meta: { description: spec.description, scope: spec.scope },
+          children: config ? extractConfigSlugs(config, "guardrail", spec.id, spec.slug) : [],
+        };
+        guardrailCategory.children!.push(specNode);
+      }
+
+      tree.push(guardrailCategory);
+    }
+
+    // COMPOSE category
+    if (composeSpecs.length > 0) {
+      const composeCategory: SlugNode = {
+        id: "category-compose",
+        type: "category",
+        name: "COMPOSE",
+        meta: { icon: "🧩", description: "Assembles final prompt from context → ComposedPrompt", specCount: composeSpecs.length },
+        children: [],
+      };
+
+      for (const spec of composeSpecs) {
+        const config = spec.config as Record<string, any> | null;
+        const specNode: SlugNode = {
+          id: spec.id,
+          type: "spec",
+          name: spec.name,
+          specId: spec.id,
+          specSlug: spec.slug,
+          meta: { description: spec.description, scope: spec.scope },
+          children: config ? extractConfigSlugs(config, "compose", spec.id, spec.slug) : [],
+        };
+        composeCategory.children!.push(specNode);
+      }
+
+      tree.push(composeCategory);
+    }
+
     // Count totals
     const counts = {
       identity: identitySpecs.length,
@@ -508,6 +628,9 @@ export async function GET(
       measure: measureSpecs.length,
       learn: learnSpecs.length,
       adapt: adaptSpecs.length,
+      reward: rewardSpecs.length,
+      guardrail: guardrailSpecs.length,
+      compose: composeSpecs.length,
       total: allEnabledSpecs.length,
     };
 

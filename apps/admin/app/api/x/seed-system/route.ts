@@ -65,7 +65,7 @@ export async function POST() {
     // STEP 1: SYNC BDD SPECS
     // ============================================
     try {
-      console.log("STEP 1/3: Syncing BDD specs from /bdd-specs directory...");
+      console.log("STEP 1/4: Syncing BDD specs from /bdd-specs directory...");
       const specResults = await seedFromSpecs();
       results.specsSynced = specResults.length;
       const totalParams = specResults.reduce(
@@ -82,7 +82,7 @@ export async function POST() {
     // STEP 2: ENSURE BEHAVIOR PARAMETERS
     // ============================================
     try {
-      console.log("STEP 2/3: Ensuring behavior parameters exist...");
+      console.log("STEP 2/4: Ensuring behavior parameters exist...");
       const createdCount = await ensureBehaviorParameters(prisma);
       results.parametersCreated += createdCount;
       console.log(`   ✓ Ensured ${createdCount} behavior parameters`);
@@ -92,10 +92,47 @@ export async function POST() {
     }
 
     // ============================================
-    // STEP 3: CREATE DOMAINS FROM CONFIG
+    // STEP 3: ENSURE SYSTEM-LEVEL BEHAVIOR TARGETS
     // ============================================
     try {
-      console.log("STEP 3/3: Creating domains and playbooks from config...");
+      console.log("STEP 3/4: Ensuring SYSTEM-level BehaviorTargets...");
+      const allBehaviorParams = await prisma.parameter.findMany({
+        where: { parameterType: "BEHAVIOR" },
+        select: { parameterId: true, name: true },
+      });
+      const existingTargets = await prisma.behaviorTarget.findMany({
+        where: { scope: "SYSTEM", effectiveUntil: null },
+        select: { parameterId: true },
+      });
+      const existingParamIds = new Set(existingTargets.map(t => t.parameterId));
+
+      let targetsCreated = 0;
+      for (const param of allBehaviorParams) {
+        if (!existingParamIds.has(param.parameterId)) {
+          await prisma.behaviorTarget.create({
+            data: {
+              parameterId: param.parameterId,
+              scope: "SYSTEM",
+              targetValue: 0.5,
+              confidence: 0.5,
+              source: "SEED",
+            },
+          });
+          targetsCreated++;
+          console.log(`   + SYSTEM target: ${param.parameterId} = 0.50`);
+        }
+      }
+      console.log(`   ✓ Created ${targetsCreated} new SYSTEM-level BehaviorTargets (${existingTargets.length} already existed)`);
+    } catch (e: any) {
+      console.error("Error creating SYSTEM targets:", e);
+      results.errors.push(`SYSTEM TARGETS: ${e.message}`);
+    }
+
+    // ============================================
+    // STEP 4: CREATE DOMAINS FROM CONFIG
+    // ============================================
+    try {
+      console.log("STEP 4/4: Creating domains and playbooks from config...");
 
       // Load playbooks config
       const configPath = path.join(process.cwd(), "bdd-specs", "playbooks-config.json");
@@ -124,6 +161,72 @@ export async function POST() {
       results.errors.push(`PLAYBOOKS CONFIG: ${e.message}`);
     }
 
+    // ============================================
+    // STEP 5: VALIDATE CROSS-REFERENCES
+    // ============================================
+    const validationWarnings: string[] = [];
+    try {
+      console.log("STEP 5: Validating cross-references against registry...");
+
+      const registryPath = path.join(process.cwd(), "bdd-specs", "behavior-parameters.registry.json");
+      if (fs.existsSync(registryPath)) {
+        const registry = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
+        const canonicalIds = new Set<string>(registry.parameters.map((p: any) => p.parameterId));
+        const deprecatedMap = new Map<string, string>();
+        for (const dep of registry.deprecated || []) {
+          deprecatedMap.set(dep.id, dep.canonicalId);
+        }
+
+        // Check playbook config references
+        const configPath = path.join(process.cwd(), "bdd-specs", "playbooks-config.json");
+        if (fs.existsSync(configPath)) {
+          const manifest = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+          for (const pb of manifest.playbooks) {
+            for (const paramId of Object.keys(pb.behaviorTargets || {})) {
+              if (!canonicalIds.has(paramId)) {
+                const canonical = deprecatedMap.get(paramId);
+                if (canonical) {
+                  validationWarnings.push(`Playbook "${pb.id}" uses deprecated "${paramId}" → should be "${canonical}"`);
+                } else {
+                  validationWarnings.push(`Playbook "${pb.id}" references unknown parameter "${paramId}"`);
+                }
+              }
+            }
+          }
+        }
+
+        // Check spec files for parameterId references against registry
+        const specsFolder = path.join(process.cwd(), "bdd-specs");
+        const specFiles = fs.readdirSync(specsFolder).filter(f => f.endsWith(".spec.json"));
+        for (const file of specFiles) {
+          const content = fs.readFileSync(path.join(specsFolder, file), "utf-8");
+          const behRefs = content.match(/"(?:parameterId|targetParameter)":\s*"(BEH-[^"]+)"/g) || [];
+          for (const ref of behRefs) {
+            const paramId = ref.match(/"(BEH-[^"]+)"/)?.[1];
+            if (paramId && !canonicalIds.has(paramId)) {
+              const canonical = deprecatedMap.get(paramId);
+              if (canonical) {
+                validationWarnings.push(`${file}: uses deprecated "${paramId}" → should be "${canonical}"`);
+              } else {
+                validationWarnings.push(`${file}: references unknown parameter "${paramId}"`);
+              }
+            }
+          }
+        }
+
+        if (validationWarnings.length > 0) {
+          console.warn(`   ⚠️ ${validationWarnings.length} cross-reference warnings:`);
+          for (const w of validationWarnings) {
+            console.warn(`      - ${w}`);
+          }
+        } else {
+          console.log("   ✓ All cross-references valid");
+        }
+      }
+    } catch (e: any) {
+      console.error("Error during validation:", e);
+    }
+
     const message =
       results.errors.length === 0
         ? `System initialized: ${results.specsSynced} specs synced, ${results.domainsCreated.length} domains created with ${results.playbooksCreated.length} playbooks, ${results.specsCreated} linked specs, ${results.parametersCreated} parameters`
@@ -132,6 +235,7 @@ export async function POST() {
     return NextResponse.json({
       ok: results.errors.length === 0,
       message,
+      validationWarnings: validationWarnings.length > 0 ? validationWarnings : undefined,
       details: results,
     });
   } catch (error: any) {
@@ -197,7 +301,7 @@ async function createPlaybookFromConfig(
       version: config.version,
       config: {
         goals: config.goals || [], // Store goals from config
-      },
+      } as any,
     },
   });
   console.log(`   ✓ Created playbook: ${playbook.name}`);
@@ -301,93 +405,47 @@ async function findSpecsForPlaybook(
 }
 
 /**
- * Ensures essential behavior parameters exist
+ * Ensures all behavior parameters from the canonical registry exist.
+ * Reads from bdd-specs/behavior-parameters.registry.json — the SINGLE SOURCE OF TRUTH.
  */
 async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
-  const essentialBehaviorParams = [
-    {
-      parameterId: "BEH-WARMTH",
-      name: "Warmth Level",
-      definition: "Overall warmth and friendliness in agent tone",
-      sectionId: "behavior",
-      domainGroup: "empathy",
-      interpretationHigh: "Agent is warm, friendly, and approachable",
-      interpretationLow: "Agent is neutral or distant in tone",
-    },
-    {
-      parameterId: "BEH-EMPATHY-RATE",
-      name: "Empathy Expression Rate",
-      definition: "Frequency of empathetic statements, acknowledgments, and emotional validation",
-      sectionId: "behavior",
-      domainGroup: "empathy",
-      interpretationHigh: "Agent frequently expresses empathy and validates emotions",
-      interpretationLow: "Agent maintains neutral, task-focused communication",
-    },
-    {
-      parameterId: "BEH-FORMALITY",
-      name: "Formality Level",
-      definition: "Degree of formal vs casual language in agent responses",
-      sectionId: "behavior",
-      domainGroup: "communication",
-      interpretationHigh: "Agent uses formal, professional language",
-      interpretationLow: "Agent uses casual, conversational language",
-    },
-    {
-      parameterId: "BEH-DIRECTNESS",
-      name: "Directness Level",
-      definition: "How direct vs indirect the agent is in communication",
-      sectionId: "behavior",
-      domainGroup: "communication",
-      interpretationHigh: "Agent is direct and to-the-point",
-      interpretationLow: "Agent is indirect and nuanced",
-    },
-    {
-      parameterId: "BEH-PROACTIVE",
-      name: "Proactivity Level",
-      definition: "How proactively the agent offers information, suggestions, or guidance",
-      sectionId: "behavior",
-      domainGroup: "engagement",
-      interpretationHigh: "Agent proactively offers help and suggestions",
-      interpretationLow: "Agent waits for caller to ask or lead",
-    },
-    {
-      parameterId: "BEH-QUESTION-RATE",
-      name: "Question Asking Rate",
-      definition: "Frequency of questions asked by the agent to engage the caller",
-      sectionId: "behavior",
-      domainGroup: "engagement",
-      interpretationHigh: "Agent asks many questions to engage caller",
-      interpretationLow: "Agent primarily provides information without questions",
-    },
-    {
-      parameterId: "BEH-PACE-MATCH",
-      name: "Pace Matching",
-      definition: "How well the agent matches the caller's conversational pace and energy",
-      sectionId: "behavior",
-      domainGroup: "adaptation",
-      interpretationHigh: "Agent closely matches caller's pace and energy",
-      interpretationLow: "Agent maintains own pace regardless of caller",
-    },
-  ];
+  // Load canonical registry
+  const registryPath = path.join(process.cwd(), "bdd-specs", "behavior-parameters.registry.json");
+  if (!fs.existsSync(registryPath)) {
+    console.warn("   ⚠️ behavior-parameters.registry.json not found — skipping");
+    return 0;
+  }
+
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
+  const registryParams: Array<{
+    parameterId: string;
+    name: string;
+    definition: string;
+    domainGroup: string;
+    defaultTarget: number;
+    interpretationHigh: string;
+    interpretationLow: string;
+    aliases?: string[];
+  }> = registry.parameters;
+
+  console.log(`   Loading ${registryParams.length} parameters from registry...`);
 
   let createdCount = 0;
 
-  for (const param of essentialBehaviorParams) {
+  for (const param of registryParams) {
     const existing = await prisma.parameter.findUnique({
       where: { parameterId: param.parameterId },
     });
 
     if (existing) {
-      // Update existing parameter to ensure correct type and adjustable flag
       await prisma.parameter.update({
         where: { parameterId: param.parameterId },
         data: {
           parameterType: "BEHAVIOR",
           isAdjustable: true,
-          // Also update other fields to ensure consistency
           name: param.name,
           definition: param.definition,
-          sectionId: param.sectionId,
+          sectionId: "behavior",
           domainGroup: param.domainGroup,
           interpretationHigh: param.interpretationHigh,
           interpretationLow: param.interpretationLow,
@@ -397,13 +455,12 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
         },
       });
     } else {
-      // Create new parameter
       await prisma.parameter.create({
         data: {
           parameterId: param.parameterId,
           name: param.name,
           definition: param.definition,
-          sectionId: param.sectionId,
+          sectionId: "behavior",
           domainGroup: param.domainGroup,
           interpretationHigh: param.interpretationHigh,
           interpretationLow: param.interpretationLow,
@@ -415,6 +472,18 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
         },
       });
       createdCount++;
+      console.log(`   + Created: ${param.parameterId}`);
+    }
+  }
+
+  // Validate: warn about deprecated aliases still in use
+  const deprecated: Array<{ id: string; canonicalId: string; reason: string }> = registry.deprecated || [];
+  for (const dep of deprecated) {
+    const aliasExists = await prisma.parameter.findUnique({
+      where: { parameterId: dep.id },
+    });
+    if (aliasExists) {
+      console.warn(`   ⚠️ DEPRECATED parameter "${dep.id}" still exists — should be "${dep.canonicalId}" (${dep.reason})`);
     }
   }
 

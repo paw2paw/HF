@@ -69,9 +69,9 @@ export async function GET(
           definitionCount: true,
           isActive: true,
           activatedAt: true,
-          compiledAt: true,
-          lastTestAt: true,
-          lastTestResult: true,
+          validations: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
     }
@@ -205,39 +205,8 @@ export async function PUT(
     const wasCompiled = existing.compiledAt !== null && !existing.isDirty;
 
     // If deactivating a SYSTEM spec, cascade to all PlaybookSystemSpec records
-    let affectedPlaybooks: { id: string; name: string }[] = [];
-    if (isActive === false && existing.isActive === true && existing.scope === "SYSTEM") {
-      // Find all playbooks that have this spec enabled
-      const enabledPlaybookSpecs = await prisma.playbookSpec.findMany({
-        where: {
-          specId,
-          isEnabled: true,
-        },
-        include: {
-          playbook: {
-            select: { id: true, name: true },
-          },
-        },
-      });
-
-      affectedPlaybooks = enabledPlaybookSpecs.map(pss => ({
-        id: pss.playbook.id,
-        name: pss.playbook.name,
-      }));
-
-      // Cascade: disable this spec in all playbooks
-      if (enabledPlaybookSpecs.length > 0) {
-        await prisma.playbookSpec.updateMany({
-          where: {
-            specId,
-            isEnabled: true,
-          },
-          data: {
-            isEnabled: false,
-          },
-        });
-      }
-    }
+    // TODO: PlaybookSystemSpec model doesn't exist yet - cascade logic disabled
+    const affectedPlaybooks: { id: string; name: string }[] = [];
 
     const spec = await prisma.analysisSpec.update({
       where: { id: specId },

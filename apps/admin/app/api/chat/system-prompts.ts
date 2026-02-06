@@ -105,14 +105,20 @@ Help users write clear specs with:
 - Valid template syntax`;
 
 /**
- * Build context string from entity breadcrumbs
+ * Build context string from entity breadcrumbs.
+ * Always includes a system overview so the AI knows about all domains, playbooks, and specs.
  */
 async function buildEntityContext(breadcrumbs: EntityBreadcrumb[]): Promise<string> {
-  if (!breadcrumbs.length) {
-    return "No specific context selected. Ask the user to navigate to a caller or call for context-aware assistance.";
-  }
-
   const parts: string[] = ["## Current Context"];
+
+  // Always load system overview so the AI has full knowledge
+  const systemOverview = await getSystemOverview();
+  if (systemOverview) parts.push(systemOverview);
+
+  if (!breadcrumbs.length) {
+    parts.push("\n_No specific entity selected. The user can navigate to a caller, playbook, or spec for detailed context._");
+    return parts.join("\n\n");
+  }
 
   for (const crumb of breadcrumbs) {
     switch (crumb.type) {
@@ -142,6 +148,104 @@ async function buildEntityContext(breadcrumbs: EntityBreadcrumb[]): Promise<stri
   }
 
   return parts.join("\n\n");
+}
+
+/**
+ * Always-loaded system overview: domains, playbooks, specs, and behavior parameters.
+ * Gives the AI full knowledge of what exists in the system regardless of navigation state.
+ */
+async function getSystemOverview(): Promise<string | null> {
+  try {
+    const [domains, playbooks, specCount, behaviorParams] = await Promise.all([
+      prisma.domain.findMany({
+        include: {
+          playbooks: {
+            select: { id: true, name: true, status: true, version: true, config: true },
+            orderBy: { createdAt: "desc" },
+          },
+          _count: { select: { callers: true } },
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.playbook.findMany({
+        include: {
+          domain: { select: { name: true, slug: true } },
+          items: {
+            where: { itemType: "SPEC" },
+            include: { spec: { select: { name: true, slug: true, outputType: true, specRole: true } } },
+          },
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.analysisSpec.count({ where: { isActive: true } }),
+      prisma.parameter.findMany({
+        where: { parameterType: "BEHAVIOR" },
+        select: { parameterId: true, name: true, domainGroup: true },
+        orderBy: { domainGroup: "asc" },
+      }),
+    ]);
+
+    const parts: string[] = ["### System Overview"];
+
+    // Stats
+    parts.push(`- **Domains:** ${domains.length} | **Playbooks:** ${playbooks.length} | **Active Specs:** ${specCount} | **Behavior Parameters:** ${behaviorParams.length}`);
+
+    // Domains + Playbooks
+    if (domains.length > 0) {
+      parts.push("\n**Domains & Playbooks:**");
+      for (const domain of domains) {
+        parts.push(`- **${domain.name}** (${domain.slug}) — ${domain._count.callers} callers`);
+        if (domain.description) parts.push(`  ${domain.description}`);
+        for (const pb of domain.playbooks) {
+          const goals = (pb.config as any)?.goals;
+          const goalSummary = Array.isArray(goals) && goals.length > 0
+            ? ` — Goals: ${goals.map((g: any) => g.name).join(", ")}`
+            : "";
+          parts.push(`  - Playbook: **${pb.name}** [${pb.status}] v${pb.version || "1"}${goalSummary}`);
+        }
+      }
+    }
+
+    // Playbook spec breakdown
+    if (playbooks.length > 0) {
+      parts.push("\n**Playbook Specs:**");
+      for (const pb of playbooks) {
+        const specs = pb.items?.map((i) => i.spec).filter(Boolean) || [];
+        if (specs.length > 0) {
+          const byRole: Record<string, string[]> = {};
+          for (const s of specs) {
+            if (!s) continue;
+            const role = s.specRole || s.outputType || "OTHER";
+            if (!byRole[role]) byRole[role] = [];
+            byRole[role].push(s.name);
+          }
+          const roleSummary = Object.entries(byRole)
+            .map(([role, names]) => `${role}: ${names.join(", ")}`)
+            .join(" | ");
+          parts.push(`- **${pb.name}** (${specs.length} specs) — ${roleSummary}`);
+        }
+      }
+    }
+
+    // Behavior parameters grouped
+    if (behaviorParams.length > 0) {
+      parts.push("\n**Behavior Parameters:**");
+      const grouped: Record<string, string[]> = {};
+      for (const p of behaviorParams) {
+        const group = p.domainGroup || "other";
+        if (!grouped[group]) grouped[group] = [];
+        grouped[group].push(`${p.name} (${p.parameterId})`);
+      }
+      for (const [group, params] of Object.entries(grouped)) {
+        parts.push(`- **${group}:** ${params.join(", ")}`);
+      }
+    }
+
+    return parts.join("\n");
+  } catch (e) {
+    console.error("Error loading system overview:", e);
+    return null;
+  }
 }
 
 async function getCallerContext(callerId: string): Promise<string | null> {
@@ -251,7 +355,7 @@ async function getCallerContext(callerId: string): Promise<string | null> {
     if (recentCall) {
       parts.push("\n**Most Recent Call:**");
       parts.push(`- Call #${recentCall.callSequence || "?"} on ${recentCall.createdAt.toLocaleDateString()}`);
-      parts.push(`- Status: ${recentCall.status || "completed"}`);
+      parts.push(`- Status: completed`);
       if (recentCall.transcript) {
         const preview = recentCall.transcript.slice(0, 300).replace(/\n/g, " ");
         parts.push(`- Transcript preview: "${preview}${recentCall.transcript.length > 300 ? "..." : ""}"`);
@@ -344,30 +448,10 @@ async function getPlaybookContext(playbookId: string): Promise<string | null> {
     const playbook = await prisma.playbook.findUnique({
       where: { id: playbookId },
       include: {
-        domain: true,
-        // agent: true, // ⚠️ Agent FK deprecated - identity comes from PlaybookItems/SystemSpecs
-        curriculum: {
-          include: {
-            modules: true,
-          },
-        },
         items: {
           include: {
-            spec: {
-              include: {
-                triggers: {
-                  include: {
-                    actions: true,
-                  },
-                },
-              },
-            },
-            promptTemplate: true,
-          },
-        },
-        specs: {
-          include: {
             spec: true,
+            promptTemplate: true,
           },
         },
       },
@@ -379,39 +463,17 @@ async function getPlaybookContext(playbookId: string): Promise<string | null> {
       `### Playbook: ${playbook.name}`,
       `- **ID:** ${playbook.id}`,
       `- **Status:** ${playbook.status}`,
-      `- **Domain:** ${playbook.domain?.name || "None"}`,
       `- **Version:** ${playbook.version || "N/A"}`,
     ];
 
-    // Agent info - deprecated, identity comes from PlaybookItems
-    // See PlaybookItems section below for agent identity configuration
-
-    // Curriculum info
-    if (playbook.curriculum) {
-      parts.push(`\n**Curriculum:** ${playbook.curriculum.name}`);
-      parts.push(`- Modules: ${playbook.curriculum.modules?.length || 0}`);
-      if (playbook.curriculum.modules && playbook.curriculum.modules.length > 0) {
-        for (const mod of playbook.curriculum.modules.slice(0, 5)) {
-          parts.push(`  - ${mod.name}`);
-        }
-        if (playbook.curriculum.modules.length > 5) {
-          parts.push(`  - ... and ${playbook.curriculum.modules.length - 5} more`);
-        }
-      }
-    } else {
-      parts.push(`\n**Curriculum:** NOT CONFIGURED`);
-    }
-
     // Domain specs (items)
-    const domainSpecs = playbook.items?.filter((i) => i.spec) || [];
+    const domainSpecs = playbook.items?.filter((i: any) => i.spec) || [];
     parts.push(`\n**Domain Specs:** ${domainSpecs.length}`);
     if (domainSpecs.length > 0) {
       for (const item of domainSpecs.slice(0, 10)) {
-        const spec = item.spec;
+        const spec = (item as any).spec;
         if (spec) {
-          const triggerCount = spec.triggers?.length || 0;
-          const actionCount = spec.triggers?.reduce((sum, t) => sum + (t.actions?.length || 0), 0) || 0;
-          parts.push(`- ${spec.name} [${spec.outputType}] - ${triggerCount} triggers, ${actionCount} actions`);
+          parts.push(`- ${spec.name} [${spec.outputType}]`);
         }
       }
       if (domainSpecs.length > 10) {
@@ -419,29 +481,9 @@ async function getPlaybookContext(playbookId: string): Promise<string | null> {
       }
     }
 
-    // System specs toggle
-    const enabledSystemSpecs = playbook.specs?.filter((s) => s.isEnabled) || [];
-    const disabledSystemSpecs = playbook.specs?.filter((s) => !s.isEnabled) || [];
-    parts.push(`\n**System Specs:** ${enabledSystemSpecs.length} enabled, ${disabledSystemSpecs.length} disabled`);
-
     // Prompt templates
-    const templates = playbook.items?.filter((i) => i.promptTemplate) || [];
+    const templates = playbook.items?.filter((i: any) => i.promptTemplate) || [];
     parts.push(`\n**Prompt Templates:** ${templates.length}`);
-
-    // Completeness check
-    const issues: string[] = [];
-    // Agent check removed - identity now comes from PlaybookItems/SystemSpecs
-    if (!playbook.curriculum) issues.push("Missing Curriculum");
-    if (domainSpecs.length === 0) issues.push("No Domain Specs");
-
-    if (issues.length > 0) {
-      parts.push(`\n**⚠️ Configuration Issues:**`);
-      for (const issue of issues) {
-        parts.push(`- ${issue}`);
-      }
-    } else {
-      parts.push(`\n**✅ Playbook appears fully configured**`);
-    }
 
     return parts.join("\n");
   } catch (e) {

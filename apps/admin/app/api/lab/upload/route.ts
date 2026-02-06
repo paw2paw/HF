@@ -117,7 +117,7 @@ export async function POST(req: Request) {
       scope,
       outputType,
       specRole,
-      specType: featureSet.specType,
+      specType: featureSet.specType as SpecType,
       domain: (featureSet.scoringSpec as any)?.domain || "general",
       priority: featureSet.specType === "SYSTEM" ? 50 : 10,
       isActive: true,

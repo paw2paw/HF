@@ -15,20 +15,6 @@ export async function GET(
 
     const feature = await prisma.bDDFeatureSet.findUnique({
       where: { id },
-      include: {
-        uploads: {
-          select: {
-            id: true,
-            filename: true,
-            fileType: true,
-            status: true,
-            storyId: true,
-            name: true,
-            version: true,
-            uploadedAt: true,
-          },
-        },
-      },
     });
 
     if (!feature) {
@@ -59,12 +45,6 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-
-    // First unlink any uploads
-    await prisma.bDDUpload.updateMany({
-      where: { featureSetId: id },
-      data: { featureSetId: null, status: "VALIDATED" },
-    });
 
     // Delete the feature set
     await prisma.bDDFeatureSet.delete({

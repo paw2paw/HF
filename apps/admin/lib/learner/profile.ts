@@ -221,11 +221,11 @@ export async function updateLearnerProfile(
             key,
             scope: 'LEARNER_PROFILE',
             valueType: 'STRING',
-            stringValue: value,
+            stringValue: typeof value === 'string' ? value : JSON.stringify(value),
             confidence,
           },
           update: {
-            stringValue: value,
+            stringValue: typeof value === 'string' ? value : JSON.stringify(value),
             confidence,
           },
         })

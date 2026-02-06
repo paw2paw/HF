@@ -299,11 +299,13 @@ export async function GET(
       }),
       prisma.personalityObservation.count({ where: { callerId: callerId } }),
       prisma.composedPrompt.count({ where: { callerId: callerId } }),
-      prisma.behaviorMeasurement.count({
+      prisma.behaviorMeasurement.findMany({
         where: {
           call: { callerId: callerId },
         },
-      }),
+        distinct: ['parameterId'],
+        select: { parameterId: true },
+      }).then(results => results.length),
     ]);
 
     // Get behavior targets count for this caller

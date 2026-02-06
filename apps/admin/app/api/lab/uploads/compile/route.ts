@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     }
 
     // Compile into a Feature Set
-    const compiled = compileBDDToFeatureSet(uploads);
+    const compiled = compileBDDToFeatureSet(uploads as any);
 
     // Check if feature set with this ID already exists
     const existing = await prisma.bDDFeatureSet.findUnique({
@@ -63,7 +63,6 @@ export async function POST(req: Request) {
           parameterCount: compiled.parameters.length,
           constraintCount: compiled.constraints.length,
           definitionCount: Object.keys(compiled.definitions).length,
-          compiledAt: new Date(),
         },
       });
     } else {
@@ -83,18 +82,15 @@ export async function POST(req: Request) {
           parameterCount: compiled.parameters.length,
           constraintCount: compiled.constraints.length,
           definitionCount: Object.keys(compiled.definitions).length,
-          compiledAt: new Date(),
         },
       });
     }
 
-    // Update uploads to mark as compiled and link to feature set
+    // Update uploads to mark as compiled
     await prisma.bDDUpload.updateMany({
       where: { id: { in: ids } },
       data: {
         status: "COMPILED",
-        compiledAt: new Date(),
-        featureSetId: featureSet.id,
       },
     });
 

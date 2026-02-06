@@ -260,7 +260,7 @@ export default function GoalsPage() {
             return (
               <Link
                 key={goal.id}
-                href={`/callers/${goal.caller.id}?tab=learning`}
+                href={`/x/callers/${goal.caller.id}?tab=learning`}
                 style={{ textDecoration: "none", color: "inherit" }}
               >
                 <div

@@ -218,7 +218,7 @@
       "given": "Caller has high extraversion (> 0.65)",
       "when": "Computing behavior targets",
       "then": "Set response length moderate - back and forth dialogue",
-      "parameterId": "BEH-RESPONSE-LENGTH",
+      "parameterId": "BEH-RESPONSE-LEN",
       "targetValue": 0.5
     },
     {

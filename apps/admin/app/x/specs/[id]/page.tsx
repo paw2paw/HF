@@ -23,9 +23,9 @@ type FeatureSet = {
   definitionCount: number;
   isActive: boolean;
   activatedAt: string | null;
-  compiledAt: string;
-  lastTestAt: string | null;
-  lastTestResult: Record<string, unknown> | null;
+  validations: any[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 type Spec = {
@@ -61,6 +61,7 @@ export default function SpecDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [recompiling, setRecompiling] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Editable fields
@@ -184,6 +185,57 @@ export default function SpecDetailPage() {
       setSaveMessage({ type: "error", text: e.message });
     } finally {
       setRecompiling(false);
+    }
+  };
+
+  const handleExportToSource = async () => {
+    if (hasChanges) {
+      const saveFirst = window.confirm(
+        "You have unsaved changes. Save them first before exporting?\n\nClick OK to save & export, or Cancel to abort."
+      );
+      if (!saveFirst) return;
+      // Save first, then export
+      await handleSave();
+    }
+
+    const confirmed = window.confirm(
+      "This will:\n1. Write config parameters back to the .spec.json file on disk\n2. Re-seed the full pipeline (BDDFeatureSet → Parameters → Anchors → Triggers → Prompt Template)\n\nThe source file will be overwritten. Reversible via git only. Continue?"
+    );
+    if (!confirmed) return;
+
+    setExporting(true);
+    setSaveMessage(null);
+
+    try {
+      const res = await fetch(`/api/analysis-specs/${specId}/export-to-source`, {
+        method: "POST",
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        const r = data.seedResult;
+        const details = r
+          ? ` (${r.parametersCreated + r.parametersUpdated} params, ${r.anchorsCreated} anchors, ${r.triggersCreated} triggers)`
+          : "";
+        setSaveMessage({ type: "success", text: `Exported to ${data.filePath} & re-seeded${details}` });
+        // Reload spec data to reflect re-seeded state
+        const refreshRes = await fetch(`/api/analysis-specs/${specId}`);
+        const refreshData = await refreshRes.json();
+        if (refreshData.ok) {
+          setSpec(refreshData.spec);
+          setFeatureSet(refreshData.featureSet);
+          setConfigText(JSON.stringify(refreshData.spec.config || {}, null, 2));
+          setPromptTemplate(refreshData.spec.promptTemplate || "");
+          setHasChanges(false);
+        }
+        setTimeout(() => setSaveMessage(null), 5000);
+      } else {
+        setSaveMessage({ type: "error", text: data.error || "Failed to export" });
+      }
+    } catch (e: any) {
+      setSaveMessage({ type: "error", text: e.message });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -479,6 +531,20 @@ export default function SpecDetailPage() {
                 {recompiling ? "Recompiling..." : "Recompile from Source"}
               </button>
             )}
+            {spec.compiledSetId && (
+              <button
+                onClick={handleExportToSource}
+                disabled={exporting || spec.isLocked}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  exporting || spec.isLocked
+                    ? "bg-neutral-200 text-neutral-500 cursor-not-allowed"
+                    : "bg-red-600 text-white hover:bg-red-700"
+                }`}
+                title="Writes config parameters back to the .spec.json file on disk, then re-seeds the full pipeline (BDDFeatureSet, Parameters, Anchors, Triggers, Prompt Template)"
+              >
+                {exporting ? "Writing & Re-seeding..." : "Write to Source & Re-seed"}
+              </button>
+            )}
             {saveMessage && (
               <span
                 className={`text-sm ${
@@ -639,9 +705,9 @@ export default function SpecDetailPage() {
                 <dd className="text-neutral-900">{featureSet.specType}</dd>
               </div>
               <div>
-                <dt className="text-neutral-500">Compiled At</dt>
+                <dt className="text-neutral-500">Updated At</dt>
                 <dd className="text-neutral-900">
-                  {new Date(featureSet.compiledAt).toLocaleString()}
+                  {new Date(featureSet.updatedAt).toLocaleString()}
                 </dd>
               </div>
               <div>

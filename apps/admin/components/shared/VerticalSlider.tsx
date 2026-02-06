@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import { Sparkline } from "./Sparkline";
 
 export interface VerticalSliderProps {
   /** Current value (0-1) */
@@ -38,6 +39,12 @@ export interface VerticalSliderProps {
   onClick?: () => void;
   /** Whether this slider is in an expanded/active state */
   isActive?: boolean;
+  /** Historical measurement values (0-1), sorted oldest to newest */
+  historyPoints?: number[];
+  /** Whether to show sparkline below the slider */
+  showSparkline?: boolean;
+  /** Labels for sparkline history points (e.g., call dates) */
+  sparklineLabels?: string[];
 }
 
 export function VerticalSlider({
@@ -55,6 +62,9 @@ export function VerticalSlider({
   showGauge = true,
   onClick,
   isActive = false,
+  historyPoints = [],
+  showSparkline = true,
+  sparklineLabels,
 }: VerticalSliderProps) {
   const ticks = [0, 25, 50, 75, 100];
 
@@ -62,6 +72,11 @@ export function VerticalSlider({
   const isHighlighted = isModified || isActive;
   const activeColor = isModified ? "#fbbf24" : color.primary;
   const glowColor = isModified ? "#f59e0b" : color.glow;
+
+  // Helper: create alpha variant of a color that works with both hex and CSS variables
+  // Uses color-mix() which handles var() references correctly
+  const withAlpha = (c: string, pct: number) =>
+    `color-mix(in srgb, ${c} ${pct}%, transparent)`;
 
   return (
     <div
@@ -77,10 +92,10 @@ export function VerticalSlider({
         style={{
           fontSize: 11,
           fontWeight: 700,
-          color: isHighlighted ? activeColor : "#71717a",
+          color: isHighlighted ? activeColor : "var(--slider-value-text)",
           marginBottom: 6,
           fontFamily: "ui-monospace, monospace",
-          textShadow: isHighlighted ? `0 0 8px ${glowColor}40` : "none",
+          textShadow: isHighlighted ? `0 0 8px ${withAlpha(glowColor, 25)}` : "none",
         }}
       >
         {(value * 100).toFixed(0)}
@@ -105,7 +120,7 @@ export function VerticalSlider({
                 <span
                   style={{
                     fontSize: 7,
-                    color: "#52525b",
+                    color: "var(--slider-gauge-text)",
                     width: 14,
                     textAlign: "right",
                     fontFamily: "ui-monospace, monospace",
@@ -117,7 +132,7 @@ export function VerticalSlider({
                   style={{
                     width: 4,
                     height: 1,
-                    background: tick === 50 ? "#52525b" : "#3f3f46",
+                    background: tick === 50 ? "var(--slider-gauge-line-mid)" : "var(--slider-gauge-line)",
                   }}
                 />
               </div>
@@ -133,12 +148,12 @@ export function VerticalSlider({
             position: "relative",
             width: secondaryValue !== undefined ? width : 24,
             height,
-            background: "linear-gradient(180deg, #1f1f23 0%, #18181b 100%)",
+            background: "linear-gradient(180deg, var(--slider-track-bg-start) 0%, var(--slider-track-bg-end) 100%)",
             borderRadius: 4,
-            border: isActive ? `2px solid ${activeColor}` : "1px solid #27272a",
+            border: isActive ? `2px solid ${activeColor}` : "1px solid var(--slider-border)",
             boxShadow: isActive
-              ? `0 0 12px ${glowColor}40, inset 0 2px 4px rgba(0,0,0,0.5)`
-              : "inset 0 2px 4px rgba(0,0,0,0.5)",
+              ? `0 0 12px ${withAlpha(glowColor, 25)}, inset 0 2px 4px rgba(0,0,0,0.2)`
+              : "inset 0 2px 4px rgba(0,0,0,0.1)",
             overflow: "hidden",
             cursor: onClick ? "pointer" : editable ? "pointer" : "default",
             transition: "border-color 0.2s, box-shadow 0.2s",
@@ -154,7 +169,8 @@ export function VerticalSlider({
                 right: 0,
                 bottom: `${tick}%`,
                 height: 1,
-                background: tick === 50 ? "#3f3f46" : "#27272a",
+                background: tick === 50 ? "var(--slider-gauge-line-mid)" : "var(--slider-gauge-line)",
+                zIndex: 1,
               }}
             />
           ))}
@@ -168,11 +184,12 @@ export function VerticalSlider({
               right: secondaryValue !== undefined ? "50%" : 2,
               height: `${Math.max(2, value * 100)}%`,
               background: isHighlighted
-                ? `linear-gradient(180deg, ${activeColor} 0%, ${glowColor}99 100%)`
-                : "linear-gradient(180deg, #52525b 0%, #3f3f46 100%)",
+                ? `linear-gradient(180deg, ${activeColor} 0%, ${withAlpha(glowColor, 60)} 100%)`
+                : "linear-gradient(180deg, var(--slider-bar-default-start) 0%, var(--slider-bar-default-end) 100%)",
               borderRadius: "2px",
               transition: "height 0.1s ease-out",
-              boxShadow: isHighlighted ? `0 0 12px ${glowColor}60` : "none",
+              zIndex: 2,
+              boxShadow: isHighlighted ? `0 0 12px ${withAlpha(glowColor, 38)}` : "none",
             }}
           />
 
@@ -185,9 +202,10 @@ export function VerticalSlider({
                 left: "50%",
                 right: 2,
                 height: `${Math.max(2, secondaryValue * 100)}%`,
-                background: `linear-gradient(180deg, ${color.primary} 0%, ${color.glow}99 100%)`,
+                background: `linear-gradient(180deg, ${color.primary} 0%, ${withAlpha(color.glow, 60)} 100%)`,
                 borderRadius: "2px",
                 transition: "height 0.1s ease-out",
+                zIndex: 2,
                 opacity: 0.85,
               }}
             />
@@ -203,8 +221,28 @@ export function VerticalSlider({
                 right: 2,
                 bottom: `${i * 10 + 5}%`,
                 height: 1,
-                background: "#18181b",
+                background: "var(--slider-led-separator)",
                 opacity: 0.5,
+                zIndex: 3,
+              }}
+            />
+          ))}
+
+          {/* History measurement dashes */}
+          {historyPoints.length > 1 && historyPoints.map((point, i) => (
+            <div
+              key={`history-${i}`}
+              style={{
+                position: "absolute",
+                left: 4,
+                right: 4,
+                bottom: `${Math.max(1, Math.min(99, point * 100))}%`,
+                height: 2,
+                background: color.primary,
+                borderRadius: 1,
+                opacity: 0.15 + (i / (historyPoints.length - 1)) * 0.65,
+                zIndex: 3,
+                pointerEvents: "none",
               }}
             />
           ))}
@@ -218,8 +256,9 @@ export function VerticalSlider({
                 right: -2,
                 bottom: `${targetValue * 100}%`,
                 height: 2,
-                background: "#71717a",
+                background: "var(--slider-target-marker)",
                 borderRadius: 1,
+                zIndex: 4,
               }}
             />
           )}
@@ -255,7 +294,7 @@ export function VerticalSlider({
           style={{
             marginTop: 8,
             fontSize: 9,
-            color: "#71717a",
+            color: "var(--slider-label-text)",
             textAlign: "center",
             maxWidth: width + 20,
             wordBreak: "break-word",
@@ -263,6 +302,20 @@ export function VerticalSlider({
           }}
         >
           {label}
+        </div>
+      )}
+
+      {/* Sparkline */}
+      {showSparkline && historyPoints.length >= 2 && (
+        <div style={{ marginTop: 4 }}>
+          <Sparkline
+            history={historyPoints}
+            color={color.primary}
+            width={width}
+            height={24}
+            label={label}
+            historyLabels={sparklineLabels}
+          />
         </div>
       )}
     </div>
@@ -282,11 +335,11 @@ export function SliderGroup({ title, color = { primary: "#a78bfa", glow: "#8b5cf
   return (
     <div
       style={{
-        background: "linear-gradient(180deg, #18181b 0%, #0f0f11 100%)",
+        background: "linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%)",
         borderRadius: 16,
         padding: 20,
-        border: "1px solid #27272a",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
+        border: "1px solid var(--border-default)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)",
       }}
     >
       {/* Group Header */}
@@ -297,7 +350,7 @@ export function SliderGroup({ title, color = { primary: "#a78bfa", glow: "#8b5cf
           gap: 8,
           marginBottom: 16,
           paddingBottom: 10,
-          borderBottom: "1px solid #27272a",
+          borderBottom: "1px solid var(--border-default)",
         }}
       >
         <div
@@ -313,7 +366,7 @@ export function SliderGroup({ title, color = { primary: "#a78bfa", glow: "#8b5cf
           style={{
             fontSize: 12,
             fontWeight: 600,
-            color: "#e4e4e7",
+            color: "var(--text-primary)",
             letterSpacing: "0.5px",
           }}
         >

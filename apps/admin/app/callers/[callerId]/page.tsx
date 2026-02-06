@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
+import { Sparkline } from "@/components/shared/Sparkline";
 
 // Types
 type Domain = {
@@ -211,7 +212,7 @@ const TRAIT_INFO = {
   neuroticism: { label: "Neuroticism", color: "var(--trait-neuroticism)", desc: "Emotional instability, anxiety, moodiness" },
 };
 
-type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "learning" | "targets" | "agent-behavior" | "prompt" | "ai-call" | "slugs";
+type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "learning" | "agent-behavior" | "prompt" | "ai-call" | "slugs";
 
 type ComposedPrompt = {
   id: string;
@@ -484,8 +485,8 @@ export default function CallerDetailPage() {
   // Sections organized into logical groups:
   // - History: call recordings and transcripts
   // - Caller: who they are (personality, memories)
-  // - Shared: variables, measurements for both agent and caller (slugs, scores, targets)
-  // - Behaviour: how we respond (behavior, prompt)
+  // - Shared: variables for both agent and caller (slugs, scores)
+  // - Behaviour: targets, measurements, prompt
   // - Action: make a call
   const sections: { id: SectionId; label: string; icon: string; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "agent" | "action" }[] = [
     // History
@@ -494,12 +495,11 @@ export default function CallerDetailPage() {
     { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories, group: "caller" },
     { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations, group: "caller" },
     { id: "learning", label: "Goals", icon: "🎯", count: data.counts.activeGoals || 0, group: "caller" },
-    { id: "targets", label: "Targets", icon: "🎯", count: data.counts.targets || 0, group: "caller" },
     // Shared group - data for both caller and agent
     { id: "slugs", label: "Slugs", icon: "🏷️", group: "shared" },
-    { id: "scores", label: "Scores", icon: "📈", count: data.scores?.length || 0, group: "shared" },
-    // Behaviour-specific group
-    { id: "agent-behavior", label: "Behaviour", icon: "🤖", count: data.counts.measurements || 0, group: "agent" },
+    { id: "scores", label: "Scores", icon: "📈", count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0, group: "shared" },
+    // Behaviour-specific group (includes targets + measurements)
+    { id: "agent-behavior", label: "Behaviour", icon: "🤖", count: (data.counts.targets || 0) + (data.counts.measurements || 0), group: "agent" },
     { id: "prompt", label: "Prompt", icon: "📝", count: data.counts.prompts, group: "agent" },
     // Action group
     { id: "ai-call", label: "Call", icon: "📞", special: true, group: "action" },
@@ -512,7 +512,7 @@ export default function CallerDetailPage() {
         <Link href={backLink} style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>
           ← Back to Callers
         </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
           <div
             style={{
               width: 64,
@@ -527,7 +527,7 @@ export default function CallerDetailPage() {
           >
             👤
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 300 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{getCallerLabel(data.caller)}</h1>
               {/* Domain Badge */}
@@ -838,10 +838,6 @@ export default function CallerDetailPage() {
 
       {activeSection === "learning" && (
         <LearningSection curriculum={data.curriculum} learnerProfile={data.learnerProfile} goals={data.goals} callerId={callerId} />
-      )}
-
-      {activeSection === "targets" && (
-        <TopLevelTargetsSection callerId={callerId} />
       )}
 
       {activeSection === "agent-behavior" && (
@@ -1963,7 +1959,7 @@ function CallDetailPanel({
   details: any;
   loading: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "scores" | "targets" | "measurements" | "prompt">("transcript");
+  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "scores" | "measurements" | "prompt">("transcript");
 
   if (loading) {
     return (
@@ -1988,9 +1984,8 @@ function CallDetailPanel({
     { id: "memories", label: "Mem", icon: "💭", count: memories.length, tooltip: "Memories extracted from the caller" },
     // Shared group
     { id: "scores", label: "Scores", icon: "📊", count: scores.length, tooltip: "Behavior and caller scores" },
-    { id: "targets", label: "Targets", icon: "🎯", count: effectiveTargets.length, tooltip: "Effective targets for this call" },
-    // Behaviour group
-    { id: "measurements", label: "Behaviour", icon: "🤖", count: measurements.length, tooltip: "Behavioral measurements and analysis" },
+    // Behaviour group (targets + measurements combined)
+    { id: "measurements", label: "Behaviour", icon: "🤖", count: effectiveTargets.length + measurements.length, tooltip: "Targets and behavioral measurements" },
     { id: "prompt", label: "Prompt", icon: "📝", count: null, tooltip: "Composed prompt sent to the AI" }, // 1-1 with call, count not needed
   ];
 
@@ -2071,16 +2066,13 @@ function CallDetailPanel({
           <ScoresTab scores={scores} />
         )}
 
-        {activeTab === "targets" && (
-          <TargetsTab
+        {activeTab === "measurements" && (
+          <MeasurementsTab
             callerTargets={details?.callerTargets || []}
             behaviorTargets={effectiveTargets}
             measurements={measurements}
+            rewardScore={rewardScore}
           />
-        )}
-
-        {activeTab === "measurements" && (
-          <MeasurementsTab measurements={measurements} rewardScore={rewardScore} />
         )}
 
         {activeTab === "prompt" && (
@@ -3045,10 +3037,12 @@ function TwoColumnTargetsDisplay({
   callerTargets,
   behaviorTargets,
   measurements = [],
+  historyByParameter = {},
 }: {
   callerTargets: any[];
   behaviorTargets: any[];
   measurements?: any[];
+  historyByParameter?: Record<string, number[]>;
 }) {
   const [expandedTarget, setExpandedTarget] = useState<string | null>(null);
 
@@ -3079,6 +3073,7 @@ function TwoColumnTargetsDisplay({
   const renderTargetCard = (target: any, prefix: string) => {
     const isExpanded = expandedTarget === `${prefix}-${target.parameterId}`;
     const actual = measurementMap.get(target.parameterId);
+    const history = historyByParameter[target.parameterId] || [];
     const targetValue = target.targetValue;
     const delta = actual !== undefined ? actual - targetValue : null;
 
@@ -3097,9 +3092,12 @@ function TwoColumnTargetsDisplay({
     const scopeColor = scopeColors[target.effectiveScope]?.text || "var(--text-muted)";
 
     // Build tooltip text
+    const historyInfo = history.length >= 2
+      ? `\n\nHistory: ${history.length} calls\nRange: ${(Math.min(...history) * 100).toFixed(0)}% - ${(Math.max(...history) * 100).toFixed(0)}%`
+      : "";
     const tooltipText = actual !== undefined
-      ? `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}% (left bar)\nActual: ${(actual * 100).toFixed(0)}% (right bar)\nDelta: ${delta! >= 0 ? "+" : ""}${(delta! * 100).toFixed(0)}%\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`
-      : `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}%\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`;
+      ? `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}% (left bar)\nActual: ${(actual * 100).toFixed(0)}% (right bar)\nDelta: ${delta! >= 0 ? "+" : ""}${(delta! * 100).toFixed(0)}%${historyInfo}\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`
+      : `${target.parameter?.name || target.parameterId}\n\nTarget: ${(targetValue * 100).toFixed(0)}%${historyInfo}\n\n${target.parameter?.definition || ""}\n\nClick to view layer cascade and interpretation`;
 
     return (
       <div
@@ -3122,6 +3120,7 @@ function TwoColumnTargetsDisplay({
           width={56}
           height={140}
           showGauge={false}
+          historyPoints={history}
         />
 
         {/* Label */}
@@ -3268,9 +3267,18 @@ function TwoColumnTargetsDisplay({
     }
 
     return (
-      <div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start" }}>
         {Object.entries(targets).map(([group, groupTargets]) => (
-          <div key={`${prefix}-${group}`} style={{ marginBottom: 24 }}>
+          <div
+            key={`${prefix}-${group}`}
+            style={{
+              flex: "0 0 auto",
+              background: "var(--surface-secondary)",
+              borderRadius: 12,
+              padding: "12px 16px 16px",
+              border: "1px solid var(--border-default)",
+            }}
+          >
             <div
               title={`${group} parameters - ${groupTargets.length} target${groupTargets.length !== 1 ? "s" : ""}\n\nThese sliders show target values (left bar) and actual measured values (right bar) for behavior parameters in the ${group} category.\n\nClick any slider to see the layer cascade showing how SYSTEM → PLAYBOOK → CALLER targets combine.`}
               style={{
@@ -3285,13 +3293,12 @@ function TwoColumnTargetsDisplay({
             >
               {group} ({groupTargets.length})
             </div>
-            {/* Grid layout for vertical sliders */}
+            {/* Flex layout for vertical sliders - keeps group together */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
-                gap: 16,
-                justifyItems: "center",
+                display: "flex",
+                gap: 12,
+                flexWrap: "nowrap",
               }}
             >
               {groupTargets.map((target: any) => renderTargetCard(target, prefix))}
@@ -3357,10 +3364,10 @@ function TwoColumnTargetsDisplay({
         <span style={{ color: "var(--text-placeholder)" }}>(later overrides earlier)</span>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* Two-column layout - flex for responsiveness */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
         {/* Personalized Adjustments Column */}
-        <div>
+        <div style={{ flex: "1 1 400px", minWidth: 0 }}>
           <div
             title="Personalized Adjustments\n\nThese are behavior targets that have been automatically adjusted for this specific caller based on their interactions and preferences.\n\nADAPT specs analyze each call and fine-tune these parameters to optimize the AI's behavior for this individual.\n\nLeft bar: Target value\nRight bar: Most recent actual value from call analysis\n\nThese override the base playbook configuration."
             style={{
@@ -3382,7 +3389,7 @@ function TwoColumnTargetsDisplay({
         </div>
 
         {/* Base Configuration Column */}
-        <div>
+        <div style={{ flex: "1 1 400px", minWidth: 0 }}>
           <div
             title="Base Configuration\n\nThese are the baseline behavior targets defined by the playbook for this domain.\n\nThey provide the starting point before any personalization occurs.\n\nLeft bar: Target value\nRight bar: Most recent actual value from call analysis\n\nCaller-specific adjustments (left column) will override these base values."
             style={{
@@ -3408,25 +3415,9 @@ function TwoColumnTargetsDisplay({
 }
 
 // Targets Tab - uses shared TwoColumnTargetsDisplay
-function TargetsTab({
-  callerTargets,
-  behaviorTargets,
-  measurements,
-}: {
-  callerTargets: any[];
-  behaviorTargets: any[];
-  measurements: any[];
-}) {
-  return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} measurements={measurements} />;
-}
-
-// Scores Tab - split into Behaviour Scores and Caller Scores
+// Scores Tab - per-call scores (agent behavior has its own Behaviour tab via BehaviorMeasurement)
 function ScoresTab({ scores }: { scores: any[] }) {
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
-
-  // Split scores by outputType
-  const agentScores = scores.filter(s => s.analysisSpec?.outputType === "MEASURE_AGENT");
-  const callerScores = scores.filter(s => s.analysisSpec?.outputType !== "MEASURE_AGENT");
 
   const renderScoreCard = (score: any) => {
     const isExpanded = expandedScore === score.id;
@@ -3563,48 +3554,8 @@ function ScoresTab({ scores }: { scores: any[] }) {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      {/* Behaviour Scores Column */}
-      <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--status-warning-bg)", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-warning-text)" }}>
-            🤖 Behaviour Scores ({agentScores.length})
-          </div>
-          <div style={{ fontSize: 11, color: "var(--status-warning-text)", marginTop: 2 }}>
-            How well the agent performed
-          </div>
-        </div>
-        {agentScores.length === 0 ? (
-          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
-            No agent scores yet
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {agentScores.map(renderScoreCard)}
-          </div>
-        )}
-      </div>
-
-      {/* Caller Scores Column */}
-      <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--badge-blue-bg)", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-info-text)" }}>
-            👤 Caller Scores ({callerScores.length})
-          </div>
-          <div style={{ fontSize: 11, color: "var(--status-info-text)", marginTop: 2 }}>
-            Caller behavior and state
-          </div>
-        </div>
-        {callerScores.length === 0 ? (
-          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
-            No caller scores yet
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {callerScores.map(renderScoreCard)}
-          </div>
-        )}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {scores.map(renderScoreCard)}
     </div>
   );
 }
@@ -3758,23 +3709,14 @@ function MemoriesTab({ memories }: { memories: any[] }) {
 }
 
 // Measurements Tab - Now uses slider visualization for consistency with Targets tab
-function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; rewardScore: any }) {
-  if (measurements.length === 0) {
+function MeasurementsTab({ callerTargets = [], behaviorTargets = [], measurements, rewardScore }: { callerTargets?: any[]; behaviorTargets?: any[]; measurements: any[]; rewardScore: any }) {
+  if (measurements.length === 0 && behaviorTargets.length === 0 && callerTargets.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
-        No behaviour measurements. Run BEHAVIOUR to measure behaviour.
+        No behaviour data. Run BEHAVIOUR to measure behaviour.
       </div>
     );
   }
-
-  // Transform measurements into format compatible with TwoColumnTargetsDisplay
-  // We treat measurements as if they were "behavior targets" since we want to show them with sliders
-  const measurementTargets = measurements.map((m: any) => ({
-    parameterId: m.parameterId,
-    targetValue: m.targetValue || 0.5, // Use target from measurement if available
-    effectiveScope: "MEASUREMENT" as any, // Custom scope to indicate these are measurements
-    parameter: m.parameter,
-  }));
 
   // Format measurements for the display
   const formattedMeasurements = measurements.map((m: any) => ({
@@ -3782,9 +3724,18 @@ function MeasurementsTab({ measurements, rewardScore }: { measurements: any[]; r
     actualValue: m.actualValue,
   }));
 
-  // Use TwoColumnTargetsDisplay but only show behavior targets (measurements)
-  // Since these are single-call measurements, we don't show caller targets
-  return <TwoColumnTargetsDisplay callerTargets={[]} behaviorTargets={measurementTargets} measurements={formattedMeasurements} />;
+  // If we have explicit behavior targets, use them directly
+  // Otherwise fall back to synthesizing from measurements
+  const effectiveBehaviorTargets = behaviorTargets.length > 0
+    ? behaviorTargets
+    : measurements.map((m: any) => ({
+        parameterId: m.parameterId,
+        targetValue: m.targetValue || 0.5,
+        effectiveScope: "MEASUREMENT" as any,
+        parameter: m.parameter,
+      }));
+
+  return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={effectiveBehaviorTargets} measurements={formattedMeasurements} />;
 }
 
 // Legacy card-based measurements view (kept for reference, can be removed later)
@@ -4229,10 +4180,10 @@ function PersonalitySection({
   );
 }
 
-// Scores Section - split into Behaviour vs Caller scores
+// Scores Section - slider-based display with click-to-expand details
 function ScoresSection({ scores }: { scores: CallScore[] }) {
-  const [expandedScore, setExpandedScore] = useState<string | null>(null);
   const [expandedParam, setExpandedParam] = useState<string | null>(null);
+  const [expandedScore, setExpandedScore] = useState<string | null>(null);
 
   if (!scores || scores.length === 0) {
     return (
@@ -4244,11 +4195,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
     );
   }
 
-  // Split scores by outputType
-  const agentScores = scores.filter(s => s.analysisSpec?.outputType === "MEASURE_AGENT");
-  const callerScores = scores.filter(s => s.analysisSpec?.outputType !== "MEASURE_AGENT");
-
-  // Group scores by parameter for each type
+  // Group all scores by parameter (agent behavior has its own Behaviour tab via BehaviorMeasurement)
   const groupByParameter = (scoreList: CallScore[]) => {
     const grouped: Record<string, CallScore[]> = {};
     for (const score of scoreList) {
@@ -4259,233 +4206,223 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
     return grouped;
   };
 
-  const agentGrouped = groupByParameter(agentScores);
-  const callerGrouped = groupByParameter(callerScores);
+  const allGrouped = groupByParameter(scores);
 
-  const renderParameterCard = (parameterId: string, paramScores: CallScore[]) => {
-    const avg = paramScores.reduce((sum, s) => sum + s.score, 0) / paramScores.length;
-    const paramName = paramScores[0]?.parameter?.name || parameterId;
-    const isParamExpanded = expandedParam === parameterId;
+  // Score color helper
+  const scoreColor = (v: number) => ({
+    primary: v >= 0.7 ? "var(--status-success-text)" : v >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
+    glow: v >= 0.7 ? "var(--status-success-text)" : v >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
+  });
+
+
+  // Render a group of score sliders
+  const renderScoreSliders = (grouped: Record<string, CallScore[]>, groupColor: { primary: string; glow: string }, groupTitle: string, emptyMessage: string) => {
+    const entries = Object.entries(grouped);
+    if (entries.length === 0) {
+      return (
+        <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
+          {emptyMessage}
+        </div>
+      );
+    }
 
     return (
-      <div key={parameterId} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
-        {/* Header */}
-        <button
-          onClick={() => setExpandedParam(isParamExpanded ? null : parameterId)}
-          style={{
-            width: "100%",
-            padding: 16,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: isParamExpanded ? "var(--background)" : "var(--surface-primary)",
-            border: "none",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{paramName}</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{paramScores[0]?.parameter?.definition || ""}</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: avg >= 0.7 ? "var(--status-success-text)" : avg >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)" }}>
-                {(avg * 100).toFixed(0)}%
+      <div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          {entries.map(([parameterId, paramScores]) => {
+            const avg = paramScores.reduce((sum, s) => sum + s.score, 0) / paramScores.length;
+            const paramName = paramScores[0]?.parameter?.name || parameterId;
+            const isExpanded = expandedParam === parameterId;
+            const color = scoreColor(avg);
+
+            // Build history sorted oldest→newest
+            const history = [...paramScores]
+              .sort((a, b) => new Date(a.call.createdAt).getTime() - new Date(b.call.createdAt).getTime())
+              .map(s => s.score);
+
+            const historyInfo = history.length >= 2
+              ? `\n\nHistory: ${history.length} calls\nRange: ${(Math.min(...history) * 100).toFixed(0)}% - ${(Math.max(...history) * 100).toFixed(0)}%`
+              : "";
+            const tooltip = `${paramName}\n\nAverage: ${(avg * 100).toFixed(0)}% (${paramScores.length} scores)${historyInfo}\n\n${paramScores[0]?.parameter?.definition || ""}\n\nClick for details`;
+
+            return (
+              <div key={parameterId} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <VerticalSlider
+                  value={avg}
+                  color={color}
+                  onClick={() => setExpandedParam(isExpanded ? null : parameterId)}
+                  isActive={isExpanded}
+                  tooltip={tooltip}
+                  width={56}
+                  height={140}
+                  showGauge={false}
+                  historyPoints={history}
+                />
+
+                {/* Label */}
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontSize: 9,
+                    fontWeight: 500,
+                    color: isExpanded ? color.primary : "var(--text-muted)",
+                    textAlign: "center",
+                    maxWidth: 70,
+                    lineHeight: 1.2,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.3px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setExpandedParam(isExpanded ? null : parameterId)}
+                >
+                  {paramName}
+                </div>
+
+                {/* Sparkline - now handled automatically by VerticalSlider when historyPoints is provided */}
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-placeholder)" }}>avg of {paramScores.length}</div>
-            </div>
-            <span style={{ color: "var(--text-placeholder)" }}>{isParamExpanded ? "▼" : "▶"}</span>
-          </div>
-        </button>
+            );
+          })}
+        </div>
 
-        {/* Collapsed: show score pills */}
-        {!isParamExpanded && (
-          <div style={{ padding: "0 16px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {paramScores.slice(0, 10).map((s) => (
-              <button
-                key={s.id}
-                onClick={() => {
-                  setExpandedParam(parameterId);
-                  setExpandedScore(s.id);
-                }}
-                style={{
-                  padding: "4px 10px",
-                  background: s.score >= 0.7 ? "var(--status-success-bg)" : s.score >= 0.4 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{(s.score * 100).toFixed(0)}%</span>
-                <span style={{ marginLeft: 6, color: "var(--text-placeholder)" }}>
-                  {new Date(s.call.createdAt).toLocaleDateString()}
-                </span>
-              </button>
-            ))}
-            {paramScores.length > 10 && (
-              <span style={{ fontSize: 12, color: "var(--text-placeholder)", alignSelf: "center" }}>+{paramScores.length - 10} more</span>
-            )}
-          </div>
-        )}
+        {/* Expanded detail panel */}
+        {expandedParam && grouped[expandedParam] && (() => {
+          const paramScores = grouped[expandedParam];
+          const paramName = paramScores[0]?.parameter?.name || expandedParam;
+          const avg = paramScores.reduce((sum, s) => sum + s.score, 0) / paramScores.length;
+          const sorted = [...paramScores].sort((a, b) => new Date(b.call.createdAt).getTime() - new Date(a.call.createdAt).getTime());
 
-        {/* Expanded: show full score details */}
-        {isParamExpanded && (
-          <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
-            {paramScores.map((s) => {
-              const isScoreExpanded = expandedScore === s.id;
-              return (
-                <div key={s.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
-                  {/* Score row header */}
-                  <button
-                    onClick={() => setExpandedScore(isScoreExpanded ? null : s.id)}
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 16,
-                      background: isScoreExpanded ? "var(--surface-primary)" : "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
-                  >
-                    {/* Score value */}
-                    <div
+          return (
+            <div style={{
+              marginTop: 16,
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 12,
+              overflow: "hidden",
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--border-default)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{paramName}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{paramScores[0]?.parameter?.definition || ""}</div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: scoreColor(avg).primary }}>
+                  {(avg * 100).toFixed(0)}% <span style={{ fontSize: 11, fontWeight: 400, color: "var(--text-placeholder)" }}>avg of {paramScores.length}</span>
+                </div>
+              </div>
+
+              {/* Individual scores */}
+              {sorted.map((s) => {
+                const isScoreExpanded = expandedScore === s.id;
+                return (
+                  <div key={s.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
+                    <button
+                      onClick={() => setExpandedScore(isScoreExpanded ? null : s.id)}
                       style={{
-                        width: 50,
-                        padding: "4px 8px",
+                        width: "100%",
+                        padding: "10px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        background: isScoreExpanded ? "var(--background)" : "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{
+                        width: 44,
+                        padding: "3px 6px",
                         textAlign: "center",
                         background: s.score >= 0.7 ? "var(--status-success-bg)" : s.score >= 0.4 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
                         color: s.score >= 0.7 ? "var(--status-success-text)" : s.score >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
                         borderRadius: 6,
                         fontWeight: 600,
-                        fontSize: 14,
-                      }}
-                    >
-                      {(s.score * 100).toFixed(0)}
-                    </div>
-
-                    {/* Confidence */}
-                    <div style={{ width: 60, fontSize: 11, color: "var(--text-muted)" }}>
-                      {(s.confidence * 100).toFixed(0)}% conf
-                    </div>
-
-                    {/* Date */}
-                    <div style={{ width: 140, fontSize: 12, color: "var(--text-secondary)" }}>
-                      {new Date(s.call.createdAt).toLocaleString()}
-                    </div>
-
-                    {/* Scored by */}
-                    <div style={{ flex: 1, fontSize: 11, color: "var(--text-placeholder)" }}>
-                      {s.scoredBy || "unknown"}
-                    </div>
-
-                    {/* Analysis Spec badge */}
-                    {s.analysisSpec && (
-                      <span style={{
-                        fontSize: 10,
-                        padding: "2px 6px",
-                        background: "var(--badge-purple-bg)",
-                        color: "var(--badge-purple-text)",
-                        borderRadius: 4,
-                        fontWeight: 500,
+                        fontSize: 13,
                       }}>
-                        {s.analysisSpec.slug || s.analysisSpec.name}
-                      </span>
-                    )}
-
-                    <span style={{ color: "var(--text-placeholder)", fontSize: 12 }}>{isScoreExpanded ? "▼" : "▶"}</span>
-                  </button>
-
-                  {/* Expanded score detail */}
-                  {isScoreExpanded && (
-                    <div style={{ padding: "12px 16px 16px", background: "var(--surface-primary)", marginLeft: 66 }}>
-                      {/* Evidence */}
-                      {s.evidence && s.evidence.length > 0 && (
-                        <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Evidence</div>
-                          {s.evidence.map((e: string, i: number) => (
-                            <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0", borderLeft: "2px solid var(--border-default)", paddingLeft: 8, marginBottom: 4 }}>
-                              {e}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Reasoning */}
-                      {s.reasoning && (
-                        <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Reasoning</div>
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>{s.reasoning}</div>
-                        </div>
-                      )}
-
-                      {/* Metadata row */}
-                      <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-placeholder)" }}>
-                        <span>Call ID: {s.callId?.slice(0, 8)}...</span>
-                        <span>Scored: {new Date(s.scoredAt).toLocaleString()}</span>
-                        {s.analysisSpecId && <span>Spec ID: {s.analysisSpecId.slice(0, 8)}...</span>}
+                        {(s.score * 100).toFixed(0)}
                       </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                      <div style={{ width: 50, fontSize: 11, color: "var(--text-muted)" }}>
+                        {(s.confidence * 100).toFixed(0)}% conf
+                      </div>
+                      <div style={{ flex: 1, fontSize: 12, color: "var(--text-secondary)" }}>
+                        {new Date(s.call.createdAt).toLocaleString()}
+                      </div>
+                      {s.analysisSpec && (
+                        <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", borderRadius: 4, fontWeight: 500 }}>
+                          {s.analysisSpec.slug || s.analysisSpec.name}
+                        </span>
+                      )}
+                      <span style={{ color: "var(--text-placeholder)", fontSize: 12 }}>{isScoreExpanded ? "▼" : "▶"}</span>
+                    </button>
+
+                    {isScoreExpanded && (
+                      <div style={{ padding: "8px 16px 12px", background: "var(--background)", marginLeft: 56 }}>
+                        {s.evidence && s.evidence.length > 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Evidence</div>
+                            {s.evidence.map((e: string, i: number) => (
+                              <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "3px 0", borderLeft: "2px solid var(--border-default)", paddingLeft: 8, marginBottom: 3 }}>
+                                {e}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {s.reasoning && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Reasoning</div>
+                            <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>{s.reasoning}</div>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-placeholder)" }}>
+                          <span>Call ID: {s.callId?.slice(0, 8)}...</span>
+                          <span>Scored: {new Date(s.scoredAt).toLocaleString()}</span>
+                          {s.analysisSpecId && <span>Spec: {s.analysisSpecId.slice(0, 8)}...</span>}
+                          {s.scoredBy && <span>By: {s.scoredBy}</span>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     );
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      {/* Behaviour Scores Column */}
-      <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--status-warning-bg)", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-warning-text)" }}>
-            🤖 Behaviour Scores ({agentScores.length})
-          </div>
-          <div style={{ fontSize: 11, color: "var(--status-warning-text)", marginTop: 2 }}>
-            How well the agent performed
-          </div>
-        </div>
-        {Object.entries(agentGrouped).map(([parameterId, paramScores]) =>
-          renderParameterCard(parameterId, paramScores)
-        )}
-        {agentScores.length === 0 && (
-          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
-            No agent scores yet
-          </div>
-        )}
-      </div>
-
-      {/* Caller Scores Column */}
-      <div>
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--badge-blue-bg)", borderRadius: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-info-text)" }}>
-            👤 Caller Scores ({callerScores.length})
-          </div>
-          <div style={{ fontSize: 11, color: "var(--status-info-text)", marginTop: 2 }}>
-            Caller behavior and state
-          </div>
-        </div>
-        {Object.entries(callerGrouped).map(([parameterId, paramScores]) =>
-          renderParameterCard(parameterId, paramScores)
-        )}
-        {callerScores.length === 0 && (
-          <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
-            No caller scores yet
-          </div>
-        )}
-      </div>
-    </div>
+    <SliderGroup
+      title={`Caller Scores (${Object.keys(allGrouped).length})`}
+      color={{ primary: "var(--button-primary-bg)", glow: "var(--button-primary-bg)" }}
+    >
+      {renderScoreSliders(allGrouped, { primary: "var(--button-primary-bg)", glow: "var(--button-primary-bg)" }, "Scores", "No scores yet")}
+    </SliderGroup>
   );
 }
 
 // Learning Section - displays goals, curriculum progress and learner profile
+function ProgressRing({ progress, size = 64, strokeWidth = 5, color }: { progress: number; size?: number; strokeWidth?: number; color: string }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - progress * circumference;
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--border-default)" strokeWidth={strokeWidth} />
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.3s ease" }} />
+      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central" style={{ transform: "rotate(90deg)", transformOrigin: "center", fontSize: size * 0.22, fontWeight: 700, fill: color, fontFamily: "ui-monospace, monospace" }}>
+        {Math.round(progress * 100)}%
+      </text>
+    </svg>
+  );
+}
+
 function LearningSection({
   curriculum,
   learnerProfile,
@@ -4497,6 +4434,7 @@ function LearningSection({
   goals: Goal[] | undefined;
   callerId: string;
 }) {
+  const [showArchived, setShowArchived] = useState(false);
   const hasCurriculum = curriculum && curriculum.hasData;
   const hasProfile = learnerProfile && (
     learnerProfile.learningStyle ||
@@ -4519,411 +4457,215 @@ function LearningSection({
     );
   }
 
-  const progressPercent = hasCurriculum ? Math.round(curriculum.estimatedProgress * 100) : 0;
-
-  const GOAL_TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-    LEARN: { label: "Learn", icon: "📚", color: "var(--trait-openness)" },
-    ACHIEVE: { label: "Achieve", icon: "🏆", color: "var(--trait-extraversion)" },
-    CHANGE: { label: "Change", icon: "🔄", color: "var(--trait-neuroticism)" },
-    CONNECT: { label: "Connect", icon: "🤝", color: "var(--trait-agreeableness)" },
-    SUPPORT: { label: "Support", icon: "💚", color: "var(--status-success-text)" },
-    CREATE: { label: "Create", icon: "🎨", color: "var(--badge-cyan-text)" },
+  const GOAL_TYPE_CONFIG: Record<string, { label: string; icon: string; color: string; glow: string }> = {
+    LEARN: { label: "Learn", icon: "📚", color: "#22c55e", glow: "#16a34a" },
+    ACHIEVE: { label: "Achieve", icon: "🏆", color: "#f59e0b", glow: "#d97706" },
+    CHANGE: { label: "Change", icon: "🔄", color: "#8b5cf6", glow: "#7c3aed" },
+    CONNECT: { label: "Connect", icon: "🤝", color: "#06b6d4", glow: "#0891b2" },
+    SUPPORT: { label: "Support", icon: "💚", color: "#10b981", glow: "#059669" },
+    CREATE: { label: "Create", icon: "🎨", color: "#ec4899", glow: "#db2777" },
   };
 
-  const GOAL_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    ACTIVE: { label: "Active", color: "var(--status-success-text)" },
-    COMPLETED: { label: "Completed", color: "var(--trait-openness)" },
-    PAUSED: { label: "Paused", color: "var(--trait-extraversion)" },
-    ARCHIVED: { label: "Archived", color: "var(--text-muted)" },
+  const MODULE_STATUS_COLORS: Record<string, { primary: string; glow: string }> = {
+    completed: { primary: "#22c55e", glow: "#16a34a" },
+    in_progress: { primary: "#3b82f6", glow: "#2563eb" },
+    not_started: { primary: "#64748b", glow: "#475569" },
   };
+
+  const activeGoals = goals?.filter(g => g.status === 'ACTIVE' || g.status === 'PAUSED') || [];
+  const archivedGoals = goals?.filter(g => g.status === 'ARCHIVED' || g.status === 'COMPLETED') || [];
 
   return (
-    <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "32px" }}>
-      {/* Goals Section */}
-      {hasGoals && goals && (
-        <div style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "12px",
-          padding: "24px"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ fontSize: "24px" }}>🎯</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>
-              Goals
-            </h3>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>
-              {goals.filter(g => g.status === 'ACTIVE').length} active · {goals.length} total
-            </div>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Active Goals — each as a visual card */}
+      {activeGoals.map((goal) => {
+        const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "#64748b", glow: "#475569" };
+        const isLearn = goal.type === 'LEARN' && hasCurriculum && curriculum;
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {goals.map((goal) => {
-              const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "var(--text-muted)" };
-              const statusConfig = GOAL_STATUS_CONFIG[goal.status] || { label: goal.status, color: "var(--text-muted)" };
-              const progressPercent = Math.round(goal.progress * 100);
-
-              return (
-                <div
-                  key={goal.id}
-                  style={{
-                    padding: "16px",
-                    background: "var(--background)",
-                    border: `1px solid ${typeConfig.color}30`,
-                    borderRadius: "8px",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "12px" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                        <span style={{ fontSize: "16px" }}>{typeConfig.icon}</span>
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            padding: "2px 8px",
-                            background: `${typeConfig.color}15`,
-                            color: typeConfig.color,
-                            borderRadius: "4px",
-                            fontWeight: "600",
-                          }}
-                        >
-                          {typeConfig.label}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            padding: "2px 8px",
-                            background: `${statusConfig.color}15`,
-                            color: statusConfig.color,
-                            borderRadius: "4px",
-                            fontWeight: "600",
-                          }}
-                        >
-                          {statusConfig.label}
-                        </span>
-                        {goal.priority > 5 && (
-                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                            Priority: {goal.priority}
-                          </span>
-                        )}
-                      </div>
-                      <h4 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "var(--text-primary)" }}>
-                        {goal.name}
-                      </h4>
-                      {goal.description && (
-                        <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "var(--text-muted)" }}>
-                          {goal.description}
-                        </p>
-                      )}
-                    </div>
-                    <div style={{ fontSize: "24px", fontWeight: "700", color: typeConfig.color }}>
-                      {progressPercent}%
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div style={{ height: "6px", background: "var(--border-default)", borderRadius: "3px", marginBottom: "12px", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${progressPercent}%`,
-                        background: typeConfig.color,
-                        transition: "width 0.3s ease",
-                      }}
-                    />
-                  </div>
-
-                  {/* Goal metadata */}
-                  <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "var(--text-muted)", flexWrap: "wrap" }}>
-                    {goal.playbook && (
-                      <div>
-                        <strong>Playbook:</strong> {goal.playbook.name} v{goal.playbook.version}
-                      </div>
-                    )}
-                    {goal.contentSpec && (
-                      <div>
-                        <strong>Content:</strong> {goal.contentSpec.name}
-                      </div>
-                    )}
-                    {goal.startedAt && (
-                      <div>
-                        <strong>Started:</strong> {new Date(goal.startedAt).toLocaleDateString()}
-                      </div>
-                    )}
-                    {goal.completedAt && (
-                      <div>
-                        <strong>Completed:</strong> {new Date(goal.completedAt).toLocaleDateString()}
-                      </div>
-                    )}
-                    {goal.targetDate && (
-                      <div>
-                        <strong>Target:</strong> {new Date(goal.targetDate).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* For LEARN goals, show curriculum progress if available */}
-                  {goal.type === 'LEARN' && hasCurriculum && curriculum && (
-                    <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-default)" }}>
-                      <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-secondary)", marginBottom: "8px" }}>
-                        Curriculum: {curriculum.name}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>
-                        ✅ {curriculum.completedCount} / {curriculum.totalModules} modules completed
-                      </div>
-                      {curriculum.nextModule && (
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            padding: "8px 12px",
-                            background: "var(--status-success-bg)",
-                            border: "1px solid var(--status-success-border)",
-                            borderRadius: "6px",
-                            color: "var(--status-success-text)",
-                          }}
-                        >
-                          <strong>Next:</strong> {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
-                        </div>
-                      )}
-                    </div>
+        return (
+          <div key={goal.id}>
+            {isLearn ? (
+              /* LEARN goal: SliderGroup with curriculum modules as sliders */
+              <SliderGroup
+                title={`${typeConfig.icon} ${goal.name} — ${Math.round(goal.progress * 100)}% — ${curriculum.completedCount}/${curriculum.totalModules} modules`}
+                color={{ primary: typeConfig.color, glow: typeConfig.glow }}
+              >
+                {/* Goal metadata strip */}
+                <div style={{ width: "100%", display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)", marginBottom: 4, flexWrap: "wrap" }}>
+                  {goal.description && <span>{goal.description}</span>}
+                  {goal.playbook && <span style={{ opacity: 0.7 }}>{goal.playbook.name} v{goal.playbook.version}</span>}
+                  {goal.startedAt && <span style={{ opacity: 0.7 }}>Started {new Date(goal.startedAt).toLocaleDateString()}</span>}
+                  {curriculum.nextModule && (
+                    <span style={{ color: "#22c55e", fontWeight: 600 }}>
+                      Next: {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
+                    </span>
                   )}
                 </div>
-              );
-            })}
+                {/* One slider per curriculum module */}
+                {curriculum.modules.map((mod) => {
+                  const modColor = MODULE_STATUS_COLORS[mod.status] || MODULE_STATUS_COLORS.not_started;
+                  const isCurrent = mod.id === curriculum.nextModule;
+                  return (
+                    <VerticalSlider
+                      key={mod.id}
+                      value={mod.mastery}
+                      targetValue={0.8}
+                      color={modColor}
+                      label={mod.name}
+                      tooltip={`${mod.name}\nStatus: ${mod.status}\nMastery: ${Math.round(mod.mastery * 100)}%\n${mod.description}`}
+                      width={56}
+                      height={120}
+                      isActive={isCurrent}
+                      showSparkline={false}
+                    />
+                  );
+                })}
+              </SliderGroup>
+            ) : (
+              /* Non-LEARN goal: Progress ring card */
+              <div style={{
+                background: "linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%)",
+                borderRadius: 16,
+                padding: 20,
+                border: "1px solid var(--border-default)",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <ProgressRing progress={goal.progress} size={72} color={typeConfig.color} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 16 }}>{typeConfig.icon}</span>
+                      <span style={{ fontSize: 10, padding: "2px 8px", background: `${typeConfig.color}22`, color: typeConfig.color, borderRadius: 4, fontWeight: 600 }}>
+                        {typeConfig.label}
+                      </span>
+                      <span style={{ fontSize: 10, padding: "2px 8px", background: goal.status === 'ACTIVE' ? "#22c55e22" : "#f59e0b22", color: goal.status === 'ACTIVE' ? "#22c55e" : "#f59e0b", borderRadius: 4, fontWeight: 600 }}>
+                        {goal.status === 'ACTIVE' ? 'Active' : 'Paused'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{goal.name}</div>
+                    {goal.description && (
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{goal.description}</div>
+                    )}
+                    <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)", marginTop: 8, flexWrap: "wrap" }}>
+                      {goal.playbook && <span>{goal.playbook.name} v{goal.playbook.version}</span>}
+                      {goal.startedAt && <span>Started {new Date(goal.startedAt).toLocaleDateString()}</span>}
+                      {goal.targetDate && <span>Target: {new Date(goal.targetDate).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })}
 
-      {/* Learner Profile Card */}
+      {/* Learner Profile — compact chips */}
       {hasProfile && learnerProfile && (
         <div style={{
-          background: "var(--surface-primary)",
+          background: "linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%)",
+          borderRadius: 16,
+          padding: 20,
           border: "1px solid var(--border-default)",
-          borderRadius: "12px",
-          padding: "24px"
+          boxShadow: "0 4px 24px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ fontSize: "24px" }}>🧠</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>
-              Learner Profile
-            </h3>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>
-              Inferred from behavior
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#8b5cf6", boxShadow: "0 0 8px #7c3aed" }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "0.5px" }}>Learner Profile</span>
           </div>
-
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: "16px"
-          }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {learnerProfile.learningStyle && (
-              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Learning Style</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
-                  {learnerProfile.learningStyle}
-                </div>
-              </div>
+              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+                <strong>Style:</strong> {learnerProfile.learningStyle}
+              </span>
             )}
-
             {learnerProfile.pacePreference && (
-              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Pace Preference</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
-                  {learnerProfile.pacePreference}
-                </div>
-              </div>
+              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+                <strong>Pace:</strong> {learnerProfile.pacePreference}
+              </span>
             )}
-
             {learnerProfile.interactionStyle && (
-              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Interaction Style</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
-                  {learnerProfile.interactionStyle}
-                </div>
-              </div>
+              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+                <strong>Interaction:</strong> {learnerProfile.interactionStyle}
+              </span>
             )}
-
             {learnerProfile.preferredModality && (
-              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Preferred Modality</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
-                  {learnerProfile.preferredModality}
-                </div>
-              </div>
+              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+                <strong>Modality:</strong> {learnerProfile.preferredModality}
+              </span>
             )}
-
             {learnerProfile.questionFrequency && (
-              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Question Frequency</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
-                  {learnerProfile.questionFrequency}
-                </div>
-              </div>
+              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+                <strong>Questions:</strong> {learnerProfile.questionFrequency}
+              </span>
             )}
-
             {learnerProfile.feedbackStyle && (
-              <div style={{ padding: "12px", background: "var(--background)", borderRadius: "8px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Feedback Style</div>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", textTransform: "capitalize" }}>
-                  {learnerProfile.feedbackStyle}
-                </div>
-              </div>
+              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+                <strong>Feedback:</strong> {learnerProfile.feedbackStyle}
+              </span>
             )}
+            {Object.entries(learnerProfile.priorKnowledge).map(([domain, level]) => (
+              <span key={domain} style={{ fontSize: 11, padding: "4px 10px", background: "var(--status-info-bg)", border: "1px solid var(--status-info-border)", borderRadius: 6, color: "var(--status-info-text)" }}>
+                <strong>{domain}:</strong> {level}
+              </span>
+            ))}
           </div>
-
-          {/* Prior Knowledge */}
-          {Object.keys(learnerProfile.priorKnowledge).length > 0 && (
-            <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid var(--border-default)" }}>
-              <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-secondary)", marginBottom: "12px" }}>
-                Prior Knowledge
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {Object.entries(learnerProfile.priorKnowledge).map(([domain, level]) => (
-                  <div
-                    key={domain}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "6px 12px",
-                      background: "var(--status-info-bg)",
-                      border: "1px solid var(--status-info-border)",
-                      borderRadius: "6px",
-                      fontSize: "13px"
-                    }}
-                  >
-                    <span style={{ color: "var(--status-info-text)", fontWeight: "600", textTransform: "capitalize" }}>{domain}</span>
-                    <span style={{ color: "var(--text-muted)" }}>·</span>
-                    <span style={{ color: "var(--text-secondary)", textTransform: "capitalize" }}>{level}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Curriculum Progress Card */}
-      {hasCurriculum && curriculum && (
-        <div style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "12px",
-          padding: "24px"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ fontSize: "24px" }}>📚</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>
-              {curriculum.name}
-            </h3>
-          </div>
-          <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "var(--text-muted)", marginBottom: "20px" }}>
-            <span>📊 {progressPercent}% complete</span>
-            <span>✅ {curriculum.completedCount} / {curriculum.totalModules} modules</span>
-          </div>
-      {/* Header */}
-      <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px", color: "var(--text-primary)" }}>
-          {curriculum.name}
-        </h2>
-        <div style={{ display: "flex", gap: "16px", fontSize: "14px", color: "var(--text-muted)" }}>
-          <span>📊 {progressPercent}% complete</span>
-          <span>✅ {curriculum.completedCount} / {curriculum.totalModules} modules</span>
-        </div>
-      </div>
-
-          {/* Progress Bar */}
-          <div style={{
-            height: "8px",
-            background: "var(--border-default)",
-            borderRadius: "4px",
-            marginBottom: "24px",
-            overflow: "hidden"
-          }}>
-            <div style={{
-              height: "100%",
-              background: "var(--button-success-bg)",
-              width: `${progressPercent}%`,
-              transition: "width 0.3s ease"
-            }} />
-          </div>
-
-          {/* Next Module Card */}
-          {curriculum.nextModule && (
-            <div style={{
-              background: "var(--status-success-bg)",
-              border: "1px solid var(--status-success-border)",
-              borderRadius: "8px",
-              padding: "16px",
-              marginBottom: "24px"
-            }}>
-              <div style={{ fontSize: "12px", color: "var(--status-success-text)", fontWeight: "600", marginBottom: "4px" }}>
-                NEXT MODULE
-              </div>
-              <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--status-success-text)" }}>
-                {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
-              </div>
+      {/* Archived Goals — collapsed by default */}
+      {archivedGoals.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 12,
+              color: "var(--text-muted)",
+              padding: "8px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span style={{ transform: showArchived ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", display: "inline-block" }}>&#9654;</span>
+            {archivedGoals.length} archived goal{archivedGoals.length > 1 ? "s" : ""}
+          </button>
+          {showArchived && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+              {archivedGoals.map((goal) => {
+                const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "#64748b", glow: "#475569" };
+                return (
+                  <div
+                    key={goal.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "10px 14px",
+                      background: "var(--surface-primary)",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 8,
+                      opacity: 0.7,
+                    }}
+                  >
+                    <span style={{ fontSize: 14 }}>{typeConfig.icon}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", flex: 1 }}>{goal.name}</span>
+                    <span style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: typeConfig.color, fontWeight: 600 }}>
+                      {Math.round(goal.progress * 100)}%
+                    </span>
+                    <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--background)", borderRadius: 4, color: "var(--text-muted)" }}>
+                      {goal.status === 'COMPLETED' ? 'Completed' : 'Archived'}
+                    </span>
+                    {goal.playbook && (
+                      <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{goal.playbook.name}</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
-
-          {/* Modules List */}
-          <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px", color: "var(--text-secondary)" }}>
-            All Modules
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {curriculum.modules.map((module, index) => (
-              <div
-                key={module.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "12px",
-                  background: "var(--background)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: "6px"
-                }}
-              >
-                {/* Status Icon */}
-                <div style={{ fontSize: "20px", flexShrink: 0 }}>
-                  {module.status === 'completed' && '✅'}
-                  {module.status === 'in_progress' && '🔄'}
-                  {module.status === 'not_started' && '⭕'}
-                </div>
-
-                {/* Module Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "14px", fontWeight: "500", color: "var(--text-primary)" }}>
-                    {index + 1}. {module.name}
-                  </div>
-                  {module.mastery > 0 && (
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-                      {Math.round(module.mastery * 100)}% mastery
-                    </div>
-                  )}
-                </div>
-
-                {/* Mastery Bar */}
-                {module.mastery > 0 && (
-                  <div style={{ width: "80px", flexShrink: 0 }}>
-                    <div style={{
-                      height: "4px",
-                      background: "var(--border-default)",
-                      borderRadius: "2px",
-                      overflow: "hidden"
-                    }}>
-                      <div style={{
-                        height: "100%",
-                        background: module.status === 'completed' ? 'var(--status-success-text)' : 'var(--status-warning-text)',
-                        width: `${module.mastery * 100}%`
-                      }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>
@@ -6399,59 +6141,10 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
 }
 
 // Top-Level Targets Section - shows behavior targets for this caller
-function TopLevelTargetsSection({ callerId }: { callerId: string }) {
-  const [callerTargets, setCallerTargets] = useState<any[]>([]);
-  const [behaviorTargets, setBehaviorTargets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedTarget, setExpandedTarget] = useState<string | null>(null);
-  const [showBehaviorTargets, setShowBehaviorTargets] = useState(false);
-
-  useEffect(() => {
-    fetchTargets();
-  }, [callerId]);
-
-  const fetchTargets = async () => {
-    setLoading(true);
-    try {
-      // Fetch caller data which now includes callerTargets
-      const callerRes = await fetch(`/api/callers/${callerId}`);
-      const callerData = await callerRes.json();
-
-      if (callerData.ok) {
-        // CallerTargets - personalized, computed by ADAPT specs
-        setCallerTargets(callerData.callerTargets || []);
-
-        // Also fetch behavior targets from a call if available
-        if (callerData.calls?.length > 0) {
-          const callDetailRes = await fetch(`/api/calls/${callerData.calls[0].id}`);
-          const callDetail = await callDetailRes.json();
-          if (callDetail.ok) {
-            setBehaviorTargets(callDetail.effectiveTargets || []);
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching targets:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        <div style={{ color: "var(--text-muted)" }}>Loading targets...</div>
-      </div>
-    );
-  }
-
-  return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} />;
-}
-
-// Top-Level Behaviour Section - shows measurements across all calls
-// Uses slider visualization (like Targets tab) for consistency
+// Top-Level Behaviour Section - shows targets + measurements across all calls
 function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
   const [measurements, setMeasurements] = useState<any[]>([]);
+  const [callerTargets, setCallerTargets] = useState<any[]>([]);
   const [behaviorTargets, setBehaviorTargets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -6466,29 +6159,34 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
       const res = await fetch(`/api/callers/${callerId}`);
       const data = await res.json();
 
-      if (data.ok && data.calls.length > 0) {
-        // Fetch measurements from each call
-        const allMeasurements: any[] = [];
-        for (const call of data.calls.slice(0, 10)) {
-          const callRes = await fetch(`/api/calls/${call.id}`);
-          const callData = await callRes.json();
-          if (callData.ok && callData.measurements) {
-            allMeasurements.push(
-              ...callData.measurements.map((m: any) => ({
-                ...m,
-                callCreatedAt: call.createdAt,
-              }))
-            );
-          }
-        }
-        setMeasurements(allMeasurements);
+      if (data.ok) {
+        // CallerTargets - personalized adjustments computed by ADAPT specs
+        setCallerTargets(data.callerTargets || []);
 
-        // Fetch behavior targets from the most recent call
-        const mostRecentCall = data.calls[0];
-        const callDetailRes = await fetch(`/api/calls/${mostRecentCall.id}`);
-        const callDetail = await callDetailRes.json();
-        if (callDetail.ok) {
-          setBehaviorTargets(callDetail.effectiveTargets || []);
+        if (data.calls.length > 0) {
+          // Fetch measurements from each call
+          const allMeasurements: any[] = [];
+          for (const call of data.calls.slice(0, 10)) {
+            const callRes = await fetch(`/api/calls/${call.id}`);
+            const callData = await callRes.json();
+            if (callData.ok && callData.measurements) {
+              allMeasurements.push(
+                ...callData.measurements.map((m: any) => ({
+                  ...m,
+                  callCreatedAt: call.createdAt,
+                }))
+              );
+            }
+          }
+          setMeasurements(allMeasurements);
+
+          // Fetch behavior targets from the most recent call
+          const mostRecentCall = data.calls[0];
+          const callDetailRes = await fetch(`/api/calls/${mostRecentCall.id}`);
+          const callDetail = await callDetailRes.json();
+          if (callDetail.ok) {
+            setBehaviorTargets(callDetail.effectiveTargets || []);
+          }
         }
       }
     } catch (err) {
@@ -6506,13 +6204,13 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
     );
   }
 
-  if (measurements.length === 0) {
+  if (measurements.length === 0 && behaviorTargets.length === 0 && callerTargets.length === 0) {
     return (
       <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No behavior measurements</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No behaviour data</div>
         <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-          Run the behavior measurement analysis to track how the agent performs against targets
+          Targets and measurements will appear here after calls are analyzed
         </div>
       </div>
     );
@@ -6536,9 +6234,16 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
     };
   });
 
-  // Use TwoColumnTargetsDisplay with measurements emphasized
-  // Empty callerTargets since this is about agent behavior, not caller-specific targets
-  return <TwoColumnTargetsDisplay callerTargets={[]} behaviorTargets={behaviorTargets} measurements={avgMeasurements} />;
+  // Build per-parameter history arrays sorted oldest-to-newest for sparklines
+  const historyByParameter: Record<string, number[]> = {};
+  for (const [parameterId, paramMeasurements] of Object.entries(grouped)) {
+    const sorted = [...paramMeasurements].sort(
+      (a, b) => new Date(a.callCreatedAt).getTime() - new Date(b.callCreatedAt).getTime()
+    );
+    historyByParameter[parameterId] = sorted.map((m: any) => m.actualValue);
+  }
+
+  return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} measurements={avgMeasurements} historyByParameter={historyByParameter} />;
 }
 
 // =====================================================
@@ -6611,7 +6316,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
   }
 
   if (!slugsData || slugsData.tree.length === 0) {
-    const hasAvailableVars = slugsData?.counts?.available > 0;
+    const hasAvailableVars = (slugsData?.counts?.available ?? 0) > 0;
     return (
       <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏷️</div>
@@ -6620,7 +6325,7 @@ function CallerSlugsSection({ callerId }: { callerId: string }) {
         </div>
         <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           {hasAvailableVars
-            ? `${slugsData.counts.available} template variables are defined but awaiting values.`
+            ? `${slugsData!.counts.available} template variables are defined but awaiting values.`
             : "This caller has no memories, scores, or personalized targets yet."}
         </div>
         <div style={{ fontSize: 12, color: "var(--text-placeholder)", marginTop: 8 }}>

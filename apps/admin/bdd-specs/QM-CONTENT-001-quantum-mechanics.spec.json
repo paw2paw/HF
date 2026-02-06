@@ -484,7 +484,8 @@
   ],
 
   "related": [
-    { "id": "TUT-001", "title": "Generic Tutor Identity", "relationship": "defines how this content is taught" },
+    { "id": "TUT-QM-001", "title": "Quantum Mechanics Tutor Identity", "relationship": "defines how this content is taught" },
+    { "id": "TUT-001", "title": "Generic Tutor Identity", "relationship": "base identity that TUT-QM-001 extends" },
     { "id": "CURR-001", "title": "Curriculum Tracking", "relationship": "tracks progress through this curriculum" }
   ]
 }

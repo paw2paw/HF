@@ -794,13 +794,11 @@ async function main() {
   const targetCount = await prisma.behaviorTarget.count();
   const callerCount = await prisma.caller.count();
   const callCount = await prisma.call.count();
-  const agentCount = await prisma.agent.count();
   const curriculumCount = await prisma.curriculum.count();
 
   console.log("\nFinal database state:\n");
   console.log(`   🌐 Domains: ${domainCount}`);
   console.log(`   📚 Playbooks: ${playbookCount}`);
-  console.log(`   🤖 Agents: ${agentCount}`);
   console.log(`   📖 Curricula: ${curriculumCount}`);
   console.log(`   🎯 Analysis Specs: ${specCount} total`);
   console.log(`      └─ CALLER: ${callerSpecCount}`);
