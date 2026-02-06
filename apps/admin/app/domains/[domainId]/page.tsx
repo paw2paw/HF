@@ -54,7 +54,18 @@ export default function DomainDetailPage({
   const [domain, setDomain] = useState<Domain | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"callers" | "playbooks">("playbooks");
+  const [activeTab, setActiveTab] = useState<"callers" | "playbooks" | "specs">("playbooks");
+  const [domainSpecs, setDomainSpecs] = useState<{
+    id: string;
+    slug: string;
+    name: string;
+    outputType: string;
+    scope: string;
+    isActive: boolean;
+    sourceFeatureSet?: { id: string; name: string } | null;
+    playbooks: string[];
+  }[]>([]);
+  const [specsLoading, setSpecsLoading] = useState(false);
   const [showCreatePlaybookModal, setShowCreatePlaybookModal] = useState(false);
   const [creatingPlaybook, setCreatingPlaybook] = useState(false);
   const [newPlaybook, setNewPlaybook] = useState({ name: "", description: "" });
@@ -78,6 +89,48 @@ export default function DomainDetailPage({
   useEffect(() => {
     fetchDomain();
   }, [domainId]);
+
+  // Fetch specs when switching to specs tab
+  useEffect(() => {
+    if (activeTab !== "specs" || !domain) return;
+    if (domainSpecs.length > 0) return; // Already loaded
+
+    const fetchSpecs = async () => {
+      setSpecsLoading(true);
+      try {
+        // Fetch specs used in this domain's playbooks
+        const playbookIds = domain.playbooks.map((p) => p.id);
+        if (playbookIds.length === 0) {
+          setDomainSpecs([]);
+          return;
+        }
+
+        const res = await fetch(`/api/analysis-specs?include=full`);
+        const data = await res.json();
+        if (data.ok) {
+          // Filter specs that are used in this domain's playbooks
+          const specsInDomain = data.specs
+            .filter((s: any) => s.playbooks?.some((p: any) => playbookIds.includes(p.id)))
+            .map((s: any) => ({
+              id: s.id,
+              slug: s.slug,
+              name: s.name,
+              outputType: s.outputType,
+              scope: s.scope,
+              isActive: s.isActive,
+              sourceFeatureSet: s.sourceFeatureSet,
+              playbooks: s.playbooks?.filter((p: any) => playbookIds.includes(p.id)).map((p: any) => p.name) || [],
+            }));
+          setDomainSpecs(specsInDomain);
+        }
+      } catch (err) {
+        console.error("Failed to fetch specs:", err);
+      } finally {
+        setSpecsLoading(false);
+      }
+    };
+    fetchSpecs();
+  }, [activeTab, domain, domainSpecs.length]);
 
   const handleCreatePlaybook = async () => {
     if (!newPlaybook.name) {
@@ -210,6 +263,22 @@ export default function DomainDetailPage({
             }}
           >
             Callers ({domain._count.callers})
+          </button>
+          <button
+            onClick={() => setActiveTab("specs")}
+            title="View analysis specs used in this domain"
+            style={{
+              padding: "12px 0",
+              background: "none",
+              border: "none",
+              borderBottom: activeTab === "specs" ? "2px solid #4f46e5" : "2px solid transparent",
+              color: activeTab === "specs" ? "#4f46e5" : "#6b7280",
+              fontWeight: activeTab === "specs" ? 600 : 400,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Specs {domainSpecs.length > 0 ? `(${domainSpecs.length})` : ""}
           </button>
         </div>
       </div>
@@ -349,6 +418,113 @@ export default function DomainDetailPage({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Specs Tab */}
+      {activeTab === "specs" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+              Analysis Specs in this Domain
+            </h3>
+            <Link
+              href={`/analysis-specs?scope=DOMAIN`}
+              style={{
+                padding: "8px 16px",
+                fontSize: 14,
+                fontWeight: 500,
+                background: "#f3f4f6",
+                color: "#374151",
+                borderRadius: 6,
+                textDecoration: "none",
+              }}
+            >
+              View All Specs →
+            </Link>
+          </div>
+
+          {specsLoading ? (
+            <div style={{ padding: 32, textAlign: "center", color: "#6b7280" }}>
+              Loading specs...
+            </div>
+          ) : domain.playbooks.length === 0 ? (
+            <div style={{ padding: 32, textAlign: "center", background: "#f9fafb", borderRadius: 8 }}>
+              <p style={{ color: "#6b7280" }}>Create a playbook first to add specs to this domain</p>
+            </div>
+          ) : domainSpecs.length === 0 ? (
+            <div style={{ padding: 32, textAlign: "center", background: "#f9fafb", borderRadius: 8 }}>
+              <p style={{ color: "#6b7280" }}>No specs have been added to playbooks in this domain yet</p>
+              <Link
+                href={`/playbooks/${domain.playbooks[0]?.id}`}
+                style={{ color: "#4f46e5", marginTop: 8, display: "inline-block" }}
+              >
+                Add specs to a playbook →
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {domainSpecs.map((spec) => (
+                <Link
+                  key={spec.id}
+                  href={`/analysis-specs?select=${spec.id}`}
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <div
+                    style={{
+                      background: "white",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 8,
+                      padding: 16,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      transition: "border-color 0.15s",
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.borderColor = "#4f46e5")}
+                    onMouseOut={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")}
+                  >
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600 }}>{spec.name}</span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            background: spec.outputType === "MEASURE" ? "#eef2ff" : "#fffbeb",
+                            color: spec.outputType === "MEASURE" ? "#4338ca" : "#92400e",
+                            borderRadius: 4,
+                          }}
+                        >
+                          {spec.outputType}
+                        </span>
+                        {!spec.isActive && (
+                          <span style={{ fontSize: 10, padding: "2px 6px", background: "#fee2e2", color: "#991b1b", borderRadius: 4 }}>
+                            inactive
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        {spec.slug}
+                        {spec.playbooks.length > 0 && (
+                          <span style={{ marginLeft: 8 }}>
+                            • in {spec.playbooks.join(", ")}
+                          </span>
+                        )}
+                      </div>
+                      {spec.sourceFeatureSet && (
+                        <div style={{ fontSize: 11, color: "#059669", marginTop: 4 }}>
+                          📦 Managed by {spec.sourceFeatureSet.name}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{ color: "#9ca3af" }}>&rarr;</span>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </div>

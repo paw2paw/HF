@@ -44,6 +44,38 @@ type ThresholdValue = {
   parameterId?: string;
 };
 
+type CreatedSpec = {
+  id: string;
+  slug: string;
+  name: string;
+  outputType: string;
+  specType: string;
+  scope: string;
+  isActive: boolean;
+};
+
+type CreatedParameter = {
+  parameterId: string;
+  name: string;
+  domainGroup: string;
+  isActive: boolean;
+};
+
+type CreatedPromptSlug = {
+  id: string;
+  slug: string;
+  name: string;
+  sourceType: string;
+  isActive: boolean;
+};
+
+type CreatedAnchor = {
+  id: string;
+  parameterId: string;
+  score: number;
+  example: string;
+};
+
 type BDDFeatureSet = {
   id: string;
   featureId: string;
@@ -71,6 +103,11 @@ type BDDFeatureSet = {
     name: string | null;
     uploadedAt: string;
   }[];
+  // Created entities (provenance)
+  createdSpecs?: CreatedSpec[];
+  createdParameters?: CreatedParameter[];
+  createdPromptSlugs?: CreatedPromptSlug[];
+  createdAnchors?: CreatedAnchor[];
 };
 
 export default function FeatureDetailPage() {
@@ -78,7 +115,7 @@ export default function FeatureDetailPage() {
   const router = useRouter();
   const [feature, setFeature] = useState<BDDFeatureSet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"dictionary" | "parameters" | "constraints" | "validations" | "sources">("dictionary");
+  const [activeTab, setActiveTab] = useState<"dictionary" | "parameters" | "constraints" | "validations" | "sources" | "entities">("dictionary");
 
   useEffect(() => {
     const fetchFeature = async () => {
@@ -151,6 +188,10 @@ export default function FeatureDetailPage() {
 
   const definitions = Object.values(feature.definitions || {});
   const thresholds = Object.entries(feature.thresholds || {});
+  const createdEntitiesCount =
+    (feature.createdSpecs?.length || 0) +
+    (feature.createdParameters?.length || 0) +
+    (feature.createdPromptSlugs?.length || 0);
 
   const tabs = [
     { id: "dictionary", label: "Data Dictionary", count: definitions.length },
@@ -158,6 +199,7 @@ export default function FeatureDetailPage() {
     { id: "constraints", label: "Constraints", count: feature.constraints?.length || 0 },
     { id: "validations", label: "Validations", count: feature.validations?.length || 0 },
     { id: "sources", label: "Sources", count: feature.uploads?.length || 0 },
+    { id: "entities", label: "Created Entities", count: createdEntitiesCount },
   ] as const;
 
   return (
@@ -553,6 +595,151 @@ export default function FeatureDetailPage() {
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Created Entities Tab */}
+        {activeTab === "entities" && (
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+              Created Entities
+              {!feature.isActive && (
+                <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 400, color: "#6b7280" }}>
+                  (Activate this feature set to create entities in production)
+                </span>
+              )}
+            </h3>
+
+            {createdEntitiesCount === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>
+                {feature.isActive
+                  ? "No entities created yet"
+                  : "Activate this feature set to create specs, parameters, and prompt slugs"}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                {/* Created Specs */}
+                {feature.createdSpecs && feature.createdSpecs.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#4f46e5", marginBottom: 8 }}>
+                      Analysis Specs ({feature.createdSpecs.length})
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {feature.createdSpecs.map((spec) => (
+                        <Link
+                          key={spec.id}
+                          href={`/analysis-specs?select=${spec.id}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <div
+                            style={{
+                              padding: "8px 12px",
+                              background: spec.outputType === "MEASURE" ? "#eef2ff" : "#fffbeb",
+                              border: `1px solid ${spec.outputType === "MEASURE" ? "#c7d2fe" : "#fde68a"}`,
+                              borderRadius: 6,
+                              fontSize: 13,
+                            }}
+                          >
+                            <div style={{ fontWeight: 500, color: spec.outputType === "MEASURE" ? "#4338ca" : "#92400e" }}>
+                              {spec.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                              {spec.outputType} • {spec.scope}
+                              {!spec.isActive && " • inactive"}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Created Parameters */}
+                {feature.createdParameters && feature.createdParameters.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#059669", marginBottom: 8 }}>
+                      Parameters ({feature.createdParameters.length})
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {feature.createdParameters.map((param) => (
+                        <Link
+                          key={param.parameterId}
+                          href={`/data-dictionary?search=${param.parameterId}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <div
+                            style={{
+                              padding: "8px 12px",
+                              background: "#d1fae5",
+                              border: "1px solid #a7f3d0",
+                              borderRadius: 6,
+                              fontSize: 13,
+                            }}
+                          >
+                            <div style={{ fontWeight: 500, color: "#065f46" }}>
+                              {param.name || param.parameterId}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                              {param.domainGroup}
+                              {!param.isActive && " • inactive"}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Created Prompt Slugs */}
+                {feature.createdPromptSlugs && feature.createdPromptSlugs.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#7c3aed", marginBottom: 8 }}>
+                      Prompt Slugs ({feature.createdPromptSlugs.length})
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {feature.createdPromptSlugs.map((slug) => (
+                        <Link
+                          key={slug.id}
+                          href={`/prompt-slugs?select=${slug.id}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <div
+                            style={{
+                              padding: "8px 12px",
+                              background: "#f3e8ff",
+                              border: "1px solid #ddd6fe",
+                              borderRadius: 6,
+                              fontSize: 13,
+                            }}
+                          >
+                            <div style={{ fontWeight: 500, color: "#6d28d9" }}>
+                              {slug.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                              {slug.sourceType}
+                              {!slug.isActive && " • inactive"}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Created Anchors Summary */}
+                {feature.createdAnchors && feature.createdAnchors.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#d97706", marginBottom: 8 }}>
+                      Scoring Anchors ({feature.createdAnchors.length})
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>
+                      {feature.createdAnchors.length} anchors created across{" "}
+                      {new Set(feature.createdAnchors.map((a) => a.parameterId)).size} parameters
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

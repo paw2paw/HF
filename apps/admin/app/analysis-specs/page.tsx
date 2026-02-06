@@ -116,6 +116,13 @@ type AnalysisSpec = {
   // Playbook usage
   playbookCount?: number;
   playbooks?: PlaybookUsage[];
+  // Provenance tracking
+  sourceFeatureSet?: {
+    id: string;
+    featureId: string;
+    name: string;
+    version: string;
+  } | null;
 };
 
 type FullParameter = {
@@ -1027,6 +1034,31 @@ function AnalysisSpecsContent() {
                               </span>
                             )}
                           </span>
+                        </div>
+                      )}
+                      {/* Provenance - Source Feature Set */}
+                      {s.sourceFeatureSet && (
+                        <div
+                          style={{
+                            marginTop: 6,
+                            marginLeft: 14,
+                            fontSize: 10,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <span style={{ color: "#10b981" }}>📦</span>
+                          <Link
+                            href={`/lab/features/${s.sourceFeatureSet.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              color: "#059669",
+                              textDecoration: "none",
+                            }}
+                          >
+                            Managed by {s.sourceFeatureSet.name} v{s.sourceFeatureSet.version}
+                          </Link>
                         </div>
                       )}
                     </div>

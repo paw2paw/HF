@@ -41,6 +41,12 @@ type ParameterData = {
   interpretationHigh: string | null;
   interpretationLow: string | null;
   isActive: boolean;
+  sourceFeatureSet?: {
+    id: string;
+    featureId: string;
+    name: string;
+    version: string;
+  } | null;
   scoringAnchors: Array<{
     id: string;
     score: number;
@@ -606,6 +612,17 @@ function ParameterRow({ param }: { param: ParameterData }) {
               <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 10, background: "#fee2e2", color: "#991b1b" }}>
                 inactive
               </span>
+            )}
+            {param.sourceFeatureSet && (
+              <Link
+                href={`/lab/features/${param.sourceFeatureSet.id}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{ textDecoration: "none" }}
+              >
+                <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 10, background: "#d1fae5", color: "#059669" }}>
+                  📦 {param.sourceFeatureSet.name}
+                </span>
+              </Link>
             )}
           </div>
         </td>
