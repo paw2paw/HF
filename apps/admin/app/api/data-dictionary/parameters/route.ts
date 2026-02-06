@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
       where: domainGroup ? { domainGroup } : undefined,
       orderBy: [{ domainGroup: "asc" }, { parameterId: "asc" }],
       include: {
+        // Source feature set (provenance tracking)
+        sourceFeatureSet: {
+          select: { id: true, featureId: true, name: true, version: true },
+        },
         // Scoring anchors
         scoringAnchors: {
           orderBy: { score: "desc" },
@@ -83,6 +87,9 @@ export async function GET(request: NextRequest) {
                     scope: true,
                     domain: true,
                     isActive: true,
+                    sourceFeatureSet: {
+                      select: { id: true, featureId: true, name: true },
+                    },
                   },
                 },
               },
@@ -101,6 +108,7 @@ export async function GET(request: NextRequest) {
             scope: string;
             domain: string | null;
             isActive: boolean;
+            sourceFeatureSet: { id: string; featureId: string; name: string } | null;
             actionCount: number;
             triggers: string[];
           }
@@ -118,6 +126,7 @@ export async function GET(request: NextRequest) {
             } else {
               specMap.set(spec.id, {
                 ...spec,
+                sourceFeatureSet: spec.sourceFeatureSet || null,
                 actionCount: 1,
                 triggers: action.trigger.name ? [action.trigger.name] : [],
               });

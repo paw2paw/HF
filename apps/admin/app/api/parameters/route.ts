@@ -56,13 +56,16 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.parameter.count({ where });
 
-    // Get paginated data with tags and prompt slug links
+    // Get paginated data with tags, prompt slug links, and source feature set
     const data = await prisma.parameter.findMany({
       where,
       orderBy: { [sortField]: sortOrder.toLowerCase() },
       skip: start,
       take: limit,
       include: {
+        sourceFeatureSet: {
+          select: { id: true, featureId: true, name: true, version: true }
+        },
         tags: {
           include: {
             tag: true

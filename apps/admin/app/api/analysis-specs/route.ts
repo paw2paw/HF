@@ -47,6 +47,9 @@ export async function GET(req: Request) {
       include:
         include === "full"
           ? {
+              sourceFeatureSet: {
+                select: { id: true, featureId: true, name: true, version: true },
+              },
               triggers: {
                 orderBy: { sortOrder: "asc" },
                 include: {
@@ -72,6 +75,9 @@ export async function GET(req: Request) {
               },
             }
           : {
+              sourceFeatureSet: {
+                select: { id: true, featureId: true, name: true, version: true },
+              },
               triggers: {
                 select: {
                   id: true,

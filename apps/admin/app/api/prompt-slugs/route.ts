@@ -31,6 +31,9 @@ export async function GET(req: Request) {
       where,
       orderBy: [{ priority: "desc" }, { name: "asc" }],
       include: {
+        sourceFeatureSet: {
+          select: { id: true, featureId: true, name: true, version: true },
+        },
         parameters: {
           include: {
             parameter: {

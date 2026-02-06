@@ -129,6 +129,7 @@ export async function POST(
         parameterType: ParameterType.STATE, // Default to STATE for analyzed parameters
         interpretationHigh: param.interpretationHigh || null,
         interpretationLow: param.interpretationLow || null,
+        sourceFeatureSetId: featureSet.id, // Track provenance
       };
 
       if (existingParam) {
@@ -161,6 +162,7 @@ export async function POST(
                 score: anchor.score ?? 0.5,
                 rationale: anchor.rationale || null,
                 source: `lab:${featureSet.featureId}`,
+                sourceFeatureSetId: featureSet.id,
                 isGold: anchor.isGold ?? true, // Direct anchors from BDD are authoritative
               },
             });
@@ -190,6 +192,7 @@ export async function POST(
                     score: 0.5, // Default middle score - can be refined
                     rationale: `Definition from submetric ${sub.id || sub.name}`,
                     source: `lab:${featureSet.featureId}`,
+                    sourceFeatureSetId: featureSet.id,
                   },
                 });
                 results.anchorsCreated++;
@@ -215,6 +218,7 @@ export async function POST(
                     score: Math.min(1, Math.max(0, score)),
                     rationale: thresh.basis || `Threshold from ${sub.id || sub.name}`,
                     source: `lab:${featureSet.featureId}`,
+                    sourceFeatureSetId: featureSet.id,
                   },
                 });
                 results.anchorsCreated++;
@@ -242,6 +246,7 @@ export async function POST(
                 score: avgScore,
                 rationale: `Interpretation range ${range.min}-${range.max}`,
                 source: `lab:${featureSet.featureId}`,
+                sourceFeatureSetId: featureSet.id,
                 isGold: true, // Interpretation scales are authoritative
               },
             });
@@ -284,7 +289,8 @@ export async function POST(
       version: featureSet.version,
       promptTemplate: instruction,
       compiledAt: new Date(),
-      compiledSetId: featureSet.id,
+      compiledSetId: featureSet.id, // Deprecated - kept for backwards compatibility
+      sourceFeatureSetId: featureSet.id, // Proper FK for provenance tracking
       isDirty: false,
     };
 
@@ -367,7 +373,8 @@ export async function POST(
         version: featureSet.version,
         promptTemplate: learnSpec.promptTemplate || null,
         compiledAt: new Date(),
-        compiledSetId: featureSet.id,
+        compiledSetId: featureSet.id, // Deprecated - kept for backwards compatibility
+        sourceFeatureSetId: featureSet.id, // Proper FK for provenance tracking
         isDirty: false,
       };
 
@@ -467,6 +474,7 @@ export async function POST(
             priority: promptSpec.priority || 0,
             isActive: true,
             version: featureSet.version,
+            sourceFeatureSetId: featureSet.id, // Track provenance
           },
         });
 
