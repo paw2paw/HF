@@ -171,12 +171,14 @@ export async function logAIUsage(params: {
   };
 
   // Log input tokens
+  // Note: quantity is raw token count; cost rate uses 1k_tokens unit
+  // so we let getCostRate provide the unitType and calculateCost handles normalization
   if (params.inputTokens > 0) {
     await logUsageEvent({
       ...baseInput,
       operation: `${params.engine}:input`,
       quantity: params.inputTokens,
-      unitType: "tokens",
+      // Don't override unitType - let cost rate's "1k_tokens" be used
       metadata: { ...params.metadata, tokenType: "input" },
     });
   }
@@ -187,7 +189,7 @@ export async function logAIUsage(params: {
       ...baseInput,
       operation: `${params.engine}:output`,
       quantity: params.outputTokens,
-      unitType: "tokens",
+      // Don't override unitType - let cost rate's "1k_tokens" be used
       metadata: { ...params.metadata, tokenType: "output" },
     });
   }
