@@ -110,6 +110,12 @@ npm run dev:stop         # Stop background servers
 
 ## Testing
 
+### Quick Validation
+```bash
+npm run tests            # Run unit tests + build (TypeScript check)
+```
+Use this before committing to catch both test failures and type errors.
+
 ### Unit Tests
 ```bash
 npm run test             # Run all unit tests
@@ -165,7 +171,8 @@ npm run help             # Show this guide in terminal
 - **Fix a stuck server** → `npm run devX`
 - **View database** → `npm run prisma:studio`
 - **Watch logs** → `npm run logs`
-- **Run tests** → `npm run test`
+- **Quick validation before commit** → `npm run tests`
+- **Run unit tests only** → `npm run test`
 - **See all commands** → `npm run help`
 
 ---
