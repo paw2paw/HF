@@ -8,7 +8,7 @@ import { runPipeline } from "../../../lib/ops/pipeline-run";
 import { measureAgent } from "../../../lib/ops/measure-agent";
 import { computeReward } from "../../../lib/ops/compute-reward";
 import { updateTargets } from "../../../lib/ops/update-targets";
-import { composeNextPrompt } from "../../../lib/ops/compose-next-prompt";
+import { composeNextPrompt, backfillUsedPromptIds } from "../../../lib/ops/compose-next-prompt";
 
 export const runtime = "nodejs";
 
@@ -29,7 +29,8 @@ export async function GET() {
       { opid: "behavior:measure", status: "implemented", description: "Measure behaviour from transcripts" },
       { opid: "reward:compute", status: "implemented", description: "Compute rewards comparing behaviors to targets" },
       { opid: "targets:update", status: "implemented", description: "Update targets based on reward signals" },
-      { opid: "prompt:compose-next", status: "implemented", description: "Compose personalized prompts for callers" },
+      { opid: "prompt:compose-next", status: "implemented", description: "Compose personalized prompts for callers (creates ComposedPrompt records)" },
+      { opid: "prompt:backfill", status: "implemented", description: "Backfill usedPromptId for existing calls" },
       { opid: "knowledge:embed", status: "not_implemented" },
       { opid: "kb:parameters:import", status: "not_implemented" },
       { opid: "kb:parameters:snapshot", status: "not_implemented" },
@@ -253,6 +254,22 @@ export async function POST(request: NextRequest) {
           limit: settings.limit ?? 100,
           forceRecompose: settings.forceRecompose ?? false,
           maxAge: settings.maxAge ?? 24,
+        });
+
+        return NextResponse.json({
+          success: result.errors.length === 0,
+          opid,
+          result,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      case "prompt:backfill": {
+        const result = await backfillUsedPromptIds({
+          verbose: settings.verbose ?? false,
+          plan: dryRun,
+          callerId: settings.callerId,
+          limit: settings.limit ?? 1000,
         });
 
         return NextResponse.json({

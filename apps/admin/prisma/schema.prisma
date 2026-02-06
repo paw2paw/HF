@@ -739,7 +739,12 @@ model Call {
   behaviorMeasurements BehaviorMeasurement[]
 
   // Prompts triggered by this call
-  triggeredPrompts ComposedPrompt[]
+  triggeredPrompts ComposedPrompt[] @relation("TriggeredPrompts")
+
+  // The prompt that was active/used DURING this call
+  // Set when the call is created, captures the state at call time
+  usedPromptId String?
+  usedPrompt   ComposedPrompt? @relation("UsedPrompt", fields: [usedPromptId], references: [id])
 
   // Per-call behavior targets (computed by ADAPT specs)
   callTargets CallTarget[]
@@ -748,6 +753,7 @@ model Call {
   @@index([externalId])
   @@index([callerId], map: "Call_userId_idx")
   @@index([previousCallId])
+  @@index([usedPromptId])
 }
 
 model CallScore {
@@ -2338,7 +2344,10 @@ model ComposedPrompt {
 
   // Optional: which call triggered this composition
   triggerCallId String?
-  triggerCall   Call?   @relation(fields: [triggerCallId], references: [id])
+  triggerCall   Call?   @relation("TriggeredPrompts", fields: [triggerCallId], references: [id])
+
+  // Calls that used this prompt (reverse of Call.usedPromptId)
+  usedForCalls Call[] @relation("UsedPrompt")
 
   // Inputs used for composition (for audit/debugging)
   inputs Json? // { memories, personality, behaviorTargets, recentCalls, etc. }

@@ -607,7 +607,7 @@ export async function composeNextPrompt(
         });
       }
 
-      // Store the composed prompt
+      // Store the composed prompt in CallerIdentity (legacy)
       await prisma.callerIdentity.update({
         where: { id: callerIdentity.id },
         data: {
@@ -620,6 +620,49 @@ export async function composeNextPrompt(
           },
         },
       });
+
+      // Also create a ComposedPrompt record (for usedPromptId tracking)
+      // Only create if we have a linked Caller record
+      if (callerIdentity.callerId) {
+        // Mark previous prompts as superseded
+        await prisma.composedPrompt.updateMany({
+          where: {
+            callerId: callerIdentity.callerId,
+            status: "active",
+          },
+          data: {
+            status: "superseded",
+          },
+        });
+
+        // Create the new ComposedPrompt record
+        await prisma.composedPrompt.create({
+          data: {
+            callerId: callerIdentity.callerId,
+            prompt,
+            llmPrompt: {
+              _source: "compose-next-prompt",
+              targetCount: effectiveTargets.size,
+              memoryCount,
+              targets: Object.fromEntries(
+                Array.from(effectiveTargets.entries()).map(([k, v]) => [
+                  k,
+                  { value: v.targetValue, confidence: v.confidence, scope: v.scope },
+                ])
+              ),
+            },
+            triggerType: "scheduled",
+            model: "compose-next-prompt",
+            status: "active",
+            inputs: {
+              targetCount: effectiveTargets.size,
+              memoryCount,
+              segmentId: callerIdentity.segmentId,
+              composedAt: new Date().toISOString(),
+            },
+          },
+        });
+      }
 
       result.promptsComposed++;
       result.compositions.push({
@@ -645,6 +688,107 @@ export async function composeNextPrompt(
     console.log(`  Callers processed: ${result.callersProcessed}`);
     console.log(`  Prompts composed: ${result.promptsComposed}`);
     console.log(`  Skipped: ${result.skipped}`);
+    console.log(`  Errors: ${result.errors.length}`);
+  }
+
+  return result;
+}
+
+/**
+ * Backfill usedPromptId for calls that don't have it set.
+ * For each call, finds the most recent ComposedPrompt before the call's createdAt.
+ */
+interface BackfillResult {
+  callsProcessed: number;
+  callsUpdated: number;
+  callsSkipped: number;
+  errors: string[];
+}
+
+export async function backfillUsedPromptIds(options: {
+  verbose?: boolean;
+  plan?: boolean;
+  limit?: number;
+  callerId?: string;
+} = {}): Promise<BackfillResult> {
+  const { verbose = false, plan = false, limit = 1000, callerId } = options;
+
+  const result: BackfillResult = {
+    callsProcessed: 0,
+    callsUpdated: 0,
+    callsSkipped: 0,
+    errors: [],
+  };
+
+  // Find calls without usedPromptId
+  const calls = await prisma.call.findMany({
+    where: {
+      usedPromptId: null,
+      callerId: { not: null },
+      ...(callerId ? { callerId } : {}),
+    },
+    select: {
+      id: true,
+      callerId: true,
+      createdAt: true,
+      callSequence: true,
+    },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+
+  if (verbose) console.log(`Found ${calls.length} calls without usedPromptId`);
+
+  if (plan) {
+    console.log("\n=== BACKFILL PLAN ===");
+    console.log(`Calls to process: ${calls.length}`);
+    for (const call of calls.slice(0, 10)) {
+      console.log(`  - Call ${call.id.slice(0, 8)}... (seq #${call.callSequence || "?"}) at ${call.createdAt.toISOString()}`);
+    }
+    if (calls.length > 10) console.log(`  ... and ${calls.length - 10} more`);
+    return result;
+  }
+
+  for (const call of calls) {
+    result.callsProcessed++;
+
+    try {
+      // Find the most recent ComposedPrompt before this call
+      const prompt = await prisma.composedPrompt.findFirst({
+        where: {
+          callerId: call.callerId!,
+          composedAt: { lt: call.createdAt },
+        },
+        orderBy: { composedAt: "desc" },
+        select: { id: true, composedAt: true },
+      });
+
+      if (prompt) {
+        await prisma.call.update({
+          where: { id: call.id },
+          data: { usedPromptId: prompt.id },
+        });
+        result.callsUpdated++;
+        if (verbose) {
+          console.log(`Call ${call.id.slice(0, 8)}... → Prompt ${prompt.id.slice(0, 8)}... (composed ${prompt.composedAt.toISOString()})`);
+        }
+      } else {
+        result.callsSkipped++;
+        if (verbose) {
+          console.log(`Call ${call.id.slice(0, 8)}... → No prompt found before ${call.createdAt.toISOString()}`);
+        }
+      }
+    } catch (error: any) {
+      result.errors.push(`Error processing call ${call.id}: ${error.message}`);
+      if (verbose) console.error(`Error processing call ${call.id}:`, error.message);
+    }
+  }
+
+  if (verbose) {
+    console.log(`\nBackfill Complete:`);
+    console.log(`  Calls processed: ${result.callsProcessed}`);
+    console.log(`  Calls updated: ${result.callsUpdated}`);
+    console.log(`  Calls skipped (no matching prompt): ${result.callsSkipped}`);
     console.log(`  Errors: ${result.errors.length}`);
   }
 

@@ -284,7 +284,7 @@ async function getCallerContext(callerId: string): Promise<string | null> {
           triggerType: true,
         },
       }),
-      // Get most recent call
+      // Get most recent call with the prompt that was used
       prisma.call.findFirst({
         where: { callerId },
         orderBy: { createdAt: "desc" },
@@ -293,6 +293,14 @@ async function getCallerContext(callerId: string): Promise<string | null> {
           createdAt: true,
           callSequence: true,
           transcript: true,
+          usedPrompt: {
+            select: {
+              id: true,
+              prompt: true,
+              llmPrompt: true,
+              composedAt: true,
+            },
+          },
         },
       }),
       // Get caller targets
@@ -360,6 +368,31 @@ async function getCallerContext(callerId: string): Promise<string | null> {
         const preview = recentCall.transcript.slice(0, 300).replace(/\n/g, " ");
         parts.push(`- Transcript preview: "${preview}${recentCall.transcript.length > 300 ? "..." : ""}"`);
       }
+
+      // Show the prompt that was used FOR this call
+      if (recentCall.usedPrompt) {
+        parts.push("\n**Prompt Used FOR This Call:**");
+        parts.push(`- Composed: ${recentCall.usedPrompt.composedAt?.toLocaleString() || "N/A"}`);
+        if (recentCall.usedPrompt.llmPrompt) {
+          const llm = recentCall.usedPrompt.llmPrompt as Record<string, unknown>;
+          parts.push("```json");
+          const summary: Record<string, unknown> = {};
+          if (llm._quickStart) summary._quickStart = llm._quickStart;
+          if (llm._preamble) summary._preamble = llm._preamble;
+          if (llm.instructions) summary.instructions = llm.instructions;
+          if (llm.this_caller) summary.this_caller = llm.this_caller;
+          if (llm.behavior_targets) summary.behavior_targets = llm.behavior_targets;
+          parts.push(JSON.stringify(summary, null, 2).slice(0, 1500));
+          parts.push("```");
+        } else if (recentCall.usedPrompt.prompt) {
+          parts.push("```");
+          parts.push(recentCall.usedPrompt.prompt.slice(0, 800));
+          if (recentCall.usedPrompt.prompt.length > 800) parts.push("... (truncated)");
+          parts.push("```");
+        }
+      } else {
+        parts.push("\n_No prompt was tracked for this call (usedPromptId not set)_");
+      }
     }
 
     // Composed Prompt (the key info the user is asking about!)
@@ -412,6 +445,14 @@ async function getCallContext(callId: string): Promise<string | null> {
           take: 10,
           orderBy: { confidence: "desc" },
         },
+        usedPrompt: {
+          select: {
+            id: true,
+            prompt: true,
+            llmPrompt: true,
+            composedAt: true,
+          },
+        },
       },
     });
 
@@ -423,7 +464,33 @@ async function getCallContext(callId: string): Promise<string | null> {
       `- **Date:** ${call.createdAt.toLocaleString()}`,
       `- **Caller:** ${call.caller?.name || "Unknown"}`,
       `- **Source:** ${call.source || "N/A"}`,
+      `- **Call Sequence:** #${(call as any).callSequence || "?"}`,
     ];
+
+    // Show the prompt that was used FOR this call
+    if (call.usedPrompt) {
+      parts.push("\n**Prompt Used FOR This Call:**");
+      parts.push(`- Composed: ${call.usedPrompt.composedAt?.toLocaleString() || "N/A"}`);
+      if (call.usedPrompt.llmPrompt) {
+        const llm = call.usedPrompt.llmPrompt as Record<string, unknown>;
+        parts.push("```json");
+        const summary: Record<string, unknown> = {};
+        if (llm._quickStart) summary._quickStart = llm._quickStart;
+        if (llm._preamble) summary._preamble = llm._preamble;
+        if (llm.instructions) summary.instructions = llm.instructions;
+        if (llm.this_caller) summary.this_caller = llm.this_caller;
+        if (llm.behavior_targets) summary.behavior_targets = llm.behavior_targets;
+        parts.push(JSON.stringify(summary, null, 2).slice(0, 2000));
+        parts.push("```");
+      } else if (call.usedPrompt.prompt) {
+        parts.push("```");
+        parts.push(call.usedPrompt.prompt.slice(0, 1000));
+        if (call.usedPrompt.prompt.length > 1000) parts.push("... (truncated)");
+        parts.push("```");
+      }
+    } else {
+      parts.push("\n_No prompt was tracked for this call_");
+    }
 
     if (call.transcript) {
       const preview = call.transcript.slice(0, 500);

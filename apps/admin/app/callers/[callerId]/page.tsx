@@ -382,6 +382,27 @@ export default function CallerDetailPage() {
 
     // Refresh prompts list
     await fetchPrompts();
+
+    // Backfill usedPromptId for all calls that don't have it
+    setPromptProgress("Backfilling usedPromptId...");
+    let backfillResult = { callsUpdated: 0, callsSkipped: 0 };
+    try {
+      const backfillRes = await fetch("/api/ops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opid: "prompt:backfill",
+          settings: { callerId, verbose: false },
+        }),
+      });
+      const backfillData = await backfillRes.json();
+      if (backfillData.success && backfillData.result) {
+        backfillResult = backfillData.result;
+      }
+    } catch (err) {
+      console.error("Backfill error:", err);
+    }
+
     setComposing(false);
     setPromptProgress("");
 
@@ -390,7 +411,8 @@ export default function CallerDetailPage() {
       `Prompt ALL complete!\n\n` +
       `Processed: ${processed} calls\n` +
       `Skipped: ${skipped}\n` +
-      `Errors: ${errors}`
+      `Errors: ${errors}\n\n` +
+      `Backfill: ${backfillResult.callsUpdated} calls linked to prompts`
     );
   };
 

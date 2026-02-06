@@ -926,6 +926,19 @@ export async function POST(request: NextRequest) {
           // create_new - fall through
         }
 
+        // Find the active prompt that was used for this call
+        // (the most recent active prompt composed before the call started)
+        const callStartTime = new Date(vapiCall.startedAt || vapiCall.createdAt);
+        const activePrompt = await prisma.composedPrompt.findFirst({
+          where: {
+            callerId: caller!.id,
+            status: "active",
+            composedAt: { lt: callStartTime },
+          },
+          orderBy: { composedAt: "desc" },
+          select: { id: true },
+        });
+
         const createdCall = await prisma.call.create({
           data: {
             source: "import",
@@ -936,7 +949,8 @@ export async function POST(request: NextRequest) {
             transcript: vapiCall.transcript,
             callSequence,
             previousCallId,
-            createdAt: new Date(vapiCall.startedAt || vapiCall.createdAt),
+            createdAt: callStartTime,
+            usedPromptId: activePrompt?.id || null,
           },
         });
 
