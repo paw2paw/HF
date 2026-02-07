@@ -3,6 +3,9 @@
  *
  * Provides a unified interface for calling different AI engines (Claude, OpenAI, Mock).
  * The engine selection is passed from the frontend via request headers or body.
+ *
+ * Supports runtime configuration via AIConfig table - use `callPoint` to load
+ * provider/model settings from the database.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -20,6 +23,10 @@ export interface AICompletionOptions {
   messages: AIMessage[];
   maxTokens?: number;
   temperature?: number;
+  /** Optional: specific model to use (overrides engine default) */
+  model?: string;
+  /** Optional: call point for loading config from database */
+  callPoint?: string;
 }
 
 export interface AICompletionResult {
@@ -63,14 +70,14 @@ function getOpenAIClient(): OpenAI {
  * Get AI completion from the specified engine
  */
 export async function getAICompletion(options: AICompletionOptions): Promise<AICompletionResult> {
-  const { engine, messages, maxTokens = 1024, temperature = 0.7 } = options;
+  const { engine, messages, maxTokens = 1024, temperature = 0.7, model } = options;
 
   switch (engine) {
     case "claude":
-      return callClaude(messages, maxTokens, temperature);
+      return callClaude(messages, maxTokens, temperature, model);
 
     case "openai":
-      return callOpenAI(messages, maxTokens, temperature);
+      return callOpenAI(messages, maxTokens, temperature, model);
 
     case "mock":
     default:
@@ -81,7 +88,8 @@ export async function getAICompletion(options: AICompletionOptions): Promise<AIC
 async function callClaude(
   messages: AIMessage[],
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  model?: string
 ): Promise<AICompletionResult> {
   const client = getAnthropicClient();
 
@@ -94,8 +102,11 @@ async function callClaude(
       content: m.content,
     }));
 
+  // Use provided model or default
+  const modelId = model || "claude-sonnet-4-20250514";
+
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: modelId,
     max_tokens: maxTokens,
     temperature,
     system: systemMessage?.content,
@@ -118,12 +129,16 @@ async function callClaude(
 async function callOpenAI(
   messages: AIMessage[],
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  model?: string
 ): Promise<AICompletionResult> {
   const client = getOpenAIClient();
 
+  // Use provided model or default
+  const modelId = model || "gpt-4o";
+
   const response = await client.chat.completions.create({
-    model: "gpt-4o",
+    model: modelId,
     max_tokens: maxTokens,
     temperature,
     messages: messages.map((m) => ({
@@ -253,6 +268,10 @@ export interface AIStreamOptions {
   messages: AIMessage[];
   maxTokens?: number;
   temperature?: number;
+  /** Optional: specific model to use (overrides engine default) */
+  model?: string;
+  /** Optional: call point for loading config from database */
+  callPoint?: string;
 }
 
 /**
@@ -262,13 +281,13 @@ export interface AIStreamOptions {
 export async function getAICompletionStream(
   options: AIStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
-  const { engine, messages, maxTokens = 1024, temperature = 0.7 } = options;
+  const { engine, messages, maxTokens = 1024, temperature = 0.7, model } = options;
 
   switch (engine) {
     case "claude":
-      return streamClaude(messages, maxTokens, temperature);
+      return streamClaude(messages, maxTokens, temperature, model);
     case "openai":
-      return streamOpenAI(messages, maxTokens, temperature);
+      return streamOpenAI(messages, maxTokens, temperature, model);
     case "mock":
     default:
       return mockStream(messages);
@@ -278,7 +297,8 @@ export async function getAICompletionStream(
 async function streamClaude(
   messages: AIMessage[],
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  model?: string
 ): Promise<ReadableStream<Uint8Array>> {
   const client = getAnthropicClient();
 
@@ -291,8 +311,11 @@ async function streamClaude(
       content: m.content,
     }));
 
+  // Use provided model or default
+  const modelId = model || "claude-sonnet-4-20250514";
+
   const stream = client.messages.stream({
-    model: "claude-sonnet-4-20250514",
+    model: modelId,
     max_tokens: maxTokens,
     temperature,
     system: systemMessage?.content,
@@ -323,12 +346,16 @@ async function streamClaude(
 async function streamOpenAI(
   messages: AIMessage[],
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  model?: string
 ): Promise<ReadableStream<Uint8Array>> {
   const client = getOpenAIClient();
 
+  // Use provided model or default
+  const modelId = model || "gpt-4o";
+
   const stream = await client.chat.completions.create({
-    model: "gpt-4o",
+    model: modelId,
     max_tokens: maxTokens,
     temperature,
     stream: true,
@@ -386,5 +413,83 @@ function mockStream(messages: AIMessage[]): ReadableStream<Uint8Array> {
         controller.close();
       }
     },
+  });
+}
+
+// ============================================================
+// CONFIG-AWARE COMPLETIONS
+// ============================================================
+
+import { getAIConfig } from "./config-loader";
+
+export interface ConfiguredAIOptions {
+  callPoint: string;
+  messages: AIMessage[];
+  maxTokens?: number;
+  temperature?: number;
+  /** Override the configured engine (for testing) */
+  engineOverride?: AIEngine;
+}
+
+/**
+ * Get AI completion using configuration from the database.
+ * This is the preferred method for production code.
+ *
+ * @param options - Includes callPoint to load config for
+ * @returns Completion result with model info
+ */
+export async function getConfiguredAICompletion(
+  options: ConfiguredAIOptions
+): Promise<AICompletionResult> {
+  const { callPoint, messages, maxTokens, temperature, engineOverride } = options;
+
+  // Load config from database
+  const config = await getAIConfig(callPoint);
+
+  // Use override if provided, otherwise use config
+  const engine = engineOverride ?? config.provider;
+  const model = config.model;
+
+  // Merge config values with explicit options (explicit wins)
+  const finalMaxTokens = maxTokens ?? config.maxTokens ?? 1024;
+  const finalTemperature = temperature ?? config.temperature ?? 0.7;
+
+  return getAICompletion({
+    engine,
+    messages,
+    maxTokens: finalMaxTokens,
+    temperature: finalTemperature,
+    model,
+  });
+}
+
+/**
+ * Get AI completion stream using configuration from the database.
+ *
+ * @param options - Includes callPoint to load config for
+ * @returns Streaming response
+ */
+export async function getConfiguredAICompletionStream(
+  options: ConfiguredAIOptions
+): Promise<ReadableStream<Uint8Array>> {
+  const { callPoint, messages, maxTokens, temperature, engineOverride } = options;
+
+  // Load config from database
+  const config = await getAIConfig(callPoint);
+
+  // Use override if provided, otherwise use config
+  const engine = engineOverride ?? config.provider;
+  const model = config.model;
+
+  // Merge config values with explicit options
+  const finalMaxTokens = maxTokens ?? config.maxTokens ?? 1024;
+  const finalTemperature = temperature ?? config.temperature ?? 0.7;
+
+  return getAICompletionStream({
+    engine,
+    messages,
+    maxTokens: finalMaxTokens,
+    temperature: finalTemperature,
+    model,
   });
 }

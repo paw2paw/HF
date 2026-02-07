@@ -31,13 +31,14 @@ export async function GET(
           },
         },
         playbooks: {
-          orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+          orderBy: { sortOrder: "asc" },
           select: {
             id: true,
             name: true,
             description: true,
             status: true,
             version: true,
+            sortOrder: true,
             publishedAt: true,
             createdAt: true,
             updatedAt: true,

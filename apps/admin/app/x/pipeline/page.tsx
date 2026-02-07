@@ -14,9 +14,9 @@ export default function PipelinePage() {
     <div style={{ minHeight: "100vh" }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Pipeline</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Run History</h1>
         <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-          Visualize and inspect the prompt composition pipeline
+          View and inspect past prompt composition runs
         </p>
       </div>
 

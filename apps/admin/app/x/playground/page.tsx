@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { VerticalSlider } from "@/components/shared/VerticalSlider";
+import { CallerPicker } from "@/components/shared/CallerPicker";
+import {
+  entityColors,
+  specTypeColors,
+  pipelineColors,
+  compareColors,
+  diffColors,
+} from "@/src/components/shared/uiColors";
 
 // =============================================================================
 // TYPES
@@ -98,9 +107,9 @@ type WizardMode = "caller" | "playbook" | "compare";
 // =============================================================================
 
 const WIZARD_MODES: { id: WizardMode; label: string; icon: string; description: string }[] = [
-  { id: "caller", label: "Caller", icon: "👤", description: "Generate prompt for a specific caller" },
-  { id: "playbook", label: "Playbook", icon: "📦", description: "Test playbook across multiple callers" },
-  { id: "compare", label: "Compare", icon: "⚖️", description: "A/B compare two configurations" },
+  { id: "caller", label: "Prompt Tuner", icon: "🧪", description: "Tune prompt output for one caller" },
+  { id: "compare", label: "Compare Playbooks", icon: "📖📖", description: "A/B compare two playbook configurations" },
+  { id: "playbook", label: "Validate Playbook", icon: "✅", description: "Test playbook across multiple callers" },
 ];
 
 const SPEC_TYPE_INFO: Record<string, { label: string; description: string; icon: string }> = {
@@ -115,17 +124,343 @@ const SPEC_TYPE_INFO: Record<string, { label: string; description: string; icon:
   META: { label: "Meta", description: "Legacy", icon: "⚙️" },
 };
 
+// Merge spec type and pipeline colors for badge display
 const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
-  IDENTITY: { bg: "#dbeafe", text: "#1e40af" },
-  CONTENT: { bg: "#f0fdf4", text: "#166534" },
-  CONTEXT: { bg: "#fef3c7", text: "#92400e" },
-  VOICE: { bg: "#fce7f3", text: "#be185d" },
-  META: { bg: "#f3f4f6", text: "#4b5563" },
-  LEARN: { bg: "#ede9fe", text: "#5b21b6" },
-  MEASURE: { bg: "#dcfce7", text: "#166534" },
-  ADAPT: { bg: "#fef3c7", text: "#92400e" },
-  COMPOSE: { bg: "#fce7f3", text: "#be185d" },
+  // Spec roles (from specTypeColors)
+  IDENTITY: { bg: specTypeColors.IDENTITY.bg, text: specTypeColors.IDENTITY.text },
+  CONTENT:  { bg: specTypeColors.CONTENT.bg,  text: specTypeColors.CONTENT.text },
+  CONTEXT:  { bg: specTypeColors.CONTEXT.bg,  text: specTypeColors.CONTEXT.text },
+  VOICE:    { bg: specTypeColors.VOICE.bg,    text: specTypeColors.VOICE.text },
+  META:     { bg: specTypeColors.META.bg,     text: specTypeColors.META.text },
+  // Pipeline operations (from pipelineColors)
+  LEARN:    { bg: pipelineColors.LEARN.bg,    text: pipelineColors.LEARN.text },
+  MEASURE:  { bg: pipelineColors.MEASURE.bg,  text: pipelineColors.MEASURE.text },
+  ADAPT:    { bg: pipelineColors.ADAPT.bg,    text: pipelineColors.ADAPT.text },
+  COMPOSE:  { bg: pipelineColors.COMPOSE.bg,  text: pipelineColors.COMPOSE.text },
 };
+
+// =============================================================================
+// FANCY SELECT COMPONENT
+// =============================================================================
+
+type FancySelectOption = {
+  value: string;
+  label: string;
+  subtitle?: string;
+  badge?: string;
+  isAction?: boolean; // For special actions like "+ Create new..."
+};
+
+type FancySelectProps = {
+  value: string;
+  onChange: (value: string) => void;
+  options: FancySelectOption[];
+  placeholder?: string;
+  searchable?: boolean;
+  clearable?: boolean;
+  disabled?: boolean;
+  selectedStyle?: { border: string; background: string }; // Custom style when selected
+  style?: React.CSSProperties;
+};
+
+function FancySelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Select...",
+  searchable = true,
+  clearable = false,
+  disabled = false,
+  selectedStyle,
+  style,
+}: FancySelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((o) => o.value === value && !o.isAction);
+
+  const filteredOptions = useMemo(() => {
+    if (!search.trim()) return options;
+    const s = search.toLowerCase();
+    return options.filter(
+      (o) =>
+        o.isAction ||
+        o.label.toLowerCase().includes(s) ||
+        o.subtitle?.toLowerCase().includes(s)
+    );
+  }, [options, search]);
+
+  const handleSelect = useCallback(
+    (option: FancySelectOption) => {
+      onChange(option.value);
+      setSearch("");
+      setIsOpen(false);
+      setHighlightIndex(0);
+    },
+    [onChange]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!isOpen) {
+        if (e.key === "ArrowDown" || e.key === "Enter") {
+          setIsOpen(true);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlightIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlightIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (filteredOptions[highlightIndex]) {
+            handleSelect(filteredOptions[highlightIndex]);
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setIsOpen(false);
+          setHighlightIndex(0);
+          break;
+      }
+    },
+    [isOpen, filteredOptions, highlightIndex, handleSelect]
+  );
+
+  // Scroll highlighted into view
+  useEffect(() => {
+    if (isOpen && listRef.current) {
+      const el = listRef.current.querySelector(`[data-index="${highlightIndex}"]`);
+      if (el) el.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightIndex, isOpen]);
+
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setHighlightIndex(0);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setHighlightIndex(0);
+  }, [filteredOptions.length]);
+
+  const hasValue = !!value && !!selectedOption;
+  const inputBorder = hasValue && selectedStyle ? selectedStyle.border : "1px solid #d1d5db";
+  const inputBg = hasValue && selectedStyle ? selectedStyle.background : disabled ? "#f3f4f6" : "white";
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", ...style }}>
+      <input
+        ref={inputRef}
+        type="text"
+        readOnly={!searchable}
+        value={isOpen && searchable ? search : selectedOption?.label || ""}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          if (!isOpen) setIsOpen(true);
+        }}
+        onFocus={() => {
+          setIsOpen(true);
+          if (selectedOption) setSearch("");
+        }}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        disabled={disabled}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          paddingRight: 36,
+          fontSize: 14,
+          border: inputBorder,
+          borderRadius: 8,
+          outline: "none",
+          background: inputBg,
+          cursor: disabled ? "not-allowed" : searchable ? "text" : "pointer",
+        }}
+      />
+
+      {/* Right icons */}
+      <div
+        style={{
+          position: "absolute",
+          right: 10,
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          pointerEvents: clearable && hasValue ? "auto" : "none",
+        }}
+      >
+        {clearable && hasValue && !disabled && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange("");
+              setSearch("");
+              inputRef.current?.focus();
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 2,
+              color: "#9ca3af",
+              fontSize: 14,
+              lineHeight: 1,
+              pointerEvents: "auto",
+            }}
+          >
+            &times;
+          </button>
+        )}
+        <span style={{ color: "#9ca3af", fontSize: 10, pointerEvents: "none" }}>
+          {isOpen ? "▲" : "▼"}
+        </span>
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div
+          ref={listRef}
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            marginTop: 4,
+            background: "white",
+            border: "1px solid #d1d5db",
+            borderRadius: 8,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            maxHeight: 300,
+            overflowY: "auto",
+            zIndex: 100,
+          }}
+        >
+          {filteredOptions.length === 0 ? (
+            <div style={{ padding: 16, textAlign: "center", color: "#6b7280", fontSize: 13 }}>
+              No options found
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 11,
+                  color: "#9ca3af",
+                  borderBottom: "1px solid #f3f4f6",
+                }}
+              >
+                {filteredOptions.filter((o) => !o.isAction).length} option
+                {filteredOptions.filter((o) => !o.isAction).length !== 1 ? "s" : ""}
+              </div>
+              {filteredOptions.map((option, index) => (
+                <div
+                  key={option.value}
+                  data-index={index}
+                  onClick={() => handleSelect(option)}
+                  onMouseEnter={() => setHighlightIndex(index)}
+                  style={{
+                    padding: "10px 12px",
+                    cursor: "pointer",
+                    background:
+                      highlightIndex === index
+                        ? "#f0f9ff"
+                        : option.value === value
+                          ? "#f9fafb"
+                          : "transparent",
+                    borderBottom: "1px solid #f3f4f6",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontStyle: option.isAction ? "italic" : "normal",
+                  }}
+                >
+                  {/* Selection indicator */}
+                  <div
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: option.value === value && !option.isAction ? "#3b82f6" : "transparent",
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  {/* Main content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: option.isAction ? 400 : 500,
+                        color: option.isAction ? "#6b7280" : "#1f2937",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {option.label}
+                    </div>
+                    {option.subtitle && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "#6b7280",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {option.subtitle}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badge */}
+                  {option.badge && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: "#f3f4f6",
+                        color: "#6b7280",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {option.badge}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // =============================================================================
 // UTILITIES
@@ -183,6 +518,23 @@ function computeDiff(prev: Record<string, unknown> | null, curr: Record<string, 
     });
 }
 
+// Find where two strings diverge and return snippets around the difference
+function getDiffSnippets(a: string, b: string, contextLen = 40): { a: string; b: string } {
+  // Find first difference
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+
+  // Get context before the difference
+  const start = Math.max(0, i - contextLen);
+  const prefix = start > 0 ? "..." : "";
+
+  // Extract snippets around the difference
+  const aSnippet = prefix + a.slice(start, i + contextLen) + (i + contextLen < a.length ? "..." : "");
+  const bSnippet = prefix + b.slice(start, i + contextLen) + (i + contextLen < b.length ? "..." : "");
+
+  return { a: aSnippet, b: bSnippet };
+}
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -203,8 +555,29 @@ function formatDate(dateStr: string): string {
 // =============================================================================
 
 export default function PlaygroundPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Read mode from URL, default to "caller"
+  const modeParam = searchParams.get("mode") as WizardMode | null;
+  const initialMode: WizardMode = modeParam && ["caller", "playbook", "compare"].includes(modeParam) ? modeParam : "caller";
+
   // Wizard mode (top-level)
-  const [wizardMode, setWizardMode] = useState<WizardMode>("caller");
+  const [wizardMode, setWizardMode] = useState<WizardMode>(initialMode);
+
+  // Sync URL when mode changes
+  const handleModeChange = useCallback((mode: WizardMode) => {
+    setWizardMode(mode);
+    router.replace(`/x/playground?mode=${mode}`, { scroll: false });
+  }, [router]);
+
+  // Sync mode from URL when navigating via sidebar
+  useEffect(() => {
+    const urlMode = searchParams.get("mode") as WizardMode | null;
+    if (urlMode && ["caller", "playbook", "compare"].includes(urlMode) && urlMode !== wizardMode) {
+      setWizardMode(urlMode);
+    }
+  }, [searchParams, wizardMode]);
 
   // Section navigation (for Caller wizard steps)
   const [activeSection, setActiveSection] = useState<PlaygroundSection>("caller");
@@ -278,6 +651,17 @@ export default function PlaygroundPage() {
   const [newPlaybookName, setNewPlaybookName] = useState("");
   const [newPlaybookDomainId, setNewPlaybookDomainId] = useState("");
   const [creatingPlaybook, setCreatingPlaybook] = useState(false);
+
+  // Compare mode state
+  const [compareConfigA, setCompareConfigA] = useState<Record<string, boolean>>({});
+  const [compareConfigB, setCompareConfigB] = useState<Record<string, boolean>>({});
+  const [comparePlaybookA, setComparePlaybookA] = useState<string>("");
+  const [comparePlaybookB, setComparePlaybookB] = useState<string>("");
+  const [promptA, setPromptA] = useState<GeneratedPrompt | null>(null);
+  const [promptB, setPromptB] = useState<GeneratedPrompt | null>(null);
+  const [isGeneratingA, setIsGeneratingA] = useState(false);
+  const [isGeneratingB, setIsGeneratingB] = useState(false);
+  const [expandedDiffs, setExpandedDiffs] = useState<Set<string>>(new Set());
 
   // Refs
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -588,7 +972,7 @@ export default function PlaygroundPage() {
   if (loading) {
     return (
       <div style={{ padding: 60, textAlign: "center", color: "#6b7280" }}>
-        Loading Playground...
+        Loading Lab...
       </div>
     );
   }
@@ -601,10 +985,10 @@ export default function PlaygroundPage() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f9fafb" }}>
-      {/* ===== HEADER WITH WIZARD MODE TABS ===== */}
+      {/* ===== CONTROL BAR HEADER ===== */}
       <div
         style={{
-          padding: "12px 20px",
+          padding: "16px 24px",
           background: "#fff",
           borderBottom: "1px solid #e5e7eb",
           display: "flex",
@@ -612,101 +996,175 @@ export default function PlaygroundPage() {
           gap: 16,
         }}
       >
-        <h1 style={{ fontSize: 18, fontWeight: 700, color: "#1f2937", margin: 0 }}>
-          Playground
+        {/* Mode title */}
+        <h1 style={{ fontSize: 16, fontWeight: 600, color: "#6b7280", margin: 0, minWidth: 120 }}>
+          {WIZARD_MODES.find(m => m.id === wizardMode)?.label || "Lab"}
         </h1>
 
-        {/* Wizard Mode Tabs */}
-        <div style={{ display: "flex", gap: 4, marginLeft: 24 }}>
-          {WIZARD_MODES.map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => setWizardMode(mode.id)}
-              title={mode.description}
-              style={{
-                padding: "6px 14px",
-                fontSize: 13,
-                fontWeight: 500,
-                border: wizardMode === mode.id ? "1px solid #4f46e5" : "1px solid #e5e7eb",
-                borderRadius: 6,
-                background: wizardMode === mode.id ? "#eef2ff" : "#fff",
-                color: wizardMode === mode.id ? "#4f46e5" : "#6b7280",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 0.15s",
-              }}
-            >
-              <span>{mode.icon}</span>
-              {mode.label}
-            </button>
-          ))}
-        </div>
+        {/* Control bar with pickers - Prompt Tuner mode */}
+        {wizardMode === "caller" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+            {/* Step 1: Caller Picker */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: selectedCallerId ? entityColors.caller.bg : "#f3f4f6",
+                  color: selectedCallerId ? entityColors.caller.text : "#9ca3af",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                1
+              </span>
+              <div style={{ minWidth: 260 }}>
+                <CallerPicker
+                  value={selectedCallerId || null}
+                  onChange={(id) => {
+                    if (id) handleCallerSelect(id);
+                  }}
+                  placeholder="Select caller..."
+                />
+              </div>
+            </div>
 
-        <div style={{ flex: 1 }} />
+            <span style={{ color: "#d1d5db", fontSize: 18 }}>›</span>
 
-        {/* Context indicators (only show in caller mode) */}
-        {wizardMode === "caller" && caller && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, color: "#6b7280" }}>Caller:</span>
-            <span style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>
-              {caller.name || caller.email || caller.id.slice(0, 8)}
-            </span>
-          </div>
-        )}
-        {wizardMode === "caller" && selectedPlaybookId && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, color: "#6b7280" }}>Playbook:</span>
-            <span style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>
-              {playbooks.find((p) => p.id === selectedPlaybookId)?.name || "..."}
-            </span>
+            {/* Step 2: Playbook Picker */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: selectedPlaybookId ? entityColors.playbook.bg : "#f3f4f6",
+                  color: selectedPlaybookId ? entityColors.playbook.text : "#9ca3af",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                2
+              </span>
+              <div style={{ minWidth: 220 }}>
+                <FancySelect
+                  value={selectedPlaybookId}
+                  onChange={setSelectedPlaybookId}
+                  options={playbooks
+                    .filter((pb) => !selectedDomainId || pb.domainId === selectedDomainId)
+                    .map((pb) => ({
+                      value: pb.id,
+                      label: pb.name,
+                      subtitle: pb.domain?.name,
+                      badge: pb.status,
+                    }))}
+                  placeholder="Select playbook..."
+                  disabled={!selectedCallerId}
+                  selectedStyle={{
+                    border: `1px solid ${entityColors.playbook.accent}`,
+                    background: entityColors.playbook.bg,
+                  }}
+                />
+              </div>
+            </div>
+
+            <span style={{ color: "#d1d5db", fontSize: 18 }}>›</span>
+
+            {/* Step 3: Generate Button */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: generatedPrompt ? "#ede9fe" : "#f3f4f6",
+                  color: generatedPrompt ? "#7c3aed" : "#9ca3af",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                3
+              </span>
+              <button
+                onClick={generatePrompt}
+                disabled={!selectedCallerId || !selectedPlaybookId || isGenerating}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#fff",
+                  background:
+                    !selectedCallerId || !selectedPlaybookId
+                      ? "#d1d5db"
+                      : isGenerating
+                        ? "#a78bfa"
+                        : "#7c3aed",
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: !selectedCallerId || !selectedPlaybookId ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                {isGenerating ? (
+                  <>
+                    <span className="animate-spin">⟳</span>
+                    Generating...
+                  </>
+                ) : generatedPrompt ? (
+                  <>
+                    <span>↻</span>
+                    Regenerate
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    Generate
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div style={{ flex: 1 }} />
+
+            {/* Clear all button */}
+            {(selectedCallerId || selectedPlaybookId || generatedPrompt) && (
+              <button
+                onClick={() => {
+                  setSelectedCallerId("");
+                  setCaller(null);
+                  setSelectedPlaybookId("");
+                  setGeneratedPrompt(null);
+                  setPreviousPrompt(null);
+                }}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  color: "#6b7280",
+                  background: "transparent",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                }}
+              >
+                Clear all
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* ===== CALLER WIZARD: SECTION TABS ===== */}
-      {wizardMode === "caller" && (
-        <div
-          style={{
-            display: "flex",
-            gap: 0,
-            background: "#fff",
-            borderBottom: "1px solid #e5e7eb",
-            padding: "0 20px",
-          }}
-        >
-          {sectionTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => tab.enabled && setActiveSection(tab.id)}
-              disabled={!tab.enabled}
-              style={{
-              padding: "12px 24px",
-              fontSize: 13,
-              fontWeight: 600,
-              border: "none",
-              borderBottom: activeSection === tab.id ? "2px solid #4f46e5" : "2px solid transparent",
-              background: "transparent",
-              color: !tab.enabled
-                ? "#d1d5db"
-                : activeSection === tab.id
-                  ? "#4f46e5"
-                  : "#6b7280",
-              cursor: tab.enabled ? "pointer" : "not-allowed",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              transition: "all 0.15s",
-            }}
-          >
-            <span>{tab.icon}</span>
-            {tab.label}
-            {!tab.enabled && <span style={{ fontSize: 10, opacity: 0.5 }}>locked</span>}
-          </button>
-        ))}
-        </div>
-      )}
 
       {/* ===== ERROR ===== */}
       {error && (
@@ -740,12 +1198,10 @@ export default function PlaygroundPage() {
       {wizardMode === "caller" && (
         <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
           {/* ============================================================ */}
-          {/* SECTION 1: CALLER */}
+          {/* EMPTY STATE: No caller selected */}
           {/* ============================================================ */}
-          {activeSection === "caller" && (
-          <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            {!selectedCallerId ? (
-              /* Empty state */
+          {!selectedCallerId && (
+            <div style={{ maxWidth: 600, margin: "0 auto" }}>
               <div
                 style={{
                   textAlign: "center",
@@ -755,95 +1211,24 @@ export default function PlaygroundPage() {
                   border: "1px solid #e5e7eb",
                 }}
               >
-                <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🧪</div>
                 <h2 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0" }}>
-                  No caller selected
+                  Prompt Tuner
                 </h2>
                 <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24 }}>
-                  Start by selecting an existing caller or creating a new one
+                  Select a caller using the picker above, then choose a playbook and generate prompts
                 </p>
-
-                {/* Search and Create side by side */}
                 <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-                  {/* Search */}
-                  <div ref={callerSearchRef} style={{ position: "relative", width: 280 }}>
-                    <input
-                      type="text"
-                      placeholder="Search callers..."
-                      value={callerSearch}
-                      onChange={(e) => {
-                        setCallerSearch(e.target.value);
-                        setShowCallerDropdown(true);
-                      }}
-                      onFocus={() => setShowCallerDropdown(true)}
-                      style={{
-                        width: "100%",
-                        padding: "12px 16px",
-                        paddingLeft: 40,
-                        border: "1px solid #d1d5db",
-                        borderRadius: 8,
-                        fontSize: 14,
-                        background: "#fff",
-                      }}
-                    />
-                    <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#9ca3af" }}>
-                      🔍
-                    </span>
-
-                    {showCallerDropdown && callerSearch && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "100%",
-                          left: 0,
-                          right: 0,
-                          marginTop: 4,
-                          background: "#fff",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 8,
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          maxHeight: 280,
-                          overflow: "auto",
-                          zIndex: 100,
-                        }}
-                      >
-                        {filteredCallers.length === 0 ? (
-                          <div style={{ padding: 12, color: "#9ca3af", fontSize: 13 }}>No callers found</div>
-                        ) : (
-                          filteredCallers.map((c) => (
-                            <div
-                              key={c.id}
-                              onClick={() => handleCallerSelect(c.id)}
-                              style={{
-                                padding: "10px 12px",
-                                cursor: "pointer",
-                                borderBottom: "1px solid #f3f4f6",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-                            >
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontWeight: 500, fontSize: 13, color: "#1f2937" }}>
-                                  {c.name || c.email || c.phone || c.id.slice(0, 8)}
-                                </div>
-                                {c.email && c.name && (
-                                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>{c.email}</div>
-                                )}
-                              </div>
-                              {c._count?.calls != null && (
-                                <span style={{ fontSize: 11, color: "#9ca3af" }}>{c._count.calls} calls</span>
-                              )}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Create Caller */}
+                  <CallerPicker
+                    value={selectedCallerId || null}
+                    onChange={(callerId) => {
+                      if (callerId) {
+                        handleCallerSelect(callerId);
+                      }
+                    }}
+                    placeholder="Search callers..."
+                    style={{ width: 280 }}
+                  />
                   <button
                     onClick={() => setShowCreateCallerModal(true)}
                     style={{
@@ -864,852 +1249,163 @@ export default function PlaygroundPage() {
                   </button>
                 </div>
               </div>
-            ) : (
-              /* Caller selected - show info and transcripts */
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {/* Caller Card */}
+            </div>
+          )}
+
+          {/* ============================================================ */}
+          {/* MAIN CONTENT: Two-column layout when caller is selected */}
+          {/* ============================================================ */}
+          {selectedCallerId && (
+            <div style={{ display: "flex", gap: 20, maxWidth: 1400, margin: "0 auto" }}>
+              {/* LEFT COLUMN: Caller info + Specs */}
+              <div style={{ width: 320, flexShrink: 0 }}>
+                {/* Compact Caller Card */}
                 <div
                   style={{
                     background: "#fff",
                     borderRadius: 12,
                     border: "1px solid #e5e7eb",
-                    padding: 20,
+                    padding: 16,
+                    marginBottom: 16,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div
                       style={{
-                        width: 48,
-                        height: 48,
+                        width: 40,
+                        height: 40,
                         borderRadius: "50%",
-                        background: "#eef2ff",
+                        background: entityColors.caller.bg,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 20,
+                        fontSize: 18,
                       }}
                     >
                       👤
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ margin: "0 0 4px 0", fontSize: 18, fontWeight: 600, color: "#1f2937" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#1f2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {caller?.name || "Unnamed Caller"}
-                      </h3>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {caller?.email || caller?.phone || caller?.externalId || caller?.id.slice(0, 12)}
                       </div>
-                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                        {caller?.domain ? (
-                          <span
-                            style={{
-                              fontSize: 11,
-                              padding: "4px 8px",
-                              background: "#dbeafe",
-                              color: "#1e40af",
-                              borderRadius: 4,
-                            }}
-                          >
-                            {caller.domain.name}
-                          </span>
-                        ) : (
-                          <select
-                            onChange={(e) => e.target.value && handleAttachDomain(e.target.value)}
-                            defaultValue=""
-                            style={{
-                              padding: "4px 8px",
-                              border: "1px solid #fcd34d",
-                              borderRadius: 6,
-                              fontSize: 11,
-                              background: "#fffbeb",
-                              color: "#92400e",
-                            }}
-                          >
-                            <option value="">Attach to domain...</option>
-                            {domains.map((d) => (
-                              <option key={d.id} value={d.id}>
-                                {d.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                          {caller?.calls.length || 0} calls
-                        </span>
-                      </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        setSelectedCallerId("");
-                        setCaller(null);
-                        setSelectedCallId("");
-                        setGeneratedPrompt(null);
-                        setPreviousPrompt(null);
-                      }}
-                      style={{
-                        padding: "6px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: 6,
-                        background: "#fff",
-                        fontSize: 12,
-                        color: "#6b7280",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Change
-                    </button>
-                  </div>
-                </div>
-
-                {/* Calls */}
-                <div
-                  style={{
-                    background: "#fff",
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "12px 20px",
-                      borderBottom: "1px solid #e5e7eb",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>📞</span>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "#374151" }}>Calls</span>
-                    <div style={{ flex: 1 }} />
-
-                    {/* Add Call */}
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "6px 12px",
-                        background: "#f0f9ff",
-                        border: "1px solid #bae6fd",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        fontSize: 12,
-                        color: "#0369a1",
-                      }}
-                    >
-                      <span>📄</span>
-                      <span>Upload</span>
-                      <input
-                        type="file"
-                        accept=".txt,.json"
-                        style={{ display: "none" }}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file || !selectedCallerId) return;
-                          try {
-                            const text = await file.text();
-                            const res = await fetch(`/api/callers/${selectedCallerId}/calls`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                source: "playground-upload",
-                                transcript: text,
-                              }),
-                            });
-                            const data = await res.json();
-                            if (data.ok) {
-                              const callerRes = await fetch(`/api/callers/${selectedCallerId}`);
-                              const callerData = await callerRes.json();
-                              if (callerData.ok) {
-                                setCaller({ ...callerData.caller, calls: callerData.calls || [] });
-                                setSelectedCallId(data.call.id);
-                              }
-                            } else {
-                              setError(data.error || "Failed to upload transcript");
-                            }
-                          } catch {
-                            setError("Failed to upload transcript");
-                          }
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* Call tabs + transcript content */}
-                  {!caller?.calls.length ? (
-                    <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>
-                      <p>No calls yet. Upload one to get started.</p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Call tabs */}
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 4,
-                          padding: "8px 20px",
-                          borderBottom: "1px solid #f3f4f6",
-                          overflowX: "auto",
-                        }}
-                      >
-                        {caller.calls.map((call, i) => (
-                          <button
-                            key={call.id}
-                            onClick={() => setSelectedCallId(call.id)}
-                            style={{
-                              padding: "6px 12px",
-                              fontSize: 11,
-                              border: selectedCallId === call.id ? "1px solid #4f46e5" : "1px solid #e5e7eb",
-                              borderRadius: 6,
-                              background: selectedCallId === call.id ? "#eef2ff" : "#fff",
-                              color: selectedCallId === call.id ? "#4f46e5" : "#6b7280",
-                              cursor: "pointer",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            #{call.callSequence || i + 1}
-                            <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.7 }}>
-                              {formatDate(call.createdAt)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Call transcript */}
-                      <div style={{ maxHeight: 300, overflow: "auto", padding: "12px 20px" }}>
-                        {!selectedCall?.transcript ? (
-                          <div style={{ color: "#9ca3af", fontSize: 13, fontStyle: "italic" }}>
-                            No transcript content
-                          </div>
-                        ) : parsedMessages.length === 0 ? (
-                          /* Raw transcript when parsing fails (no AI:/User: format) */
-                          <div
-                            style={{
-                              whiteSpace: "pre-wrap",
-                              fontSize: 13,
-                              lineHeight: 1.6,
-                              color: "#374151",
-                              background: "#f9fafb",
-                              padding: 12,
-                              borderRadius: 8,
-                            }}
-                          >
-                            {selectedCall.transcript}
-                          </div>
-                        ) : (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {parsedMessages.map((msg, i) => (
-                              <div
-                                key={i}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: msg.role === "ai" ? "flex-end" : "flex-start",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    maxWidth: "80%",
-                                    padding: "8px 12px",
-                                    borderRadius: 12,
-                                    borderBottomLeftRadius: msg.role === "user" ? 4 : 12,
-                                    borderBottomRightRadius: msg.role === "ai" ? 4 : 12,
-                                    background: msg.role === "ai" ? "#4f46e5" : "#f3f4f6",
-                                    color: msg.role === "ai" ? "#fff" : "#374151",
-                                    fontSize: 13,
-                                    lineHeight: 1.5,
-                                    whiteSpace: "pre-wrap",
-                                  }}
-                                >
-                                  {msg.content}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Next Step */}
-                <div style={{ textAlign: "center", padding: 20 }}>
-                  <button
-                    onClick={() => setActiveSection("specs")}
-                    style={{
-                      padding: "12px 32px",
-                      background: "#4f46e5",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    Continue to Specs →
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* SECTION 2: SPECS */}
-        {/* ============================================================ */}
-        {activeSection === "specs" && (
-          <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            {!canAccessSpecs ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "60px 20px",
-                  background: "#fff",
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📋</div>
-                <h2 style={{ fontSize: 20, fontWeight: 600, color: "#9ca3af", margin: "0 0 8px 0" }}>
-                  Select a caller first
-                </h2>
-                <p style={{ fontSize: 14, color: "#9ca3af", marginBottom: 24 }}>
-                  Go back to the Caller section to select or create a caller
-                </p>
-                <button
-                  onClick={() => setActiveSection("caller")}
-                  style={{
-                    padding: "10px 20px",
-                    background: "#4f46e5",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
-                >
-                  ← Back to Caller
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {/* Domain & Playbook Selectors */}
-                <div
-                  style={{
-                    background: "#fff",
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                    padding: 20,
-                  }}
-                >
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                    {/* Domain */}
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 6, color: "#374151" }}>
-                        Domain
-                      </label>
-                      <select
-                        value={selectedDomainId}
-                        onChange={(e) => {
-                          if (e.target.value === "__create__") {
-                            setShowCreateDomainModal(true);
-                            e.target.value = selectedDomainId;
-                          } else {
-                            setSelectedDomainId(e.target.value);
-                            setSelectedPlaybookId("");
-                          }
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          border: "1px solid #d1d5db",
-                          borderRadius: 8,
-                          fontSize: 14,
-                        }}
-                      >
-                        <option value="">All domains</option>
-                        {domains.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                        <option value="__create__" style={{ fontStyle: "italic" }}>+ Create new domain...</option>
-                      </select>
-                    </div>
-
-                    {/* Playbook */}
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 6, color: "#374151" }}>
-                        Playbook
-                      </label>
-                      <select
-                        value={selectedPlaybookId}
-                        onChange={(e) => {
-                          if (e.target.value === "__create__") {
-                            setNewPlaybookDomainId(selectedDomainId);
-                            setShowCreatePlaybookModal(true);
-                            e.target.value = selectedPlaybookId;
-                          } else {
-                            setSelectedPlaybookId(e.target.value);
-                          }
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          border: selectedPlaybookId ? "1px solid #4f46e5" : "1px solid #d1d5db",
-                          borderRadius: 8,
-                          fontSize: 14,
-                          background: selectedPlaybookId ? "#eef2ff" : "#fff",
-                        }}
-                      >
-                        <option value="">Select playbook...</option>
-                        {filteredPlaybooks.map((pb) => (
-                          <option key={pb.id} value={pb.id}>
-                            {pb.name} ({pb.status})
-                          </option>
-                        ))}
-                        <option value="__create__" style={{ fontStyle: "italic" }}>+ Create new playbook...</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Playbook Specs */}
-                <div
-                  style={{
-                    background: "#fff",
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                    padding: 20,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                    <span style={{ fontSize: 14 }}>✏️</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>Playbook Specs</span>
-                    <div style={{ flex: 1 }} />
-                    {/* Upload BDD Spec */}
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "6px 12px",
-                        background: uploadingSpec ? "#f3f4f6" : "#f0f9ff",
-                        border: "1px solid #bae6fd",
-                        borderRadius: 6,
-                        cursor: uploadingSpec ? "wait" : "pointer",
-                        fontSize: 12,
-                        color: "#0369a1",
-                      }}
-                    >
-                      <span>📤</span>
-                      <span>{uploadingSpec ? "Uploading..." : "Upload Spec"}</span>
-                      <input
-                        type="file"
-                        accept=".json,.spec.json"
-                        disabled={uploadingSpec}
-                        style={{ display: "none" }}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setUploadingSpec(true);
-                          setSpecUploadResult(null);
-                          try {
-                            const content = await file.text();
-                            const previewRes = await fetch("/api/lab/upload/preview", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ content, filename: file.name }),
-                            });
-                            const previewData = await previewRes.json();
-                            if (!previewData.ok) {
-                              setSpecUploadResult({ ok: false, message: previewData.error || "Invalid spec file" });
-                              setUploadingSpec(false);
-                              return;
-                            }
-                            const activateRes = await fetch("/api/lab/upload", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ content, filename: file.name }),
-                            });
-                            const activateData = await activateRes.json();
-                            if (activateData.ok) {
-                              setSpecUploadResult({
-                                ok: true,
-                                message: `Spec "${activateData.specName || previewData.specName}" activated!`,
-                              });
-                              const specsRes = await fetch("/api/playbooks/available-items").then(r => r.json());
-                              if (specsRes.ok) {
-                                setAvailableSpecs({
-                                  systemSpecs: specsRes.systemSpecs || [],
-                                  domainSpecs: specsRes.domainSpecs || [],
-                                });
-                              }
-                            } else {
-                              setSpecUploadResult({ ok: false, message: activateData.error || "Failed to activate spec" });
-                            }
-                          } catch {
-                            setSpecUploadResult({ ok: false, message: "Failed to upload spec" });
-                          } finally {
-                            setUploadingSpec(false);
-                            e.target.value = "";
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {specUploadResult && (
-                    <div
-                      style={{
-                        marginBottom: 12,
-                        fontSize: 12,
-                        padding: "8px 12px",
-                        borderRadius: 6,
-                        background: specUploadResult.ok ? "#dcfce7" : "#fee2e2",
-                        color: specUploadResult.ok ? "#166534" : "#dc2626",
-                      }}
-                    >
-                      {specUploadResult.message}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {availableSpecs.domainSpecs.map((spec) => {
-                      const enabled = specToggles[spec.id] ?? true;
-                      const badgeType = getSpecBadgeType(spec);
-                      const info = SPEC_TYPE_INFO[badgeType];
-                      const colors = BADGE_COLORS[badgeType];
-                      return (
-                        <div
-                          key={spec.id}
-                          onClick={() => handleToggleSpec(spec.id)}
-                          style={{
-                            padding: "10px 14px",
-                            background: enabled ? "#f0fdf4" : "#f9fafb",
-                            border: enabled ? "1px solid #86efac" : "1px solid #e5e7eb",
-                            borderRadius: 8,
-                            fontSize: 13,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                          }}
-                          title={spec.description || info?.description}
-                        >
-                          <span style={{ fontSize: 16 }}>{enabled ? "◉" : "○"}</span>
-                          <span style={{ flex: 1, color: enabled ? "#374151" : "#9ca3af" }}>{spec.name}</span>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "3px 8px",
-                              background: colors?.bg || "#f3f4f6",
-                              color: colors?.text || "#6b7280",
-                              borderRadius: 4,
-                            }}
-                          >
-                            {info?.label || badgeType}
-                          </span>
-                        </div>
-                      );
-                    })}
-                    {availableSpecs.domainSpecs.length === 0 && (
-                      <div style={{ fontSize: 13, color: "#9ca3af", fontStyle: "italic", padding: 12, textAlign: "center" }}>
-                        No playbook specs available
-                      </div>
+                    {caller?.domain && (
+                      <span style={{ fontSize: 10, padding: "3px 6px", background: entityColors.domain.bg, color: entityColors.domain.text, borderRadius: 4, whiteSpace: "nowrap" }}>
+                        {caller.domain.name}
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {/* System Specs (collapsed by default) */}
+                {/* Specs Panel */}
                 <div
                   style={{
-                    background: "#f8fafc",
+                    background: "#fff",
                     borderRadius: 12,
-                    border: "1px solid #e2e8f0",
-                    overflow: "hidden",
+                    border: "1px solid #e5e7eb",
+                    padding: 16,
                   }}
                 >
-                  <div
-                    onClick={() => setShowSystemSpecs(!showSystemSpecs)}
-                    style={{
-                      padding: "12px 20px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>🔒</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "#64748b" }}>
-                      System Specs ({availableSpecs.systemSpecs.length})
-                    </span>
-                    <span style={{ fontSize: 10, color: "#94a3b8" }}>read-only</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 14 }}>📋</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1f2937" }}>Specs</span>
                     <div style={{ flex: 1 }} />
-                    <span style={{ fontSize: 12, color: "#94a3b8" }}>{showSystemSpecs ? "▼" : "▶"}</span>
+                    <button
+                      onClick={() => setShowSystemSpecs(!showSystemSpecs)}
+                      style={{
+                        fontSize: 11,
+                        color: showSystemSpecs ? "#4f46e5" : "#9ca3af",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      {showSystemSpecs ? "Hide system" : "Show system"}
+                    </button>
                   </div>
-                  {showSystemSpecs && (
-                    <div style={{ padding: "0 20px 16px" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+
+                  {/* System Specs */}
+                  {showSystemSpecs && availableSpecs.systemSpecs.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6, fontWeight: 500 }}>SYSTEM</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                         {availableSpecs.systemSpecs.map((spec) => {
+                          const isEnabled = specToggles[spec.id] !== false;
                           const badgeType = getSpecBadgeType(spec);
-                          const info = SPEC_TYPE_INFO[badgeType];
-                          const colors = BADGE_COLORS[badgeType];
+                          const colors = BADGE_COLORS[badgeType] || { bg: "#f3f4f6", text: "#6b7280" };
                           return (
-                            <div
+                            <button
                               key={spec.id}
+                              onClick={() => handleToggleSpec(spec.id)}
+                              title={spec.description || spec.name}
                               style={{
-                                padding: "8px 12px",
-                                background: "#fff",
-                                borderRadius: 6,
-                                fontSize: 12,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                opacity: 0.8,
+                                fontSize: 10,
+                                padding: "4px 8px",
+                                borderRadius: 4,
+                                border: "none",
+                                cursor: "pointer",
+                                background: isEnabled ? colors.bg : "#f3f4f6",
+                                color: isEnabled ? colors.text : "#9ca3af",
+                                opacity: isEnabled ? 1 : 0.5,
                               }}
-                              title={spec.description || info?.description}
                             >
-                              <span style={{ fontSize: 12 }}>{info?.icon || "📋"}</span>
-                              <span style={{ flex: 1, color: "#64748b" }}>{spec.name}</span>
-                              <span
-                                style={{
-                                  fontSize: 9,
-                                  padding: "2px 6px",
-                                  background: colors?.bg || "#f3f4f6",
-                                  color: colors?.text || "#6b7280",
-                                  borderRadius: 3,
-                                }}
-                              >
-                                {info?.label || badgeType}
-                              </span>
-                            </div>
+                              {spec.slug}
+                            </button>
                           );
                         })}
                       </div>
                     </div>
                   )}
-                </div>
 
-                {/* Draft Spec */}
-                <div
-                  style={{
-                    background: "#fffbeb",
-                    borderRadius: 12,
-                    border: "1px solid #fcd34d",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    onClick={() => setShowDraftInput(!showDraftInput)}
-                    style={{
-                      padding: "12px 20px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>🧪</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "#92400e" }}>Draft Spec</span>
-                    {parsedDraftSpec && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          padding: "2px 8px",
-                          background: "#dcfce7",
-                          color: "#166534",
-                          borderRadius: 4,
-                          fontWeight: 600,
-                        }}
-                      >
-                        ACTIVE
-                      </span>
-                    )}
-                    <div style={{ flex: 1 }} />
-                    <span style={{ fontSize: 12, color: "#92400e" }}>{showDraftInput ? "▼" : "▶"}</span>
-                  </div>
-                  {showDraftInput && (
-                    <div style={{ padding: "0 20px 16px" }}>
-                      <div style={{ fontSize: 12, color: "#92400e", marginBottom: 10 }}>
-                        Paste spec JSON to test without activating
+                  {/* Playbook Specs */}
+                  {availableSpecs.domainSpecs.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6, fontWeight: 500 }}>PLAYBOOK</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {availableSpecs.domainSpecs.map((spec) => {
+                          const isEnabled = specToggles[spec.id] !== false;
+                          const badgeType = getSpecBadgeType(spec);
+                          const colors = BADGE_COLORS[badgeType] || { bg: "#f3f4f6", text: "#6b7280" };
+                          return (
+                            <button
+                              key={spec.id}
+                              onClick={() => handleToggleSpec(spec.id)}
+                              title={spec.description || spec.name}
+                              style={{
+                                fontSize: 10,
+                                padding: "4px 8px",
+                                borderRadius: 4,
+                                border: "none",
+                                cursor: "pointer",
+                                background: isEnabled ? colors.bg : "#f3f4f6",
+                                color: isEnabled ? colors.text : "#9ca3af",
+                                opacity: isEnabled ? 1 : 0.5,
+                              }}
+                            >
+                              {spec.slug}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <textarea
-                        value={draftSpecJson}
-                        onChange={(e) => handleDraftSpecChange(e.target.value)}
-                        placeholder={`{\n  "id": "my-spec",\n  "title": "My Draft Spec",\n  ...\n}`}
-                        style={{
-                          width: "100%",
-                          height: 120,
-                          padding: 10,
-                          border: draftSpecError ? "1px solid #dc2626" : "1px solid #d1d5db",
-                          borderRadius: 8,
-                          fontSize: 12,
-                          fontFamily: "ui-monospace, monospace",
-                          resize: "vertical",
-                          background: "#fff",
-                        }}
-                      />
-                      {draftSpecError && (
-                        <div style={{ fontSize: 12, color: "#dc2626", marginTop: 6 }}>{draftSpecError}</div>
-                      )}
-                      {parsedDraftSpec && (
-                        <div style={{ marginTop: 10, padding: 10, background: "#f0fdf4", borderRadius: 8 }}>
-                          <div style={{ fontSize: 12, color: "#166534", fontWeight: 600 }}>
-                            ✓ {parsedDraftSpec.title}
-                          </div>
-                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
-                            ID: {parsedDraftSpec.id}
-                          </div>
-                        </div>
-                      )}
-                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                        <button
-                          onClick={() => {
-                            setDraftSpecJson("");
-                            setDraftSpecError(null);
-                            setDraftSpecEnabled(false);
-                          }}
-                          style={{
-                            padding: "6px 12px",
-                            fontSize: 12,
-                            border: "1px solid #d1d5db",
-                            borderRadius: 6,
-                            background: "#fff",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Clear
-                        </button>
-                        <label
-                          style={{
-                            padding: "6px 12px",
-                            fontSize: 12,
-                            border: "1px solid #d1d5db",
-                            borderRadius: 6,
-                            background: "#fff",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
-                          📁 Load File
-                          <input
-                            type="file"
-                            accept=".json"
-                            style={{ display: "none" }}
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const text = await file.text();
-                                handleDraftSpecChange(text);
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
+                    </div>
+                  )}
+
+                  {availableSpecs.systemSpecs.length === 0 && availableSpecs.domainSpecs.length === 0 && (
+                    <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: 12 }}>
+                      No specs available
                     </div>
                   )}
                 </div>
 
-                {/* Next Step */}
-                <div style={{ textAlign: "center", padding: 20 }}>
-                  <button
-                    onClick={() => setActiveSection("prompts")}
-                    disabled={!canAccessPrompts}
-                    style={{
-                      padding: "12px 32px",
-                      background: canAccessPrompts ? "#4f46e5" : "#e5e7eb",
-                      color: canAccessPrompts ? "#fff" : "#9ca3af",
-                      border: "none",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: canAccessPrompts ? "pointer" : "not-allowed",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    {canAccessPrompts ? "Continue to Prompts →" : "Select a playbook first"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* SECTION 3: PROMPTS */}
-        {/* ============================================================ */}
-        {activeSection === "prompts" && (
-          <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-            {!canAccessPrompts ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "60px 20px",
-                  background: "#fff",
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>✨</div>
-                <h2 style={{ fontSize: 20, fontWeight: 600, color: "#9ca3af", margin: "0 0 8px 0" }}>
-                  Configure specs first
-                </h2>
-                <p style={{ fontSize: 14, color: "#9ca3af", marginBottom: 24 }}>
-                  Select a caller and playbook before generating prompts
-                </p>
-                <button
-                  onClick={() => setActiveSection("specs")}
-                  style={{
-                    padding: "10px 20px",
-                    background: "#4f46e5",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
-                >
-                  ← Back to Specs
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 20 }}>
-                {/* Left: Tuning + Generate */}
-                <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-                  {/* Generate Button */}
-                  <button
-                    onClick={generatePrompt}
-                    disabled={isGenerating}
-                    style={{
-                      padding: "14px 24px",
-                      background: isGenerating ? "#a5b4fc" : "#4f46e5",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 10,
-                      fontSize: 15,
-                      fontWeight: 600,
-                      cursor: isGenerating ? "wait" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                  >
-                    {isGenerating ? "Generating..." : "Generate Prompt"}
-                  </button>
-
-                  {/* Tuning Panel */}
+                {/* Tuning Panel */}
+                {selectedPlaybookId && behaviorParams.length > 0 && (
                   <div
                     style={{
+                      marginTop: 16,
                       background: "#fffbeb",
                       border: "1px solid #fde68a",
                       borderRadius: 12,
@@ -1720,385 +1416,164 @@ export default function PlaygroundPage() {
                       <span style={{ fontSize: 14 }}>🎚️</span>
                       <span style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>Tuning</span>
                       {Object.keys(previewOverrides).length > 0 && (
-                        <span
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            background: "#f59e0b",
-                          }}
-                          title="Modified values"
-                        />
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} title="Modified" />
                       )}
                       <div style={{ flex: 1 }} />
-                      <span style={{ fontSize: 11, color: "#b45309" }}>
-                        {behaviorParams.length} params
-                      </span>
+                      <span style={{ fontSize: 11, color: "#b45309" }}>{behaviorParams.length} params</span>
                     </div>
-
-                    {loadingTargets ? (
-                      <div style={{ fontSize: 12, color: "#92400e", textAlign: "center", padding: 16 }}>
-                        Loading targets...
-                      </div>
-                    ) : behaviorParams.length === 0 ? (
-                      <div style={{ fontSize: 12, color: "#92400e", textAlign: "center", padding: 16 }}>
-                        No behavior parameters
-                      </div>
-                    ) : (
-                      <>
-                        {Object.keys(previewOverrides).length > 0 && (
-                          <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
-                            <button
-                              onClick={() => setPreviewOverrides({})}
-                              style={{
-                                fontSize: 11,
-                                padding: "4px 10px",
-                                background: "#fff",
-                                border: "1px solid #fbbf24",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                                color: "#92400e",
-                              }}
-                            >
-                              Reset ({Object.keys(previewOverrides).length})
-                            </button>
-                          </div>
-                        )}
-                        {Object.entries(
-                          behaviorParams.reduce((groups, param) => {
-                            const group = param.domainGroup || "General";
-                            if (!groups[group]) groups[group] = [];
-                            groups[group].push(param);
-                            return groups;
-                          }, {} as Record<string, BehaviorParameter[]>)
-                        ).map(([groupName, params]) => (
-                          <div key={groupName} style={{ marginBottom: 16 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: "#92400e", marginBottom: 10, textTransform: "uppercase" }}>
-                              {groupName}
-                            </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                              {params.map((param) => {
-                                const currentValue = previewOverrides[param.parameterId] ?? param.effectiveValue;
-                                const isModified = param.parameterId in previewOverrides;
-                                return (
-                                  <div key={param.parameterId} style={{ textAlign: "center" }}>
-                                    <VerticalSlider
-                                      value={currentValue}
-                                      editable={true}
-                                      onChange={(val) => {
-                                        setPreviewOverrides((prev) => ({
-                                          ...prev,
-                                          [param.parameterId]: val,
-                                        }));
-                                      }}
-                                      isModified={isModified}
-                                      color={{ primary: "#f59e0b", glow: "#d97706" }}
-                                      width={44}
-                                      height={100}
-                                      showGauge={true}
-                                      showSparkline={false}
-                                      tooltip={param.definition || param.name}
-                                    />
-                                    <div
-                                      style={{
-                                        fontSize: 9,
-                                        color: isModified ? "#d97706" : "#78716c",
-                                        maxWidth: 44,
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        marginTop: 4,
-                                      }}
-                                      title={param.name}
-                                    >
-                                      {param.name.split(" ")[0]}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
+                    <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                      {behaviorParams.slice(0, 5).map((param) => (
+                        <div key={param.parameterId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #fef3c7" }}>
+                          <div style={{ flex: 1, fontSize: 11, color: "#92400e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{param.name}</div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={previewOverrides[param.parameterId] ?? param.effectiveValue}
+                            onChange={(e) => setPreviewOverrides((prev) => ({ ...prev, [param.parameterId]: parseInt(e.target.value) }))}
+                            style={{ width: 60 }}
+                          />
+                          <span style={{ fontSize: 10, color: "#b45309", width: 24, textAlign: "right" }}>{previewOverrides[param.parameterId] ?? param.effectiveValue}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+              </div>
 
-                {/* Right: Output */}
-                <div
-                  style={{
-                    flex: 1,
-                    background: "#1e293b",
-                    borderRadius: 12,
-                    display: "flex",
-                    flexDirection: "column",
-                    minHeight: 500,
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Output Header */}
-                  <div
-                    style={{
-                      padding: "12px 16px",
-                      borderBottom: "1px solid #334155",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>OUTPUT</span>
-                    <div style={{ flex: 1 }} />
+              {/* RIGHT COLUMN: Output Panel */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* No playbook selected */}
+                {!selectedPlaybookId && (
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                    <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📚</div>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "#6b7280", margin: "0 0 8px 0" }}>Select a Playbook</h3>
+                    <p style={{ fontSize: 14, color: "#9ca3af" }}>Choose a playbook from the control bar above to generate prompts</p>
+                  </div>
+                )}
 
-                    {/* View Toggle */}
-                    <div style={{ display: "flex", background: "#334155", borderRadius: 6, padding: 2 }}>
-                      <button
-                        onClick={() => setOutputMode("sections")}
-                        style={{
-                          padding: "5px 12px",
-                          fontSize: 11,
-                          fontWeight: 500,
-                          border: "none",
-                          borderRadius: 4,
-                          cursor: "pointer",
-                          background: outputMode === "sections" ? "#475569" : "transparent",
-                          color: outputMode === "sections" ? "#fff" : "#94a3b8",
-                        }}
-                      >
-                        Sections
-                      </button>
-                      <button
-                        onClick={() => setOutputMode("raw")}
-                        style={{
-                          padding: "5px 12px",
-                          fontSize: 11,
-                          fontWeight: 500,
-                          border: "none",
-                          borderRadius: 4,
-                          cursor: "pointer",
-                          background: outputMode === "raw" ? "#475569" : "transparent",
-                          color: outputMode === "raw" ? "#fff" : "#94a3b8",
-                        }}
-                      >
-                        Raw
-                      </button>
-                    </div>
-
-                    {/* Diff Toggle */}
-                    {previousPrompt && (
-                      <button
-                        onClick={() => setShowDiff(!showDiff)}
-                        style={{
-                          padding: "5px 12px",
-                          fontSize: 11,
-                          fontWeight: 500,
-                          border: showDiff ? "1px solid #4ade80" : "1px solid #475569",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                          background: showDiff ? "rgba(74, 222, 128, 0.1)" : "transparent",
-                          color: showDiff ? "#4ade80" : "#94a3b8",
-                        }}
-                      >
-                        Diff {diff.length > 0 && `(${diff.length})`}
-                      </button>
-                    )}
-
-                    {/* Copy Button */}
+                {/* Ready to generate */}
+                {selectedPlaybookId && !generatedPrompt && !isGenerating && (
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>✨</div>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0" }}>Ready to Generate</h3>
+                    <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 20 }}>Click Generate in the control bar or below</p>
                     <button
-                      onClick={handleCopy}
-                      disabled={!generatedPrompt}
-                      style={{
-                        padding: "5px 12px",
-                        fontSize: 11,
-                        fontWeight: 500,
-                        border: "1px solid #475569",
-                        borderRadius: 6,
-                        cursor: generatedPrompt ? "pointer" : "not-allowed",
-                        background: "transparent",
-                        color: copied ? "#4ade80" : "#94a3b8",
-                      }}
+                      onClick={generatePrompt}
+                      style={{ padding: "12px 24px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#7c3aed", border: "none", borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
                     >
-                      {copied ? "Copied!" : "Copy"}
+                      <span>✨</span> Generate Prompt
                     </button>
                   </div>
+                )}
 
-                  {/* Output Content */}
-                  <div
-                    style={{
-                      flex: 1,
-                      overflow: "auto",
-                      padding: 16,
-                      fontFamily: "ui-monospace, monospace",
-                      fontSize: 12,
-                      color: "#e2e8f0",
-                    }}
-                  >
-                    {isGenerating ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          height: "100%",
-                          gap: 12,
-                        }}
-                      >
-                        <div
+                {/* Generating */}
+                {isGenerating && (
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                    <div style={{ fontSize: 48, marginBottom: 16 }} className="animate-pulse">⟳</div>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "#7c3aed", margin: 0 }}>Generating prompt...</h3>
+                  </div>
+                )}
+
+                {/* Generated output */}
+                {generatedPrompt && !isGenerating && (
+                  <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+                    {/* Header */}
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 14 }}>✨</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "#1f2937" }}>Generated Prompt</span>
+                      <div style={{ flex: 1 }} />
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button
+                          onClick={() => setOutputMode("sections")}
                           style={{
-                            width: 32,
-                            height: 32,
-                            border: "3px solid #475569",
-                            borderTopColor: "#4f46e5",
-                            borderRadius: "50%",
-                            animation: "spin 1s linear infinite",
+                            padding: "4px 10px", fontSize: 11, fontWeight: outputMode === "sections" ? 600 : 400,
+                            color: outputMode === "sections" ? "#4f46e5" : "#6b7280",
+                            background: outputMode === "sections" ? "#eef2ff" : "transparent",
+                            border: "1px solid", borderColor: outputMode === "sections" ? "#c7d2fe" : "#e5e7eb", borderRadius: 4, cursor: "pointer",
                           }}
-                        />
-                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                        <span style={{ color: "#94a3b8" }}>Generating prompt...</span>
+                        >
+                          Sections
+                        </button>
+                        <button
+                          onClick={() => setOutputMode("raw")}
+                          style={{
+                            padding: "4px 10px", fontSize: 11, fontWeight: outputMode === "raw" ? 600 : 400,
+                            color: outputMode === "raw" ? "#4f46e5" : "#6b7280",
+                            background: outputMode === "raw" ? "#eef2ff" : "transparent",
+                            border: "1px solid", borderColor: outputMode === "raw" ? "#c7d2fe" : "#e5e7eb", borderRadius: 4, cursor: "pointer",
+                          }}
+                        >
+                          Raw
+                        </button>
                       </div>
-                    ) : !generatedPrompt ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          height: "100%",
-                          color: "#64748b",
-                          textAlign: "center",
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(outputMode === "raw" ? JSON.stringify(generatedPrompt.llmPrompt, null, 2) : generatedPrompt.prompt);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
                         }}
+                        style={{ padding: "4px 10px", fontSize: 11, color: copied ? "#059669" : "#6b7280", background: copied ? "#d1fae5" : "#f3f4f6", border: "none", borderRadius: 4, cursor: "pointer" }}
                       >
-                        <div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
-                        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Ready to generate</div>
-                        <div style={{ fontSize: 12 }}>Click "Generate Prompt" to create a prompt</div>
-                      </div>
-                    ) : outputMode === "raw" ? (
-                      <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        {JSON.stringify(generatedPrompt.llmPrompt, null, 2)}
-                      </pre>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {/* Quick Start Section */}
-                        {generatedPrompt.llmPrompt._quickStart && (
-                          <div
-                            style={{
-                              background: "#334155",
-                              borderRadius: 8,
-                              padding: 14,
-                              border: "1px solid #475569",
-                            }}
-                          >
-                            <div style={{ color: "#4ade80", fontWeight: 600, marginBottom: 8, fontSize: 11 }}>
-                              _quickStart
-                            </div>
-                            {Object.entries(generatedPrompt.llmPrompt._quickStart as Record<string, string>).map(
-                              ([key, value]) => (
-                                <div key={key} style={{ marginBottom: 4 }}>
-                                  <span style={{ color: "#94a3b8" }}>{key}:</span>{" "}
-                                  <span style={{ color: "#e2e8f0" }}>{value}</span>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        )}
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
 
-                        {/* Diff Panel */}
-                        {showDiff && diff.length > 0 && (
-                          <div
-                            style={{
-                              background: "rgba(74, 222, 128, 0.05)",
-                              border: "1px solid rgba(74, 222, 128, 0.2)",
-                              borderRadius: 8,
-                              padding: 12,
-                            }}
-                          >
-                            <div
-                              style={{
-                                color: "#4ade80",
-                                fontWeight: 600,
-                                marginBottom: 8,
-                                fontSize: 11,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                              }}
-                            >
-                              🔄 Changes ({diff.length})
+                    {/* Content */}
+                    <div style={{ padding: 16, maxHeight: 500, overflowY: "auto" }}>
+                      {outputMode === "raw" ? (
+                        <pre style={{ fontSize: 11, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, color: "#374151" }}>
+                          {JSON.stringify(generatedPrompt.llmPrompt, null, 2)}
+                        </pre>
+                      ) : (
+                        <div style={{ fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
+                          {generatedPrompt.llmPrompt?._quickStart && (
+                            <div style={{ marginBottom: 16 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>Quick Start</div>
+                              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 12, fontSize: 12 }}>
+                                <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{JSON.stringify(generatedPrompt.llmPrompt._quickStart, null, 2)}</pre>
+                              </div>
                             </div>
-                            {diff.map((d) => (
-                              <div
-                                key={d.key}
-                                style={{
-                                  padding: "4px 8px",
-                                  marginBottom: 4,
-                                  borderRadius: 4,
-                                  fontSize: 11,
-                                  background:
-                                    d.status === "added"
-                                      ? "rgba(74, 222, 128, 0.15)"
-                                      : d.status === "removed"
-                                        ? "rgba(248, 113, 113, 0.15)"
-                                        : "rgba(251, 191, 36, 0.15)",
-                                  color:
-                                    d.status === "added"
-                                      ? "#4ade80"
-                                      : d.status === "removed"
-                                        ? "#f87171"
-                                        : "#fbbf24",
-                                }}
-                              >
-                                {d.status === "added" && "+ "}
-                                {d.status === "removed" && "- "}
-                                {d.status === "changed" && "~ "}
-                                <strong>{d.key}</strong>
-                                {d.status === "changed" && " (modified)"}
+                          )}
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>Prompt</div>
+                            <div style={{ whiteSpace: "pre-wrap" }}>{generatedPrompt.prompt}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Diff */}
+                    {previousPrompt && showDiff && (
+                      <div style={{ borderTop: "1px solid #e5e7eb", padding: 16, background: "#fafafa" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#6b7280" }}>Changes</span>
+                          <button onClick={() => setShowDiff(false)} style={{ marginLeft: "auto", fontSize: 11, color: "#9ca3af", background: "none", border: "none", cursor: "pointer" }}>Hide</button>
+                        </div>
+                        <div style={{ fontSize: 12 }}>
+                          {computeDiff(previousPrompt.llmPrompt, generatedPrompt.llmPrompt)
+                            .filter((d) => d.status !== "unchanged")
+                            .slice(0, 10)
+                            .map((diff) => (
+                              <div key={diff.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: diff.status === "added" ? diffColors.added.text : diff.status === "removed" ? diffColors.removed.text : diffColors.changed.text }}>
+                                  {diff.status === "added" ? "+" : diff.status === "removed" ? "-" : "~"}
+                                </span>
+                                <span style={{ color: "#374151" }}>{diff.key}</span>
                               </div>
                             ))}
-                          </div>
-                        )}
-
-                        {/* Prose Prompt */}
-                        {generatedPrompt.prompt && (
-                          <div>
-                            <div style={{ color: "#94a3b8", fontWeight: 600, marginBottom: 8, fontSize: 11 }}>
-                              GENERATED PROMPT
-                            </div>
-                            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{generatedPrompt.prompt}</div>
-                          </div>
-                        )}
-
-                        {/* Other Sections */}
-                        {Object.entries(generatedPrompt.llmPrompt)
-                          .filter(([key]) => !key.startsWith("_") && key !== "caller")
-                          .slice(0, 10)
-                          .map(([key, value]) => (
-                            <div key={key}>
-                              <div style={{ color: "#94a3b8", fontWeight: 600, marginBottom: 6, fontSize: 11 }}>
-                                {key}
-                              </div>
-                              <pre
-                                style={{
-                                  margin: 0,
-                                  whiteSpace: "pre-wrap",
-                                  wordBreak: "break-word",
-                                  fontSize: 11,
-                                  color: "#cbd5e1",
-                                }}
-                              >
-                                {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
-                              </pre>
-                            </div>
-                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
-                </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+
         </div>
       )}
+
 
       {/* ================================================================ */}
       {/* PLAYBOOK WIZARD CONTENT                                         */}
@@ -2125,24 +1600,17 @@ export default function PlaygroundPage() {
               </p>
 
               <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 24 }}>
-                <select
+                <FancySelect
                   value={selectedPlaybookId}
-                  onChange={(e) => setSelectedPlaybookId(e.target.value)}
-                  style={{
-                    padding: "10px 16px",
-                    fontSize: 14,
-                    border: "1px solid #d1d5db",
-                    borderRadius: 8,
-                    minWidth: 250,
-                  }}
-                >
-                  <option value="">Select a playbook...</option>
-                  {playbooks.filter(p => p.status === "PUBLISHED").map((pb) => (
-                    <option key={pb.id} value={pb.id}>
-                      {pb.name} ({pb.domain?.name || "No domain"})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedPlaybookId}
+                  placeholder="Select a playbook..."
+                  style={{ minWidth: 280 }}
+                  options={playbooks.filter(p => p.status === "PUBLISHED").map((pb) => ({
+                    value: pb.id,
+                    label: pb.name,
+                    subtitle: pb.domain?.name || "No domain",
+                  }))}
+                />
               </div>
 
               {selectedPlaybookId && (
@@ -2167,63 +1635,472 @@ export default function PlaygroundPage() {
       {/* ================================================================ */}
       {wizardMode === "compare" && (
         <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-            <div
-              style={{
-                textAlign: "center",
-                padding: "60px 20px",
-                background: "#fff",
-                borderRadius: 12,
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <div style={{ fontSize: 48, marginBottom: 16 }}>⚖️</div>
-              <h2 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0" }}>
-                A/B Compare
+          <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+            {/* Header */}
+            <div style={{ marginBottom: 20, textAlign: "center" }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <span>A/B Compare</span>
               </h2>
-              <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24, maxWidth: 450, margin: "0 auto 24px" }}>
-                Compare two different spec configurations side-by-side for the same caller.
-                See exactly what changes when you toggle specs on or off.
+              <p style={{ fontSize: 14, color: "#6b7280", margin: 0 }}>
+                Compare two different configurations side-by-side for the same caller
               </p>
+            </div>
 
-              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 24 }}>
-                <select
-                  value={selectedCallerId}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleCallerSelect(e.target.value);
-                    }
-                  }}
+            {/* Caller Selection */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+              <CallerPicker
+                value={selectedCallerId || null}
+                onChange={(callerId) => {
+                  if (callerId) {
+                    handleCallerSelect(callerId);
+                    // Reset compare prompts when caller changes
+                    setPromptA(null);
+                    setPromptB(null);
+                  }
+                }}
+                placeholder="Select a caller to compare..."
+                style={{ width: 320 }}
+              />
+            </div>
+
+            {!selectedCallerId ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "60px 20px",
+                  background: "#fff",
+                  borderRadius: 12,
+                  border: "1px solid #e5e7eb",
+                }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>👤</div>
+                <p style={{ fontSize: 14, color: "#6b7280" }}>
+                  Select a caller above to start comparing configurations
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Two-column layout */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                  {/* Config A */}
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: `2px solid ${compareColors.configA.border}`,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div style={{ background: compareColors.configA.headerBg, padding: "12px 16px", borderBottom: `1px solid ${entityColors.caller.border}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontWeight: 600, color: compareColors.configA.text }}>Config A</span>
+                        <FancySelect
+                          value={comparePlaybookA}
+                          onChange={setComparePlaybookA}
+                          placeholder="All playbooks"
+                          style={{ flex: 1, maxWidth: 200 }}
+                          options={[
+                            { value: "", label: "All playbooks (domain default)" },
+                            { value: "__none__", label: "No playbook (baseline)" },
+                            ...playbooks.filter(p => p.status === "PUBLISHED").map((pb) => ({
+                              value: pb.id,
+                              label: pb.name,
+                              subtitle: pb.domain?.name || "no domain",
+                            })),
+                          ]}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!selectedCallerId) return;
+                            setIsGeneratingA(true);
+                            try {
+                              const body: any = {};
+                              if (comparePlaybookA === "__none__") {
+                                body.playbookIds = []; // Empty array = no playbooks
+                              } else if (comparePlaybookA) {
+                                body.playbookIds = [comparePlaybookA]; // Specific playbook
+                              }
+                              // If empty string, don't send playbookIds (use all)
+                              const res = await fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(body),
+                              });
+                              const data = await res.json();
+                              if (data.ok) {
+                                setPromptA(data.prompt);
+                              }
+                            } catch (e) {
+                              console.error(e);
+                            } finally {
+                              setIsGeneratingA(false);
+                            }
+                          }}
+                          disabled={isGeneratingA}
+                          style={{
+                            padding: "6px 12px",
+                            background: isGeneratingA ? entityColors.caller.border : compareColors.configA.border,
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 500,
+                            cursor: isGeneratingA ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {isGeneratingA ? "..." : "Generate"}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ padding: 16, minHeight: 300 }}>
+                      {isGeneratingA ? (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#6b7280" }}>
+                          Generating...
+                        </div>
+                      ) : promptA ? (
+                        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                          <div style={{ marginBottom: 12, padding: 8, background: compareColors.configA.bg, borderRadius: 6, fontSize: 11, color: compareColors.configA.text }}>
+                            {(promptA.inputs as any)?.playbooksUsed?.join(", ") || "No playbooks"} | {(promptA.inputs as any)?.composition?.sectionsActivated?.length || 0} sections
+                          </div>
+                          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0, maxHeight: 400, overflow: "auto" }}>
+                            {promptA.prompt}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#9ca3af", fontSize: 13 }}>
+                          Select playbook config and click Generate
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Config B */}
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: `2px solid ${compareColors.configB.border}`,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div style={{ background: compareColors.configB.headerBg, padding: "12px 16px", borderBottom: `1px solid ${entityColors.playbook.border}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontWeight: 600, color: compareColors.configB.text }}>Config B</span>
+                        <FancySelect
+                          value={comparePlaybookB}
+                          onChange={setComparePlaybookB}
+                          placeholder="All playbooks"
+                          style={{ flex: 1, maxWidth: 200 }}
+                          options={[
+                            { value: "", label: "All playbooks (domain default)" },
+                            { value: "__none__", label: "No playbook (baseline)" },
+                            ...playbooks.filter(p => p.status === "PUBLISHED").map((pb) => ({
+                              value: pb.id,
+                              label: pb.name,
+                              subtitle: pb.domain?.name || "no domain",
+                            })),
+                          ]}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!selectedCallerId) return;
+                            setIsGeneratingB(true);
+                            try {
+                              const body: any = {};
+                              if (comparePlaybookB === "__none__") {
+                                body.playbookIds = []; // Empty array = no playbooks
+                              } else if (comparePlaybookB) {
+                                body.playbookIds = [comparePlaybookB]; // Specific playbook
+                              }
+                              const res = await fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(body),
+                              });
+                              const data = await res.json();
+                              if (data.ok) {
+                                setPromptB(data.prompt);
+                              }
+                            } catch (e) {
+                              console.error(e);
+                            } finally {
+                              setIsGeneratingB(false);
+                            }
+                          }}
+                          disabled={isGeneratingB}
+                          style={{
+                            padding: "6px 12px",
+                            background: isGeneratingB ? entityColors.playbook.border : compareColors.configB.border,
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 500,
+                            cursor: isGeneratingB ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {isGeneratingB ? "..." : "Generate"}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ padding: 16, minHeight: 300 }}>
+                      {isGeneratingB ? (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#6b7280" }}>
+                          Generating...
+                        </div>
+                      ) : promptB ? (
+                        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                          <div style={{ marginBottom: 12, padding: 8, background: compareColors.configB.bg, borderRadius: 6, fontSize: 11, color: compareColors.configB.text }}>
+                            {(promptB.inputs as any)?.playbooksUsed?.join(", ") || "No playbooks"} | {(promptB.inputs as any)?.composition?.sectionsActivated?.length || 0} sections
+                          </div>
+                          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0, maxHeight: 400, overflow: "auto" }}>
+                            {promptB.prompt}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#9ca3af", fontSize: 13 }}>
+                          Select playbook config and click Generate
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Generate Both button */}
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+                  <button
+                    onClick={async () => {
+                      if (!selectedCallerId) return;
+                      setIsGeneratingA(true);
+                      setIsGeneratingB(true);
+                      try {
+                        const bodyA: any = {};
+                        if (comparePlaybookA === "__none__") bodyA.playbookIds = [];
+                        else if (comparePlaybookA) bodyA.playbookIds = [comparePlaybookA];
+
+                        const bodyB: any = {};
+                        if (comparePlaybookB === "__none__") bodyB.playbookIds = [];
+                        else if (comparePlaybookB) bodyB.playbookIds = [comparePlaybookB];
+
+                        const [resA, resB] = await Promise.all([
+                          fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(bodyA),
+                          }),
+                          fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(bodyB),
+                          }),
+                        ]);
+                        const [dataA, dataB] = await Promise.all([resA.json(), resB.json()]);
+                        if (dataA.ok) setPromptA(dataA.prompt);
+                        if (dataB.ok) setPromptB(dataB.prompt);
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setIsGeneratingA(false);
+                        setIsGeneratingB(false);
+                      }
+                    }}
+                    disabled={isGeneratingA || isGeneratingB}
+                    style={{
+                      padding: "10px 24px",
+                      background: (isGeneratingA || isGeneratingB) ? "#d1d5db" : "#1f2937",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: (isGeneratingA || isGeneratingB) ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {(isGeneratingA || isGeneratingB) ? "Generating..." : "Generate Both"}
+                  </button>
+                </div>
+
+                {/* Diff View */}
+                {promptA && promptB && (
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {(() => {
+                      const diffResult = computeDiff(promptA.llmPrompt, promptB.llmPrompt);
+                      const changes = diffResult.filter(d => d.status !== "unchanged");
+                      const allExpanded = changes.length > 0 && changes.every(d => expandedDiffs.has(d.key));
+                      return (
+                        <>
+                          <div style={{ background: "#f9fafb", padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontWeight: 600, color: "#374151" }}>Differences</span>
+                            {changes.length > 0 && (
+                              <button
+                                onClick={() => {
+                                  if (allExpanded) {
+                                    setExpandedDiffs(new Set());
+                                  } else {
+                                    setExpandedDiffs(new Set(changes.map(d => d.key)));
+                                  }
+                                }}
+                                style={{
+                                  padding: "4px 10px",
+                                  fontSize: 12,
+                                  background: "#fff",
+                                  border: "1px solid #d1d5db",
+                                  borderRadius: 6,
+                                  cursor: "pointer",
+                                  color: "#374151",
+                                }}
+                              >
+                                {allExpanded ? "Collapse All" : "Expand All"}
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ padding: 16 }}>
+                            {changes.length === 0 ? (
+                              <div style={{ textAlign: "center", padding: 20, color: "#6b7280" }}>
+                                No differences found between Config A and Config B
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {changes.map((d) => {
+                                  const isExpanded = expandedDiffs.has(d.key);
+                                  const aStr = typeof d.previous === "object" ? JSON.stringify(d.previous, null, 2) : String(d.previous ?? "");
+                                  const bStr = typeof d.current === "object" ? JSON.stringify(d.current, null, 2) : String(d.current ?? "");
+                                  return (
+                                    <div
+                                      key={d.key}
+                                      style={{
+                                        padding: "10px 14px",
+                                        borderRadius: 8,
+                                        background:
+                                          d.status === "added" ? diffColors.added.bg :
+                                          d.status === "removed" ? diffColors.removed.bg :
+                                          diffColors.changed.bg,
+                                        border: `1px solid ${
+                                          d.status === "added" ? diffColors.added.border :
+                                          d.status === "removed" ? diffColors.removed.border :
+                                          diffColors.changed.border
+                                        }`,
+                                      }}
+                                    >
+                                      <div
+                                        onClick={() => {
+                                          setExpandedDiffs(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(d.key)) {
+                                              next.delete(d.key);
+                                            } else {
+                                              next.add(d.key);
+                                            }
+                                            return next;
+                                          });
+                                        }}
+                                        style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, cursor: "pointer" }}
+                                      >
+                                        <span style={{ fontSize: 11, color: "#6b7280", width: 12 }}>{isExpanded ? "▼" : "▶"}</span>
+                                        <span style={{
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          color:
+                                            d.status === "added" ? diffColors.added.text :
+                                            d.status === "removed" ? diffColors.removed.text :
+                                            diffColors.changed.text,
+                                        }}>
+                                          {d.status === "added" ? "+ ADDED" : d.status === "removed" ? "- REMOVED" : "~ CHANGED"}
+                                        </span>
+                                        <code style={{ fontSize: 12, color: "#374151" }}>{d.key}</code>
+                                      </div>
+                                      <div style={{ fontSize: 12, color: "#6b7280", fontFamily: "monospace" }}>
+                                        {isExpanded ? (
+                                          <div style={{ marginTop: 8 }}>
+                                            {(d.status === "changed" || d.status === "removed") && (
+                                              <div style={{ marginBottom: 8 }}>
+                                                <div style={{ fontSize: 10, fontWeight: 600, color: diffColors.removed.text, marginBottom: 4 }}>A:</div>
+                                                <pre style={{
+                                                  margin: 0,
+                                                  padding: 8,
+                                                  background: "rgba(239,68,68,0.1)",
+                                                  borderRadius: 4,
+                                                  whiteSpace: "pre-wrap",
+                                                  wordBreak: "break-word",
+                                                  color: diffColors.removed.text,
+                                                  maxHeight: 300,
+                                                  overflow: "auto",
+                                                }}>{aStr}</pre>
+                                              </div>
+                                            )}
+                                            {(d.status === "changed" || d.status === "added") && (
+                                              <div>
+                                                <div style={{ fontSize: 10, fontWeight: 600, color: diffColors.added.text, marginBottom: 4 }}>B:</div>
+                                                <pre style={{
+                                                  margin: 0,
+                                                  padding: 8,
+                                                  background: "rgba(34,197,94,0.1)",
+                                                  borderRadius: 4,
+                                                  whiteSpace: "pre-wrap",
+                                                  wordBreak: "break-word",
+                                                  color: diffColors.added.text,
+                                                  maxHeight: 300,
+                                                  overflow: "auto",
+                                                }}>{bStr}</pre>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          d.status === "changed" ? (() => {
+                                            const snippets = getDiffSnippets(aStr, bStr);
+                                            return (
+                                              <>
+                                                <div style={{ color: diffColors.removed.text }}>A: {snippets.a}</div>
+                                                <div style={{ color: diffColors.added.text }}>B: {snippets.b}</div>
+                                              </>
+                                            );
+                                          })() : d.status === "removed" ? (
+                                            <div style={{ color: diffColors.removed.text }}>
+                                              A: {aStr.slice(0, 120)}{aStr.length > 120 ? "..." : ""}
+                                            </div>
+                                          ) : (
+                                            <div style={{ color: diffColors.added.text }}>
+                                              B: {bStr.slice(0, 120)}{bStr.length > 120 ? "..." : ""}
+                                            </div>
+                                          )
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Info box */}
+                <div
                   style={{
-                    padding: "10px 16px",
-                    fontSize: 14,
-                    border: "1px solid #d1d5db",
+                    marginTop: 20,
+                    padding: 16,
+                    background: "#f0f9ff",
+                    border: "1px solid #bae6fd",
                     borderRadius: 8,
-                    minWidth: 250,
+                    fontSize: 13,
+                    color: "#0369a1",
                   }}
                 >
-                  <option value="">Select a caller...</option>
-                  {callers.slice(0, 50).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name || c.email || c.externalId || c.id.slice(0, 8)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedCallerId && (
-                <div style={{ marginTop: 32, padding: 20, background: "#f9fafb", borderRadius: 8, textAlign: "left" }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 12 }}>
-                    Selected: {caller?.name || caller?.email || selectedCallerId.slice(0, 8)}
-                  </div>
-                  <p style={{ fontSize: 13, color: "#6b7280" }}>
-                    A/B comparison mode coming soon.
-                    This mode will show two side-by-side configurations with a diff view
-                    highlighting exactly what changed between them.
-                  </p>
+                  <strong>Tip:</strong> Select different playbook configurations for A and B to compare how they affect the prompt.
+                  Choose "No playbook" to see the baseline system prompt without any playbook specs applied.
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2298,22 +2175,15 @@ export default function PlaygroundPage() {
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
                   Domain (optional)
                 </label>
-                <select
+                <FancySelect
                   value={newCallerDomainId}
-                  onChange={(e) => setNewCallerDomainId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: 6,
-                    fontSize: 14,
-                  }}
-                >
-                  <option value="">No domain</option>
-                  {domains.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
+                  onChange={setNewCallerDomainId}
+                  placeholder="No domain"
+                  options={[
+                    { value: "", label: "No domain" },
+                    ...domains.map((d) => ({ value: d.id, label: d.name })),
+                  ]}
+                />
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
@@ -2571,22 +2441,12 @@ export default function PlaygroundPage() {
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
                   Domain *
                 </label>
-                <select
+                <FancySelect
                   value={newPlaybookDomainId}
-                  onChange={(e) => setNewPlaybookDomainId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: 6,
-                    fontSize: 14,
-                  }}
-                >
-                  <option value="">Select domain...</option>
-                  {domains.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
+                  onChange={setNewPlaybookDomainId}
+                  placeholder="Select domain..."
+                  options={domains.map((d) => ({ value: d.id, label: d.name }))}
+                />
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>

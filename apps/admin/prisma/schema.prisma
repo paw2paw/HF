@@ -1815,6 +1815,9 @@ model Playbook {
   domainId String
   domain   Domain @relation(fields: [domainId], references: [id])
 
+  // Stack order within domain (lower = higher priority, first wins on conflicts)
+  sortOrder Int @default(0)
+
   // Status workflow
   status PlaybookStatus @default(DRAFT)
 
@@ -1857,6 +1860,7 @@ model Playbook {
   goals Goal[]
 
   @@index([domainId])
+  @@index([domainId, sortOrder])
   @@index([status])
   @@index([parentVersionId])
 }
@@ -2656,4 +2660,72 @@ model PipelineStep {
   @@index([operation])
   @@index([status])
   @@index([specId])
+}
+
+// =========================
+// AI CONFIGURATION
+// =========================
+
+// Configurable AI model settings for each call point in the system
+// Allows admins to switch between providers/models per operation
+model AIConfig {
+  id          String   @id @default(uuid())
+
+  // Unique identifier for the call point (e.g., "pipeline.measure", "pipeline.learn")
+  callPoint   String   @unique
+
+  // Human-readable label for the UI
+  label       String
+
+  // AI Provider: claude, openai, mock
+  provider    String   @default("claude")
+
+  // Specific model ID (e.g., "claude-sonnet-4-20250514", "gpt-4o", "claude-3-haiku-20240307")
+  model       String
+
+  // Optional overrides
+  maxTokens   Int?
+  temperature Float?
+
+  // Whether this config is active (allows disabling without deleting)
+  isActive    Boolean  @default(true)
+
+  // Metadata
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([provider])
+  @@index([isActive])
+}
+
+// Available AI models that can be selected in AIConfig
+// Stored in DB so admins can add/remove models without code changes
+model AIModel {
+  id        String   @id @default(uuid())
+
+  // Model identifier used in API calls (e.g., "claude-sonnet-4-20250514", "gpt-4o")
+  modelId   String   @unique
+
+  // Provider this model belongs to
+  provider  String   // claude, openai, mock
+
+  // Human-readable label for the UI
+  label     String
+
+  // Model tier for cost/capability indication
+  tier      String   // flagship, standard, fast, test
+
+  // Whether this model is available for selection
+  isActive  Boolean  @default(true)
+
+  // Sort order for UI display (lower = first)
+  sortOrder Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider])
+  @@index([isActive])
+  @@index([provider, isActive])
 }

@@ -44,7 +44,7 @@ export async function loadAllData(
     callerTargets,
     callerAttributes,
     goals,
-    playbook,
+    playbooks,
     systemSpecs,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
@@ -57,7 +57,7 @@ export async function loadAllData(
     loaderRegistry.get("callerTargets")!(callerId),
     loaderRegistry.get("callerAttributes")!(callerId),
     loaderRegistry.get("goals")!(callerId),
-    loaderRegistry.get("playbook")!(callerId),
+    loaderRegistry.get("playbooks")!(callerId, { playbookIds: specConfig.playbookIds }),
     loaderRegistry.get("systemSpecs")!(callerId),
   ]);
 
@@ -72,7 +72,7 @@ export async function loadAllData(
     callerTargets: callerTargets || [],
     callerAttributes: callerAttributes || [],
     goals: goals || [],
-    playbook,
+    playbooks: playbooks || [],
     systemSpecs: systemSpecs || [],
   };
 }
@@ -255,21 +255,30 @@ registerLoader("goals", async (callerId) => {
   });
 });
 
-registerLoader("playbook", async (callerId) => {
-  // Get caller's domain, then find playbook (PUBLISHED > DRAFT priority)
+registerLoader("playbooks", async (callerId, config?: { playbookIds?: string[] }) => {
+  // Get caller's domain, then find ALL published playbooks (stacked)
   const callerWithDomain = await prisma.caller.findUnique({
     where: { id: callerId },
     select: { domainId: true },
   });
 
-  if (!callerWithDomain?.domainId) return null;
+  if (!callerWithDomain?.domainId) return [];
 
-  return prisma.playbook.findFirst({
-    where: {
-      domainId: callerWithDomain.domainId,
-      status: { in: ["PUBLISHED", "DRAFT"] },
-    },
-    orderBy: { status: "asc" }, // PUBLISHED before DRAFT
+  // Build where clause - optionally filter to specific playbooks
+  const whereClause: any = {
+    domainId: callerWithDomain.domainId,
+    status: "PUBLISHED", // Only PUBLISHED playbooks stack
+  };
+
+  // If playbookIds specified, filter to only those playbooks
+  if (config?.playbookIds && config.playbookIds.length > 0) {
+    whereClause.id = { in: config.playbookIds };
+  }
+
+  // Load all PUBLISHED playbooks for domain, ordered by sortOrder (lower = higher priority)
+  return prisma.playbook.findMany({
+    where: whereClause,
+    orderBy: { sortOrder: "asc" }, // First playbook wins on conflicts
     include: {
       domain: true,
       items: {

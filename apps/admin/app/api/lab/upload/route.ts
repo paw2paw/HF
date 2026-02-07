@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseJsonSpec, convertJsonSpecToHybrid } from "@/lib/bdd/ai-parser";
 import { SpecType, SpecificationScope, AnalysisOutputType, SpecRole } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
+
+const SPECS_DIR = path.join(process.cwd(), "bdd-specs");
 
 /**
  * POST /api/lab/upload
@@ -31,6 +35,19 @@ export async function POST(req: Request) {
     }
 
     const parsedSpec = parseResult.data;
+
+    // Save to bdd-specs/ directory for version control
+    try {
+      if (!fs.existsSync(SPECS_DIR)) {
+        fs.mkdirSync(SPECS_DIR, { recursive: true });
+      }
+      const filename = `${parsedSpec.id.toLowerCase()}.spec.json`;
+      const filePath = path.join(SPECS_DIR, filename);
+      fs.writeFileSync(filePath, JSON.stringify(spec, null, 2), "utf-8");
+    } catch (fileError) {
+      console.warn("Could not save spec to bdd-specs/:", fileError);
+      // Continue anyway - DB is primary, file is backup
+    }
 
     // Convert to hybrid format
     const hybrid = convertJsonSpecToHybrid(parsedSpec);

@@ -4,7 +4,7 @@
  * Based on the PlaybookBuilder design
  */
 
-import React from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Sparkline } from "./Sparkline";
 
 export interface VerticalSliderProps {
@@ -67,9 +67,11 @@ export function VerticalSlider({
   sparklineLabels,
 }: VerticalSliderProps) {
   const ticks = [0, 25, 50, 75, 100];
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Determine if we should show as active/modified
-  const isHighlighted = isModified || isActive;
+  const isHighlighted = isModified || isActive || isDragging;
   const activeColor = isModified ? "#fbbf24" : color.primary;
   const glowColor = isModified ? "#f59e0b" : color.glow;
 
@@ -77,6 +79,67 @@ export function VerticalSlider({
   // Uses color-mix() which handles var() references correctly
   const withAlpha = (c: string, pct: number) =>
     `color-mix(in srgb, ${c} ${pct}%, transparent)`;
+
+  // Calculate value from Y position within track
+  const calculateValueFromY = useCallback((clientY: number) => {
+    if (!trackRef.current || !onChange) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    // Invert: top of track = 100%, bottom = 0%
+    const relativeY = rect.bottom - clientY;
+    const percentage = Math.max(0, Math.min(100, (relativeY / rect.height) * 100));
+    // Snap to 5% increments
+    const snapped = Math.round(percentage / 5) * 5;
+    onChange(snapped / 100);
+  }, [onChange]);
+
+  // Mouse handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!editable || !onChange) return;
+    e.preventDefault();
+    setIsDragging(true);
+    calculateValueFromY(e.clientY);
+  }, [editable, onChange, calculateValueFromY]);
+
+  // Touch handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!editable || !onChange) return;
+    setIsDragging(true);
+    calculateValueFromY(e.touches[0].clientY);
+  }, [editable, onChange, calculateValueFromY]);
+
+  // Global mouse/touch move and up handlers
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault();
+      calculateValueFromY(e.clientY);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      calculateValueFromY(e.touches[0].clientY);
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("touchmove", handleTouchMove);
+    document.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isDragging, calculateValueFromY]);
 
   return (
     <div
@@ -142,7 +205,10 @@ export function VerticalSlider({
 
         {/* Vertical slider track */}
         <div
+          ref={trackRef}
           onClick={onClick}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
           title={tooltip}
           style={{
             position: "relative",
@@ -150,13 +216,15 @@ export function VerticalSlider({
             height,
             background: "linear-gradient(180deg, var(--slider-track-bg-start) 0%, var(--slider-track-bg-end) 100%)",
             borderRadius: 4,
-            border: isActive ? `2px solid ${activeColor}` : "1px solid var(--slider-border)",
-            boxShadow: isActive
+            border: (isActive || isDragging) ? `2px solid ${activeColor}` : "1px solid var(--slider-border)",
+            boxShadow: (isActive || isDragging)
               ? `0 0 12px ${withAlpha(glowColor, 25)}, inset 0 2px 4px rgba(0,0,0,0.2)`
               : "inset 0 2px 4px rgba(0,0,0,0.1)",
             overflow: "hidden",
-            cursor: onClick ? "pointer" : editable ? "pointer" : "default",
-            transition: "border-color 0.2s, box-shadow 0.2s",
+            cursor: editable ? (isDragging ? "grabbing" : "grab") : (onClick ? "pointer" : "default"),
+            transition: isDragging ? "none" : "border-color 0.2s, box-shadow 0.2s",
+            userSelect: "none",
+            touchAction: editable ? "none" : "auto",
           }}
         >
           {/* Gauge lines inside track */}
@@ -171,6 +239,7 @@ export function VerticalSlider({
                 height: 1,
                 background: tick === 50 ? "var(--slider-gauge-line-mid)" : "var(--slider-gauge-line)",
                 zIndex: 1,
+                pointerEvents: "none",
               }}
             />
           ))}
@@ -187,9 +256,10 @@ export function VerticalSlider({
                 ? `linear-gradient(180deg, ${activeColor} 0%, ${withAlpha(glowColor, 60)} 100%)`
                 : "linear-gradient(180deg, var(--slider-bar-default-start) 0%, var(--slider-bar-default-end) 100%)",
               borderRadius: "2px",
-              transition: "height 0.1s ease-out",
+              transition: isDragging ? "none" : "height 0.1s ease-out",
               zIndex: 2,
               boxShadow: isHighlighted ? `0 0 12px ${withAlpha(glowColor, 38)}` : "none",
+              pointerEvents: "none",
             }}
           />
 
@@ -207,6 +277,7 @@ export function VerticalSlider({
                 transition: "height 0.1s ease-out",
                 zIndex: 2,
                 opacity: 0.85,
+                pointerEvents: "none",
               }}
             />
           )}
@@ -224,6 +295,7 @@ export function VerticalSlider({
                 background: "var(--slider-led-separator)",
                 opacity: 0.5,
                 zIndex: 3,
+                pointerEvents: "none",
               }}
             />
           ))}
@@ -259,32 +331,11 @@ export function VerticalSlider({
                 background: "var(--slider-target-marker)",
                 borderRadius: 1,
                 zIndex: 4,
+                pointerEvents: "none",
               }}
             />
           )}
 
-          {/* Interactive slider input (invisible) */}
-          {editable && onChange && (
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              value={value * 100}
-              onChange={(e) => onChange(parseInt(e.target.value) / 100)}
-              style={{
-                position: "absolute",
-                width: height,
-                height: 24,
-                transform: "rotate(-90deg)",
-                transformOrigin: `${height / 2}px ${height / 2}px`,
-                cursor: "pointer",
-                opacity: 0,
-                left: -(height - 24) / 2,
-                top: 0,
-              }}
-            />
-          )}
         </div>
       </div>
 

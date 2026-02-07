@@ -32,10 +32,24 @@ registerTransform("mergeAndGroupTargets", (
   _sectionDef: CompositionSectionDef,
 ) => {
   const { behaviorTargets, callerTargets } = rawData;
-  const playbook = context.loadedData.playbook;
+  const playbooks = context.loadedData.playbooks;
 
   // Merge with priority: CallerTarget > PLAYBOOK > DOMAIN > SYSTEM
-  const merged = mergeTargets(behaviorTargets, callerTargets, playbook?.id || null);
+  // Pass all stacked playbook IDs - targets from any stacked playbook apply
+  const playbookIds = playbooks.map(pb => pb.id);
+  const merged = mergeTargets(behaviorTargets, callerTargets, playbookIds);
+
+  // Apply preview overrides if provided (for Playground tuning)
+  const targetOverrides = (context.specConfig?.targetOverrides || {}) as Record<string, number>;
+  if (Object.keys(targetOverrides).length > 0) {
+    for (const t of merged) {
+      if (t.parameterId in targetOverrides) {
+        t.targetValue = targetOverrides[t.parameterId];
+        t.scope = "PREVIEW"; // Mark as preview override
+      }
+    }
+  }
+
   const { thresholds } = context.sharedState;
 
   // Group by domain
@@ -80,14 +94,15 @@ registerTransform("mergeAndGroupTargets", (
 
 /**
  * Merge CallerTargets with BehaviorTargets using scope priority.
- * Extracted from route.ts lines 364-438.
+ * Supports stacked playbooks - targets from any stacked playbook apply.
  */
 export function mergeTargets(
   behaviorTargets: BehaviorTargetData[],
   callerTargets: CallerTargetData[],
-  playbookId: string | null,
+  playbookIds: string[],
 ): NormalizedTarget[] {
   const byParameter = new Map<string, NormalizedTarget>();
+  const playbookIdSet = new Set(playbookIds);
 
   // CallerTargets first (highest priority)
   for (const ct of callerTargets) {
@@ -118,8 +133,9 @@ export function mergeTargets(
     const currentPriority = scopePriority[target.scope] || 0;
     const existingPriority = existing ? (scopePriority[existing.scope] || 0) : 0;
 
-    if (target.scope === "PLAYBOOK" && playbookId) {
-      if (target.playbookId === playbookId && currentPriority > existingPriority) {
+    if (target.scope === "PLAYBOOK" && playbookIdSet.size > 0) {
+      // Include targets from ANY stacked playbook
+      if (target.playbookId && playbookIdSet.has(target.playbookId) && currentPriority > existingPriority) {
         byParameter.set(target.parameterId, {
           parameterId: target.parameterId,
           targetValue: target.targetValue,

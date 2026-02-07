@@ -43,12 +43,38 @@ export default function SimpleSidebarNav({
   const sections: NavSection[] = useMemo(
     () => [
       // ============================================================
-      // MAIN WORKFLOW
+      // PROMPTS
       // ============================================================
       {
-        id: "workflow",
+        id: "prompts",
+        title: "Prompts",
         items: [
-          { href: "/x/studio", label: "Studio", icon: "🎛️" },
+          { href: "/x/playground?mode=caller", label: "Prompt Tuner", icon: "🧪" },
+        ],
+        dividerAfter: false,
+      },
+
+      // ============================================================
+      // PLAYBOOKS
+      // ============================================================
+      {
+        id: "playbook-tools",
+        title: "Playbooks",
+        items: [
+          { href: "/x/playground?mode=compare", label: "Compare Playbooks", icon: "📖📖" },
+          { href: "/x/playground?mode=playbook", label: "Validate Playbook", icon: "✅" },
+        ],
+        dividerAfter: false,
+      },
+
+      // ============================================================
+      // HISTORY
+      // ============================================================
+      {
+        id: "history",
+        title: "History",
+        items: [
+          { href: "/x/pipeline", label: "Run History", icon: "📜" },
         ],
         dividerAfter: true,
       },
@@ -61,6 +87,7 @@ export default function SimpleSidebarNav({
         title: "Data",
         items: [
           { href: "/x/callers", label: "Callers", icon: "👥" },
+          { href: "/x/goals", label: "Goals", icon: "🎯" },
           { href: "/x/import", label: "Import", icon: "📥" },
           { href: "/x/data-management", label: "Seed Data", icon: "🌱" },
         ],
@@ -76,9 +103,8 @@ export default function SimpleSidebarNav({
         items: [
           { href: "/x/domains", label: "Domains", icon: "🌐" },
           { href: "/x/playbooks", label: "Playbooks", icon: "📚" },
-          { href: "/x/specs", label: "Specs", icon: "🎯" },
-          { href: "/x/goals", label: "Goals", icon: "🎯" },
-          { href: "/x/spec-schema", label: "Spec Schema", icon: "📋" },
+          { href: "/x/specs", label: "Specs", icon: "📐" },
+          { href: "/x/taxonomy", label: "Taxonomy", icon: "📊" },
         ],
         dividerAfter: true,
       },
@@ -90,8 +116,8 @@ export default function SimpleSidebarNav({
         id: "operations",
         title: "Operations",
         items: [
-          { href: "/x/pipeline", label: "Pipeline", icon: "🔀" },
           { href: "/x/metering", label: "Metering", icon: "📊" },
+          { href: "/x/ai-config", label: "AI Config", icon: "🤖" },
         ],
         dividerAfter: true,
       },

@@ -12,7 +12,7 @@ export async function POST(
   try {
     const { callerId } = await params;
     const body = await request.json();
-    const { source = "ai-simulation", callSequence } = body;
+    const { source = "ai-simulation", callSequence, transcript = "" } = body;
 
     // Verify caller exists
     const caller = await prisma.caller.findUnique({
@@ -51,8 +51,8 @@ export async function POST(
         source,
         callSequence: sequence,
         previousCallId: previousCall?.id || null,
-        transcript: "",
-        externalId: "ai-sim-" + Date.now().toString(),
+        transcript: transcript || "",
+        externalId: source === "playground-upload" ? `upload-${Date.now()}` : `ai-sim-${Date.now()}`,
       },
     });
 

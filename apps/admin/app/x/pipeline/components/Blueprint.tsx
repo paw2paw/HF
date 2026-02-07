@@ -51,7 +51,7 @@ export default function Blueprint() {
   if (!manifest) {
     return (
       <div style={{ textAlign: "center", padding: 60, color: "#dc2626" }}>
-        Failed to load pipeline blueprint
+        Failed to load composition blueprint
       </div>
     );
   }

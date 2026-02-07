@@ -57,6 +57,8 @@ export {
   getMeteredAICompletion,
   getMeteredAICompletionStream,
   createMeteredStream,
+  getConfiguredMeteredAICompletion,
+  getConfiguredMeteredAICompletionStream,
   type MeteringContext,
 } from "./instrumented-ai";
 

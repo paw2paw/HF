@@ -56,10 +56,11 @@ export async function executeComposition(
     throw new Error("Caller not found");
   }
 
-  // 2. Resolve identity/content/voice specs from playbook + system specs
-  let resolvedSpecs = resolveSpecs(loadedData.playbook, loadedData.systemSpecs);
+  // 2. Resolve identity/content/voice specs from stacked playbooks + system specs
+  let resolvedSpecs = resolveSpecs(loadedData.playbooks, loadedData.systemSpecs);
   resolvedSpecs = await resolveVoiceSpecFallback(resolvedSpecs);
 
+  console.log(`[CompositionExecutor] Playbooks stacked: ${loadedData.playbooks.length} (${loadedData.playbooks.map(p => p.name).join(", ") || "none"})`);
   console.log(`[CompositionExecutor] Identity: ${resolvedSpecs.identitySpec?.name || "NONE"}`);
   console.log(`[CompositionExecutor] Content: ${resolvedSpecs.contentSpec?.name || "NONE"}`);
   console.log(`[CompositionExecutor] Voice: ${resolvedSpecs.voiceSpec?.name || "NONE"}`);

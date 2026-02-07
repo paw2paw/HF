@@ -1314,11 +1314,13 @@ function AnalysisSpecsContent() {
                 const roleInfo = selectedSpec.specRole ? roleConfig[selectedSpec.specRole] : null;
 
                 const phaseColors: Record<string, { bg: string; border: string; text: string }> = {
-                  OBSERVE: { bg: "#f0fdf4", border: "#86efac", text: "#16a34a" },
-                  EVALUATE: { bg: "#fefce8", border: "#fde047", text: "#ca8a04" },
-                  COMPOSE: { bg: "#fdf4ff", border: "#e879f9", text: "#a855f7" },
+                  "① LEARN": { bg: "#f0fdf4", border: "#86efac", text: "#16a34a" },
+                  "② MEASURE": { bg: "#fefce8", border: "#fde047", text: "#ca8a04" },
+                  "③ ADAPT": { bg: "#eff6ff", border: "#93c5fd", text: "#2563eb" },
+                  "④ COMPOSE": { bg: "#fdf4ff", border: "#e879f9", text: "#a855f7" },
                 };
-                const phaseStyle = flowInfo ? phaseColors[flowInfo.phase] : phaseColors.OBSERVE;
+                const defaultStyle = { bg: "#f9fafb", border: "#d1d5db", text: "#6b7280" };
+                const phaseStyle = flowInfo ? (phaseColors[flowInfo.phase] || defaultStyle) : defaultStyle;
 
                 return (
                   <div style={{

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
+import { DraggableTabs, TabDefinition } from "@/components/shared/DraggableTabs";
+import { useEntityContext } from "@/contexts/EntityContext";
 
 // Tree node type for Explorer tab
 interface TreeNode {
@@ -189,6 +191,7 @@ type PlaybookBuilderProps = {
 
 export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilderProps) {
   const router = useRouter();
+  const { pushEntity } = useEntityContext();
 
   const [playbook, setPlaybook] = useState<Playbook | null>(null);
   const [availableItems, setAvailableItems] = useState<AvailableItems | null>(null);
@@ -205,8 +208,20 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
   // Tabs state - Explorer (unified tree+toggles view) is default
   // TODO: Consider removing "grid" tab once unified Explorer view is proven sufficient
-  const [activeTab, setActiveTab] = useState<"grid" | "targets" | "explorer" | "slugs" | "parameters" | "triggers">("explorer");
+  const [activeTab, setActiveTab] = useState<"grid" | "targets" | "explorer" | "slugs" | "parameters" | "triggers">("grid");
   const [targetsData, setTargetsData] = useState<TargetsData | null>(null);
+  const [specSearch, setSpecSearch] = useState("");
+  const [expandedAddPanels, setExpandedAddPanels] = useState<Set<"agent" | "caller" | "content">>(new Set());
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+
+  const toggleAddPanel = (column: "agent" | "caller" | "content") => {
+    setExpandedAddPanels(prev => {
+      const next = new Set(prev);
+      if (next.has(column)) next.delete(column);
+      else next.add(column);
+      return next;
+    });
+  };
 
   // Parameters tab state
   type ParameterCategory = {
@@ -304,7 +319,75 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [targetsLoading, setTargetsLoading] = useState(false);
   const [pendingTargetChanges, setPendingTargetChanges] = useState<Map<string, number | null>>(new Map());
   const [savingTargets, setSavingTargets] = useState(false);
+  const [showTargetsSaveConfirm, setShowTargetsSaveConfirm] = useState(false);
   const [compilingTargets, setCompilingTargets] = useState(false);
+
+  // Playbook config settings (memory, learning, AI, thresholds)
+  interface PlaybookConfigSettings {
+    // Memory Settings
+    memoryMinConfidence: number;
+    memoryMaxCount: number;
+    memoryDecayHalfLife: number;
+    // Learning Rate Settings
+    learningRate: number;
+    learningTolerance: number;
+    learningMinConfidence: number;
+    learningMaxConfidence: number;
+    // AI Settings
+    aiTemperature: number;
+    // Target Bounds
+    targetClampMin: number;
+    targetClampMax: number;
+    // Threshold Sensitivity
+    thresholdHigh: number;
+    thresholdLow: number;
+  }
+
+  const defaultConfigSettings: PlaybookConfigSettings = {
+    memoryMinConfidence: 0.5,
+    memoryMaxCount: 20,
+    memoryDecayHalfLife: 7,
+    learningRate: 0.1,
+    learningTolerance: 0.15,
+    learningMinConfidence: 0.1,
+    learningMaxConfidence: 0.95,
+    aiTemperature: 0.3,
+    targetClampMin: 0.2,
+    targetClampMax: 0.8,
+    thresholdHigh: 0.65,
+    thresholdLow: 0.35,
+  };
+
+  const [configSettings, setConfigSettings] = useState<PlaybookConfigSettings>(defaultConfigSettings);
+  const [pendingConfigChanges, setPendingConfigChanges] = useState<Partial<PlaybookConfigSettings>>({});
+
+  const handleConfigChange = (key: keyof PlaybookConfigSettings, value: number) => {
+    setPendingConfigChanges(prev => ({ ...prev, [key]: value }));
+  };
+
+  const getConfigValue = (key: keyof PlaybookConfigSettings): number => {
+    return pendingConfigChanges[key] ?? configSettings[key];
+  };
+
+  const isConfigModified = (key: keyof PlaybookConfigSettings): boolean => {
+    return key in pendingConfigChanges && pendingConfigChanges[key] !== configSettings[key];
+  };
+
+  const resetConfigSetting = (key: keyof PlaybookConfigSettings) => {
+    setPendingConfigChanges(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const resetAllConfigSettings = () => {
+    setPendingConfigChanges({});
+  };
+
+  const pendingConfigCount = Object.keys(pendingConfigChanges).filter(
+    key => pendingConfigChanges[key as keyof PlaybookConfigSettings] !== configSettings[key as keyof PlaybookConfigSettings]
+  ).length;
   const [creatingNewVersion, setCreatingNewVersion] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
 
@@ -345,6 +428,21 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         setPlaybook(playbookData.playbook);
         setItems(playbookData.playbook.items);
 
+        // Register with entity context for AI Chat
+        pushEntity({
+          type: "playbook",
+          id: playbookData.playbook.id,
+          label: playbookData.playbook.name,
+          href: `${routePrefix}/playbooks/${playbookData.playbook.id}`,
+          data: {
+            status: playbookData.playbook.status,
+            version: playbookData.playbook.version,
+            domainId: playbookData.playbook.domainId,
+            description: playbookData.playbook.description,
+            itemCount: playbookData.playbook.items?.length || 0,
+          },
+        });
+
         // Initialize system spec toggles from playbook.systemSpecs
         // Default: all system specs are enabled unless explicitly disabled
         if (availableData.ok) {
@@ -377,6 +475,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           setSystemSpecOverrides(overrideMap);
           setSystemSpecsHaveChanges(false);
         }
+
+        // Initialize config settings (memory, learning, AI, thresholds) from playbook.configSettings
+        if (playbookData.playbook.configSettings) {
+          setConfigSettings({ ...defaultConfigSettings, ...playbookData.playbook.configSettings });
+        } else {
+          setConfigSettings(defaultConfigSettings);
+        }
+        setPendingConfigChanges({});
       } else {
         setError(playbookData.error);
       }
@@ -389,7 +495,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     } finally {
       setLoading(false);
     }
-  }, [playbookId]);
+  }, [playbookId, pushEntity, routePrefix]);
 
   useEffect(() => {
     fetchData();
@@ -787,11 +893,24 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     setPendingTargetChanges(newChanges);
   };
 
-  const handleSaveTargets = async () => {
+  const handleSaveTargets = async (confirmed = false) => {
     if (pendingTargetChanges.size === 0) return;
 
+    // If playbook is published and user hasn't confirmed, show confirmation modal
+    if (playbook?.status === "PUBLISHED" && !confirmed) {
+      setShowTargetsSaveConfirm(true);
+      return;
+    }
+
     setSavingTargets(true);
+    setShowTargetsSaveConfirm(false);
+
     try {
+      // Auto-unpublish if needed (switches to DRAFT so API accepts the save)
+      if (playbook?.status === "PUBLISHED") {
+        await autoUnpublish();
+      }
+
       const targets = Array.from(pendingTargetChanges.entries()).map(([parameterId, targetValue]) => ({
         parameterId,
         targetValue,
@@ -807,6 +926,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       if (data.ok) {
         // Refresh targets data
         await fetchTargets();
+        setPendingTargetChanges(new Map());
       } else {
         alert("Failed to save targets: " + data.error);
       }
@@ -814,6 +934,43 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       alert("Error saving targets: " + err.message);
     } finally {
       setSavingTargets(false);
+    }
+  };
+
+  // Save config settings (memory, learning, AI, thresholds)
+  const [savingConfigSettings, setSavingConfigSettings] = useState(false);
+
+  const handleSaveConfigSettings = async () => {
+    if (pendingConfigCount === 0) return;
+
+    setSavingConfigSettings(true);
+    try {
+      // Auto-unpublish if needed
+      if (playbook?.status === "PUBLISHED") {
+        await autoUnpublish();
+      }
+
+      // Merge pending changes into current settings
+      const newSettings = { ...configSettings, ...pendingConfigChanges };
+
+      const res = await fetch(`/api/playbooks/${playbookId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ configSettings: newSettings }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setConfigSettings(newSettings);
+        setPendingConfigChanges({});
+        setPlaybook(data.playbook);
+      } else {
+        alert("Failed to save config settings: " + data.error);
+      }
+    } catch (err: any) {
+      alert("Error saving config settings: " + err.message);
+    } finally {
+      setSavingConfigSettings(false);
     }
   };
 
@@ -871,6 +1028,25 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     }
   };
 
+
+  // Silent auto-unpublish when user edits a published playbook
+  const autoUnpublish = async (): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/playbooks/${playbookId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DRAFT" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setPlaybook(prev => prev ? { ...prev, status: "DRAFT" } : prev);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
   const handleUnpublish = async () => {
     if (!confirm("Unpublish this playbook? It will be removed from the active stack and reverted to DRAFT status.")) {
       return;
@@ -1132,8 +1308,11 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     setDragOverIndex(null);
   };
 
-  const addItemFromPalette = (type: string, id: string, index?: number) => {
-    if (playbook?.status === "PUBLISHED") return;
+  const addItemFromPalette = async (type: string, id: string, index?: number) => {
+    // Auto-unpublish if editing a published playbook
+    if (playbook?.status === "PUBLISHED") {
+      await autoUnpublish();
+    }
 
     let newItem: PlaybookItem;
 
@@ -1190,14 +1369,20 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     setHasChanges(true);
   };
 
-  const removeItem = (itemId: string) => {
-    if (playbook?.status === "PUBLISHED") return;
+  const removeItem = async (itemId: string) => {
+    // Auto-unpublish if editing a published playbook
+    if (playbook?.status === "PUBLISHED") {
+      await autoUnpublish();
+    }
     setItems(items.filter((item) => item.id !== itemId));
     setHasChanges(true);
   };
 
-  const toggleItemEnabled = (itemId: string) => {
-    if (playbook?.status === "PUBLISHED") return;
+  const toggleItemEnabled = async (itemId: string) => {
+    // Auto-unpublish if editing a published playbook
+    if (playbook?.status === "PUBLISHED") {
+      await autoUnpublish();
+    }
     setItems(
       items.map((item) =>
         item.id === itemId ? { ...item, isEnabled: !item.isEnabled } : item
@@ -1327,6 +1512,17 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
      item.spec?.outputType === "SUPERVISE" ||
      item.spec?.outputType === "COMPOSE")
   );
+
+  // Helper to filter specs by search term
+  const matchesSpecSearch = (spec: { name: string; slug: string; description?: string | null }) => {
+    if (!specSearch) return true;
+    const term = specSearch.toLowerCase();
+    return (
+      spec.name.toLowerCase().includes(term) ||
+      spec.slug.toLowerCase().includes(term) ||
+      (spec.description?.toLowerCase().includes(term) ?? false)
+    );
+  };
 
   // Available specs filtered by category for palette
   const availableAgentSpecs = availableItems?.domainSpecs.filter(s =>
@@ -1767,10 +1963,44 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     );
   }
 
-  const isEditable = playbook.status === "DRAFT";
+  // Always allow editing - auto-unpublish happens on first edit
+  const isEditable = true;
+
+  // Check for any unsaved changes across all sections
+  const hasUnsavedChanges = pendingTargetChanges.size > 0 || pendingConfigCount > 0 || hasChanges;
 
   return (
-    <div style={{ padding: 32 }}>
+    <div style={{ padding: 32, position: "relative" }}>
+      {/* Subtle amber overlay when there are unsaved changes */}
+      {hasUnsavedChanges && (
+        <>
+          {/* Background tint */}
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "linear-gradient(180deg, rgba(251, 191, 36, 0.02) 0%, rgba(245, 158, 11, 0.04) 100%)",
+              pointerEvents: "none",
+              zIndex: 0,
+              transition: "opacity 0.3s ease-in-out",
+            }}
+          />
+          {/* Top edge glow */}
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              background: "linear-gradient(90deg, transparent 0%, rgba(251, 191, 36, 0.6) 50%, transparent 100%)",
+              pointerEvents: "none",
+              zIndex: 9999,
+              boxShadow: "0 0 20px rgba(251, 191, 36, 0.3), 0 0 40px rgba(245, 158, 11, 0.15)",
+            }}
+          />
+        </>
+      )}
       <SourcePageHeader
         title={playbook.name}
         description={`${playbook.domain.name} — v${playbook.version}`}
@@ -1838,177 +2068,127 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 >
                   {compilingTargets ? "Compiling..." : "Compile Targets"}
                 </button>
-                <button
-                  onClick={handlePublish}
-                  disabled={publishing || items.length === 0}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    background: "var(--status-success-text)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: publishing || items.length === 0 ? "not-allowed" : "pointer",
-                    opacity: items.length === 0 ? 0.5 : 1,
-                  }}
-                >
-                  {publishing ? "Publishing..." : "Publish"}
-                </button>
-              </>
-            )}
-            {playbook.status === "PUBLISHED" && (
-              <>
-                <button
-                  onClick={handleUnpublish}
-                  disabled={unpublishing}
-                  title="Revert to draft status (removes from active stack)"
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-secondary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 6,
-                    cursor: unpublishing ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {unpublishing ? "Unpublishing..." : "Unpublish"}
-                </button>
-                <button
-                  onClick={handleCreateNewVersion}
-                  disabled={creatingNewVersion}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    background: "var(--button-primary-bg)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: creatingNewVersion ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {creatingNewVersion ? "Cloning..." : "Clone"}
-                </button>
+                {/* Only show Publish when in DRAFT - for PUBLISHED, user edits first (auto-unpublishes) */}
+                {playbook.status === "DRAFT" && (
+                  <button
+                    onClick={handlePublish}
+                    disabled={publishing || items.length === 0}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      background: "var(--status-success-text)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: publishing || items.length === 0 ? "not-allowed" : "pointer",
+                      opacity: items.length === 0 ? 0.5 : 1,
+                    }}
+                  >
+                    {publishing ? "Publishing..." : "Publish"}
+                  </button>
+                )}
               </>
             )}
           </div>
         }
       />
 
-      {/* Tab Navigation */}
-      <div style={{ display: "flex", gap: 0, marginTop: 16, borderBottom: "1px solid var(--border-default)" }}>
-        <button
-          onClick={() => setActiveTab("explorer")}
-          title="Browse specs with tree navigation and inline toggles"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 500,
-            background: activeTab === "explorer" ? "var(--surface-primary)" : "transparent",
-            color: activeTab === "explorer" ? "var(--button-primary-bg)" : "var(--text-muted)",
-            border: "none",
-            borderBottom: activeTab === "explorer" ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-            cursor: "pointer",
-            marginBottom: -1,
-          }}
-        >
-          🌳 Explorer
-        </button>
-        <button
-          onClick={() => setActiveTab("targets")}
-          title="Configure playbook targets and thresholds"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 500,
-            background: activeTab === "targets" ? "var(--surface-primary)" : "transparent",
-            color: activeTab === "targets" ? "var(--button-primary-bg)" : "var(--text-muted)",
-            border: "none",
-            borderBottom: activeTab === "targets" ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-            cursor: "pointer",
-            marginBottom: -1,
-          }}
-        >
-          🎚️ Targets {targetsData ? `(${targetsData.counts.total})` : ""}
-        </button>
-        <button
-          onClick={() => setActiveTab("slugs")}
-          title="URL slug mappings for playbook routing"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 500,
-            background: activeTab === "slugs" ? "var(--surface-primary)" : "transparent",
-            color: activeTab === "slugs" ? "var(--button-primary-bg)" : "var(--text-muted)",
-            border: "none",
-            borderBottom: activeTab === "slugs" ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-            cursor: "pointer",
-            marginBottom: -1,
-          }}
-        >
-          🔗 Slugs {slugsData ? `(${slugsData.counts.total})` : ""}
-        </button>
-        <button
-          onClick={() => setActiveTab("parameters")}
-          title="Parameter definitions and configuration"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 500,
-            background: activeTab === "parameters" ? "var(--surface-primary)" : "transparent",
-            color: activeTab === "parameters" ? "var(--button-primary-bg)" : "var(--text-muted)",
-            border: "none",
-            borderBottom: activeTab === "parameters" ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-            cursor: "pointer",
-            marginBottom: -1,
-          }}
-        >
-          📊 Parameters {parametersData ? `(${parametersData.counts.parameters})` : ""}
-        </button>
-        <button
-          onClick={() => setActiveTab("triggers")}
-          title="Trigger configurations and rules"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 500,
-            background: activeTab === "triggers" ? "var(--surface-primary)" : "transparent",
-            color: activeTab === "triggers" ? "var(--button-primary-bg)" : "var(--text-muted)",
-            border: "none",
-            borderBottom: activeTab === "triggers" ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-            cursor: "pointer",
-            marginBottom: -1,
-          }}
-        >
-          ⚡ Triggers {triggersData ? `(${triggersData.counts.triggers})` : ""}
-        </button>
-        {/* TODO: Consider removing this legacy grid view once unified Explorer is proven sufficient */}
-        <button
-          onClick={() => setActiveTab("grid")}
-          title="Legacy 4-column grid view of all specs"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 500,
-            background: activeTab === "grid" ? "var(--surface-primary)" : "transparent",
-            color: activeTab === "grid" ? "var(--button-primary-bg)" : "var(--text-muted)",
-            border: "none",
-            borderBottom: activeTab === "grid" ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-            cursor: "pointer",
-            marginBottom: -1,
-          }}
-        >
-          📋 Grid ({items.length})
-        </button>
-      </div>
+      {/* Unpublished changes banner */}
+      {playbook.status === "DRAFT" && playbook.publishedAt && (
+        <div style={{
+          padding: "12px 16px",
+          background: "var(--status-warning-bg)",
+          border: "1px solid var(--status-warning-border)",
+          borderRadius: 8,
+          marginTop: 16,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}>
+          <span style={{ color: "var(--status-warning-text)", fontWeight: 500 }}>
+            ⚠️ Unpublished changes. Callers are using the last published version.
+          </span>
+          <button
+            onClick={handlePublish}
+            disabled={publishing}
+            style={{
+              padding: "8px 16px",
+              background: "var(--button-primary-bg)",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: publishing ? "not-allowed" : "pointer",
+              fontWeight: 500,
+            }}
+          >
+            {publishing ? "Publishing..." : "Publish Now"}
+          </button>
+        </div>
+      )}
+
+      {/* Tab Navigation - Draggable with localStorage persistence */}
+      {/* TODO [AUTH]: Tab order is stored in localStorage. Migrate to user preferences API when auth is added. */}
+      <DraggableTabs
+        storageKey="playbook-builder-tabs"
+        tabs={[
+          { id: "grid", label: `📋 Specs (${items.length})`, title: "4-column grid view of all specs" },
+          { id: "explorer", label: "🌳 Explorer", title: "Browse specs with tree navigation and inline toggles" },
+          { id: "targets", label: `🎚️ Targets ${targetsData ? `(${targetsData.counts.total})` : ""}`, title: "Configure playbook targets and thresholds" },
+          { id: "slugs", label: `🔗 Slugs ${slugsData ? `(${slugsData.counts.total})` : ""}`, title: "URL slug mappings for playbook routing" },
+          { id: "parameters", label: `📊 Parameters ${parametersData ? `(${parametersData.counts.parameters})` : ""}`, title: "Parameter definitions and configuration" },
+          { id: "triggers", label: `⚡ Triggers ${triggersData ? `(${triggersData.counts.triggers})` : ""}`, title: "Trigger configurations and rules" },
+        ]}
+        activeTab={activeTab}
+        onTabChange={(tabId) => setActiveTab(tabId as typeof activeTab)}
+        containerStyle={{ marginTop: 16 }}
+      />
 
       {/* Tab Content */}
       {activeTab === "grid" && (
       <>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, marginTop: 24, height: "calc(100vh - 220px)" }}>
+      {/* Spec Search */}
+      <div style={{ marginTop: 16, marginBottom: 8 }}>
+        <div style={{ position: "relative", maxWidth: 400 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14 }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search specs..."
+            value={specSearch}
+            onChange={(e) => setSpecSearch(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px 12px 8px 36px",
+              border: "1px solid var(--input-border)",
+              borderRadius: 8,
+              fontSize: 13,
+              background: "var(--surface-primary)",
+              color: "var(--text-primary)",
+            }}
+          />
+          {specSearch && (
+            <button
+              onClick={() => setSpecSearch("")}
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "var(--surface-secondary)",
+                border: "none",
+                borderRadius: 4,
+                padding: "2px 6px",
+                fontSize: 11,
+                color: "var(--text-muted)",
+                cursor: "pointer",
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, marginTop: 8, height: "calc(100vh - 270px)" }}>
         {/* Column 1: System Specs (always run) */}
         <div style={{ height: "100%", overflowY: "auto" }}>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", paddingBottom: 8, zIndex: 1 }}>
@@ -2083,8 +2263,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             }}>
               {/* Group specs by specRole (category) */}
               {(() => {
+                const filteredSystemSpecs = availableItems.systemSpecs.filter(matchesSpecSearch);
                 const grouped = new Map<string, Spec[]>();
-                for (const spec of availableItems.systemSpecs) {
+                for (const spec of filteredSystemSpecs) {
                   const group = spec.specRole || "MEASURE";
                   if (!grouped.has(group)) grouped.set(group, []);
                   grouped.get(group)!.push(spec);
@@ -2104,6 +2285,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 const sortedGroups = Array.from(grouped.entries()).sort(
                   (a, b) => specRoleOrder.indexOf(a[0]) - specRoleOrder.indexOf(b[0])
                 );
+
+                if (filteredSystemSpecs.length === 0 && specSearch) {
+                  return (
+                    <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                      No matching specs
+                    </div>
+                  );
+                }
 
                 return sortedGroups.map(([specRole, specs]) => (
                   <div key={specRole} style={{ marginBottom: 12 }}>
@@ -2280,6 +2469,10 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </div>
 
         {/* Column 2: Agent Specs (WHO the AI is) */}
+        {(() => {
+          const filteredSystemAgentSpecs = systemAgentSpecs.filter(matchesSpecSearch);
+          const filteredAgentItems = agentItems.filter(item => item.spec && matchesSpecSearch(item.spec));
+          return (
         <div style={{ height: "100%", overflowY: "auto", display: "flex", flexDirection: "column" }}>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", paddingBottom: 8, zIndex: 1 }}>
             <div>
@@ -2291,27 +2484,65 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 Who the AI is & how it speaks
               </p>
             </div>
+            {isEditable && availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+              <button
+                onClick={() => toggleAddPanel("agent")}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: "1px solid var(--status-info-border)",
+                  background: expandedAddPanels.has("agent") ? "var(--status-info-bg)" : "var(--surface-primary)",
+                  color: "var(--status-info-text)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s",
+                }}
+                title="Add spec"
+              >
+                {expandedAddPanels.has("agent") ? "−" : "+"}
+              </button>
+            )}
           </div>
 
-          {/* Mini palette for Agent specs */}
-          {isEditable && availableAgentSpecs.length > 0 && (
-            <div style={{ marginBottom: 12, padding: 8, background: "var(--status-info-bg)", borderRadius: 8, border: "1px solid var(--status-info-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 6 }}>+ Add Agent Spec</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {availableIdentitySpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
+          {/* Collapsible add panel for Agent specs */}
+          {isEditable && expandedAddPanels.has("agent") && (
+            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-info-bg)", borderRadius: 8, border: "1px solid var(--status-info-border)" }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
                   <button
                     key={spec.id}
-                    onClick={() => addItemFromPalette("spec", spec.id)}
+                    onClick={() => {
+                      addItemFromPalette("spec", spec.id);
+                      toggleAddPanel("agent");
+                    }}
                     style={{
-                      padding: "4px 8px",
-                      fontSize: 11,
+                      padding: "8px 10px",
+                      fontSize: 12,
                       background: "var(--surface-primary)",
                       border: "1px solid var(--border-default)",
-                      borderRadius: 4,
+                      borderRadius: 6,
                       cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
                     }}
                   >
-                    {spec.name}
+                    <span style={{ fontSize: 14 }}>📄</span>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
+                      {spec.description && (
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
+                        </div>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -2319,9 +2550,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System IDENTITY/VOICE specs shown as read-only references */}
-          {systemAgentSpecs.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: agentItems.length > 0 ? 8 : 0 }}>
-              {systemAgentSpecs.map((spec) => (
+          {filteredSystemAgentSpecs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredAgentItems.length > 0 ? 8 : 0 }}>
+              {filteredSystemAgentSpecs.map((spec) => (
                 <div
                   key={spec.id}
                   style={{
@@ -2347,7 +2578,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {agentItems.length === 0 && systemAgentSpecs.length === 0 ? (
+          {filteredAgentItems.length === 0 && filteredSystemAgentSpecs.length === 0 ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -2355,14 +2586,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               borderRadius: 8,
               border: "2px dashed var(--status-info-border)",
             }}>
-              <p style={{ color: "var(--status-info-text)", marginBottom: 4, fontWeight: 500 }}>No Agent Specs</p>
+              <p style={{ color: "var(--status-info-text)", marginBottom: 4, fontWeight: 500 }}>{specSearch ? "No matching specs" : "No Agent Specs"}</p>
               <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {isEditable ? "Click specs above to define agent identity" : "No agent identity configured"}
+                {specSearch ? "Try a different search term" : isEditable ? "Click specs above to define agent identity" : "No agent identity configured"}
               </p>
             </div>
-          ) : agentItems.length > 0 ? (
+          ) : filteredAgentItems.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {agentItems.map((item) => {
+              {filteredAgentItems.map((item) => {
                 const index = items.indexOf(item);
                 const isItemExpanded = expandedItems.has(item.id);
                 const detail = item.specId ? specDetails.get(item.specId) : null;
@@ -2375,7 +2606,10 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                             onDragStart={(e) => !isItemExpanded && handleDragStart(e, item.id)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDrop={(e) => handleDrop(e, index)}
+                            onMouseEnter={() => setHoveredItemId(item.id)}
+                            onMouseLeave={() => setHoveredItemId(null)}
                             style={{
+                              position: "relative",
                               background: dragOverIndex === index ? "var(--status-info-bg)" : isItemExpanded ? "var(--surface-secondary)" : "var(--surface-primary)",
                               border: isItemExpanded ? "2px solid var(--button-primary-bg)" : "1px solid var(--status-info-border)",
                               borderRadius: 8,
@@ -2383,6 +2617,33 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                               transition: "all 0.15s",
                             }}
                           >
+                            {/* Hover-reveal delete button */}
+                            {isEditable && hoveredItemId === item.id && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
+                                style={{
+                                  position: "absolute",
+                                  top: 6,
+                                  right: 6,
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 4,
+                                  border: "none",
+                                  background: "var(--status-error-bg)",
+                                  color: "var(--status-error-text)",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  zIndex: 5,
+                                }}
+                                title="Remove from playbook"
+                              >
+                                ×
+                              </button>
+                            )}
                   {/* Header - always visible */}
                   <div
                     onClick={() => item.spec && toggleItemExpanded(item.id, item.specId)}
@@ -2480,20 +2741,6 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                             }}
                           >
                             {item.isEnabled ? "Disable" : "Enable"}
-                          </button>
-                          <button
-                            onClick={() => removeItem(item.id)}
-                            style={{
-                              padding: "4px 8px",
-                              fontSize: 11,
-                              background: "var(--status-error-bg)",
-                              border: "1px solid var(--status-error-border)",
-                              color: "var(--status-error-text)",
-                              borderRadius: 4,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Remove
                           </button>
                         </>
                       )}
@@ -2757,8 +3004,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           ) : null}
         </div>
+          );
+        })()}
 
         {/* Column 3: Caller Specs (Understanding the caller) */}
+        {(() => {
+          const filteredSystemCallerSpecs = systemCallerSpecs.filter(matchesSpecSearch);
+          const filteredCallerItems = callerItems.filter(item => item.spec && matchesSpecSearch(item.spec));
+          return (
         <div style={{ height: "100%", overflowY: "auto", display: "flex", flexDirection: "column" }}>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", paddingBottom: 8, zIndex: 1 }}>
             <div>
@@ -2770,27 +3023,65 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 Understanding & adapting to the caller
               </p>
             </div>
+            {isEditable && availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+              <button
+                onClick={() => toggleAddPanel("caller")}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: "1px solid var(--status-warning-border)",
+                  background: expandedAddPanels.has("caller") ? "var(--status-warning-bg)" : "var(--surface-primary)",
+                  color: "var(--status-warning-text)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s",
+                }}
+                title="Add spec"
+              >
+                {expandedAddPanels.has("caller") ? "−" : "+"}
+              </button>
+            )}
           </div>
 
-          {/* Mini palette for Caller specs */}
-          {isEditable && availableCallerSpecs.length > 0 && (
-            <div style={{ marginBottom: 12, padding: 8, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 6 }}>+ Add Caller Spec</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {/* Collapsible add panel for Caller specs */}
+          {isEditable && expandedAddPanels.has("caller") && (
+            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
                   <button
                     key={spec.id}
-                    onClick={() => addItemFromPalette("spec", spec.id)}
+                    onClick={() => {
+                      addItemFromPalette("spec", spec.id);
+                      toggleAddPanel("caller");
+                    }}
                     style={{
-                      padding: "4px 8px",
-                      fontSize: 11,
+                      padding: "8px 10px",
+                      fontSize: 12,
                       background: "var(--surface-primary)",
                       border: "1px solid var(--border-default)",
-                      borderRadius: 4,
+                      borderRadius: 6,
                       cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
                     }}
                   >
-                    {spec.name}
+                    <span style={{ fontSize: 14 }}>📄</span>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
+                      {spec.description && (
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
+                        </div>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -2798,9 +3089,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System CALLER specs shown as read-only references */}
-          {systemCallerSpecs.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: callerItems.length > 0 ? 8 : 0 }}>
-              {systemCallerSpecs.map((spec) => (
+          {filteredSystemCallerSpecs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredCallerItems.length > 0 ? 8 : 0 }}>
+              {filteredSystemCallerSpecs.map((spec) => (
                 <div
                   key={spec.id}
                   style={{
@@ -2826,7 +3117,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {callerItems.length === 0 && systemCallerSpecs.length === 0 ? (
+          {filteredCallerItems.length === 0 && filteredSystemCallerSpecs.length === 0 ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -2834,26 +3125,56 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               borderRadius: 8,
               border: "2px dashed var(--status-warning-border)",
             }}>
-              <p style={{ color: "var(--status-warning-text)", marginBottom: 4, fontWeight: 500 }}>No Caller Specs</p>
+              <p style={{ color: "var(--status-warning-text)", marginBottom: 4, fontWeight: 500 }}>{specSearch ? "No matching specs" : "No Caller Specs"}</p>
               <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {isEditable ? "Click specs above to add caller analysis" : "No caller analysis configured"}
+                {specSearch ? "Try a different search term" : isEditable ? "Click specs above to add caller analysis" : "No caller analysis configured"}
               </p>
             </div>
-          ) : callerItems.length > 0 ? (
+          ) : filteredCallerItems.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {callerItems.map((item) => {
+              {filteredCallerItems.map((item) => {
                 const isItemExpanded = expandedItems.has(item.id);
                 const detail = item.specId ? specDetails.get(item.specId) : null;
                 return (
                   <div
                     key={item.id}
+                    onMouseEnter={() => setHoveredItemId(item.id)}
+                    onMouseLeave={() => setHoveredItemId(null)}
                     style={{
+                      position: "relative",
                       background: "var(--surface-primary)",
                       border: isItemExpanded ? "2px solid var(--status-warning-text)" : "1px solid var(--status-warning-border)",
                       borderRadius: 8,
                       overflow: "hidden",
                     }}
                   >
+                    {/* Hover-reveal delete button */}
+                    {isEditable && hoveredItemId === item.id && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          width: 20,
+                          height: 20,
+                          borderRadius: 4,
+                          border: "none",
+                          background: "var(--status-error-bg)",
+                          color: "var(--status-error-text)",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          zIndex: 5,
+                        }}
+                        title="Remove from playbook"
+                      >
+                        ×
+                      </button>
+                    )}
                     <div
                       style={{
                         padding: "10px 12px",
@@ -2881,22 +3202,6 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {isEditable && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
-                            style={{
-                              padding: "4px 8px",
-                              fontSize: 11,
-                              background: "var(--status-error-bg)",
-                              color: "var(--status-error-text)",
-                              border: "none",
-                              borderRadius: 4,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Remove
-                          </button>
-                        )}
                         {item.specId && (
                           <span style={{ color: "var(--text-placeholder)", fontSize: 12 }}>
                             {isItemExpanded ? "▼" : "▶"}
@@ -2925,8 +3230,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           ) : null}
         </div>
+          );
+        })()}
 
         {/* Column 4: Content Specs (What the AI knows) */}
+        {(() => {
+          const filteredSystemContentSpecs = systemContentSpecs.filter(matchesSpecSearch);
+          const filteredContentItems = contentItems.filter(item => item.spec && matchesSpecSearch(item.spec));
+          return (
         <div style={{ height: "100%", overflowY: "auto", display: "flex", flexDirection: "column" }}>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", paddingBottom: 8, zIndex: 1 }}>
             <div>
@@ -2938,27 +3249,65 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 What the AI knows & teaches
               </p>
             </div>
+            {isEditable && availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+              <button
+                onClick={() => toggleAddPanel("content")}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: "1px solid var(--status-success-border)",
+                  background: expandedAddPanels.has("content") ? "var(--status-success-bg)" : "var(--surface-primary)",
+                  color: "var(--status-success-text)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s",
+                }}
+                title="Add spec"
+              >
+                {expandedAddPanels.has("content") ? "−" : "+"}
+              </button>
+            )}
           </div>
 
-          {/* Mini palette for Content specs */}
-          {isEditable && availableContentSpecs.length > 0 && (
-            <div style={{ marginBottom: 12, padding: 8, background: "var(--status-success-bg)", borderRadius: 8, border: "1px solid var(--status-success-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-success-text)", marginBottom: 6 }}>+ Add Content Spec</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {/* Collapsible add panel for Content specs */}
+          {isEditable && expandedAddPanels.has("content") && (
+            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-success-bg)", borderRadius: 8, border: "1px solid var(--status-success-border)" }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-success-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
                   <button
                     key={spec.id}
-                    onClick={() => addItemFromPalette("spec", spec.id)}
+                    onClick={() => {
+                      addItemFromPalette("spec", spec.id);
+                      toggleAddPanel("content");
+                    }}
                     style={{
-                      padding: "4px 8px",
-                      fontSize: 11,
+                      padding: "8px 10px",
+                      fontSize: 12,
                       background: "var(--surface-primary)",
                       border: "1px solid var(--border-default)",
-                      borderRadius: 4,
+                      borderRadius: 6,
                       cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
                     }}
                   >
-                    {spec.name}
+                    <span style={{ fontSize: 14 }}>📄</span>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
+                      {spec.description && (
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
+                        </div>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -2966,9 +3315,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System CONTENT specs shown as read-only references */}
-          {systemContentSpecs.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: contentItems.length > 0 ? 8 : 0 }}>
-              {systemContentSpecs.map((spec) => (
+          {filteredSystemContentSpecs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredContentItems.length > 0 ? 8 : 0 }}>
+              {filteredSystemContentSpecs.map((spec) => (
                 <div
                   key={spec.id}
                   style={{
@@ -2994,7 +3343,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {contentItems.length === 0 && systemContentSpecs.length === 0 ? (
+          {filteredContentItems.length === 0 && filteredSystemContentSpecs.length === 0 ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -3002,27 +3351,57 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               borderRadius: 8,
               border: "2px dashed var(--status-success-border)",
             }}>
-              <p style={{ color: "var(--status-success-text)", marginBottom: 4, fontWeight: 500 }}>No Content Specs</p>
+              <p style={{ color: "var(--status-success-text)", marginBottom: 4, fontWeight: 500 }}>{specSearch ? "No matching specs" : "No Content Specs"}</p>
               <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {isEditable ? "Click specs above to add domain content analysis" : "No content analysis configured"}
+                {specSearch ? "Try a different search term" : isEditable ? "Click specs above to add domain content analysis" : "No content analysis configured"}
               </p>
             </div>
-          ) : contentItems.length > 0 ? (
+          ) : filteredContentItems.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {contentItems.map((item) => {
+              {filteredContentItems.map((item) => {
                 const index = items.indexOf(item);
                 const isItemExpanded = expandedItems.has(item.id);
                 const detail = item.specId ? specDetails.get(item.specId) : null;
                 return (
                   <div
                     key={item.id}
+                    onMouseEnter={() => setHoveredItemId(item.id)}
+                    onMouseLeave={() => setHoveredItemId(null)}
                     style={{
+                      position: "relative",
                       background: "var(--surface-primary)",
                       border: isItemExpanded ? "2px solid var(--status-success-text)" : "1px solid var(--status-success-border)",
                       borderRadius: 8,
                       overflow: "hidden",
                     }}
                   >
+                    {/* Hover-reveal delete button */}
+                    {isEditable && hoveredItemId === item.id && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          width: 20,
+                          height: 20,
+                          borderRadius: 4,
+                          border: "none",
+                          background: "var(--status-error-bg)",
+                          color: "var(--status-error-text)",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          zIndex: 5,
+                        }}
+                        title="Remove from playbook"
+                      >
+                        ×
+                      </button>
+                    )}
                     <div
                       style={{
                         padding: "10px 12px",
@@ -3058,22 +3437,6 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {isEditable && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
-                            style={{
-                              padding: "4px 8px",
-                              fontSize: 11,
-                              background: "var(--status-error-bg)",
-                              color: "var(--status-error-text)",
-                              border: "none",
-                              borderRadius: 4,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Remove
-                          </button>
-                        )}
                         {item.specId && (
                           <span style={{ color: "var(--text-placeholder)", fontSize: 12 }}>
                             {isItemExpanded ? "▼" : "▶"}
@@ -3102,6 +3465,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           ) : null}
         </div>
+          );
+        })()}
       </div>
       </>
       )}
@@ -3143,6 +3508,25 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           ) : (
             <>
+              {/* Draft mode notice for published playbooks with pending changes */}
+              {playbook?.status === "PUBLISHED" && pendingTargetChanges.size > 0 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 16px",
+                  background: "var(--status-warning-bg)",
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  border: "1px solid var(--status-warning-text)",
+                }}>
+                  <span style={{ fontSize: 16 }}>✏️</span>
+                  <span style={{ fontSize: 13, color: "var(--status-warning-text)", fontWeight: 500 }}>
+                    Editing a published playbook — saving will switch to draft mode
+                  </span>
+                </div>
+              )}
+
               {/* Targets header with save button */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div>
@@ -3157,24 +3541,144 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   </p>
                 </div>
                 {isEditable && pendingTargetChanges.size > 0 && (
-                  <button
-                    onClick={handleSaveTargets}
-                    disabled={savingTargets}
-                    style={{
-                      padding: "10px 20px",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      background: "var(--button-primary-bg)",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 8,
-                      cursor: savingTargets ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {savingTargets ? "Saving..." : `Save ${pendingTargetChanges.size} Changes`}
-                  </button>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <button
+                      onClick={() => setPendingTargetChanges(new Map())}
+                      style={{
+                        padding: "10px 16px",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        background: "var(--surface-secondary)",
+                        color: "var(--text-secondary)",
+                        border: "1px solid var(--border-default)",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                      title="Discard all unsaved changes"
+                    >
+                      <span>↺</span>
+                      <span>Reset All</span>
+                    </button>
+                    <button
+                      onClick={() => handleSaveTargets()}
+                      disabled={savingTargets}
+                      style={{
+                        padding: "10px 20px",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        background: "var(--button-primary-bg)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor: savingTargets ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {savingTargets ? "Saving..." : `Save ${pendingTargetChanges.size} Changes`}
+                    </button>
+                  </div>
                 )}
               </div>
+
+              {/* Published playbook save confirmation modal */}
+              {showTargetsSaveConfirm && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.6)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1000,
+                  }}
+                  onClick={() => setShowTargetsSaveConfirm(false)}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: "var(--surface-primary)",
+                      borderRadius: 16,
+                      padding: 32,
+                      maxWidth: 480,
+                      width: "90%",
+                      boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+                      border: "1px solid var(--border-default)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                      <div style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        background: "var(--status-warning-bg)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 24,
+                      }}>
+                        ⚠️
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>
+                          Modify Published Playbook?
+                        </h3>
+                        <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "var(--text-muted)" }}>
+                          This playbook is currently active
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      background: "var(--surface-secondary)",
+                      borderRadius: 8,
+                      padding: 16,
+                      marginBottom: 24,
+                    }}>
+                      <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                        Saving these changes will <strong style={{ color: "var(--text-primary)" }}>switch the playbook to draft mode</strong>.
+                        The updated behavior targets will apply to <strong style={{ color: "var(--text-primary)" }}>all future prompt runs</strong> once you republish.
+                      </p>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => setShowTargetsSaveConfirm(false)}
+                        style={{
+                          padding: "10px 20px",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          background: "var(--surface-secondary)",
+                          color: "var(--text-primary)",
+                          border: "1px solid var(--border-default)",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleSaveTargets(true)}
+                        disabled={savingTargets}
+                        style={{
+                          padding: "10px 20px",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          background: "var(--status-warning-text)",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: savingTargets ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {savingTargets ? "Saving..." : "Save & Switch to Draft"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Graphic Equalizer - Group by domainGroup */}
               {(() => {
@@ -3238,43 +3742,114 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                               ? (pendingValue !== null && pendingValue !== undefined ? pendingValue : param.systemValue || 0.5)
                               : (param.playbookValue !== null ? param.playbookValue : param.systemValue || 0.5);
 
+                            // Show system default as target marker when value differs from default
+                            const systemDefault = param.systemValue ?? 0.5;
+                            const showDefaultMarker = Math.abs(displayValue - systemDefault) > 0.01;
+
+                            // Determine scope for badge
+                            const scope = hasPendingChange ? "PENDING" : (param.playbookValue !== null ? "PLAYBOOK" : (param.systemValue !== null ? "SYSTEM" : "DEFAULT"));
+                            const scopeColors: Record<string, { bg: string; text: string; label: string }> = {
+                              PENDING: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", label: "●" },
+                              PLAYBOOK: { bg: "var(--badge-purple-bg)", text: "var(--badge-purple-text)", label: "P" },
+                              SYSTEM: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", label: "S" },
+                              DEFAULT: { bg: "var(--surface-secondary)", text: "var(--text-muted)", label: "D" },
+                            };
+                            const scopeStyle = scopeColors[scope];
+
                             return (
-                              <div key={param.parameterId}>
+                              <div key={param.parameterId} style={{ position: "relative" }}>
                                 <VerticalSlider
                                   value={displayValue}
-                                  targetValue={param.systemValue !== null && param.playbookValue !== null ? param.systemValue : undefined}
+                                  targetValue={showDefaultMarker ? systemDefault : undefined}
                                   color={colors}
                                   editable={isEditable}
                                   onChange={(value) => handleTargetChange(param.parameterId, value)}
                                   isModified={hasPendingChange || hasPlaybookOverride}
                                   label={param.name.replace("BEH-", "").replace(/-/g, " ")}
-                                  tooltip={param.definition ?? undefined}
+                                  tooltip={`${param.definition ?? ""}\n\nSystem default: ${Math.round(systemDefault * 100)}%`}
                                   width={56}
                                   height={140}
                                   showGauge={true}
                                 />
-                                {/* Override indicator */}
-                                {hasPlaybookOverride && isEditable && (
-                                  <button
-                                    onClick={() => handleTargetChange(param.parameterId, null)}
+
+                                {/* Value comparison badge - shows current vs default */}
+                                <div
+                                  style={{
+                                    marginTop: 6,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 4,
+                                  }}
+                                >
+                                  {/* Scope badge */}
+                                  <span
                                     style={{
-                                      marginTop: 4,
                                       fontSize: 8,
+                                      fontWeight: 600,
                                       padding: "2px 4px",
-                                      background: "var(--text-primary)",
-                                      border: "none",
-                                      color: "var(--text-muted)",
-                                      borderRadius: 2,
-                                      cursor: "pointer",
-                                      display: "block",
-                                      marginLeft: "auto",
-                                      marginRight: "auto",
+                                      borderRadius: 3,
+                                      background: scopeStyle.bg,
+                                      color: scopeStyle.text,
+                                      fontFamily: "ui-monospace, monospace",
                                     }}
-                                    title="Reset to system default"
+                                    title={`Source: ${scope}`}
                                   >
-                                    ↺
-                                  </button>
-                                )}
+                                    {scopeStyle.label}
+                                  </span>
+
+                                  {/* Value display - clickable to reset when modified */}
+                                  {showDefaultMarker && isEditable ? (
+                                    <button
+                                      onClick={() => handleTargetChange(param.parameterId, null)}
+                                      style={{
+                                        fontSize: 9,
+                                        padding: "2px 5px",
+                                        background: "transparent",
+                                        border: "1px dashed var(--border-default)",
+                                        color: "var(--text-muted)",
+                                        borderRadius: 3,
+                                        cursor: "pointer",
+                                        fontFamily: "ui-monospace, monospace",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 3,
+                                        transition: "all 0.15s",
+                                      }}
+                                      title={`Click to reset to ${Math.round(systemDefault * 100)}%`}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = "var(--status-warning-bg)";
+                                        e.currentTarget.style.borderColor = "var(--status-warning-text)";
+                                        e.currentTarget.style.color = "var(--status-warning-text)";
+                                        e.currentTarget.style.borderStyle = "solid";
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = "transparent";
+                                        e.currentTarget.style.borderColor = "var(--border-default)";
+                                        e.currentTarget.style.color = "var(--text-muted)";
+                                        e.currentTarget.style.borderStyle = "dashed";
+                                      }}
+                                    >
+                                      <span style={{ textDecoration: "line-through", opacity: 0.6 }}>
+                                        {Math.round(displayValue * 100)}
+                                      </span>
+                                      <span>→</span>
+                                      <span style={{ fontWeight: 600 }}>
+                                        {Math.round(systemDefault * 100)}
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <span
+                                      style={{
+                                        fontSize: 9,
+                                        color: "var(--text-placeholder)",
+                                        fontFamily: "ui-monospace, monospace",
+                                      }}
+                                    >
+                                      ={Math.round(systemDefault * 100)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
@@ -3284,6 +3859,339 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   </div>
                 );
               })()}
+
+              {/* Config Settings Section */}
+              <div style={{ marginTop: 32 }}>
+                {/* Section Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>
+                      System Configuration
+                    </h3>
+                    <p style={{ margin: "6px 0 0 0", fontSize: 13, color: "var(--text-muted)" }}>
+                      Fine-tune memory, learning, and AI behavior for this playbook.
+                    </p>
+                  </div>
+                  {pendingConfigCount > 0 && (
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <button
+                        onClick={resetAllConfigSettings}
+                        style={{
+                          padding: "8px 14px",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          background: "var(--surface-secondary)",
+                          color: "var(--text-secondary)",
+                          border: "1px solid var(--border-default)",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <span>↺</span>
+                        <span>Reset All</span>
+                      </button>
+                      <button
+                        onClick={handleSaveConfigSettings}
+                        disabled={savingConfigSettings}
+                        style={{
+                          padding: "8px 16px",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          background: "var(--button-primary-bg)",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 6,
+                          cursor: savingConfigSettings ? "not-allowed" : "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        {savingConfigSettings ? "Saving..." : `Save ${pendingConfigCount} Changes`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
+                  {/* Memory Settings Group */}
+                  <SliderGroup title="Memory Settings" color={{ primary: "#60a5fa", glow: "#3b82f6" }}>
+                    {/* Memory Min Confidence */}
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("memoryMinConfidence")}
+                        targetValue={isConfigModified("memoryMinConfidence") ? defaultConfigSettings.memoryMinConfidence : undefined}
+                        color={{ primary: "#60a5fa", glow: "#3b82f6" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("memoryMinConfidence", v)}
+                        isModified={isConfigModified("memoryMinConfidence")}
+                        label="Min Confidence"
+                        tooltip="Minimum confidence threshold for memory injection (0-100%)"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("memoryMinConfidence") && (
+                        <button
+                          onClick={() => resetConfigSetting("memoryMinConfidence")}
+                          style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}
+                        >
+                          ↺ {Math.round(defaultConfigSettings.memoryMinConfidence * 100)}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Memory Max Count (normalized to 0-1 for slider, display as 0-50) */}
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("memoryMaxCount") / 50}
+                        targetValue={isConfigModified("memoryMaxCount") ? defaultConfigSettings.memoryMaxCount / 50 : undefined}
+                        color={{ primary: "#60a5fa", glow: "#3b82f6" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("memoryMaxCount", Math.round(v * 50))}
+                        isModified={isConfigModified("memoryMaxCount")}
+                        label="Max Count"
+                        tooltip={`Maximum memories to inject: ${getConfigValue("memoryMaxCount")}`}
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("memoryMaxCount") && (
+                        <button
+                          onClick={() => resetConfigSetting("memoryMaxCount")}
+                          style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}
+                        >
+                          ↺ {defaultConfigSettings.memoryMaxCount}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Memory Decay Half-Life (normalized to 0-1 for slider, display as 1-90 days) */}
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("memoryDecayHalfLife") / 90}
+                        targetValue={isConfigModified("memoryDecayHalfLife") ? defaultConfigSettings.memoryDecayHalfLife / 90 : undefined}
+                        color={{ primary: "#60a5fa", glow: "#3b82f6" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("memoryDecayHalfLife", Math.max(1, Math.round(v * 90)))}
+                        isModified={isConfigModified("memoryDecayHalfLife")}
+                        label="Decay (days)"
+                        tooltip={`Memory half-life: ${getConfigValue("memoryDecayHalfLife")} days`}
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("memoryDecayHalfLife") && (
+                        <button
+                          onClick={() => resetConfigSetting("memoryDecayHalfLife")}
+                          style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}
+                        >
+                          ↺ {defaultConfigSettings.memoryDecayHalfLife}d
+                        </button>
+                      )}
+                    </div>
+                  </SliderGroup>
+
+                  {/* Learning Rate Group */}
+                  <SliderGroup title="Learning Rate" color={{ primary: "#34d399", glow: "#10b981" }}>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("learningRate")}
+                        targetValue={isConfigModified("learningRate") ? defaultConfigSettings.learningRate : undefined}
+                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("learningRate", v)}
+                        isModified={isConfigModified("learningRate")}
+                        label="Learn Rate"
+                        tooltip="How fast to adapt targets per learning event (0-100%)"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("learningRate") && (
+                        <button onClick={() => resetConfigSetting("learningRate")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.learningRate * 100)}
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("learningTolerance")}
+                        targetValue={isConfigModified("learningTolerance") ? defaultConfigSettings.learningTolerance : undefined}
+                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("learningTolerance", v)}
+                        isModified={isConfigModified("learningTolerance")}
+                        label="Tolerance"
+                        tooltip="How close is 'on target'? (0-50%)"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("learningTolerance") && (
+                        <button onClick={() => resetConfigSetting("learningTolerance")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.learningTolerance * 100)}
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("learningMinConfidence")}
+                        targetValue={isConfigModified("learningMinConfidence") ? defaultConfigSettings.learningMinConfidence : undefined}
+                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("learningMinConfidence", v)}
+                        isModified={isConfigModified("learningMinConfidence")}
+                        label="Min Conf"
+                        tooltip="Minimum confidence to learn from"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("learningMinConfidence") && (
+                        <button onClick={() => resetConfigSetting("learningMinConfidence")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.learningMinConfidence * 100)}
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("learningMaxConfidence")}
+                        targetValue={isConfigModified("learningMaxConfidence") ? defaultConfigSettings.learningMaxConfidence : undefined}
+                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("learningMaxConfidence", v)}
+                        isModified={isConfigModified("learningMaxConfidence")}
+                        label="Max Conf"
+                        tooltip="Maximum confidence ceiling"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("learningMaxConfidence") && (
+                        <button onClick={() => resetConfigSetting("learningMaxConfidence")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.learningMaxConfidence * 100)}
+                        </button>
+                      )}
+                    </div>
+                  </SliderGroup>
+
+                  {/* AI Settings Group */}
+                  <SliderGroup title="AI Settings" color={{ primary: "#c084fc", glow: "#a855f7" }}>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("aiTemperature")}
+                        targetValue={isConfigModified("aiTemperature") ? defaultConfigSettings.aiTemperature : undefined}
+                        color={{ primary: "#c084fc", glow: "#a855f7" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("aiTemperature", v)}
+                        isModified={isConfigModified("aiTemperature")}
+                        label="Temperature"
+                        tooltip="AI creativity vs consistency (0=deterministic, 100=creative)"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("aiTemperature") && (
+                        <button onClick={() => resetConfigSetting("aiTemperature")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.aiTemperature * 100)}
+                        </button>
+                      )}
+                    </div>
+                  </SliderGroup>
+
+                  {/* Target Bounds Group */}
+                  <SliderGroup title="Target Bounds" color={{ primary: "#fb923c", glow: "#f97316" }}>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("targetClampMin")}
+                        targetValue={isConfigModified("targetClampMin") ? defaultConfigSettings.targetClampMin : undefined}
+                        color={{ primary: "#fb923c", glow: "#f97316" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("targetClampMin", v)}
+                        isModified={isConfigModified("targetClampMin")}
+                        label="Min Target"
+                        tooltip="Minimum allowed target value"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("targetClampMin") && (
+                        <button onClick={() => resetConfigSetting("targetClampMin")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.targetClampMin * 100)}
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("targetClampMax")}
+                        targetValue={isConfigModified("targetClampMax") ? defaultConfigSettings.targetClampMax : undefined}
+                        color={{ primary: "#fb923c", glow: "#f97316" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("targetClampMax", v)}
+                        isModified={isConfigModified("targetClampMax")}
+                        label="Max Target"
+                        tooltip="Maximum allowed target value"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("targetClampMax") && (
+                        <button onClick={() => resetConfigSetting("targetClampMax")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.targetClampMax * 100)}
+                        </button>
+                      )}
+                    </div>
+                  </SliderGroup>
+
+                  {/* Threshold Sensitivity Group */}
+                  <SliderGroup title="Thresholds" color={{ primary: "#f472b6", glow: "#ec4899" }}>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("thresholdLow")}
+                        targetValue={isConfigModified("thresholdLow") ? defaultConfigSettings.thresholdLow : undefined}
+                        color={{ primary: "#f472b6", glow: "#ec4899" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("thresholdLow", v)}
+                        isModified={isConfigModified("thresholdLow")}
+                        label="Low Thresh"
+                        tooltip="Below this value = 'low'"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("thresholdLow") && (
+                        <button onClick={() => resetConfigSetting("thresholdLow")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.thresholdLow * 100)}
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <VerticalSlider
+                        value={getConfigValue("thresholdHigh")}
+                        targetValue={isConfigModified("thresholdHigh") ? defaultConfigSettings.thresholdHigh : undefined}
+                        color={{ primary: "#f472b6", glow: "#ec4899" }}
+                        editable={isEditable}
+                        onChange={(v) => handleConfigChange("thresholdHigh", v)}
+                        isModified={isConfigModified("thresholdHigh")}
+                        label="High Thresh"
+                        tooltip="Above this value = 'high'"
+                        width={56}
+                        height={120}
+                        showGauge={true}
+                      />
+                      {isConfigModified("thresholdHigh") && (
+                        <button onClick={() => resetConfigSetting("thresholdHigh")} style={{ marginTop: 4, fontSize: 8, padding: "2px 6px", background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 3, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto", color: "var(--text-muted)" }}>
+                          ↺ {Math.round(defaultConfigSettings.thresholdHigh * 100)}
+                        </button>
+                      )}
+                    </div>
+                  </SliderGroup>
+                </div>
+              </div>
 
             </>
           )}

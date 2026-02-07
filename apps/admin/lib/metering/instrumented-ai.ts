@@ -8,10 +8,13 @@
 import {
   getAICompletion,
   getAICompletionStream,
+  getConfiguredAICompletion,
+  getConfiguredAICompletionStream,
   AICompletionOptions,
   AICompletionResult,
   AIStreamOptions,
   AIEngine,
+  ConfiguredAIOptions,
 } from "@/lib/ai/client";
 import { logAIUsage } from "./usage-logger";
 
@@ -168,5 +171,137 @@ export function createMeteredStream(
   });
 }
 
+// ============================================================
+// CONFIG-AWARE METERED COMPLETIONS
+// ============================================================
+
+/**
+ * Get AI completion with configuration from database and automatic metering.
+ * This is the preferred method for production code.
+ *
+ * @param options - Includes callPoint to load config for
+ * @param context - Metering context (userId, callerId, etc.)
+ * @returns Completion result with model info
+ */
+export async function getConfiguredMeteredAICompletion(
+  options: ConfiguredAIOptions,
+  context?: MeteringContext
+): Promise<AICompletionResult> {
+  const result = await getConfiguredAICompletion(options);
+
+  // Log usage if we have token counts (mock doesn't provide these)
+  if (result.usage && result.engine !== "mock") {
+    logAIUsage({
+      engine: result.engine as "claude" | "openai",
+      model: result.model,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      userId: context?.userId,
+      callerId: context?.callerId,
+      callId: context?.callId,
+      sourceOp: context?.sourceOp || options.callPoint,
+    }).catch((error) => {
+      console.error("[metering] Failed to log AI usage:", error);
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Get AI completion stream with configuration from database and automatic metering.
+ *
+ * @param options - Includes callPoint to load config for
+ * @param context - Metering context
+ * @returns Metering-aware stream
+ */
+export async function getConfiguredMeteredAICompletionStream(
+  options: ConfiguredAIOptions,
+  context?: MeteringContext
+): Promise<{ stream: ReadableStream<Uint8Array>; model: string }> {
+  // Import config loader to get the model info
+  const { getAIConfig } = await import("@/lib/ai/config-loader");
+  const config = await getAIConfig(options.callPoint);
+
+  const stream = await getConfiguredAICompletionStream(options);
+
+  // Wrap with metering
+  const meteredStream = createMeteredStreamWithModel(
+    stream,
+    config.provider,
+    config.model,
+    options.messages,
+    { ...context, sourceOp: context?.sourceOp || options.callPoint }
+  );
+
+  return { stream: meteredStream, model: config.model };
+}
+
+/**
+ * Create a metering-aware stream that tracks output length.
+ * Uses the actual model from config instead of hardcoded defaults.
+ */
+function createMeteredStreamWithModel(
+  originalStream: ReadableStream<Uint8Array>,
+  engine: AIEngine,
+  model: string,
+  inputMessages: { content: string }[],
+  context?: MeteringContext
+): ReadableStream<Uint8Array> {
+  if (engine === "mock") {
+    return originalStream;
+  }
+
+  let totalOutputChars = 0;
+  const decoder = new TextDecoder();
+
+  // Estimate input tokens
+  const inputChars = inputMessages.reduce((sum, m) => sum + m.content.length, 0);
+  const estimatedInputTokens = Math.ceil(inputChars / 4);
+
+  return new ReadableStream({
+    async start(controller) {
+      const reader = originalStream.getReader();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            const estimatedOutputTokens = Math.ceil(totalOutputChars / 4);
+
+            logAIUsage({
+              engine: engine as "claude" | "openai",
+              model: model,
+              inputTokens: estimatedInputTokens,
+              outputTokens: estimatedOutputTokens,
+              userId: context?.userId,
+              callerId: context?.callerId,
+              callId: context?.callId,
+              sourceOp: context?.sourceOp,
+              metadata: {
+                estimated: true,
+                streamingMode: true,
+              },
+            }).catch((error) => {
+              console.error("[metering] Failed to log streaming AI usage:", error);
+            });
+
+            controller.close();
+            break;
+          }
+
+          if (value) {
+            totalOutputChars += decoder.decode(value, { stream: true }).length;
+            controller.enqueue(value);
+          }
+        }
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+}
+
 // Re-export commonly used types for convenience
-export type { AICompletionOptions, AICompletionResult, AIStreamOptions, AIEngine };
+export type { AICompletionOptions, AICompletionResult, AIStreamOptions, AIEngine, ConfiguredAIOptions };

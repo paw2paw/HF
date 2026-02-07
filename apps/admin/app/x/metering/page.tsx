@@ -38,6 +38,20 @@ interface SummaryData {
     totalQty: number;
     costCents: number;
   }>;
+  aiByCallPoint?: Array<{
+    callPoint: string;
+    model: string;
+    eventCount: number;
+    totalTokens: number;
+    costCents: number;
+    costDollars: string;
+  }>;
+  uncategorizedAI?: {
+    eventCount: number;
+    totalTokens: number;
+    costCents: number;
+    costDollars: string;
+  };
 }
 
 interface RecentEvent {
@@ -276,6 +290,99 @@ export default function MeteringPage() {
           </div>
         )}
       </div>
+
+      {/* AI Usage by Call Point */}
+      {(summary?.aiByCallPoint?.length ?? 0) > 0 && (
+        <div
+          style={{
+            background: "white",
+            border: "1px solid #93c5fd",
+            borderRadius: 12,
+            padding: 20,
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#1d4ed8" }}>
+              AI Usage by Call Point
+            </h2>
+            <a
+              href="/x/ai-config"
+              style={{
+                fontSize: 12,
+                color: "#3b82f6",
+                textDecoration: "none",
+              }}
+            >
+              Configure Models &rarr;
+            </a>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {summary?.aiByCallPoint?.map((cp, i) => (
+              <div
+                key={`${cp.callPoint}-${cp.model}-${i}`}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 14px",
+                  background: "#eff6ff",
+                  borderRadius: 8,
+                  border: "1px solid #bfdbfe",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#1e40af" }}>
+                    {cp.callPoint}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                    {cp.model} &middot; {cp.eventCount.toLocaleString()} calls &middot; {Math.round(cp.totalTokens).toLocaleString()} tokens
+                  </div>
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "#1d4ed8" }}>
+                  ${cp.costDollars}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Uncategorized AI Warning */}
+          {(summary?.uncategorizedAI?.eventCount ?? 0) > 0 && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 12,
+                background: "#fef3c7",
+                border: "1px solid #fcd34d",
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "#92400e" }}>
+                  Uncategorized AI Usage
+                </div>
+                <div style={{ fontSize: 12, color: "#a16207", marginTop: 2 }}>
+                  {summary?.uncategorizedAI?.eventCount.toLocaleString()} AI calls (${summary?.uncategorizedAI?.costDollars})
+                  are not tagged with a call point. These won&apos;t appear in the breakdown above.
+                </div>
+              </div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: "#92400e" }}>
+                ${summary?.uncategorizedAI?.costDollars}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Two Column Layout: Top Operations + Recent Events */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>

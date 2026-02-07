@@ -64,11 +64,12 @@
     "react": "19.2.3",
     "react-admin": "^5.13.4",
     "react-dom": "19.2.3",
-    "reactflow": "^11.11.4"
+    "reactflow": "^11.11.4",
+    "vis-data": "^8.0.3",
+    "vis-network": "^10.0.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
-    "commander": "^12.1.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -79,6 +80,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^4.0.17",
     "autoprefixer": "^10.4.23",
+    "commander": "^12.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.0",
     "jsdom": "^27.4.0",

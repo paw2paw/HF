@@ -180,17 +180,39 @@ export async function GET(request: NextRequest) {
         const promptSlugParams = await prisma.promptSlugParameter.findMany({
           where: { parameterId: param.parameterId },
           select: {
+            weight: true,
+            mode: true,
+            sortOrder: true,
             slug: {
               select: {
                 id: true,
                 slug: true,
                 name: true,
+                memoryCategory: true,
+                memoryMode: true,
+                fallbackPrompt: true,
+                ranges: {
+                  orderBy: { sortOrder: "asc" },
+                  select: {
+                    id: true,
+                    minValue: true,
+                    maxValue: true,
+                    label: true,
+                    prompt: true,
+                    condition: true,
+                  },
+                },
               },
             },
           },
         });
 
-        const promptSlugs = promptSlugParams.map((psp) => psp.slug);
+        const promptSlugs = promptSlugParams.map((psp) => ({
+          ...psp.slug,
+          weight: psp.weight,
+          mode: psp.mode,
+          rangeCount: psp.slug.ranges.length,
+        }));
 
         // Return enriched parameter (without the raw tags array)
         const { tags: _tags, ...paramWithoutTags } = param;

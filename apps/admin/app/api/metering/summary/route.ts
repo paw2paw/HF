@@ -54,6 +54,38 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
+    // Get AI usage by call point (sourceOp) - for AI Config integration
+    const aiByCallPoint = await prisma.usageEvent.groupBy({
+      by: ["sourceOp", "model"],
+      where: {
+        category: "AI",
+        createdAt: {
+          gte: startDate,
+          lt: endDate,
+        },
+        sourceOp: { not: null },
+      },
+      _count: { id: true },
+      _sum: { quantity: true, costCents: true },
+      orderBy: {
+        _sum: { costCents: "desc" },
+      },
+    });
+
+    // Get uncategorized AI usage (AI events without sourceOp)
+    const uncategorizedAI = await prisma.usageEvent.aggregate({
+      where: {
+        category: "AI",
+        createdAt: {
+          gte: startDate,
+          lt: endDate,
+        },
+        OR: [{ sourceOp: null }, { sourceOp: "" }],
+      },
+      _count: { id: true },
+      _sum: { quantity: true, costCents: true },
+    });
+
     // Get daily totals for chart
     const dailyTotals = await prisma.$queryRaw<
       Array<{
@@ -157,6 +189,20 @@ export async function GET(request: NextRequest) {
         totalQty: d.total_qty || 0,
         costCents: d.total_cost || 0,
       })),
+      aiByCallPoint: aiByCallPoint.map((cp) => ({
+        callPoint: cp.sourceOp || "unknown",
+        model: cp.model || "unknown",
+        eventCount: cp._count.id,
+        totalTokens: cp._sum.quantity || 0,
+        costCents: cp._sum.costCents || 0,
+        costDollars: ((cp._sum.costCents || 0) / 100).toFixed(2),
+      })),
+      uncategorizedAI: {
+        eventCount: uncategorizedAI._count.id,
+        totalTokens: uncategorizedAI._sum.quantity || 0,
+        costCents: uncategorizedAI._sum.costCents || 0,
+        costDollars: ((uncategorizedAI._sum.costCents || 0) / 100).toFixed(2),
+      },
     });
   } catch (error: unknown) {
     console.error("[metering/summary] Error:", error);

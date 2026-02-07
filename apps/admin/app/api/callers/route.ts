@@ -128,3 +128,54 @@ export async function GET(req: Request) {
     );
   }
 }
+
+/**
+ * POST /api/callers
+ *
+ * Create a new caller
+ */
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { name, email, phone, domainId } = body;
+
+    if (!name) {
+      return NextResponse.json(
+        { ok: false, error: "Name is required" },
+        { status: 400 }
+      );
+    }
+
+    const caller = await prisma.caller.create({
+      data: {
+        name,
+        email: email || null,
+        phone: phone || null,
+        domainId: domainId || null,
+        externalId: `playground-${Date.now()}`,
+      },
+      include: {
+        domain: {
+          select: { id: true, slug: true, name: true },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      caller: {
+        id: caller.id,
+        name: caller.name,
+        email: caller.email,
+        phone: caller.phone,
+        domain: caller.domain,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error creating caller:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Failed to create caller" },
+      { status: 500 }
+    );
+  }
+}

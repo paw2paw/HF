@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Extract systemSpecs toggle state from playbook.config and attach to response.
+ * Extract systemSpecs toggle state and configSettings from playbook.config.
  * Stored in config.systemSpecToggles as { [specId]: { isEnabled, configOverride } }
+ * Stored in config.configSettings as { memoryMinConfidence, learningRate, etc. }
  */
 function withSystemSpecs(playbook: any) {
   const config = (playbook.config as Record<string, any>) || {};
@@ -13,7 +14,8 @@ function withSystemSpecs(playbook: any) {
     isEnabled: data.isEnabled ?? true,
     configOverride: data.configOverride || null,
   }));
-  return { ...playbook, systemSpecs };
+  const configSettings = config.configSettings || null;
+  return { ...playbook, systemSpecs, configSettings };
 }
 
 /**
@@ -117,7 +119,7 @@ export async function PATCH(
   try {
     const { playbookId } = await params;
     const body = await request.json();
-    const { name, description, items, specs, agentId, toggleSpec } = body;
+    const { name, description, items, specs, agentId, toggleSpec, sortOrder, domainId, status, configSettings } = body;
 
     const existing = await prisma.playbook.findUnique({
       where: { id: playbookId },
@@ -128,6 +130,56 @@ export async function PATCH(
         { ok: false, error: "Playbook not found" },
         { status: 404 }
       );
+    }
+
+    // sortOrder and domainId can always be updated (even for published playbooks)
+    // These are domain-level organization, not playbook content
+    if (sortOrder !== undefined || domainId !== undefined) {
+      const updated = await prisma.playbook.update({
+        where: { id: playbookId },
+        data: {
+          ...(sortOrder !== undefined && { sortOrder }),
+          ...(domainId !== undefined && { domainId }),
+        },
+        include: {
+          domain: { select: { id: true, slug: true, name: true } },
+          _count: { select: { items: true } },
+        },
+      });
+      return NextResponse.json({ ok: true, playbook: updated });
+    }
+
+    // Handle status changes (unpublish: PUBLISHED → DRAFT)
+    if (status !== undefined) {
+      // Validate status transition
+      if (status === "DRAFT" && existing.status === "PUBLISHED") {
+        // Unpublish - allowed
+        const updated = await prisma.playbook.update({
+          where: { id: playbookId },
+          data: { status: "DRAFT" },
+          include: {
+            domain: { select: { id: true, slug: true, name: true } },
+            _count: { select: { items: true } },
+          },
+        });
+        return NextResponse.json({ ok: true, playbook: updated, message: "Playbook unpublished" });
+      } else if (status === "ARCHIVED") {
+        // Archive - allowed from any status
+        const updated = await prisma.playbook.update({
+          where: { id: playbookId },
+          data: { status: "ARCHIVED" },
+          include: {
+            domain: { select: { id: true, slug: true, name: true } },
+            _count: { select: { items: true } },
+          },
+        });
+        return NextResponse.json({ ok: true, playbook: updated, message: "Playbook archived" });
+      } else {
+        return NextResponse.json(
+          { ok: false, error: `Invalid status transition: ${existing.status} → ${status}` },
+          { status: 400 }
+        );
+      }
     }
 
     // For published playbooks, only allow system spec toggle updates
@@ -276,6 +328,22 @@ export async function PATCH(
         where: { id: playbookId },
         data: {
           config: { ...currentConfig, systemSpecToggles },
+        },
+      });
+    }
+
+    // Save config settings (memory, learning, AI, thresholds) to playbook.config.configSettings
+    if (configSettings !== undefined) {
+      // Re-fetch to get latest config (in case specs were also updated)
+      const current = await prisma.playbook.findUnique({
+        where: { id: playbookId },
+        select: { config: true },
+      });
+      const currentConfig = (current?.config as Record<string, any>) || {};
+      await prisma.playbook.update({
+        where: { id: playbookId },
+        data: {
+          config: { ...currentConfig, configSettings },
         },
       });
     }

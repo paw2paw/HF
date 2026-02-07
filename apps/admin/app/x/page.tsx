@@ -28,16 +28,16 @@ export default async function XDashboardPage() {
       icon: "🎙️",
     },
     {
+      title: "Taxonomy",
+      description: "Parameters, variables, and key patterns",
+      href: "/x/taxonomy",
+      icon: "📊",
+    },
+    {
       title: "Import Data",
       description: "Import transcripts and generate callers",
       href: "/transcripts",
       icon: "📥",
-    },
-    {
-      title: "Seed Data",
-      description: "Populate database with test data",
-      href: "/playbooks",
-      icon: "🌱",
     },
     {
       title: "Supervisor",

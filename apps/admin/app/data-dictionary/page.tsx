@@ -1,10 +1,32 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 
-type TabKey = "parameters" | "variables" | "prefixes" | "entities";
+type TabKey = "parameters" | "variables" | "prefixes" | "entities" | "dependencies";
+
+type SpecDependency = {
+  id: string;
+  name: string;
+  slug: string;
+  type: "spec";
+  outputType: string;
+  specRole: string | null;
+  variables: string[];
+  prefixes: string[];
+};
+
+type PlaybookDependency = {
+  id: string;
+  name: string;
+  type: "playbook";
+  version: string;
+  domain: string | null;
+  specs: Array<{ id: string; name: string; outputType: string }>;
+  templates: Array<{ id: string; slug: string; name: string }>;
+};
 
 type XRefData = {
   analysisSpecs: Array<{ id: string; name: string; slug: string; outputType: string; field: string }>;
@@ -64,7 +86,25 @@ type ParameterData = {
   }>;
   specs: ParameterSpec[];
   playbooks: ParameterPlaybook[];
-  promptSlugs: Array<{ id: string; slug: string; name: string }>;
+  promptSlugs: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    weight: number;
+    mode: string;
+    memoryCategory: string | null;
+    memoryMode: string | null;
+    fallbackPrompt: string | null;
+    rangeCount: number;
+    ranges: Array<{
+      id: string;
+      minValue: number;
+      maxValue: number;
+      label: string | null;
+      prompt: string;
+      condition: string | null;
+    }>;
+  }>;
   _counts: {
     specs: number;
     activeSpecs: number;
@@ -581,6 +621,21 @@ function PrefixRow({ p }: { p: typeof KEY_PREFIXES[0] }) {
 // Expandable Row Component for Parameters
 function ParameterRow({ param }: { param: ParameterData }) {
   const [expanded, setExpanded] = useState(false);
+  const [showAllAnchors, setShowAllAnchors] = useState(false);
+  const [expandedSlugs, setExpandedSlugs] = useState<Set<string>>(new Set());
+  const [showTargetDetails, setShowTargetDetails] = useState(false);
+
+  const toggleSlugExpanded = (slugId: string) => {
+    setExpandedSlugs(prev => {
+      const next = new Set(prev);
+      if (next.has(slugId)) {
+        next.delete(slugId);
+      } else {
+        next.add(slugId);
+      }
+      return next;
+    });
+  };
 
   const domainColors: Record<string, { bg: string; text: string }> = {
     personality: { bg: "#f3e8ff", text: "#7c3aed" },
@@ -651,10 +706,35 @@ function ParameterRow({ param }: { param: ParameterData }) {
               </span>
             )}
             {param._counts.scoringAnchors > 0 && (
-              <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#fef3c7", color: "#92400e" }}>
+              <span style={{
+                padding: "2px 6px",
+                borderRadius: 4,
+                fontSize: 10,
+                background: param.scoringAnchors.some(a => a.isGold) ? "#fef3c7" : "#fff7ed",
+                color: "#92400e",
+                border: param.scoringAnchors.some(a => a.isGold) ? "1px solid #fbbf24" : "1px solid #fed7aa",
+                fontWeight: param.scoringAnchors.some(a => a.isGold) ? 600 : 400,
+              }}>
+                {param.scoringAnchors.some(a => a.isGold) ? "★ " : "⚖️ "}
                 {param._counts.scoringAnchors} anchors
               </span>
             )}
+            {param._counts.promptSlugs > 0 && (() => {
+              const totalRanges = param.promptSlugs.reduce((sum, s) => sum + (s.rangeCount || 0), 0);
+              return (
+                <span style={{
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  fontSize: 10,
+                  background: totalRanges > 0 ? "#fdf4ff" : "#f9fafb",
+                  color: "#86198f",
+                  border: totalRanges > 0 ? "1px solid #f5d0fe" : "1px solid #e5e7eb",
+                }}>
+                  📝 {param._counts.promptSlugs} slugs
+                  {totalRanges > 0 && <span style={{ opacity: 0.7 }}> ({totalRanges} ranges)</span>}
+                </span>
+              );
+            })()}
             {!hasRelationships && (
               <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#fee2e2", color: "#991b1b" }}>
                 orphan
@@ -763,92 +843,477 @@ function ParameterRow({ param }: { param: ParameterData }) {
               {/* Behavior Targets */}
               {param.behaviorTargets.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8, textTransform: "uppercase" }}>
-                    Behavior Targets ({param.behaviorTargets.length})
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {param.behaviorTargets.map((target) => (
-                      <span
-                        key={target.id}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#166534", textTransform: "uppercase" }}>
+                      🎯 Behavior Targets ({param.behaviorTargets.length})
+                    </div>
+                    {param.behaviorTargets.length > 2 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowTargetDetails(!showTargetDetails); }}
                         style={{
-                          padding: "4px 10px",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          background: "#f0fdf4",
-                          color: "#166534",
+                          padding: "3px 8px",
+                          borderRadius: 4,
                           border: "1px solid #bbf7d0",
+                          background: showTargetDetails ? "#dcfce7" : "#fff",
+                          color: "#166534",
+                          fontSize: 10,
+                          cursor: "pointer",
+                          fontWeight: 500,
                         }}
                       >
-                        {target.scope}: {target.targetValue.toFixed(2)}
-                        {target.playbook && <span style={{ marginLeft: 4, opacity: 0.6 }}>({target.playbook.name})</span>}
-                      </span>
-                    ))}
+                        {showTargetDetails ? "Collapse" : "Expand details"}
+                      </button>
+                    )}
                   </div>
+                  {/* Compact view: scope badges with values */}
+                  {!showTargetDetails && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {param.behaviorTargets.map((target) => (
+                        <span
+                          key={target.id}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            background: target.scope === "SYSTEM" ? "#dbeafe" : target.scope === "PLAYBOOK" ? "#f0fdf4" : "#fef3c7",
+                            color: target.scope === "SYSTEM" ? "#1e40af" : target.scope === "PLAYBOOK" ? "#166534" : "#92400e",
+                            border: `1px solid ${target.scope === "SYSTEM" ? "#93c5fd" : target.scope === "PLAYBOOK" ? "#bbf7d0" : "#fde68a"}`,
+                          }}
+                        >
+                          <span style={{ fontWeight: 600 }}>{target.scope[0]}</span>
+                          <span style={{ marginLeft: 4 }}>{(target.targetValue * 100).toFixed(0)}%</span>
+                          {target.playbook && <span style={{ marginLeft: 4, opacity: 0.6 }}>({target.playbook.name})</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Expanded view: full details with bars */}
+                  {showTargetDetails && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {param.behaviorTargets.map((target) => (
+                        <div
+                          key={target.id}
+                          style={{
+                            padding: "10px 12px",
+                            borderRadius: 8,
+                            background: "#fff",
+                            border: "1px solid #e5e7eb",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                          }}
+                        >
+                          {/* Scope badge */}
+                          <span
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: 4,
+                              fontSize: 10,
+                              fontWeight: 600,
+                              background: target.scope === "SYSTEM" ? "#dbeafe" : target.scope === "PLAYBOOK" ? "#dcfce7" : "#fef3c7",
+                              color: target.scope === "SYSTEM" ? "#1e40af" : target.scope === "PLAYBOOK" ? "#166534" : "#92400e",
+                              minWidth: 70,
+                              textAlign: "center",
+                            }}
+                          >
+                            {target.scope}
+                          </span>
+                          {/* Value bar */}
+                          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{
+                              flex: 1,
+                              height: 8,
+                              background: "#f3f4f6",
+                              borderRadius: 4,
+                              overflow: "hidden",
+                            }}>
+                              <div style={{
+                                width: `${target.targetValue * 100}%`,
+                                height: "100%",
+                                background: target.scope === "SYSTEM" ? "#3b82f6" : target.scope === "PLAYBOOK" ? "#22c55e" : "#f59e0b",
+                                borderRadius: 4,
+                              }} />
+                            </div>
+                            <span style={{
+                              fontWeight: 700,
+                              fontFamily: "ui-monospace, monospace",
+                              fontSize: 13,
+                              minWidth: 36,
+                            }}>
+                              {(target.targetValue * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          {/* Confidence */}
+                          <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                            conf: {(target.confidence * 100).toFixed(0)}%
+                          </span>
+                          {/* Source */}
+                          <span style={{
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            fontSize: 9,
+                            background: "#f3f4f6",
+                            color: "#6b7280",
+                          }}>
+                            {target.source}
+                          </span>
+                          {/* Playbook link */}
+                          {target.playbook && (
+                            <Link
+                              href={`/playbooks/${target.playbook.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ textDecoration: "none" }}
+                            >
+                              <span style={{
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                fontSize: 10,
+                                background: "#fff7ed",
+                                color: "#c2410c",
+                                border: "1px solid #fed7aa",
+                              }}>
+                                {target.playbook.name}
+                              </span>
+                            </Link>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Scoring Anchors */}
               {param.scoringAnchors.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8, textTransform: "uppercase" }}>
-                    Scoring Anchors ({param.scoringAnchors.length})
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#92400e", textTransform: "uppercase" }}>
+                      ⚖️ Scoring Anchors ({param.scoringAnchors.length})
+                    </div>
+                    {param.scoringAnchors.length > 3 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowAllAnchors(!showAllAnchors); }}
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: 4,
+                          border: "1px solid #fde68a",
+                          background: showAllAnchors ? "#fef3c7" : "#fff",
+                          color: "#92400e",
+                          fontSize: 10,
+                          cursor: "pointer",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {showAllAnchors ? "Show less" : `Show all ${param.scoringAnchors.length}`}
+                      </button>
+                    )}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {param.scoringAnchors.slice(0, 3).map((anchor) => (
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: 10,
+                    maxHeight: showAllAnchors ? "none" : 320,
+                    overflow: showAllAnchors ? "visible" : "hidden",
+                    position: "relative",
+                  }}>
+                    {(showAllAnchors ? param.scoringAnchors : param.scoringAnchors.slice(0, 6))
+                      .sort((a, b) => b.score - a.score) // Sort by score descending
+                      .map((anchor) => (
                       <div
                         key={anchor.id}
                         style={{
-                          padding: "8px 12px",
-                          borderRadius: 6,
-                          background: "#fff",
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          background: anchor.isGold ? "#fffbeb" : "#fff",
                           border: anchor.isGold ? "2px solid #fbbf24" : "1px solid #e5e7eb",
                           fontSize: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontWeight: 600, color: "#374151" }}>{anchor.score.toFixed(2)}</span>
-                          {anchor.isGold && <span style={{ color: "#fbbf24" }}>★ Gold</span>}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {/* Score bar */}
+                            <div style={{
+                              width: 40,
+                              height: 6,
+                              background: "#f3f4f6",
+                              borderRadius: 3,
+                              overflow: "hidden",
+                            }}>
+                              <div style={{
+                                width: `${anchor.score * 100}%`,
+                                height: "100%",
+                                background: anchor.score >= 0.7 ? "#22c55e" : anchor.score >= 0.4 ? "#eab308" : "#ef4444",
+                                borderRadius: 3,
+                              }} />
+                            </div>
+                            <span style={{
+                              fontWeight: 700,
+                              color: anchor.score >= 0.7 ? "#16a34a" : anchor.score >= 0.4 ? "#ca8a04" : "#dc2626",
+                              fontFamily: "ui-monospace, monospace",
+                              fontSize: 13,
+                            }}>
+                              {anchor.score.toFixed(2)}
+                            </span>
+                          </div>
+                          {anchor.isGold && (
+                            <span style={{
+                              color: "#fbbf24",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 2,
+                            }}>
+                              ★ Gold
+                            </span>
+                          )}
                         </div>
-                        <div style={{ color: "#6b7280", fontStyle: "italic" }}>{anchor.example.slice(0, 150)}...</div>
+                        <div style={{
+                          color: "#374151",
+                          fontSize: 12,
+                          lineHeight: 1.4,
+                          background: "#f9fafb",
+                          padding: "6px 8px",
+                          borderRadius: 4,
+                        }}>
+                          &ldquo;{anchor.example}&rdquo;
+                        </div>
+                        {anchor.rationale && (
+                          <div style={{
+                            color: "#6b7280",
+                            fontSize: 11,
+                            fontStyle: "italic",
+                            paddingTop: 2,
+                          }}>
+                            {anchor.rationale}
+                          </div>
+                        )}
                       </div>
                     ))}
-                    {param.scoringAnchors.length > 3 && (
-                      <div style={{ fontSize: 11, color: "#9ca3af" }}>
-                        +{param.scoringAnchors.length - 3} more anchors
-                      </div>
+                    {/* Fade overlay when collapsed and more items */}
+                    {!showAllAnchors && param.scoringAnchors.length > 6 && (
+                      <div style={{
+                        position: "absolute",
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 60,
+                        background: "linear-gradient(to bottom, transparent, #f9fafb)",
+                        pointerEvents: "none",
+                      }} />
                     )}
                   </div>
+                  {!showAllAnchors && param.scoringAnchors.length > 6 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowAllAnchors(true); }}
+                      style={{
+                        marginTop: 8,
+                        padding: "6px 12px",
+                        borderRadius: 6,
+                        border: "1px solid #fde68a",
+                        background: "#fffbeb",
+                        color: "#92400e",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        fontWeight: 500,
+                        width: "100%",
+                      }}
+                    >
+                      Show {param.scoringAnchors.length - 6} more anchors...
+                    </button>
+                  )}
                 </div>
               )}
 
-              {/* Prompt Slugs */}
+              {/* Prompt Slugs with Ranges */}
               {param.promptSlugs.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8, textTransform: "uppercase" }}>
-                    Prompt Slugs ({param.promptSlugs.length})
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#86198f", marginBottom: 8, textTransform: "uppercase" }}>
+                    📝 Prompt Slugs ({param.promptSlugs.length})
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {param.promptSlugs.map((slug) => (
-                      <Link
-                        key={slug.id}
-                        href={`/prompt-slugs?select=${slug.id}`}
-                        style={{ textDecoration: "none" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {param.promptSlugs.map((slug) => {
+                      const isSlugExpanded = expandedSlugs.has(slug.id);
+                      const hasRanges = slug.ranges && slug.ranges.length > 0;
+
+                      return (
+                        <div
+                          key={slug.id}
                           style={{
-                            padding: "4px 10px",
-                            borderRadius: 6,
-                            fontSize: 12,
-                            background: "#fdf4ff",
-                            color: "#86198f",
-                            border: "1px solid #f5d0fe",
+                            background: "#fff",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 8,
+                            overflow: "hidden",
                           }}
                         >
-                          {slug.name || slug.slug}
-                        </span>
-                      </Link>
-                    ))}
+                          {/* Slug header */}
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (hasRanges) toggleSlugExpanded(slug.id);
+                            }}
+                            style={{
+                              padding: "10px 12px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              cursor: hasRanges ? "pointer" : "default",
+                              background: isSlugExpanded ? "#fdf4ff" : "transparent",
+                            }}
+                          >
+                            {hasRanges && (
+                              <span style={{ color: "#9ca3af", fontSize: 10 }}>
+                                {isSlugExpanded ? "▼" : "▶"}
+                              </span>
+                            )}
+                            <Link
+                              href={`/prompt-slugs?select=${slug.id}`}
+                              style={{ textDecoration: "none" }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span style={{
+                                fontWeight: 600,
+                                color: "#86198f",
+                                fontSize: 13,
+                              }}>
+                                {slug.name || slug.slug}
+                              </span>
+                            </Link>
+                            {/* Weight & Mode badges */}
+                            <span style={{
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              fontSize: 9,
+                              background: "#f3f4f6",
+                              color: "#6b7280",
+                            }}>
+                              {slug.mode} × {slug.weight}
+                            </span>
+                            {hasRanges && (
+                              <span style={{
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                fontSize: 9,
+                                background: "#fdf4ff",
+                                color: "#86198f",
+                                border: "1px solid #f5d0fe",
+                              }}>
+                                {slug.ranges.length} ranges
+                              </span>
+                            )}
+                            {slug.memoryCategory && (
+                              <span style={{
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                fontSize: 9,
+                                background: "#ecfdf5",
+                                color: "#059669",
+                              }}>
+                                📦 {slug.memoryCategory}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Expanded ranges */}
+                          {isSlugExpanded && hasRanges && (
+                            <div style={{
+                              borderTop: "1px solid #f3f4f6",
+                              background: "#fafafa",
+                            }}>
+                              {slug.ranges.map((range, idx) => (
+                                <div
+                                  key={range.id}
+                                  style={{
+                                    padding: "10px 12px 10px 32px",
+                                    borderBottom: idx < slug.ranges.length - 1 ? "1px solid #f3f4f6" : "none",
+                                    display: "flex",
+                                    gap: 12,
+                                  }}
+                                >
+                                  {/* Range indicator */}
+                                  <div style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    minWidth: 60,
+                                  }}>
+                                    {/* Range bar */}
+                                    <div style={{
+                                      width: 50,
+                                      height: 6,
+                                      background: "#e5e7eb",
+                                      borderRadius: 3,
+                                      position: "relative",
+                                      marginBottom: 4,
+                                    }}>
+                                      <div style={{
+                                        position: "absolute",
+                                        left: `${range.minValue * 100}%`,
+                                        right: `${(1 - range.maxValue) * 100}%`,
+                                        height: "100%",
+                                        background: range.minValue >= 0.7 ? "#22c55e" : range.maxValue <= 0.3 ? "#ef4444" : "#eab308",
+                                        borderRadius: 3,
+                                      }} />
+                                    </div>
+                                    <span style={{
+                                      fontSize: 10,
+                                      color: "#6b7280",
+                                      fontFamily: "ui-monospace, monospace",
+                                    }}>
+                                      {(range.minValue * 100).toFixed(0)}–{(range.maxValue * 100).toFixed(0)}%
+                                    </span>
+                                    {range.label && (
+                                      <span style={{
+                                        fontSize: 9,
+                                        color: "#9ca3af",
+                                        marginTop: 2,
+                                      }}>
+                                        {range.label}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* Prompt text */}
+                                  <div style={{
+                                    flex: 1,
+                                    fontSize: 12,
+                                    color: "#374151",
+                                    lineHeight: 1.4,
+                                    background: "#fff",
+                                    padding: "8px 10px",
+                                    borderRadius: 6,
+                                    border: "1px solid #e5e7eb",
+                                    maxHeight: 80,
+                                    overflow: "auto",
+                                  }}>
+                                    {range.prompt.length > 200
+                                      ? `${range.prompt.slice(0, 200)}...`
+                                      : range.prompt}
+                                  </div>
+                                </div>
+                              ))}
+                              {/* Fallback prompt if exists */}
+                              {slug.fallbackPrompt && (
+                                <div style={{
+                                  padding: "8px 12px 8px 32px",
+                                  background: "#fef3c7",
+                                  borderTop: "1px solid #fde68a",
+                                  fontSize: 11,
+                                  color: "#92400e",
+                                }}>
+                                  <span style={{ fontWeight: 600 }}>Fallback:</span>{" "}
+                                  {slug.fallbackPrompt.length > 100
+                                    ? `${slug.fallbackPrompt.slice(0, 100)}...`
+                                    : slug.fallbackPrompt}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -867,9 +1332,248 @@ function ParameterRow({ param }: { param: ParameterData }) {
   );
 }
 
+// Spec Dependency Row Component
+function SpecDependencyRow({ spec }: { spec: SpecDependency }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const typeColors: Record<string, { bg: string; text: string }> = {
+    MEASURE: { bg: "#eef2ff", text: "#4338ca" },
+    LEARN: { bg: "#ede9fe", text: "#5b21b6" },
+    ADAPT: { bg: "#ccfbf1", text: "#0d9488" },
+    COMPOSE: { bg: "#fce7f3", text: "#be185d" },
+  };
+
+  const colors = typeColors[spec.outputType] || { bg: "#f3f4f6", text: "#374151" };
+  const hasDependencies = spec.variables.length > 0 || spec.prefixes.length > 0;
+
+  return (
+    <div style={{ borderBottom: "1px solid #f3f4f6" }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          padding: "12px 16px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          background: expanded ? "#f9fafb" : "transparent",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = expanded ? "#f9fafb" : "transparent")}
+      >
+        <span style={{ color: "#9ca3af", fontSize: 10 }}>{expanded ? "▼" : "▶"}</span>
+        <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: colors.bg, color: colors.text }}>
+          {spec.outputType}
+        </span>
+        <span style={{ fontWeight: 500, color: "#1f2937", flex: 1 }}>{spec.name}</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          {spec.variables.length > 0 && (
+            <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#f1f5f9", color: "#475569" }}>
+              {spec.variables.length} vars
+            </span>
+          )}
+          {spec.prefixes.length > 0 && (
+            <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#fef3c7", color: "#92400e" }}>
+              {spec.prefixes.length} prefix
+            </span>
+          )}
+          {!hasDependencies && (
+            <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#fee2e2", color: "#991b1b" }}>
+              no deps
+            </span>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: "12px 16px 16px 44px", background: "#f9fafb" }}>
+          {/* Variables */}
+          {spec.variables.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6, textTransform: "uppercase" }}>
+                Template Variables ({spec.variables.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {spec.variables.map((v) => (
+                  <code
+                    key={v}
+                    style={{
+                      padding: "3px 8px",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      background: "#f1f5f9",
+                      color: "#475569",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {v}
+                  </code>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Prefixes */}
+          {spec.prefixes.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6, textTransform: "uppercase" }}>
+                Key Prefixes ({spec.prefixes.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {spec.prefixes.map((p) => (
+                  <code
+                    key={p}
+                    style={{
+                      padding: "3px 8px",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      background: "#fef3c7",
+                      color: "#92400e",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {p}
+                  </code>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!hasDependencies && (
+            <div style={{ color: "#9ca3af", fontSize: 12, fontStyle: "italic" }}>
+              This spec has no detected taxonomy dependencies
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Playbook Dependency Row Component
+function PlaybookDependencyRow({ playbook }: { playbook: PlaybookDependency }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const hasDependencies = playbook.specs.length > 0 || playbook.templates.length > 0;
+
+  return (
+    <div style={{ borderBottom: "1px solid #f3f4f6" }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          padding: "12px 16px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          background: expanded ? "#f9fafb" : "transparent",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = expanded ? "#f9fafb" : "transparent")}
+      >
+        <span style={{ color: "#9ca3af", fontSize: 10 }}>{expanded ? "▼" : "▶"}</span>
+        <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: "#fff7ed", color: "#c2410c" }}>
+          v{playbook.version}
+        </span>
+        <span style={{ fontWeight: 500, color: "#1f2937", flex: 1 }}>{playbook.name}</span>
+        {playbook.domain && (
+          <span style={{ fontSize: 11, color: "#6b7280" }}>{playbook.domain}</span>
+        )}
+        <div style={{ display: "flex", gap: 6 }}>
+          {playbook.specs.length > 0 && (
+            <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#eef2ff", color: "#4338ca" }}>
+              {playbook.specs.length} specs
+            </span>
+          )}
+          {playbook.templates.length > 0 && (
+            <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#f0fdf4", color: "#166534" }}>
+              {playbook.templates.length} templates
+            </span>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: "12px 16px 16px 44px", background: "#f9fafb" }}>
+          {/* Specs */}
+          {playbook.specs.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6, textTransform: "uppercase" }}>
+                Analysis Specs ({playbook.specs.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {playbook.specs.map((s) => {
+                  const typeColors: Record<string, { bg: string; text: string; border: string }> = {
+                    MEASURE: { bg: "#eef2ff", text: "#4338ca", border: "#c7d2fe" },
+                    LEARN: { bg: "#ede9fe", text: "#5b21b6", border: "#ddd6fe" },
+                    ADAPT: { bg: "#ccfbf1", text: "#0d9488", border: "#99f6e4" },
+                    COMPOSE: { bg: "#fce7f3", text: "#be185d", border: "#fbcfe8" },
+                  };
+                  const c = typeColors[s.outputType] || { bg: "#f3f4f6", text: "#374151", border: "#e5e7eb" };
+                  return (
+                    <Link key={s.id} href={`/analysis-specs?select=${s.id}`} style={{ textDecoration: "none" }}>
+                      <span
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          background: c.bg,
+                          color: c.text,
+                          border: `1px solid ${c.border}`,
+                        }}
+                      >
+                        {s.name}
+                        <span style={{ marginLeft: 4, opacity: 0.6 }}>({s.outputType})</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Templates */}
+          {playbook.templates.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6, textTransform: "uppercase" }}>
+                Prompt Templates ({playbook.templates.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {playbook.templates.map((t) => (
+                  <Link key={t.id} href={`/prompt-templates?select=${t.id}`} style={{ textDecoration: "none" }}>
+                    <span
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        background: "#f0fdf4",
+                        color: "#166534",
+                        border: "1px solid #bbf7d0",
+                      }}
+                    >
+                      {t.name}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!hasDependencies && (
+            <div style={{ color: "#9ca3af", fontSize: 12, fontStyle: "italic" }}>
+              This playbook has no items
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DataDictionaryPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabKey>("parameters");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Parameters state
@@ -877,6 +1581,14 @@ export default function DataDictionaryPage() {
   const [parameterSummary, setParameterSummary] = useState<ParameterSummary | null>(null);
   const [parametersLoading, setParametersLoading] = useState(false);
   const [showOrphansOnly, setShowOrphansOnly] = useState(false);
+  const [showAnchorsOnly, setShowAnchorsOnly] = useState(false);
+
+  // Dependencies state
+  const [specDeps, setSpecDeps] = useState<SpecDependency[]>([]);
+  const [playbookDeps, setPlaybookDeps] = useState<PlaybookDependency[]>([]);
+  const [depsLoading, setDepsLoading] = useState(false);
+  const [depsView, setDepsView] = useState<"specs" | "playbooks">("specs");
+  const [depsTypeFilter, setDepsTypeFilter] = useState<string | null>(null);
 
   // Fetch parameters on mount
   useEffect(() => {
@@ -896,6 +1608,26 @@ export default function DataDictionaryPage() {
       }
     }
     fetchParameters();
+  }, []);
+
+  // Fetch dependencies on mount (for accurate tab counts)
+  useEffect(() => {
+    async function fetchDependencies() {
+      setDepsLoading(true);
+      try {
+        const res = await fetch("/api/data-dictionary/dependencies");
+        const data = await res.json();
+        if (data.ok) {
+          setSpecDeps(data.specs);
+          setPlaybookDeps(data.playbooks);
+        }
+      } catch (e) {
+        console.error("Failed to fetch dependencies:", e);
+      } finally {
+        setDepsLoading(false);
+      }
+    }
+    fetchDependencies();
   }, []);
 
   // Get unique categories for current tab
@@ -929,15 +1661,37 @@ export default function DataDictionaryPage() {
       (p.definition && p.definition.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = !selectedCategory || p.domainGroup === selectedCategory;
     const matchesOrphan = !showOrphansOnly || (p._counts.specs === 0 && p._counts.playbooks === 0 && p._counts.behaviorTargets === 0);
-    return matchesSearch && matchesCategory && matchesOrphan;
+    const matchesAnchors = !showAnchorsOnly || p._counts.scoringAnchors > 0;
+    return matchesSearch && matchesCategory && matchesOrphan && matchesAnchors;
   });
 
   return (
     <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
       <SourcePageHeader
-        title="Data Dictionary"
-        description="Template variables and memory key patterns used throughout the system. Click any row to see where it's used."
+        title="Taxonomy"
+        description="Parameters, template variables, and memory key patterns used throughout the system. Click any row to see where it's used."
         dataNodeId="data:dictionary"
+        actions={
+          <Link
+            href="/x/taxonomy-graph"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 16px",
+              background: "#4f46e5",
+              color: "#fff",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              textDecoration: "none",
+              transition: "background 0.2s",
+            }}
+          >
+            <span>🕸️</span>
+            Visualise
+          </Link>
+        }
       />
 
       {/* Tabs */}
@@ -947,6 +1701,7 @@ export default function DataDictionaryPage() {
           { key: "variables" as TabKey, label: "Template Variables", count: TEMPLATE_VARIABLES.length, icon: "🔤" },
           { key: "prefixes" as TabKey, label: "Key Prefixes", count: KEY_PREFIXES.length, icon: "🏷️" },
           { key: "entities" as TabKey, label: "Entity Usage", count: ENTITY_USAGE.length, icon: "📦" },
+          { key: "dependencies" as TabKey, label: "Dependencies", count: specDeps.filter(s => s.variables.length > 0 || s.prefixes.length > 0).length + playbookDeps.filter(pb => pb.specs.length > 0 || pb.templates.length > 0).length, icon: "🔗" },
         ].map(tab => (
           <button
             key={tab.key}
@@ -988,20 +1743,34 @@ export default function DataDictionaryPage() {
               width: 300,
             }}
           />
-          {/* Orphan filter for parameters */}
+          {/* Filters for parameters */}
           {activeTab === "parameters" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={showOrphansOnly}
-                onChange={(e) => setShowOrphansOnly(e.target.checked)}
-                style={{ accentColor: "#dc2626" }}
-              />
-              <span style={{ color: showOrphansOnly ? "#dc2626" : "#6b7280" }}>Orphans only</span>
-              {parameterSummary && (
-                <span style={{ color: "#9ca3af" }}>({parameterSummary.orphaned})</span>
-              )}
-            </label>
+            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={showAnchorsOnly}
+                  onChange={(e) => { setShowAnchorsOnly(e.target.checked); if (e.target.checked) setShowOrphansOnly(false); }}
+                  style={{ accentColor: "#92400e" }}
+                />
+                <span style={{ color: showAnchorsOnly ? "#92400e" : "#6b7280" }}>⚖️ With anchors</span>
+                {parameterSummary && (
+                  <span style={{ color: "#9ca3af" }}>({parameterSummary.withAnchors})</span>
+                )}
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={showOrphansOnly}
+                  onChange={(e) => { setShowOrphansOnly(e.target.checked); if (e.target.checked) setShowAnchorsOnly(false); }}
+                  style={{ accentColor: "#dc2626" }}
+                />
+                <span style={{ color: showOrphansOnly ? "#dc2626" : "#6b7280" }}>Orphans only</span>
+                {parameterSummary && (
+                  <span style={{ color: "#9ca3af" }}>({parameterSummary.orphaned})</span>
+                )}
+              </label>
+            </div>
           )}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button
@@ -1190,6 +1959,112 @@ export default function DataDictionaryPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Dependencies Tab */}
+      {activeTab === "dependencies" && (
+        <div>
+          {/* Sub-tabs: Specs vs Playbooks */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <button
+              onClick={() => { setDepsView("specs"); setDepsTypeFilter(null); }}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: depsView === "specs" ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                background: depsView === "specs" ? "#eef2ff" : "#fff",
+                color: depsView === "specs" ? "#4f46e5" : "#374151",
+                fontWeight: 500,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Specs ({specDeps.filter(s => s.variables.length > 0 || s.prefixes.length > 0).length})
+            </button>
+            <button
+              onClick={() => { setDepsView("playbooks"); setDepsTypeFilter(null); }}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: depsView === "playbooks" ? "2px solid #c2410c" : "1px solid #e5e7eb",
+                background: depsView === "playbooks" ? "#fff7ed" : "#fff",
+                color: depsView === "playbooks" ? "#c2410c" : "#374151",
+                fontWeight: 500,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Playbooks ({playbookDeps.filter(pb => pb.specs.length > 0 || pb.templates.length > 0).length})
+            </button>
+          </div>
+
+          {/* Type filters for specs */}
+          {depsView === "specs" && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+              <button
+                onClick={() => setDepsTypeFilter(null)}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 4,
+                  border: depsTypeFilter === null ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                  background: depsTypeFilter === null ? "#eef2ff" : "#fff",
+                  fontSize: 11,
+                  cursor: "pointer",
+                }}
+              >
+                All
+              </button>
+              {["MEASURE", "LEARN", "ADAPT", "COMPOSE"].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setDepsTypeFilter(depsTypeFilter === type ? null : type)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 4,
+                    border: depsTypeFilter === type ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                    background: depsTypeFilter === type ? "#eef2ff" : "#fff",
+                    fontSize: 11,
+                    cursor: "pointer",
+                  }}
+                >
+                  {type} ({specDeps.filter((s) => s.outputType === type && (s.variables.length > 0 || s.prefixes.length > 0)).length})
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Info hint */}
+          <div style={{ marginBottom: 16, padding: "8px 12px", background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 6, fontSize: 12, color: "#92400e" }}>
+            🔗 This view shows what each spec/playbook <strong>depends on</strong> (parameters, variables, prefixes). Click to expand.
+          </div>
+
+          {depsLoading ? (
+            <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>Loading dependencies...</div>
+          ) : depsView === "specs" ? (
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+              {specDeps
+                .filter((s) => s.variables.length > 0 || s.prefixes.length > 0)
+                .filter((s) => !depsTypeFilter || s.outputType === depsTypeFilter)
+                .map((spec) => (
+                  <SpecDependencyRow key={spec.id} spec={spec} />
+                ))}
+              {specDeps.filter((s) => s.variables.length > 0 || s.prefixes.length > 0).filter((s) => !depsTypeFilter || s.outputType === depsTypeFilter).length === 0 && (
+                <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>No specs with dependencies found</div>
+              )}
+            </div>
+          ) : (
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+              {playbookDeps
+                .filter((pb) => pb.specs.length > 0 || pb.templates.length > 0)
+                .map((pb) => (
+                  <PlaybookDependencyRow key={pb.id} playbook={pb} />
+                ))}
+              {playbookDeps.filter((pb) => pb.specs.length > 0 || pb.templates.length > 0).length === 0 && (
+                <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>No playbooks with dependencies found</div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

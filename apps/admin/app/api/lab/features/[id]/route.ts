@@ -16,17 +16,6 @@ export async function GET(
     const feature = await prisma.bDDFeatureSet.findUnique({
       where: { id },
       include: {
-        uploads: {
-          select: {
-            id: true,
-            filename: true,
-            fileType: true,
-            status: true,
-            name: true,
-            uploadedAt: true,
-          },
-          orderBy: { uploadedAt: "desc" },
-        },
         // Created entities (provenance tracking)
         createdSpecs: {
           select: {
@@ -45,7 +34,6 @@ export async function GET(
             parameterId: true,
             name: true,
             domainGroup: true,
-            isActive: true,
           },
           orderBy: { parameterId: "asc" },
         },

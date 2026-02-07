@@ -1,57 +1,167 @@
 /**
  * Pipeline Runs API
  *
- * GET /api/pipeline/runs - List pipeline runs with filters
+ * GET /api/pipeline/runs - List pipeline runs (from ComposedPrompt records)
+ *
+ * Each ComposedPrompt represents a composition "run" with:
+ * - sectionsActivated/sectionsSkipped as "steps"
+ * - timing information (loadTimeMs, transformTimeMs)
+ * - input context (memories, personality, behavior targets, etc.)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { PipelinePhase } from "@prisma/client";
+
+interface CompositionInputs {
+  callerContext?: any;
+  memoriesCount?: number;
+  personalityAvailable?: boolean;
+  recentCallsCount?: number;
+  behaviorTargetsCount?: number;
+  playbooksUsed?: string[];
+  playbooksCount?: number;
+  identitySpec?: string | null;
+  contentSpec?: string | null;
+  specUsed?: string;
+  specConfig?: any;
+  composition?: {
+    sectionsActivated?: string[];
+    sectionsSkipped?: string[];
+    loadTimeMs?: number;
+    transformTimeMs?: number;
+  };
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 
   const callerId = searchParams.get("callerId");
-  const callId = searchParams.get("callId");
-  const phase = searchParams.get("phase") as PipelinePhase | null;
-  const status = searchParams.get("status");
   const limit = parseInt(searchParams.get("limit") || "20", 10);
   const offset = parseInt(searchParams.get("offset") || "0", 10);
 
   try {
     const where = {
       ...(callerId && { callerId }),
-      ...(callId && { callId }),
-      ...(phase && { phase }),
-      ...(status && { status: status as any }),
     };
 
-    const [runs, total] = await Promise.all([
-      prisma.pipelineRun.findMany({
+    const [prompts, total] = await Promise.all([
+      prisma.composedPrompt.findMany({
         where,
-        include: {
-          steps: {
-            orderBy: { sortOrder: "asc" },
-            select: {
-              id: true,
-              operation: true,
-              label: true,
-              status: true,
-              durationMs: true,
-              specSlug: true,
-              outputCounts: true,
-              error: true,
-              sectionsActivated: true,
-              sectionsSkipped: true,
-            },
-          },
-        },
-        orderBy: { startedAt: "desc" },
+        orderBy: { composedAt: "desc" },
         take: limit,
         skip: offset,
+        select: {
+          id: true,
+          callerId: true,
+          prompt: true,
+          llmPrompt: true,
+          triggerType: true,
+          composedAt: true,
+          model: true,
+          status: true,
+          inputs: true,
+          caller: {
+            select: { id: true, name: true },
+          },
+        },
       }),
-      prisma.pipelineRun.count({ where }),
+      prisma.composedPrompt.count({ where }),
     ]);
+
+    // Transform ComposedPrompt records into "runs" format
+    const runs = prompts.map((prompt) => {
+      const inputs = (prompt.inputs as CompositionInputs) || {};
+      const composition = inputs.composition || {};
+      const sectionsActivated = composition.sectionsActivated || [];
+      const sectionsSkipped = composition.sectionsSkipped || [];
+      const loadTimeMs = composition.loadTimeMs || 0;
+      const transformTimeMs = composition.transformTimeMs || 0;
+      const totalDuration = loadTimeMs + transformTimeMs;
+
+      // Build "steps" from sections
+      const steps = [
+        // Load step
+        {
+          id: `${prompt.id}-load`,
+          operation: "data:load",
+          label: "Load Data",
+          status: "SUCCESS",
+          durationMs: loadTimeMs,
+          specSlug: null,
+          outputCounts: {
+            memories: inputs.memoriesCount || 0,
+            recentCalls: inputs.recentCallsCount || 0,
+            behaviorTargets: inputs.behaviorTargetsCount || 0,
+            playbooks: inputs.playbooksCount || 0,
+          },
+          error: null,
+          sectionsActivated: [],
+          sectionsSkipped: [],
+          inputs: {
+            callerId: prompt.callerId,
+            identitySpec: inputs.identitySpec,
+            contentSpec: inputs.contentSpec,
+          },
+          outputs: {
+            memoriesCount: inputs.memoriesCount || 0,
+            recentCallsCount: inputs.recentCallsCount || 0,
+            behaviorTargetsCount: inputs.behaviorTargetsCount || 0,
+            playbooksCount: inputs.playbooksCount || 0,
+            playbooksUsed: inputs.playbooksUsed || [],
+            personalityAvailable: inputs.personalityAvailable || false,
+          },
+        },
+        // Compose step
+        {
+          id: `${prompt.id}-compose`,
+          operation: "prompt:compose",
+          label: "Compose Prompt",
+          status: "SUCCESS",
+          durationMs: transformTimeMs,
+          specSlug: inputs.specUsed || null,
+          outputCounts: {
+            sections: sectionsActivated.length,
+          },
+          error: null,
+          sectionsActivated,
+          sectionsSkipped,
+          inputs: {
+            specUsed: inputs.specUsed || null,
+            specConfig: inputs.specConfig || null,
+          },
+          outputs: {
+            sectionsActivated,
+            sectionsSkipped,
+            promptLength: prompt.prompt?.length || 0,
+            // Include actual llmPrompt data for inspection
+            llmPrompt: prompt.llmPrompt || null,
+          },
+          sectionTimings: null, // Could be added if we track per-section timing
+        },
+      ];
+
+      return {
+        id: prompt.id,
+        phase: "ADAPT" as const,
+        callerId: prompt.callerId,
+        callId: null,
+        triggeredBy: prompt.triggerType,
+        status: "SUCCESS",
+        startedAt: prompt.composedAt.toISOString(),
+        finishedAt: prompt.composedAt.toISOString(),
+        durationMs: totalDuration,
+        stepsTotal: steps.length,
+        stepsSucceeded: steps.length,
+        stepsFailed: 0,
+        stepsSkipped: 0,
+        errorSummary: null,
+        steps,
+        // Extra metadata for display
+        _caller: prompt.caller,
+        _model: prompt.model,
+        _status: prompt.status,
+      };
+    });
 
     return NextResponse.json({
       ok: true,

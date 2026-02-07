@@ -8,20 +8,20 @@ import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext, PlaybookData, SystemSpecData, ResolvedSpecs, ResolvedSpec } from "../types";
 
 /**
- * Resolve identity, content, and voice specs from playbook items + system specs.
- * Extracted from route.ts lines 692-790.
+ * Resolve identity, content, and voice specs from stacked playbooks + system specs.
+ * Playbooks are ordered by sortOrder - first playbook's spec wins on conflicts.
  * Called once during executor setup (not a registered transform).
  */
 export function resolveSpecs(
-  playbook: PlaybookData | null,
+  playbooks: PlaybookData[],
   systemSpecs: SystemSpecData[],
 ): ResolvedSpecs {
   let identitySpec: ResolvedSpec | null = null;
   let contentSpec: ResolvedSpec | null = null;
   let voiceSpec: ResolvedSpec | null = null;
 
-  if (playbook) {
-    // 1. Check PlaybookItems for IDENTITY/CONTENT/VOICE specs
+  // 1. Check PlaybookItems from ALL playbooks (first playbook wins on conflicts)
+  for (const playbook of playbooks) {
     for (const item of playbook.items || []) {
       if (item.spec) {
         if (!identitySpec && item.spec.specRole === "IDENTITY" && item.spec.domain !== "voice") {

@@ -5,6 +5,7 @@ import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 import { Sparkline } from "@/components/shared/Sparkline";
+import { useEntityContext } from "@/contexts/EntityContext";
 
 // Types
 type Domain = {
@@ -232,6 +233,7 @@ export default function CallerDetailPage() {
   const params = useParams();
   const pathname = usePathname();
   const callerId = params.callerId as string;
+  const { pushEntity } = useEntityContext();
 
   // Detect if we're in /x/ area and adjust back link accordingly
   const isInXArea = pathname?.startsWith('/x/');
@@ -408,6 +410,22 @@ export default function CallerDetailPage() {
       .then((result) => {
         if (result.ok) {
           setData(result);
+          // Register with entity context for AI Chat
+          pushEntity({
+            type: "caller",
+            id: result.caller.id,
+            label: result.caller.name || result.caller.email || "Unknown Caller",
+            href: `${isInXArea ? '/x' : ''}/callers/${result.caller.id}`,
+            data: {
+              email: result.caller.email,
+              phone: result.caller.phone,
+              externalId: result.caller.externalId,
+              domainId: result.caller.domainId,
+              domain: result.caller.domain,
+              callCount: result.counts?.calls || 0,
+              memoryCount: result.counts?.memories || 0,
+            },
+          });
         } else {
           setError(result.error || "Failed to load caller");
         }
@@ -437,7 +455,7 @@ export default function CallerDetailPage() {
         }
       })
       .catch(() => {});
-  }, [callerId]);
+  }, [callerId, pushEntity, isInXArea]);
 
   // Update caller domain
   const handleDomainChange = async (domainId: string | null) => {
@@ -3082,10 +3100,18 @@ function TwoColumnTargetsDisplay({
   // Create measurement lookup
   const measurementMap = new Map(measurements.map((m: any) => [m.parameterId, m.actualValue]));
 
+  // TODO: SEGMENT support - schema exists but UI not yet built
+  // When implementing segments, we'll need:
+  // 1. /x/segments page - CRUD for segments (name, description, parent hierarchy)
+  // 2. API routes: /api/segments (list, create), /api/segments/[id] (get, update, delete)
+  // 3. Caller assignment UI - dropdown on caller page to assign callerIdentity.segmentId
+  // 4. Segment targets UI - set BehaviorTarget with scope=SEGMENT and segmentId
+  // 5. Re-enable SEGMENT in scopeColors and getScopeColor below
+  // Schema ready: Segment model, BehaviorTarget.segmentId, CallerIdentity.segmentId
   const scopeColors: Record<string, { bg: string; text: string }> = {
     SYSTEM: { bg: "var(--surface-secondary)", text: "var(--text-muted)" },
     PLAYBOOK: { bg: "var(--status-info-bg)", text: "var(--button-primary-bg)" },
-    SEGMENT: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
+    // SEGMENT: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" }, // Not yet implemented
     CALLER: { bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
   };
 
@@ -3110,12 +3136,12 @@ function TwoColumnTargetsDisplay({
     const targetValue = target.targetValue;
     const delta = actual !== undefined ? actual - targetValue : null;
 
-    // Map scope to slider colors
+    // Map scope to slider colors (SEGMENT not yet implemented - see TODO above)
     const getScopeColor = (scope: string) => {
       const colorMap: Record<string, { primary: string; glow: string }> = {
         SYSTEM: { primary: "var(--text-placeholder)", glow: "var(--text-muted)" },
         PLAYBOOK: { primary: "var(--badge-indigo-text)", glow: "var(--button-primary-bg)" },
-        SEGMENT: { primary: "var(--status-warning-border)", glow: "var(--status-warning-text)" },
+        // SEGMENT: { primary: "var(--status-warning-border)", glow: "var(--status-warning-text)" },
         CALLER: { primary: "var(--status-success-text)", glow: "var(--status-success-text)" },
       };
       return colorMap[scope] || { primary: "var(--text-placeholder)", glow: "var(--text-muted)" };
@@ -3184,8 +3210,7 @@ function TwoColumnTargetsDisplay({
               ? "PLAYBOOK: Value set by the playbook for this domain"
               : target.effectiveScope === "CALLER"
               ? "CALLER: Personalized value adjusted for this individual caller"
-              : target.effectiveScope === "SEGMENT"
-              ? "SEGMENT: Value adjusted for this caller's segment"
+              // SEGMENT not yet implemented - see TODO at top of TwoColumnTargetsDisplay
               : "Effective scope for this target value"
           }
           style={{

@@ -4,13 +4,14 @@ import { prisma } from "@/lib/prisma";
 /**
  * POST /api/playbooks/[playbookId]/new-version
  *
- * Creates a new DRAFT version of a published playbook.
- * - Copies all items from the published playbook
+ * Clones a published playbook as a new DRAFT.
+ * - Copies all items from the source playbook
  * - Copies all PLAYBOOK-scope behavior targets
  * - Sets status to DRAFT with incremented version
- * - Links to parent version
+ * - Links to parent version for provenance
+ * - Inherits the source domain (can be reassigned later via PATCH)
  *
- * The original PUBLISHED playbook remains as-is until the new version is published.
+ * The original PUBLISHED playbook remains unchanged.
  */
 export async function POST(
   request: NextRequest,
@@ -46,21 +47,6 @@ export async function POST(
       );
     }
 
-    // Check if there's already a DRAFT for this domain
-    const existingDraft = await prisma.playbook.findFirst({
-      where: {
-        domainId: sourcePlaybook.domainId,
-        status: "DRAFT",
-      },
-    });
-
-    if (existingDraft) {
-      return NextResponse.json(
-        { ok: false, error: "A draft playbook already exists for this domain. Delete or publish it first.", draftId: existingDraft.id },
-        { status: 400 }
-      );
-    }
-
     // Increment version
     const currentVersion = sourcePlaybook.version || "1.0";
     const versionParts = currentVersion.split(".");
@@ -68,10 +54,10 @@ export async function POST(
     const minor = parseInt(versionParts[1]) || 0;
     const newVersion = `${major}.${minor + 1}`;
 
-    // Create the new draft playbook
+    // Create the new draft playbook (domain NOT copied by default)
     const newPlaybook = await prisma.playbook.create({
       data: {
-        name: sourcePlaybook.name,
+        name: `${sourcePlaybook.name} (Clone)`,
         description: sourcePlaybook.description,
         domainId: sourcePlaybook.domainId,
         status: "DRAFT",
@@ -154,7 +140,7 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       playbook: created,
-      message: `Created draft v${newVersion} from v${currentVersion}`,
+      message: `Cloned "${sourcePlaybook.name}" as draft v${newVersion}`,
       copiedItems: sourcePlaybook.items.length,
       copiedTargets: sourcePlaybook.behaviorTargets.length,
     });

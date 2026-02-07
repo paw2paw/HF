@@ -27,6 +27,7 @@ export async function POST(
       triggerType = "manual",
       triggerCallId,
       targetOverrides, // Preview overrides for behavior targets (not persisted)
+      playbookIds, // Optional: filter to specific playbooks (for A/B compare)
     } = body;
 
     // Load COMPOSE spec config - specifically look for the system compose spec
@@ -77,6 +78,8 @@ export async function POST(
       temperature,
       // Include target overrides for preview (not persisted)
       targetOverrides: targetOverrides || {},
+      // Include playbook filter for A/B compare
+      playbookIds: playbookIds || undefined,
     };
 
     // Get section definitions from spec (or use hardcoded defaults for backward compat)
