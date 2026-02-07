@@ -384,6 +384,18 @@ export async function GET(
       memoryCountsByCall.map((m) => [m.callId, m._count.id])
     );
 
+    // Get prompt status per call (which calls triggered a prompt)
+    const promptsByCall = await prisma.composedPrompt.findMany({
+      where: {
+        callerId: callerId,
+        triggerCallId: { not: null },
+      },
+      select: {
+        triggerCallId: true,
+      },
+    });
+    const promptedCallIds = new Set(promptsByCall.map((p) => p.triggerCallId));
+
     // Transform calls to include analysis status
     const callsWithStatus = calls.map((call) => ({
       id: call.id,
@@ -397,6 +409,8 @@ export async function GET(
       hasMemories: (memoryCountMap.get(call.id) || 0) > 0,
       hasBehaviorMeasurements: call._count.behaviorMeasurements > 0,
       hasRewardScore: !!call.rewardScore,
+      // Prompt status
+      hasPrompt: promptedCallIds.has(call.id),
     }));
 
     // Extract available slug variable names from playbook templates

@@ -78,11 +78,12 @@ type Call = {
   transcript: string;
   createdAt: string;
   callSequence?: number | null;
-  // Analysis status
+  // Analysis status (persistent - from database)
   hasScores?: boolean;
   hasMemories?: boolean;
   hasBehaviorMeasurements?: boolean;
   hasRewardScore?: boolean;
+  hasPrompt?: boolean;
 };
 
 type CallerIdentity = {
@@ -257,6 +258,14 @@ export default function CallerDetailPage() {
   const [editingDomain, setEditingDomain] = useState(false);
   const [savingDomain, setSavingDomain] = useState(false);
 
+  // Copy feedback state
+  const [copiedButton, setCopiedButton] = useState<string | null>(null);
+  const copyToClipboard = (text: string, buttonId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedButton(buttonId);
+    setTimeout(() => setCopiedButton(null), 1500);
+  };
+
   // Fetch prompts when switching to prompts tab
   const fetchPrompts = useCallback(async () => {
     if (!callerId) return;
@@ -273,32 +282,6 @@ export default function CallerDetailPage() {
       setPromptsLoading(false);
     }
   }, [callerId]);
-
-  // Compose a new prompt (single)
-  const handleComposePrompt = async () => {
-    if (!callerId || composing) return;
-    setComposing(true);
-    try {
-      const res = await fetch(`/api/callers/${callerId}/compose-prompt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ triggerType: "manual" }),
-      });
-      const result = await res.json();
-      if (result.ok) {
-        // Refresh prompts list
-        await fetchPrompts();
-        // Expand the new prompt
-        setExpandedPrompt(result.prompt.id);
-      } else {
-        alert("Failed to compose prompt: " + result.error);
-      }
-    } catch (err: any) {
-      alert("Error composing prompt: " + err.message);
-    } finally {
-      setComposing(false);
-    }
-  };
 
   // Process ALL calls oldest-first, generating prompts for each
   const handlePromptAll = async () => {
@@ -444,6 +427,16 @@ export default function CallerDetailPage() {
         }
       })
       .catch(() => {});
+
+    // Fetch prompts for count pill (lightweight, just need the count)
+    fetch(`/api/callers/${callerId}/compose-prompt?limit=3`)
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.ok) {
+          setComposedPrompts(result.prompts || []);
+        }
+      })
+      .catch(() => {});
   }, [callerId]);
 
   // Update caller domain
@@ -522,7 +515,7 @@ export default function CallerDetailPage() {
     { id: "scores", label: "Scores", icon: "📈", count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0, group: "shared" },
     // Behaviour-specific group (includes targets + measurements)
     { id: "agent-behavior", label: "Behaviour", icon: "🤖", count: (data.counts.targets || 0) + (data.counts.measurements || 0), group: "agent" },
-    { id: "prompt", label: "Prompt", icon: "📝", count: composedPrompts.length || null, group: "agent" },
+    { id: "prompt", label: "Prompt", icon: "📝", count: composedPrompts.length || undefined, group: "agent" },
     // Action group
     { id: "ai-call", label: "Call", icon: "📞", special: true, group: "action" },
   ];
@@ -874,10 +867,8 @@ export default function CallerDetailPage() {
         <UnifiedPromptSection
           prompts={composedPrompts}
           loading={promptsLoading}
-          composing={composing}
           expandedPrompt={expandedPrompt}
           setExpandedPrompt={setExpandedPrompt}
-          onCompose={handleComposePrompt}
           onRefresh={fetchPrompts}
         />
       )}
@@ -1824,80 +1815,102 @@ function CallsSection({
                   <span style={{ fontSize: 11, color: "var(--text-placeholder)", fontFamily: "monospace" }}>{call.externalId}</span>
                 )}
                 <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(call.createdAt).toLocaleString()}</span>
+                {/* Persistent status badges from database */}
+                <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                  {call.hasScores && (
+                    <span
+                      title="Analyzed - scores extracted"
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 600,
+                        padding: "2px 5px",
+                        borderRadius: 3,
+                        background: "var(--status-success-bg)",
+                        color: "var(--status-success-text)",
+                      }}
+                    >
+                      ANALYZED
+                    </span>
+                  )}
+                  {call.hasPrompt && (
+                    <span
+                      title="Prompt generated for this call"
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 600,
+                        padding: "2px 5px",
+                        borderRadius: 3,
+                        background: "var(--badge-purple-bg)",
+                        color: "var(--badge-purple-text)",
+                      }}
+                    >
+                      PROMPTED
+                    </span>
+                  )}
+                  {!call.hasScores && !call.hasPrompt && (
+                    <span
+                      title="Not yet processed"
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 600,
+                        padding: "2px 5px",
+                        borderRadius: 3,
+                        background: "var(--surface-secondary)",
+                        color: "var(--text-placeholder)",
+                      }}
+                    >
+                      NEW
+                    </span>
+                  )}
+                </div>
               </button>
 
-              {/* Right: Prep + Prompt buttons + Logs */}
+              {/* Right: Action buttons */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {/* Prep button */}
+                {/* Analyze button - runs prep pipeline */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (callPipelineStatus.prep === "success" && callPipelineResults.prep) {
-                      // Show logs if already done
-                      setLogsPanel(showingLogs && logsPanel?.mode === "prep" ? null : { callId: call.id, mode: "prep" });
-                    } else {
-                      runPipelineOnCall(call.id, "prep");
-                    }
+                    runPipelineOnCall(call.id, "prep");
                   }}
                   disabled={isRunningOnThisCall || bulkRunning !== null}
-                  title={callPipelineStatus.prep === "success" ? "View prep logs" : "Run analysis pipeline (measure, learn, agent, reward, adapt)"}
+                  title="Run analysis pipeline (measure, learn, agent, reward, adapt)"
                   style={{
                     padding: "3px 10px",
                     fontSize: 10,
                     fontWeight: 600,
-                    ...getStatusStyle(callPipelineStatus.prep, "prep"),
-                    border: `1px solid ${getStatusStyle(callPipelineStatus.prep, "prep").border}`,
+                    background: "var(--surface-secondary)",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
                     borderRadius: 4,
                     cursor: isRunningOnThisCall || bulkRunning ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
                     opacity: isRunningOnThisCall || bulkRunning ? 0.6 : 1,
                   }}
                 >
-                  {callPipelineStatus.prep === "running" ? "⏳" : callPipelineStatus.prep === "success" ? "✓" : callPipelineStatus.prep === "error" ? "✗" : "📊"} PREP
-                  {callPipelineStatus.prep === "success" && callPipelineResults.prep?.data && (
-                    <span style={{ fontSize: 9, opacity: 0.8 }}>
-                      {(callPipelineResults.prep.data.scoresCreated || 0) + (callPipelineResults.prep.data.agentMeasurements || 0)}
-                    </span>
-                  )}
+                  {runningOnCall?.callId === call.id && runningOnCall?.mode === "prep" ? "⏳" : "📊"} Analyze
                 </button>
 
-                {/* Prompt button */}
+                {/* Prompt button - runs full pipeline + prompt */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (callPipelineStatus.prompt === "success" && callPipelineResults.prompt) {
-                      // Show logs if already done
-                      setLogsPanel(showingLogs && logsPanel?.mode === "prompt" ? null : { callId: call.id, mode: "prompt" });
-                    } else {
-                      runPipelineOnCall(call.id, "prompt");
-                    }
+                    runPipelineOnCall(call.id, "prompt");
                   }}
                   disabled={isRunningOnThisCall || bulkRunning !== null}
-                  title={callPipelineStatus.prompt === "success" ? "View prompt logs" : "Run full pipeline + compose prompt"}
+                  title="Run full pipeline + generate prompt"
                   style={{
                     padding: "3px 10px",
                     fontSize: 10,
                     fontWeight: 600,
-                    ...getStatusStyle(callPipelineStatus.prompt, "prompt"),
-                    border: callPipelineStatus.prompt === "ready" ? "none" : `1px solid ${getStatusStyle(callPipelineStatus.prompt, "prompt").border}`,
-                    background: callPipelineStatus.prompt === "ready" ? "var(--button-primary-bg)" : getStatusStyle(callPipelineStatus.prompt, "prompt").bg,
-                    color: callPipelineStatus.prompt === "ready" ? "var(--text-on-dark)" : getStatusStyle(callPipelineStatus.prompt, "prompt").text,
+                    background: "var(--button-primary-bg)",
+                    color: "var(--text-on-dark)",
+                    border: "none",
                     borderRadius: 4,
                     cursor: isRunningOnThisCall || bulkRunning ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
                     opacity: isRunningOnThisCall || bulkRunning ? 0.6 : 1,
                   }}
                 >
-                  {callPipelineStatus.prompt === "running" ? "⏳" : callPipelineStatus.prompt === "success" ? "✓" : callPipelineStatus.prompt === "error" ? "✗" : "📝"} PROMPT
-                  {callPipelineStatus.prompt === "success" && callPipelineResults.prompt?.data && (
-                    <span style={{ fontSize: 9, opacity: 0.8 }}>
-                      {(callPipelineResults.prompt.data.scoresCreated || 0) + (callPipelineResults.prompt.data.agentMeasurements || 0)}
-                    </span>
-                  )}
+                  {runningOnCall?.callId === call.id && runningOnCall?.mode === "prompt" ? "⏳" : "📝"} Prompt
                 </button>
 
                 {/* Logs toggle */}
@@ -2218,21 +2231,20 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                 {/* Copy button */}
                 <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(prompt.prompt || "");
-                      alert("Prompt copied to clipboard!");
-                    }}
+                    onClick={() => copyToClipboard(prompt.prompt || "", `prompt-${prompt.id}`)}
                     style={{
                       padding: "6px 12px",
                       fontSize: 12,
-                      background: "var(--button-primary-bg)",
+                      background: copiedButton === `prompt-${prompt.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
                       color: "white",
                       border: "none",
                       borderRadius: 6,
                       cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: copiedButton === `prompt-${prompt.id}` ? "0 0 12px var(--button-success-bg)" : "none",
                     }}
                   >
-                    Copy Prompt
+                    {copiedButton === `prompt-${prompt.id}` ? "✓ Copied" : "Copy Prompt"}
                   </button>
                 </div>
               </div>
@@ -2358,22 +2370,21 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
           {/* Copy button */}
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(latestPrompt.prompt || "");
-              alert("Copied to clipboard!");
-            }}
+            onClick={() => copyToClipboard(latestPrompt.prompt || "", "latest-prompt")}
             style={{
               padding: "8px 16px",
               fontSize: 12,
-              background: "var(--button-primary-bg)",
+              background: copiedButton === "latest-prompt" ? "var(--button-success-bg)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 6,
               cursor: "pointer",
               alignSelf: "flex-start",
+              transition: "all 0.2s ease",
+              boxShadow: copiedButton === "latest-prompt" ? "0 0 12px var(--button-success-bg)" : "none",
             }}
           >
-            📋 Copy Prompt
+            {copiedButton === "latest-prompt" ? "✓ Copied" : "📋 Copy Prompt"}
           </button>
         </div>
       )}
@@ -2420,21 +2431,20 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                     </button>
                   </div>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(llm, null, 2));
-                      alert("Copied JSON to clipboard!");
-                    }}
+                    onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-1")}
                     style={{
                       padding: "4px 10px",
-                      background: "var(--surface-secondary)",
-                      color: "var(--text-secondary)",
+                      background: copiedButton === "llm-json-1" ? "var(--button-success-bg)" : "var(--surface-secondary)",
+                      color: copiedButton === "llm-json-1" ? "white" : "var(--text-secondary)",
                       border: "1px solid var(--border-default)",
                       borderRadius: 6,
                       fontSize: 11,
                       cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: copiedButton === "llm-json-1" ? "0 0 12px var(--button-success-bg)" : "none",
                     }}
                   >
-                    📋 Copy JSON
+                    {copiedButton === "llm-json-1" ? "✓ Copied" : "📋 Copy JSON"}
                   </button>
                 </div>
               </div>
@@ -2884,8 +2894,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigator.clipboard.writeText(JSON.stringify(llmPrompt, null, 2));
-                        alert("LLM Prompt JSON copied to clipboard!");
+                        copyToClipboard(JSON.stringify(llmPrompt, null, 2), "llm-prompt-json");
                       }}
                       style={{
                         padding: "4px 8px",
@@ -2895,9 +2904,11 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                         border: "none",
                         borderRadius: 4,
                         cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        boxShadow: copiedButton === "llm-prompt-json" ? "0 0 12px var(--button-success-bg)" : "none",
                       }}
                     >
-                      Copy JSON
+                      {copiedButton === "llm-prompt-json" ? "✓ Copied" : "Copy JSON"}
                     </button>
                     <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-full" ? "−" : "+"}</span>
                   </div>
@@ -4698,18 +4709,14 @@ function LearningSection({
 function UnifiedPromptSection({
   prompts,
   loading,
-  composing,
   expandedPrompt,
   setExpandedPrompt,
-  onCompose,
   onRefresh,
 }: {
   prompts: ComposedPrompt[];
   loading: boolean;
-  composing: boolean;
   expandedPrompt: string | null;
   setExpandedPrompt: (id: string | null) => void;
-  onCompose: () => void;
   onRefresh: () => void;
 }) {
   const [viewMode, setViewMode] = useState<"human" | "llm">("human");
@@ -4739,25 +4746,8 @@ function UnifiedPromptSection({
           <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No Prompt Available</div>
           <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
-            Compose a prompt to generate personalized next-call guidance for this caller.
+            Run the pipeline on a call to generate prompts. Use "Prompt ALL" or click 📝 on individual calls.
           </div>
-          <button
-            onClick={onCompose}
-            disabled={composing}
-            style={{
-              marginTop: 20,
-              padding: "12px 24px",
-              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: composing ? "not-allowed" : "pointer",
-            }}
-          >
-            {composing ? "Composing..." : "Compose New Prompt"}
-          </button>
         </div>
       </div>
     );
@@ -4821,22 +4811,6 @@ function UnifiedPromptSection({
           >
             ↻
           </button>
-          <button
-            onClick={onCompose}
-            disabled={composing}
-            style={{
-              padding: "8px 16px",
-              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: composing ? "not-allowed" : "pointer",
-            }}
-          >
-            {composing ? "..." : "Compose New"}
-          </button>
         </div>
       </div>
 
@@ -4896,22 +4870,21 @@ function UnifiedPromptSection({
           {/* Copy Button */}
           <div style={{ display: "flex", gap: 8 }}>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(activePrompt.prompt);
-                alert("Copied to clipboard!");
-              }}
+              onClick={() => copyToClipboard(activePrompt.prompt, "active-prompt")}
               style={{
                 padding: "8px 16px",
-                background: "var(--button-primary-bg)",
+                background: copiedButton === "active-prompt" ? "var(--button-success-bg)" : "var(--button-primary-bg)",
                 color: "var(--text-on-dark)",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 500,
                 cursor: "pointer",
+                transition: "all 0.2s ease",
+                boxShadow: copiedButton === "active-prompt" ? "0 0 12px var(--button-success-bg)" : "none",
               }}
             >
-              📋 Copy Prompt
+              {copiedButton === "active-prompt" ? "✓ Copied" : "📋 Copy Prompt"}
             </button>
           </div>
 
@@ -5032,21 +5005,20 @@ function UnifiedPromptSection({
                     </button>
                   </div>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(llm, null, 2));
-                      alert("Copied JSON to clipboard!");
-                    }}
+                    onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-2")}
                     style={{
                       padding: "4px 10px",
-                      background: "var(--surface-secondary)",
-                      color: "var(--text-secondary)",
+                      background: copiedButton === "llm-json-2" ? "var(--button-success-bg)" : "var(--surface-secondary)",
+                      color: copiedButton === "llm-json-2" ? "white" : "var(--text-secondary)",
                       border: "1px solid var(--border-default)",
                       borderRadius: 6,
                       fontSize: 11,
                       cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: copiedButton === "llm-json-2" ? "0 0 12px var(--button-success-bg)" : "none",
                     }}
                   >
-                    📋 Copy JSON
+                    {copiedButton === "llm-json-2" ? "✓ Copied" : "📋 Copy JSON"}
                   </button>
                 </div>
               </div>
@@ -5412,21 +5384,22 @@ function PromptsSection({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigator.clipboard.writeText(prompt.prompt);
-                          alert("Copied to clipboard!");
+                          copyToClipboard(prompt.prompt, `history-prompt-${prompt.id}`);
                         }}
                         style={{
                           padding: "8px 16px",
-                          background: "var(--button-primary-bg)",
+                          background: copiedButton === `history-prompt-${prompt.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
                           color: "var(--text-on-dark)",
                           border: "none",
                           borderRadius: 6,
                           fontSize: 12,
                           fontWeight: 500,
                           cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          boxShadow: copiedButton === `history-prompt-${prompt.id}` ? "0 0 12px var(--button-success-bg)" : "none",
                         }}
                       >
-                        Copy to Clipboard
+                        {copiedButton === `history-prompt-${prompt.id}` ? "✓ Copied" : "Copy to Clipboard"}
                       </button>
                     </div>
                   </div>
@@ -5548,21 +5521,20 @@ function LlmPromptSection({
             </button>
           </div>
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(JSON.stringify(llm, null, 2));
-              alert("Copied JSON to clipboard!");
-            }}
+            onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-3")}
             style={{
               padding: "6px 12px",
-              background: "var(--surface-secondary)",
-              color: "var(--text-secondary)",
+              background: copiedButton === "llm-json-3" ? "var(--button-success-bg)" : "var(--surface-secondary)",
+              color: copiedButton === "llm-json-3" ? "white" : "var(--text-secondary)",
               border: "1px solid var(--border-default)",
               borderRadius: 6,
               fontSize: 12,
               cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: copiedButton === "llm-json-3" ? "0 0 12px var(--button-success-bg)" : "none",
             }}
           >
-            📋 Copy JSON
+            {copiedButton === "llm-json-3" ? "✓ Copied" : "📋 Copy JSON"}
           </button>
           <button
             onClick={onCompose}
@@ -5997,17 +5969,20 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                 </div>
               </div>
               <button
-                onClick={() => navigator.clipboard.writeText(selectedIdentity.nextPrompt || "")}
+                onClick={() => copyToClipboard(selectedIdentity.nextPrompt || "", "next-prompt")}
                 style={{
                   padding: "8px 16px",
-                  background: "var(--surface-secondary)",
+                  background: copiedButton === "next-prompt" ? "var(--button-success-bg)" : "var(--surface-secondary)",
+                  color: copiedButton === "next-prompt" ? "white" : "inherit",
                   border: "1px solid var(--input-border)",
                   borderRadius: 6,
                   cursor: "pointer",
                   fontSize: 13,
+                  transition: "all 0.2s ease",
+                  boxShadow: copiedButton === "next-prompt" ? "0 0 12px var(--button-success-bg)" : "none",
                 }}
               >
-                📋 Copy
+                {copiedButton === "next-prompt" ? "✓ Copied" : "📋 Copy"}
               </button>
             </div>
 
@@ -6136,21 +6111,20 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
                 </div>
                 <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(call.transcript || "");
-                      alert("Transcript copied!");
-                    }}
+                    onClick={() => copyToClipboard(call.transcript || "", `transcript-${call.id}`)}
                     style={{
                       padding: "8px 16px",
                       fontSize: 12,
-                      background: "var(--button-primary-bg)",
+                      background: copiedButton === `transcript-${call.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
                       color: "var(--text-on-dark)",
                       border: "none",
                       borderRadius: 6,
                       cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: copiedButton === `transcript-${call.id}` ? "0 0 12px var(--button-success-bg)" : "none",
                     }}
                   >
-                    Copy Transcript
+                    {copiedButton === `transcript-${call.id}` ? "✓ Copied" : "Copy Transcript"}
                   </button>
                 </div>
               </div>
