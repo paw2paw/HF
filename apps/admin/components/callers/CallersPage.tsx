@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
+import { FancySelect } from "@/components/shared/FancySelect";
+import { DomainPill } from "@/src/components/shared/EntityPill";
 
 type Caller = {
   id: string;
@@ -48,6 +49,7 @@ interface CallersPageProps {
 
 export function CallersPage({ routePrefix = "" }: CallersPageProps) {
   const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
   const [callers, setCallers] = useState<Caller[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +78,14 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
   const [mergeTarget, setMergeTarget] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
 
+  // Create caller state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCallerName, setNewCallerName] = useState("");
+  const [newCallerEmail, setNewCallerEmail] = useState("");
+  const [newCallerPhone, setNewCallerPhone] = useState("");
+  const [newCallerDomainId, setNewCallerDomainId] = useState("");
+  const [creating, setCreating] = useState(false);
+
   const fetchCallers = () => {
     fetch("/api/callers?withPersonality=true&withCounts=true")
       .then((res) => res.json())
@@ -92,6 +102,10 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         setLoading(false);
       });
   };
+
+  useEffect(() => {
+    searchRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     fetchCallers();
@@ -302,6 +316,55 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
     router.push(`${routePrefix}/callers/${caller.id}`);
   };
 
+  const handleCreateCaller = async () => {
+    if (!newCallerName.trim() && !newCallerEmail.trim() && !newCallerPhone.trim()) {
+      setError("Please provide at least a name, email, or phone");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await fetch("/api/callers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCallerName.trim() || null,
+          email: newCallerEmail.trim() || null,
+          phone: newCallerPhone.trim() || null,
+          domainId: newCallerDomainId || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(`Created caller: ${newCallerName || newCallerEmail || newCallerPhone}`);
+        setShowCreateModal(false);
+        setNewCallerName("");
+        setNewCallerEmail("");
+        setNewCallerPhone("");
+        setNewCallerDomainId("");
+        fetchCallers();
+      } else {
+        setError(data.error || "Failed to create caller");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create caller");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Sort options for FancySelect
+  const sortOptions = [
+    { value: "createdAt-desc", label: "Newest first" },
+    { value: "createdAt-asc", label: "Oldest first" },
+    { value: "name-asc", label: "Name A-Z" },
+    { value: "name-desc", label: "Name Z-A" },
+    { value: "calls-desc", label: "Most calls" },
+    { value: "calls-asc", label: "Fewest calls" },
+    { value: "memories-desc", label: "Most memories" },
+    { value: "memories-asc", label: "Fewest memories" },
+  ];
+
   return (
     <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
       <SourcePageHeader
@@ -330,6 +393,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
       {/* Search, Filters, and Actions */}
       <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <input
+          ref={searchRef}
           type="text"
           placeholder="Search by name, email, phone, or ID..."
           value={search}
@@ -340,53 +404,59 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             border: "1px solid var(--border-default)",
             fontSize: 13,
             width: 260,
+            background: "var(--surface-primary)",
+            color: "var(--text-primary)",
           }}
         />
 
         {/* Domain Filter */}
-        <select
+        <FancySelect
           value={selectedDomain}
-          onChange={(e) => setSelectedDomain(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            fontSize: 13,
-            minWidth: 140,
-          }}
-        >
-          <option value="">All domains</option>
-          {domains.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </select>
+          onChange={setSelectedDomain}
+          placeholder="All domains"
+          searchable={domains.length > 5}
+          clearable={!!selectedDomain}
+          style={{ minWidth: 160 }}
+          options={[
+            { value: "", label: "All domains" },
+            ...domains.map((d) => ({ value: d.id, label: d.name })),
+          ]}
+        />
 
         {/* Sort */}
-        <select
+        <FancySelect
           value={`${sortBy}-${sortDir}`}
-          onChange={(e) => {
-            const [newSort, newDir] = e.target.value.split("-") as [SortOption, "asc" | "desc"];
+          onChange={(v) => {
+            const [newSort, newDir] = v.split("-") as [SortOption, "asc" | "desc"];
             setSortBy(newSort);
             setSortDir(newDir);
           }}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            fontSize: 13,
-          }}
-        >
-          <option value="createdAt-desc">Newest first</option>
-          <option value="createdAt-asc">Oldest first</option>
-          <option value="name-asc">Name A-Z</option>
-          <option value="name-desc">Name Z-A</option>
-          <option value="calls-desc">Most calls</option>
-          <option value="calls-asc">Fewest calls</option>
-          <option value="memories-desc">Most memories</option>
-          <option value="memories-asc">Fewest memories</option>
-        </select>
+          searchable={false}
+          style={{ minWidth: 150 }}
+          options={sortOptions}
+        />
 
         <div style={{ flex: 1 }} />
+
+        {/* Add Caller Button */}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            background: "var(--button-primary-bg)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          + New Caller
+        </button>
 
         <button
           onClick={() => {
@@ -449,7 +519,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           </div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
           {filteredAndSortedCallers.map((caller) => (
             <div
               key={caller.id}
@@ -459,8 +529,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 border: selectedCallers.has(caller.id)
                   ? "2px solid var(--button-primary-bg)"
                   : "1px solid var(--border-default)",
-                borderRadius: 12,
-                padding: selectedCallers.has(caller.id) ? 19 : 20,
+                borderRadius: 10,
+                padding: selectedCallers.has(caller.id) ? 11 : 12,
                 transition: "all 0.15s ease",
                 cursor: "pointer",
                 position: "relative",
@@ -471,10 +541,10 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 <div
                   style={{
                     position: "absolute",
-                    top: 12,
-                    left: 12,
-                    width: 20,
-                    height: 20,
+                    top: 8,
+                    left: 8,
+                    width: 18,
+                    height: 18,
                     borderRadius: 4,
                     border: selectedCallers.has(caller.id)
                       ? "none"
@@ -484,7 +554,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     alignItems: "center",
                     justifyContent: "center",
                     color: "#fff",
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: 600,
                   }}
                 >
@@ -493,222 +563,151 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               )}
 
               {/* Caller Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {getCallerLabel(caller)}
                   </div>
-                  {caller.email && caller.name && (
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{caller.email}</div>
-                  )}
                 </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  {caller.domain && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        padding: "3px 8px",
-                        background: "var(--badge-blue-bg)",
-                        color: "var(--badge-blue-text)",
-                        borderRadius: 4,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {caller.domain.name}
-                    </span>
-                  )}
-                  {getPersonalityBadge(caller) && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        padding: "3px 8px",
-                        background: "var(--badge-purple-bg)",
-                        color: "var(--badge-purple-text)",
-                        borderRadius: 4,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {getPersonalityBadge(caller)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Stats Row */}
-              <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 14 }}>📞</span>
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    {caller._count?.calls || 0} calls
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 14 }}>💭</span>
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    {caller._count?.memories || 0} memories
-                  </span>
-                </div>
-                {caller.nextPrompt && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14 }}>✨</span>
-                    <span style={{ fontSize: 13, color: "var(--status-success-text)" }}>Prompt ready</span>
-                  </div>
+                {caller.domain && (
+                  <DomainPill label={caller.domain.name} size="compact" />
                 )}
               </div>
 
-              {/* Personality Mini-Chart */}
-              {caller.personality && caller.personality.confidenceScore !== null && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {[
-                      { label: "O", value: caller.personality.openness, color: "#3b82f6" },
-                      { label: "C", value: caller.personality.conscientiousness, color: "var(--status-success-text)" },
-                      { label: "E", value: caller.personality.extraversion, color: "#f59e0b" },
-                      { label: "A", value: caller.personality.agreeableness, color: "#ec4899" },
-                      { label: "N", value: caller.personality.neuroticism, color: "#8b5cf6" },
-                    ].map((trait) => (
-                      <div key={trait.label} style={{ flex: 1 }}>
-                        <div
-                          style={{
-                            height: 4,
-                            background: "var(--border-default)",
-                            borderRadius: 2,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${(trait.value || 0) * 100}%`,
-                              background: trait.color,
-                              borderRadius: 2,
-                            }}
-                          />
-                        </div>
-                        <div style={{ fontSize: 9, color: "var(--text-placeholder)", textAlign: "center", marginTop: 2 }}>
-                          {trait.label}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Stats Row */}
+              <div style={{ display: "flex", gap: 8, fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+                <span>📞 {caller._count?.calls || 0}</span>
+                <span>💭 {caller._count?.memories || 0}</span>
+                {caller.nextPrompt && <span style={{ color: "var(--status-success-text)" }}>✨</span>}
+              </div>
 
               {/* Action Buttons */}
               <div style={{
                 display: "flex",
-                gap: 6,
-                marginTop: 12,
-                paddingTop: 12,
+                gap: 4,
+                paddingTop: 8,
                 borderTop: "1px solid var(--border-subtle)"
               }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); router.push(`${routePrefix}/callers/${caller.id}?tab=ai-call`); }}
+                  title="Start a call"
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    background: "var(--status-success-bg)",
+                    color: "var(--status-success-text)",
+                    border: "1px solid var(--status-success-border)",
+                    borderRadius: 5,
+                    cursor: "pointer",
+                  }}
+                >
+                  📞
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setSnapshotModal(caller); }}
                   disabled={actionLoading === caller.id}
                   title="Download snapshot"
                   style={{
-                    flex: 1,
-                    padding: "7px 10px",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    background: "var(--status-success-bg)",
-                    color: "var(--status-success-text)",
-                    border: "1px solid var(--status-success-border)",
-                    borderRadius: 6,
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    background: "var(--surface-secondary)",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 5,
                     cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 4,
                   }}
                 >
-                  <span>📥</span> Download
+                  📥
                 </button>
-
+                {/* Spacer + Mini OCEAN */}
+                <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "flex-end" }}>
+                  {caller.personality && caller.personality.confidenceScore !== null && (
+                    <div style={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+                      {[
+                        { label: "O", value: caller.personality.openness, color: "#3b82f6" },
+                        { label: "C", value: caller.personality.conscientiousness, color: "#22c55e" },
+                        { label: "E", value: caller.personality.extraversion, color: "#f59e0b" },
+                        { label: "A", value: caller.personality.agreeableness, color: "#ec4899" },
+                        { label: "N", value: caller.personality.neuroticism, color: "#8b5cf6" },
+                      ].map((t, i) => (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 10 }}>
+                          <div style={{ width: 6, height: 14, background: "var(--border-default)", borderRadius: 2, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                            <div style={{ width: "100%", height: `${(t.value || 0) * 100}%`, background: t.color, borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 7, color: "var(--text-placeholder)", marginTop: 1 }}>{t.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {resetConfirm === caller.id ? (
-                  <div style={{ display: "flex", gap: 4, flex: 1 }}>
+                  <>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleReset(caller.id); }}
                       disabled={actionLoading === caller.id}
+                      title="Confirm reset"
                       style={{
-                        flex: 1,
-                        padding: "7px 6px",
+                        padding: "5px 10px",
                         fontSize: 10,
                         fontWeight: 600,
                         background: "var(--button-destructive-bg)",
                         color: "#fff",
                         border: "none",
-                        borderRadius: 6,
+                        borderRadius: 5,
                         cursor: actionLoading === caller.id ? "wait" : "pointer",
                       }}
                     >
-                      {actionLoading === caller.id ? "..." : "Confirm"}
+                      {actionLoading === caller.id ? "..." : "Yes"}
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); setResetConfirm(null); }}
-                      disabled={actionLoading === caller.id}
                       style={{
-                        padding: "7px 6px",
+                        padding: "5px 8px",
                         fontSize: 10,
-                        background: "var(--button-secondary-bg)",
+                        background: "var(--surface-secondary)",
                         color: "var(--text-muted)",
                         border: "none",
-                        borderRadius: 6,
+                        borderRadius: 5,
                         cursor: "pointer",
                       }}
                     >
-                      X
+                      No
                     </button>
-                  </div>
+                  </>
                 ) : (
                   <button
                     onClick={(e) => { e.stopPropagation(); setResetConfirm(caller.id); }}
                     disabled={!hasAnalysisData(caller) || actionLoading === caller.id}
-                    title={hasAnalysisData(caller) ? "Reset all analysis (keep calls)" : "No analysis data to reset"}
+                    title={hasAnalysisData(caller) ? "Reset analysis" : "No data"}
                     style={{
-                      flex: 1,
-                      padding: "7px 10px",
-                      fontSize: 11,
-                      fontWeight: 500,
-                      background: hasAnalysisData(caller) ? "var(--status-error-bg)" : "var(--background)",
+                      padding: "5px 10px",
+                      fontSize: 12,
+                      background: hasAnalysisData(caller) ? "var(--status-error-bg)" : "var(--surface-secondary)",
                       color: hasAnalysisData(caller) ? "var(--status-error-text)" : "var(--text-placeholder)",
                       border: `1px solid ${hasAnalysisData(caller) ? "var(--status-error-border)" : "var(--border-default)"}`,
-                      borderRadius: 6,
+                      borderRadius: 5,
                       cursor: hasAnalysisData(caller) ? "pointer" : "not-allowed",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
+                      opacity: hasAnalysisData(caller) ? 1 : 0.5,
                     }}
                   >
-                    <span>🔄</span> Reset
+                    🔄
                   </button>
                 )}
-
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowDeleteModal(caller); setDeleteExclude(false); }}
                   title="Delete caller"
                   style={{
-                    padding: "7px 10px",
-                    fontSize: 11,
-                    fontWeight: 500,
+                    padding: "5px 10px",
+                    fontSize: 12,
                     background: "var(--status-error-bg)",
                     color: "var(--status-error-text)",
                     border: "1px solid var(--status-error-border)",
-                    borderRadius: 6,
+                    borderRadius: 5,
                     cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
                   }}
                 >
                   🗑️
                 </button>
-              </div>
-
-              {/* Footer */}
-              <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-placeholder)" }}>
-                Added {new Date(caller.createdAt).toLocaleDateString()}
               </div>
             </div>
           ))}
@@ -1201,6 +1200,162 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 }}
               >
                 {deleting ? "Deleting..." : "Delete Caller"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Caller Modal */}
+      {showCreateModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1001,
+          }}
+          onClick={() => !creating && setShowCreateModal(false)}
+        >
+          <div
+            style={{
+              background: "var(--surface-primary)",
+              borderRadius: 12,
+              padding: 24,
+              width: 440,
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
+              New Caller
+            </h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)" }}>
+              Create a new caller profile
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={newCallerName}
+                  onChange={(e) => setNewCallerName(e.target.value)}
+                  placeholder="John Smith"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    fontSize: 14,
+                    background: "var(--surface-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={newCallerEmail}
+                  onChange={(e) => setNewCallerEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    fontSize: 14,
+                    background: "var(--surface-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={newCallerPhone}
+                  onChange={(e) => setNewCallerPhone(e.target.value)}
+                  placeholder="+1 555 123 4567"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    fontSize: 14,
+                    background: "var(--surface-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Domain (optional)
+                </label>
+                <FancySelect
+                  value={newCallerDomainId}
+                  onChange={setNewCallerDomainId}
+                  placeholder="Select domain..."
+                  clearable
+                  options={domains.map((d) => ({ value: d.id, label: d.name }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 24 }}>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewCallerName("");
+                  setNewCallerEmail("");
+                  setNewCallerPhone("");
+                  setNewCallerDomainId("");
+                }}
+                disabled={creating}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: creating ? "not-allowed" : "pointer",
+                  opacity: creating ? 0.5 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCaller}
+                disabled={creating || (!newCallerName.trim() && !newCallerEmail.trim() && !newCallerPhone.trim())}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: creating ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: creating ? "not-allowed" : "pointer",
+                }}
+              >
+                {creating ? "Creating..." : "Create Caller"}
               </button>
             </div>
           </div>

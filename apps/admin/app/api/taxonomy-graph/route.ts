@@ -4,7 +4,12 @@ import { prisma } from "@/lib/prisma";
 // TODO: Add proper tagging system - we may want ubiquitous tagging across all entities
 // Currently Tag/ParameterTag tables exist in schema but are unpopulated
 // When implemented, add "tag" back to NodeType and create tag->entity edges
-type NodeType = "spec" | "parameter" | "playbook" | "domain" | "trigger" | "action" | "anchor";
+type NodeType = "spec" | "parameter" | "playbook" | "domain" | "trigger" | "action" | "anchor" | "promptSlug" | "behaviorTarget" | "range";
+
+interface NodeDetail {
+  label: string;
+  value: string | number | boolean | null;
+}
 
 interface GraphNode {
   id: string;
@@ -13,6 +18,7 @@ interface GraphNode {
   slug?: string;
   group?: string;
   isOrphan?: boolean; // true if node has no edges (for top-level types only)
+  details?: NodeDetail[]; // Field+value pairs shown on hover
 }
 
 interface GraphEdge {
@@ -28,12 +34,15 @@ interface GraphEdge {
  * Optional query params:
  * - focus: node ID to center on (returns only connected nodes)
  * - depth: how many hops from focus (default 2)
+ * - minimal: if "1", excludes pipeline-only implementation details (triggers, actions)
+ *            These are redundant with spec→parameter edges and clutter the graph.
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const focusId = searchParams.get("focus");
+    let focusId = searchParams.get("focus");
     const depth = parseInt(searchParams.get("depth") || "2", 10);
+    const minimal = searchParams.get("minimal") === "1";
 
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
@@ -48,7 +57,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Fetch all entities - include deeper data when focused
-    const [specs, parameters, playbooks, domains, playbookItems] = await Promise.all([
+    const [specs, parameters, playbooks, domains, playbookItems, promptSlugs, behaviorTargets] = await Promise.all([
       prisma.analysisSpec.findMany({
         select: {
           id: true,
@@ -56,6 +65,9 @@ export async function GET(request: NextRequest) {
           slug: true,
           promptTemplate: true,
           domain: true,
+          outputType: true,
+          scope: true,
+          isActive: true,
           triggers: {
             select: {
               id: true,
@@ -68,6 +80,7 @@ export async function GET(request: NextRequest) {
                   id: true,
                   description: true,
                   parameterId: true,
+                  weight: true,
                 },
               },
             },
@@ -80,11 +93,15 @@ export async function GET(request: NextRequest) {
           parameterId: true,
           name: true,
           sectionId: true,
+          domainGroup: true,
+          scaleType: true,
+          definition: true,
           scoringAnchors: {
             select: {
               id: true,
               score: true,
               example: true,
+              rationale: true,
               isGold: true,
             },
             orderBy: { score: "desc" },
@@ -97,6 +114,8 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           domainId: true,
+          status: true,
+          description: true,
         },
       }),
       prisma.domain.findMany({
@@ -104,6 +123,7 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           slug: true,
+          description: true,
         },
       }),
       prisma.playbookItem.findMany({
@@ -111,6 +131,46 @@ export async function GET(request: NextRequest) {
         select: {
           playbookId: true,
           specId: true,
+        },
+      }),
+      prisma.promptSlug.findMany({
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          memoryCategory: true,
+          memoryMode: true,
+          fallbackPrompt: true,
+          parameters: {
+            select: {
+              parameterId: true,
+              weight: true,
+              mode: true,
+            },
+          },
+          ranges: {
+            select: {
+              id: true,
+              minValue: true,
+              maxValue: true,
+              label: true,
+              prompt: true,
+              condition: true,
+            },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      }),
+      prisma.behaviorTarget.findMany({
+        where: { effectiveUntil: null }, // Only active targets
+        select: {
+          id: true,
+          scope: true,
+          targetValue: true,
+          confidence: true,
+          source: true,
+          parameterId: true,
+          playbookId: true,
         },
       }),
     ]);
@@ -121,7 +181,28 @@ export async function GET(request: NextRequest) {
       paramIdToUuid.set(p.parameterId, p.id);
     }
 
-    // Add all nodes
+    // Convert focus parameter from "type/slug" format to "type:{uuid}" format
+    // Supports: spec/slug, param/parameterId, playbook/name, domain/slug
+    if (focusId && focusId.includes("/")) {
+      const [focusType, focusSlug] = focusId.split("/", 2);
+      if (focusType === "spec") {
+        const spec = specs.find((s) => s.slug === focusSlug);
+        if (spec) focusId = `spec:${spec.id}`;
+      } else if (focusType === "param") {
+        const param = parameters.find((p) => p.parameterId === focusSlug);
+        if (param) focusId = `param:${param.id}`;
+      } else if (focusType === "playbook") {
+        const playbook = playbooks.find((p) => p.name === focusSlug);
+        if (playbook) focusId = `playbook:${playbook.id}`;
+      } else if (focusType === "domain") {
+        const domain = domains.find((d) => d.slug === focusSlug);
+        if (domain) focusId = `domain:${domain.id}`;
+      }
+    }
+
+    // Add all nodes with details
+
+    // Specs
     for (const spec of specs) {
       addNode({
         id: `spec:${spec.id}`,
@@ -129,56 +210,81 @@ export async function GET(request: NextRequest) {
         type: "spec",
         slug: spec.slug,
         group: spec.domain || undefined,
+        details: [
+          { label: "Name", value: spec.name },
+          { label: "Slug", value: spec.slug },
+          { label: "Output Type", value: spec.outputType },
+          { label: "Scope", value: spec.scope },
+          { label: "Domain", value: spec.domain },
+          { label: "Active", value: spec.isActive },
+          { label: "Triggers", value: spec.triggers?.length || 0 },
+        ].filter(d => d.value !== null && d.value !== undefined),
       });
 
-      // Add trigger and action nodes (these create more detail when focused)
-      for (const trigger of spec.triggers || []) {
-        const triggerLabel = trigger.name || `${trigger.given?.slice(0, 20)}...`;
-        addNode({
-          id: `trigger:${spec.id}/${trigger.id}`,
-          label: triggerLabel,
-          type: "trigger",
-          group: spec.domain || undefined,
-        });
-
-        // Edge: spec -> trigger
-        edges.push({
-          from: `spec:${spec.id}`,
-          to: `trigger:${spec.id}/${trigger.id}`,
-          type: "has_trigger",
-        });
-
-        for (const action of trigger.actions || []) {
-          const actionLabel = action.description?.slice(0, 25) || `Action`;
+      // Add trigger and action nodes (skip in minimal mode - these are implementation details)
+      // In minimal mode, we rely on spec→parameter edges via promptSlug parameters instead
+      if (!minimal) {
+        for (const trigger of spec.triggers || []) {
+          const triggerLabel = trigger.name || `${trigger.given?.slice(0, 20)}...`;
           addNode({
-            id: `action:${spec.id}/${action.id}`,
-            label: actionLabel,
-            type: "action",
+            id: `trigger:${spec.id}/${trigger.id}`,
+            label: triggerLabel,
+            type: "trigger",
             group: spec.domain || undefined,
+            details: [
+              { label: "Name", value: trigger.name },
+              { label: "Given", value: trigger.given?.slice(0, 100) },
+              { label: "When", value: trigger.when?.slice(0, 100) },
+              { label: "Then", value: trigger.then?.slice(0, 100) },
+              { label: "Actions", value: trigger.actions?.length || 0 },
+            ].filter(d => d.value !== null && d.value !== undefined),
           });
 
-          // Edge: trigger -> action
+          // Edge: spec -> trigger
           edges.push({
-            from: `trigger:${spec.id}/${trigger.id}`,
-            to: `action:${spec.id}/${action.id}`,
-            type: "has_action",
+            from: `spec:${spec.id}`,
+            to: `trigger:${spec.id}/${trigger.id}`,
+            type: "has_trigger",
           });
 
-          // Edge: action -> parameter (if exists)
-          if (action.parameterId) {
-            const paramUuid = paramIdToUuid.get(action.parameterId);
-            if (paramUuid) {
-              edges.push({
-                from: `action:${spec.id}/${action.id}`,
-                to: `param:${paramUuid}`,
-                type: "targets",
-              });
+          for (const action of trigger.actions || []) {
+            const actionLabel = action.description?.slice(0, 25) || `Action`;
+            addNode({
+              id: `action:${spec.id}/${action.id}`,
+              label: actionLabel,
+              type: "action",
+              group: spec.domain || undefined,
+              details: [
+                { label: "Description", value: action.description },
+                { label: "Parameter", value: action.parameterId },
+                { label: "Weight", value: action.weight },
+              ].filter(d => d.value !== null && d.value !== undefined),
+            });
+
+            // Edge: trigger -> action
+            edges.push({
+              from: `trigger:${spec.id}/${trigger.id}`,
+              to: `action:${spec.id}/${action.id}`,
+              type: "has_action",
+            });
+
+            // Edge: action -> parameter (if exists)
+            if (action.parameterId) {
+              const paramUuid = paramIdToUuid.get(action.parameterId);
+              if (paramUuid) {
+                edges.push({
+                  from: `action:${spec.id}/${action.id}`,
+                  to: `param:${paramUuid}`,
+                  type: "targets",
+                });
+              }
             }
           }
         }
       }
     }
 
+    // Parameters
     for (const param of parameters) {
       addNode({
         id: `param:${param.id}`,
@@ -186,6 +292,15 @@ export async function GET(request: NextRequest) {
         type: "parameter",
         slug: param.parameterId,
         group: param.sectionId,
+        details: [
+          { label: "ID", value: param.parameterId },
+          { label: "Name", value: param.name },
+          { label: "Domain Group", value: param.domainGroup },
+          { label: "Section", value: param.sectionId },
+          { label: "Scale Type", value: param.scaleType },
+          { label: "Definition", value: param.definition?.slice(0, 100) || null },
+          { label: "Anchors", value: param.scoringAnchors?.length || 0 },
+        ].filter(d => d.value !== null && d.value !== undefined),
       });
 
       // Add scoring anchor nodes
@@ -198,6 +313,12 @@ export async function GET(request: NextRequest) {
           label: anchorLabel,
           type: "anchor",
           slug: anchor.example?.slice(0, 50),
+          details: [
+            { label: "Score", value: anchor.score },
+            { label: "Gold", value: anchor.isGold },
+            { label: "Example", value: anchor.example?.slice(0, 150) ?? null },
+            { label: "Rationale", value: anchor.rationale?.slice(0, 150) ?? null },
+          ].filter(d => d.value !== null && d.value !== undefined),
         });
 
         // Edge: parameter -> anchor
@@ -209,22 +330,126 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Playbooks
     for (const playbook of playbooks) {
       addNode({
         id: `playbook:${playbook.id}`,
         label: playbook.name,
         type: "playbook",
         group: playbook.domainId || undefined,
+        details: [
+          { label: "Name", value: playbook.name },
+          { label: "Status", value: playbook.status },
+          { label: "Description", value: playbook.description?.slice(0, 100) ?? null },
+        ].filter(d => d.value !== null && d.value !== undefined),
       });
     }
 
+    // Domains
     for (const domain of domains) {
       addNode({
         id: `domain:${domain.id}`,
         label: domain.name,
         type: "domain",
         slug: domain.slug,
+        details: [
+          { label: "Name", value: domain.name },
+          { label: "Slug", value: domain.slug },
+          { label: "Description", value: domain.description?.slice(0, 100) ?? null },
+        ].filter(d => d.value !== null && d.value !== undefined),
       });
+    }
+
+    // PromptSlugs (NEW)
+    for (const slug of promptSlugs) {
+      addNode({
+        id: `promptSlug:${slug.id}`,
+        label: slug.slug || slug.name,
+        type: "promptSlug",
+        slug: slug.slug,
+        details: [
+          { label: "Slug", value: slug.slug },
+          { label: "Name", value: slug.name },
+          { label: "Memory Category", value: slug.memoryCategory ?? null },
+          { label: "Memory Mode", value: slug.memoryMode ?? null },
+          { label: "Fallback", value: slug.fallbackPrompt?.slice(0, 100) ?? null },
+          { label: "Parameters", value: slug.parameters?.length || 0 },
+          { label: "Ranges", value: slug.ranges?.length || 0 },
+        ].filter(d => d.value !== null && d.value !== undefined),
+      });
+
+      // Add range nodes for this slug
+      for (const range of slug.ranges || []) {
+        const rangeLabel = range.label || `${range.minValue}-${range.maxValue}`;
+        addNode({
+          id: `range:${slug.id}/${range.id}`,
+          label: rangeLabel,
+          type: "range",
+          details: [
+            { label: "Label", value: range.label ?? null },
+            { label: "Min", value: range.minValue ?? null },
+            { label: "Max", value: range.maxValue ?? null },
+            { label: "Condition", value: range.condition ?? null },
+            { label: "Prompt", value: range.prompt?.slice(0, 150) ?? null },
+          ].filter(d => d.value !== null && d.value !== undefined),
+        });
+
+        // Edge: promptSlug -> range
+        edges.push({
+          from: `promptSlug:${slug.id}`,
+          to: `range:${slug.id}/${range.id}`,
+          type: "has_range",
+        });
+      }
+
+      // Edge: parameter -> promptSlug (via PromptSlugParameter)
+      for (const psp of slug.parameters || []) {
+        const paramUuid = paramIdToUuid.get(psp.parameterId);
+        if (paramUuid) {
+          edges.push({
+            from: `param:${paramUuid}`,
+            to: `promptSlug:${slug.id}`,
+            type: "used_by_slug",
+          });
+        }
+      }
+    }
+
+    // BehaviorTargets (NEW)
+    for (const target of behaviorTargets) {
+      const paramUuid = paramIdToUuid.get(target.parameterId);
+      const targetLabel = `${target.targetValue?.toFixed(1) || "?"} (${target.scope})`;
+
+      addNode({
+        id: `target:${target.id}`,
+        label: targetLabel,
+        type: "behaviorTarget",
+        details: [
+          { label: "Target Value", value: target.targetValue },
+          { label: "Scope", value: target.scope },
+          { label: "Confidence", value: target.confidence },
+          { label: "Source", value: target.source },
+          { label: "Parameter", value: target.parameterId },
+        ].filter(d => d.value !== null && d.value !== undefined),
+      });
+
+      // Edge: parameter -> behaviorTarget
+      if (paramUuid) {
+        edges.push({
+          from: `param:${paramUuid}`,
+          to: `target:${target.id}`,
+          type: "has_target",
+        });
+      }
+
+      // Edge: playbook -> behaviorTarget (if scoped to playbook)
+      if (target.playbookId) {
+        edges.push({
+          from: `playbook:${target.playbookId}`,
+          to: `target:${target.id}`,
+          type: "defines_target",
+        });
+      }
     }
 
 
@@ -281,15 +506,15 @@ export async function GET(request: NextRequest) {
 
 
     // Detect orphan nodes (nodes with no edges)
-    // Only flag top-level types as orphans (specs, parameters, playbooks, domains, tags)
-    // Child types (triggers, actions, anchors) are always connected to their parents
+    // Only flag top-level types as orphans (specs, parameters, playbooks, domains, promptSlugs)
+    // Child types (triggers, actions, anchors, ranges, targets) are always connected to their parents
     const connectedNodeIds = new Set<string>();
     for (const edge of edges) {
       connectedNodeIds.add(edge.from);
       connectedNodeIds.add(edge.to);
     }
 
-    const orphanTypes = new Set<NodeType>(["spec", "parameter", "playbook", "domain"]);
+    const orphanTypes = new Set<NodeType>(["spec", "parameter", "playbook", "domain", "promptSlug"]);
     const orphanCounts: Record<string, number> = {};
 
     for (const node of nodes) {
@@ -353,6 +578,8 @@ export async function GET(request: NextRequest) {
           parameters: parameters.length,
           playbooks: playbooks.length,
           domains: domains.length,
+          promptSlugs: promptSlugs.length,
+          behaviorTargets: behaviorTargets.length,
         },
       },
       orphans: {

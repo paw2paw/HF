@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEntityContext } from "@/contexts/EntityContext";
+import {
+  TreeNode,
+  ExplorerTreeNode,
+  useTreeKeyboardNavigation,
+  collectAllNodeIds,
+} from "@/components/shared/ExplorerTree";
+import { FancySelect } from "@/components/shared/FancySelect";
+import { DraggableTabs } from "@/components/shared/DraggableTabs";
+import { SpecPill, ParameterPill, DomainPill, StatusBadge } from "@/src/components/shared/EntityPill";
 
 type Spec = {
   id: string;
@@ -13,6 +22,55 @@ type Spec = {
   outputType: string;
   specRole: string;
   description: string | null;
+};
+
+type ScoringAnchor = {
+  id: string;
+  score: number;
+  example: string | null;
+  rationale: string | null;
+  isGold: boolean;
+};
+
+type ActionParameter = {
+  parameterId: string;
+  name: string;
+  definition: string | null;
+  scaleType: string | null;
+  interpretationHigh: string | null;
+  interpretationLow: string | null;
+  scoringAnchors: ScoringAnchor[];
+  behaviorTargets?: Array<{
+    id: string;
+    parameterId: string;
+    scope: string;
+    targetValue: number;
+    confidence: number;
+    source: string;
+    playbook?: { id: string; name: string } | null;
+  }>;
+};
+
+type TriggerAction = {
+  id: string;
+  description: string | null;
+  weight: number | null;
+  sortOrder: number;
+  parameterId: string | null;
+  learnCategory: string | null;
+  learnKeyPrefix: string | null;
+  learnKeyHint: string | null;
+  parameter: ActionParameter | null;
+};
+
+type Trigger = {
+  id: string;
+  name: string | null;
+  given: string | null;
+  when: string | null;
+  then: string | null;
+  sortOrder: number;
+  actions: TriggerAction[];
 };
 
 type SpecDetail = {
@@ -35,6 +93,7 @@ type SpecDetail = {
   compiledSetId: string | null;
   createdAt: string;
   updatedAt: string;
+  triggers?: Trigger[];
 };
 
 type FeatureSet = {
@@ -64,32 +123,37 @@ type FeatureSet = {
 const SCOPES = ["SYSTEM", "DOMAIN", "CALLER"] as const;
 const TYPES = ["MEASURE", "LEARN", "ADAPT", "COMPOSE", "AGGREGATE", "REWARD"] as const;
 
-const outputTypeColors: Record<string, { bg: string; text: string }> = {
-  LEARN: { bg: "#ede9fe", text: "#4c1d95" },
-  MEASURE: { bg: "#dcfce7", text: "#14532d" },
-  ADAPT: { bg: "#fef3c7", text: "#78350f" },
-  COMPOSE: { bg: "#fce7f3", text: "#9d174d" },
-  AGGREGATE: { bg: "#e0e7ff", text: "#3730a3" },
-  REWARD: { bg: "#fef9c3", text: "#854d0e" },
+const outputTypeColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
+  MEASURE: { bg: "#dcfce7", text: "#14532d", icon: "📊", desc: "Score caller behavior" },
+  LEARN: { bg: "#ede9fe", text: "#4c1d95", icon: "💾", desc: "Extract memories/facts" },
+  ADAPT: { bg: "#fef3c7", text: "#78350f", icon: "🎯", desc: "Compute behavior targets" },
+  COMPOSE: { bg: "#fce7f3", text: "#9d174d", icon: "✍️", desc: "Build prompt sections" },
+  AGGREGATE: { bg: "#e0e7ff", text: "#3730a3", icon: "📈", desc: "Combine data into profiles" },
+  REWARD: { bg: "#fef9c3", text: "#854d0e", icon: "🏆", desc: "Compute reward signals" },
 };
 
-const scopeColors: Record<string, { bg: string; text: string }> = {
-  SYSTEM: { bg: "#e5e7eb", text: "#1f2937" },
-  DOMAIN: { bg: "#dbeafe", text: "#1e3a8a" },
-  CALLER: { bg: "#fce7f3", text: "#9d174d" },
+const scopeColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
+  SYSTEM: { bg: "#e5e7eb", text: "#1f2937", icon: "⚙️", desc: "Global specs for all callers" },
+  DOMAIN: { bg: "#dbeafe", text: "#1e3a8a", icon: "🏢", desc: "Domain-specific specs" },
+  CALLER: { bg: "#fce7f3", text: "#9d174d", icon: "👤", desc: "Per-caller learned specs" },
 };
 
-const roleColors: Record<string, string> = {
-  IDENTITY: "bg-indigo-100 text-indigo-700",
-  CONTENT: "bg-orange-100 text-orange-700",
-  CONTEXT: "bg-amber-100 text-amber-700",
-  META: "bg-slate-100 text-slate-700",
+const roleColors: Record<string, { bg: string; text: string; label: string; icon: string; desc: string }> = {
+  IDENTITY: { bg: "#dbeafe", text: "#1e40af", label: "Identity", icon: "🎭", desc: "Who the agent is" },
+  CONTENT: { bg: "#d1fae5", text: "#065f46", label: "Content", icon: "📚", desc: "Domain knowledge/curriculum" },
+  VOICE: { bg: "#fef3c7", text: "#92400e", label: "Voice", icon: "🎤", desc: "Voice-specific guidance" },
+  MEASURE: { bg: "#fef9c3", text: "#854d0e", label: "Measure", icon: "📊", desc: "Measurement/scoring specs" },
+  ADAPT: { bg: "#ede9fe", text: "#5b21b6", label: "Adapt", icon: "🔄", desc: "Behavioral adaptation" },
+  REWARD: { bg: "#fce7f3", text: "#9d174d", label: "Reward", icon: "🏆", desc: "Reward computation" },
+  GUARDRAIL: { bg: "#fee2e2", text: "#991b1b", label: "Guardrail", icon: "🛡️", desc: "Safety constraints" },
 };
 
 export default function SpecsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
+  const highlightTriggerId = searchParams.get("trigger");
+  const highlightActionId = searchParams.get("action");
 
   // List state
   const [specs, setSpecs] = useState<Spec[]>([]);
@@ -97,6 +161,7 @@ export default function SpecsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedScopes, setSelectedScopes] = useState<Set<string>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
+  const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
 
   // Detail state
@@ -122,7 +187,124 @@ export default function SpecsPage() {
   const [showPromptGuidance, setShowPromptGuidance] = useState(false);
   const [activeTab, setActiveTab] = useState<"derived" | "source">("derived");
 
+  // Triggers tree state
+  const [showTriggers, setShowTriggers] = useState(true);
+  const [expandedTriggers, setExpandedTriggers] = useState<Set<string>>(new Set());
+  const [expandedActions, setExpandedActions] = useState<Set<string>>(new Set());
+  const highlightedRef = useRef<HTMLDivElement>(null);
+
+  // Explorer tree state
+  const [viewMode, setViewMode] = useState<"list" | "tree">("list");
+  const [explorerTree, setExplorerTree] = useState<TreeNode | null>(null);
+  const [explorerLoading, setExplorerLoading] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [selectedTreeNode, setSelectedTreeNode] = useState<TreeNode | null>(null);
+  const treeContainerRef = useRef<HTMLDivElement>(null);
+
+  // Unimported specs count (for sync badge)
+  const [unimportedCount, setUnimportedCount] = useState<number>(0);
+
   const { pushEntity } = useEntityContext();
+
+  // Toggle functions for triggers tree
+  const toggleTrigger = useCallback((triggerId: string) => {
+    setExpandedTriggers((prev) => {
+      const next = new Set(prev);
+      if (next.has(triggerId)) next.delete(triggerId);
+      else next.add(triggerId);
+      return next;
+    });
+  }, []);
+
+  const toggleAction = useCallback((actionId: string) => {
+    setExpandedActions((prev) => {
+      const next = new Set(prev);
+      if (next.has(actionId)) next.delete(actionId);
+      else next.add(actionId);
+      return next;
+    });
+  }, []);
+
+  // Explorer tree functions
+  const fetchExplorerTree = useCallback(async () => {
+    if (explorerTree) return; // Already loaded
+    setExplorerLoading(true);
+    try {
+      const res = await fetch("/api/specs/tree");
+      const data = await res.json();
+      if (data.ok && data.tree) {
+        setExplorerTree(data.tree);
+        // Auto-expand root and first level
+        const toExpand = new Set<string>();
+        toExpand.add(data.tree.id);
+        data.tree.children?.forEach((child: TreeNode) => {
+          toExpand.add(child.id);
+        });
+        setExpandedNodes(toExpand);
+        setSelectedTreeNode(data.tree);
+      }
+    } catch (err) {
+      console.error("Error fetching specs tree:", err);
+    } finally {
+      setExplorerLoading(false);
+    }
+  }, [explorerTree]);
+
+  const toggleNodeExpand = useCallback((id: string) => {
+    setExpandedNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const expandAllNodes = useCallback(() => {
+    if (!explorerTree) return;
+    setExpandedNodes(collectAllNodeIds(explorerTree));
+  }, [explorerTree]);
+
+  const collapseAllNodes = useCallback(() => {
+    if (!explorerTree) return;
+    setExpandedNodes(new Set([explorerTree.id]));
+  }, [explorerTree]);
+
+  // Handle tree node double-click - navigate to spec
+  const handleTreeDoubleClick = useCallback(
+    (node: TreeNode) => {
+      if (node.type === "spec" && node.meta?.specId) {
+        router.push(`/x/specs?id=${node.meta.specId}`, { scroll: false });
+      }
+    },
+    [router]
+  );
+
+  // Keyboard navigation for tree
+  const { handleKeyDown: handleTreeKeyDown } = useTreeKeyboardNavigation({
+    root: explorerTree,
+    expandedNodes,
+    selectedNode: selectedTreeNode,
+    onToggleExpand: toggleNodeExpand,
+    onSelectNode: setSelectedTreeNode,
+  });
+
+  // Fetch tree when switching to tree view
+  useEffect(() => {
+    if (viewMode === "tree" && !explorerTree) {
+      fetchExplorerTree();
+    }
+  }, [viewMode, explorerTree, fetchExplorerTree]);
+
+  // Helper for score colors
+  const getScoreColor = (score: number): string => {
+    if (score >= 4) return "bg-green-100 text-green-700";
+    if (score >= 3) return "bg-yellow-100 text-yellow-700";
+    if (score >= 2) return "bg-orange-100 text-orange-700";
+    return "bg-red-100 text-red-700";
+  };
 
   // Fetch list
   useEffect(() => {
@@ -136,6 +318,20 @@ export default function SpecsPage() {
       .catch((e) => {
         setError(e.message);
         setLoading(false);
+      });
+  }, []);
+
+  // Fetch unimported specs count for sync badge
+  useEffect(() => {
+    fetch("/api/admin/spec-sync")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.unseeded) {
+          setUnimportedCount(data.unseeded.length);
+        }
+      })
+      .catch(() => {
+        // Silently fail - badge just won't show
       });
   }, []);
 
@@ -187,6 +383,37 @@ export default function SpecsPage() {
       });
   }, [selectedId, pushEntity]);
 
+  // Auto-expand and scroll to highlighted trigger/action when coming from graph
+  useEffect(() => {
+    if (!spec?.triggers) return;
+
+    // If we have a trigger or action to highlight, expand and scroll
+    if (highlightTriggerId || highlightActionId) {
+      setShowTriggers(true);
+
+      // Find the trigger containing the highlighted action (if action is specified)
+      if (highlightActionId) {
+        for (const trigger of spec.triggers) {
+          const action = trigger.actions.find((a) => a.id === highlightActionId);
+          if (action) {
+            // Expand both the trigger and the action
+            setExpandedTriggers((prev) => new Set(prev).add(trigger.id));
+            setExpandedActions((prev) => new Set(prev).add(highlightActionId));
+            break;
+          }
+        }
+      } else if (highlightTriggerId) {
+        // Just expand the trigger
+        setExpandedTriggers((prev) => new Set(prev).add(highlightTriggerId));
+      }
+
+      // Scroll to highlighted element after a brief delay for DOM to update
+      setTimeout(() => {
+        highlightedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, [spec, highlightTriggerId, highlightActionId]);
+
   const toggleScope = (scope: string) => {
     setSelectedScopes((prev) => {
       const next = new Set(prev);
@@ -205,9 +432,21 @@ export default function SpecsPage() {
     });
   };
 
+  const toggleRole = (role: string) => {
+    setSelectedRoles((prev) => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+  };
+
+  const ROLES = Object.keys(roleColors);
+
   const filteredSpecs = specs.filter((s) => {
     if (selectedScopes.size > 0 && !selectedScopes.has(s.scope)) return false;
     if (selectedTypes.size > 0 && !selectedTypes.has(s.outputType)) return false;
+    if (selectedRoles.size > 0 && !selectedRoles.has(s.specRole)) return false;
     if (search) {
       const q = search.toLowerCase();
       return s.name.toLowerCase().includes(q) || s.slug.toLowerCase().includes(q);
@@ -373,46 +612,59 @@ export default function SpecsPage() {
     isActive,
     colors,
     onClick,
+    icon,
+    tooltip,
   }: {
     label: string;
     isActive: boolean;
     colors: { bg: string; text: string };
     onClick: () => void;
+    icon?: string;
+    tooltip?: string;
   }) => (
     <button
       onClick={onClick}
+      title={tooltip}
       style={{
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 600,
-        border: isActive ? `1px solid ${colors.text}40` : "1px solid #e5e7eb",
+        border: isActive ? `1px solid ${colors.text}40` : "1px solid var(--border-default)",
         borderRadius: 5,
         cursor: "pointer",
-        background: isActive ? colors.bg : "#f9fafb",
-        color: isActive ? colors.text : "#9ca3af",
+        background: isActive ? colors.bg : "var(--surface-secondary)",
+        color: isActive ? colors.text : "var(--text-placeholder)",
         transition: "all 0.15s",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
       }}
     >
+      {icon && <span>{icon}</span>}
       {label}
     </button>
   );
 
-  const MiniBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "2px 6px",
-        fontSize: 9,
-        fontWeight: 600,
-        border: "1px solid #d1d5db",
-        borderRadius: 4,
-        cursor: "pointer",
-        background: "#fff",
-        color: "#6b7280",
-      }}
-    >
-      {label}
-    </button>
+  const ClearBtn = ({ onClick, show }: { onClick: () => void; show: boolean }) => (
+    show ? (
+      <button
+        onClick={onClick}
+        style={{
+          padding: "0 4px",
+          fontSize: 12,
+          fontWeight: 400,
+          border: "none",
+          borderRadius: 3,
+          cursor: "pointer",
+          background: "transparent",
+          color: "var(--text-placeholder)",
+          lineHeight: 1,
+        }}
+        title="Clear filter"
+      >
+        ×
+      </button>
+    ) : null
   );
 
   const isMeasureSpec = spec?.outputType === "MEASURE";
@@ -425,15 +677,15 @@ export default function SpecsPage() {
       {/* Header */}
       <div
         style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          border: "1px solid var(--border-default)",
           borderRadius: 8,
           padding: "12px 16px",
           marginBottom: 16,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0 }}>Analysis Specs</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Analysis Specs</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <input
               type="text"
@@ -442,19 +694,70 @@ export default function SpecsPage() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 padding: "6px 10px",
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--input-border)",
                 borderRadius: 6,
                 width: 160,
                 fontSize: 12,
               }}
             />
             <Link
+              href="/x/specs/new"
+              style={{
+                padding: "6px 12px",
+                background: "var(--accent-primary)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                fontWeight: 500,
+                fontSize: 12,
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              + New Spec
+            </Link>
+            {unimportedCount > 0 && (
+              <Link
+                href="/x/admin/spec-sync"
+                style={{
+                  padding: "4px 10px",
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  border: "1px solid #fcd34d",
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  fontSize: 11,
+                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                }}
+                title={`${unimportedCount} spec${unimportedCount === 1 ? "" : "s"} found in bdd-specs/ folder but not imported to database`}
+              >
+                <span
+                  style={{
+                    background: "#f59e0b",
+                    color: "#fff",
+                    borderRadius: 10,
+                    padding: "1px 6px",
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  {unimportedCount}
+                </span>
+                Sync
+              </Link>
+            )}
+            <Link
               href="/x/spec-schema"
               style={{
                 padding: "6px 12px",
-                background: "#f3f4f6",
-                color: "#374151",
-                border: "1px solid #d1d5db",
+                background: "var(--surface-secondary)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--input-border)",
                 borderRadius: 6,
                 fontWeight: 500,
                 fontSize: 12,
@@ -469,144 +772,320 @@ export default function SpecsPage() {
           </div>
         </div>
 
-        {/* Scope Filter Row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, minWidth: 40 }}>Scope</span>
-          <MiniBtn label="ALL" onClick={() => setSelectedScopes(new Set(SCOPES))} />
-          <MiniBtn label="CLR" onClick={() => setSelectedScopes(new Set())} />
-          <div style={{ width: 1, height: 16, background: "#e5e7eb", margin: "0 4px" }} />
-          {SCOPES.map((scope) => (
-            <FilterPill
-              key={scope}
-              label={scope}
-              isActive={selectedScopes.has(scope)}
-              colors={scopeColors[scope]}
-              onClick={() => toggleScope(scope)}
-            />
-          ))}
-          <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>
-            {selectedScopes.size === 0 ? "all" : selectedScopes.size}
-          </span>
-        </div>
+        {/* Filters */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+          {/* Scope */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by specification scope">Scope</span>
+            <ClearBtn onClick={() => setSelectedScopes(new Set())} show={selectedScopes.size > 0} />
+            <div style={{ display: "flex", gap: 4 }}>
+              {SCOPES.map((scope) => {
+                const config = scopeColors[scope];
+                return (
+                  <FilterPill
+                    key={scope}
+                    label={scope}
+                    icon={config.icon}
+                    tooltip={config.desc}
+                    isActive={selectedScopes.has(scope)}
+                    colors={config}
+                    onClick={() => toggleScope(scope)}
+                  />
+                );
+              })}
+            </div>
+          </div>
 
-        {/* Type Filter Row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, minWidth: 40 }}>Type</span>
-          <MiniBtn label="ALL" onClick={() => setSelectedTypes(new Set(TYPES))} />
-          <MiniBtn label="CLR" onClick={() => setSelectedTypes(new Set())} />
-          <div style={{ width: 1, height: 16, background: "#e5e7eb", margin: "0 4px" }} />
-          {TYPES.map((type) => (
-            <FilterPill
-              key={type}
-              label={type}
-              isActive={selectedTypes.has(type)}
-              colors={outputTypeColors[type]}
-              onClick={() => toggleType(type)}
-            />
-          ))}
-          <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>
-            {selectedTypes.size === 0 ? "all" : selectedTypes.size}
+          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+
+          {/* Type */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by output type">Type</span>
+            <ClearBtn onClick={() => setSelectedTypes(new Set())} show={selectedTypes.size > 0} />
+            <div style={{ display: "flex", gap: 4 }}>
+              {TYPES.map((type) => {
+                const config = outputTypeColors[type];
+                return (
+                  <FilterPill
+                    key={type}
+                    label={type}
+                    icon={config.icon}
+                    tooltip={config.desc}
+                    isActive={selectedTypes.has(type)}
+                    colors={config}
+                    onClick={() => toggleType(type)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+
+          {/* Role */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by spec role">Role</span>
+            <ClearBtn onClick={() => setSelectedRoles(new Set())} show={selectedRoles.size > 0} />
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {ROLES.map((role) => {
+                const config = roleColors[role as keyof typeof roleColors];
+                const count = specs.filter(s => s.specRole === role).length;
+                if (count === 0) return null;
+                return (
+                  <FilterPill
+                    key={role}
+                    label={String(count)}
+                    icon={config.icon}
+                    tooltip={`${config.label}: ${config.desc}`}
+                    isActive={selectedRoles.has(role)}
+                    colors={{ bg: config.bg, text: config.text }}
+                    onClick={() => toggleRole(role)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Results count */}
+          <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: "auto", alignSelf: "center" }}>
+            {filteredSpecs.length} of {specs.length}
           </span>
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: "#fef2f2", color: "#dc2626", borderRadius: 8, marginBottom: 20 }}>
+        <div style={{ padding: 16, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
           {error}
         </div>
       )}
 
       {/* Master-Detail Layout */}
       <div style={{ display: "flex", gap: 16, minHeight: "calc(100vh - 220px)" }}>
-        {/* List Panel */}
-        <div style={{ width: 340, flexShrink: 0, overflowY: "auto" }}>
-          {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading...</div>
-          ) : filteredSpecs.length === 0 ? (
-            <div
-              style={{
-                padding: 40,
-                textAlign: "center",
-                background: "#f3f4f6",
-                borderRadius: 12,
-                border: "1px solid #d1d5db",
-              }}
-            >
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
-                {search || selectedScopes.size > 0 || selectedTypes.size > 0 ? "No specs match filters" : "No specs yet"}
-              </div>
+        {/* List/Tree Panel */}
+        <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column" }}>
+          {/* View Toggle Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "8px 12px",
+              background: "var(--surface-secondary)",
+              border: "1px solid var(--border-default)",
+              borderRadius: "8px 8px 0 0",
+              borderBottom: "none",
+            }}
+          >
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                onClick={() => setViewMode("list")}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: viewMode === "list" ? "1px solid var(--accent-primary)" : "1px solid var(--input-border)",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  background: viewMode === "list" ? "var(--surface-selected)" : "var(--surface-primary)",
+                  color: viewMode === "list" ? "var(--accent-primary)" : "var(--text-muted)",
+                }}
+              >
+                ☰ List
+              </button>
+              <button
+                onClick={() => setViewMode("tree")}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: viewMode === "tree" ? "1px solid var(--accent-primary)" : "1px solid var(--input-border)",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  background: viewMode === "tree" ? "var(--surface-selected)" : "var(--surface-primary)",
+                  color: viewMode === "tree" ? "var(--accent-primary)" : "var(--text-muted)",
+                }}
+              >
+                🌳 Tree
+              </button>
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filteredSpecs.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => selectSpec(s.id)}
+            {viewMode === "tree" && explorerTree && (
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  onClick={expandAllNodes}
                   style={{
-                    background: selectedId === s.id ? "#eef2ff" : "#fff",
-                    border: selectedId === s.id ? "1px solid #4f46e5" : "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    padding: 12,
+                    padding: "2px 6px",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    border: "1px solid var(--input-border)",
+                    borderRadius: 4,
                     cursor: "pointer",
-                    transition: "border-color 0.15s, box-shadow 0.15s",
+                    background: "var(--surface-primary)",
+                    color: "var(--text-muted)",
                   }}
+                  title="Expand All"
                 >
-                  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: "2px 6px",
-                        background: scopeColors[s.scope]?.bg,
-                        color: scopeColors[s.scope]?.text,
-                        borderRadius: 4,
-                      }}
-                    >
-                      {s.scope}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: "2px 6px",
-                        background: outputTypeColors[s.outputType]?.bg || "#e5e7eb",
-                        color: outputTypeColors[s.outputType]?.text || "#374151",
-                        borderRadius: 4,
-                      }}
-                    >
-                      {s.outputType}
-                    </span>
+                  [+]
+                </button>
+                <button
+                  onClick={collapseAllNodes}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    border: "1px solid var(--input-border)",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    background: "var(--surface-primary)",
+                    color: "var(--text-muted)",
+                  }}
+                  title="Collapse All"
+                >
+                  [-]
+                </button>
+              </div>
+            )}
+            {viewMode === "list" && (
+              <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
+                {filteredSpecs.length} specs
+              </span>
+            )}
+          </div>
+
+          {/* Content Area */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+              borderRadius: "0 0 8px 8px",
+              padding: viewMode === "tree" ? 8 : 0,
+            }}
+          >
+            {viewMode === "list" ? (
+              // List View
+              <>
+                {loading ? (
+                  <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+                ) : filteredSpecs.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 40,
+                      textAlign: "center",
+                      background: "var(--surface-secondary)",
+                      borderRadius: 12,
+                      margin: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+                      {search || selectedScopes.size > 0 || selectedTypes.size > 0 ? "No specs match filters" : "No specs yet"}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 2 }}>{s.name}</div>
-                  <div style={{ fontSize: 11, color: "#6b7280", fontFamily: "monospace" }}>{s.slug}</div>
-                </div>
-              ))}
-            </div>
-          )}
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 8 }}>
+                    {filteredSpecs.map((s) => (
+                      <div
+                        key={s.id}
+                        onClick={() => selectSpec(s.id)}
+                        style={{
+                          background: selectedId === s.id ? "var(--surface-selected)" : "var(--surface-primary)",
+                          border: selectedId === s.id ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                          borderRadius: 8,
+                          padding: 12,
+                          cursor: "pointer",
+                          transition: "border-color 0.15s, box-shadow 0.15s",
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: "2px 6px",
+                              background: scopeColors[s.scope]?.bg,
+                              color: scopeColors[s.scope]?.text,
+                              borderRadius: 4,
+                            }}
+                          >
+                            {s.scope}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: "2px 6px",
+                              background: outputTypeColors[s.outputType]?.bg || "#e5e7eb",
+                              color: outputTypeColors[s.outputType]?.text || "#374151",
+                              borderRadius: 4,
+                            }}
+                          >
+                            {s.outputType}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{s.name}</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              // Tree View
+              <>
+                {explorerLoading ? (
+                  <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading tree...</div>
+                ) : !explorerTree ? (
+                  <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Failed to load tree</div>
+                ) : (
+                  <div
+                    ref={treeContainerRef}
+                    tabIndex={0}
+                    onKeyDown={handleTreeKeyDown}
+                    onFocus={() => {
+                      if (!selectedTreeNode && explorerTree) {
+                        setSelectedTreeNode(explorerTree);
+                      }
+                    }}
+                    style={{ outline: "none", minHeight: "100%" }}
+                  >
+                    <ExplorerTreeNode
+                      node={explorerTree}
+                      depth={0}
+                      expandedNodes={expandedNodes}
+                      selectedNode={selectedTreeNode}
+                      onToggle={toggleNodeExpand}
+                      onSelect={setSelectedTreeNode}
+                      onDoubleClick={handleTreeDoubleClick}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Detail Panel */}
-        <div style={{ flex: 1, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 20, overflowY: "auto" }}>
+        <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 20, overflowY: "auto" }}>
           {!selectedId ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#9ca3af" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-placeholder)" }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
                 <div style={{ fontSize: 14 }}>Select a spec to view details</div>
               </div>
             </div>
           ) : detailLoading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading spec...</div>
+            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading spec...</div>
           ) : detailError || !spec ? (
-            <div style={{ padding: 20, background: "#fef2f2", color: "#dc2626", borderRadius: 8 }}>
+            <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
               {detailError || "Spec not found"}
             </div>
           ) : (
             <>
               {/* Detail Header */}
               <div style={{ marginBottom: 20 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 }}>{spec.name}</h2>
-                <div style={{ fontSize: 12, color: "#6b7280", fontFamily: "monospace", marginTop: 4 }}>{spec.slug}</div>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{spec.name}</h2>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace", marginTop: 4 }}>{spec.slug}</div>
               </div>
 
               {/* Badges */}
@@ -633,15 +1112,19 @@ export default function SpecsPage() {
                 >
                   {spec.outputType}
                 </span>
-                {spec.specRole && (
-                  <span className={`text-xs px-2 py-1 rounded ${roleColors[spec.specRole] || "bg-neutral-100"}`}>
-                    {spec.specRole}
+                {spec.specRole && roleColors[spec.specRole] && (
+                  <span style={{
+                    fontSize: 11,
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    background: roleColors[spec.specRole].bg,
+                    color: roleColors[spec.specRole].text,
+                  }}>
+                    {roleColors[spec.specRole].icon} {roleColors[spec.specRole].label}
                   </span>
                 )}
                 {spec.domain && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#cffafe", color: "#0e7490" }}>
-                    {spec.domain}
-                  </span>
+                  <DomainPill label={spec.domain} size="compact" />
                 )}
                 {featureSet && (
                   <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#d1fae5", color: "#065f46" }}>
@@ -654,21 +1137,41 @@ export default function SpecsPage() {
                   </span>
                 )}
                 {!spec.isActive && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#f3f4f6", color: "#6b7280" }}>
+                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
                     Inactive
                   </span>
                 )}
+                {/* View in Graph Button */}
+                <Link
+                  href={`/x/taxonomy-graph?focus=spec/${spec.slug}`}
+                  style={{
+                    fontSize: 11,
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    border: "1px solid var(--border-primary)",
+                    background: "var(--surface-secondary)",
+                    color: "var(--text-primary)",
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    marginLeft: "auto",
+                  }}
+                  title="View this spec in the taxonomy graph visualizer"
+                >
+                  🌌 Graph
+                </Link>
               </div>
 
               {spec.description && (
-                <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, marginBottom: 20, fontSize: 13, color: "#4b5563" }}>
+                <div style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12, marginBottom: 20, fontSize: 13, color: "var(--text-secondary)" }}>
                   {spec.description}
                 </div>
               )}
 
               {/* Data Flow Overview */}
               {featureSet && (
-                <div style={{ background: "linear-gradient(to right, #eff6ff, #eef2ff)", border: "1px solid #bfdbfe", borderRadius: 8, padding: 12, marginBottom: 20 }}>
+                <div style={{ background: "linear-gradient(to right, #eff6ff, var(--surface-selected))", border: "1px solid #bfdbfe", borderRadius: 8, padding: 12, marginBottom: 20 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#1e3a8a", marginBottom: 8 }}>Data Flow</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexWrap: "wrap" }}>
                     <span style={{ background: "#dbeafe", color: "#1e40af", padding: "3px 8px", borderRadius: 4, fontFamily: "monospace" }}>
@@ -682,7 +1185,7 @@ export default function SpecsPage() {
                     <span style={{ background: "#e0e7ff", color: "#3730a3", padding: "3px 8px", borderRadius: 4 }}>
                       AnalysisSpec
                     </span>
-                    <span style={{ color: "#9ca3af", marginLeft: 8 }}>
+                    <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
                       ({featureSet.parameterCount} params, {featureSet.constraintCount} constraints)
                     </span>
                   </div>
@@ -690,79 +1193,45 @@ export default function SpecsPage() {
               )}
 
               {/* Tabs */}
-              <div style={{ borderBottom: "1px solid #e5e7eb", marginBottom: 20 }}>
-                <div style={{ display: "flex", gap: 16 }}>
-                  <button
-                    onClick={() => setActiveTab("derived")}
-                    style={{
-                      padding: "8px 0",
-                      background: "none",
-                      border: "none",
-                      borderBottom: activeTab === "derived" ? "2px solid #4f46e5" : "2px solid transparent",
-                      color: activeTab === "derived" ? "#4f46e5" : "#6b7280",
-                      fontWeight: activeTab === "derived" ? 600 : 400,
-                      fontSize: 13,
-                      cursor: "pointer",
-                      marginBottom: -1,
-                    }}
-                  >
-                    Derived Output
-                  </button>
-                  {featureSet && (
-                    <button
-                      onClick={() => setActiveTab("source")}
-                      style={{
-                        padding: "8px 0",
-                        background: "none",
-                        border: "none",
-                        borderBottom: activeTab === "source" ? "2px solid #4f46e5" : "2px solid transparent",
-                        color: activeTab === "source" ? "#4f46e5" : "#6b7280",
-                        fontWeight: activeTab === "source" ? 600 : 400,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        marginBottom: -1,
-                      }}
-                    >
-                      Source Spec
-                    </button>
-                  )}
-                </div>
-              </div>
+              <DraggableTabs
+                storageKey={`spec-detail-tabs-${spec.id}`}
+                tabs={[
+                  { id: "derived", label: "Derived Output" },
+                  ...(featureSet ? [{ id: "source", label: "Source Spec" }] : []),
+                ]}
+                activeTab={activeTab}
+                onTabChange={(id) => setActiveTab(id as "derived" | "source")}
+                containerStyle={{ marginBottom: 20 }}
+              />
 
               {activeTab === "derived" && (
                 <>
                   {/* Spec Role Selector */}
                   <div style={{ marginBottom: 20 }}>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}>
                       Spec Role
                     </label>
-                    <select
+                    <FancySelect
                       value={specRole}
-                      onChange={(e) => handleSpecRoleChange(e.target.value)}
+                      onChange={handleSpecRoleChange}
                       disabled={spec.isLocked}
-                      style={{
-                        width: "100%",
-                        maxWidth: 300,
-                        padding: "8px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: 6,
-                        fontSize: 13,
-                        background: spec.isLocked ? "#f3f4f6" : "#fff",
-                      }}
-                    >
-                      <option value="">None</option>
-                      <option value="IDENTITY">IDENTITY (who the agent is)</option>
-                      <option value="CONTENT">CONTENT (domain knowledge)</option>
-                      <option value="CONTEXT">CONTEXT (caller-specific)</option>
-                      <option value="META">META (legacy)</option>
-                    </select>
+                      searchable={false}
+                      style={{ maxWidth: 300 }}
+                      options={[
+                        { value: "", label: "None" },
+                        { value: "IDENTITY", label: "IDENTITY", subtitle: "who the agent is" },
+                        { value: "CONTENT", label: "CONTENT", subtitle: "domain knowledge" },
+                        { value: "CONTEXT", label: "CONTEXT", subtitle: "caller-specific" },
+                        { value: "META", label: "META", subtitle: "legacy" },
+                      ]}
+                    />
                   </div>
 
                   {/* Prompt Template */}
                   {(isMeasureSpec || hasPromptTemplate) && (
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>
+                        <label style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
                           Compiled Prompt Template
                           {isMeasureSpec && (
                             <span style={{ marginLeft: 8, fontSize: 10, background: "#dcfce7", color: "#166534", padding: "2px 6px", borderRadius: 4 }}>
@@ -770,7 +1239,7 @@ export default function SpecsPage() {
                             </span>
                           )}
                         </label>
-                        <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                        <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>
                           {promptTemplate.length.toLocaleString()} chars
                         </span>
                       </div>
@@ -783,10 +1252,10 @@ export default function SpecsPage() {
                           width: "100%",
                           fontFamily: "monospace",
                           fontSize: 11,
-                          border: "1px solid #d1d5db",
+                          border: "1px solid var(--input-border)",
                           borderRadius: 8,
                           padding: 12,
-                          background: spec.isLocked ? "#f3f4f6" : "#fff",
+                          background: spec.isLocked ? "var(--surface-disabled)" : "var(--surface-primary)",
                           resize: "vertical",
                         }}
                         placeholder="Compiled prompt template..."
@@ -798,7 +1267,7 @@ export default function SpecsPage() {
                   {(!isMeasureSpec || hasRichConfig) && (
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>
+                        <label style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
                           Config (JSON)
                           {isIdentityOrContent && (
                             <span style={{ marginLeft: 8, fontSize: 10, background: "#e0e7ff", color: "#3730a3", padding: "2px 6px", borderRadius: 4 }}>
@@ -823,16 +1292,17 @@ export default function SpecsPage() {
                             width: "100%",
                             fontFamily: "monospace",
                             fontSize: 11,
-                            border: configError ? "1px solid #fca5a5" : "1px solid #d1d5db",
+                            border: configError ? "1px solid var(--status-error-border)" : "1px solid var(--border-default)",
                             borderRadius: 8,
                             padding: 12,
-                            background: configError ? "#fef2f2" : spec.isLocked ? "#f3f4f6" : "#fff",
+                            color: "var(--text-primary)",
+                            background: configError ? "var(--status-error-bg)" : spec.isLocked ? "var(--surface-disabled)" : "var(--surface-primary)",
                             resize: "vertical",
                           }}
                           placeholder="{}"
                         />
                         {configError && (
-                          <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, background: "#fee2e2", color: "#b91c1c", fontSize: 11, padding: 8, borderRadius: 4 }}>
+                          <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, background: "var(--status-error-bg)", color: "var(--status-error-text)", fontSize: 11, padding: 8, borderRadius: 4 }}>
                             JSON Error: {configError}
                           </div>
                         )}
@@ -852,8 +1322,8 @@ export default function SpecsPage() {
                         fontSize: 13,
                         border: "none",
                         cursor: saving || spec.isLocked || !hasChanges ? "not-allowed" : "pointer",
-                        background: saving || spec.isLocked || !hasChanges ? "#e5e7eb" : "#4f46e5",
-                        color: saving || spec.isLocked || !hasChanges ? "#9ca3af" : "#fff",
+                        background: saving || spec.isLocked || !hasChanges ? "var(--surface-disabled)" : "var(--accent-primary)",
+                        color: saving || spec.isLocked || !hasChanges ? "var(--text-placeholder)" : "#fff",
                       }}
                     >
                       {saving ? "Saving..." : "Save Changes"}
@@ -869,8 +1339,8 @@ export default function SpecsPage() {
                           fontSize: 13,
                           border: "none",
                           cursor: recompiling || spec.isLocked ? "not-allowed" : "pointer",
-                          background: recompiling || spec.isLocked ? "#e5e7eb" : "#d97706",
-                          color: recompiling || spec.isLocked ? "#9ca3af" : "#fff",
+                          background: recompiling || spec.isLocked ? "var(--surface-disabled)" : "#d97706",
+                          color: recompiling || spec.isLocked ? "var(--text-placeholder)" : "#fff",
                         }}
                       >
                         {recompiling ? "Recompiling..." : "Recompile from Source"}
@@ -887,8 +1357,8 @@ export default function SpecsPage() {
                           fontSize: 13,
                           border: "none",
                           cursor: exporting || spec.isLocked ? "not-allowed" : "pointer",
-                          background: exporting || spec.isLocked ? "#e5e7eb" : "#dc2626",
-                          color: exporting || spec.isLocked ? "#9ca3af" : "#fff",
+                          background: exporting || spec.isLocked ? "var(--surface-disabled)" : "#dc2626",
+                          color: exporting || spec.isLocked ? "var(--text-placeholder)" : "#fff",
                         }}
                         title="Writes config parameters back to the .spec.json file on disk, then re-seeds the full pipeline"
                       >
@@ -896,14 +1366,400 @@ export default function SpecsPage() {
                       </button>
                     )}
                     {saveMessage && (
-                      <span style={{ fontSize: 12, color: saveMessage.type === "success" ? "#16a34a" : "#dc2626" }}>
+                      <span style={{ fontSize: 12, color: saveMessage.type === "success" ? "var(--status-success-text)" : "var(--status-error-text)" }}>
                         {saveMessage.text}
                       </span>
                     )}
                     {hasChanges && !saveMessage && (
-                      <span style={{ fontSize: 12, color: "#d97706" }}>Unsaved changes</span>
+                      <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>Unsaved changes</span>
                     )}
                   </div>
+
+                  {/* Triggers Tree */}
+                  {spec.triggers && spec.triggers.length > 0 && (
+                    <div style={{ marginTop: 24, borderTop: "1px solid var(--border-default)", paddingTop: 20 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                        <button
+                          onClick={() => setShowTriggers(!showTriggers)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "var(--text-secondary)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span>{showTriggers ? "▼" : "▶"}</span>
+                          Triggers ({spec.triggers.length})
+                        </button>
+                        {showTriggers && (
+                          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+                            <button
+                              onClick={() => {
+                                const allTriggerIds = new Set(spec.triggers!.map((t) => t.id));
+                                const allActionIds = new Set(spec.triggers!.flatMap((t) => t.actions.map((a) => a.id)));
+                                setExpandedTriggers(allTriggerIds);
+                                setExpandedActions(allActionIds);
+                              }}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: 4,
+                                border: "none",
+                                fontSize: 11,
+                                color: "var(--text-muted)",
+                                background: "transparent",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Expand All
+                            </button>
+                            <button
+                              onClick={() => {
+                                setExpandedTriggers(new Set());
+                                setExpandedActions(new Set());
+                              }}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: 4,
+                                border: "none",
+                                fontSize: 11,
+                                color: "var(--text-muted)",
+                                background: "transparent",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Collapse All
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {showTriggers && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          {spec.triggers.map((trigger, tIdx) => {
+                            const isHighlightedTrigger = trigger.id === highlightTriggerId;
+                            const hasHighlightedAction = trigger.actions.some((a) => a.id === highlightActionId);
+
+                            return (
+                              <div
+                                key={trigger.id}
+                                ref={isHighlightedTrigger && !highlightActionId ? highlightedRef : undefined}
+                                style={{
+                                  border: isHighlightedTrigger ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                                  borderRadius: 8,
+                                  background: isHighlightedTrigger ? "var(--surface-selected)" : "var(--surface-primary)",
+                                  transition: "border-color 0.3s, background-color 0.3s",
+                                }}
+                              >
+                                <div
+                                  onClick={() => toggleTrigger(trigger.id)}
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    padding: 12,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ fontWeight: 500, color: "var(--text-primary)", fontSize: 13 }}>
+                                      Trigger {tIdx + 1}: {trigger.name || "Unnamed"}
+                                    </div>
+                                    <div style={{ marginTop: 2, fontSize: 11, color: "var(--text-muted)" }}>
+                                      {trigger.actions.length} action{trigger.actions.length !== 1 ? "s" : ""}
+                                    </div>
+                                  </div>
+                                  <span style={{ color: "var(--text-placeholder)" }}>
+                                    {expandedTriggers.has(trigger.id) ? "▾" : "▸"}
+                                  </span>
+                                </div>
+
+                                {expandedTriggers.has(trigger.id) && (
+                                  <div style={{ borderTop: "1px solid var(--border-default)", padding: 12 }}>
+                                    {/* Given/When/Then */}
+                                    <div
+                                      style={{
+                                        marginBottom: 12,
+                                        padding: 10,
+                                        background: "var(--surface-secondary)",
+                                        borderRadius: 6,
+                                        fontFamily: "monospace",
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      {trigger.given && (
+                                        <div style={{ marginBottom: 4 }}>
+                                          <span style={{ fontWeight: 600, color: "#7c3aed" }}>Given</span>{" "}
+                                          <span style={{ color: "var(--text-primary)" }}>{trigger.given}</span>
+                                        </div>
+                                      )}
+                                      {trigger.when && (
+                                        <div style={{ marginBottom: 4 }}>
+                                          <span style={{ fontWeight: 600, color: "#2563eb" }}>When</span>{" "}
+                                          <span style={{ color: "var(--text-primary)" }}>{trigger.when}</span>
+                                        </div>
+                                      )}
+                                      {trigger.then && (
+                                        <div>
+                                          <span style={{ fontWeight: 600, color: "#16a34a" }}>Then</span>{" "}
+                                          <span style={{ color: "var(--text-primary)" }}>{trigger.then}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                      {trigger.actions.map((action, aIdx) => {
+                                        const isHighlightedAction = action.id === highlightActionId;
+
+                                        return (
+                                          <div
+                                            key={action.id}
+                                            ref={isHighlightedAction ? highlightedRef : undefined}
+                                            style={{
+                                              border: isHighlightedAction ? "2px solid var(--accent-secondary)" : "1px solid var(--border-default)",
+                                              borderRadius: 6,
+                                              background: isHighlightedAction ? "var(--surface-selected)" : "var(--surface-primary)",
+                                              transition: "border-color 0.3s, background-color 0.3s",
+                                            }}
+                                          >
+                                            <div
+                                              onClick={() => toggleAction(action.id)}
+                                              style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                padding: 10,
+                                                cursor: "pointer",
+                                              }}
+                                            >
+                                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <span
+                                                  style={{
+                                                    fontSize: 10,
+                                                    fontWeight: 600,
+                                                    padding: "2px 6px",
+                                                    borderRadius: 4,
+                                                    background:
+                                                      spec.outputType === "LEARN" ? "#fef3c7" : "#e0e7ff",
+                                                    color:
+                                                      spec.outputType === "LEARN" ? "#92400e" : "#3730a3",
+                                                  }}
+                                                >
+                                                  {spec.outputType === "LEARN" ? "EXT" : "AC"}
+                                                  {aIdx + 1}
+                                                </span>
+                                                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
+                                                  {action.description || "No description"}
+                                                </span>
+                                              </div>
+                                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                {spec.outputType === "MEASURE" && action.parameter && (
+                                                  <ParameterPill
+                                                    label={action.parameter.parameterId}
+                                                    size="compact"
+                                                    href={`/data-dictionary?search=${action.parameter.parameterId}`}
+                                                  />
+                                                )}
+                                                {spec.outputType === "LEARN" && action.learnCategory && (
+                                                  <span
+                                                    style={{
+                                                      fontSize: 10,
+                                                      padding: "2px 6px",
+                                                      borderRadius: 4,
+                                                      background: "#fef3c7",
+                                                      color: "#92400e",
+                                                    }}
+                                                  >
+                                                    {action.learnCategory}
+                                                  </span>
+                                                )}
+                                                <span style={{ color: "var(--text-placeholder)" }}>
+                                                  {expandedActions.has(action.id) ? "▾" : "▸"}
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            {expandedActions.has(action.id) && (
+                                              <div style={{ borderTop: "1px solid var(--border-default)", padding: 10 }}>
+                                                {/* MEASURE: Show parameter + anchors */}
+                                                {spec.outputType === "MEASURE" && action.parameter && (
+                                                  <>
+                                                    <div
+                                                      style={{
+                                                        marginBottom: 10,
+                                                        padding: 8,
+                                                        background: "#faf5ff",
+                                                        borderRadius: 6,
+                                                        fontSize: 12,
+                                                      }}
+                                                    >
+                                                      <div style={{ fontWeight: 500, color: "#6b21a8" }}>
+                                                        Parameter: {action.parameter.name}
+                                                      </div>
+                                                      {action.parameter.definition && (
+                                                        <div style={{ marginTop: 4, color: "#7c3aed" }}>
+                                                          {action.parameter.definition}
+                                                        </div>
+                                                      )}
+                                                      <div
+                                                        style={{
+                                                          marginTop: 8,
+                                                          display: "flex",
+                                                          gap: 16,
+                                                          fontSize: 11,
+                                                        }}
+                                                      >
+                                                        {action.parameter.interpretationHigh && (
+                                                          <div>
+                                                            <span style={{ fontWeight: 500, color: "#16a34a" }}>
+                                                              High:
+                                                            </span>{" "}
+                                                            <span style={{ color: "var(--text-secondary)" }}>
+                                                              {action.parameter.interpretationHigh}
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                        {action.parameter.interpretationLow && (
+                                                          <div>
+                                                            <span style={{ fontWeight: 500, color: "#dc2626" }}>
+                                                              Low:
+                                                            </span>{" "}
+                                                            <span style={{ color: "var(--text-secondary)" }}>
+                                                              {action.parameter.interpretationLow}
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+
+                                                    {/* Scoring Anchors */}
+                                                    {action.parameter.scoringAnchors &&
+                                                      action.parameter.scoringAnchors.length > 0 && (
+                                                        <div>
+                                                          <div
+                                                            style={{
+                                                              fontSize: 10,
+                                                              fontWeight: 600,
+                                                              textTransform: "uppercase",
+                                                              color: "var(--text-muted)",
+                                                              marginBottom: 6,
+                                                            }}
+                                                          >
+                                                            Scoring Anchors
+                                                          </div>
+                                                          <div
+                                                            style={{
+                                                              display: "flex",
+                                                              flexDirection: "column",
+                                                              gap: 6,
+                                                            }}
+                                                          >
+                                                            {action.parameter.scoringAnchors.map((anchor) => (
+                                                              <div
+                                                                key={anchor.id}
+                                                                style={{
+                                                                  padding: 8,
+                                                                  background: "var(--surface-secondary)",
+                                                                  borderRadius: 4,
+                                                                  fontSize: 12,
+                                                                }}
+                                                              >
+                                                                <div
+                                                                  style={{
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    gap: 8,
+                                                                  }}
+                                                                >
+                                                                  <span
+                                                                    style={{
+                                                                      fontSize: 11,
+                                                                      fontWeight: 600,
+                                                                      padding: "2px 6px",
+                                                                      borderRadius: 4,
+                                                                    }}
+                                                                    className={getScoreColor(anchor.score)}
+                                                                  >
+                                                                    {anchor.score}
+                                                                    {anchor.isGold && " ⭐"}
+                                                                  </span>
+                                                                  <span style={{ color: "var(--text-secondary)" }}>
+                                                                    "{anchor.example}"
+                                                                  </span>
+                                                                </div>
+                                                                {anchor.rationale && (
+                                                                  <div
+                                                                    style={{
+                                                                      marginTop: 4,
+                                                                      fontSize: 11,
+                                                                      color: "var(--text-muted)",
+                                                                    }}
+                                                                  >
+                                                                    {anchor.rationale}
+                                                                  </div>
+                                                                )}
+                                                              </div>
+                                                            ))}
+                                                          </div>
+                                                        </div>
+                                                      )}
+                                                  </>
+                                                )}
+
+                                                {/* LEARN: Show learn config */}
+                                                {spec.outputType === "LEARN" && (
+                                                  <div
+                                                    style={{
+                                                      padding: 8,
+                                                      background: "#fffbeb",
+                                                      borderRadius: 6,
+                                                      fontSize: 12,
+                                                    }}
+                                                  >
+                                                    <div style={{ fontWeight: 500, color: "#92400e" }}>
+                                                      Learns to: {action.learnCategory || "Not configured"}
+                                                    </div>
+                                                    {action.learnKeyPrefix && (
+                                                      <div style={{ marginTop: 4, color: "#b45309" }}>
+                                                        Key prefix:{" "}
+                                                        <code
+                                                          style={{
+                                                            background: "#fef3c7",
+                                                            padding: "1px 4px",
+                                                            borderRadius: 3,
+                                                          }}
+                                                        >
+                                                          {action.learnKeyPrefix}
+                                                        </code>
+                                                      </div>
+                                                    )}
+                                                    {action.learnKeyHint && (
+                                                      <div style={{ marginTop: 4, color: "#b45309" }}>
+                                                        Hint: {action.learnKeyHint}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
@@ -919,7 +1775,7 @@ export default function SpecsPage() {
                         gap: 8,
                         fontSize: 13,
                         fontWeight: 500,
-                        color: "#374151",
+                        color: "var(--text-secondary)",
                         background: "none",
                         border: "none",
                         cursor: "pointer",
@@ -932,11 +1788,11 @@ export default function SpecsPage() {
                     {showParameters && featureSet.parameters && featureSet.parameters.length > 0 && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         {featureSet.parameters.map((param: any, idx: number) => (
-                          <div key={param.id || idx} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
+                          <div key={param.id || idx} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
                             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
                               <div>
-                                <div style={{ fontWeight: 500, color: "#111827" }}>{param.name}</div>
-                                <div style={{ fontSize: 11, color: "#6b7280", fontFamily: "monospace" }}>{param.id}</div>
+                                <div style={{ fontWeight: 500, color: "var(--text-primary)" }}>{param.name}</div>
+                                <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{param.id}</div>
                               </div>
                               {param.targetRange && (
                                 <span style={{ fontSize: 11, background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: 4 }}>
@@ -945,11 +1801,11 @@ export default function SpecsPage() {
                               )}
                             </div>
                             {param.definition && (
-                              <p style={{ fontSize: 12, color: "#4b5563", margin: "0 0 8px 0" }}>{param.definition}</p>
+                              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px 0" }}>{param.definition}</p>
                             )}
                             {param.interpretationScale && (
                               <div style={{ marginTop: 8 }}>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "#6b7280", marginBottom: 4 }}>Interpretation Scale:</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Interpretation Scale:</div>
                                 <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
                                   <span style={{ background: "#fef2f2", color: "#b91c1c", padding: "2px 8px", borderRadius: 4 }}>
                                     Low: {param.interpretationScale.low}
@@ -965,12 +1821,12 @@ export default function SpecsPage() {
                             )}
                             {param.scoringAnchors && param.scoringAnchors.length > 0 && (
                               <div style={{ marginTop: 8 }}>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "#6b7280", marginBottom: 4 }}>Scoring Anchors:</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Scoring Anchors:</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4, fontSize: 10 }}>
                                   {param.scoringAnchors.map((anchor: any, ai: number) => (
-                                    <div key={ai} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 4, padding: "4px 6px", textAlign: "center" }}>
+                                    <div key={ai} style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 4, padding: "4px 6px", textAlign: "center" }}>
                                       <div style={{ fontWeight: 600 }}>{anchor.score}</div>
-                                      <div style={{ color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={anchor.label}>
+                                      <div style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={anchor.label}>
                                         {anchor.label}
                                       </div>
                                     </div>
@@ -983,7 +1839,7 @@ export default function SpecsPage() {
                       </div>
                     )}
                     {showParameters && (!featureSet.parameters || featureSet.parameters.length === 0) && (
-                      <p style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic" }}>No parameters defined in source spec</p>
+                      <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No parameters defined in source spec</p>
                     )}
                   </div>
 
@@ -997,7 +1853,7 @@ export default function SpecsPage() {
                         gap: 8,
                         fontSize: 13,
                         fontWeight: 500,
-                        color: "#374151",
+                        color: "var(--text-secondary)",
                         background: "none",
                         border: "none",
                         cursor: "pointer",
@@ -1010,16 +1866,16 @@ export default function SpecsPage() {
                     {showPromptGuidance && featureSet.promptGuidance && featureSet.promptGuidance.length > 0 && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         {featureSet.promptGuidance.map((guidance: any, idx: number) => (
-                          <div key={idx} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
-                            <div style={{ fontWeight: 500, color: "#111827", marginBottom: 8 }}>{guidance.parameterId}</div>
+                          <div key={idx} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
+                            <div style={{ fontWeight: 500, color: "var(--text-primary)", marginBottom: 8 }}>{guidance.parameterId}</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 12 }}>
                               <div>
                                 <div style={{ fontSize: 11, fontWeight: 500, color: "#16a34a", marginBottom: 4 }}>When High:</div>
-                                <p style={{ color: "#4b5563", margin: 0 }}>{guidance.whenHigh}</p>
+                                <p style={{ color: "var(--text-secondary)", margin: 0 }}>{guidance.whenHigh}</p>
                               </div>
                               <div>
                                 <div style={{ fontSize: 11, fontWeight: 500, color: "#dc2626", marginBottom: 4 }}>When Low:</div>
-                                <p style={{ color: "#4b5563", margin: 0 }}>{guidance.whenLow}</p>
+                                <p style={{ color: "var(--text-secondary)", margin: 0 }}>{guidance.whenLow}</p>
                               </div>
                             </div>
                           </div>
@@ -1038,7 +1894,7 @@ export default function SpecsPage() {
                         gap: 8,
                         fontSize: 13,
                         fontWeight: 500,
-                        color: "#374151",
+                        color: "var(--text-secondary)",
                         background: "none",
                         border: "none",
                         cursor: "pointer",
@@ -1054,36 +1910,36 @@ export default function SpecsPage() {
                       </pre>
                     )}
                     {showRawSpec && !featureSet.rawSpec && (
-                      <p style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic" }}>No rawSpec stored</p>
+                      <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No rawSpec stored</p>
                     )}
                   </div>
 
                   {/* Feature Set Metadata */}
-                  <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 20 }}>
-                    <h3 style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 12 }}>BDDFeatureSet Metadata</h3>
+                  <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 20 }}>
+                    <h3 style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 12 }}>BDDFeatureSet Metadata</h3>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, fontSize: 12 }}>
                       <div>
-                        <div style={{ color: "#6b7280" }}>Feature ID</div>
-                        <div style={{ fontFamily: "monospace", color: "#111827" }}>{featureSet.featureId}</div>
+                        <div style={{ color: "var(--text-muted)" }}>Feature ID</div>
+                        <div style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{featureSet.featureId}</div>
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280" }}>Version</div>
-                        <div style={{ color: "#111827" }}>{featureSet.version}</div>
+                        <div style={{ color: "var(--text-muted)" }}>Version</div>
+                        <div style={{ color: "var(--text-primary)" }}>{featureSet.version}</div>
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280" }}>Spec Type</div>
-                        <div style={{ color: "#111827" }}>{featureSet.specType}</div>
+                        <div style={{ color: "var(--text-muted)" }}>Spec Type</div>
+                        <div style={{ color: "var(--text-primary)" }}>{featureSet.specType}</div>
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280" }}>Updated At</div>
-                        <div style={{ color: "#111827" }}>{new Date(featureSet.updatedAt).toLocaleString()}</div>
+                        <div style={{ color: "var(--text-muted)" }}>Updated At</div>
+                        <div style={{ color: "var(--text-primary)" }}>{new Date(featureSet.updatedAt).toLocaleString()}</div>
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280" }}>Activated At</div>
-                        <div style={{ color: "#111827" }}>{featureSet.activatedAt ? new Date(featureSet.activatedAt).toLocaleString() : "—"}</div>
+                        <div style={{ color: "var(--text-muted)" }}>Activated At</div>
+                        <div style={{ color: "var(--text-primary)" }}>{featureSet.activatedAt ? new Date(featureSet.activatedAt).toLocaleString() : "—"}</div>
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280" }}>Status</div>
+                        <div style={{ color: "var(--text-muted)" }}>Status</div>
                         <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: featureSet.isActive ? "#dcfce7" : "#f3f4f6", color: featureSet.isActive ? "#166534" : "#6b7280" }}>
                           {featureSet.isActive ? "Active" : "Inactive"}
                         </span>
@@ -1094,32 +1950,32 @@ export default function SpecsPage() {
               )}
 
               {/* AnalysisSpec Metadata */}
-              <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 20, marginTop: 20 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 12 }}>AnalysisSpec Metadata</h3>
+              <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 20, marginTop: 20 }}>
+                <h3 style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 12 }}>AnalysisSpec Metadata</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, fontSize: 12 }}>
                   <div>
-                    <div style={{ color: "#6b7280" }}>ID</div>
-                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "#111827" }}>{spec.id}</div>
+                    <div style={{ color: "var(--text-muted)" }}>ID</div>
+                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-primary)" }}>{spec.id}</div>
                   </div>
                   <div>
-                    <div style={{ color: "#6b7280" }}>Priority</div>
-                    <div style={{ color: "#111827" }}>{spec.priority}</div>
+                    <div style={{ color: "var(--text-muted)" }}>Priority</div>
+                    <div style={{ color: "var(--text-primary)" }}>{spec.priority}</div>
                   </div>
                   <div>
-                    <div style={{ color: "#6b7280" }}>Version</div>
-                    <div style={{ color: "#111827" }}>{spec.version || "—"}</div>
+                    <div style={{ color: "var(--text-muted)" }}>Version</div>
+                    <div style={{ color: "var(--text-primary)" }}>{spec.version || "—"}</div>
                   </div>
                   <div>
-                    <div style={{ color: "#6b7280" }}>Compiled At</div>
-                    <div style={{ color: "#111827" }}>{spec.compiledAt ? new Date(spec.compiledAt).toLocaleString() : "Never"}</div>
+                    <div style={{ color: "var(--text-muted)" }}>Compiled At</div>
+                    <div style={{ color: "var(--text-primary)" }}>{spec.compiledAt ? new Date(spec.compiledAt).toLocaleString() : "Never"}</div>
                   </div>
                   <div>
-                    <div style={{ color: "#6b7280" }}>Created</div>
-                    <div style={{ color: "#111827" }}>{new Date(spec.createdAt).toLocaleDateString()}</div>
+                    <div style={{ color: "var(--text-muted)" }}>Created</div>
+                    <div style={{ color: "var(--text-primary)" }}>{new Date(spec.createdAt).toLocaleDateString()}</div>
                   </div>
                   <div>
-                    <div style={{ color: "#6b7280" }}>Linked FeatureSet</div>
-                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "#111827" }}>
+                    <div style={{ color: "var(--text-muted)" }}>Linked FeatureSet</div>
+                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-primary)" }}>
                       {spec.compiledSetId ? spec.compiledSetId.slice(0, 8) + "..." : "None"}
                     </div>
                   </div>

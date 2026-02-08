@@ -27,12 +27,22 @@ export async function POST(
       );
     }
 
-    // Run the pipeline with callerId and mode
+    // Build base URL from request headers (nextUrl.origin can be unreliable)
+    const host = request.headers.get("host") || "localhost:3000";
+    const protocol = host.includes("localhost") ? "http" : "https";
+    const baseUrl = `${protocol}://${host}`;
+
+    // Internal API secret for server-to-server calls
+    const internalSecret = process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret";
+
     const pipelineRes = await fetch(
-      `${request.nextUrl.origin}/api/calls/${callId}/pipeline`,
+      `${baseUrl}/api/calls/${callId}/pipeline`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-secret": internalSecret,
+        },
         body: JSON.stringify({
           callerId: call.callerId,
           mode: "prompt",
@@ -41,7 +51,18 @@ export async function POST(
       }
     );
 
-    const pipelineData = await pipelineRes.json();
+    // Check if pipeline returned HTML (error page) instead of JSON
+    const pipelineText = await pipelineRes.text();
+    let pipelineData;
+    try {
+      pipelineData = JSON.parse(pipelineText);
+    } catch {
+      console.error("Pipeline returned non-JSON:", pipelineText.slice(0, 500));
+      return NextResponse.json({
+        ok: false,
+        error: `Pipeline error (${pipelineRes.status}): ${pipelineText.slice(0, 200)}`,
+      });
+    }
 
     if (!pipelineData.ok) {
       return NextResponse.json({
@@ -51,31 +72,26 @@ export async function POST(
       });
     }
 
-    // Compose the next prompt for this caller
-    const composeRes = await fetch(
-      `${request.nextUrl.origin}/api/callers/${call.callerId}/compose-prompt`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-
-    const composeData = await composeRes.json();
+    // Pipeline with mode="prompt" already runs COMPOSE stage
+    // Get results from pipeline response (no need to call compose-prompt again)
+    const pipelineSummary = pipelineData.data || {};
 
     return NextResponse.json({
       ok: true,
       pipeline: {
-        scoresCreated: pipelineData.scoresCreated || 0,
-        memoriesCreated: pipelineData.memoriesCreated || 0,
-        measurementsCreated: pipelineData.measurementsCreated || 0,
+        scoresCreated: pipelineSummary.scoresCreated || 0,
+        memoriesCreated: pipelineSummary.memoriesCreated || 0,
+        measurementsCreated: pipelineSummary.agentMeasurements || 0,
+        callTargetsCreated: pipelineSummary.callTargetsCreated || 0,
+        playbookUsed: pipelineSummary.playbookUsed || null,
       },
-      prompt: composeData.ok ? {
+      prompt: pipelineSummary.promptId ? {
         composed: true,
-        slug: composeData.slug,
-        composedAt: composeData.composedAt,
+        id: pipelineSummary.promptId,
+        length: pipelineSummary.promptLength || 0,
       } : {
         composed: false,
-        error: composeData.error,
+        error: "No prompt generated",
       },
     });
   } catch (error: any) {

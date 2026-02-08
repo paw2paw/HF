@@ -86,6 +86,32 @@ export async function GET(request: NextRequest) {
       _sum: { quantity: true, costCents: true },
     });
 
+    // Get AI usage by engine (mock vs real providers)
+    const aiByEngine = await prisma.usageEvent.groupBy({
+      by: ["engine"],
+      where: {
+        category: "AI",
+        createdAt: {
+          gte: startDate,
+          lt: endDate,
+        },
+      },
+      _count: { id: true },
+      _sum: { quantity: true, costCents: true },
+    });
+
+    // Separate mock from real AI calls for clear visibility
+    const mockCalls = aiByEngine.find((e) => e.engine === "mock") || { _count: { id: 0 }, _sum: { quantity: 0, costCents: 0 } };
+    const realCalls = aiByEngine.filter((e) => e.engine !== "mock" && e.engine !== null);
+    const totalRealCalls = realCalls.reduce(
+      (acc, e) => ({
+        eventCount: acc.eventCount + e._count.id,
+        totalQty: acc.totalQty + (e._sum.quantity || 0),
+        costCents: acc.costCents + (e._sum.costCents || 0),
+      }),
+      { eventCount: 0, totalQty: 0, costCents: 0 }
+    );
+
     // Get daily totals for chart
     const dailyTotals = await prisma.$queryRaw<
       Array<{
@@ -202,6 +228,32 @@ export async function GET(request: NextRequest) {
         totalTokens: uncategorizedAI._sum.quantity || 0,
         costCents: uncategorizedAI._sum.costCents || 0,
         costDollars: ((uncategorizedAI._sum.costCents || 0) / 100).toFixed(2),
+      },
+      // AI breakdown by engine type (mock vs real)
+      aiByEngine: aiByEngine.map((e) => ({
+        engine: e.engine || "unknown",
+        eventCount: e._count.id,
+        totalQty: e._sum.quantity || 0,
+        costCents: e._sum.costCents || 0,
+        costDollars: ((e._sum.costCents || 0) / 100).toFixed(2),
+        isMock: e.engine === "mock",
+      })),
+      // Summary: mock vs real AI
+      aiSummary: {
+        mock: {
+          eventCount: mockCalls._count.id,
+          costCents: mockCalls._sum.costCents || 0,
+          costDollars: ((mockCalls._sum.costCents || 0) / 100).toFixed(2),
+        },
+        real: {
+          eventCount: totalRealCalls.eventCount,
+          totalTokens: totalRealCalls.totalQty,
+          costCents: totalRealCalls.costCents,
+          costDollars: (totalRealCalls.costCents / 100).toFixed(2),
+        },
+        mockPercentage: totalRealCalls.eventCount + mockCalls._count.id > 0
+          ? Math.round((mockCalls._count.id / (totalRealCalls.eventCount + mockCalls._count.id)) * 100)
+          : 0,
       },
     });
   } catch (error: unknown) {

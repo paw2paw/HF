@@ -27,7 +27,7 @@ import { prisma } from "@/lib/prisma";
 import { GET, POST } from "@/app/api/prompt-templates/route";
 
 // Type-cast for easier mocking
-const mockPrisma = prisma as {
+const mockPrisma = prisma as unknown as {
   promptTemplate: {
     findMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;

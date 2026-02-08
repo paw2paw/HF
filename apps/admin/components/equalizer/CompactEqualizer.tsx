@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
 
 interface ParameterConfig {
   parameterId: string;
@@ -431,17 +430,6 @@ export function CompactEqualizer({ onConfigChange, agentId }: CompactEqualizerPr
         <span style={{ fontSize: 10, color: "#6b7280" }}>
           Quick view • Click domain to toggle
         </span>
-        <Link
-          href="/analyzer-config"
-          style={{
-            fontSize: 10,
-            color: "#3b82f6",
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
-        >
-          Full Configurator
-        </Link>
       </div>
     </div>
   );

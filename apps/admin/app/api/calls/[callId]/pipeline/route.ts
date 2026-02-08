@@ -30,11 +30,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MemoryCategory } from "@prisma/client";
 import { AIEngine, isEngineAvailable } from "@/lib/ai/client";
-import { getMeteredAICompletion } from "@/lib/metering";
+import { getMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 import { prisma } from "@/lib/prisma";
 import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
 import { trackGoalProgress } from "@/lib/goals/track-progress";
+import { logAI } from "@/lib/logger";
+
+// =====================================================
+// TRANSCRIPT LIMITS (from AIConfig)
+// =====================================================
+
+// Default transcript limits (in characters) per stage
+const DEFAULT_TRANSCRIPT_LIMITS: Record<string, number> = {
+  "pipeline.measure": 4000,
+  "pipeline.learn": 4000,
+  "pipeline.score_agent": 4000,
+  "pipeline.adapt": 2500,
+};
+
+/**
+ * Get transcript limit for a call point from AIConfig, with fallback to defaults
+ */
+async function getTranscriptLimit(callPoint: string): Promise<number> {
+  try {
+    const config = await prisma.aIConfig.findUnique({
+      where: { callPoint },
+    });
+    // Use type assertion since Prisma types may be stale after migration
+    const limit = (config as any)?.transcriptLimit;
+    if (limit && typeof limit === "number") {
+      return limit;
+    }
+  } catch {
+    // Fallback to default on error
+  }
+  return DEFAULT_TRANSCRIPT_LIMITS[callPoint] ?? 4000;
+}
 
 // =====================================================
 // SPEC SELECTION BY TYPE
@@ -347,59 +379,23 @@ function createLogger() {
 function buildBatchedCallerPrompt(
   transcript: string,
   measureParams: Array<{ parameterId: string; name: string; definition: string | null }>,
-  learnActions: Array<{ category: string; keyPrefix: string; keyHint: string; description: string }>
+  learnActions: Array<{ category: string; keyPrefix: string; keyHint: string; description: string }>,
+  transcriptLimit: number = 4000
 ): string {
-  const lines: string[] = [
-    `You are analyzing a call transcript to:`,
-    `1. Score the CALLER on multiple behavioral/personality parameters`,
-    `2. Extract facts and preferences about the caller`,
-    ``,
-    `# TRANSCRIPT`,
-    ``,
-    transcript.slice(0, 6000),
-    ``,
-    `# PARAMETERS TO SCORE`,
-    `Score each parameter from 0.0 to 1.0 based on evidence from the transcript.`,
-    ``,
-  ];
+  const paramList = measureParams.map(p => `${p.parameterId}:${p.name}`).join("|");
+  const learnList = learnActions.map(a => `${a.category}:${a.description}`).join("|");
 
-  for (const param of measureParams) {
-    lines.push(`- ${param.parameterId}: ${param.name}`);
-    if (param.definition) {
-      lines.push(`  Definition: ${param.definition}`);
-    }
-  }
+  return `Analyze transcript. Score caller 0-1 on params, extract facts.
 
-  lines.push(``);
-  lines.push(`# FACTS TO EXTRACT`);
-  lines.push(`Look for information matching these categories:`);
-  lines.push(``);
+TRANSCRIPT (analyze this):
+${transcript.slice(0, transcriptLimit)}
 
-  for (const action of learnActions) {
-    lines.push(`- ${action.category}: ${action.description}`);
-    if (action.keyPrefix) lines.push(`  Key prefix: ${action.keyPrefix}`);
-    if (action.keyHint) lines.push(`  Hint: ${action.keyHint}`);
-  }
+PARAMS TO SCORE: ${paramList}
 
-  lines.push(``);
-  lines.push(`# OUTPUT FORMAT`);
-  lines.push(`Return JSON with this exact structure:`);
-  lines.push("```json");
-  lines.push(`{`);
-  lines.push(`  "scores": {`);
-  lines.push(`    "PARAM-ID": { "score": 0.75, "confidence": 0.8, "reasoning": "brief explanation" },`);
-  lines.push(`    ...`);
-  lines.push(`  },`);
-  lines.push(`  "memories": [`);
-  lines.push(`    { "category": "FACT", "key": "location", "value": "London", "evidence": "I live in London", "confidence": 0.9 },`);
-  lines.push(`    ...`);
-  lines.push(`  ]`);
-  lines.push(`}`);
-  lines.push("```");
-  lines.push(``);
-  lines.push(`Only include memories you found clear evidence for. Return empty arrays if nothing found.`);
+FACTS TO FIND: ${learnList}
 
-  return lines.join("\n");
+Return compact JSON:
+{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...},"memories":[{"cat":"FACT","key":"k","val":"v","c":0.9},...]}`;
 }
 
 /**
@@ -408,37 +404,20 @@ function buildBatchedCallerPrompt(
  */
 function buildBatchedAgentPrompt(
   transcript: string,
-  agentParams: Array<{ parameterId: string; name: string; definition: string | null }>
+  agentParams: Array<{ parameterId: string; name: string; definition: string | null }>,
+  transcriptLimit: number = 4000
 ): string {
-  const lines: string[] = [
-    `You are evaluating the AGENT's behavior in this call transcript.`,
-    `Score how well the agent performed on each behavioral dimension.`,
-    ``,
-    `# TRANSCRIPT`,
-    ``,
-    transcript.slice(0, 6000),
-    ``,
-    `# AGENT BEHAVIORS TO SCORE`,
-    `Score each from 0.0 (poor) to 1.0 (excellent):`,
-    ``,
-  ];
+  const paramList = agentParams.map(p => `${p.parameterId}:${p.name}`).join("|");
 
-  for (const param of agentParams) {
-    lines.push(`- ${param.parameterId}: ${param.name}`);
-    if (param.definition) {
-      lines.push(`  ${param.definition}`);
-    }
-  }
+  return `Score AGENT behavior 0-1 (0=poor, 1=excellent).
 
-  lines.push(``);
-  lines.push(`# OUTPUT FORMAT`);
-  lines.push(`Return COMPACT JSON (no extra whitespace):`);
-  lines.push("```json");
-  lines.push(`{"scores":{"PARAM-ID":{"score":0.75,"confidence":0.8,"evidence":["brief quote"]},...}}`);
-  lines.push("```");
-  lines.push(`Keep evidence to ONE short quote per parameter to save space.`);
+TRANSCRIPT:
+${transcript.slice(0, transcriptLimit)}
 
-  return lines.join("\n");
+BEHAVIORS: ${paramList}
+
+Return compact JSON:
+{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...}}`;
 }
 
 /**
@@ -572,10 +551,19 @@ async function runBatchedCallerAnalysis(
       }
       scoresCreated++;
     }
+    // Log mock usage for visibility in metering dashboard
+    logMockAIUsage({
+      callId: call.id,
+      callerId,
+      sourceOp: "pipeline:extract",
+      reason: "requested",
+      metadata: { scoresCreated, paramsProcessed: measureParams.length },
+    }).catch((e) => log.warn("Failed to log mock usage", { error: e.message }));
     log.info(`Mock caller analysis complete`, { scoresCreated });
   } else {
     // Real AI: single batched call
-    const prompt = buildBatchedCallerPrompt(transcript, measureParams, learnActions);
+    const transcriptLimit = await getTranscriptLimit("pipeline.measure");
+    const prompt = buildBatchedCallerPrompt(transcript, measureParams, learnActions, transcriptLimit);
 
     try {
       const result = await getMeteredAICompletion({
@@ -588,6 +576,7 @@ async function runBatchedCallerAnalysis(
         temperature: 0.3,
       }, { callId: call.id, callerId, sourceOp: "pipeline:extract" });
 
+      logAI("pipeline:extract", prompt, result.content, { usage: result.usage, callId: call.id, callerId });
       log.debug("AI caller analysis response", { model: result.model, tokens: result.usage });
 
       // Parse response
@@ -597,11 +586,11 @@ async function runBatchedCallerAnalysis(
       }
       const parsed = JSON.parse(jsonContent);
 
-      // Store scores
+      // Store scores (handle both full and compact keys: score/s, confidence/c)
       if (parsed.scores) {
         for (const [parameterId, scoreData] of Object.entries(parsed.scores as Record<string, any>)) {
-          const score = Math.max(0, Math.min(1, scoreData.score || 0.5));
-          const confidence = Math.max(0, Math.min(1, scoreData.confidence || 0.7));
+          const score = Math.max(0, Math.min(1, scoreData.score ?? scoreData.s ?? 0.5));
+          const confidence = Math.max(0, Math.min(1, scoreData.confidence ?? scoreData.c ?? 0.7));
 
           // Check if score already exists for this call+parameter
           const existing = await prisma.callScore.findFirst({
@@ -613,8 +602,8 @@ async function runBatchedCallerAnalysis(
               data: {
                 score,
                 confidence,
-                evidence: [scoreData.reasoning || "AI batched analysis"],
-                scoredBy: `${engine}_batched_v1`,
+                evidence: ["AI batched analysis"],
+                scoredBy: `${engine}_batched_v2`,
                 scoredAt: new Date(),
               },
             });
@@ -626,8 +615,8 @@ async function runBatchedCallerAnalysis(
                 parameterId,
                 score,
                 confidence,
-                evidence: [scoreData.reasoning || "AI batched analysis"],
-                scoredBy: `${engine}_batched_v1`,
+                evidence: ["AI batched analysis"],
+                scoredBy: `${engine}_batched_v2`,
               },
             });
           }
@@ -635,23 +624,27 @@ async function runBatchedCallerAnalysis(
         }
       }
 
-      // Store memories
+      // Store memories (handle both full and compact keys: category/cat, value/val, confidence/c)
       if (parsed.memories && Array.isArray(parsed.memories)) {
         for (const mem of parsed.memories) {
-          if (mem.category && mem.key && mem.value) {
-            // Map LLM category to valid MemoryCategory enum
-            const mappedCategory = mapToMemoryCategory(mem.category);
+          const category = mem.category || mem.cat;
+          const key = mem.key;
+          const value = mem.value || mem.val;
+          const confidence = mem.confidence ?? mem.c ?? 0.8;
+
+          if (category && key && value) {
+            const mappedCategory = mapToMemoryCategory(category);
 
             await prisma.callerMemory.create({
               data: {
                 callerId,
                 callId: call.id,
                 category: mappedCategory,
-                key: mem.key,
-                value: String(mem.value),
-                evidence: mem.evidence || "AI extraction",
-                confidence: mem.confidence || 0.8,
-                extractedBy: `${engine}_batched_v1`,
+                key,
+                value: String(value),
+                evidence: "AI extraction",
+                confidence,
+                extractedBy: `${engine}_batched_v2`,
               },
             });
             memoriesCreated++;
@@ -755,9 +748,18 @@ async function runBatchedAgentAnalysis(
       }
       measurementsCreated++;
     }
+    // Log mock usage for visibility in metering dashboard
+    logMockAIUsage({
+      callId: call.id,
+      callerId,
+      sourceOp: "pipeline:score_agent",
+      reason: "requested",
+      metadata: { measurementsCreated, paramsProcessed: agentParams.length },
+    }).catch((e) => log.warn("Failed to log mock usage", { error: e.message }));
   } else {
     // Real AI: single batched call
-    const prompt = buildBatchedAgentPrompt(transcript, agentParams);
+    const transcriptLimit = await getTranscriptLimit("pipeline.score_agent");
+    const prompt = buildBatchedAgentPrompt(transcript, agentParams, transcriptLimit);
 
     try {
       // More tokens for agent analysis with many parameters
@@ -774,6 +776,7 @@ async function runBatchedAgentAnalysis(
         temperature: 0.3,
       }, { callId: call.id, callerId, sourceOp: "pipeline:score_agent" });
 
+      logAI("pipeline:score_agent", prompt, result.content, { usage: result.usage, callId: call.id, callerId });
       log.debug("AI agent analysis response", { model: result.model, contentLength: result.content.length });
 
       let jsonContent = result.content.trim();
@@ -810,9 +813,11 @@ async function runBatchedAgentAnalysis(
 
       if (parsed.scores) {
         for (const [parameterId, scoreData] of Object.entries(parsed.scores as Record<string, any>)) {
-          const actualValue = Math.max(0, Math.min(1, scoreData.score || 0.5));
-          const confidence = Math.max(0, Math.min(1, scoreData.confidence || 0.7));
-          const evidence = Array.isArray(scoreData.evidence) ? scoreData.evidence : [scoreData.evidence || "AI analysis"];
+          // Handle both full and compact keys: score/s, confidence/c, evidence/e
+          const actualValue = Math.max(0, Math.min(1, scoreData.score ?? scoreData.s ?? 0.5));
+          const confidence = Math.max(0, Math.min(1, scoreData.confidence ?? scoreData.c ?? 0.7));
+          const rawEvidence = scoreData.evidence ?? scoreData.e;
+          const evidence = Array.isArray(rawEvidence) ? rawEvidence : [rawEvidence || "AI analysis"];
 
           const existing = await prisma.behaviorMeasurement.findFirst({
             where: { callId: call.id, parameterId },
@@ -1309,51 +1314,25 @@ function buildAdaptPrompt(
   transcript: string,
   callScores: Array<{ parameterId: string; score: number; confidence: number }>,
   callerProfile: Record<string, any> | null,
-  targetParams: Array<{ parameterId: string; name: string; definition: string | null }>
+  targetParams: Array<{ parameterId: string; name: string; definition: string | null }>,
+  transcriptLimit: number = 2500
 ): string {
-  const lines: string[] = [
-    `You are computing personalized behavioral targets for an AI agent's next interaction with this caller.`,
-    `Based on the caller's personality scores and the current call analysis, determine optimal target values.`,
-    ``,
-    `# TRANSCRIPT SUMMARY`,
-    transcript.slice(0, 3000),
-    ``,
-    `# CALLER PERSONALITY SCORES (0-1 scale)`,
-  ];
+  const scoreList = callScores.map(s => `${s.parameterId}:${s.score.toFixed(2)}`).join("|");
+  const paramList = targetParams.map(p => `${p.parameterId}:${p.name}`).join("|");
+  const profileStr = callerProfile ? JSON.stringify(callerProfile).slice(0, 500) : "";
 
-  for (const score of callScores) {
-    lines.push(`- ${score.parameterId}: ${score.score.toFixed(2)} (confidence: ${score.confidence.toFixed(2)})`);
-  }
+  return `Compute agent behavior targets (0-1) for next call based on caller profile.
 
-  if (callerProfile) {
-    lines.push(``);
-    lines.push(`# CALLER PROFILE`);
-    lines.push(JSON.stringify(callerProfile, null, 2).slice(0, 1000));
-  }
+TRANSCRIPT:
+${transcript.slice(0, transcriptLimit)}
 
-  lines.push(``);
-  lines.push(`# TARGET PARAMETERS TO COMPUTE`);
-  lines.push(`For each parameter, compute an optimal target value (0.0-1.0) for the AGENT to exhibit:`);
-  lines.push(``);
+CALLER SCORES: ${scoreList}
+${profileStr ? `PROFILE: ${profileStr}` : ""}
 
-  for (const param of targetParams) {
-    lines.push(`- ${param.parameterId}: ${param.name}`);
-    if (param.definition) lines.push(`  ${param.definition}`);
-  }
+PARAMS: ${paramList}
 
-  lines.push(``);
-  lines.push(`# OUTPUT FORMAT`);
-  lines.push(`Return JSON:`);
-  lines.push("```json");
-  lines.push(`{`);
-  lines.push(`  "targets": {`);
-  lines.push(`    "PARAM-ID": { "value": 0.65, "confidence": 0.8, "reasoning": "brief explanation" },`);
-  lines.push(`    ...`);
-  lines.push(`  }`);
-  lines.push(`}`);
-  lines.push("```");
-
-  return lines.join("\n");
+Return compact JSON:
+{"targets":{"PARAM-ID":{"v":0.65,"c":0.8},...}}`;
 }
 
 /**
@@ -1444,13 +1423,23 @@ async function runAdaptSpecs(
       });
       targetsCreated++;
     }
+    // Log mock usage for visibility in metering dashboard
+    logMockAIUsage({
+      callId,
+      callerId,
+      sourceOp: "pipeline:adapt",
+      reason: "requested",
+      metadata: { targetsCreated, paramsProcessed: targetParams.length },
+    }).catch((e) => console.warn("[pipeline] Failed to log mock usage:", e.message));
   } else {
     // Real AI: compute targets
+    const transcriptLimit = await getTranscriptLimit("pipeline.adapt");
     const prompt = buildAdaptPrompt(
       call?.transcript || "",
       callScores,
       callerProfile?.parameterValues as Record<string, any> | null,
-      targetParams
+      targetParams,
+      transcriptLimit
     );
 
     try {
@@ -1464,6 +1453,7 @@ async function runAdaptSpecs(
         temperature: aiSettings.temperature,
       }, { callId, callerId, sourceOp: "pipeline:adapt" });
 
+      logAI("pipeline:adapt", prompt, result.content, { usage: result.usage, callId, callerId });
       let jsonContent = result.content.trim();
       if (jsonContent.startsWith("```")) {
         jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
@@ -1472,8 +1462,9 @@ async function runAdaptSpecs(
 
       if (parsed.targets) {
         for (const [parameterId, targetData] of Object.entries(parsed.targets as Record<string, any>)) {
-          const targetValue = Math.max(0, Math.min(1, targetData.value || 0.5));
-          const confidence = Math.max(0, Math.min(1, targetData.confidence || 0.7));
+          // Handle both full and compact keys: value/v, confidence/c
+          const targetValue = Math.max(0, Math.min(1, targetData.value ?? targetData.v ?? 0.5));
+          const confidence = Math.max(0, Math.min(1, targetData.confidence ?? targetData.c ?? 0.7));
 
           await prisma.callTarget.upsert({
             where: { callId_parameterId: { callId, parameterId } },
@@ -1483,13 +1474,13 @@ async function runAdaptSpecs(
               targetValue,
               confidence,
               sourceSpecSlug: `${engine}_adapt`,
-              reasoning: targetData.reasoning || "AI-computed target",
+              reasoning: "AI-computed target",
             },
             update: {
               targetValue,
               confidence,
               sourceSpecSlug: `${engine}_adapt`,
-              reasoning: targetData.reasoning || "AI-computed target",
+              reasoning: "AI-computed target",
             },
           });
           targetsCreated++;
@@ -1781,9 +1772,18 @@ const stageExecutors: Record<string, StageExecutor> = {
   // COMPOSE stage: Build final prompt
   COMPOSE: async (ctx, stage) => {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
-    const composeResult = await fetch(`${ctx.request.nextUrl.origin}/api/callers/${ctx.callerId}/compose-prompt`, {
+    // Build base URL from request headers
+    const host = ctx.request.headers.get("host") || "localhost:3000";
+    const protocol = host.includes("localhost") ? "http" : "https";
+    const baseUrl = `${protocol}://${host}`;
+    const internalSecret = process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret";
+
+    const composeResult = await fetch(`${baseUrl}/api/callers/${ctx.callerId}/compose-prompt`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": internalSecret,
+      },
       body: JSON.stringify({ triggerCallId: ctx.callId }),
     });
     const composeData = await composeResult.json();
@@ -1815,28 +1815,80 @@ async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
     mode,
   });
 
-  // Execute stages in order
-  for (const stage of stages) {
+  // Stages that can run in parallel (no dependencies between them)
+  const parallelStages = new Set(["EXTRACT", "SCORE_AGENT"]);
+
+  // Execute stages - parallelize where possible
+  let i = 0;
+  while (i < stages.length) {
+    const stage = stages[i];
+
     // Skip stages that require a specific mode
     if (stage.requiresMode && stage.requiresMode !== mode) {
       log.debug(`Skipping stage ${stage.name} (requires mode=${stage.requiresMode})`);
+      i++;
       continue;
     }
 
-    // Get executor for this stage
-    const executor = stageExecutors[stage.name];
-    if (!executor) {
-      log.warn(`No executor for stage ${stage.name} - skipping`);
-      continue;
+    // Check if this and next stages can run in parallel
+    const canParallelize = parallelStages.has(stage.name);
+    const parallelBatch: PipelineStage[] = [];
+
+    if (canParallelize) {
+      // Collect consecutive parallelizable stages
+      while (i < stages.length && parallelStages.has(stages[i].name)) {
+        const s = stages[i];
+        if (!s.requiresMode || s.requiresMode === mode) {
+          parallelBatch.push(s);
+        }
+        i++;
+      }
     }
 
-    try {
-      const stageResults = await executor(ctx, stage);
-      // Merge results into context
-      Object.assign(ctx.results, stageResults);
-    } catch (error: any) {
-      log.error(`Stage ${stage.name} failed`, { error: error.message });
-      throw error;
+    if (parallelBatch.length > 1) {
+      // Run stages in parallel
+      log.info(`Running ${parallelBatch.length} stages in parallel: ${parallelBatch.map(s => s.name).join(", ")}`);
+      const startTime = Date.now();
+
+      try {
+        const results = await Promise.all(
+          parallelBatch.map(async (s) => {
+            const executor = stageExecutors[s.name];
+            if (!executor) {
+              log.warn(`No executor for stage ${s.name} - skipping`);
+              return {};
+            }
+            return executor(ctx, s);
+          })
+        );
+
+        // Merge all results
+        for (const result of results) {
+          Object.assign(ctx.results, result);
+        }
+
+        log.info(`Parallel stages completed in ${Date.now() - startTime}ms`);
+      } catch (error: any) {
+        log.error(`Parallel stages failed`, { error: error.message });
+        throw error;
+      }
+    } else {
+      // Run single stage
+      const executor = stageExecutors[stage.name];
+      if (!executor) {
+        log.warn(`No executor for stage ${stage.name} - skipping`);
+        i++;
+        continue;
+      }
+
+      try {
+        const stageResults = await executor(ctx, stage);
+        Object.assign(ctx.results, stageResults);
+      } catch (error: any) {
+        log.error(`Stage ${stage.name} failed`, { error: error.message });
+        throw error;
+      }
+      i++;
     }
   }
 
@@ -1948,7 +2000,6 @@ export async function POST(
       logs: log.getLogs(),
       duration: log.getDuration(),
     }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
+  // NOTE: Do NOT call prisma.$disconnect() in API routes - it breaks the shared client
 }

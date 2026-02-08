@@ -148,6 +148,8 @@ export function logUsageEventFireAndForget(input: UsageEventInput): void {
 
 /**
  * Log AI token usage (both input and output).
+ * For real AI providers (claude, openai) only.
+ * Use logMockAIUsage for mock/testing completions.
  */
 export async function logAIUsage(params: {
   engine: "claude" | "openai";
@@ -193,6 +195,42 @@ export async function logAIUsage(params: {
       metadata: { ...params.metadata, tokenType: "output" },
     });
   }
+}
+
+/**
+ * Log a mock AI completion.
+ * Tracks mock/testing calls for visibility in metering dashboard.
+ * These have zero cost but show that real AI was not used.
+ *
+ * @param params - Mock usage context
+ * @param params.sourceOp - The operation that would have used AI (e.g., "pipeline:extract")
+ * @param params.reason - Why mock was used (e.g., "fallback", "testing", "no_api_key")
+ */
+export async function logMockAIUsage(params: {
+  userId?: string;
+  callerId?: string;
+  callId?: string;
+  sourceOp?: string;
+  reason?: "fallback" | "testing" | "no_api_key" | "requested";
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await logUsageEvent({
+    category: "AI" as UsageCategory,
+    operation: "mock:completion",
+    quantity: 1,
+    unitType: "count",
+    engine: "mock",
+    model: "mock-model",
+    userId: params.userId,
+    callerId: params.callerId,
+    callId: params.callId,
+    sourceOp: params.sourceOp,
+    metadata: {
+      ...params.metadata,
+      reason: params.reason || "testing",
+      isMock: true,
+    },
+  });
 }
 
 /**

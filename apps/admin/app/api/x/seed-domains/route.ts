@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { seedCompanionDomain } from "../../../../prisma/seed-companion";
+import { seedCompanionDomain } from "../../../../prisma/_archived/seed-companion";
 import { seedFromSpecs } from "../../../../prisma/seed-from-specs";
 
 /**

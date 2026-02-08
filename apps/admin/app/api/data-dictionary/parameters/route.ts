@@ -266,7 +266,8 @@ export async function GET(request: NextRequest) {
         (p) =>
           p._counts.specs === 0 &&
           p._counts.playbooks === 0 &&
-          p._counts.behaviorTargets === 0
+          p._counts.behaviorTargets === 0 &&
+          p._counts.promptSlugs === 0
       ).length,
       byDomainGroup: Object.fromEntries(domainGroups),
     };

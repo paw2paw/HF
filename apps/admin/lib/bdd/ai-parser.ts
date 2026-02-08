@@ -21,7 +21,7 @@ export interface JsonFeatureSpec {
   date?: string;
   domain?: string;
   specType?: "SYSTEM" | "DOMAIN" | "ADAPT" | "SUPERVISE";
-  specRole?: "IDENTITY" | "CONTENT" | "META";
+  specRole?: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
   outputType?: "MEASURE" | "LEARN" | "ADAPT" | "MEASURE_AGENT" | "REWARD" | "COMPOSE" | "AGGREGATE";
   agentScope?: "SYSTEM" | "DOMAIN"; // For IDENTITY specs
   extendsAgent?: string; // For agent inheritance (e.g., "TUT-001")
@@ -145,7 +145,7 @@ export interface ParsedHybridResult {
   parameterData: ParsedParameterData | null;
   storyData: ParsedStoryData | null;
   specType?: "SYSTEM" | "DOMAIN" | "ADAPT" | "SUPERVISE";
-  specRole?: "IDENTITY" | "CONTENT" | "META";
+  specRole?: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
   outputType?: "MEASURE" | "LEARN" | "ADAPT" | "MEASURE_AGENT" | "REWARD" | "COMPOSE" | "AGGREGATE";
   errors?: string[];
   warnings?: string[];

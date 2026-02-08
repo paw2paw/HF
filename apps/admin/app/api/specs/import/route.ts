@@ -91,11 +91,14 @@ async function upsertAndActivateSpec(
 
     // If auto-activate, trigger the activation to create AnalysisSpec, Parameters, etc.
     if (autoActivate) {
-      // Import and call the activation function from seed-from-specs
-      // For now, we'll call the existing activate API endpoint
+      // Call the lab activation API endpoint
       const activateRes = await fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/bdd/feature-sets/${featureSet.id}/activate`,
-        { method: "POST" }
+        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/lab/features/${featureSet.id}/activate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activate: true }),
+        }
       );
 
       if (!activateRes.ok) {

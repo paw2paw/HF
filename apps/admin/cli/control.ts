@@ -231,6 +231,43 @@ program
     exec('npm run test:e2e:ui', 'Opening Playwright UI...');
   });
 
+program
+  .command('test:e2e:list')
+  .description('List all E2E tests')
+  .action(() => {
+    exec('npx playwright test --list', 'Listing all E2E tests...');
+  });
+
+program
+  .command('test:e2e:report')
+  .description('Show last E2E test report')
+  .action(() => {
+    exec('npx playwright show-report', 'Opening Playwright report...');
+  });
+
+program
+  .command('test:e2e:debug')
+  .description('Run E2E tests in debug mode')
+  .action(() => {
+    exec('npm run test:e2e:debug', 'Running E2E tests in debug mode...');
+  });
+
+program
+  .command('test:e2e:file')
+  .description('Run specific E2E test file')
+  .argument('<file>', 'Test file path (e.g., tests/auth/login.spec.ts)')
+  .action((file) => {
+    exec(`npx playwright test ${file}`, `Running ${file}...`);
+  });
+
+program
+  .command('test:e2e:project')
+  .description('Run E2E tests for specific project')
+  .argument('<project>', 'Project name (authenticated, unauthenticated, mobile, legacy)')
+  .action((project) => {
+    exec(`npx playwright test --project=${project}`, `Running ${project} project tests...`);
+  });
+
 // ============================================================================
 // DATABASE COMMANDS
 // ============================================================================
@@ -483,8 +520,18 @@ async function showInteractiveMenu() {
     log('  🧪 TESTING', colors.bright);
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
     log('');
-    log('  8. Run all tests');
-    log('  9. Run unit tests only');
+    log('  8. Run all tests       - Unit + Integration + E2E');
+    log('  9. Run unit tests      - Vitest unit tests');
+    log('');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('  🎭 E2E TESTING (Playwright)', colors.bright);
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('');
+    log('  a. E2E tests           - Run all E2E tests');
+    log('  b. E2E UI mode         - Interactive Playwright UI');
+    log('  c. E2E debug           - Debug mode with inspector');
+    log('  d. E2E list            - List all E2E tests');
+    log('  e. E2E report          - View last test report');
     log('');
     log('  0. Exit');
     log('');
@@ -572,6 +619,36 @@ async function showInteractiveMenu() {
       case '9':
         exec('npm run test', 'Running unit tests...');
         await pressEnterToContinue();
+        break;
+
+      // ========================================
+      // E2E TESTING (Playwright)
+      // ========================================
+      case 'a':
+        log('\n🎭 Running E2E Tests\n', colors.bright);
+        await runTestsWithServer('npm run test:e2e', 'Running all E2E tests...');
+        await pressEnterToContinue();
+        break;
+
+      case 'b':
+        log('\n🎭 Opening Playwright UI\n', colors.bright);
+        exec('npm run test:e2e:ui');
+        break;
+
+      case 'c':
+        log('\n🎭 E2E Debug Mode\n', colors.bright);
+        exec('npm run test:e2e:debug');
+        break;
+
+      case 'd':
+        log('\n📋 Listing E2E Tests\n', colors.bright);
+        exec('npx playwright test --list');
+        await pressEnterToContinue();
+        break;
+
+      case 'e':
+        log('\n📊 Opening Last Test Report\n', colors.bright);
+        exec('npx playwright show-report');
         break;
 
       case '0':

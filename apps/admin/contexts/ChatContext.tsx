@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { EntityBreadcrumb, useEntityContext } from "./EntityContext";
 
 export type ChatMode = "CHAT" | "DATA" | "SPEC";
@@ -50,9 +51,17 @@ type ChatContextValue = ChatState & ChatActions;
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-const STORAGE_KEY = "hf.chat.history";
-const SETTINGS_KEY = "hf.chat.settings";
+const STORAGE_KEY_PREFIX = "hf.chat.history";
+const SETTINGS_KEY_PREFIX = "hf.chat.settings";
 const MAX_MESSAGES_PER_MODE = 50;
+
+function getStorageKey(userId: string | undefined): string {
+  return userId ? `${STORAGE_KEY_PREFIX}.${userId}` : STORAGE_KEY_PREFIX;
+}
+
+function getSettingsKey(userId: string | undefined): string {
+  return userId ? `${SETTINGS_KEY_PREFIX}.${userId}` : SETTINGS_KEY_PREFIX;
+}
 
 // Mode display configuration
 export const MODE_CONFIG: Record<ChatMode, { label: string; icon: string; color: string; description: string }> = {
@@ -88,10 +97,10 @@ function createEmptyMessages(): Record<ChatMode, ChatMessage[]> {
   };
 }
 
-function loadPersistedMessages(): Record<ChatMode, ChatMessage[]> {
+function loadPersistedMessages(userId: string | undefined): Record<ChatMode, ChatMessage[]> {
   if (typeof window === "undefined") return createEmptyMessages();
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(getStorageKey(userId));
     if (!stored) return createEmptyMessages();
     const parsed = JSON.parse(stored);
     // Convert timestamp strings back to Date objects
@@ -116,7 +125,7 @@ function loadPersistedMessages(): Record<ChatMode, ChatMessage[]> {
   }
 }
 
-function persistMessages(messages: Record<ChatMode, ChatMessage[]>): void {
+function persistMessages(messages: Record<ChatMode, ChatMessage[]>, userId: string | undefined): void {
   if (typeof window === "undefined") return;
   try {
     // Trim to max messages per mode
@@ -124,16 +133,16 @@ function persistMessages(messages: Record<ChatMode, ChatMessage[]>): void {
     for (const [mode, msgs] of Object.entries(messages)) {
       trimmed[mode] = msgs.slice(-MAX_MESSAGES_PER_MODE);
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    localStorage.setItem(getStorageKey(userId), JSON.stringify(trimmed));
   } catch {
     // Ignore storage errors
   }
 }
 
-function loadSettings(): { isOpen: boolean; mode: ChatMode; chatLayout: ChatLayout } {
+function loadSettings(userId: string | undefined): { isOpen: boolean; mode: ChatMode; chatLayout: ChatLayout } {
   if (typeof window === "undefined") return { isOpen: false, mode: "CHAT", chatLayout: "vertical" };
   try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
+    const stored = localStorage.getItem(getSettingsKey(userId));
     if (!stored) return { isOpen: false, mode: "CHAT", chatLayout: "vertical" };
     const parsed = JSON.parse(stored);
     // Handle migration: if stored mode is CALL, default to CHAT
@@ -144,16 +153,19 @@ function loadSettings(): { isOpen: boolean; mode: ChatMode; chatLayout: ChatLayo
   }
 }
 
-function persistSettings(isOpen: boolean, mode: ChatMode, chatLayout: ChatLayout): void {
+function persistSettings(isOpen: boolean, mode: ChatMode, chatLayout: ChatLayout, userId: string | undefined): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ isOpen, mode, chatLayout }));
+    localStorage.setItem(getSettingsKey(userId), JSON.stringify({ isOpen, mode, chatLayout }));
   } catch {
     // Ignore storage errors
   }
 }
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setModeState] = useState<ChatMode>("CHAT");
   const [chatLayout, setChatLayoutState] = useState<ChatLayout>("vertical");
@@ -162,36 +174,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [lastUserId, setLastUserId] = useState<string | undefined>(undefined);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Get entity context for including in messages
   const entityContext = useEntityContext();
 
-  // Load persisted state on mount
+  // Load persisted state on mount or when user changes
   useEffect(() => {
-    const persistedMessages = loadPersistedMessages();
-    const settings = loadSettings();
-    setMessages(persistedMessages);
-    setIsOpen(settings.isOpen);
-    setModeState(settings.mode);
-    setChatLayoutState(settings.chatLayout);
-    setInitialized(true);
-  }, []);
+    // Skip if userId hasn't been determined yet (session loading)
+    if (session === undefined) return;
+
+    // If user changed, reload their data
+    if (userId !== lastUserId) {
+      const persistedMessages = loadPersistedMessages(userId);
+      const settings = loadSettings(userId);
+      setMessages(persistedMessages);
+      setIsOpen(settings.isOpen);
+      setModeState(settings.mode);
+      setChatLayoutState(settings.chatLayout);
+      setLastUserId(userId);
+      setInitialized(true);
+    }
+  }, [userId, lastUserId, session]);
 
   // Persist messages when they change
   useEffect(() => {
     if (initialized) {
-      persistMessages(messages);
+      persistMessages(messages, userId);
     }
-  }, [messages, initialized]);
+  }, [messages, initialized, userId]);
 
   // Persist settings when they change
   useEffect(() => {
     if (initialized) {
-      persistSettings(isOpen, mode, chatLayout);
+      persistSettings(isOpen, mode, chatLayout, userId);
     }
-  }, [isOpen, mode, chatLayout, initialized]);
+  }, [isOpen, mode, chatLayout, initialized, userId]);
 
   const togglePanel = useCallback(() => {
     setIsOpen((prev) => !prev);
@@ -355,20 +375,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           content: m.content,
         }));
 
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: content.trim(),
-            mode,
-            entityContext: entityContext.breadcrumbs,
-            conversationHistory: history,
-          }),
-          signal: abortControllerRef.current.signal,
-        });
+        let response: Response;
+        try {
+          response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: content.trim(),
+              mode,
+              entityContext: entityContext.breadcrumbs,
+              conversationHistory: history,
+            }),
+            signal: abortControllerRef.current.signal,
+          });
+        } catch (fetchErr) {
+          // Network error (e.g., "Load failed" in Safari, "Failed to fetch" in Chrome)
+          throw new Error(
+            fetchErr instanceof Error && fetchErr.message === "Load failed"
+              ? "Failed to connect to chat API. Please check that the server is running."
+              : `Network error: ${fetchErr instanceof Error ? fetchErr.message : "Unknown"}`
+          );
+        }
 
         if (!response.ok) {
-          throw new Error(`HTTP error: ${response.status}`);
+          // Try to parse JSON error response for better messaging
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
         }
 
         // Check if response is streaming
@@ -408,7 +440,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           const errorMessage = err instanceof Error ? err.message : "Unknown error";
           setError(errorMessage);
           updateMessage(assistantId, {
-            content: `Error: ${errorMessage}`,
+            content: `⚠️ ${errorMessage}`,
             metadata: { isStreaming: false, error: errorMessage },
           });
         }

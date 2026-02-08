@@ -41,6 +41,7 @@ export default function SpecSyncPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSpecs, setSelectedSpecs] = useState<Set<string>>(new Set());
 
   const fetchStatus = async () => {
     setLoading(true);
@@ -60,25 +61,52 @@ export default function SpecSyncPage() {
     }
   };
 
-  const syncAll = async () => {
+  const syncSpecs = async (specIds?: string[]) => {
     setSyncing(true);
     setSyncResult(null);
     try {
       const res = await fetch("/api/admin/spec-sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(specIds ? { specIds } : {}),
       });
       const data = await res.json();
       setSyncResult(data);
       if (data.ok) {
-        // Refresh status after sync
+        // Clear selection and refresh status after sync
+        setSelectedSpecs(new Set());
         await fetchStatus();
       }
     } catch (e: any) {
       setSyncResult({ ok: false, error: e.message });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const toggleSpec = (specId: string) => {
+    setSelectedSpecs((prev) => {
+      const next = new Set(prev);
+      if (next.has(specId)) next.delete(specId);
+      else next.add(specId);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (!status) return;
+    if (selectedSpecs.size === status.unseeded.length) {
+      setSelectedSpecs(new Set());
+    } else {
+      setSelectedSpecs(new Set(status.unseeded.map((s) => s.id)));
+    }
+  };
+
+  const syncSelected = () => {
+    if (selectedSpecs.size > 0) {
+      syncSpecs(Array.from(selectedSpecs));
+    } else {
+      syncSpecs(); // Sync all
     }
   };
 
@@ -129,7 +157,7 @@ export default function SpecSyncPage() {
             {loading ? "Checking..." : "Refresh"}
           </button>
           <button
-            onClick={syncAll}
+            onClick={syncSelected}
             disabled={syncing || !status?.unseeded.length}
             style={{
               padding: "8px 16px",
@@ -142,7 +170,11 @@ export default function SpecSyncPage() {
               fontWeight: 500,
             }}
           >
-            {syncing ? "Syncing..." : `Seed ${status?.unseeded.length || 0} Unseeded`}
+            {syncing
+              ? "Syncing..."
+              : selectedSpecs.size > 0
+                ? `Seed ${selectedSpecs.size} Selected`
+                : `Seed All ${status?.unseeded.length || 0}`}
           </button>
         </div>
       </div>
@@ -207,6 +239,15 @@ export default function SpecSyncPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: "var(--surface-secondary)" }}>
+                      <th style={{ padding: "10px 12px", textAlign: "center", width: 40 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedSpecs.size === status.unseeded.length && status.unseeded.length > 0}
+                          onChange={toggleAll}
+                          style={{ cursor: "pointer", width: 16, height: 16 }}
+                          title="Select all"
+                        />
+                      </th>
                       <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600 }}>ID</th>
                       <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600 }}>Title</th>
                       <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600 }}>File</th>
@@ -216,7 +257,23 @@ export default function SpecSyncPage() {
                   </thead>
                   <tbody>
                     {status.unseeded.map((spec) => (
-                      <tr key={spec.id} style={{ borderTop: "1px solid var(--border-primary)" }}>
+                      <tr
+                        key={spec.id}
+                        style={{
+                          borderTop: "1px solid var(--border-primary)",
+                          background: selectedSpecs.has(spec.id) ? "var(--status-info-bg)" : "transparent",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => toggleSpec(spec.id)}
+                      >
+                        <td style={{ padding: "10px 12px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedSpecs.has(spec.id)}
+                            onChange={() => toggleSpec(spec.id)}
+                            style={{ cursor: "pointer", width: 16, height: 16 }}
+                          />
+                        </td>
                         <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 500 }}>{spec.id}</td>
                         <td style={{ padding: "10px 12px" }}>{spec.title}</td>
                         <td style={{ padding: "10px 12px", color: "var(--text-secondary)", fontSize: 12 }}>{spec.filename}</td>

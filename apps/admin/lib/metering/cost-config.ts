@@ -41,6 +41,12 @@ export const DEFAULT_COST_RATES: Record<
     unitType: "1k_tokens",
     description: "OpenAI output tokens (~$10/M)",
   },
+  // Mock AI (zero cost - for testing/fallback visibility)
+  "AI:mock:completion": {
+    costPerUnit: 0,
+    unitType: "count",
+    description: "Mock AI completion (no real API call)",
+  },
 
   // =========================
   // DATABASE COSTS (per ms over threshold)

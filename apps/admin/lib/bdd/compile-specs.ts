@@ -35,7 +35,7 @@ export function compileSpecToTemplate(spec: JsonFeatureSpec): CompileResult {
   const sections: string[] = [];
 
   // Route to appropriate compiler based on specRole and outputType
-  const specRole = spec.specRole || "META";
+  const specRole = spec.specRole || "MEASURE";
   const outputType = spec.outputType || "MEASURE";
 
   let template = "";
@@ -47,8 +47,12 @@ export function compileSpecToTemplate(spec: JsonFeatureSpec): CompileResult {
     case "CONTENT":
       template = compileContentSpec(spec, sections, warnings);
       break;
+    case "VOICE":
+      // Voice specs compile similarly to identity but focus on speech patterns
+      template = compileIdentitySpec(spec, sections, warnings);
+      break;
     default:
-      // For META specs, route by outputType
+      // For MEASURE/ADAPT/REWARD/GUARDRAIL specs, route by outputType
       switch (outputType) {
         case "ADAPT":
           template = compileAdaptSpec(spec, sections, warnings);

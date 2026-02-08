@@ -46,8 +46,16 @@ vi.mock("@/lib/prisma", () => ({
 import { GET } from "@/app/api/data-dictionary/xrefs/route";
 import { prisma } from "@/lib/prisma";
 
-// Cast prisma to mocked type for test access
-const mockPrisma = vi.mocked(prisma);
+// Cast prisma to mocked type for test access - use type assertion for proper mock method access
+const mockPrisma = prisma as unknown as {
+  analysisSpec: { findMany: ReturnType<typeof vi.fn> };
+  analysisAction: { findMany: ReturnType<typeof vi.fn> };
+  analysisTrigger: { findMany: ReturnType<typeof vi.fn> };
+  promptTemplate: { findMany: ReturnType<typeof vi.fn> };
+  promptSlug: { findMany: ReturnType<typeof vi.fn> };
+  playbookItem: { findMany: ReturnType<typeof vi.fn> };
+  callerMemory: { count: ReturnType<typeof vi.fn> };
+};
 
 describe("/api/data-dictionary/xrefs", () => {
   beforeEach(() => {

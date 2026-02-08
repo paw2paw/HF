@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import {
   ExpandMore,
   ExpandLess,
-  OpenInNew,
   Refresh,
   Warning,
+  Psychology,
 } from "@mui/icons-material";
 import {
   StepIcon,
@@ -16,6 +16,31 @@ import {
   SPIN_KEYFRAMES,
 } from "@/lib/pipeline/icons";
 import { CallerPicker } from "@/components/shared/CallerPicker";
+import { FancySelect } from "@/components/shared/FancySelect";
+
+// =============================================================================
+// AI CONFIG TYPES
+// =============================================================================
+
+interface AIConfigInfo {
+  callPoint: string;
+  provider: string;
+  model: string;
+  transcriptLimit: number | null;
+  defaultTranscriptLimit: number | null;
+}
+
+// Map step operations to AI config call points
+const STEP_TO_CALLPOINT: Record<string, string> = {
+  EXTRACT: "pipeline.measure",
+  MEASURE: "pipeline.measure",
+  LEARN: "pipeline.learn",
+  SCORE_AGENT: "pipeline.score_agent",
+  ADAPT: "pipeline.adapt",
+};
+
+// Steps that use AI
+const AI_POWERED_STEPS = new Set(Object.keys(STEP_TO_CALLPOINT));
 
 // =============================================================================
 // TYPES
@@ -59,13 +84,6 @@ interface PipelineRun {
   _status?: string;
 }
 
-interface Caller {
-  id: string;
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-}
-
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
@@ -76,6 +94,33 @@ export default function RunInspector() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+  const [aiConfigs, setAiConfigs] = useState<Record<string, AIConfigInfo>>({});
+
+  // Fetch AI configs on mount
+  useEffect(() => {
+    async function fetchAIConfigs() {
+      try {
+        const res = await fetch("/api/ai-config");
+        const data = await res.json();
+        if (data.ok && data.configs) {
+          const configMap: Record<string, AIConfigInfo> = {};
+          for (const config of data.configs) {
+            configMap[config.callPoint] = {
+              callPoint: config.callPoint,
+              provider: config.provider,
+              model: config.model,
+              transcriptLimit: config.transcriptLimit,
+              defaultTranscriptLimit: config.defaultTranscriptLimit,
+            };
+          }
+          setAiConfigs(configMap);
+        }
+      } catch (err) {
+        console.error("Failed to fetch AI configs:", err);
+      }
+    }
+    fetchAIConfigs();
+  }, []);
 
   // Fetch runs when caller changes
   useEffect(() => {
@@ -162,7 +207,7 @@ export default function RunInspector() {
               display: "block",
               fontSize: 12,
               fontWeight: 500,
-              color: "#6b7280",
+              color: "var(--text-secondary)",
               marginBottom: 4,
             }}
           >
@@ -182,39 +227,24 @@ export default function RunInspector() {
               display: "block",
               fontSize: 12,
               fontWeight: 500,
-              color: "#6b7280",
+              color: "var(--text-secondary)",
               marginBottom: 4,
             }}
           >
             Run
           </label>
-          <select
+          <FancySelect
             value={selectedRunId || ""}
-            onChange={(e) => setSelectedRunId(e.target.value || null)}
+            onChange={(v) => setSelectedRunId(v || null)}
             disabled={!selectedCallerId || runs.length === 0}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              fontSize: 14,
-              background: "white",
-              opacity: !selectedCallerId ? 0.5 : 1,
-            }}
-          >
-            <option value="">
-              {loading
-                ? "Loading..."
-                : runs.length === 0
-                ? "No runs found"
-                : "Select a run..."}
-            </option>
-            {runs.map((r) => (
-              <option key={r.id} value={r.id}>
-                {new Date(r.startedAt).toLocaleString()} - {r.triggeredBy || "manual"} ({r.durationMs}ms)
-              </option>
-            ))}
-          </select>
+            placeholder={loading ? "Loading..." : runs.length === 0 ? "No runs found" : "Select a run..."}
+            searchable={runs.length > 5}
+            options={runs.map((r) => ({
+              value: r.id,
+              label: `${new Date(r.startedAt).toLocaleString()}`,
+              subtitle: `${r.triggeredBy || "manual"} (${r.durationMs}ms)`,
+            }))}
+          />
         </div>
 
         {/* Refresh */}
@@ -225,8 +255,9 @@ export default function RunInspector() {
             marginTop: 20,
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
-            background: "white",
+            border: "1px solid var(--border-default)",
+            background: "var(--surface-primary)",
+            color: "var(--text-secondary)",
             cursor: selectedCallerId ? "pointer" : "not-allowed",
             opacity: selectedCallerId ? 1 : 0.5,
           }}
@@ -241,7 +272,7 @@ export default function RunInspector() {
           style={{
             textAlign: "center",
             padding: 60,
-            color: "#9ca3af",
+            color: "var(--text-muted)",
           }}
         >
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
@@ -262,14 +293,14 @@ export default function RunInspector() {
               gap: 12,
               marginBottom: 24,
               padding: 16,
-              background: "#f9fafb",
+              background: "var(--surface-secondary)",
               borderRadius: 8,
-              border: "1px solid #e5e7eb",
+              border: "1px solid var(--border-default)",
             }}
           >
             <StatusBadge status={selectedRun.status} size={24} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>
                 Prompt Composition
                 {selectedRun._model && (
                   <span
@@ -287,7 +318,7 @@ export default function RunInspector() {
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 13, color: "#6b7280" }}>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                 {new Date(selectedRun.startedAt).toLocaleString()} •{" "}
                 {selectedRun.durationMs}ms • {selectedRun.stepsSucceeded}/
                 {selectedRun.stepsTotal} steps • triggered by {selectedRun.triggeredBy || "manual"}
@@ -320,6 +351,7 @@ export default function RunInspector() {
               gap: 2,
               maxHeight: "calc(100vh - 300px)",
               overflowY: "auto",
+              paddingLeft: 4,
               paddingRight: 8,
             }}
           >
@@ -330,6 +362,7 @@ export default function RunInspector() {
                 isLast={idx === selectedRun.steps.length - 1}
                 expanded={expandedSteps.has(step.id)}
                 onToggle={() => toggleStep(step.id)}
+                aiConfigs={aiConfigs}
               />
             ))}
           </div>
@@ -361,6 +394,161 @@ function getTypeColor(key: string) {
 }
 
 // =============================================================================
+// AI CALL BADGE (with hover tooltip)
+// =============================================================================
+
+function AICallBadge({
+  operation,
+  aiConfigs,
+}: {
+  operation: string;
+  aiConfigs: Record<string, AIConfigInfo>;
+}) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  const callPoint = STEP_TO_CALLPOINT[operation];
+  if (!callPoint) return null;
+
+  const config = aiConfigs[callPoint];
+  if (!config) {
+    // Show placeholder badge
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "2px 6px",
+          background: "#dbeafe",
+          color: "#1e40af",
+          borderRadius: 4,
+          fontSize: 10,
+          fontWeight: 500,
+        }}
+        title="AI-powered step"
+      >
+        <Psychology style={{ fontSize: 12 }} />
+        AI
+      </span>
+    );
+  }
+
+  const transcriptLimit = config.transcriptLimit ?? config.defaultTranscriptLimit;
+  const isCustomized = config.transcriptLimit !== null;
+
+  return (
+    <div
+      style={{ position: "relative", display: "inline-block" }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "2px 8px",
+          background: isCustomized ? "#fef3c7" : "#dbeafe",
+          color: isCustomized ? "#92400e" : "#1e40af",
+          borderRadius: 4,
+          fontSize: 10,
+          fontWeight: 500,
+          cursor: "pointer",
+          border: `1px solid ${isCustomized ? "#fcd34d" : "#93c5fd"}`,
+        }}
+      >
+        <Psychology style={{ fontSize: 12 }} />
+        {config.provider === "mock" ? "Mock" : "AI"}
+        {transcriptLimit && (
+          <span style={{ opacity: 0.7 }}>• {(transcriptLimit / 1000).toFixed(1)}k</span>
+        )}
+      </span>
+
+      {/* Hover Tooltip */}
+      {showTooltip && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            marginTop: 6,
+            padding: 12,
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 8,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 100,
+            minWidth: 220,
+            fontSize: 12,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>
+            AI Configuration
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-muted)" }}>Provider</span>
+              <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>
+                {config.provider}
+              </span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-muted)" }}>Model</span>
+              <span
+                style={{
+                  fontWeight: 500,
+                  color: "var(--text-primary)",
+                  fontSize: 11,
+                  maxWidth: 120,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={config.model}
+              >
+                {config.model.split("-").slice(-2).join("-")}
+              </span>
+            </div>
+            {transcriptLimit && (
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-muted)" }}>Transcript Limit</span>
+                <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>
+                  {transcriptLimit.toLocaleString()} chars
+                  {isCustomized && (
+                    <span
+                      style={{
+                        marginLeft: 4,
+                        padding: "1px 4px",
+                        background: "#fef3c7",
+                        color: "#92400e",
+                        borderRadius: 3,
+                        fontSize: 9,
+                      }}
+                    >
+                      custom
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+          <div
+            style={{
+              marginTop: 8,
+              paddingTop: 8,
+              borderTop: "1px solid var(--border-default)",
+              fontSize: 10,
+              color: "var(--text-muted)",
+            }}
+          >
+            Configure in <a href="/x/ai-config" style={{ color: "#2563eb" }}>AI Config</a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
 // STEP CARD
 // =============================================================================
 
@@ -369,11 +557,13 @@ function StepCard({
   isLast,
   expanded,
   onToggle,
+  aiConfigs,
 }: {
   step: PipelineStep;
   isLast: boolean;
   expanded: boolean;
   onToggle: () => void;
+  aiConfigs: Record<string, AIConfigInfo>;
 }) {
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
@@ -416,7 +606,7 @@ function StepCard({
             style={{
               width: 2,
               flex: 1,
-              background: "#e5e7eb",
+              background: "var(--border-default)",
               minHeight: 20,
             }}
           />
@@ -428,8 +618,8 @@ function StepCard({
         style={{
           flex: 1,
           marginBottom: 8,
-          background: "white",
-          border: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          border: "1px solid var(--border-default)",
           borderRadius: 8,
           overflow: "hidden",
         }}
@@ -459,6 +649,9 @@ function StepCard({
                 {step.label || step.operation}
               </span>
               {step.specSlug && <ConfigBadge source="spec" />}
+              {AI_POWERED_STEPS.has(step.operation) && (
+                <AICallBadge operation={step.operation} aiConfigs={aiConfigs} />
+              )}
             </div>
             {step.outputCounts && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
@@ -502,12 +695,12 @@ function StepCard({
             )}
           </div>
 
-          <div style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>
             {step.durationMs !== null ? `${step.durationMs}ms` : "—"}
           </div>
 
           {hasDetails && (
-            <div style={{ color: "#9ca3af" }}>
+            <div style={{ color: "var(--text-muted)" }}>
               {expanded ? (
                 <ExpandLess style={{ fontSize: 20 }} />
               ) : (
@@ -521,9 +714,9 @@ function StepCard({
         {expanded && hasDetails && (
           <div
             style={{
-              borderTop: "1px solid #e5e7eb",
+              borderTop: "1px solid var(--border-default)",
               padding: 12,
-              background: "#fafafa",
+              background: "var(--surface-secondary)",
               maxHeight: 500,
               overflowY: "auto",
             }}
@@ -536,7 +729,7 @@ function StepCard({
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#6b7280",
+                    color: "var(--text-muted)",
                     marginBottom: 8,
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
@@ -618,11 +811,11 @@ function StepCard({
                         alignItems: "center",
                         gap: 4,
                         padding: "4px 8px",
-                        background: "#f3f4f6",
+                        background: "var(--surface-tertiary)",
                         borderRadius: 4,
                         fontSize: 12,
-                        color: "#6b7280",
-                        border: "1px solid #e5e7eb",
+                        color: "var(--text-muted)",
+                        border: "1px solid var(--border-default)",
                       }}
                     >
                       <SectionIcon section={s.split(":")[0]} size={14} />
@@ -640,7 +833,7 @@ function StepCard({
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#6b7280",
+                    color: "var(--text-muted)",
                     marginBottom: 4,
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
@@ -650,7 +843,7 @@ function StepCard({
                 </div>
                 <div
                   style={{
-                    background: "#1f2937",
+                    background: "var(--surface-dark)",
                     borderRadius: 6,
                     maxHeight: 300,
                     overflow: "auto",
@@ -658,7 +851,7 @@ function StepCard({
                 >
                   <pre
                     style={{
-                      color: "#e5e7eb",
+                      color: "var(--text-on-dark)",
                       padding: 12,
                       margin: 0,
                       fontSize: 11,
@@ -681,7 +874,7 @@ function StepCard({
                       style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "#6b7280",
+                        color: "var(--text-muted)",
                         marginBottom: 8,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
@@ -747,7 +940,7 @@ function StepCard({
                     {activeSection && llmPrompt[activeSection] && (
                       <div
                         style={{
-                          background: "#1f2937",
+                          background: "var(--surface-dark)",
                           borderRadius: 6,
                           maxHeight: 400,
                           overflow: "auto",
@@ -761,14 +954,14 @@ function StepCard({
                             color: getTypeColor(activeSection).text,
                             fontWeight: 600,
                             fontSize: 12,
-                            borderBottom: "1px solid #374151",
+                            borderBottom: "1px solid var(--border-dark)",
                           }}
                         >
                           {activeSection}
                         </div>
                         <pre
                           style={{
-                            color: "#e5e7eb",
+                            color: "var(--text-on-dark)",
                             padding: 12,
                             margin: 0,
                             fontSize: 11,
@@ -785,11 +978,11 @@ function StepCard({
                         style={{
                           padding: 16,
                           textAlign: "center",
-                          color: "#9ca3af",
+                          color: "var(--text-muted)",
                           fontSize: 13,
-                          background: "#f9fafb",
+                          background: "var(--surface-tertiary)",
                           borderRadius: 6,
-                          border: "1px dashed #d1d5db",
+                          border: "1px dashed var(--border-strong)",
                         }}
                       >
                         Click a section above to view its data
@@ -804,7 +997,7 @@ function StepCard({
                       style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "#6b7280",
+                        color: "var(--text-muted)",
                         marginBottom: 4,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
@@ -814,7 +1007,7 @@ function StepCard({
                     </div>
                     <div
                       style={{
-                        background: "#1f2937",
+                        background: "var(--surface-dark)",
                         borderRadius: 6,
                         maxHeight: 400,
                         overflow: "auto",
@@ -822,7 +1015,7 @@ function StepCard({
                     >
                       <pre
                         style={{
-                          color: "#e5e7eb",
+                          color: "var(--text-on-dark)",
                           padding: 12,
                           margin: 0,
                           fontSize: 11,

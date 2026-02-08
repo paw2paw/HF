@@ -3,6 +3,7 @@ import { getAICompletionStream, getDefaultEngine, AIEngine, AIMessage } from "@/
 import { createMeteredStream } from "@/lib/metering";
 import { buildSystemPrompt } from "./system-prompts";
 import { executeCommand, parseCommand } from "@/lib/chat/commands";
+import { logAI } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,16 @@ export async function POST(request: NextRequest) {
       sourceOp: "chat",
     });
 
+    // Log the chat request (response is streamed so we log metadata only)
+    const promptSummary = `[${mode}] ${message.slice(0, 200)}${message.length > 200 ? "..." : ""}`;
+    logAI("chat", promptSummary, "(streaming)", {
+      mode,
+      engine: selectedEngine,
+      messageLength: message.length,
+      historyLength: conversationHistory.length,
+      entityContext: entityContext.map((e) => `${e.type}:${e.id}`).join(", "),
+    });
+
     return new Response(meteredStream, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
@@ -82,12 +93,79 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Chat API error:", error);
+
+    // Parse AI provider-specific errors for better messaging
+    const errorMessage = parseAIError(error);
+
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMessage,
+        errorCode: getErrorCode(error),
       },
       { status: 500 }
     );
   }
+}
+
+/**
+ * Parse AI provider errors into user-friendly messages
+ */
+function parseAIError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Unknown error occurred";
+  }
+
+  const message = error.message.toLowerCase();
+
+  // Anthropic billing errors
+  if (message.includes("credit balance is too low")) {
+    return "Anthropic API credits exhausted. Please add credits at console.anthropic.com or switch to OpenAI in AI Config.";
+  }
+
+  // API key errors
+  if (message.includes("api key") || message.includes("authentication") || message.includes("unauthorized")) {
+    return "API key invalid or not configured. Check your .env.local file.";
+  }
+
+  // Rate limiting
+  if (message.includes("rate limit") || message.includes("too many requests")) {
+    return "Rate limited by AI provider. Please wait a moment and try again.";
+  }
+
+  // Model errors
+  if (message.includes("model") && (message.includes("not found") || message.includes("does not exist"))) {
+    return "AI model not available. Check AI Config settings.";
+  }
+
+  // Network errors
+  if (message.includes("network") || message.includes("econnrefused") || message.includes("timeout")) {
+    return "Network error connecting to AI provider. Check your internet connection.";
+  }
+
+  // Content policy
+  if (message.includes("content policy") || message.includes("safety")) {
+    return "Message blocked by AI safety filters.";
+  }
+
+  // Return the original message if no specific pattern matched
+  return error.message;
+}
+
+/**
+ * Extract error code for frontend handling
+ */
+function getErrorCode(error: unknown): string {
+  if (!(error instanceof Error)) return "UNKNOWN";
+
+  const message = error.message.toLowerCase();
+
+  if (message.includes("credit balance")) return "BILLING";
+  if (message.includes("api key") || message.includes("authentication")) return "AUTH";
+  if (message.includes("rate limit")) return "RATE_LIMIT";
+  if (message.includes("model")) return "MODEL";
+  if (message.includes("network") || message.includes("timeout")) return "NETWORK";
+  if (message.includes("content policy") || message.includes("safety")) return "CONTENT_POLICY";
+
+  return "API_ERROR";
 }

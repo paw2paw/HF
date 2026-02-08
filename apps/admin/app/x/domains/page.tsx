@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { FancySelect } from "@/components/shared/FancySelect";
+import { PlaybookPill, CallerPill, StatusBadge } from "@/src/components/shared/EntityPill";
+import { DraggableTabs } from "@/components/shared/DraggableTabs";
 
 type DomainListItem = {
   id: string;
@@ -64,9 +67,16 @@ type DomainDetail = {
 
 const STATUSES = ["active", "inactive"] as const;
 
-const statusColors: Record<string, { bg: string; text: string }> = {
-  active: { bg: "#dcfce7", text: "#166534" },
-  inactive: { bg: "#fee2e2", text: "#991b1b" },
+const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
+  active: { bg: "#dcfce7", text: "#166534", icon: "✅", desc: "Currently active domains" },
+  inactive: { bg: "#fee2e2", text: "#991b1b", icon: "⏸️", desc: "Inactive domains" },
+};
+
+// Map playbook status to StatusBadge status type
+const playbookStatusMap: Record<string, "draft" | "active" | "archived"> = {
+  DRAFT: "draft",
+  PUBLISHED: "active",
+  ARCHIVED: "archived",
 };
 
 export default function DomainsPage() {
@@ -229,17 +239,7 @@ export default function DomainsPage() {
   };
 
   const playbookStatusBadge = (status: string) => {
-    const styles: Record<string, { bg: string; color: string }> = {
-      DRAFT: { bg: "#fef3c7", color: "#92400e" },
-      PUBLISHED: { bg: "#dcfce7", color: "#166534" },
-      ARCHIVED: { bg: "#f3f4f6", color: "#6b7280" },
-    };
-    const s = styles[status] || styles.DRAFT;
-    return (
-      <span style={{ fontSize: 10, padding: "2px 6px", background: s.bg, color: s.color, borderRadius: 4 }}>
-        {status}
-      </span>
-    );
+    return <StatusBadge status={playbookStatusMap[status] || "draft"} size="compact" />;
   };
 
   // Detail handlers
@@ -315,46 +315,59 @@ export default function DomainsPage() {
     isActive,
     colors,
     onClick,
+    icon,
+    tooltip,
   }: {
     label: string;
     isActive: boolean;
     colors: { bg: string; text: string };
     onClick: () => void;
+    icon?: string;
+    tooltip?: string;
   }) => (
     <button
       onClick={onClick}
+      title={tooltip}
       style={{
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 600,
-        border: isActive ? `1px solid ${colors.text}40` : "1px solid #e5e7eb",
+        border: isActive ? `1px solid ${colors.text}40` : "1px solid var(--border-default)",
         borderRadius: 5,
         cursor: "pointer",
-        background: isActive ? colors.bg : "#f9fafb",
-        color: isActive ? colors.text : "#9ca3af",
+        background: isActive ? colors.bg : "var(--surface-secondary)",
+        color: isActive ? colors.text : "var(--text-muted)",
         transition: "all 0.15s",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
       }}
     >
+      {icon && <span>{icon}</span>}
       {label}
     </button>
   );
 
-  const MiniBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "2px 6px",
-        fontSize: 9,
-        fontWeight: 600,
-        border: "1px solid #d1d5db",
-        borderRadius: 4,
-        cursor: "pointer",
-        background: "#fff",
-        color: "#6b7280",
-      }}
-    >
-      {label}
-    </button>
+  const ClearBtn = ({ onClick, show }: { onClick: () => void; show: boolean }) => (
+    show ? (
+      <button
+        onClick={onClick}
+        style={{
+          padding: "0 4px",
+          fontSize: 12,
+          fontWeight: 400,
+          border: "none",
+          borderRadius: 3,
+          cursor: "pointer",
+          background: "transparent",
+          color: "var(--text-placeholder)",
+          lineHeight: 1,
+        }}
+        title="Clear filter"
+      >
+        ×
+      </button>
+    ) : null
   );
 
   return (
@@ -362,15 +375,15 @@ export default function DomainsPage() {
       {/* Header */}
       <div
         style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          border: "1px solid var(--border-default)",
           borderRadius: 8,
           padding: "12px 16px",
           marginBottom: 16,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "#1f2937", margin: 0 }}>Domains</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Domains</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <input
               type="text"
@@ -379,7 +392,7 @@ export default function DomainsPage() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 padding: "6px 10px",
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--border-strong)",
                 borderRadius: 6,
                 width: 160,
                 fontSize: 12,
@@ -389,7 +402,7 @@ export default function DomainsPage() {
               onClick={() => setShowCreate(true)}
               style={{
                 padding: "6px 12px",
-                background: "#4f46e5",
+                background: "var(--button-primary-bg)",
                 color: "#fff",
                 border: "none",
                 borderRadius: 6,
@@ -403,51 +416,51 @@ export default function DomainsPage() {
           </div>
         </div>
 
-        {/* Status Filter Row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, minWidth: 50 }}>Status</span>
-          <MiniBtn label="ALL" onClick={() => setSelectedStatuses(new Set(STATUSES))} />
-          <MiniBtn label="CLR" onClick={() => setSelectedStatuses(new Set())} />
-          <div style={{ width: 1, height: 16, background: "#e5e7eb", margin: "0 4px" }} />
-          <FilterPill
-            label="ACTIVE"
-            isActive={selectedStatuses.has("active")}
-            colors={statusColors.active}
-            onClick={() => toggleStatus("active")}
-          />
-          <FilterPill
-            label="INACTIVE"
-            isActive={selectedStatuses.has("inactive")}
-            colors={statusColors.inactive}
-            onClick={() => toggleStatus("inactive")}
-          />
-          <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>
-            {selectedStatuses.size === 0 ? "all" : selectedStatuses.size}
-          </span>
+        {/* Filters */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+          {/* Status */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by domain status">Status</span>
+            <ClearBtn onClick={() => setSelectedStatuses(new Set())} show={selectedStatuses.size > 0} />
+            <div style={{ display: "flex", gap: 4 }}>
+              <FilterPill
+                label="ACTIVE"
+                icon={statusColors.active.icon}
+                tooltip={statusColors.active.desc}
+                isActive={selectedStatuses.has("active")}
+                colors={statusColors.active}
+                onClick={() => toggleStatus("active")}
+              />
+              <FilterPill
+                label="INACTIVE"
+                icon={statusColors.inactive.icon}
+                tooltip={statusColors.inactive.desc}
+                isActive={selectedStatuses.has("inactive")}
+                colors={statusColors.inactive}
+                onClick={() => toggleStatus("inactive")}
+              />
+            </div>
+          </div>
 
-          <div style={{ width: 1, height: 16, background: "#e5e7eb", margin: "0 8px" }} />
+          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
 
-          <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Sort</span>
-          <select
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Sort domains">Sort</span>
+          <FancySelect
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "name" | "callers" | "playbooks")}
-            style={{
-              padding: "4px 8px",
-              border: "1px solid #d1d5db",
-              borderRadius: 5,
-              fontSize: 11,
-              color: "#374151",
-            }}
-          >
-            <option value="name">Name</option>
-            <option value="callers">Callers</option>
-            <option value="playbooks">Playbooks</option>
-          </select>
+            onChange={(v) => setSortBy(v as "name" | "callers" | "playbooks")}
+            searchable={false}
+            style={{ minWidth: 120 }}
+            options={[
+              { value: "name", label: "Name" },
+              { value: "callers", label: "Callers" },
+              { value: "playbooks", label: "Playbooks" },
+            ]}
+          />
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: "#fef2f2", color: "#dc2626", borderRadius: 8, marginBottom: 20 }}>
+        <div style={{ padding: 16, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
           {error}
         </div>
       )}
@@ -457,11 +470,11 @@ export default function DomainsPage() {
         {/* List Panel */}
         <div style={{ width: 320, flexShrink: 0, overflowY: "auto" }}>
           {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading...</div>
+            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
           ) : filteredAndSortedDomains.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+            <div style={{ padding: 40, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🌐</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
                 {search || selectedStatuses.size > 0 ? "No domains match filters" : "No domains yet"}
               </div>
             </div>
@@ -472,8 +485,8 @@ export default function DomainsPage() {
                   key={d.id}
                   onClick={() => selectDomain(d.id)}
                   style={{
-                    background: selectedId === d.id ? "#eef2ff" : "#fff",
-                    border: selectedId === d.id ? "1px solid #4f46e5" : "1px solid #e5e7eb",
+                    background: selectedId === d.id ? "var(--surface-selected)" : "var(--surface-primary)",
+                    border: selectedId === d.id ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
                     borderRadius: 8,
                     padding: 14,
                     cursor: "pointer",
@@ -484,10 +497,10 @@ export default function DomainsPage() {
                     <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{d.name}</h3>
                     {statusBadge(d)}
                   </div>
-                  <p style={{ margin: 0, fontSize: 11, color: "#6b7280", marginBottom: 10, lineHeight: 1.4 }}>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
                     {d.description || <em>No description</em>}
                   </p>
-                  <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#6b7280" }}>
+                  <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
                     <span><strong>{d.callerCount || 0}</strong> callers</span>
                     <span><strong>{d.playbookCount || 0}</strong> playbooks</span>
                   </div>
@@ -528,18 +541,18 @@ export default function DomainsPage() {
         </div>
 
         {/* Detail Panel */}
-        <div style={{ flex: 1, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 20, overflowY: "auto" }}>
+        <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 20, overflowY: "auto" }}>
           {!selectedId ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#9ca3af" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-placeholder)" }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>🌐</div>
                 <div style={{ fontSize: 14 }}>Select a domain to view details</div>
               </div>
             </div>
           ) : detailLoading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading domain...</div>
+            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading domain...</div>
           ) : detailError || !domain ? (
-            <div style={{ padding: 20, background: "#fef2f2", color: "#dc2626", borderRadius: 8 }}>
+            <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
               {detailError || "Domain not found"}
             </div>
           ) : (
@@ -548,7 +561,7 @@ export default function DomainsPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1f2937", margin: 0 }}>{domain.name}</h2>
+                    <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{domain.name}</h2>
                     {domain.isDefault && (
                       <span style={{ padding: "4px 8px", fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 4 }}>
                         Default
@@ -561,64 +574,40 @@ export default function DomainsPage() {
                     )}
                   </div>
                   {domain.description && (
-                    <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4, marginBottom: 0 }}>{domain.description}</p>
+                    <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>{domain.description}</p>
                   )}
                 </div>
               </div>
 
               {/* Stats */}
               <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
-                <div style={{ padding: 16, background: "#f9fafb", borderRadius: 8, minWidth: 100 }}>
+                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
                   <div style={{ fontSize: 24, fontWeight: 600 }}>{domain._count.callers}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>Callers</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Callers</div>
                 </div>
-                <div style={{ padding: 16, background: "#f9fafb", borderRadius: 8, minWidth: 100 }}>
+                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
                   <div style={{ fontSize: 24, fontWeight: 600 }}>{domain._count.playbooks}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>Playbooks</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Playbooks</div>
                 </div>
-                <div style={{ padding: 16, background: "#f9fafb", borderRadius: 8, minWidth: 100 }}>
+                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
                   <div style={{ fontSize: 24, fontWeight: 600 }}>
                     {domain.playbooks.filter((p) => p.status === "PUBLISHED").length}
                   </div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>Published</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Published</div>
                 </div>
               </div>
 
               {/* Tabs */}
-              <div style={{ borderBottom: "1px solid #e5e7eb", marginBottom: 24 }}>
-                <div style={{ display: "flex", gap: 24 }}>
-                  <button
-                    onClick={() => setActiveTab("playbooks")}
-                    style={{
-                      padding: "12px 0",
-                      background: "none",
-                      border: "none",
-                      borderBottom: activeTab === "playbooks" ? "2px solid #4f46e5" : "2px solid transparent",
-                      color: activeTab === "playbooks" ? "#4f46e5" : "#6b7280",
-                      fontWeight: activeTab === "playbooks" ? 600 : 400,
-                      fontSize: 14,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Playbooks ({domain.playbooks.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("callers")}
-                    style={{
-                      padding: "12px 0",
-                      background: "none",
-                      border: "none",
-                      borderBottom: activeTab === "callers" ? "2px solid #4f46e5" : "2px solid transparent",
-                      color: activeTab === "callers" ? "#4f46e5" : "#6b7280",
-                      fontWeight: activeTab === "callers" ? 600 : 400,
-                      fontSize: 14,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Callers ({domain._count.callers})
-                  </button>
-                </div>
-              </div>
+              <DraggableTabs
+                storageKey={`domain-detail-tabs-${domain.id}`}
+                tabs={[
+                  { id: "playbooks", label: `Playbooks (${domain.playbooks.length})` },
+                  { id: "callers", label: `Callers (${domain._count.callers})` },
+                ]}
+                activeTab={activeTab}
+                onTabChange={(id) => setActiveTab(id as "callers" | "playbooks")}
+                containerStyle={{ marginBottom: 24 }}
+              />
 
               {/* Playbooks Tab */}
               {activeTab === "playbooks" && (
@@ -641,7 +630,7 @@ export default function DomainsPage() {
                         padding: "8px 16px",
                         fontSize: 14,
                         fontWeight: 500,
-                        background: "#4f46e5",
+                        background: "var(--button-primary-bg)",
                         color: "white",
                         border: "none",
                         borderRadius: 6,
@@ -669,8 +658,8 @@ export default function DomainsPage() {
                   )}
 
                   {sortedPlaybooks.length === 0 ? (
-                    <div style={{ padding: 32, textAlign: "center", background: "#f9fafb", borderRadius: 8 }}>
-                      <p style={{ color: "#6b7280", marginBottom: 16 }}>No playbooks yet</p>
+                    <div style={{ padding: 32, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
+                      <p style={{ color: "var(--text-muted)", marginBottom: 16 }}>No playbooks yet</p>
                       <button
                         onClick={() => {
                           setShowPlaybookModal(true);
@@ -687,7 +676,7 @@ export default function DomainsPage() {
                           padding: "8px 16px",
                           fontSize: 14,
                           fontWeight: 500,
-                          background: "#4f46e5",
+                          background: "var(--button-primary-bg)",
                           color: "white",
                           border: "none",
                           borderRadius: 6,
@@ -707,8 +696,8 @@ export default function DomainsPage() {
                           <div
                             key={playbook.id}
                             style={{
-                              background: "white",
-                              border: isPublished ? "1px solid #86efac" : "1px solid #e5e7eb",
+                              background: "var(--surface-primary)",
+                              border: isPublished ? "1px solid var(--status-success-border)" : "1px solid var(--border-default)",
                               borderRadius: 8,
                               padding: "12px 16px",
                               display: "flex",
@@ -725,10 +714,10 @@ export default function DomainsPage() {
                                   width: 24,
                                   height: 20,
                                   padding: 0,
-                                  border: "1px solid #d1d5db",
+                                  border: "1px solid var(--border-strong)",
                                   borderRadius: 3,
-                                  background: idx === 0 ? "#f3f4f6" : "white",
-                                  color: idx === 0 ? "#9ca3af" : "#374151",
+                                  background: idx === 0 ? "var(--surface-tertiary)" : "var(--surface-primary)",
+                                  color: idx === 0 ? "var(--text-muted)" : "var(--text-primary)",
                                   cursor: idx === 0 ? "not-allowed" : "pointer",
                                   fontSize: 10,
                                 }}
@@ -742,10 +731,10 @@ export default function DomainsPage() {
                                   width: 24,
                                   height: 20,
                                   padding: 0,
-                                  border: "1px solid #d1d5db",
+                                  border: "1px solid var(--border-strong)",
                                   borderRadius: 3,
-                                  background: idx === sortedPlaybooks.length - 1 ? "#f3f4f6" : "white",
-                                  color: idx === sortedPlaybooks.length - 1 ? "#9ca3af" : "#374151",
+                                  background: idx === sortedPlaybooks.length - 1 ? "var(--surface-tertiary)" : "var(--surface-primary)",
+                                  color: idx === sortedPlaybooks.length - 1 ? "var(--text-muted)" : "var(--text-primary)",
                                   cursor: idx === sortedPlaybooks.length - 1 ? "not-allowed" : "pointer",
                                   fontSize: 10,
                                 }}
@@ -776,12 +765,12 @@ export default function DomainsPage() {
                               href={`/x/playbooks/${playbook.id}`}
                               style={{ flex: 1, textDecoration: "none", color: "inherit" }}
                             >
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                <span style={{ fontWeight: 600 }}>{playbook.name}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
+                                <PlaybookPill label={playbook.name} size="compact" />
                                 {playbookStatusBadge(playbook.status)}
-                                <span style={{ fontSize: 12, color: "#9ca3af" }}>v{playbook.version}</span>
+                                <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>v{playbook.version}</span>
                               </div>
-                              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                                 {playbook._count?.items || 0} specs
                                 {playbook.publishedAt && (
                                   <> &bull; Published {new Date(playbook.publishedAt).toLocaleDateString()}</>
@@ -790,7 +779,7 @@ export default function DomainsPage() {
                             </Link>
 
                             {/* Arrow */}
-                            <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "#9ca3af", textDecoration: "none" }}>
+                            <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none" }}>
                               →
                             </Link>
                           </div>
@@ -809,41 +798,43 @@ export default function DomainsPage() {
                   </h3>
 
                   {domain.callers.length === 0 ? (
-                    <div style={{ padding: 32, textAlign: "center", background: "#f9fafb", borderRadius: 8 }}>
-                      <p style={{ color: "#6b7280" }}>No callers assigned to this domain yet</p>
+                    <div style={{ padding: 32, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
+                      <p style={{ color: "var(--text-muted)" }}>No callers assigned to this domain yet</p>
                     </div>
                   ) : (
-                    <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
-                          <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                          <tr style={{ background: "var(--surface-secondary)", borderBottom: "1px solid var(--border-default)" }}>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
                               Name
                             </th>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
                               Contact
                             </th>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
                               Calls
                             </th>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
                               Created
                             </th>
                           </tr>
                         </thead>
                         <tbody>
                           {domain.callers.map((caller) => (
-                            <tr key={caller.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                            <tr key={caller.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                               <td style={{ padding: "12px 16px" }}>
-                                <Link href={`/x/callers/${caller.id}`} style={{ color: "#4f46e5", textDecoration: "none" }}>
-                                  {caller.name || <em style={{ color: "#9ca3af" }}>No name</em>}
-                                </Link>
+                                <CallerPill
+                                  label={caller.name || "No name"}
+                                  href={`/x/callers/${caller.id}`}
+                                  size="compact"
+                                />
                               </td>
-                              <td style={{ padding: "12px 16px", fontSize: 14, color: "#6b7280" }}>
+                              <td style={{ padding: "12px 16px", fontSize: 14, color: "var(--text-muted)" }}>
                                 {caller.email || caller.phone || caller.externalId || "—"}
                               </td>
                               <td style={{ padding: "12px 16px", fontSize: 14 }}>{caller._count.calls}</td>
-                              <td style={{ padding: "12px 16px", fontSize: 12, color: "#6b7280" }}>
+                              <td style={{ padding: "12px 16px", fontSize: 12, color: "var(--text-muted)" }}>
                                 {new Date(caller.createdAt).toLocaleDateString()}
                               </td>
                             </tr>
@@ -874,7 +865,7 @@ export default function DomainsPage() {
           onClick={() => setShowCreate(false)}
         >
           <div
-            style={{ background: "#fff", borderRadius: 12, padding: 24, width: 400 }}
+            style={{ background: "var(--surface-primary)", borderRadius: 12, padding: 24, width: 400 }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New Domain</h2>
@@ -885,7 +876,7 @@ export default function DomainsPage() {
                 value={newDomain.slug}
                 onChange={(e) => setNewDomain({ ...newDomain, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
                 placeholder="e.g., tutor"
-                style={{ width: "100%", padding: 10, border: "1px solid #d1d5db", borderRadius: 6 }}
+                style={{ width: "100%", padding: 10, border: "1px solid var(--border-strong)", borderRadius: 6 }}
               />
             </div>
             <div style={{ marginBottom: 16 }}>
@@ -895,7 +886,7 @@ export default function DomainsPage() {
                 value={newDomain.name}
                 onChange={(e) => setNewDomain({ ...newDomain, name: e.target.value })}
                 placeholder="e.g., AI Tutor"
-                style={{ width: "100%", padding: 10, border: "1px solid #d1d5db", borderRadius: 6 }}
+                style={{ width: "100%", padding: 10, border: "1px solid var(--border-strong)", borderRadius: 6 }}
               />
             </div>
             <div style={{ marginBottom: 16 }}>
@@ -904,13 +895,13 @@ export default function DomainsPage() {
                 value={newDomain.description}
                 onChange={(e) => setNewDomain({ ...newDomain, description: e.target.value })}
                 rows={2}
-                style={{ width: "100%", padding: 10, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical" }}
+                style={{ width: "100%", padding: 10, border: "1px solid var(--border-strong)", borderRadius: 6, resize: "vertical" }}
               />
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button
                 onClick={() => setShowCreate(false)}
-                style={{ padding: "8px 16px", background: "#f3f4f6", border: "none", borderRadius: 6, cursor: "pointer" }}
+                style={{ padding: "8px 16px", background: "var(--surface-secondary)", border: "none", borderRadius: 6, cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -919,7 +910,7 @@ export default function DomainsPage() {
                 disabled={creating || !newDomain.slug || !newDomain.name}
                 style={{
                   padding: "8px 16px",
-                  background: "#4f46e5",
+                  background: "var(--button-primary-bg)",
                   color: "#fff",
                   border: "none",
                   borderRadius: 6,
@@ -950,7 +941,7 @@ export default function DomainsPage() {
         >
           <div
             style={{
-              background: "white",
+              background: "var(--surface-primary)",
               borderRadius: 12,
               width: 500,
               maxWidth: "90%",
@@ -961,7 +952,7 @@ export default function DomainsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header with Tabs */}
-            <div style={{ borderBottom: "1px solid #e5e7eb" }}>
+            <div style={{ borderBottom: "1px solid var(--border-default)" }}>
               <div style={{ padding: "16px 20px 0 20px" }}>
                 <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Add Playbook to {domain?.name}</h2>
               </div>
@@ -973,8 +964,8 @@ export default function DomainsPage() {
                     padding: "10px 16px",
                     background: "none",
                     border: "none",
-                    borderBottom: modalTab === "existing" ? "2px solid #4f46e5" : "2px solid transparent",
-                    color: modalTab === "existing" ? "#4f46e5" : "#6b7280",
+                    borderBottom: modalTab === "existing" ? "2px solid var(--accent-primary)" : "2px solid transparent",
+                    color: modalTab === "existing" ? "var(--accent-primary)" : "var(--text-muted)",
                     fontWeight: modalTab === "existing" ? 600 : 400,
                     fontSize: 13,
                     cursor: "pointer",
@@ -989,8 +980,8 @@ export default function DomainsPage() {
                     padding: "10px 16px",
                     background: "none",
                     border: "none",
-                    borderBottom: modalTab === "create" ? "2px solid #4f46e5" : "2px solid transparent",
-                    color: modalTab === "create" ? "#4f46e5" : "#6b7280",
+                    borderBottom: modalTab === "create" ? "2px solid var(--accent-primary)" : "2px solid transparent",
+                    color: modalTab === "create" ? "var(--accent-primary)" : "var(--text-muted)",
                     fontWeight: modalTab === "create" ? 600 : 400,
                     fontSize: 13,
                     cursor: "pointer",
@@ -1006,18 +997,18 @@ export default function DomainsPage() {
               {modalTab === "existing" ? (
                 <div>
                   {loadingPlaybooks ? (
-                    <div style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>Loading playbooks...</div>
+                    <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Loading playbooks...</div>
                   ) : (() => {
                     const otherPlaybooks = allPlaybooks.filter((pb) => pb.domain?.id !== selectedId);
                     return otherPlaybooks.length === 0 ? (
-                      <div style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>
+                      <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>
                         <p>No playbooks in other domains to move.</p>
                         <button
                           onClick={() => setModalTab("create")}
                           style={{
                             marginTop: 12,
                             padding: "8px 16px",
-                            background: "#4f46e5",
+                            background: "var(--button-primary-bg)",
                             color: "white",
                             border: "none",
                             borderRadius: 6,
@@ -1035,7 +1026,7 @@ export default function DomainsPage() {
                             key={pb.id}
                             style={{
                               padding: 12,
-                              border: "1px solid #e5e7eb",
+                              border: "1px solid var(--border-default)",
                               borderRadius: 8,
                               display: "flex",
                               justifyContent: "space-between",
@@ -1047,7 +1038,7 @@ export default function DomainsPage() {
                                 <span style={{ fontWeight: 500, fontSize: 14 }}>{pb.name}</span>
                                 {playbookStatusBadge(pb.status)}
                               </div>
-                              <div style={{ fontSize: 11, color: "#6b7280" }}>
+                              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
                                 From: {pb.domain?.name || "No domain"} &bull; {pb._count?.items || 0} specs
                               </div>
                             </div>
@@ -1110,7 +1101,7 @@ export default function DomainsPage() {
                       style={{
                         width: "100%",
                         padding: "8px 12px",
-                        border: "1px solid #d1d5db",
+                        border: "1px solid var(--border-strong)",
                         borderRadius: 6,
                         fontSize: 14,
                         boxSizing: "border-box",
@@ -1130,7 +1121,7 @@ export default function DomainsPage() {
                       style={{
                         width: "100%",
                         padding: "8px 12px",
-                        border: "1px solid #d1d5db",
+                        border: "1px solid var(--border-strong)",
                         borderRadius: 6,
                         fontSize: 14,
                         resize: "vertical",
@@ -1161,14 +1152,15 @@ export default function DomainsPage() {
             </div>
 
             {/* Modal Footer */}
-            <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e7eb", textAlign: "right" }}>
+            <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border-default)", textAlign: "right" }}>
               <button
                 onClick={() => setShowPlaybookModal(false)}
                 style={{
                   padding: "8px 16px",
                   fontSize: 13,
-                  background: "white",
-                  border: "1px solid #d1d5db",
+                  background: "var(--surface-secondary)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-strong)",
                   borderRadius: 6,
                   cursor: "pointer",
                 }}

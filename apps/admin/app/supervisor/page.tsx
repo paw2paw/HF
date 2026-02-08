@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import Link from "next/link";
-import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
+import { FancySelect } from "@/components/shared/FancySelect";
+
+// Lazy load the FlowVisualizer to avoid loading force-graph on initial page load
+const FlowVisualizer = lazy(() => import("./components/FlowVisualizer"));
+
+type TabId = "stages" | "flow";
 
 type Domain = {
   id: string;
@@ -49,7 +54,13 @@ type SupervisorData = {
   };
 };
 
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: "stages", label: "Pipeline Stages", icon: "📋" },
+  { id: "flow", label: "Flow Visualizer", icon: "🔀" },
+];
+
 export default function SupervisorPage() {
+  const [activeTab, setActiveTab] = useState<TabId>("flow");
   const [data, setData] = useState<SupervisorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,14 +105,8 @@ export default function SupervisorPage() {
     const s = styles[outputType] || { bg: "#f3f4f6", color: "#6b7280" };
     return (
       <span
-        style={{
-          fontSize: 9,
-          padding: "2px 6px",
-          background: s.bg,
-          color: s.color,
-          borderRadius: 4,
-          fontWeight: 500,
-        }}
+        className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+        style={{ background: s.bg, color: s.color }}
       >
         {outputType}
       </span>
@@ -109,21 +114,14 @@ export default function SupervisorPage() {
   };
 
   const scopeBadge = (scope: string) => {
-    const styles: Record<string, { bg: string; color: string }> = {
-      SYSTEM: { bg: "#dbeafe", color: "#1e40af" },
-      DOMAIN: { bg: "#d1fae5", color: "#065f46" },
-    };
-    const s = styles[scope] || { bg: "#f3f4f6", color: "#6b7280" };
+    const isSystem = scope === "SYSTEM";
     return (
       <span
-        style={{
-          fontSize: 9,
-          padding: "2px 6px",
-          background: s.bg,
-          color: s.color,
-          borderRadius: 4,
-          fontWeight: 500,
-        }}
+        className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+          isSystem
+            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+            : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+        }`}
       >
         {scope}
       </span>
@@ -143,330 +141,253 @@ export default function SupervisorPage() {
     return icons[stageName] || "📋";
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: 32 }}>
-        <div>Loading...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: 32 }}>
-        <div style={{ color: "#dc2626" }}>Error: {error}</div>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div style={{ padding: 32 }}>
-        <div>No data available</div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ padding: 32 }}>
-      <SourcePageHeader
-        title="Pipeline Supervisor"
-        description="View pipeline configuration and specs organized by execution stage"
-        dataNodeId="supervisor"
-      />
-
-      {/* Info Bar */}
-      <div
-        style={{
-          marginTop: 24,
-          padding: 16,
-          background: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          display: "flex",
-          gap: 24,
-          alignItems: "center",
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-            Pipeline Configuration
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 500 }}>
-            {data.superviseSpec ? (
-              <Link href={`/analysis-specs?id=${data.superviseSpec.id}`}>
-                {data.superviseSpec.name} ({data.superviseSpec.slug})
-              </Link>
-            ) : (
-              <span style={{ color: "#dc2626" }}>Default (no SUPERVISE spec found)</span>
-            )}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-            Stages
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 500 }}>{data.counts.stages}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-            System Specs
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 500 }}>{data.counts.systemSpecs}</div>
-        </div>
-        {selectedDomainId && (
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-              Domain Specs
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-3">
+              <span className="text-2xl">👁️</span>
+              Pipeline Supervisor
+            </h1>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+              View pipeline configuration, specs by stage, and execution flow
+            </p>
+          </div>
+          {data && (
+            <div className="flex gap-4 text-sm">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{data.counts.stages}</div>
+                <div className="text-xs text-neutral-500">Stages</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{data.counts.systemSpecs}</div>
+                <div className="text-xs text-neutral-500">System</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{data.counts.domainSpecs}</div>
+                <div className="text-xs text-neutral-500">Domain</div>
+              </div>
             </div>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>{data.counts.domainSpecs}</div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Domain Selector */}
-      <div style={{ marginTop: 24, marginBottom: 24 }}>
-        <label
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 500,
-            color: "#374151",
-            marginBottom: 8,
-          }}
-        >
-          Domain (optional)
-        </label>
-        <select
-          value={selectedDomainId}
-          onChange={(e) => setSelectedDomainId(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            fontSize: 14,
-            minWidth: 300,
-          }}
-        >
-          <option value="">All Domains (System specs only)</option>
-          {data.allDomains.map((domain) => (
-            <option key={domain.id} value={domain.id}>
-              {domain.name} ({domain.slug})
-            </option>
-          ))}
-        </select>
-
-        {data.playbook && (
-          <div style={{ marginTop: 8, fontSize: 13, color: "#6b7280" }}>
-            Using playbook:{" "}
-            <Link
-              href={`/playbooks/${data.playbook.id}`}
-              style={{ color: "#4f46e5", fontWeight: 500 }}
-            >
-              {data.playbook.name}
-            </Link>{" "}
-            ({data.playbook.status})
-          </div>
-        )}
-      </div>
-
-      {/* Pipeline Stages */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {data.stages.map((stage) => (
-          <div
-            key={stage.name}
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
+      {/* Tab Navigation */}
+      <div className="flex gap-1 mb-6 border-b border-neutral-200 dark:border-neutral-700">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === tab.id
+                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                : "border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
+            }`}
           >
-            {/* Stage Header */}
-            <div
-              style={{
-                background: "#f9fafb",
-                padding: 16,
-                borderBottom: "1px solid #e5e7eb",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ fontSize: 24 }}>{stageIcon(stage.name)}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-                    {stage.order}. {stage.name}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#6b7280" }}>
-                    {stage.description || "No description"}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {stage.batched && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        padding: "2px 6px",
-                        background: "#ede9fe",
-                        color: "#5b21b6",
-                        borderRadius: 4,
-                        fontWeight: 500,
-                      }}
-                    >
-                      BATCHED
-                    </span>
-                  )}
-                  {stage.requiresMode && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        padding: "2px 6px",
-                        background: "#fef3c7",
-                        color: "#92400e",
-                        borderRadius: 4,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {stage.requiresMode.toUpperCase()} ONLY
-                    </span>
-                  )}
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "#6b7280",
-                    }}
-                  >
-                    {stage.totalSpecs} spec{stage.totalSpecs !== 1 ? "s" : ""}
-                  </div>
-                </div>
-              </div>
-              <div style={{ marginTop: 8, display: "flex", gap: 4 }}>
-                {stage.outputTypes.map((type) => (
-                  <span key={type}>{outputTypeBadge(type)}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Specs List */}
-            <div>
-              {/* System Specs */}
-              {stage.systemSpecs.length > 0 && (
-                <div style={{ padding: 16, borderBottom: "1px solid #e5e7eb" }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "#1e40af",
-                      marginBottom: 12,
-                    }}
-                  >
-                    SYSTEM SPECS ({stage.systemSpecs.length})
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {stage.systemSpecs.map((spec) => (
-                      <div
-                        key={spec.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          padding: 8,
-                          background: "#f9fafb",
-                          borderRadius: 6,
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <Link
-                            href={`/analysis-specs?id=${spec.id}`}
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 500,
-                              color: "#111827",
-                            }}
-                          >
-                            {spec.name}
-                          </Link>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>
-                            {spec.slug}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 4 }}>
-                          {scopeBadge(spec.scope)}
-                          {outputTypeBadge(spec.outputType)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Domain Specs */}
-              {stage.domainSpecs.length > 0 && (
-                <div style={{ padding: 16 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "#065f46",
-                      marginBottom: 12,
-                    }}
-                  >
-                    DOMAIN SPECS ({stage.domainSpecs.length})
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {stage.domainSpecs.map((spec) => (
-                      <div
-                        key={spec.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          padding: 8,
-                          background: "#f9fafb",
-                          borderRadius: 6,
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <Link
-                            href={`/analysis-specs?id=${spec.id}`}
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 500,
-                              color: "#111827",
-                            }}
-                          >
-                            {spec.name}
-                          </Link>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>
-                            {spec.slug}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 4 }}>
-                          {scopeBadge(spec.scope)}
-                          {outputTypeBadge(spec.outputType)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Empty State */}
-              {stage.systemSpecs.length === 0 && stage.domainSpecs.length === 0 && (
-                <div
-                  style={{
-                    padding: 24,
-                    textAlign: "center",
-                    color: "#9ca3af",
-                    fontSize: 13,
-                  }}
-                >
-                  No specs configured for this stage
-                </div>
-              )}
-            </div>
-          </div>
+            <span>{tab.icon}</span>
+            {tab.label}
+          </button>
         ))}
       </div>
+
+      {/* Tab Content */}
+      {activeTab === "stages" && (
+        <div>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+            </div>
+          ) : error ? (
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-red-600 dark:text-red-400">
+              Error: {error}
+            </div>
+          ) : !data ? (
+            <div className="text-neutral-500 text-center py-12">No data available</div>
+          ) : (
+            <>
+              {/* Controls Bar */}
+              <div className="flex items-center gap-4 mb-6 p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                <div style={{ width: 280 }}>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                    Filter by Domain
+                  </label>
+                  <FancySelect
+                    value={selectedDomainId}
+                    onChange={setSelectedDomainId}
+                    placeholder="All Domains (System specs only)"
+                    clearable
+                    options={data.allDomains.map((domain) => ({
+                      value: domain.id,
+                      label: domain.name,
+                      subtitle: domain.slug,
+                    }))}
+                  />
+                </div>
+                <div className="flex-1" />
+
+                {data.superviseSpec && (
+                  <div className="text-right">
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Supervise Spec</div>
+                    <Link
+                      href={`/analysis-specs?id=${data.superviseSpec.id}`}
+                      className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      {data.superviseSpec.slug}
+                    </Link>
+                  </div>
+                )}
+
+                {data.playbook && (
+                  <div className="text-right">
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Playbook</div>
+                    <Link
+                      href={`/playbooks/${data.playbook.id}`}
+                      className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      {data.playbook.name}
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Pipeline Stages */}
+              <div className="space-y-4">
+                {data.stages.map((stage) => (
+                  <div
+                    key={stage.name}
+                    className="border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-800"
+                  >
+                    {/* Stage Header */}
+                    <div className="p-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/80">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{stageIcon(stage.name)}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                              {stage.order}. {stage.name}
+                            </span>
+                            {stage.batched && (
+                              <span className="text-[10px] px-2 py-0.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded font-medium">
+                                BATCHED
+                              </span>
+                            )}
+                            {stage.requiresMode && (
+                              <span className="text-[10px] px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded font-medium">
+                                {stage.requiresMode.toUpperCase()} ONLY
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+                            {stage.description || "No description"}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            {stage.outputTypes.map((type) => (
+                              <span key={type}>{outputTypeBadge(type)}</span>
+                            ))}
+                          </div>
+                          <span className="text-xs font-medium text-neutral-400 ml-2">
+                            {stage.totalSpecs} spec{stage.totalSpecs !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Specs */}
+                    <div className="divide-y divide-neutral-100 dark:divide-neutral-700/50">
+                      {/* System Specs */}
+                      {stage.systemSpecs.length > 0 && (
+                        <div className="p-4">
+                          <div className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-3 flex items-center gap-2">
+                            <span className="text-sm">⚙️</span>
+                            SYSTEM SPECS ({stage.systemSpecs.length})
+                          </div>
+                          <div className="grid gap-3">
+                            {stage.systemSpecs.map((spec) => (
+                              <Link
+                                key={spec.id}
+                                href={`/x/specs?id=${spec.id}`}
+                                className="flex items-center gap-4 p-4 bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-md transition-all group"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                    {spec.name}
+                                  </div>
+                                  <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                                    {spec.slug}
+                                  </div>
+                                </div>
+                                <div className="flex gap-1.5 flex-shrink-0">
+                                  {scopeBadge(spec.scope)}
+                                  {outputTypeBadge(spec.outputType)}
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Domain Specs */}
+                      {stage.domainSpecs.length > 0 && (
+                        <div className="p-4">
+                          <div className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-3 flex items-center gap-2">
+                            <span className="text-sm">🏢</span>
+                            DOMAIN SPECS ({stage.domainSpecs.length})
+                          </div>
+                          <div className="grid gap-3">
+                            {stage.domainSpecs.map((spec) => (
+                              <Link
+                                key={spec.id}
+                                href={`/x/specs?id=${spec.id}`}
+                                className="flex items-center gap-4 p-4 bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-md transition-all group"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                    {spec.name}
+                                  </div>
+                                  <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                                    {spec.slug}
+                                  </div>
+                                </div>
+                                <div className="flex gap-1.5 flex-shrink-0">
+                                  {scopeBadge(spec.scope)}
+                                  {outputTypeBadge(spec.outputType)}
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Empty State */}
+                      {stage.systemSpecs.length === 0 && stage.domainSpecs.length === 0 && (
+                        <div className="p-8 text-center text-neutral-400 text-sm">
+                          No specs configured for this stage
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {activeTab === "flow" && (
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-24">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+            </div>
+          }
+        >
+          <FlowVisualizer />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { VerticalSlider } from "@/components/shared/VerticalSlider";
 import { CallerPicker } from "@/components/shared/CallerPicker";
+import { FancySelect } from "@/components/shared/FancySelect";
 import {
   entityColors,
   specTypeColors,
@@ -12,6 +13,7 @@ import {
   compareColors,
   diffColors,
 } from "@/src/components/shared/uiColors";
+import { AIConfigButton } from "@/components/shared/AIConfigButton";
 
 // =============================================================================
 // TYPES
@@ -107,8 +109,8 @@ type WizardMode = "caller" | "playbook" | "compare";
 // =============================================================================
 
 const WIZARD_MODES: { id: WizardMode; label: string; icon: string; description: string }[] = [
-  { id: "caller", label: "Prompt Tuner", icon: "🧪", description: "Tune prompt output for one caller" },
-  { id: "compare", label: "Compare Playbooks", icon: "📖📖", description: "A/B compare two playbook configurations" },
+  { id: "caller", label: "Prompt Tuner", icon: "✏️", description: "Tune prompt output for one caller" },
+  { id: "compare", label: "Compare Playbooks", icon: "📒📒", description: "A/B compare two playbook configurations" },
   { id: "playbook", label: "Validate Playbook", icon: "✅", description: "Test playbook across multiple callers" },
 ];
 
@@ -138,329 +140,6 @@ const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
   ADAPT:    { bg: pipelineColors.ADAPT.bg,    text: pipelineColors.ADAPT.text },
   COMPOSE:  { bg: pipelineColors.COMPOSE.bg,  text: pipelineColors.COMPOSE.text },
 };
-
-// =============================================================================
-// FANCY SELECT COMPONENT
-// =============================================================================
-
-type FancySelectOption = {
-  value: string;
-  label: string;
-  subtitle?: string;
-  badge?: string;
-  isAction?: boolean; // For special actions like "+ Create new..."
-};
-
-type FancySelectProps = {
-  value: string;
-  onChange: (value: string) => void;
-  options: FancySelectOption[];
-  placeholder?: string;
-  searchable?: boolean;
-  clearable?: boolean;
-  disabled?: boolean;
-  selectedStyle?: { border: string; background: string }; // Custom style when selected
-  style?: React.CSSProperties;
-};
-
-function FancySelect({
-  value,
-  onChange,
-  options,
-  placeholder = "Select...",
-  searchable = true,
-  clearable = false,
-  disabled = false,
-  selectedStyle,
-  style,
-}: FancySelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [highlightIndex, setHighlightIndex] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  const selectedOption = options.find((o) => o.value === value && !o.isAction);
-
-  const filteredOptions = useMemo(() => {
-    if (!search.trim()) return options;
-    const s = search.toLowerCase();
-    return options.filter(
-      (o) =>
-        o.isAction ||
-        o.label.toLowerCase().includes(s) ||
-        o.subtitle?.toLowerCase().includes(s)
-    );
-  }, [options, search]);
-
-  const handleSelect = useCallback(
-    (option: FancySelectOption) => {
-      onChange(option.value);
-      setSearch("");
-      setIsOpen(false);
-      setHighlightIndex(0);
-    },
-    [onChange]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!isOpen) {
-        if (e.key === "ArrowDown" || e.key === "Enter") {
-          setIsOpen(true);
-          e.preventDefault();
-        }
-        return;
-      }
-
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          setHighlightIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          setHighlightIndex((prev) => Math.max(prev - 1, 0));
-          break;
-        case "Enter":
-          e.preventDefault();
-          if (filteredOptions[highlightIndex]) {
-            handleSelect(filteredOptions[highlightIndex]);
-          }
-          break;
-        case "Escape":
-          e.preventDefault();
-          setIsOpen(false);
-          setHighlightIndex(0);
-          break;
-      }
-    },
-    [isOpen, filteredOptions, highlightIndex, handleSelect]
-  );
-
-  // Scroll highlighted into view
-  useEffect(() => {
-    if (isOpen && listRef.current) {
-      const el = listRef.current.querySelector(`[data-index="${highlightIndex}"]`);
-      if (el) el.scrollIntoView({ block: "nearest" });
-    }
-  }, [highlightIndex, isOpen]);
-
-  // Click outside to close
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setHighlightIndex(0);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    setHighlightIndex(0);
-  }, [filteredOptions.length]);
-
-  const hasValue = !!value && !!selectedOption;
-  const inputBorder = hasValue && selectedStyle ? selectedStyle.border : "1px solid #d1d5db";
-  const inputBg = hasValue && selectedStyle ? selectedStyle.background : disabled ? "#f3f4f6" : "white";
-
-  return (
-    <div ref={containerRef} style={{ position: "relative", ...style }}>
-      <input
-        ref={inputRef}
-        type="text"
-        readOnly={!searchable}
-        value={isOpen && searchable ? search : selectedOption?.label || ""}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          if (!isOpen) setIsOpen(true);
-        }}
-        onFocus={() => {
-          setIsOpen(true);
-          if (selectedOption) setSearch("");
-        }}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        disabled={disabled}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          paddingRight: 36,
-          fontSize: 14,
-          border: inputBorder,
-          borderRadius: 8,
-          outline: "none",
-          background: inputBg,
-          cursor: disabled ? "not-allowed" : searchable ? "text" : "pointer",
-        }}
-      />
-
-      {/* Right icons */}
-      <div
-        style={{
-          position: "absolute",
-          right: 10,
-          top: "50%",
-          transform: "translateY(-50%)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          pointerEvents: clearable && hasValue ? "auto" : "none",
-        }}
-      >
-        {clearable && hasValue && !disabled && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onChange("");
-              setSearch("");
-              inputRef.current?.focus();
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 2,
-              color: "#9ca3af",
-              fontSize: 14,
-              lineHeight: 1,
-              pointerEvents: "auto",
-            }}
-          >
-            &times;
-          </button>
-        )}
-        <span style={{ color: "#9ca3af", fontSize: 10, pointerEvents: "none" }}>
-          {isOpen ? "▲" : "▼"}
-        </span>
-      </div>
-
-      {/* Dropdown */}
-      {isOpen && (
-        <div
-          ref={listRef}
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            marginTop: 4,
-            background: "white",
-            border: "1px solid #d1d5db",
-            borderRadius: 8,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            maxHeight: 300,
-            overflowY: "auto",
-            zIndex: 100,
-          }}
-        >
-          {filteredOptions.length === 0 ? (
-            <div style={{ padding: 16, textAlign: "center", color: "#6b7280", fontSize: 13 }}>
-              No options found
-            </div>
-          ) : (
-            <>
-              <div
-                style={{
-                  padding: "6px 12px",
-                  fontSize: 11,
-                  color: "#9ca3af",
-                  borderBottom: "1px solid #f3f4f6",
-                }}
-              >
-                {filteredOptions.filter((o) => !o.isAction).length} option
-                {filteredOptions.filter((o) => !o.isAction).length !== 1 ? "s" : ""}
-              </div>
-              {filteredOptions.map((option, index) => (
-                <div
-                  key={option.value}
-                  data-index={index}
-                  onClick={() => handleSelect(option)}
-                  onMouseEnter={() => setHighlightIndex(index)}
-                  style={{
-                    padding: "10px 12px",
-                    cursor: "pointer",
-                    background:
-                      highlightIndex === index
-                        ? "#f0f9ff"
-                        : option.value === value
-                          ? "#f9fafb"
-                          : "transparent",
-                    borderBottom: "1px solid #f3f4f6",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontStyle: option.isAction ? "italic" : "normal",
-                  }}
-                >
-                  {/* Selection indicator */}
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: option.value === value && !option.isAction ? "#3b82f6" : "transparent",
-                      flexShrink: 0,
-                    }}
-                  />
-
-                  {/* Main content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: option.isAction ? 400 : 500,
-                        color: option.isAction ? "#6b7280" : "#1f2937",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {option.label}
-                    </div>
-                    {option.subtitle && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#6b7280",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {option.subtitle}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Badge */}
-                  {option.badge && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        background: "#f3f4f6",
-                        color: "#6b7280",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {option.badge}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // =============================================================================
 // UTILITIES
@@ -971,7 +650,7 @@ export default function PlaygroundPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 60, textAlign: "center", color: "#6b7280" }}>
+      <div style={{ padding: 60, textAlign: "center", color: "var(--text-muted)" }}>
         Loading Lab...
       </div>
     );
@@ -984,20 +663,20 @@ export default function PlaygroundPage() {
   ];
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f9fafb" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--surface-secondary)" }}>
       {/* ===== CONTROL BAR HEADER ===== */}
       <div
         style={{
           padding: "16px 24px",
-          background: "#fff",
-          borderBottom: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          borderBottom: "1px solid var(--border-primary)",
           display: "flex",
           alignItems: "center",
           gap: 16,
         }}
       >
         {/* Mode title */}
-        <h1 style={{ fontSize: 16, fontWeight: 600, color: "#6b7280", margin: 0, minWidth: 120 }}>
+        <h1 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)", margin: 0, minWidth: 120 }}>
           {WIZARD_MODES.find(m => m.id === wizardMode)?.label || "Lab"}
         </h1>
 
@@ -1151,9 +830,9 @@ export default function PlaygroundPage() {
                 style={{
                   padding: "6px 12px",
                   fontSize: 12,
-                  color: "#6b7280",
+                  color: "var(--text-muted)",
                   background: "transparent",
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid var(--border-default)",
                   borderRadius: 6,
                   cursor: "pointer",
                 }}
@@ -1206,16 +885,16 @@ export default function PlaygroundPage() {
                 style={{
                   textAlign: "center",
                   padding: "60px 20px",
-                  background: "#fff",
+                  background: "var(--surface-primary)",
                   borderRadius: 12,
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid var(--border-primary)",
                 }}
               >
                 <div style={{ fontSize: 48, marginBottom: 16 }}>🧪</div>
-                <h2 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0" }}>
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px 0" }}>
                   Prompt Tuner
                 </h2>
-                <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24 }}>
+                <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24 }}>
                   Select a caller using the picker above, then choose a playbook and generate prompts
                 </p>
                 <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
@@ -1233,7 +912,7 @@ export default function PlaygroundPage() {
                     onClick={() => setShowCreateCallerModal(true)}
                     style={{
                       padding: "12px 24px",
-                      background: "#4f46e5",
+                      background: "var(--button-primary-bg)",
                       color: "#fff",
                       border: "none",
                       borderRadius: 8,
@@ -1262,9 +941,9 @@ export default function PlaygroundPage() {
                 {/* Compact Caller Card */}
                 <div
                   style={{
-                    background: "#fff",
+                    background: "var(--surface-primary)",
                     borderRadius: 12,
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid var(--border-primary)",
                     padding: 16,
                     marginBottom: 16,
                   }}
@@ -1285,10 +964,10 @@ export default function PlaygroundPage() {
                       👤
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#1f2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {caller?.name || "Unnamed Caller"}
                       </div>
-                      <div style={{ fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {caller?.email || caller?.phone || caller?.externalId || caller?.id.slice(0, 12)}
                       </div>
                     </div>
@@ -1303,15 +982,15 @@ export default function PlaygroundPage() {
                 {/* Specs Panel */}
                 <div
                   style={{
-                    background: "#fff",
+                    background: "var(--surface-primary)",
                     borderRadius: 12,
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid var(--border-primary)",
                     padding: 16,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                     <span style={{ fontSize: 14 }}>📋</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1f2937" }}>Specs</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Specs</span>
                     <div style={{ flex: 1 }} />
                     <button
                       onClick={() => setShowSystemSpecs(!showSystemSpecs)}
@@ -1331,7 +1010,7 @@ export default function PlaygroundPage() {
                   {/* System Specs */}
                   {showSystemSpecs && availableSpecs.systemSpecs.length > 0 && (
                     <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6, fontWeight: 500 }}>SYSTEM</div>
+                      <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginBottom: 6, fontWeight: 500 }}>SYSTEM</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                         {availableSpecs.systemSpecs.map((spec) => {
                           const isEnabled = specToggles[spec.id] !== false;
@@ -1364,7 +1043,7 @@ export default function PlaygroundPage() {
                   {/* Playbook Specs */}
                   {availableSpecs.domainSpecs.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6, fontWeight: 500 }}>PLAYBOOK</div>
+                      <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginBottom: 6, fontWeight: 500 }}>PLAYBOOK</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                         {availableSpecs.domainSpecs.map((spec) => {
                           const isEnabled = specToggles[spec.id] !== false;
@@ -1395,7 +1074,7 @@ export default function PlaygroundPage() {
                   )}
 
                   {availableSpecs.systemSpecs.length === 0 && availableSpecs.domainSpecs.length === 0 && (
-                    <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: 12 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-placeholder)", textAlign: "center", padding: 12 }}>
                       No specs available
                     </div>
                   )}
@@ -1445,19 +1124,19 @@ export default function PlaygroundPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* No playbook selected */}
                 {!selectedPlaybookId && (
-                  <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)" }}>
                     <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📚</div>
-                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "#6b7280", margin: "0 0 8px 0" }}>Select a Playbook</h3>
-                    <p style={{ fontSize: 14, color: "#9ca3af" }}>Choose a playbook from the control bar above to generate prompts</p>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-secondary)", margin: "0 0 8px 0" }}>Select a Playbook</h3>
+                    <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Choose a playbook from the control bar above to generate prompts</p>
                   </div>
                 )}
 
                 {/* Ready to generate */}
                 {selectedPlaybookId && !generatedPrompt && !isGenerating && (
-                  <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)" }}>
                     <div style={{ fontSize: 48, marginBottom: 16 }}>✨</div>
-                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0" }}>Ready to Generate</h3>
-                    <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 20 }}>Click Generate in the control bar or below</p>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px 0" }}>Ready to Generate</h3>
+                    <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>Click Generate in the control bar or below</p>
                     <button
                       onClick={generatePrompt}
                       style={{ padding: "12px 24px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#7c3aed", border: "none", borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
@@ -1469,7 +1148,7 @@ export default function PlaygroundPage() {
 
                 {/* Generating */}
                 {isGenerating && (
-                  <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)" }}>
                     <div style={{ fontSize: 48, marginBottom: 16 }} className="animate-pulse">⟳</div>
                     <h3 style={{ fontSize: 18, fontWeight: 600, color: "#7c3aed", margin: 0 }}>Generating prompt...</h3>
                   </div>
@@ -1477,11 +1156,12 @@ export default function PlaygroundPage() {
 
                 {/* Generated output */}
                 {generatedPrompt && !isGenerating && (
-                  <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+                  <div style={{ background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)", overflow: "hidden" }}>
                     {/* Header */}
-                    <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary)", display: "flex", alignItems: "center", gap: 12 }}>
                       <span style={{ fontSize: 14 }}>✨</span>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "#1f2937" }}>Generated Prompt</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Generated Prompt</span>
+                      <AIConfigButton callPoint="compose.prompt" label="Prompt Composition" />
                       <div style={{ flex: 1 }} />
                       <div style={{ display: "flex", gap: 4 }}>
                         <button
@@ -1522,21 +1202,21 @@ export default function PlaygroundPage() {
                     {/* Content */}
                     <div style={{ padding: 16, maxHeight: 500, overflowY: "auto" }}>
                       {outputMode === "raw" ? (
-                        <pre style={{ fontSize: 11, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, color: "#374151" }}>
+                        <pre style={{ fontSize: 11, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, color: "var(--text-secondary)" }}>
                           {JSON.stringify(generatedPrompt.llmPrompt, null, 2)}
                         </pre>
                       ) : (
-                        <div style={{ fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
+                        <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-secondary)" }}>
                           {generatedPrompt.llmPrompt?._quickStart && (
                             <div style={{ marginBottom: 16 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>Quick Start</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Quick Start</div>
                               <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 12, fontSize: 12 }}>
                                 <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{JSON.stringify(generatedPrompt.llmPrompt._quickStart, null, 2)}</pre>
                               </div>
                             </div>
                           )}
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>Prompt</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Prompt</div>
                             <div style={{ whiteSpace: "pre-wrap" }}>{generatedPrompt.prompt}</div>
                           </div>
                         </div>
@@ -1545,10 +1225,10 @@ export default function PlaygroundPage() {
 
                     {/* Diff */}
                     {previousPrompt && showDiff && (
-                      <div style={{ borderTop: "1px solid #e5e7eb", padding: 16, background: "#fafafa" }}>
+                      <div style={{ borderTop: "1px solid var(--border-default)", padding: 16, background: "var(--background)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "#6b7280" }}>Changes</span>
-                          <button onClick={() => setShowDiff(false)} style={{ marginLeft: "auto", fontSize: 11, color: "#9ca3af", background: "none", border: "none", cursor: "pointer" }}>Hide</button>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>Changes</span>
+                          <button onClick={() => setShowDiff(false)} style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-placeholder)", background: "none", border: "none", cursor: "pointer" }}>Hide</button>
                         </div>
                         <div style={{ fontSize: 12 }}>
                           {computeDiff(previousPrompt.llmPrompt, generatedPrompt.llmPrompt)
@@ -1559,7 +1239,7 @@ export default function PlaygroundPage() {
                                 <span style={{ fontSize: 10, fontWeight: 600, color: diff.status === "added" ? diffColors.added.text : diff.status === "removed" ? diffColors.removed.text : diffColors.changed.text }}>
                                   {diff.status === "added" ? "+" : diff.status === "removed" ? "-" : "~"}
                                 </span>
-                                <span style={{ color: "#374151" }}>{diff.key}</span>
+                                <span style={{ color: "var(--text-secondary)" }}>{diff.key}</span>
                               </div>
                             ))}
                         </div>
@@ -1585,16 +1265,16 @@ export default function PlaygroundPage() {
               style={{
                 textAlign: "center",
                 padding: "60px 20px",
-                background: "#fff",
+                background: "var(--surface-primary)",
                 borderRadius: 12,
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--border-primary)",
               }}
             >
               <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
-              <h2 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0" }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px 0" }}>
                 Playbook Testing
               </h2>
-              <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24, maxWidth: 400, margin: "0 auto 24px" }}>
+              <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 400, margin: "0 auto 24px" }}>
                 Select a playbook to see how it generates prompts for different callers.
                 Compare outputs across personality types and contexts.
               </p>
@@ -1614,11 +1294,11 @@ export default function PlaygroundPage() {
               </div>
 
               {selectedPlaybookId && (
-                <div style={{ marginTop: 32, padding: 20, background: "#f9fafb", borderRadius: 8, textAlign: "left" }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 12 }}>
+                <div style={{ marginTop: 32, padding: 20, background: "var(--surface-secondary)", borderRadius: 8, textAlign: "left" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
                     Selected: {playbooks.find(p => p.id === selectedPlaybookId)?.name}
                   </div>
-                  <p style={{ fontSize: 13, color: "#6b7280" }}>
+                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
                     Playbook multi-caller testing coming soon.
                     This mode will allow you to select multiple sample callers and generate prompts
                     for each to see how the playbook adapts to different personalities.
@@ -1638,10 +1318,10 @@ export default function PlaygroundPage() {
           <div style={{ maxWidth: 1400, margin: "0 auto" }}>
             {/* Header */}
             <div style={{ marginBottom: 20, textAlign: "center" }}>
-              <h2 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", margin: "0 0 8px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <span>A/B Compare</span>
               </h2>
-              <p style={{ fontSize: 14, color: "#6b7280", margin: 0 }}>
+              <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0 }}>
                 Compare two different configurations side-by-side for the same caller
               </p>
             </div>
@@ -1668,13 +1348,13 @@ export default function PlaygroundPage() {
                 style={{
                   textAlign: "center",
                   padding: "60px 20px",
-                  background: "#fff",
+                  background: "var(--surface-primary)",
                   borderRadius: 12,
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid var(--border-primary)",
                 }}
               >
                 <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>👤</div>
-                <p style={{ fontSize: 14, color: "#6b7280" }}>
+                <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
                   Select a caller above to start comparing configurations
                 </p>
               </div>
@@ -1685,7 +1365,7 @@ export default function PlaygroundPage() {
                   {/* Config A */}
                   <div
                     style={{
-                      background: "#fff",
+                      background: "var(--surface-primary)",
                       border: `2px solid ${compareColors.configA.border}`,
                       borderRadius: 12,
                       overflow: "hidden",
@@ -1754,7 +1434,7 @@ export default function PlaygroundPage() {
                     </div>
                     <div style={{ padding: 16, minHeight: 300 }}>
                       {isGeneratingA ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#6b7280" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)" }}>
                           Generating...
                         </div>
                       ) : promptA ? (
@@ -1767,7 +1447,7 @@ export default function PlaygroundPage() {
                           </pre>
                         </div>
                       ) : (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#9ca3af", fontSize: 13 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-placeholder)", fontSize: 13 }}>
                           Select playbook config and click Generate
                         </div>
                       )}
@@ -1777,7 +1457,7 @@ export default function PlaygroundPage() {
                   {/* Config B */}
                   <div
                     style={{
-                      background: "#fff",
+                      background: "var(--surface-primary)",
                       border: `2px solid ${compareColors.configB.border}`,
                       borderRadius: 12,
                       overflow: "hidden",
@@ -1845,7 +1525,7 @@ export default function PlaygroundPage() {
                     </div>
                     <div style={{ padding: 16, minHeight: 300 }}>
                       {isGeneratingB ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#6b7280" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)" }}>
                           Generating...
                         </div>
                       ) : promptB ? (
@@ -1858,7 +1538,7 @@ export default function PlaygroundPage() {
                           </pre>
                         </div>
                       ) : (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "#9ca3af", fontSize: 13 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-placeholder)", fontSize: 13 }}>
                           Select playbook config and click Generate
                         </div>
                       )}
@@ -1924,8 +1604,8 @@ export default function PlaygroundPage() {
                 {promptA && promptB && (
                   <div
                     style={{
-                      background: "#fff",
-                      border: "1px solid #e5e7eb",
+                      background: "var(--surface-primary)",
+                      border: "1px solid var(--border-primary)",
                       borderRadius: 12,
                       overflow: "hidden",
                     }}
@@ -1936,8 +1616,8 @@ export default function PlaygroundPage() {
                       const allExpanded = changes.length > 0 && changes.every(d => expandedDiffs.has(d.key));
                       return (
                         <>
-                          <div style={{ background: "#f9fafb", padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontWeight: 600, color: "#374151" }}>Differences</span>
+                          <div style={{ background: "var(--surface-secondary)", padding: "12px 16px", borderBottom: "1px solid var(--border-primary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>Differences</span>
                             {changes.length > 0 && (
                               <button
                                 onClick={() => {
@@ -1950,11 +1630,11 @@ export default function PlaygroundPage() {
                                 style={{
                                   padding: "4px 10px",
                                   fontSize: 12,
-                                  background: "#fff",
-                                  border: "1px solid #d1d5db",
+                                  background: "var(--surface-primary)",
+                                  border: "1px solid var(--border-primary)",
                                   borderRadius: 6,
                                   cursor: "pointer",
-                                  color: "#374151",
+                                  color: "var(--text-primary)",
                                 }}
                               >
                                 {allExpanded ? "Collapse All" : "Expand All"}
@@ -1963,7 +1643,7 @@ export default function PlaygroundPage() {
                           </div>
                           <div style={{ padding: 16 }}>
                             {changes.length === 0 ? (
-                              <div style={{ textAlign: "center", padding: 20, color: "#6b7280" }}>
+                              <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>
                                 No differences found between Config A and Config B
                               </div>
                             ) : (
@@ -2003,7 +1683,7 @@ export default function PlaygroundPage() {
                                         }}
                                         style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, cursor: "pointer" }}
                                       >
-                                        <span style={{ fontSize: 11, color: "#6b7280", width: 12 }}>{isExpanded ? "▼" : "▶"}</span>
+                                        <span style={{ fontSize: 11, color: "var(--text-muted)", width: 12 }}>{isExpanded ? "▼" : "▶"}</span>
                                         <span style={{
                                           fontSize: 11,
                                           fontWeight: 600,
@@ -2014,9 +1694,9 @@ export default function PlaygroundPage() {
                                         }}>
                                           {d.status === "added" ? "+ ADDED" : d.status === "removed" ? "- REMOVED" : "~ CHANGED"}
                                         </span>
-                                        <code style={{ fontSize: 12, color: "#374151" }}>{d.key}</code>
+                                        <code style={{ fontSize: 12, color: "var(--text-secondary)" }}>{d.key}</code>
                                       </div>
-                                      <div style={{ fontSize: 12, color: "#6b7280", fontFamily: "monospace" }}>
+                                      <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>
                                         {isExpanded ? (
                                           <div style={{ marginTop: 8 }}>
                                             {(d.status === "changed" || d.status === "removed") && (
@@ -2124,7 +1804,7 @@ export default function PlaygroundPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 12,
               padding: 24,
               width: 400,
@@ -2135,7 +1815,7 @@ export default function PlaygroundPage() {
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>Create New Caller</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Name *
                 </label>
                 <input
@@ -2146,7 +1826,7 @@ export default function PlaygroundPage() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1px solid #d1d5db",
+                    border: "1px solid var(--border-strong)",
                     borderRadius: 6,
                     fontSize: 14,
                   }}
@@ -2154,7 +1834,7 @@ export default function PlaygroundPage() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Email (optional)
                 </label>
                 <input
@@ -2165,14 +1845,14 @@ export default function PlaygroundPage() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1px solid #d1d5db",
+                    border: "1px solid var(--border-strong)",
                     borderRadius: 6,
                     fontSize: 14,
                   }}
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Domain (optional)
                 </label>
                 <FancySelect
@@ -2196,9 +1876,9 @@ export default function PlaygroundPage() {
                 }}
                 style={{
                   padding: "10px 20px",
-                  border: "1px solid #d1d5db",
+                  border: "1px solid var(--border-strong)",
                   borderRadius: 6,
-                  background: "#fff",
+                  background: "var(--surface-primary)",
                   cursor: "pointer",
                   fontSize: 14,
                 }}
@@ -2272,7 +1952,7 @@ export default function PlaygroundPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 12,
               padding: 24,
               width: 400,
@@ -2283,7 +1963,7 @@ export default function PlaygroundPage() {
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>Create New Domain</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Name *
                 </label>
                 <input
@@ -2294,7 +1974,7 @@ export default function PlaygroundPage() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1px solid #d1d5db",
+                    border: "1px solid var(--border-strong)",
                     borderRadius: 6,
                     fontSize: 14,
                   }}
@@ -2302,7 +1982,7 @@ export default function PlaygroundPage() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Slug (optional)
                 </label>
                 <input
@@ -2313,12 +1993,12 @@ export default function PlaygroundPage() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1px solid #d1d5db",
+                    border: "1px solid var(--border-strong)",
                     borderRadius: 6,
                     fontSize: 14,
                   }}
                 />
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
                   Auto-generated from name if left empty
                 </div>
               </div>
@@ -2332,9 +2012,9 @@ export default function PlaygroundPage() {
                 }}
                 style={{
                   padding: "10px 20px",
-                  border: "1px solid #d1d5db",
+                  border: "1px solid var(--border-strong)",
                   borderRadius: 6,
-                  background: "#fff",
+                  background: "var(--surface-primary)",
                   cursor: "pointer",
                   fontSize: 14,
                 }}
@@ -2408,7 +2088,7 @@ export default function PlaygroundPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff",
+              background: "var(--surface-primary)",
               borderRadius: 12,
               padding: 24,
               width: 400,
@@ -2419,7 +2099,7 @@ export default function PlaygroundPage() {
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>Create New Playbook</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Name *
                 </label>
                 <input
@@ -2430,7 +2110,7 @@ export default function PlaygroundPage() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1px solid #d1d5db",
+                    border: "1px solid var(--border-strong)",
                     borderRadius: 6,
                     fontSize: 14,
                   }}
@@ -2438,7 +2118,7 @@ export default function PlaygroundPage() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "#374151" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Domain *
                 </label>
                 <FancySelect
@@ -2458,9 +2138,9 @@ export default function PlaygroundPage() {
                 }}
                 style={{
                   padding: "10px 20px",
-                  border: "1px solid #d1d5db",
+                  border: "1px solid var(--border-strong)",
                   borderRadius: 6,
-                  background: "#fff",
+                  background: "var(--surface-primary)",
                   cursor: "pointer",
                   fontSize: 14,
                 }}

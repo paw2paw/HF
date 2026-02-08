@@ -88,8 +88,8 @@ function validateSpec(spec: any): string[] {
     errors.push(`'specType' must be one of: SYSTEM, DOMAIN, ADAPT, SUPERVISE (got "${spec.specType}")`);
   }
 
-  if (spec.specRole && !["IDENTITY", "CONTENT", "META"].includes(spec.specRole)) {
-    errors.push(`'specRole' must be one of: IDENTITY, CONTENT, META (got "${spec.specRole}")`);
+  if (spec.specRole && !["IDENTITY", "CONTENT", "VOICE", "MEASURE", "ADAPT", "REWARD", "GUARDRAIL"].includes(spec.specRole)) {
+    errors.push(`'specRole' must be one of: IDENTITY, CONTENT, VOICE, MEASURE, ADAPT, REWARD, GUARDRAIL (got "${spec.specRole}")`);
   }
 
   if (spec.outputType && !["MEASURE", "LEARN", "ADAPT", "MEASURE_AGENT", "REWARD", "COMPOSE", "AGGREGATE"].includes(spec.outputType)) {

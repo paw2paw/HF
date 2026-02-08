@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useApi } from "@/hooks/useApi";
+import { FancySelect } from "@/components/shared/FancySelect";
+import { CallerPill, DomainPill, PlaybookPill, SpecPill, GoalPill } from "@/src/components/shared/EntityPill";
 
 type Goal = {
   id: string;
@@ -41,6 +44,8 @@ type GoalCounts = {
   byType: Record<string, number>;
 };
 
+type GoalsResponse = { goals: Goal[]; counts: GoalCounts };
+
 const GOAL_TYPES = [
   { value: "all", label: "All Types" },
   { value: "LEARN", label: "📚 Learn", color: "#3b82f6" },
@@ -60,41 +65,27 @@ const GOAL_STATUSES = [
 ];
 
 export default function GoalsPage() {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [counts, setCounts] = useState<GoalCounts | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [sortBy, setSortBy] = useState<"priority" | "name" | "status" | "progress">("priority");
 
-  const fetchGoals = () => {
-    setLoading(true);
+  // Build API URL with filters
+  const apiUrl = useMemo(() => {
     const params = new URLSearchParams();
     if (filterStatus !== "all") params.set("status", filterStatus);
     if (filterType !== "all") params.set("type", filterType);
-
-    fetch(`/api/goals?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.ok) {
-          setGoals(data.goals || []);
-          setCounts(data.counts);
-        } else {
-          setError(data.error);
-        }
-        setLoading(false);
-      })
-      .catch((e) => {
-        setError(e.message);
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    fetchGoals();
+    return `/api/goals?${params}`;
   }, [filterStatus, filterType]);
+
+  const { data, loading, error } = useApi<GoalsResponse>(
+    apiUrl,
+    { transform: (res) => ({ goals: res.goals as Goal[], counts: res.counts as GoalCounts }) },
+    [filterStatus, filterType]
+  );
+
+  const goals = data?.goals || [];
+  const counts = data?.counts || null;
 
   const getTypeConfig = (type: string) => {
     return GOAL_TYPES.find((t) => t.value === type) || { label: type, color: "#6b7280" };
@@ -137,13 +128,13 @@ export default function GoalsPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1f2937", margin: 0 }}>🎯 Goals</h1>
-          <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Goals</h1>
+          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
             Track learning, achievements, and objectives across all callers
           </p>
         </div>
         {counts && (
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
             <strong>{counts.total}</strong> total goals
           </div>
         )}
@@ -159,14 +150,14 @@ export default function GoalsPage() {
                 key={statusConfig.value}
                 style={{
                   padding: "12px 16px",
-                  background: "#fff",
+                  background: "var(--surface-primary)",
                   border: `2px solid ${statusConfig.color}20`,
                   borderRadius: 8,
                   textAlign: "center",
                 }}
               >
                 <div style={{ fontSize: 24, fontWeight: 700, color: statusConfig.color }}>{count}</div>
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>{statusConfig.label}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{statusConfig.label}</div>
               </div>
             );
           })}
@@ -182,72 +173,57 @@ export default function GoalsPage() {
           onChange={(e) => setSearch(e.target.value)}
           style={{
             padding: "8px 12px",
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--input-border)",
             borderRadius: 6,
             fontSize: 13,
             width: 220,
+            background: "var(--surface-primary)",
+            color: "var(--text-primary)",
           }}
         />
-        <select
+        <FancySelect
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            fontSize: 13,
-          }}
-        >
-          {GOAL_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-        <select
+          onChange={setFilterStatus}
+          searchable={false}
+          style={{ minWidth: 140 }}
+          options={GOAL_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
+        />
+        <FancySelect
           value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            fontSize: 13,
-          }}
-        >
-          {GOAL_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
-        <select
+          onChange={setFilterType}
+          searchable={false}
+          style={{ minWidth: 140 }}
+          options={GOAL_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+        />
+        <FancySelect
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            fontSize: 13,
-          }}
-        >
-          <option value="priority">Sort by priority</option>
-          <option value="name">Sort by name</option>
-          <option value="status">Sort by status</option>
-          <option value="progress">Sort by progress</option>
-        </select>
+          onChange={(v) => setSortBy(v as "priority" | "name" | "status" | "progress")}
+          searchable={false}
+          style={{ minWidth: 150 }}
+          options={[
+            { value: "priority", label: "Sort by priority" },
+            { value: "name", label: "Sort by name" },
+            { value: "status", label: "Sort by status" },
+            { value: "progress", label: "Sort by progress" },
+          ]}
+        />
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: "#fef2f2", color: "#dc2626", borderRadius: 8, marginBottom: 20 }}>
+        <div style={{ padding: 16, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Loading...</div>
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
       ) : filteredAndSortedGoals.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", background: "#f9fafb", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+        <div style={{ padding: 40, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
             {search || filterStatus !== "all" || filterType !== "all" ? "No goals match filters" : "No goals yet"}
           </div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8 }}>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
             Goals are automatically created when a caller is assigned to a domain
           </div>
         </div>
@@ -265,8 +241,8 @@ export default function GoalsPage() {
               >
                 <div
                   style={{
-                    background: "#fff",
-                    border: "1px solid #e5e7eb",
+                    background: "var(--surface-primary)",
+                    border: "1px solid var(--border-default)",
                     borderRadius: 10,
                     padding: 16,
                     cursor: "pointer",
@@ -277,7 +253,7 @@ export default function GoalsPage() {
                     e.currentTarget.style.boxShadow = `0 2px 8px ${typeConfig.color}20`;
                   }}
                   onMouseOut={(e) => {
-                    e.currentTarget.style.borderColor = "#e5e7eb";
+                    e.currentTarget.style.borderColor = "var(--border-default)";
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
@@ -308,15 +284,15 @@ export default function GoalsPage() {
                         >
                           {statusConfig.label}
                         </span>
-                        <span style={{ fontSize: 11, color: "#6b7280" }}>
+                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
                           Priority: {goal.priority}
                         </span>
                       </div>
-                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
+                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
                         {goal.name}
                       </h3>
                       {goal.description && (
-                        <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#6b7280" }}>
+                        <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "var(--text-muted)" }}>
                           {goal.description}
                         </p>
                       )}
@@ -327,7 +303,7 @@ export default function GoalsPage() {
                   </div>
 
                   {/* Progress bar */}
-                  <div style={{ height: 6, background: "#e5e7eb", borderRadius: 3, marginBottom: 12, overflow: "hidden" }}>
+                  <div style={{ height: 6, background: "var(--surface-tertiary)", borderRadius: 3, marginBottom: 12, overflow: "hidden" }}>
                     <div
                       style={{
                         height: "100%",
@@ -339,29 +315,21 @@ export default function GoalsPage() {
                   </div>
 
                   {/* Caller info */}
-                  <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#6b7280", flexWrap: "wrap" }}>
-                    <div>
-                      <strong>Caller:</strong> {goal.caller.name}
-                    </div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
+                    <CallerPill label={goal.caller.name} size="compact" />
                     {goal.caller.domain && (
-                      <div>
-                        <strong>Domain:</strong> {goal.caller.domain.name}
-                      </div>
+                      <DomainPill label={goal.caller.domain.name} size="compact" />
                     )}
                     {goal.playbook && (
-                      <div>
-                        <strong>Playbook:</strong> {goal.playbook.name} v{goal.playbook.version}
-                      </div>
+                      <PlaybookPill label={`${goal.playbook.name} v${goal.playbook.version}`} size="compact" />
                     )}
                     {goal.contentSpec && (
-                      <div>
-                        <strong>Content:</strong> {goal.contentSpec.name}
-                      </div>
+                      <SpecPill label={goal.contentSpec.name} size="compact" />
                     )}
                     {goal.startedAt && (
-                      <div>
-                        <strong>Started:</strong> {new Date(goal.startedAt).toLocaleDateString()}
-                      </div>
+                      <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>
+                        Started {new Date(goal.startedAt).toLocaleDateString()}
+                      </span>
                     )}
                   </div>
                 </div>

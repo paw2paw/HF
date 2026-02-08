@@ -1,1 +1,1 @@
-export { default } from "@/app/data-dictionary/page";
+export { default } from "@/app/x/dictionary/page";

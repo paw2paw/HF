@@ -3,21 +3,86 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useChatContext } from "@/contexts/ChatContext";
+import { useSidebarLayout } from "@/hooks/useSidebarLayout";
+import type { NavSection } from "@/lib/sidebar/types";
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon?: string;
-  highlighted?: boolean; // Show with light background stripe
-};
+// ============================================================================
+// Base Section Definitions
+// ============================================================================
 
-type NavSection = {
-  id: string;
-  title?: string;
-  items: NavItem[];
-  dividerAfter?: boolean;
-};
+const BASE_SECTIONS: NavSection[] = [
+  {
+    id: "home",
+    items: [{ href: "/x", label: "Home", icon: "🏠" }],
+    dividerAfter: true,
+  },
+  {
+    id: "prompts",
+    title: "Prompts",
+    items: [{ href: "/x/playground?mode=caller", label: "Prompt Tuner", icon: "✏️" }],
+  },
+  {
+    id: "playbook-tools",
+    title: "Playbooks",
+    items: [
+      { href: "/x/playground?mode=compare", label: "Compare Playbooks", icon: "📒📒" },
+      { href: "/x/playground?mode=playbook", label: "Validate Playbook", icon: "✅" },
+    ],
+  },
+  {
+    id: "history",
+    title: "History",
+    items: [{ href: "/x/pipeline", label: "Run History", icon: "⚙️" }],
+    dividerAfter: true,
+  },
+  {
+    id: "data",
+    title: "Data",
+    items: [
+      { href: "/x/callers", label: "Callers", icon: "👤" },
+      { href: "/x/goals", label: "Goals", icon: "🎯" },
+      { href: "/x/import", label: "Import", icon: "📥" },
+      { href: "/x/data-management", label: "Seed Data", icon: "🌱" },
+    ],
+    dividerAfter: true,
+  },
+  {
+    id: "config",
+    title: "Configure",
+    items: [
+      { href: "/x/domains", label: "Domains", icon: "🌐" },
+      { href: "/x/playbooks", label: "Playbooks", icon: "📒" },
+      { href: "/x/specs", label: "Specs", icon: "📋" },
+      { href: "/x/taxonomy", label: "Taxonomy", icon: "🌳" },
+      { href: "/x/taxonomy-graph", label: "Visualizer", icon: "🌌" },
+    ],
+    dividerAfter: true,
+  },
+  {
+    id: "operations",
+    title: "Operations",
+    items: [
+      { href: "/x/metering", label: "Metering", icon: "📈" },
+      { href: "/x/ai-config", label: "AI Config", icon: "🤖" },
+      { href: "/x/users", label: "Team", icon: "👥" },
+      { href: "/x/settings", label: "Display", icon: "🎨" },
+      { href: "/x/admin/tests", label: "E2E Tests", icon: "🎭" },
+      { href: "/x/debug", label: "Debug", icon: "🐛" },
+      { href: "/x/logs", label: "Logs", icon: "📝" },
+    ],
+    dividerAfter: true,
+  },
+  {
+    id: "supervisor",
+    items: [{ href: "/x/supervisor", label: "Pipeline", icon: "⚡", highlighted: true }],
+  },
+];
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export default function SimpleSidebarNav({
   collapsed: externalCollapsed,
@@ -28,326 +93,451 @@ export default function SimpleSidebarNav({
 } = {}) {
   const pathname = usePathname();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+  const isAdmin = session?.user?.role === "ADMIN";
+  const { togglePanel, isOpen: chatOpen } = useChatContext();
+
+  // Collapse state
   const [internalCollapsed, setInternalCollapsed] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
-  const navRef = useRef<HTMLElement>(null);
-
   const collapsed = externalCollapsed ?? internalCollapsed;
-  const onToggle = externalOnToggle ?? (() => setInternalCollapsed(prev => !prev));
+  const onToggle = externalOnToggle ?? (() => setInternalCollapsed((prev) => !prev));
 
+  // Layout hook
+  const {
+    visibleSections,
+    hiddenSectionIds,
+    hasCustomLayout,
+    isLoaded,
+    dragState,
+    renameSection,
+    hideSection,
+    showSection,
+    resetLayout,
+    setAsDefault,
+    sectionDragHandlers,
+    itemDragHandlers,
+  } = useSidebarLayout({ userId, baseSections: BASE_SECTIONS, isAdmin });
+
+  // UI state
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sectionId: string } | null>(null);
+
+  const navRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Close menus on outside click
   useEffect(() => {
-    setMounted(true);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowLayoutMenu(false);
+      }
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const sections: NavSection[] = useMemo(
-    () => [
-      // ============================================================
-      // PROMPTS
-      // ============================================================
-      {
-        id: "prompts",
-        title: "Prompts",
-        items: [
-          { href: "/x/playground?mode=caller", label: "Prompt Tuner", icon: "🧪" },
-        ],
-        dividerAfter: false,
-      },
+  // Focus edit input when editing
+  useEffect(() => {
+    if (editingSectionId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingSectionId]);
 
-      // ============================================================
-      // PLAYBOOKS
-      // ============================================================
-      {
-        id: "playbook-tools",
-        title: "Playbooks",
-        items: [
-          { href: "/x/playground?mode=compare", label: "Compare Playbooks", icon: "📖📖" },
-          { href: "/x/playground?mode=playbook", label: "Validate Playbook", icon: "✅" },
-        ],
-        dividerAfter: false,
-      },
-
-      // ============================================================
-      // HISTORY
-      // ============================================================
-      {
-        id: "history",
-        title: "History",
-        items: [
-          { href: "/x/pipeline", label: "Run History", icon: "📜" },
-        ],
-        dividerAfter: true,
-      },
-
-      // ============================================================
-      // DATA
-      // ============================================================
-      {
-        id: "data",
-        title: "Data",
-        items: [
-          { href: "/x/callers", label: "Callers", icon: "👥" },
-          { href: "/x/goals", label: "Goals", icon: "🎯" },
-          { href: "/x/import", label: "Import", icon: "📥" },
-          { href: "/x/data-management", label: "Seed Data", icon: "🌱" },
-        ],
-        dividerAfter: true,
-      },
-
-      // ============================================================
-      // CONFIGURATION
-      // ============================================================
-      {
-        id: "config",
-        title: "Configure",
-        items: [
-          { href: "/x/domains", label: "Domains", icon: "🌐" },
-          { href: "/x/playbooks", label: "Playbooks", icon: "📚" },
-          { href: "/x/specs", label: "Specs", icon: "📐" },
-          { href: "/x/taxonomy", label: "Taxonomy", icon: "📊" },
-        ],
-        dividerAfter: true,
-      },
-
-      // ============================================================
-      // OPERATIONS
-      // ============================================================
-      {
-        id: "operations",
-        title: "Operations",
-        items: [
-          { href: "/x/metering", label: "Metering", icon: "📊" },
-          { href: "/x/ai-config", label: "AI Config", icon: "🤖" },
-        ],
-        dividerAfter: true,
-      },
-
-      // ============================================================
-      // SUPERVISOR (Bottom)
-      // ============================================================
-      {
-        id: "supervisor",
-        items: [
-          { href: "/x/supervisor", label: "Supervisor", icon: "👁️", highlighted: true },
-        ],
-        dividerAfter: false,
-      },
-    ],
-    []
-  );
-
-  const isActive = (href: string) => {
-    if (!mounted || !pathname) return false;
-    return pathname === href || pathname.startsWith(href + "/");
-  };
-
-  // Flatten all nav items for keyboard navigation
+  // Flatten items for keyboard navigation
   const flatNavItems = useMemo(() => {
     const items: { href: string; label: string }[] = [];
-    for (const section of sections) {
+    for (const section of visibleSections) {
       for (const item of section.items) {
         items.push({ href: item.href, label: item.label });
       }
     }
     return items;
-  }, [sections]);
+  }, [visibleSections]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (flatNavItems.length === 0) return;
+  // Active state
+  const isActive = useCallback(
+    (href: string) => {
+      if (!isLoaded || !pathname) return false;
+      return pathname === href || pathname.startsWith(href + "/");
+    },
+    [isLoaded, pathname]
+  );
 
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setFocusedIndex(prev => (prev + 1) % flatNavItems.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setFocusedIndex(prev => (prev - 1 + flatNavItems.length) % flatNavItems.length);
-    } else if (e.key === "Enter" && focusedIndex >= 0) {
-      e.preventDefault();
-      const item = flatNavItems[focusedIndex];
-      if (item) {
-        router.push(item.href);
+  // Keyboard navigation
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (flatNavItems.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev + 1) % flatNavItems.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev - 1 + flatNavItems.length) % flatNavItems.length);
+      } else if (e.key === "Enter" && focusedIndex >= 0) {
+        e.preventDefault();
+        const item = flatNavItems[focusedIndex];
+        if (item) router.push(item.href);
       }
-    }
-  }, [flatNavItems, focusedIndex, router]);
+    },
+    [flatNavItems, focusedIndex, router]
+  );
 
+  // Focus link on index change
   useEffect(() => {
     if (focusedIndex >= 0 && navRef.current) {
-      const links = navRef.current.querySelectorAll('a[data-nav-item]');
+      const links = navRef.current.querySelectorAll("a[data-nav-item]");
       const link = links[focusedIndex] as HTMLElement;
-      if (link) {
-        link.focus();
-      }
+      if (link) link.focus();
     }
   }, [focusedIndex]);
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    const [targetPath] = href.split('?');
-    const currentPath = pathname;
-    if (targetPath === currentPath) {
-      e.preventDefault();
-      router.replace(href);
+  // Handle nav click (refresh if same page)
+  const handleNavClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+      const [targetPath] = href.split("?");
+      if (targetPath === pathname) {
+        e.preventDefault();
+        router.replace(href);
+      }
+    },
+    [pathname, router]
+  );
+
+  // Section context menu
+  const handleSectionContextMenu = useCallback((e: React.MouseEvent, sectionId: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, sectionId });
+  }, []);
+
+  // Handle rename
+  const handleStartRename = useCallback((sectionId: string, currentTitle: string) => {
+    setEditingSectionId(sectionId);
+    setEditingTitle(currentTitle || "");
+    setContextMenu(null);
+  }, []);
+
+  const handleFinishRename = useCallback(() => {
+    if (editingSectionId) {
+      renameSection(editingSectionId, editingTitle.trim());
+      setEditingSectionId(null);
+      setEditingTitle("");
     }
-  };
+  }, [editingSectionId, editingTitle, renameSection]);
+
+  // Handle set as default
+  const handleSetAsDefault = useCallback(async () => {
+    setSavingDefault(true);
+    await setAsDefault();
+    setSavingDefault(false);
+    setShowLayoutMenu(false);
+  }, [setAsDefault]);
+
+  // Handle reset
+  const handleReset = useCallback(() => {
+    resetLayout();
+    setShowLayoutMenu(false);
+  }, [resetLayout]);
 
   return (
     <div className="flex h-full flex-col bg-white dark:bg-neutral-900 p-3 text-neutral-900 dark:text-neutral-100 overflow-hidden">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        {!collapsed ? (
-          <div className="text-sm font-extrabold tracking-tight text-neutral-900 dark:text-neutral-100">HumanFirst</div>
-        ) : (
-          <div className="w-6" />
-        )}
+      {/* Header */}
+      {collapsed ? (
+        // Collapsed: tiny expand arrow at top, icons below in same positions
+        <div className="mb-3 flex flex-col items-center">
+          {/* Tiny expand arrow - minimal footprint */}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+            className="w-full h-4 flex items-center justify-center text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors mb-1"
+          >
+            »
+          </button>
+          {/* Icons - same vertical spacing as expanded */}
+          <div className="flex flex-col items-center gap-1">
+            <Link href="/x" className="w-7 h-7 flex items-center justify-center text-base hover:scale-110 transition-transform rounded hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Home">
+              🏠
+            </Link>
+            <button
+              type="button"
+              onClick={togglePanel}
+              title={chatOpen ? "Hide AI Chat (⌘K)" : "Show AI Chat (⌘K)"}
+              className={
+                "inline-flex items-center justify-center rounded-md w-7 h-7 transition-colors " +
+                (chatOpen
+                  ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400"
+                  : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800")
+              }
+            >
+              🤖
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Expanded: horizontal layout
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <Link
+            href="/x"
+            className="text-sm font-extrabold tracking-tight text-neutral-900 dark:text-neutral-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          >
+            HumanFirst
+          </Link>
 
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label="Toggle sidebar"
-          className="inline-flex items-center justify-center rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1 text-sm text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-        >
-          {collapsed ? "→" : "←"}
-        </button>
-      </div>
+          <div className="flex items-center gap-1">
+            {/* Chat toggle */}
+            <button
+              type="button"
+              onClick={togglePanel}
+              title={chatOpen ? "Hide AI Chat (⌘K)" : "Show AI Chat (⌘K)"}
+              className={
+                "inline-flex items-center justify-center rounded-md w-7 h-7 transition-colors " +
+                (chatOpen
+                  ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400"
+                  : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800")
+              }
+            >
+              🤖
+            </button>
+
+            {/* Layout menu */}
+            {(hasCustomLayout || isAdmin || hiddenSectionIds.length > 0) && (
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowLayoutMenu((prev) => !prev)}
+                  title="Layout options"
+                  className={
+                    "inline-flex items-center justify-center rounded-md w-7 h-7 transition-colors " +
+                    (showLayoutMenu
+                      ? "bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200"
+                      : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800")
+                  }
+                >
+                  ⚙
+                </button>
+                {showLayoutMenu && (
+                  <div className="absolute right-0 top-8 z-50 min-w-[180px] rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg py-1">
+                    {hasCustomLayout && (
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                      >
+                        ↻ Reset to Default
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={handleSetAsDefault}
+                        disabled={savingDefault}
+                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50"
+                      >
+                        {savingDefault ? "Saving..." : "💾 Set as Default for All"}
+                      </button>
+                    )}
+                    {hiddenSectionIds.length > 0 && (
+                      <>
+                        <div className="my-1 border-t border-neutral-200 dark:border-neutral-700" />
+                        <div className="px-3 py-1 text-xs font-medium text-neutral-500 uppercase">Hidden Sections</div>
+                        {hiddenSectionIds.map((id) => {
+                          const section = BASE_SECTIONS.find((s) => s.id === id);
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => {
+                                showSection(id);
+                                setShowLayoutMenu(false);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                            >
+                              👁 Show {section?.title || id}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Collapse toggle */}
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label="Collapse sidebar"
+              className="inline-flex items-center justify-center rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1 text-sm text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              ←
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Scrollable nav area */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
-        <nav
-          ref={navRef}
-          className="flex flex-col gap-3"
-          onKeyDown={handleKeyDown}
-          role="navigation"
-          aria-label="Main navigation"
-        >
-          {sections.map((section) => (
-            <div key={section.id} className="flex flex-col">
-              {section.title && !collapsed ? (
-                <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-                  {section.title}
+        <nav ref={navRef} className="flex flex-col gap-3" onKeyDown={handleKeyDown} role="navigation" aria-label="Main navigation">
+          {visibleSections.map((section) => {
+            const isDraggingSection = dragState.draggedSection === section.id;
+            const isDragOverForSection = dragState.dragOverSection === section.id;
+            const isDragOverForItem = dragState.dragOverSectionForItem === section.id && dragState.draggedItem !== null;
+
+            return (
+              <div
+                key={section.id}
+                draggable={!collapsed && !dragState.draggedItem}
+                onDragStart={(e) => !dragState.draggedItem && sectionDragHandlers.onDragStart(e, section.id)}
+                onDragOver={(e) =>
+                  dragState.draggedItem
+                    ? itemDragHandlers.onDragOverSection(e, section.id)
+                    : sectionDragHandlers.onDragOver(e, section.id)
+                }
+                onDragLeave={sectionDragHandlers.onDragLeave}
+                onDrop={(e) =>
+                  dragState.draggedItem
+                    ? itemDragHandlers.onDropOnSection(e, section.id)
+                    : sectionDragHandlers.onDrop(e, section.id)
+                }
+                onDragEnd={sectionDragHandlers.onDragEnd}
+                onContextMenu={(e) => !collapsed && handleSectionContextMenu(e, section.id)}
+                className={
+                  "flex flex-col transition-all rounded-md " +
+                  (isDraggingSection ? "opacity-50 " : "") +
+                  (isDragOverForSection ? "border-t-2 border-indigo-500 " : "") +
+                  (isDragOverForItem ? "bg-indigo-50 dark:bg-indigo-950/50 ring-2 ring-indigo-400 ring-inset " : "")
+                }
+                style={{ cursor: collapsed ? "default" : dragState.draggedItem ? "default" : "grab" }}
+              >
+                {/* Section title (editable) */}
+                {section.title && !collapsed && (
+                  <div className="px-2 pb-1">
+                    {editingSectionId === section.id ? (
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={handleFinishRename}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleFinishRename();
+                          if (e.key === "Escape") {
+                            setEditingSectionId(null);
+                            setEditingTitle("");
+                          }
+                        }}
+                        className="w-full text-[11px] font-semibold uppercase tracking-wide bg-transparent border-b border-indigo-400 outline-none text-neutral-700 dark:text-neutral-200"
+                      />
+                    ) : (
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                        {section.title}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Section items */}
+                <div className="flex flex-col gap-0.5">
+                  {section.items.map((item) => {
+                    const active = isActive(item.href);
+                    const itemIndex = flatNavItems.findIndex((fi) => fi.href === item.href);
+                    const isFocused = itemIndex === focusedIndex;
+                    const isDraggingItem = dragState.draggedItem === item.href;
+                    const isDragOverThisItem = dragState.dragOverItem === item.href;
+                    const baseClass = item.highlighted && !active ? "bg-indigo-50/70 dark:bg-indigo-950/70 " : "";
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={collapsed ? item.label : undefined}
+                        data-nav-item
+                        tabIndex={0}
+                        draggable={!collapsed}
+                        onDragStart={(e) => itemDragHandlers.onDragStart(e, item.href)}
+                        onDragOver={(e) => itemDragHandlers.onDragOverItem(e, item.href, section.id)}
+                        onDrop={(e) => itemDragHandlers.onDropOnItem(e, item.href, section.id)}
+                        onDragEnd={itemDragHandlers.onDragEnd}
+                        onClick={(e) => handleNavClick(e, item.href)}
+                        onFocus={() => setFocusedIndex(itemIndex)}
+                        className={
+                          baseClass +
+                          "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 " +
+                          (isDraggingItem ? "opacity-50 " : "") +
+                          (isDragOverThisItem ? "border-t-2 border-indigo-500 " : "") +
+                          (active
+                            ? "bg-indigo-600 text-white font-semibold"
+                            : isFocused
+                              ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-medium"
+                              : "text-neutral-900 dark:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800")
+                        }
+                        style={{ cursor: collapsed ? "default" : "grab" }}
+                      >
+                        {item.icon && (
+                          <span className={"text-base " + (active ? "opacity-100" : "opacity-80")} aria-hidden>
+                            {item.icon}
+                          </span>
+                        )}
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    );
+                  })}
                 </div>
-              ) : null}
 
-              <div className="flex flex-col gap-0.5">
-                {section.items.map((l) => {
-                  const active = isActive(l.href);
-                  const itemIndex = flatNavItems.findIndex(fi => fi.href === l.href);
-                  const isFocused = itemIndex === focusedIndex;
-                  const baseClass = l.highlighted && !active ? "bg-indigo-50/70 dark:bg-indigo-950/70 " : "";
-                  return (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      title={collapsed ? l.label : undefined}
-                      data-nav-item
-                      tabIndex={0}
-                      onClick={(e) => handleNavClick(e, l.href)}
-                      onFocus={() => setFocusedIndex(itemIndex)}
-                      className={
-                        baseClass +
-                        "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 " +
-                        (active
-                          ? "bg-indigo-600 text-white font-semibold"
-                          : isFocused
-                          ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-medium"
-                          : "text-neutral-900 dark:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800")
-                      }
-                    >
-                      {l.icon && (
-                        <span className={"text-base " + (active ? "opacity-100" : "opacity-80")} aria-hidden>
-                          {l.icon}
-                        </span>
-                      )}
-                      {!collapsed ? <span className="truncate">{l.label}</span> : null}
-                    </Link>
-                  );
-                })}
+                {section.dividerAfter && <div className="my-3 border-t border-neutral-300 dark:border-neutral-700" />}
               </div>
-
-              {section.dividerAfter ? <div className="my-3 border-t border-neutral-300 dark:border-neutral-700" /> : null}
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
-        {/* Chat Toggle Button */}
-        <ChatToggleButton collapsed={collapsed} />
-
-        <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-800">
-          {!collapsed ? (
-            <>
-              <Link
-                href="/cockpit"
-                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 rounded transition-colors"
-              >
-                <span>⚙️</span>
-                <span>Full Admin →</span>
-              </Link>
-              <div className="text-center text-[10px] text-neutral-400 dark:text-neutral-500 mt-2">HumanFirst Studio</div>
-            </>
-          ) : (
-            <Link
-              href="/cockpit"
-              title="Full Admin"
-              className="flex items-center justify-center py-1.5 text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
-            >
-              <span>⚙️</span>
-            </Link>
-          )}
+        <div className="mt-auto pt-3 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="text-center text-[10px] text-neutral-400 dark:text-neutral-500">HumanFirst Studio</div>
         </div>
       </div>
-    </div>
-  );
-}
 
-function ChatToggleButton({ collapsed }: { collapsed: boolean }) {
-  const { togglePanel, isOpen, chatLayout, setChatLayout } = useChatContext();
-
-  const layoutLabels: Record<string, string> = {
-    vertical: "│",
-    horizontal: "─",
-    popout: "⧉",
-  };
-
-  const nextLayout = (current: string) => {
-    const layouts = ["vertical", "horizontal", "popout"];
-    const idx = layouts.indexOf(current);
-    return layouts[(idx + 1) % layouts.length];
-  };
-
-  return (
-    <div className="mt-auto pt-3 border-t border-neutral-200 dark:border-neutral-800">
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={togglePanel}
-          className={
-            "flex flex-1 items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors " +
-            (isOpen
-              ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium"
-              : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800")
-          }
-          title={collapsed ? "AI Chat (Cmd+K)" : undefined}
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 min-w-[140px] rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg py-1"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          <span className="text-base" aria-hidden>
-            💬
-          </span>
-          {!collapsed && (
-            <>
-              <span className="flex-1 text-left truncate">AI Chat</span>
-              <span className="text-[10px] text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">
-                ⌘K
-              </span>
-            </>
-          )}
-        </button>
-        {!collapsed && (
           <button
             type="button"
-            onClick={() => setChatLayout(nextLayout(chatLayout) as any)}
-            className="px-2 py-2 text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md"
-            title={`Layout: ${chatLayout} (click to change)`}
+            onClick={() => {
+              const section = visibleSections.find((s) => s.id === contextMenu.sectionId);
+              handleStartRename(contextMenu.sectionId, section?.title || "");
+            }}
+            className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
           >
-            {layoutLabels[chatLayout]}
+            ✏️ Rename Section
           </button>
-        )}
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              hideSection(contextMenu.sectionId);
+              setContextMenu(null);
+            }}
+            className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+          >
+            👁️‍🗨️ Hide Section
+          </button>
+        </div>
+      )}
     </div>
   );
 }

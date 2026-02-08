@@ -9,6 +9,36 @@ import { prisma } from "@/lib/prisma";
 import type { AIEngine } from "./client";
 
 // =====================================================
+// ENGINE AVAILABILITY (inlined to avoid circular imports)
+// =====================================================
+
+/**
+ * Check if an AI engine has its API key configured.
+ * Inlined here to avoid circular import with client.ts
+ */
+function isEngineAvailable(engine: AIEngine): boolean {
+  switch (engine) {
+    case "mock":
+      return true;
+    case "claude":
+      return !!process.env.ANTHROPIC_API_KEY;
+    case "openai":
+      return !!(process.env.OPENAI_HF_MVP_KEY || process.env.OPENAI_API_KEY);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Get the first available engine (has API key configured).
+ */
+function getDefaultEngine(): AIEngine {
+  if (isEngineAvailable("claude")) return "claude";
+  if (isEngineAvailable("openai")) return "openai";
+  return "mock";
+}
+
+// =====================================================
 // TYPES
 // =====================================================
 
@@ -33,11 +63,48 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "parameter.enrich": { provider: "claude", model: "claude-3-haiku-20240307" },
   "bdd.parse": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "chat.stream": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.assistant": { provider: "claude", model: "claude-sonnet-4-20250514" },
 };
 
 // In-memory cache with TTL
-let configCache: Map<string, { config: AIConfigResult; fetchedAt: number }> = new Map();
+const configCache: Map<string, { config: AIConfigResult; fetchedAt: number }> = new Map();
 const CACHE_TTL_MS = 60_000; // 1 minute cache
+
+// Default models per provider (used for fallback)
+const DEFAULT_MODELS: Record<AIEngine, string> = {
+  claude: "claude-sonnet-4-20250514",
+  openai: "gpt-4o",
+  mock: "mock-model",
+};
+
+/**
+ * Ensure provider is available, falling back to one that has an API key configured.
+ * Returns the provider and whether a fallback was used.
+ */
+function ensureAvailableProvider(
+  provider: AIEngine,
+  model: string
+): { provider: AIEngine; model: string; fallbackUsed: boolean } {
+  if (isEngineAvailable(provider)) {
+    return { provider, model, fallbackUsed: false };
+  }
+
+  // Provider not available - find a fallback
+  const fallbackProvider = getDefaultEngine();
+  if (fallbackProvider !== provider) {
+    console.warn(
+      `[ai-config] Provider "${provider}" not available (missing API key), falling back to "${fallbackProvider}"`
+    );
+    return {
+      provider: fallbackProvider,
+      model: DEFAULT_MODELS[fallbackProvider],
+      fallbackUsed: true,
+    };
+  }
+
+  // No fallback available - return mock
+  return { provider: "mock", model: "mock-model", fallbackUsed: true };
+}
 
 // =====================================================
 // LOADER FUNCTION
@@ -64,12 +131,18 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
     });
 
     if (dbConfig && dbConfig.isActive) {
+      // Ensure the configured provider is actually available
+      const { provider, model, fallbackUsed } = ensureAvailableProvider(
+        dbConfig.provider as AIEngine,
+        dbConfig.model
+      );
+
       const result: AIConfigResult = {
-        provider: dbConfig.provider as AIEngine,
-        model: dbConfig.model,
+        provider,
+        model: fallbackUsed ? model : dbConfig.model,
         maxTokens: dbConfig.maxTokens ?? undefined,
         temperature: dbConfig.temperature ?? undefined,
-        isCustomized: true,
+        isCustomized: !fallbackUsed, // Not really customized if we had to fall back
       };
 
       // Cache the result
@@ -84,18 +157,26 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
   // Fall back to defaults
   const defaultConfig = DEFAULT_CONFIGS[callPoint];
   if (defaultConfig) {
+    // Ensure the default provider is actually available
+    const { provider, model } = ensureAvailableProvider(
+      defaultConfig.provider,
+      defaultConfig.model
+    );
+
     const result: AIConfigResult = {
-      ...defaultConfig,
+      provider,
+      model,
       isCustomized: false,
     };
     configCache.set(callPoint, { config: result, fetchedAt: Date.now() });
     return result;
   }
 
-  // Ultimate fallback
+  // Ultimate fallback - use whatever is available
+  const fallbackProvider = getDefaultEngine();
   return {
-    provider: "claude",
-    model: "claude-sonnet-4-20250514",
+    provider: fallbackProvider,
+    model: DEFAULT_MODELS[fallbackProvider],
     isCustomized: false,
   };
 }

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { FancySelect } from "@/components/shared/FancySelect";
+import { EntityPill, DomainPill, PlaybookPill, SpecPill, StatusBadge } from "@/src/components/shared/EntityPill";
 
 type Domain = {
   id: string;
@@ -57,10 +59,17 @@ type PlaybookDetail = {
 
 const STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 
-const statusColors: Record<string, { bg: string; text: string }> = {
-  DRAFT: { bg: "#fef3c7", text: "#92400e" },
-  PUBLISHED: { bg: "#dcfce7", text: "#166534" },
-  ARCHIVED: { bg: "#f3f4f6", text: "#6b7280" },
+const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
+  DRAFT: { bg: "#fef3c7", text: "#92400e", icon: "📝", desc: "Work in progress" },
+  PUBLISHED: { bg: "#dcfce7", text: "#166534", icon: "✅", desc: "Active and in use" },
+  ARCHIVED: { bg: "#f3f4f6", text: "#6b7280", icon: "📦", desc: "No longer active" },
+};
+
+// Map playbook status to StatusBadge status type
+const playbookStatusMap: Record<string, "draft" | "active" | "archived"> = {
+  DRAFT: "draft",
+  PUBLISHED: "active",
+  ARCHIVED: "archived",
 };
 
 const outputTypeColors: Record<string, { bg: string; text: string }> = {
@@ -281,14 +290,19 @@ export default function PlaybooksPage() {
     isActive,
     colors,
     onClick,
+    icon,
+    tooltip,
   }: {
     label: string;
     isActive: boolean;
     colors: { bg: string; text: string };
     onClick: () => void;
+    icon?: string;
+    tooltip?: string;
   }) => (
     <button
       onClick={onClick}
+      title={tooltip}
       style={{
         padding: "4px 10px",
         fontSize: 11,
@@ -299,28 +313,36 @@ export default function PlaybooksPage() {
         background: isActive ? colors.bg : "var(--surface-secondary)",
         color: isActive ? colors.text : "var(--text-muted)",
         transition: "all 0.15s",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
       }}
     >
+      {icon && <span>{icon}</span>}
       {label}
     </button>
   );
 
-  const MiniBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "2px 6px",
-        fontSize: 9,
-        fontWeight: 600,
-        border: "1px solid var(--border-default)",
-        borderRadius: 4,
-        cursor: "pointer",
-        background: "var(--surface-primary)",
-        color: "var(--text-muted)",
-      }}
-    >
-      {label}
-    </button>
+  const ClearBtn = ({ onClick, show }: { onClick: () => void; show: boolean }) => (
+    show ? (
+      <button
+        onClick={onClick}
+        style={{
+          padding: "0 4px",
+          fontSize: 12,
+          fontWeight: 400,
+          border: "none",
+          borderRadius: 3,
+          cursor: "pointer",
+          background: "transparent",
+          color: "var(--text-placeholder)",
+          lineHeight: 1,
+        }}
+        title="Clear filter"
+      >
+        ×
+      </button>
+    ) : null
   );
 
   // Group items by scope for detail view
@@ -381,47 +403,57 @@ export default function PlaybooksPage() {
           </div>
         </div>
 
-        {/* Status Filter Row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, minWidth: 50 }}>Status</span>
-          <MiniBtn label="ALL" onClick={() => setSelectedStatuses(new Set(STATUSES))} />
-          <MiniBtn label="CLR" onClick={() => setSelectedStatuses(new Set())} />
-          <div style={{ width: 1, height: 16, background: "var(--border-default)", margin: "0 4px" }} />
-          {STATUSES.map((status) => (
-            <FilterPill
-              key={status}
-              label={status}
-              isActive={selectedStatuses.has(status)}
-              colors={statusColors[status]}
-              onClick={() => toggleStatus(status)}
-            />
-          ))}
-          <span style={{ fontSize: 10, color: "var(--text-placeholder)", marginLeft: 4 }}>
-            {selectedStatuses.size === 0 ? "all" : selectedStatuses.size}
+        {/* Filters */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+          {/* Status */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by playbook status">Status</span>
+            <ClearBtn onClick={() => setSelectedStatuses(new Set())} show={selectedStatuses.size > 0} />
+            <div style={{ display: "flex", gap: 4 }}>
+              {STATUSES.map((status) => {
+                const config = statusColors[status];
+                return (
+                  <FilterPill
+                    key={status}
+                    label={status}
+                    icon={config.icon}
+                    tooltip={config.desc}
+                    isActive={selectedStatuses.has(status)}
+                    colors={config}
+                    onClick={() => toggleStatus(status)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Domain */}
+          {domains.length > 0 && (
+            <>
+              <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by domain">Domain</span>
+                <ClearBtn onClick={() => setSelectedDomains(new Set())} show={selectedDomains.size > 0} />
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {domains.map((domain) => (
+                    <DomainPill
+                      key={domain.id}
+                      label={domain.name}
+                      size="compact"
+                      onClick={() => toggleDomain(domain.id)}
+                      status={selectedDomains.has(domain.id) ? "active" : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Results count */}
+          <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: "auto", alignSelf: "center" }}>
+            {filteredPlaybooks.length} of {playbooks.length}
           </span>
         </div>
-
-        {/* Domain Filter Row */}
-        {domains.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, minWidth: 50 }}>Domain</span>
-            <MiniBtn label="ALL" onClick={() => setSelectedDomains(new Set(domains.map((d) => d.id)))} />
-            <MiniBtn label="CLR" onClick={() => setSelectedDomains(new Set())} />
-            <div style={{ width: 1, height: 16, background: "var(--border-default)", margin: "0 4px" }} />
-            {domains.map((domain) => (
-              <FilterPill
-                key={domain.id}
-                label={domain.name}
-                isActive={selectedDomains.has(domain.id)}
-                colors={{ bg: "#dbeafe", text: "#1e40af" }}
-                onClick={() => toggleDomain(domain.id)}
-              />
-            ))}
-            <span style={{ fontSize: 10, color: "var(--text-placeholder)", marginLeft: 4 }}>
-              {selectedDomains.size === 0 ? "all" : selectedDomains.size}
-            </span>
-          </div>
-        )}
       </div>
 
       {error && (
@@ -485,27 +517,16 @@ export default function PlaybooksPage() {
                           key={pb.id}
                           onClick={() => selectPlaybook(pb.id)}
                           style={{
-                            background: selectedId === pb.id ? "#eef2ff" : "var(--surface-primary)",
-                            border: selectedId === pb.id ? "1px solid #4f46e5" : "1px solid var(--border-default)",
+                            background: selectedId === pb.id ? "var(--surface-selected)" : "var(--surface-primary)",
+                            border: selectedId === pb.id ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
                             borderRadius: 8,
                             padding: 12,
                             cursor: "pointer",
                             transition: "border-color 0.15s",
                           }}
                         >
-                          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                padding: "2px 6px",
-                                background: statusColors[pb.status]?.bg,
-                                color: statusColors[pb.status]?.text,
-                                borderRadius: 4,
-                              }}
-                            >
-                              {pb.status}
-                            </span>
+                          <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+                            <StatusBadge status={playbookStatusMap[pb.status]} size="compact" />
                             <span
                               style={{
                                 fontSize: 10,
@@ -561,7 +582,7 @@ export default function PlaybooksPage() {
           ) : detailLoading ? (
             <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading playbook...</div>
           ) : detailError || !playbook ? (
-            <div style={{ padding: 20, background: "#fef2f2", color: "#dc2626", borderRadius: 8 }}>
+            <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
               {detailError || "Playbook not found"}
             </div>
           ) : (
@@ -577,56 +598,56 @@ export default function PlaybooksPage() {
                       {playbook.domain.name} &bull; v{playbook.version}
                     </div>
                   </div>
-                  <Link
-                    href={`/x/playbooks/${playbook.id}`}
-                    style={{
-                      padding: "8px 16px",
-                      background: "var(--button-primary-bg)",
-                      color: "white",
-                      borderRadius: 6,
-                      textDecoration: "none",
-                      fontWeight: 500,
-                      fontSize: 13,
-                    }}
-                  >
-                    Open Editor
-                  </Link>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Link
+                      href={`/x/taxonomy-graph?focus=playbook:${playbook.id}&depth=6`}
+                      style={{
+                        padding: "8px 12px",
+                        background: "var(--surface-secondary)",
+                        color: "var(--text-secondary)",
+                        borderRadius: 6,
+                        textDecoration: "none",
+                        fontWeight: 500,
+                        fontSize: 13,
+                        border: "1px solid var(--border-default)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                      title="View in taxonomy graph"
+                    >
+                      🌌
+                    </Link>
+                    <Link
+                      href={`/x/playbooks/${playbook.id}`}
+                      style={{
+                        padding: "8px 16px",
+                        background: "var(--button-primary-bg)",
+                        color: "white",
+                        borderRadius: 6,
+                        textDecoration: "none",
+                        fontWeight: 500,
+                        fontSize: 13,
+                      }}
+                    >
+                      Open Editor
+                    </Link>
+                  </div>
                 </div>
               </div>
 
               {/* Badges */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-                <span
-                  style={{
-                    fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    background: statusColors[playbook.status]?.bg,
-                    color: statusColors[playbook.status]?.text,
-                    fontWeight: 600,
-                  }}
-                >
-                  {playbook.status}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    background: "#dbeafe",
-                    color: "#1e40af",
-                  }}
-                >
-                  {playbook.domain.name}
-                </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20, alignItems: "center" }}>
+                <StatusBadge status={playbookStatusMap[playbook.status]} />
+                <DomainPill label={playbook.domain.name} href={`/x/domains?id=${playbook.domain.id}`} size="compact" />
                 {playbook.parentVersion && (
                   <span
                     style={{
                       fontSize: 11,
                       padding: "3px 8px",
                       borderRadius: 4,
-                      background: "#f3f4f6",
-                      color: "#6b7280",
+                      background: "var(--surface-secondary)",
+                      color: "var(--text-muted)",
                     }}
                   >
                     Based on: {playbook.parentVersion.name} v{playbook.parentVersion.version}
@@ -719,8 +740,8 @@ export default function PlaybooksPage() {
                       disabled={deleting}
                       style={{
                         padding: "8px 16px",
-                        background: "#fee2e2",
-                        color: "#dc2626",
+                        background: "var(--status-error-bg)",
+                        color: "var(--status-error-text)",
                         border: "none",
                         borderRadius: 6,
                         fontWeight: 500,
@@ -772,7 +793,7 @@ export default function PlaybooksPage() {
                                 key={item.id}
                                 style={{
                                   padding: 10,
-                                  background: item.isEnabled ? "var(--surface-secondary)" : "#fef2f2",
+                                  background: item.isEnabled ? "var(--surface-secondary)" : "var(--status-error-bg)",
                                   borderRadius: 6,
                                   border: "1px solid var(--border-default)",
                                   opacity: item.isEnabled ? 1 : 0.6,
@@ -808,8 +829,8 @@ export default function PlaybooksPage() {
                                         fontSize: 9,
                                         padding: "1px 4px",
                                         borderRadius: 3,
-                                        background: "#fee2e2",
-                                        color: "#dc2626",
+                                        background: "var(--status-error-bg)",
+                                        color: "var(--status-error-text)",
                                       }}
                                     >
                                       DISABLED
@@ -899,18 +920,12 @@ export default function PlaybooksPage() {
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New Playbook</h2>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Domain</label>
-              <select
+              <FancySelect
                 value={newPlaybook.domainId}
-                onChange={(e) => setNewPlaybook({ ...newPlaybook, domainId: e.target.value })}
-                style={{ width: "100%", padding: 10, border: "1px solid var(--input-border)", borderRadius: 6 }}
-              >
-                <option value="">Select...</option>
-                {domains.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setNewPlaybook({ ...newPlaybook, domainId: v })}
+                placeholder="Select domain..."
+                options={domains.map((d) => ({ value: d.id, label: d.name }))}
+              />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Name</label>

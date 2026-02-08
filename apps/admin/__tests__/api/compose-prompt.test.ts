@@ -116,7 +116,7 @@ const createMockCaller = (overrides = {}) => ({
   ...overrides,
 });
 
-const createMockComposeSpec = (overrides = {}) => ({
+const createMockComposeSpec = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "compose-spec-1",
   slug: "system-compose-next-prompt",
   name: "System Compose Prompt",
@@ -128,13 +128,14 @@ const createMockComposeSpec = (overrides = {}) => ({
     recentCallsLimit: 5,
     maxTokens: 1500,
     temperature: 0.7,
-    sections: [],
+    sections: [] as unknown[],
+    parameters: [] as unknown[],
   },
   promptTemplate: null,
   ...overrides,
 });
 
-const createMockComposedPrompt = (overrides = {}) => ({
+const createMockComposedPrompt = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "prompt-123",
   callerId: "caller-123",
   prompt: "Generated personalized prompt...",
@@ -144,7 +145,7 @@ const createMockComposedPrompt = (overrides = {}) => ({
   model: "mock-model",
   status: "active",
   composedAt: new Date(),
-  inputs: {},
+  inputs: {} as Record<string, unknown>,
   ...overrides,
 });
 
@@ -316,8 +317,8 @@ describe("/api/callers/[callerId]/compose-prompt", () => {
         },
       });
 
-      expect(mockPrompt.inputs.memoriesCount).toBe(5);
-      expect(mockPrompt.inputs.composition.loadTimeMs).toBe(45);
+      expect((mockPrompt.inputs as { memoriesCount: number }).memoriesCount).toBe(5);
+      expect((mockPrompt.inputs as { composition: { loadTimeMs: number } }).composition.loadTimeMs).toBe(45);
     });
 
     it("should handle composition pipeline errors", async () => {

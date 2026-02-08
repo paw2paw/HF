@@ -285,7 +285,7 @@ export async function GET(
     }
 
     // Get counts
-    const [callCount, memoryCount, observationCount, promptsCount, measurementsCount] = await Promise.all([
+    const [callCount, memoryCount, observationCount, measurementsCount] = await Promise.all([
       prisma.call.count({ where: { callerId: callerId } }),
       prisma.callerMemory.count({
         where: {
@@ -298,7 +298,6 @@ export async function GET(
         },
       }),
       prisma.personalityObservation.count({ where: { callerId: callerId } }),
-      prisma.composedPrompt.count({ where: { callerId: callerId } }),
       prisma.behaviorMeasurement.findMany({
         where: {
           call: { callerId: callerId },
@@ -463,7 +462,7 @@ export async function GET(
         calls: callCount,
         memories: memoryCount,
         observations: observationCount,
-        prompts: promptsCount,
+        prompts: promptedCallIds.size,
         targets: targetsCount,
         callerTargets: callerTargets.length,
         measurements: measurementsCount,

@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const AUTH_FILE = '.playwright/auth.json';
+
 /**
  * Playwright Configuration for E2E Testing
  *
@@ -7,6 +9,9 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+
+  /* Global setup for authentication */
+  globalSetup: './e2e/global-setup.ts',
 
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -48,26 +53,42 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    /* Authenticated tests - run with pre-established session */
     {
-      name: 'chromium',
+      name: 'authenticated',
+      testMatch: /tests\/.+\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: AUTH_FILE,
+      },
+    },
+
+    /* Unauthenticated tests - for login flow testing */
+    {
+      name: 'unauthenticated',
+      testMatch: /tests\/auth\/.+\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: undefined,
+      },
+    },
+
+    /* Mobile viewport tests */
+    {
+      name: 'mobile',
+      testMatch: /tests\/.+\.spec\.ts/,
+      use: {
+        ...devices['Pixel 5'],
+        storageState: AUTH_FILE,
+      },
+    },
+
+    /* Legacy tests (deprecated routes) */
+    {
+      name: 'legacy',
+      testMatch: /\d+-.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
-
-    /* Test against mobile viewports. */
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-
-    /* Uncomment to test on more browsers */
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
   ],
 
   /* Run your local dev server before starting the tests */

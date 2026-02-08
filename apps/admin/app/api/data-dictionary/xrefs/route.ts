@@ -6,9 +6,11 @@ import { prisma } from "@/lib/prisma";
  *
  * Find cross-references for template variables and key prefixes.
  *
- * Query params:
+ * Query params (optional):
  * - type: "variable" | "prefix"
  * - pattern: the variable name (e.g., "{{memories.facts}}") or prefix (e.g., "location_")
+ *
+ * If no params provided, returns all dictionary entries (parameters as xrefs).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -16,11 +18,29 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type"); // "variable" or "prefix"
     const pattern = searchParams.get("pattern");
 
+    // If no type/pattern, return all dictionary entries
     if (!type || !pattern) {
-      return NextResponse.json(
-        { ok: false, error: "type and pattern are required" },
-        { status: 400 }
-      );
+      const parameters = await prisma.parameter.findMany({
+        orderBy: [{ domainGroup: "asc" }, { parameterId: "asc" }],
+        select: {
+          id: true,
+          parameterId: true,
+          name: true,
+          domainGroup: true,
+          definition: true,
+        },
+      });
+
+      const xrefs = parameters.map((p) => ({
+        id: p.id,
+        key: `{{${p.parameterId}}}`,
+        value: p.name,
+        source: "Parameter",
+        category: p.domainGroup || "Uncategorized",
+        description: p.definition,
+      }));
+
+      return NextResponse.json({ ok: true, xrefs });
     }
 
     const xrefs: {

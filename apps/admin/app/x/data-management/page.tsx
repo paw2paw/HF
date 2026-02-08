@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AIModelsManager } from "@/components/shared/AIModelsManager";
 
 type OperationStatus = "idle" | "running" | "success" | "error";
 
@@ -22,6 +23,15 @@ type Operation = {
 };
 
 const OPERATIONS: Operation[] = [
+  {
+    id: "scan-specs",
+    title: "Scan for New Specs",
+    description: "Scans /bdd-specs directory for new spec files not yet in the database. Import just new specs without recreating domains or playbooks.",
+    icon: "\u{1F50D}",
+    warning: "This will import new spec files into the database, creating BDDFeatureSet records, AnalysisSpec records, Parameters, and related entities.",
+    endpoint: "/api/admin/spec-sync",
+    method: "GET",
+  },
   {
     id: "system",
     title: "Initialize System (Domains + Specs)",
@@ -64,6 +74,7 @@ export default function DataManagementPage() {
 
   const [operationStatus, setOperationStatus] = useState<Record<string, OperationStatus>>({
     system: "idle",
+    "scan-specs": "idle",
     transcripts: "idle",
     cleanup: "idle",
   });
@@ -71,6 +82,15 @@ export default function DataManagementPage() {
   const [operationResults, setOperationResults] = useState<Record<string, OperationResult>>({});
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<"replace" | "keep" | null>(null);
+  const [showAIModels, setShowAIModels] = useState(false);
+
+  // Scan results for the spec scanner
+  const [scanResults, setScanResults] = useState<{
+    summary: { totalFiles: number; synced: number; unseeded: number; orphaned: number };
+    synced: Array<{ id: string; filename: string; dbSlug: string; specType: string; specRole: string | null }>;
+    unseeded: Array<{ id: string; filename: string; title: string; specType: string; specRole: string }>;
+    orphaned: Array<{ dbId: string; slug: string; name: string; specType: string; isActive: boolean }>;
+  } | null>(null);
 
   // Load current stats
   useEffect(() => {
@@ -89,6 +109,76 @@ export default function DataManagementPage() {
       console.error("Failed to load stats:", e);
     } finally {
       setLoadingStats(false);
+    }
+  }
+
+  async function executeScan() {
+    setOperationStatus((prev) => ({ ...prev, "scan-specs": "running" }));
+    setOperationResults((prev) => ({ ...prev, "scan-specs": {} }));
+    setScanResults(null);
+
+    try {
+      const res = await fetch("/api/admin/spec-sync");
+      const data = await res.json();
+
+      if (data.ok) {
+        setScanResults(data);
+        setOperationStatus((prev) => ({ ...prev, "scan-specs": "success" }));
+        setOperationResults((prev) => ({
+          ...prev,
+          "scan-specs": {
+            message: `Found ${data.summary.unseeded} new spec(s), ${data.summary.synced} synced, ${data.summary.orphaned} orphaned`,
+            details: data,
+          },
+        }));
+      } else {
+        setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
+        setOperationResults((prev) => ({
+          ...prev,
+          "scan-specs": { error: data.error || "Scan failed" },
+        }));
+      }
+    } catch (e: any) {
+      setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
+      setOperationResults((prev) => ({
+        ...prev,
+        "scan-specs": { error: e.message || "Network error" },
+      }));
+    }
+  }
+
+  async function executeImportNewSpecs() {
+    setShowModal(null);
+    setOperationStatus((prev) => ({ ...prev, "scan-specs": "running" }));
+
+    try {
+      const res = await fetch("/api/admin/spec-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        setOperationStatus((prev) => ({ ...prev, "scan-specs": "success" }));
+        setOperationResults((prev) => ({
+          ...prev,
+          "scan-specs": { message: data.message, details: data },
+        }));
+        setScanResults(null); // Clear scan results after successful import
+        loadStats(); // Refresh stats
+      } else {
+        setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
+        setOperationResults((prev) => ({
+          ...prev,
+          "scan-specs": { error: data.error || "Import failed" },
+        }));
+      }
+    } catch (e: any) {
+      setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
+      setOperationResults((prev) => ({
+        ...prev,
+        "scan-specs": { error: e.message || "Network error" },
+      }));
     }
   }
 
@@ -172,6 +262,48 @@ export default function DataManagementPage() {
         )}
       </div>
 
+      {/* Manage AI Models Section */}
+      <div
+        style={{
+          padding: 20,
+          background: "var(--background)",
+          borderRadius: 12,
+          border: "1px solid var(--border-default)",
+          marginBottom: 24,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+          }}
+          onClick={() => setShowAIModels(!showAIModels)}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 24 }}>🤖</span>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+                Manage AI Models
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                Add, edit, or disable AI models available for pipeline operations
+              </div>
+            </div>
+          </div>
+          <span style={{ fontSize: 16, color: "var(--text-muted)" }}>
+            {showAIModels ? "▼" : "▶"}
+          </span>
+        </div>
+
+        {showAIModels && (
+          <div style={{ marginTop: 16 }}>
+            <AIModelsManager showHeader={false} />
+          </div>
+        )}
+      </div>
+
       {/* Recommended Order Notice */}
       <div
         style={{
@@ -197,36 +329,68 @@ export default function DataManagementPage() {
 
       {/* Operation Cards */}
       <div style={{ display: "grid", gap: 20 }}>
-        {OPERATIONS.map((op) => (
-          <OperationCard
-            key={op.id}
-            operation={op}
-            status={operationStatus[op.id]}
-            result={operationResults[op.id]}
-            onExecute={(mode) => {
-              if (op.requiresMode && mode) {
-                setSelectedMode(mode);
-                setShowModal(op.id);
-              } else if (!op.requiresMode) {
-                setShowModal(op.id);
-              }
-            }}
-          />
-        ))}
+        {OPERATIONS.map((op) => {
+          // Special handling for scan-specs card
+          if (op.id === "scan-specs") {
+            return (
+              <ScanSpecsCard
+                key={op.id}
+                operation={op}
+                status={operationStatus[op.id]}
+                result={operationResults[op.id]}
+                scanResults={scanResults}
+                onScan={executeScan}
+                onImport={() => setShowModal("scan-specs")}
+              />
+            );
+          }
+
+          return (
+            <OperationCard
+              key={op.id}
+              operation={op}
+              status={operationStatus[op.id]}
+              result={operationResults[op.id]}
+              onExecute={(mode) => {
+                if (op.requiresMode && mode) {
+                  setSelectedMode(mode);
+                  setShowModal(op.id);
+                } else if (!op.requiresMode) {
+                  setShowModal(op.id);
+                }
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Confirmation Modal */}
-      {showModal && (
-        <ConfirmationModal
-          operation={OPERATIONS.find((op) => op.id === showModal)!}
-          mode={selectedMode}
-          onConfirm={() => executeOperation(OPERATIONS.find((op) => op.id === showModal)!, selectedMode || undefined)}
-          onCancel={() => {
-            setShowModal(null);
-            setSelectedMode(null);
-          }}
-        />
-      )}
+      {showModal &&
+        (showModal === "scan-specs" ? (
+          <ConfirmationModal
+            operation={{
+              id: "scan-specs",
+              title: "Import New Specs",
+              description: "",
+              icon: "📥",
+              warning: `This will import ${scanResults?.unseeded.length || 0} new spec(s) into the database. This creates BDDFeatureSet records, AnalysisSpec records, Parameters, and related entities.`,
+              endpoint: "/api/admin/spec-sync",
+            }}
+            mode={null}
+            onConfirm={executeImportNewSpecs}
+            onCancel={() => setShowModal(null)}
+          />
+        ) : (
+          <ConfirmationModal
+            operation={OPERATIONS.find((op) => op.id === showModal)!}
+            mode={selectedMode}
+            onConfirm={() => executeOperation(OPERATIONS.find((op) => op.id === showModal)!, selectedMode || undefined)}
+            onCancel={() => {
+              setShowModal(null);
+              setSelectedMode(null);
+            }}
+          />
+        ))}
     </div>
   );
 }
@@ -385,6 +549,266 @@ function OperationCard({
               {isRunning ? "Running..." : `Run ${operation.title}`}
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScanSpecsCard({
+  operation,
+  status,
+  result,
+  scanResults,
+  onScan,
+  onImport,
+}: {
+  operation: Operation;
+  status: OperationStatus;
+  result?: OperationResult;
+  scanResults: {
+    summary: { totalFiles: number; synced: number; unseeded: number; orphaned: number };
+    unseeded: Array<{ id: string; filename: string; title: string; specType: string; specRole: string }>;
+    orphaned: Array<{ dbId: string; slug: string; name: string; specType: string }>;
+  } | null;
+  onScan: () => void;
+  onImport: () => void;
+}) {
+  const [showUnseeded, setShowUnseeded] = useState(true);
+  const [showOrphaned, setShowOrphaned] = useState(false);
+  const isRunning = status === "running";
+  const isSuccess = status === "success";
+  const isError = status === "error";
+
+  return (
+    <div
+      style={{
+        padding: 24,
+        background: "var(--surface-primary)",
+        borderRadius: 12,
+        border: `2px solid ${
+          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
+        }`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+        <div style={{ fontSize: 32, lineHeight: 1 }}>{operation.icon}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
+            {operation.title}
+          </div>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
+            {operation.description}
+          </div>
+
+          {/* Status Messages */}
+          {isRunning && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-warning-text)",
+                marginBottom: 12,
+              }}
+            >
+              Scanning specs directory...
+            </div>
+          )}
+
+          {isSuccess && result?.message && !scanResults && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-success-bg)",
+                border: "1px solid var(--status-success-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-success-text)",
+                marginBottom: 12,
+              }}
+            >
+              {result.message}
+            </div>
+          )}
+
+          {isError && result?.error && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-error-bg)",
+                border: "1px solid var(--status-error-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-error-text)",
+                marginBottom: 12,
+              }}
+            >
+              {result.error}
+            </div>
+          )}
+
+          {/* Scan Results */}
+          {scanResults && (
+            <div style={{ marginBottom: 16 }}>
+              {/* Summary */}
+              <div
+                style={{
+                  padding: 12,
+                  background: "var(--status-info-bg)",
+                  border: "1px solid var(--status-info-border)",
+                  borderRadius: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-info-text)" }}>
+                  Scan Results: {scanResults.summary.totalFiles} files total
+                </div>
+                <div style={{ fontSize: 13, color: "var(--status-info-text)", marginTop: 4 }}>
+                  {scanResults.summary.synced} synced | {scanResults.summary.unseeded} new |{" "}
+                  {scanResults.summary.orphaned} orphaned
+                </div>
+              </div>
+
+              {/* New Specs List */}
+              {scanResults.unseeded.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <button
+                    onClick={() => setShowUnseeded(!showUnseeded)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                      New Specs ({scanResults.unseeded.length})
+                    </span>
+                    <span style={{ color: "var(--text-muted)" }}>{showUnseeded ? "▼" : "▶"}</span>
+                  </button>
+                  {showUnseeded && (
+                    <div style={{ paddingLeft: 16, borderLeft: "2px solid var(--status-success-border)" }}>
+                      {scanResults.unseeded.map((spec) => (
+                        <div key={spec.id} style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
+                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{spec.id}</span>
+                          <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
+                            ({spec.specType}/{spec.specRole})
+                          </span>
+                          <div style={{ color: "var(--text-muted)", fontSize: 12 }}>{spec.title}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Orphaned Specs Warning */}
+              {scanResults.orphaned.length > 0 && (
+                <div
+                  style={{
+                    padding: 12,
+                    background: "var(--status-warning-bg)",
+                    border: "1px solid var(--status-warning-border)",
+                    borderRadius: 8,
+                    marginBottom: 12,
+                  }}
+                >
+                  <button
+                    onClick={() => setShowOrphaned(!showOrphaned)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--status-warning-text)" }}>
+                      Orphaned Specs ({scanResults.orphaned.length}) - in DB but file missing
+                    </span>
+                    <span style={{ color: "var(--status-warning-text)" }}>{showOrphaned ? "▼" : "▶"}</span>
+                  </button>
+                  {showOrphaned && (
+                    <div style={{ marginTop: 8, paddingLeft: 16 }}>
+                      {scanResults.orphaned.map((spec) => (
+                        <div key={spec.dbId} style={{ fontSize: 12, color: "var(--status-warning-text)", marginBottom: 4 }}>
+                          {spec.slug} ({spec.name})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* All Synced Message */}
+              {scanResults.unseeded.length === 0 && (
+                <div
+                  style={{
+                    padding: 12,
+                    background: "var(--status-success-bg)",
+                    border: "1px solid var(--status-success-border)",
+                    borderRadius: 8,
+                    fontSize: 14,
+                    color: "var(--status-success-text)",
+                    marginBottom: 12,
+                  }}
+                >
+                  All specs are synced! No new specs to import.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={onScan}
+              disabled={isRunning}
+              style={{
+                padding: "10px 20px",
+                background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isRunning ? "not-allowed" : "pointer",
+                opacity: isRunning ? 0.6 : 1,
+              }}
+            >
+              {isRunning ? "Scanning..." : "Scan for New Specs"}
+            </button>
+
+            {scanResults && scanResults.unseeded.length > 0 && (
+              <button
+                onClick={onImport}
+                disabled={isRunning}
+                style={{
+                  padding: "10px 20px",
+                  background: isRunning ? "var(--button-disabled-bg)" : "var(--button-success-bg)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: isRunning ? "not-allowed" : "pointer",
+                  opacity: isRunning ? 0.6 : 1,
+                }}
+              >
+                Import {scanResults.unseeded.length} New Spec(s)
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

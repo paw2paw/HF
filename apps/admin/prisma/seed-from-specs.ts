@@ -241,9 +241,38 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   };
 
   // 1. Create/update Parameter records
+  // IMPORTANT: Only create Parameters for specs that produce measurable values.
+  // Config specs (IDENTITY, CONTENT, VOICE, GUARDRAIL) store their data in spec.config,
+  // not as Parameter records. Creating Parameters for these specs causes orphans.
+  //
+  // Also skip for:
+  // - LEARN specs: Extract memory data, not measured parameters
+  // - COMPOSE specs: Define prompt assembly, not measurements
+  const isConfigSpec =
+    specRole === SpecRole.IDENTITY ||
+    specRole === SpecRole.CONTENT ||
+    specRole === SpecRole.VOICE ||
+    specRole === SpecRole.GUARDRAIL ||
+    outputType === AnalysisOutputType.LEARN ||
+    outputType === AnalysisOutputType.COMPOSE;
+
+  if (isConfigSpec) {
+    const reason = outputType === AnalysisOutputType.LEARN
+      ? "LEARN spec (memory extraction)"
+      : outputType === AnalysisOutputType.COMPOSE
+        ? "COMPOSE spec (prompt assembly)"
+        : `${specRole} spec (data stored in spec.config)`;
+    console.log(`      ℹ️ Skipping Parameter creation for ${reason}`);
+  }
+
   for (const param of compiledParams) {
     const parameterId = param.id || param.parameterId;
     if (!parameterId) continue;
+
+    // Skip Parameter creation for config specs - they don't need Parameter records
+    if (isConfigSpec) {
+      continue;
+    }
 
     const existingParam = await prisma.parameter.findUnique({
       where: { parameterId },
@@ -1003,9 +1032,30 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
       });
       results.triggersCreated++;
 
-      // Create action with the target parameterId
-      // Store targetValue in description for pipeline reference
-      if (t.parameterId) {
+      // Handle actions array inside trigger (new format)
+      const triggerActions = t.actions || [];
+      for (let j = 0; j < triggerActions.length; j++) {
+        const action = triggerActions[j];
+        if (action.parameterId) {
+          const paramExists = await prisma.parameter.findUnique({
+            where: { parameterId: action.parameterId },
+          });
+
+          await prisma.analysisAction.create({
+            data: {
+              triggerId: trigger.id,
+              description: action.description || `Apply ${action.parameterId}`,
+              weight: action.weight ?? 1.0,
+              parameterId: paramExists ? action.parameterId : null,
+              sortOrder: j,
+            },
+          });
+          results.actionsCreated++;
+        }
+      }
+
+      // Also handle legacy format where parameterId is on trigger directly
+      if (t.parameterId && triggerActions.length === 0) {
         // Check if parameter exists (BEH-* params may be seeded later)
         const paramExists = await prisma.parameter.findUnique({
           where: { parameterId: t.parameterId },
@@ -1173,14 +1223,21 @@ export async function reseedSingleSpec(
 /**
  * Main function - seed from all spec files
  */
-export async function seedFromSpecs(): Promise<SeedSpecResult[]> {
+export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<SeedSpecResult[]> {
   console.log("\n📋 SEEDING FROM BDD SPEC FILES\n");
   console.log("━".repeat(60));
 
   // Load contracts before validating specs
   ensureContractsLoaded();
 
-  const specFiles = loadSpecFiles();
+  let specFiles = loadSpecFiles();
+
+  // Filter to specific specs if requested
+  if (options?.specIds?.length) {
+    const requestedIds = new Set(options.specIds.map(id => id.toUpperCase()));
+    specFiles = specFiles.filter(f => requestedIds.has(f.content.id.toUpperCase()));
+    console.log(`   Filtering to ${specFiles.length} requested spec(s): ${options.specIds.join(", ")}\n`);
+  }
 
   if (specFiles.length === 0) {
     console.log("   No spec files found in bdd-specs/ folder");

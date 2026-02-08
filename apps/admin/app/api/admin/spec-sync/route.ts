@@ -85,7 +85,7 @@ export async function GET() {
           filename: file.filename,
           title: file.content.title || specId,
           specType: file.rawJson.specType || "DOMAIN",
-          specRole: file.rawJson.specRole || "META",
+          specRole: file.rawJson.specRole || "MEASURE",
         });
       }
     }
@@ -135,27 +135,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { specIds } = body; // Optional: only seed specific spec IDs
 
-    // Run the seeder
-    const results = await seedFromSpecs();
-
-    // Filter results if specific IDs were requested
-    const filtered = specIds?.length
-      ? results.filter(r => specIds.includes(r.specId))
-      : results;
+    // Run the seeder (with optional filter to only seed selected specs)
+    const results = await seedFromSpecs(specIds?.length ? { specIds } : undefined);
 
     const summary = {
-      specsProcessed: filtered.length,
-      parametersCreated: filtered.reduce((sum, r) => sum + r.parametersCreated, 0),
-      parametersUpdated: filtered.reduce((sum, r) => sum + r.parametersUpdated, 0),
-      anchorsCreated: filtered.reduce((sum, r) => sum + r.anchorsCreated, 0),
-      specsCreated: filtered.reduce((sum, r) => sum + r.specsCreated, 0),
+      specsProcessed: results.length,
+      parametersCreated: results.reduce((sum, r) => sum + r.parametersCreated, 0),
+      parametersUpdated: results.reduce((sum, r) => sum + r.parametersUpdated, 0),
+      anchorsCreated: results.reduce((sum, r) => sum + r.anchorsCreated, 0),
+      specsCreated: results.reduce((sum, r) => sum + r.specsCreated, 0),
     };
 
     return NextResponse.json({
       ok: true,
-      message: `Synced ${filtered.length} specs`,
+      message: `Synced ${results.length} specs`,
       summary,
-      results: filtered,
+      results,
     });
   } catch (error: any) {
     console.error("Error syncing specs:", error);

@@ -27,6 +27,7 @@ export const AI_CALL_POINTS = [
     description: "Scores caller parameters from transcript (Big 5 personality, engagement, etc.)",
     defaultProvider: "claude",
     defaultModel: "claude-sonnet-4-20250514",
+    defaultTranscriptLimit: 4000,
   },
   {
     callPoint: "pipeline.learn",
@@ -34,6 +35,7 @@ export const AI_CALL_POINTS = [
     description: "Extracts facts and memories about the caller from transcript",
     defaultProvider: "claude",
     defaultModel: "claude-sonnet-4-20250514",
+    defaultTranscriptLimit: 4000,
   },
   {
     callPoint: "pipeline.score_agent",
@@ -41,6 +43,7 @@ export const AI_CALL_POINTS = [
     description: "Evaluates agent behavior against targets (warmth, empathy, etc.)",
     defaultProvider: "claude",
     defaultModel: "claude-sonnet-4-20250514",
+    defaultTranscriptLimit: 4000,
   },
   {
     callPoint: "pipeline.adapt",
@@ -48,6 +51,7 @@ export const AI_CALL_POINTS = [
     description: "Computes personalized behavior targets based on caller profile",
     defaultProvider: "claude",
     defaultModel: "claude-sonnet-4-20250514",
+    defaultTranscriptLimit: 2500,
   },
   {
     callPoint: "compose.prompt",
@@ -88,6 +92,13 @@ export const AI_CALL_POINTS = [
     callPoint: "chat.stream",
     label: "Chat (Streaming)",
     description: "Interactive chat completions with streaming",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "spec.assistant",
+    label: "Spec Creation Assistant",
+    description: "AI assistant for creating and editing BDD specifications",
     defaultProvider: "claude",
     defaultModel: "claude-sonnet-4-20250514",
   },
@@ -163,21 +174,30 @@ export async function GET() {
       getAvailableModels(),
     ]);
 
+    // Check which providers have API keys configured
+    const keyStatus: Record<string, boolean> = {
+      claude: !!process.env.ANTHROPIC_API_KEY,
+      openai: !!(process.env.OPENAI_HF_MVP_KEY || process.env.OPENAI_API_KEY),
+      mock: true, // Mock always available
+    };
+
     // Create a map for quick lookup
     const configMap = new Map(savedConfigs.map((c) => [c.callPoint, c]));
 
     // Merge with defaults to show all call points
     const allConfigs = AI_CALL_POINTS.map((def) => {
       const saved = configMap.get(def.callPoint);
+      const provider = saved?.provider ?? def.defaultProvider;
       return {
         callPoint: def.callPoint,
         label: def.label,
         description: def.description,
         // Use saved values or defaults
-        provider: saved?.provider ?? def.defaultProvider,
+        provider,
         model: saved?.model ?? def.defaultModel,
         maxTokens: saved?.maxTokens ?? null,
         temperature: saved?.temperature ?? null,
+        transcriptLimit: saved?.transcriptLimit ?? null,
         isActive: saved?.isActive ?? true,
         // Metadata
         isCustomized: !!saved,
@@ -186,6 +206,9 @@ export async function GET() {
         // Defaults for reference
         defaultProvider: def.defaultProvider,
         defaultModel: def.defaultModel,
+        defaultTranscriptLimit: (def as any).defaultTranscriptLimit ?? null,
+        // Key availability for this config's provider
+        hasKey: keyStatus[provider] ?? false,
       };
     });
 
@@ -194,6 +217,7 @@ export async function GET() {
       configs: allConfigs,
       availableModels,
       callPoints: AI_CALL_POINTS,
+      keyStatus, // Which providers have keys configured
     });
   } catch (error) {
     console.error("[ai-config] GET error:", error);
@@ -214,6 +238,7 @@ interface UpdateConfigBody {
   model: string;
   maxTokens?: number | null;
   temperature?: number | null;
+  transcriptLimit?: number | null;
   isActive?: boolean;
 }
 
@@ -258,6 +283,7 @@ export async function POST(request: NextRequest) {
         model: body.model,
         maxTokens: body.maxTokens ?? null,
         temperature: body.temperature ?? null,
+        transcriptLimit: body.transcriptLimit ?? null,
         isActive: body.isActive ?? true,
         description: callPointDef.description,
       },
@@ -266,6 +292,7 @@ export async function POST(request: NextRequest) {
         model: body.model,
         maxTokens: body.maxTokens ?? null,
         temperature: body.temperature ?? null,
+        transcriptLimit: body.transcriptLimit ?? null,
         isActive: body.isActive ?? true,
       },
     });

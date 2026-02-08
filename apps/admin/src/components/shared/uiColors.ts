@@ -35,49 +35,161 @@ export const uiColors = {
 // ENTITY COLORS - Each entity type has a distinct color family
 // =============================================================================
 export const entityColors = {
-  // Caller - Blue (primary entity, users interact with callers most)
+  // Domain - Blue (organizational container/territory)
+  domain: {
+    text: "#1e40af",    // blue-800
+    bg: "#dbeafe",      // blue-100
+    border: "#93c5fd",  // blue-300
+    accent: "#3b82f6",  // blue-500
+    icon: "🌐",
+  },
+  // Playbook - Amber (warm guidebook)
+  playbook: {
+    text: "#92400e",    // amber-800
+    bg: "#fef3c7",      // amber-100
+    border: "#fcd34d",  // amber-300
+    accent: "#f59e0b",  // amber-500
+    icon: "📒",
+  },
+  // Spec - Emerald (checklist/verify)
+  spec: {
+    text: "#065f46",    // emerald-800
+    bg: "#d1fae5",      // emerald-100
+    border: "#6ee7b7",  // emerald-300
+    accent: "#10b981",  // emerald-500
+    icon: "📋",
+  },
+  // Parameter - Purple (variables/math)
+  parameter: {
+    text: "#5b21b6",    // violet-800
+    bg: "#ede9fe",      // violet-100
+    border: "#c4b5fd",  // violet-300
+    accent: "#8b5cf6",  // violet-500
+    icon: "🔢",
+  },
+  // Caller - Pink (human/identity)
   caller: {
+    text: "#9d174d",    // pink-800
+    bg: "#fce7f3",      // pink-100
+    border: "#f9a8d4",  // pink-300
+    accent: "#ec4899",  // pink-500
+    icon: "👤",
+  },
+  // Goal - Cyan (target/aim)
+  goal: {
+    text: "#155e75",    // cyan-800
+    bg: "#cffafe",      // cyan-100
+    border: "#67e8f9",  // cyan-300
+    accent: "#06b6d4",  // cyan-500
+    icon: "🎯",
+  },
+  // Call - Indigo (communication)
+  call: {
+    text: "#3730a3",    // indigo-800
+    bg: "#e0e7ff",      // indigo-100
+    border: "#a5b4fc",  // indigo-300
+    accent: "#6366f1",  // indigo-500
+    icon: "📞",
+  },
+  // Transcript - Slate (raw recording)
+  transcript: {
+    text: "#334155",    // slate-700
+    bg: "#f1f5f9",      // slate-100
+    border: "#cbd5e1",  // slate-300
+    accent: "#64748b",  // slate-500
+    icon: "🎙️",
+  },
+  // Prompt - Orange (writing/craft)
+  prompt: {
+    text: "#9a3412",    // orange-800
+    bg: "#ffedd5",      // orange-100
+    border: "#fdba74",  // orange-300
+    accent: "#f97316",  // orange-500
+    icon: "📝",
+  },
+  // Memory - Violet (mind/recall)
+  memory: {
+    text: "#5b21b6",    // violet-800
+    bg: "#f5f3ff",      // violet-50
+    border: "#c4b5fd",  // violet-300
+    accent: "#7c3aed",  // violet-600
+    icon: "🧠",
+  },
+  // Knowledge - Teal (library/source)
+  knowledge: {
+    text: "#115e59",    // teal-800
+    bg: "#ccfbf1",      // teal-100
+    border: "#5eead4",  // teal-300
+    accent: "#14b8a6",  // teal-500
+    icon: "📚",
+  },
+  // Run/Pipeline - Rose (process/action)
+  run: {
+    text: "#9f1239",    // rose-800
+    bg: "#ffe4e6",      // rose-100
+    border: "#fda4af",  // rose-300
+    accent: "#f43f5e",  // rose-500
+    icon: "⚙️",
+  },
+} as const;
+
+export type EntityType = keyof typeof entityColors;
+
+// =============================================================================
+// STATUS COLORS - Entity lifecycle states
+// =============================================================================
+export const statusColors = {
+  draft: {
+    text: "#854d0e",    // yellow-800
+    bg: "#fef9c3",      // yellow-100
+    border: "#fde047",  // yellow-300
+    accent: "#eab308",  // yellow-500
+  },
+  active: {
+    text: "#166534",    // green-800
+    bg: "#dcfce7",      // green-100
+    border: "#86efac",  // green-300
+    accent: "#22c55e",  // green-500
+  },
+  compiled: {
     text: "#1e40af",    // blue-800
     bg: "#dbeafe",      // blue-100
     border: "#93c5fd",  // blue-300
     accent: "#3b82f6",  // blue-500
   },
-  // Domain - Emerald/Green (organizational container)
-  domain: {
+  validated: {
     text: "#065f46",    // emerald-800
     bg: "#d1fae5",      // emerald-100
     border: "#6ee7b7",  // emerald-300
     accent: "#10b981",  // emerald-500
   },
-  // Playbook - Purple (configuration/rules)
-  playbook: {
-    text: "#5b21b6",    // violet-800
-    bg: "#ede9fe",      // violet-100
-    border: "#c4b5fd",  // violet-300
-    accent: "#8b5cf6",  // violet-500
-  },
-  // Spec - Amber/Orange (specifications/definitions)
-  spec: {
+  pending: {
     text: "#92400e",    // amber-800
     bg: "#fef3c7",      // amber-100
     border: "#fcd34d",  // amber-300
     accent: "#f59e0b",  // amber-500
   },
-  // Call - Cyan/Teal (conversations/interactions)
-  call: {
-    text: "#155e75",    // cyan-800
-    bg: "#cffafe",      // cyan-100
-    border: "#67e8f9",  // cyan-300
-    accent: "#06b6d4",  // cyan-500
+  error: {
+    text: "#991b1b",    // red-800
+    bg: "#fee2e2",      // red-100
+    border: "#fca5a5",  // red-300
+    accent: "#ef4444",  // red-500
   },
-  // Parameter - Slate (data/configuration values)
-  parameter: {
-    text: "#334155",    // slate-700
+  archived: {
+    text: "#374151",    // gray-700
+    bg: "#f3f4f6",      // gray-100
+    border: "#d1d5db",  // gray-300
+    accent: "#6b7280",  // gray-500
+  },
+  deprecated: {
+    text: "#475569",    // slate-600
     bg: "#f1f5f9",      // slate-100
     border: "#cbd5e1",  // slate-300
-    accent: "#64748b",  // slate-500
+    accent: "#94a3b8",  // slate-400
   },
 } as const;
+
+export type StatusType = keyof typeof statusColors;
 
 // =============================================================================
 // SPEC TYPE COLORS - For spec roles (IDENTITY, CONTENT, VOICE, etc.)

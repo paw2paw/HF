@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { DraggableTabs } from "@/components/shared/DraggableTabs";
 
 type ImportTab = "transcripts" | "specs";
 
@@ -290,30 +291,16 @@ export default function ImportPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border-default)" }}>
-        {[
-          { id: "transcripts" as const, label: "📞 Transcripts", desc: "Call recordings" },
-          { id: "specs" as const, label: "📋 BDD Specs", desc: "Analysis specs" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: "12px 20px",
-              fontSize: 14,
-              fontWeight: activeTab === tab.id ? 600 : 400,
-              background: activeTab === tab.id ? "var(--surface-secondary)" : "transparent",
-              color: activeTab === tab.id ? "var(--accent-primary)" : "var(--text-muted)",
-              border: "none",
-              borderBottom: activeTab === tab.id ? "2px solid var(--accent-primary)" : "2px solid transparent",
-              cursor: "pointer",
-              marginBottom: -1,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <DraggableTabs
+        storageKey="import-tabs"
+        tabs={[
+          { id: "transcripts", label: "📞 Transcripts" },
+          { id: "specs", label: "📋 BDD Specs" },
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as ImportTab)}
+        containerStyle={{ marginBottom: 24 }}
+      />
 
       {/* Transcripts Tab */}
       {activeTab === "transcripts" && (

@@ -223,7 +223,7 @@ function buildPlaybookTree(
     const systemSpecsGroup: TreeNode = {
       id: "group-SYSTEM",
       type: "group",
-      name: `⚙️ System Specs (${enabledSystemSpecs.length}/${systemSpecs.length} enabled)`,
+      name: `System Specs (${enabledSystemSpecs.length}/${systemSpecs.length} enabled)`,
       meta: {
         outputType: "SYSTEM",
         count: systemSpecs.length,
@@ -306,7 +306,7 @@ function buildPlaybookTree(
       const groupNode: TreeNode = {
         id: `group-${groupId}`,
         type: "group",
-        name: getGroupIcon(groupId) + " " + meta.label,
+        name: meta.label,
         meta: { groupId, count: items.length, order: meta.order },
         children: [],
       };
@@ -376,25 +376,23 @@ function buildPlaybookTree(
 }
 
 function getGroupIcon(groupId: string): string {
-  if (groupId === "STORY") return "📋";
-  if (groupId.startsWith("AC-")) return "✅";
-  if (groupId === "PIPELINE") return "⚙️";
-  if (groupId === "COMPOSE") return "✍️";
-  if (groupId === "SLUGS") return "🏷️";
-  return "📁";
+  // Icons are now handled by nodeIcons in ExplorerTree.tsx
+  // Return empty string to avoid double icons
+  return "";
 }
 
 function getGroupLabel(outputType: string): string {
+  // Icons are handled by nodeIcons in ExplorerTree.tsx - don't embed emojis here
   const labels: Record<string, string> = {
-    BDD_STORY: "📋 BDD Stories (Acceptance Criteria)",
-    MEASURE: "📊 Measure Caller",
-    MEASURE_AGENT: "🤖 Measure Agent Behavior",
-    LEARN: "🧠 Learn (Memory Extraction)",
-    AGGREGATE: "📈 Aggregate (Personality)",
-    REWARD: "🎯 Reward Computation",
-    ADAPT: "🔄 Adapt (Target Learning)",
-    COMPOSE: "✍️ Compose (Prompt Generation)",
-    TEMPLATE: "📝 Prompt Templates",
+    BDD_STORY: "BDD Stories (Acceptance Criteria)",
+    MEASURE: "Measure Caller",
+    MEASURE_AGENT: "Measure Agent Behavior",
+    LEARN: "Learn (Memory Extraction)",
+    AGGREGATE: "Aggregate (Personality)",
+    REWARD: "Reward Computation",
+    ADAPT: "Adapt (Target Learning)",
+    COMPOSE: "Compose (Prompt Generation)",
+    TEMPLATE: "Prompt Templates",
   };
   return labels[outputType] || outputType;
 }
@@ -423,7 +421,7 @@ function buildSpecNode(spec: any, targetsByParam: Map<string, any[]>): TreeNode 
     node.children!.push({
       id: `template-${spec.id}`,
       type: "template-content",
-      name: `📝 Template: ${templatePreview}${spec.promptTemplate.length > 200 ? "..." : ""}`,
+      name: `Template: ${templatePreview}${spec.promptTemplate.length > 200 ? "..." : ""}`,
       meta: {
         fullTemplate: spec.promptTemplate,
         length: spec.promptTemplate.length,
@@ -463,7 +461,7 @@ function buildSpecNode(spec: any, targetsByParam: Map<string, any[]>): TreeNode 
         triggerNode.children!.push({
           id: `no-actions-${trigger.id}`,
           type: "info",
-          name: "ℹ️ No actions configured",
+          name: "No actions configured",
         });
       }
 
@@ -476,7 +474,7 @@ function buildSpecNode(spec: any, targetsByParam: Map<string, any[]>): TreeNode 
     node.children!.push({
       id: `info-${spec.id}`,
       type: "info",
-      name: `ℹ️ ${spec.description.slice(0, 100)}${spec.description.length > 100 ? "..." : ""}`,
+      name: spec.description.slice(0, 100) + (spec.description.length > 100 ? "..." : ""),
       meta: { fullDescription: spec.description },
     });
   }
@@ -488,7 +486,7 @@ function buildConfigNode(config: any, outputType: string): TreeNode {
   const node: TreeNode = {
     id: `config-${Math.random().toString(36).slice(2)}`,
     type: "config",
-    name: "⚙️ Configuration",
+    name: "Configuration",
     children: [],
   };
 
@@ -548,7 +546,7 @@ function buildActionNode(action: any, targetsByParam: Map<string, any[]>): TreeN
     const learnNode: TreeNode = {
       id: `learn-${action.id}`,
       type: "learn-config",
-      name: `🧠 Learn: ${action.learnCategory || "memory"}`,
+      name: `Learn: ${action.learnCategory || "memory"}`,
       meta: {
         category: action.learnCategory,
         keyPrefix: action.learnKeyPrefix,
@@ -586,7 +584,7 @@ function buildActionNode(action: any, targetsByParam: Map<string, any[]>): TreeN
     node.children!.push({
       id: `desc-${action.id}`,
       type: "instruction",
-      name: `📋 ${action.description}`,
+      name: action.description,
       meta: {
         fullText: action.description,
         weight: action.weight,
@@ -604,7 +602,7 @@ function buildParameterNode(param: any, targetsByParam: Map<string, any[]>): Tre
   const node: TreeNode = {
     id: param.id,
     type: "parameter",
-    name: `📐 ${param.name}`,
+    name: param.name,
     description: param.definition,
     meta: {
       parameterId: param.parameterId,
@@ -621,7 +619,7 @@ function buildParameterNode(param: any, targetsByParam: Map<string, any[]>): Tre
     const anchorsNode: TreeNode = {
       id: `anchors-${param.parameterId}`,
       type: "anchor-group",
-      name: `📍 Scoring Anchors (${param.scoringAnchors.length})`,
+      name: `Scoring Anchors (${param.scoringAnchors.length})`,
       children: param.scoringAnchors.map((anchor: any) => ({
         id: anchor.id,
         type: "anchor",
@@ -642,7 +640,7 @@ function buildParameterNode(param: any, targetsByParam: Map<string, any[]>): Tre
     const targetsNode: TreeNode = {
       id: `targets-${param.parameterId}`,
       type: "target-group",
-      name: `🎯 Behavior Targets (${targets.length})`,
+      name: `Behavior Targets (${targets.length})`,
       children: targets.map((target: any) => ({
         id: target.id,
         type: "target",
@@ -665,7 +663,7 @@ function buildTemplateNode(template: any): TreeNode {
   const node: TreeNode = {
     id: template.id,
     type: "template",
-    name: `📝 ${template.name}`,
+    name: template.name,
     description: template.description,
     meta: {
       slug: template.slug,

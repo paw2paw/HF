@@ -7,16 +7,7 @@ import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 import { DraggableTabs, TabDefinition } from "@/components/shared/DraggableTabs";
 import { useEntityContext } from "@/contexts/EntityContext";
-
-// Tree node type for Explorer tab
-interface TreeNode {
-  id: string;
-  type: string;
-  name: string;
-  description?: string;
-  meta?: Record<string, any>;
-  children?: TreeNode[];
-}
+import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
 
 type ScoringAnchor = {
   id: string;
@@ -208,7 +199,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
   // Tabs state - Explorer (unified tree+toggles view) is default
   // TODO: Consider removing "grid" tab once unified Explorer view is proven sufficient
-  const [activeTab, setActiveTab] = useState<"grid" | "targets" | "explorer" | "slugs" | "parameters" | "triggers">("grid");
+  const [activeTab, setActiveTab] = useState<"grid" | "targets" | "explorer" | "slugs" | "parameters" | "triggers" | "visualizer">("grid");
   const [targetsData, setTargetsData] = useState<TargetsData | null>(null);
   const [specSearch, setSpecSearch] = useState("");
   const [expandedAddPanels, setExpandedAddPanels] = useState<Set<"agent" | "caller" | "content">>(new Set());
@@ -2133,11 +2124,12 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         storageKey="playbook-builder-tabs"
         tabs={[
           { id: "grid", label: `📋 Specs (${items.length})`, title: "4-column grid view of all specs" },
-          { id: "explorer", label: "🌳 Explorer", title: "Browse specs with tree navigation and inline toggles" },
+          { id: "explorer", label: "📂 Explorer", title: "Browse specs with tree navigation and inline toggles" },
           { id: "targets", label: `🎚️ Targets ${targetsData ? `(${targetsData.counts.total})` : ""}`, title: "Configure playbook targets and thresholds" },
           { id: "slugs", label: `🔗 Slugs ${slugsData ? `(${slugsData.counts.total})` : ""}`, title: "URL slug mappings for playbook routing" },
-          { id: "parameters", label: `📊 Parameters ${parametersData ? `(${parametersData.counts.parameters})` : ""}`, title: "Parameter definitions and configuration" },
+          { id: "parameters", label: `🔢 Parameters ${parametersData ? `(${parametersData.counts.parameters})` : ""}`, title: "Parameter definitions and configuration" },
           { id: "triggers", label: `⚡ Triggers ${triggersData ? `(${triggersData.counts.triggers})` : ""}`, title: "Trigger configurations and rules" },
+          { id: "visualizer", label: "🌌 Visualizer", title: "Interactive graph visualization of playbook structure" },
         ]}
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as typeof activeTab)}
@@ -5336,6 +5328,47 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </div>
       )}
 
+      {/* Visualizer Tab */}
+      {activeTab === "visualizer" && (
+        <div style={{ marginTop: 24 }}>
+          <div
+            style={{
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 12,
+              overflow: "hidden",
+              height: "calc(100vh - 320px)",
+              minHeight: 500,
+            }}
+          >
+            <iframe
+              src={`/x/taxonomy-graph?focus=playbook:${playbookId}&depth=6&embed=1`}
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+              }}
+              title="Playbook Visualizer"
+            />
+          </div>
+          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              Interactive graph showing specs, parameters, triggers, and their relationships
+            </span>
+            <Link
+              href={`/x/taxonomy-graph?focus=playbook:${playbookId}&depth=6`}
+              style={{
+                fontSize: 12,
+                color: "var(--button-primary-bg)",
+                textDecoration: "none",
+              }}
+            >
+              Open fullscreen →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Config Override Modal */}
       {configModalSpec && (
         <ConfigOverrideModal
@@ -5349,55 +5382,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   );
 }
 
-// Explorer Tree Node Component
-const nodeIcons: Record<string, string> = {
-  playbook: "📚",
-  group: "📁",
-  "output-group": "📂",
-  spec: "📋",
-  trigger: "⚡",
-  action: "▶️",
-  parameter: "📐",
-  "anchor-group": "📍",
-  anchor: "🎚️",
-  "target-group": "🎯",
-  target: "🎯",
-  config: "⚙️",
-  scoring: "📊",
-  thresholds: "📏",
-  slug: "🏷️",
-  "param-ref": "🔗",
-  template: "📝",
-  "template-content": "📜",
-  block: "🧱",
-  info: "ℹ️",
-  "learn-config": "🧠",
-  "config-item": "•",
-  instruction: "📋",
-};
-
-const nodeColors: Record<string, { bg: string; border: string; text: string; selectedBg: string }> = {
-  playbook: { bg: "#f3e8ff", border: "#c084fc", text: "#7c3aed", selectedBg: "#ede9fe" },
-  group: { bg: "#eff6ff", border: "#93c5fd", text: "#2563eb", selectedBg: "#dbeafe" },
-  "output-group": { bg: "#f1f5f9", border: "#94a3b8", text: "#475569", selectedBg: "#e2e8f0" },
-  spec: { bg: "#f0fdf4", border: "#86efac", text: "var(--status-success-text)", selectedBg: "#dcfce7" },
-  trigger: { bg: "#fef9c3", border: "#fde047", text: "var(--status-warning-text)", selectedBg: "#fef08a" },
-  action: { bg: "#ffedd5", border: "#fdba74", text: "#ea580c", selectedBg: "#fed7aa" },
-  parameter: { bg: "#eef2ff", border: "#a5b4fc", text: "var(--button-primary-bg)", selectedBg: "var(--status-info-bg)" },
-  "anchor-group": { bg: "#fdf2f8", border: "#f9a8d4", text: "#db2777", selectedBg: "#fce7f3" },
-  anchor: { bg: "#fdf2f8", border: "#f9a8d4", text: "#be185d", selectedBg: "#fce7f3" },
-  "target-group": { bg: "#f0fdfa", border: "#5eead4", text: "#0d9488", selectedBg: "#ccfbf1" },
-  target: { bg: "#f0fdfa", border: "#5eead4", text: "#0f766e", selectedBg: "#ccfbf1" },
-  config: { bg: "#f9fafb", border: "#d1d5db", text: "#6b7280", selectedBg: "#f3f4f6" },
-  template: { bg: "var(--status-warning-bg)", border: "#fcd34d", text: "var(--status-warning-text)", selectedBg: "#fef3c7" },
-  "template-content": { bg: "var(--status-warning-bg)", border: "#facc15", text: "#a16207", selectedBg: "#fef9c3" },
-  block: { bg: "var(--status-warning-bg)", border: "#fcd34d", text: "#92400e", selectedBg: "#fef3c7" },
-  info: { bg: "#f0f9ff", border: "#7dd3fc", text: "#0284c7", selectedBg: "#e0f2fe" },
-  "learn-config": { bg: "#fdf4ff", border: "#e879f9", text: "#a21caf", selectedBg: "#fae8ff" },
-  "config-item": { bg: "#f9fafb", border: "#d1d5db", text: "var(--text-secondary)", selectedBg: "#f3f4f6" },
-  instruction: { bg: "var(--status-success-bg)", border: "#6ee7b7", text: "var(--status-success-text)", selectedBg: "var(--status-success-bg)" },
-};
-
+// Explorer Tree Node Component (uses nodeIcons/nodeColors from ExplorerTree)
 function ExplorerTreeNode({
   node,
   depth,

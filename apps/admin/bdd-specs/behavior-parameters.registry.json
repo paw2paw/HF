@@ -219,6 +219,196 @@
       "interpretationHigh": "Agent actively invites stories and personal anecdotes",
       "interpretationLow": "Agent stays topic-focused without inviting personal narratives",
       "definedInSpec": "COMP-GG-001"
+    },
+    {
+      "parameterId": "BEH-IMAGERY-DENSITY",
+      "name": "Mental Imagery Density",
+      "definition": "How richly agent uses visual metaphors and mental imagery in explanations",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent paints vivid mental pictures, uses spatial metaphors extensively",
+      "interpretationLow": "Agent uses abstract or logical explanations without imagery",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-SPATIAL-METAPHOR",
+      "name": "Spatial Metaphor Usage",
+      "definition": "Frequency of spatial organization language (above, below, connected, flows)",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Concepts organized spatially with relationship language",
+      "interpretationLow": "Concepts explained without spatial framing",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-DIAGRAM-LANGUAGE",
+      "name": "Diagram-Style Language",
+      "definition": "How much agent describes concepts as visual structures (diagrams, maps, charts)",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent describes concepts as visual diagrams or maps",
+      "interpretationLow": "Agent uses narrative or logical explanation style",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-VERBAL-ELABORATION",
+      "name": "Verbal Elaboration Level",
+      "definition": "Richness of verbal explanation with rhythm, repetition, and auditory flow",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Rich, flowing verbal elaboration with natural rhythm",
+      "interpretationLow": "Concise, minimal verbal explanation",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-RHYTHM-ATTENTION",
+      "name": "Speech Rhythm Attention",
+      "definition": "How much agent attends to cadence, rhythm, and prosody in explanations",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses deliberate rhythm and pacing in speech",
+      "interpretationLow": "Agent focuses on content without rhythm awareness",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-REPETITION-OFFER",
+      "name": "Repetition Offering",
+      "definition": "How proactively agent offers to repeat or rephrase key points",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent proactively offers to repeat important information",
+      "interpretationLow": "Agent doesn't offer repetition unless asked",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-WRITTEN-ALTERNATIVE",
+      "name": "Written Alternative Suggestion",
+      "definition": "How often agent suggests written resources as alternatives to verbal explanation",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.3,
+      "interpretationHigh": "Agent frequently recommends written resources",
+      "interpretationLow": "Agent assumes verbal explanation is sufficient",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-DEFINITION-PRECISION",
+      "name": "Definition Precision",
+      "definition": "How precisely agent defines terms and uses formal terminology",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent provides precise formal definitions and technical terms",
+      "interpretationLow": "Agent uses casual, approximate explanations",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-LIST-STRUCTURE",
+      "name": "List Structure Usage",
+      "definition": "How often agent organizes information in numbered lists and hierarchies",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent structures as 'First... Second... Third...' with clear hierarchy",
+      "interpretationLow": "Agent uses flowing narrative without enumeration",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-TERMINOLOGY-FORMAL",
+      "name": "Formal Terminology Level",
+      "definition": "How much agent uses proper technical vocabulary vs casual language",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses proper technical terminology consistently",
+      "interpretationLow": "Agent uses everyday language and avoids jargon",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-CONVERSATIONAL-TONE",
+      "name": "Conversational Tone",
+      "definition": "How casual and flowing vs structured and formal the agent's tone is",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent is casual, conversational, and naturally flowing",
+      "interpretationLow": "Agent is structured, formal, and organized",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-PRACTICE-EXERCISES",
+      "name": "Practice Exercise Offering",
+      "definition": "How often agent offers practice exercises, applications, and hands-on activities",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent frequently offers practice problems and real-world applications",
+      "interpretationLow": "Agent focuses on explanation without practice",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-FEELING-LANGUAGE",
+      "name": "Feeling Language Usage",
+      "definition": "How much agent uses feeling, sensing, and embodied language",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent uses 'feel', 'sense', 'grasp' and embodied metaphors",
+      "interpretationLow": "Agent uses abstract or cognitive language",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-ACTION-VERBS",
+      "name": "Action Verb Density",
+      "definition": "How much agent grounds explanations in action and doing",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses 'try', 'do', 'practice', 'work through'",
+      "interpretationLow": "Agent uses 'understand', 'know', 'think' - cognitive verbs",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-REAL-WORLD-EXAMPLES",
+      "name": "Real-World Example Usage",
+      "definition": "How often agent connects concepts to practical, real-world applications",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.6,
+      "interpretationHigh": "Agent frequently grounds learning in real-world scenarios",
+      "interpretationLow": "Agent explains theoretically without practical application",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-ABSTRACT-OK",
+      "name": "Abstract Explanation Comfort",
+      "definition": "How comfortable agent is staying at abstract/theoretical level",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent can stay abstract without forcing concrete examples",
+      "interpretationLow": "Agent always grounds in concrete examples",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-MODALITY-VARIETY",
+      "name": "Modality Variety",
+      "definition": "How much agent varies teaching approach across VARK modalities",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses visual, auditory, text, and kinesthetic approaches",
+      "interpretationLow": "Agent sticks to single teaching modality",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-APPROACH-SWITCHING",
+      "name": "Approach Switching Frequency",
+      "definition": "How often agent switches between different teaching modalities",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent fluidly switches modalities based on content",
+      "interpretationLow": "Agent maintains consistent approach throughout",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-MODALITY-CONSISTENCY",
+      "name": "Modality Consistency",
+      "definition": "How consistently agent stays with dominant modality approach",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent consistently uses learner's preferred modality",
+      "interpretationLow": "Agent varies approach regardless of learner preference",
+      "definedInSpec": "ADAPT-VARK-001"
     }
   ],
 

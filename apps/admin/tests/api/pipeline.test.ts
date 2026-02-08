@@ -224,7 +224,7 @@ describe('batchLoadParameters Logic', () => {
     });
 
     it('should handle specs with empty triggers array', () => {
-      const specs = [{ triggers: [] }];
+      const specs: Array<{ triggers: Array<{ actions: Array<{ parameterId?: string }> }> }> = [{ triggers: [] }];
 
       const paramIds = new Set<string>();
       for (const spec of specs) {
@@ -241,7 +241,7 @@ describe('batchLoadParameters Logic', () => {
     });
 
     it('should handle triggers with empty actions array', () => {
-      const specs = [
+      const specs: Array<{ triggers: Array<{ actions: Array<{ parameterId?: string }> }> }> = [
         {
           triggers: [{ actions: [] }],
         },
@@ -508,7 +508,7 @@ describe('Error Handling', () => {
   });
 
   it('should return 400 when callerId is missing', async () => {
-    const body = { mode: 'prep' };
+    const body: { mode: string; callerId?: string } = { mode: 'prep' };
     // Missing callerId
     expect(body.callerId).toBeUndefined();
 
@@ -520,7 +520,7 @@ describe('Error Handling', () => {
   });
 
   it('should return 400 when mode is missing', async () => {
-    const body = { callerId: 'caller-123' };
+    const body: { callerId: string; mode?: string } = { callerId: 'caller-123' };
     // Missing mode
     expect(body.mode).toBeUndefined();
 
@@ -1346,24 +1346,24 @@ describe('Stage Executor Registry', () => {
   });
 
   it('should skip stage when requiresMode does not match', () => {
-    const mode = 'prep';
-    const stage = { name: 'COMPOSE', requiresMode: 'prompt' as const };
+    const mode: 'prep' | 'prompt' = 'prep';
+    const stage: { name: string; requiresMode?: 'prep' | 'prompt' } = { name: 'COMPOSE', requiresMode: 'prompt' };
 
     const shouldSkip = stage.requiresMode && stage.requiresMode !== mode;
     expect(shouldSkip).toBe(true);
   });
 
   it('should run stage when no requiresMode specified', () => {
-    const mode = 'prep';
-    const stage = { name: 'EXTRACT', requiresMode: undefined };
+    const mode: 'prep' | 'prompt' = 'prep';
+    const stage: { name: string; requiresMode?: 'prep' | 'prompt' } = { name: 'EXTRACT', requiresMode: undefined };
 
     const shouldSkip = stage.requiresMode && stage.requiresMode !== mode;
     expect(shouldSkip).toBeFalsy();
   });
 
   it('should run stage when requiresMode matches', () => {
-    const mode = 'prompt';
-    const stage = { name: 'COMPOSE', requiresMode: 'prompt' as const };
+    const mode: 'prep' | 'prompt' = 'prompt';
+    const stage: { name: string; requiresMode?: 'prep' | 'prompt' } = { name: 'COMPOSE', requiresMode: 'prompt' };
 
     const shouldSkip = stage.requiresMode && stage.requiresMode !== mode;
     expect(shouldSkip).toBe(false);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { OpenInNew, ArrowDownward, Code, Settings } from "@mui/icons-material";
+import { ArrowDownward, Code, Settings } from "@mui/icons-material";
 import {
   StepIcon,
   SectionIcon,
@@ -42,7 +42,7 @@ export default function Blueprint() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: "center", padding: 60, color: "#9ca3af" }}>
+      <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>
         Loading blueprint...
       </div>
     );
@@ -50,7 +50,7 @@ export default function Blueprint() {
 
   if (!manifest) {
     return (
-      <div style={{ textAlign: "center", padding: 60, color: "#dc2626" }}>
+      <div style={{ textAlign: "center", padding: 60, color: "var(--status-error-text)" }}>
         Failed to load composition blueprint
       </div>
     );
@@ -72,8 +72,8 @@ export default function Blueprint() {
         {/* ADAPT Phase */}
         <div
           style={{
-            background: "white",
-            border: "1px solid #e5e7eb",
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
             borderRadius: 12,
             overflow: "hidden",
           }}
@@ -81,14 +81,14 @@ export default function Blueprint() {
           <div
             style={{
               padding: "16px 20px",
-              borderBottom: "1px solid #e5e7eb",
-              background: "#fafafa",
+              borderBottom: "1px solid var(--border-default)",
+              background: "var(--surface-secondary)",
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: 16 }}>
+            <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>
               ADAPT Phase (pre-call)
             </div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
               {adaptPhase?.description}
             </div>
           </div>
@@ -108,19 +108,20 @@ export default function Blueprint() {
                   gap: 8,
                   width: "100%",
                   padding: "12px 16px",
-                  background: "#f3f4f6",
-                  border: "1px solid #e5e7eb",
+                  background: "var(--surface-tertiary)",
+                  border: "1px solid var(--border-default)",
                   borderRadius: 8,
                   cursor: "pointer",
                   fontSize: 14,
                   fontWeight: 500,
+                  color: "var(--text-primary)",
                 }}
               >
-                <Settings style={{ fontSize: 18, color: "#6b7280" }} />
+                <Settings style={{ fontSize: 18, color: "var(--text-muted)" }} />
                 <span style={{ flex: 1, textAlign: "left" }}>
                   Composition Sections ({manifest.compositionSections.length})
                 </span>
-                <span style={{ color: "#9ca3af" }}>
+                <span style={{ color: "var(--text-muted)" }}>
                   {expandedSections ? "▲" : "▼"}
                 </span>
               </button>
@@ -146,8 +147,8 @@ export default function Blueprint() {
         {/* LEARN Phase */}
         <div
           style={{
-            background: "white",
-            border: "1px solid #e5e7eb",
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
             borderRadius: 12,
             overflow: "hidden",
           }}
@@ -155,14 +156,14 @@ export default function Blueprint() {
           <div
             style={{
               padding: "16px 20px",
-              borderBottom: "1px solid #e5e7eb",
-              background: "#fafafa",
+              borderBottom: "1px solid var(--border-default)",
+              background: "var(--surface-secondary)",
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: 16 }}>
+            <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>
               LEARN Phase (post-call)
             </div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
               {learnPhase?.description}
             </div>
           </div>
@@ -180,7 +181,7 @@ export default function Blueprint() {
                     }}
                   >
                     <ArrowDownward
-                      style={{ fontSize: 20, color: "#d1d5db" }}
+                      style={{ fontSize: 20, color: "var(--border-strong)" }}
                     />
                   </div>
                 )}
@@ -194,13 +195,13 @@ export default function Blueprint() {
       <div
         style={{
           marginTop: 32,
-          background: "white",
-          border: "1px solid #e5e7eb",
+          background: "var(--surface-primary)",
+          border: "1px solid var(--border-default)",
           borderRadius: 12,
           padding: 20,
         }}
       >
-        <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16, color: "var(--text-primary)" }}>
           Data Flow
         </div>
         <div
@@ -235,12 +236,12 @@ export default function Blueprint() {
           gap: 16,
           marginTop: 24,
           padding: 12,
-          background: "#f9fafb",
+          background: "var(--surface-secondary)",
           borderRadius: 8,
-          border: "1px solid #e5e7eb",
+          border: "1px solid var(--border-default)",
         }}
       >
-        <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>
+        <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>
           Legend:
         </span>
         <ConfigBadge source="code" />
@@ -261,8 +262,8 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
   return (
     <div
       style={{
-        background: "#fafafa",
-        border: "1px solid #e5e7eb",
+        background: "var(--surface-secondary)",
+        border: "1px solid var(--border-default)",
         borderRadius: 8,
         padding: 16,
       }}
@@ -279,10 +280,10 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
               marginBottom: 4,
             }}
           >
-            <span style={{ fontWeight: 600, fontSize: 14 }}>{step.label}</span>
+            <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>{step.label}</span>
             <ConfigBadge source={configSource} />
           </div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
             {step.description}
           </div>
         </div>
@@ -296,14 +297,14 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
             display: "flex",
             alignItems: "center",
             gap: 4,
-            color: "#6b7280",
+            color: "var(--text-secondary)",
             marginBottom: 4,
           }}
         >
           <Code style={{ fontSize: 14 }} />
           <span style={{ fontFamily: "monospace" }}>{step.sourceFile}</span>
           {step.sourceLine && (
-            <span style={{ color: "#9ca3af" }}>:{step.sourceLine}</span>
+            <span style={{ color: "var(--text-muted)" }}>:{step.sourceLine}</span>
           )}
         </div>
 
@@ -314,7 +315,7 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
               display: "flex",
               alignItems: "center",
               gap: 4,
-              color: "#6b7280",
+              color: "var(--text-secondary)",
               marginBottom: 4,
             }}
           >
@@ -325,7 +326,8 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
                 <span key={k}>
                   <code
                     style={{
-                      background: "#fef3c7",
+                      background: "var(--badge-yellow-bg)",
+                      color: "var(--badge-yellow-text)",
                       padding: "1px 4px",
                       borderRadius: 3,
                     }}
@@ -341,7 +343,7 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
 
         {/* Config Fields */}
         {step.configFields && step.configFields.length > 0 && (
-          <div style={{ color: "#9ca3af", marginBottom: 4 }}>
+          <div style={{ color: "var(--text-muted)", marginBottom: 4 }}>
             Config: {step.configFields.join(", ")}
           </div>
         )}
@@ -353,16 +355,16 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
             gap: 16,
             marginTop: 8,
             paddingTop: 8,
-            borderTop: "1px solid #e5e7eb",
+            borderTop: "1px solid var(--border-default)",
           }}
         >
           <div>
-            <span style={{ color: "#059669", fontWeight: 500 }}>In:</span>{" "}
-            <span style={{ color: "#6b7280" }}>{step.inputs.join(", ")}</span>
+            <span style={{ color: "var(--status-success-text)", fontWeight: 500 }}>In:</span>{" "}
+            <span style={{ color: "var(--text-secondary)" }}>{step.inputs.join(", ")}</span>
           </div>
           <div>
-            <span style={{ color: "#7c3aed", fontWeight: 500 }}>Out:</span>{" "}
-            <span style={{ color: "#6b7280" }}>{step.outputs.join(", ")}</span>
+            <span style={{ color: "var(--badge-purple-text)", fontWeight: 500 }}>Out:</span>{" "}
+            <span style={{ color: "var(--text-secondary)" }}>{step.outputs.join(", ")}</span>
           </div>
         </div>
       </div>
@@ -378,8 +380,8 @@ function SectionNode({ section }: { section: CompositionSectionManifest }) {
   return (
     <div
       style={{
-        background: "white",
-        border: "1px solid #e5e7eb",
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
         borderRadius: 6,
         padding: 10,
         fontSize: 12,
@@ -387,17 +389,17 @@ function SectionNode({ section }: { section: CompositionSectionManifest }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <SectionIcon section={section.id} size={14} />
-        <span style={{ fontWeight: 500 }}>{section.label}</span>
+        <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{section.label}</span>
       </div>
-      <div style={{ color: "#9ca3af", marginTop: 4 }}>
+      <div style={{ color: "var(--text-muted)", marginTop: 4 }}>
         {section.activateWhen === "always" ? (
-          <span style={{ color: "#059669" }}>Always active</span>
+          <span style={{ color: "var(--status-success-text)" }}>Always active</span>
         ) : (
           <span>When: {section.activateWhen}</span>
         )}
       </div>
       {section.transform && (
-        <div style={{ color: "#6b7280", marginTop: 2 }}>
+        <div style={{ color: "var(--text-secondary)", marginTop: 2 }}>
           Transform: <code>{section.transform}</code>
         </div>
       )}
@@ -426,7 +428,8 @@ function DataFlowBox({
         borderRadius: 6,
         fontSize: 13,
         fontWeight: 500,
-        border: highlight ? "2px solid #7c3aed" : "1px solid #e5e7eb",
+        color: "var(--text-primary)",
+        border: highlight ? "2px solid var(--badge-purple-text)" : "1px solid var(--border-default)",
         boxShadow: highlight ? "0 0 12px rgba(124, 58, 237, 0.3)" : undefined,
       }}
     >
@@ -437,6 +440,6 @@ function DataFlowBox({
 
 function Arrow() {
   return (
-    <div style={{ color: "#d1d5db", fontSize: 20 }}>→</div>
+    <div style={{ color: "var(--border-strong)", fontSize: 20 }}>→</div>
   );
 }

@@ -487,17 +487,76 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String?  // For authentication
-  role         UserRole @default(VIEWER)
-  name         String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified DateTime? // For NextAuth
+  passwordHash  String?   // For password auth (optional)
+  role          UserRole  @default(ADMIN) // Default to ADMIN for initial team
+  name          String?
+  image         String?   // For NextAuth (avatar)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
 
   @@index([email])
   @@index([role])
+}
+
+// Note: AuditLog has userId but no FK constraint (logs persist after user deletion)
+
+// NextAuth required models
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Invite system - control who can sign up
+model Invite {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  token     String    @unique @default(uuid())
+  role      UserRole  @default(ADMIN) // Role to assign on signup
+  expiresAt DateTime
+  usedAt    DateTime? // Null until used
+  createdBy String?   // User who created the invite
+  createdAt DateTime  @default(now())
+
+  @@index([token])
+  @@index([email])
 }
 
 model Caller {
@@ -2684,8 +2743,9 @@ model AIConfig {
   model       String
 
   // Optional overrides
-  maxTokens   Int?
-  temperature Float?
+  maxTokens       Int?
+  temperature     Float?
+  transcriptLimit Int?     // Max chars of transcript to include in prompt (cost optimization)
 
   // Whether this config is active (allows disabling without deleting)
   isActive    Boolean  @default(true)
@@ -2728,4 +2788,54 @@ model AIModel {
   @@index([provider])
   @@index([isActive])
   @@index([provider, isActive])
+}
+
+// =========================
+// SYSTEM SETTINGS
+// =========================
+
+// Key-value store for system-wide settings
+model SystemSetting {
+  id    String @id @default(uuid())
+  key   String @unique // e.g., "audit_logging_enabled"
+  value String // JSON-encoded value
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([key])
+}
+
+// =========================
+// AUDIT LOGGING
+// =========================
+
+// Tracks who did what in the system
+model AuditLog {
+  id String @id @default(uuid())
+
+  // Who performed the action
+  userId    String?
+  userEmail String? // Denormalized for quick display
+
+  // What action was performed
+  action String // e.g., "ran_pipeline", "created_caller", "updated_playbook"
+
+  // What entity was affected
+  entityType String? // e.g., "Call", "Caller", "Playbook"
+  entityId   String? // ID of the affected entity
+
+  // Additional context
+  metadata Json? // Extra details (before/after values, etc.)
+
+  // Request context
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }

@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { AIEngine, isEngineAvailable } from "@/lib/ai/client";
-import { getMeteredAICompletion } from "@/lib/metering";
+import { getMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 
 const prisma = new PrismaClient();
 
@@ -81,6 +81,13 @@ async function scoreWithAI(
   if (engine === "mock") {
     // Mock scoring
     const mockScore = 0.3 + (transcript.length % 50) / 100 + Math.random() * 0.3;
+    // Log mock usage for visibility
+    logMockAIUsage({
+      callId: context?.callId,
+      callerId: context?.callerId,
+      sourceOp: "ops:measure",
+      reason: "requested",
+    }).catch(() => {});
     return {
       score: Math.min(1, mockScore),
       confidence: 0.7 + Math.random() * 0.2,
@@ -211,6 +218,14 @@ async function extractWithAI(
       { regex: /my (?:wife|husband|partner|spouse) (\w+)/i, key: "spouse", category: "RELATIONSHIP" },
       { regex: /I have (\d+) (?:kids?|children)/i, key: "children_count", category: "RELATIONSHIP" },
     ];
+
+    // Log mock usage for visibility
+    logMockAIUsage({
+      callId: context?.callId,
+      callerId: context?.callerId,
+      sourceOp: "ops:learn",
+      reason: "requested",
+    }).catch(() => {});
 
     for (const pattern of patterns) {
       const match = transcript.match(pattern.regex);

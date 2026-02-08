@@ -1,18 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-
-/**
- * TODO [AUTH]: When user authentication is implemented:
- * 1. Replace localStorage calls with API calls to persist tab order per user
- * 2. Add a UserPreferences table: { userId, preferenceKey, preferenceValue }
- * 3. Create API endpoints:
- *    - GET /api/user/preferences/:key
- *    - PUT /api/user/preferences/:key
- * 4. Update getStoredOrder() to fetch from API
- * 5. Update saveOrder() to POST to API
- * 6. Consider caching with SWR or React Query for performance
- */
+import { useSession } from "next-auth/react";
 
 export type TabDefinition = {
   id: string;
@@ -31,6 +20,8 @@ type DraggableTabsProps = {
   onTabChange: (tabId: string) => void;
   /** Optional custom styles for the container */
   containerStyle?: React.CSSProperties;
+  /** Show reset button to restore default order (default: true) */
+  showReset?: boolean;
 };
 
 export function DraggableTabs({
@@ -39,15 +30,20 @@ export function DraggableTabs({
   activeTab,
   onTabChange,
   containerStyle,
+  showReset = true,
 }: DraggableTabsProps) {
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
   const [orderedTabs, setOrderedTabs] = useState<TabDefinition[]>(tabs);
   const [draggedTab, setDraggedTab] = useState<string | null>(null);
   const [dragOverTab, setDragOverTab] = useState<string | null>(null);
+  const [hasCustomOrder, setHasCustomOrder] = useState(false);
   const dragStartX = useRef<number>(0);
 
-  // Load order from localStorage on mount
+  // Load order from localStorage on mount or when user changes
   useEffect(() => {
-    const stored = getStoredOrder(storageKey);
+    const stored = getStoredOrder(storageKey, userId);
     if (stored) {
       // Reorder tabs based on stored order, handling new/removed tabs gracefully
       const orderedIds = stored.filter((id) => tabs.some((t) => t.id === id));
@@ -59,10 +55,21 @@ export function DraggableTabs({
         .filter((t): t is TabDefinition => t !== undefined);
 
       setOrderedTabs(reordered);
+      // Check if order differs from default
+      const defaultOrder = tabs.map((t) => t.id).join(",");
+      const currentOrder = reordered.map((t) => t.id).join(",");
+      setHasCustomOrder(defaultOrder !== currentOrder);
     } else {
       setOrderedTabs(tabs);
+      setHasCustomOrder(false);
     }
-  }, [storageKey, tabs]);
+  }, [storageKey, tabs, userId]);
+
+  const handleReset = useCallback(() => {
+    setOrderedTabs(tabs);
+    setHasCustomOrder(false);
+    clearOrder(storageKey, userId);
+  }, [storageKey, tabs, userId]);
 
   const handleDragStart = useCallback((e: React.DragEvent, tabId: string) => {
     setDraggedTab(tabId);
@@ -108,11 +115,12 @@ export function DraggableTabs({
     newOrder.splice(targetIndex, 0, removed);
 
     setOrderedTabs(newOrder);
-    saveOrder(storageKey, newOrder.map((t) => t.id));
+    saveOrder(storageKey, newOrder.map((t) => t.id), userId);
+    setHasCustomOrder(true);
 
     setDraggedTab(null);
     setDragOverTab(null);
-  }, [draggedTab, orderedTabs, storageKey]);
+  }, [draggedTab, orderedTabs, storageKey, userId]);
 
   const handleDragEnd = useCallback(() => {
     setDraggedTab(null);
@@ -166,32 +174,59 @@ export function DraggableTabs({
           </button>
         );
       })}
+      {showReset && hasCustomOrder && (
+        <button
+          type="button"
+          onClick={handleReset}
+          title="Reset tab order"
+          style={{
+            marginLeft: "auto",
+            padding: "8px",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            opacity: 0.5,
+            fontSize: 14,
+            lineHeight: 1,
+            transition: "opacity 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
+        >
+          ↻
+        </button>
+      )}
     </div>
   );
 }
 
-/**
- * TODO [AUTH]: Replace with API call when user auth is implemented
- * Example: const order = await fetch(`/api/user/preferences/${key}`).then(r => r.json());
- */
-function getStoredOrder(key: string): string[] | null {
+function getStorageKey(key: string, userId: string | undefined): string {
+  return userId ? `tab-order:${key}.${userId}` : `tab-order:${key}`;
+}
+
+function getStoredOrder(key: string, userId: string | undefined): string[] | null {
   if (typeof window === "undefined") return null;
   try {
-    const stored = localStorage.getItem(`tab-order:${key}`);
+    const stored = localStorage.getItem(getStorageKey(key, userId));
     return stored ? JSON.parse(stored) : null;
   } catch {
     return null;
   }
 }
 
-/**
- * TODO [AUTH]: Replace with API call when user auth is implemented
- * Example: await fetch(`/api/user/preferences/${key}`, { method: 'PUT', body: JSON.stringify(order) });
- */
-function saveOrder(key: string, order: string[]): void {
+function saveOrder(key: string, order: string[], userId: string | undefined): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(`tab-order:${key}`, JSON.stringify(order));
+    localStorage.setItem(getStorageKey(key, userId), JSON.stringify(order));
+  } catch {
+    // Silently fail if localStorage is unavailable
+  }
+}
+
+function clearOrder(key: string, userId: string | undefined): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(getStorageKey(key, userId));
   } catch {
     // Silently fail if localStorage is unavailable
   }

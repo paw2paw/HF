@@ -35,6 +35,7 @@ export {
   logUsageEventsBatch,
   logUsageEventFireAndForget,
   logAIUsage,
+  logMockAIUsage,
   logSlowQuery,
   logComputeUsage,
   logStorageUsage,

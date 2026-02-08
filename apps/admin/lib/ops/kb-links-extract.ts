@@ -19,9 +19,27 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import glob from "glob";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require("pdf-parse");
+
+// Simple recursive file finder (replaces glob dependency)
+function findFiles(dir: string, extensions: string[]): string[] {
+  if (!fs.existsSync(dir)) return [];
+  const results: string[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...findFiles(fullPath, extensions));
+    } else if (entry.isFile()) {
+      const ext = path.extname(entry.name).toLowerCase().slice(1);
+      if (extensions.includes(ext)) {
+        results.push(fullPath);
+      }
+    }
+  }
+  return results;
+}
 
 // ============================================================================
 // Path Resolution (uses agents.json data nodes as source of truth)
@@ -161,20 +179,10 @@ async function extractLinksInternal(dryRun: boolean, verbose = false): Promise<E
   }
 
   // Find text files
-  const textPattern = `**/*.{${TEXT_EXTENSIONS.join(",")}}`;
-  const textFiles = glob.sync(textPattern, {
-    cwd: sourceDir,
-    absolute: true,
-    nodir: true,
-  });
+  const textFiles = findFiles(sourceDir, TEXT_EXTENSIONS);
 
   // Find PDF files (case-insensitive)
-  const pdfPattern = `**/*.{pdf,PDF}`;
-  const pdfFiles = glob.sync(pdfPattern, {
-    cwd: sourceDir,
-    absolute: true,
-    nodir: true,
-  });
+  const pdfFiles = findFiles(sourceDir, ["pdf"]);
 
   const totalFiles = textFiles.length + pdfFiles.length;
   console.log(`[kb:links:extract] Found ${totalFiles} files (${textFiles.length} text, ${pdfFiles.length} PDF)`);

@@ -74,7 +74,7 @@ vi.mock("@/lib/bdd/ai-parser", () => ({
 }));
 
 // Test data factories
-const createMockSpec = (overrides = {}) => ({
+const createMockSpec = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "test-spec-001",
   title: "Test Spec",
   version: "1.0",
@@ -93,16 +93,17 @@ const createMockSpec = (overrides = {}) => ({
   ...overrides,
 });
 
-const createMockFeatureSet = (overrides = {}) => ({
+const createMockFeatureSet = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "feature-set-123",
   featureId: "test-spec-001",
   name: "Test Spec",
   version: "1.0",
   specType: "DOMAIN",
+  parameters: [] as Array<{ id: string; name: string; dataType: string }>,
   ...overrides,
 });
 
-const createMockAnalysisSpec = (overrides = {}) => ({
+const createMockAnalysisSpec = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "analysis-spec-123",
   slug: "spec-test-spec-001",
   name: "Test Spec",
@@ -111,6 +112,8 @@ const createMockAnalysisSpec = (overrides = {}) => ({
   specRole: "ANALYZER",
   isActive: true,
   version: "1.0",
+  priority: 0,
+  config: {} as Record<string, unknown>,
   ...overrides,
 });
 

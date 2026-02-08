@@ -42,14 +42,14 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 // Test data factories
-const createMockDomain = (overrides = {}) => ({
+const createMockDomain = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "domain-123",
   slug: "companion",
   name: "Companion Domain",
   ...overrides,
 });
 
-const createMockPlaybook = (overrides = {}) => ({
+const createMockPlaybook = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "playbook-123",
   name: "Test Playbook",
   description: "Test description",
@@ -61,10 +61,15 @@ const createMockPlaybook = (overrides = {}) => ({
   parentVersionId: null,
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-15"),
+  domain: null as unknown,
+  items: [] as unknown[],
+  _count: { items: 0 },
+  parentVersion: null as unknown,
+  systemSpecs: [] as unknown[],
   ...overrides,
 });
 
-const createMockPlaybookItem = (overrides = {}) => ({
+const createMockPlaybookItem = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "item-1",
   playbookId: "playbook-123",
   itemType: "SPEC",
@@ -72,10 +77,12 @@ const createMockPlaybookItem = (overrides = {}) => ({
   promptTemplateId: null,
   isEnabled: true,
   sortOrder: 0,
+  spec: null as unknown,
+  promptTemplate: null as unknown,
   ...overrides,
 });
 
-const createMockSpec = (overrides = {}) => ({
+const createMockSpec = <T extends Record<string, unknown>>(overrides?: T) => ({
   id: "spec-1",
   slug: "test-spec",
   name: "Test Spec",
@@ -208,9 +215,9 @@ describe("/api/playbooks", () => {
       });
 
       expect(mockPlaybook.domain).toBeDefined();
-      expect(mockPlaybook.domain.id).toBe("domain-123");
-      expect(mockPlaybook.domain.slug).toBe("companion");
-      expect(mockPlaybook.domain.name).toBe("Companion Domain");
+      expect((mockPlaybook.domain as { id: string }).id).toBe("domain-123");
+      expect((mockPlaybook.domain as { slug: string }).slug).toBe("companion");
+      expect((mockPlaybook.domain as { name: string }).name).toBe("Companion Domain");
     });
 
     it("should include items with spec and promptTemplate data", async () => {
@@ -230,8 +237,8 @@ describe("/api/playbooks", () => {
         _count: { items: 1 },
       });
 
-      expect(mockPlaybook.items[0].spec.slug).toBe("test-spec");
-      expect(mockPlaybook.items[0].promptTemplate.slug).toBe("test-template");
+      expect((mockPlaybook.items[0] as { spec: { slug: string } }).spec.slug).toBe("test-spec");
+      expect((mockPlaybook.items[0] as { promptTemplate: { slug: string } }).promptTemplate.slug).toBe("test-template");
     });
 
     it("should include item count", async () => {
@@ -481,8 +488,8 @@ describe("/api/playbooks/[playbookId]", () => {
 
       mockPrisma.playbook.findUnique.mockResolvedValue(mockPlaybook);
 
-      expect(mockPlaybook.parentVersion.name).toBe("Original Playbook");
-      expect(mockPlaybook.parentVersion.version).toBe("1.0");
+      expect((mockPlaybook.parentVersion as { name: string }).name).toBe("Original Playbook");
+      expect((mockPlaybook.parentVersion as { version: string }).version).toBe("1.0");
     });
 
     it("should include item details with spec and promptTemplate", async () => {
@@ -507,8 +514,8 @@ describe("/api/playbooks/[playbookId]", () => {
         promptTemplate: mockPromptTemplate,
       });
 
-      expect(mockItem.spec.specType).toBe("MEASURE");
-      expect(mockItem.promptTemplate.description).toBe("Prompt description");
+      expect((mockItem.spec as { specType: string }).specType).toBe("MEASURE");
+      expect((mockItem.promptTemplate as { description: string }).description).toBe("Prompt description");
     });
 
     it("should handle database errors gracefully", async () => {

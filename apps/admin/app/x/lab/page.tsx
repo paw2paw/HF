@@ -4,7 +4,7 @@ export default function LabPage() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1f2937", margin: 0 }}>Lab</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Lab</h1>
         <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
           Test specs, compare results, and experiment with prompts
         </p>

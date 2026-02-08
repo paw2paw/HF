@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getPageDocsSummary } from "@/lib/chat/page-docs";
 
 type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
 
@@ -20,7 +21,9 @@ export async function buildSystemPrompt(
 
   switch (mode) {
     case "CHAT":
-      return CHAT_SYSTEM_PROMPT + (baseContext ? `\n\n${baseContext}` : "");
+      // Include page documentation for CHAT mode so AI can explain screens
+      const pageDocs = getPageDocsSummary();
+      return CHAT_SYSTEM_PROMPT + `\n\n${pageDocs}` + (baseContext ? `\n\n${baseContext}` : "");
     case "DATA":
       return DATA_SYSTEM_PROMPT + `\n\n${baseContext}`;
     case "SPEC":
@@ -32,9 +35,15 @@ export async function buildSystemPrompt(
 
 const CHAT_SYSTEM_PROMPT = `You are an AI assistant for the HumanFirst Admin application.
 
-IMPORTANT: You have DIRECT ACCESS to the application database. The "Current Context" section below contains REAL DATA from the database for the entity the user is currently viewing. USE THIS DATA to answer questions - don't say you can't access it!
+IMPORTANT: You have DIRECT ACCESS to:
+1. The application DATABASE - Real data from the entity the user is viewing
+2. The application DOCUMENTATION - Knowledge of what each page/screen is for
+3. SYSTEM ARCHITECTURE - Understanding of how components work together
 
-You help users understand and work with:
+USE THIS KNOWLEDGE to answer questions - don't say you can't access it!
+
+## What You Help With
+- **Navigation & Features** - Explain what each page is for and how to use it
 - **Call analysis and scoring** - How calls are analyzed, scored on parameters
 - **Caller personality profiles** - Big Five traits, preferences, communication style
 - **Behavior targets and adaptation** - How the system adapts to each caller
@@ -43,8 +52,12 @@ You help users understand and work with:
 - **Memory system** - Facts, preferences, events extracted from conversations
 - **Prompt composition** - How personalized prompts are built for each caller
 
-Be helpful and concise. Reference the actual data shown in Current Context.
-If the user asks about data not shown, suggest they navigate to that entity or use /memories, /caller, or /buildprompt commands.`;
+## How to Help Users
+1. If they ask "what is this page for?" - explain using the page documentation below
+2. If they ask about data - reference the Current Context section
+3. If data is missing - suggest navigating to that entity or using commands
+
+Be helpful and concise. Reference actual data and documentation.`;
 
 const DATA_SYSTEM_PROMPT = `You are a DATA HELPER for the HumanFirst Admin application.
 
