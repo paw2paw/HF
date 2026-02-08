@@ -1,0 +1,159 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Run all tests before deploying
+  run-tests:
+    name: Run Test Suite
+    uses: ./.github/workflows/test.yml
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [run-tests]
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging.yourapp.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        working-directory: apps/admin
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        working-directory: apps/admin
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging..."
+          # Add your deployment command here (Vercel, Railway, etc.)
+          # Example for Vercel:
+          # npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Run smoke tests
+        run: |
+          # Wait for deployment
+          sleep 30
+          # Run basic health check
+          curl -f https://staging.yourapp.com/api/health || exit 1
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Staging deployment successful"
+          # Add Slack/Discord notification here if needed
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [run-tests, deploy-staging]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://yourapp.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        working-directory: apps/admin
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+
+      - name: Backup database
+        run: |
+          echo "📦 Creating database backup..."
+          # Add backup command here
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        working-directory: apps/admin
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying to production..."
+          # Add your deployment command here
+
+      - name: Run smoke tests
+        run: |
+          sleep 30
+          curl -f https://yourapp.com/api/health || exit 1
+
+      - name: Create release tag
+        if: success()
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag -a "v$(date +'%Y%m%d%H%M%S')" -m "Production release $(date)"
+          git push --tags
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Production deployment successful"
+          # Add notification here
+
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'workflow_dispatch'
+    needs: [deploy-production]
+
+    steps:
+      - name: Rollback to previous version
+        run: |
+          echo "⏮️ Rolling back deployment..."
+          # Add rollback command here
+
+      - name: Notify rollback
+        run: |
+          echo "⚠️ Deployment rolled back"
+          # Add notification here

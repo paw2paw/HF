@@ -1,0 +1,259 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+type ValidationError = {
+  itemId?: string;
+  error: string;
+  severity: "error" | "warning";
+};
+
+/**
+ * POST /api/playbooks/[playbookId]/publish
+ * Validate and publish a playbook
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ playbookId: string }> }
+) {
+  try {
+    const { playbookId } = await params;
+
+    const playbook = await prisma.playbook.findUnique({
+      where: { id: playbookId },
+      include: {
+        domain: true,
+        items: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            spec: {
+              include: {
+                triggers: {
+                  include: {
+                    actions: true,
+                  },
+                },
+              },
+            },
+            promptTemplate: true,
+          },
+        },
+      },
+    });
+
+    if (!playbook) {
+      return NextResponse.json(
+        { ok: false, error: "Playbook not found" },
+        { status: 404 }
+      );
+    }
+
+    if (playbook.status === "PUBLISHED") {
+      return NextResponse.json(
+        { ok: false, error: "Playbook is already published" },
+        { status: 400 }
+      );
+    }
+
+    // === VALIDATION ===
+    const errors: ValidationError[] = [];
+    const warnings: ValidationError[] = [];
+
+    // 1. Must have at least one item
+    if (playbook.items.length === 0) {
+      errors.push({
+        error: "Playbook must have at least one item",
+        severity: "error",
+      });
+    }
+
+    // 2. Should have a prompt template (warning)
+    const hasPromptTemplate = playbook.items.some(
+      (item) => item.itemType === "PROMPT_TEMPLATE" && item.promptTemplate
+    );
+    if (!hasPromptTemplate) {
+      warnings.push({
+        error: "Playbook has no prompt template - no final prompt will be generated",
+        severity: "warning",
+      });
+    }
+
+    // 3. Check for duplicate parameters across specs
+    const parameterIds = new Set<string>();
+    const duplicateParams: string[] = [];
+
+    for (const item of playbook.items) {
+      if (item.spec) {
+        for (const trigger of item.spec.triggers) {
+          for (const action of trigger.actions) {
+            if (action.parameterId) {
+              if (parameterIds.has(action.parameterId)) {
+                duplicateParams.push(action.parameterId);
+              } else {
+                parameterIds.add(action.parameterId);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (duplicateParams.length > 0) {
+      warnings.push({
+        error: `Duplicate parameters detected: ${[...new Set(duplicateParams)].join(", ")}. Later specs will override earlier results.`,
+        severity: "warning",
+      });
+    }
+
+    // 4. Check item order (MEASURE/LEARN/ADAPT should come before PROMPT_TEMPLATE)
+    let foundPromptTemplate = false;
+    for (const item of playbook.items) {
+      if (item.itemType === "PROMPT_TEMPLATE") {
+        foundPromptTemplate = true;
+      } else if (foundPromptTemplate && item.itemType === "SPEC") {
+        warnings.push({
+          itemId: item.id,
+          error: "Spec found after prompt template - specs should come before templates",
+          severity: "warning",
+        });
+      }
+    }
+
+    // 5. Check all referenced specs are active
+    for (const item of playbook.items) {
+      if (item.spec && !item.spec.isActive) {
+        errors.push({
+          itemId: item.id,
+          error: `Spec "${item.spec.name}" is inactive`,
+          severity: "error",
+        });
+      }
+      if (item.promptTemplate && !item.promptTemplate.isActive) {
+        errors.push({
+          itemId: item.id,
+          error: `Prompt template "${item.promptTemplate.name}" is inactive`,
+          severity: "error",
+        });
+      }
+    }
+
+    // 6. Check for specs with no actions
+    for (const item of playbook.items) {
+      if (item.spec) {
+        const totalActions = item.spec.triggers.reduce(
+          (sum, t) => sum + t.actions.length,
+          0
+        );
+        if (totalActions === 0) {
+          warnings.push({
+            itemId: item.id,
+            error: `Spec "${item.spec.name}" has no actions defined`,
+            severity: "warning",
+          });
+        }
+      }
+    }
+
+    // Compute stats
+    const specsByType = {
+      MEASURE: 0,
+      LEARN: 0,
+      ADAPT: 0,
+      MEASURE_AGENT: 0,
+    };
+
+    for (const item of playbook.items) {
+      if (item.spec) {
+        const outputType = item.spec.outputType as keyof typeof specsByType;
+        if (outputType in specsByType) {
+          specsByType[outputType]++;
+        }
+      }
+    }
+
+    const allErrors = [...errors, ...warnings];
+    const validationPassed = errors.length === 0;
+
+    // If validation fails with errors, don't publish
+    if (!validationPassed) {
+      return NextResponse.json({
+        ok: false,
+        error: "Validation failed",
+        validationErrors: allErrors,
+        validationPassed: false,
+      });
+    }
+
+    // === PUBLISH ===
+    // Archive any existing published playbook for this domain
+    await prisma.playbook.updateMany({
+      where: {
+        domainId: playbook.domainId,
+        status: "PUBLISHED",
+        id: { not: playbookId },
+      },
+      data: {
+        status: "ARCHIVED",
+      },
+    });
+
+    // Publish this playbook
+    const published = await prisma.playbook.update({
+      where: { id: playbookId },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+        validationErrors: allErrors.length > 0 ? allErrors : undefined,
+        validationPassed: true,
+        measureSpecCount: specsByType.MEASURE + specsByType.MEASURE_AGENT,
+        learnSpecCount: specsByType.LEARN,
+        adaptSpecCount: specsByType.ADAPT,
+        parameterCount: parameterIds.size,
+      },
+      include: {
+        domain: {
+          select: { id: true, slug: true, name: true },
+        },
+        items: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            spec: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                scope: true,
+                outputType: true,
+              },
+            },
+            promptTemplate: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      playbook: published,
+      validationErrors: allErrors,
+      validationPassed: true,
+      stats: {
+        measureSpecCount: specsByType.MEASURE + specsByType.MEASURE_AGENT,
+        learnSpecCount: specsByType.LEARN,
+        adaptSpecCount: specsByType.ADAPT,
+        parameterCount: parameterIds.size,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error publishing playbook:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Failed to publish playbook" },
+      { status: 500 }
+    );
+  }
+}

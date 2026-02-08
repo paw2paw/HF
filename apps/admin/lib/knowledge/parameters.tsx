@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 
+import { resolveKbPaths } from "./loader";
+
 export type ParameterSnapshot = {
   snapshotId: string;
   createdAt: string;
@@ -10,118 +12,170 @@ export type ParameterSnapshot = {
   rowCount: number;
 };
 
-function nowIso() {
-  return new Date().toISOString();
+type ImportOpts = {
+  kbRoot?: string;
+  force?: boolean;
+};
+
+type ListOpts = {
+  kbRoot?: string;
+};
+
+function norm(p: string) {
+  return p.replace(/\\/g, "/");
 }
 
-function defaultKbRoot() {
-  const env = process.env.HF_KB_PATH;
-  if (env && env.trim()) return path.resolve(env.trim());
-  return path.resolve(process.cwd(), "../../knowledge");
-}
-
-function parametersRoot(kbRoot: string) {
-  return path.join(kbRoot, "parameters");
-}
-
-function rawCsvPath(kbRoot: string) {
-  return path.join(parametersRoot(kbRoot), "raw", "parameters.csv");
-}
-
-function snapshotsRoot(kbRoot: string) {
-  return path.join(parametersRoot(kbRoot), "snapshots");
-}
-
-async function sha256(buf: Buffer) {
+function sha256Hex(buf: Buffer) {
   return crypto.createHash("sha256").update(buf).digest("hex");
 }
 
-function parseCsvRowCount(raw: string): number {
-  const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length <= 1) return 0; // header only
+function isoForPath(d: Date) {
+  // 2026-01-03T15-02-47-123Z (safe for folder names)
+  return d.toISOString().replace(/:/g, "-").replace(/\./g, "-");
+}
+
+async function existsFile(p: string) {
+  try {
+    const st = await fs.stat(p);
+    return st.isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function existsDir(p: string) {
+  try {
+    const st = await fs.stat(p);
+    return st.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function countRowsCsv(buf: Buffer) {
+  const s = buf.toString("utf8");
+  const lines = s.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (!lines.length) return 0;
+  // naive: header + rows
   return Math.max(0, lines.length - 1);
 }
 
-/**
- * Import raw parameters.csv and create an immutable snapshot.
- * Snapshots are content-addressed (sha-based) and never overwritten.
- */
-export async function importParametersSnapshot(opts?: {
-  kbRoot?: string;
-  force?: boolean;
-}): Promise<ParameterSnapshot> {
-  const kbRoot = path.resolve(opts?.kbRoot || defaultKbRoot());
-  const src = rawCsvPath(kbRoot);
+async function resolveParameterPaths(kbRoot?: string) {
+  const resolved = await resolveKbPaths(kbRoot);
 
-  const buf = await fs.readFile(src);
-  const raw = buf.toString("utf8");
-  const hash = await sha256(buf);
+  // Your actual layout:
+  // <kbRoot>/sources/parameters/raw/parameters.csv
+  // <kbRoot>/sources/parameters/snapshots/<snapshotId>/*
+  const parametersRawCsv = path.join(resolved.paths.sourcesDir, "parameters", "raw", "parameters.csv");
+  const snapshotsDir = path.join(resolved.paths.sourcesDir, "parameters", "snapshots");
 
-  const createdAt = nowIso();
-  const snapshotId = `params_${createdAt.replace(/[:.]/g, "-")}_${hash.slice(0, 8)}`;
+  return {
+    root: resolved.root,
+    sourcesDir: resolved.paths.sourcesDir,
+    derivedDir: resolved.paths.derivedDir,
+    parametersRawCsv,
+    snapshotsDir,
+  };
+}
 
-  const snapDir = path.join(snapshotsRoot(kbRoot), snapshotId);
+export async function importParametersSnapshot(opts: ImportOpts = {}): Promise<ParameterSnapshot> {
+  const { parametersRawCsv, snapshotsDir } = await resolveParameterPaths(opts.kbRoot);
 
-  // If snapshot already exists (same hash), short-circuit unless forced
-  try {
-    await fs.access(snapDir);
-    if (!opts?.force) {
-      const manifest = JSON.parse(
-        await fs.readFile(path.join(snapDir, "manifest.json"), "utf8")
-      ) as ParameterSnapshot;
-      return manifest;
-    }
-  } catch {
-    // continue
+  if (!(await existsFile(parametersRawCsv))) {
+    throw new Error(`parameters CSV not found: ${parametersRawCsv}`);
   }
 
-  await fs.mkdir(snapDir, { recursive: true });
+  const csvBuf = await fs.readFile(parametersRawCsv);
+  const sha256 = sha256Hex(csvBuf);
+  const createdAt = new Date();
+  const snapshotId = `params_${isoForPath(createdAt)}_${sha256.slice(0, 8)}`;
 
-  await fs.writeFile(path.join(snapDir, "parameters.csv"), raw, "utf8");
+  const outDir = path.join(snapshotsDir, snapshotId);
+  const outCsv = path.join(outDir, "parameters.csv");
+  const outManifest = path.join(outDir, "manifest.json");
 
-  const manifest: ParameterSnapshot = {
+  if (await existsDir(outDir)) {
+    if (!opts.force) {
+      const rowCount = await countRowsCsv(csvBuf);
+      return {
+        snapshotId,
+        createdAt: createdAt.toISOString(),
+        sourcePath: norm(path.relative(path.dirname(parametersRawCsv), parametersRawCsv)),
+        sha256,
+        rowCount,
+      };
+    }
+    await fs.rm(outDir, { recursive: true, force: true });
+  }
+
+  await fs.mkdir(outDir, { recursive: true });
+  await fs.writeFile(outCsv, csvBuf);
+
+  const rowCount = await countRowsCsv(csvBuf);
+
+  const manifest: ParameterSnapshot & {
+    schemaVersion: 1;
+    inputCsvAbsPath: string;
+    outputCsvAbsPath: string;
+  } = {
+    schemaVersion: 1,
     snapshotId,
-    createdAt,
-    sourcePath: "parameters/raw/parameters.csv",
-    sha256: hash,
-    rowCount: parseCsvRowCount(raw),
+    createdAt: createdAt.toISOString(),
+    sourcePath: norm(path.relative(path.dirname(parametersRawCsv), parametersRawCsv)),
+    sha256,
+    rowCount,
+    inputCsvAbsPath: parametersRawCsv,
+    outputCsvAbsPath: outCsv,
   };
 
-  await fs.writeFile(
-    path.join(snapDir, "manifest.json"),
-    JSON.stringify(manifest, null, 2),
-    "utf8"
-  );
+  await fs.writeFile(outManifest, JSON.stringify(manifest, null, 2), "utf8");
 
-  return manifest;
+  return {
+    snapshotId: manifest.snapshotId,
+    createdAt: manifest.createdAt,
+    sourcePath: manifest.sourcePath,
+    sha256: manifest.sha256,
+    rowCount: manifest.rowCount,
+  };
 }
 
-/**
- * List all parameter snapshots (most recent first).
- */
-export async function listParameterSnapshots(opts?: { kbRoot?: string }) {
-  const kbRoot = path.resolve(opts?.kbRoot || defaultKbRoot());
-  const root = snapshotsRoot(kbRoot);
+export async function listParameterSnapshots(opts: ListOpts = {}): Promise<ParameterSnapshot[]> {
+  const { snapshotsDir } = await resolveParameterPaths(opts.kbRoot);
 
-  let entries: string[] = [];
-  try {
-    entries = await fs.readdir(root);
-  } catch {
-    return [];
+  if (!(await existsDir(snapshotsDir))) return [];
+
+  const entries = await fs.readdir(snapshotsDir, { withFileTypes: true });
+  const dirs = entries
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort()
+    .reverse();
+
+  const out: ParameterSnapshot[] = [];
+  for (const d of dirs) {
+    const manifestPath = path.join(snapshotsDir, d, "manifest.json");
+    try {
+      const raw = await fs.readFile(manifestPath, "utf8");
+      const j = JSON.parse(raw);
+      if (j && typeof j.snapshotId === "string") {
+        out.push({
+          snapshotId: String(j.snapshotId),
+          createdAt: typeof j.createdAt === "string" ? j.createdAt : "",
+          sourcePath: typeof j.sourcePath === "string" ? j.sourcePath : "",
+          sha256: typeof j.sha256 === "string" ? j.sha256 : "",
+          rowCount: typeof j.rowCount === "number" ? j.rowCount : 0,
+        });
+      }
+    } catch {
+      // ignore malformed
+    }
   }
 
-  const manifests = await Promise.all(
-    entries.map(async (dir) => {
-      try {
-        const raw = await fs.readFile(path.join(root, dir, "manifest.json"), "utf8");
-        return JSON.parse(raw) as ParameterSnapshot;
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  return manifests
-    .filter(Boolean)
-    .sort((a, b) => (a!.createdAt < b!.createdAt ? 1 : -1)) as ParameterSnapshot[];
+  return out;
 }
+
+// Default export shape expected by Ops runner.
+export default {
+  importParametersSnapshot,
+  listParameterSnapshots,
+};

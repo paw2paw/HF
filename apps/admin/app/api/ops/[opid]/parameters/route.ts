@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -186,13 +187,13 @@ export async function POST(req: Request) {
         tx.tag.upsert({
           where: { name },
           update: {},
-          create: { name },
+          create: { id: randomUUID(), name },
         })
       )
     );
 
     await tx.parameterTag.createMany({
-      data: tags.map((tag) => ({ parameterId: p.parameterId, tagId: tag.id })),
+      data: tags.map((tag) => ({ id: randomUUID(), parameterId: p.parameterId, tagId: tag.id })),
       skipDuplicates: true,
     });
 

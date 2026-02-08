@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HF Paths Configuration",
+  "description": "Maps logical data objects to file system paths. Place this file at $HF_KB_PATH/paths.json or lib/paths.json",
+  "type": "object",
+  "required": ["version", "sources", "derived"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "Schema version",
+      "const": 1
+    },
+    "sources": {
+      "type": "object",
+      "description": "Raw input data locations",
+      "required": ["knowledge", "transcripts", "parameters"],
+      "properties": {
+        "knowledge": {
+          "type": "string",
+          "description": "Raw knowledge documents (markdown, PDF, text)",
+          "default": "sources/knowledge"
+        },
+        "transcripts": {
+          "type": "string",
+          "description": "Raw transcript JSON files",
+          "default": "sources/transcripts"
+        },
+        "parameters": {
+          "type": "string",
+          "description": "Parameters CSV file path",
+          "default": "sources/parameters/parameters.csv"
+        }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "description": "Processed/derived data locations",
+      "properties": {
+        "knowledge": {
+          "type": "string",
+          "description": "Processed knowledge (chunks, extracted links)",
+          "default": "derived/knowledge"
+        },
+        "embeddings": {
+          "type": "string",
+          "description": "Vector embeddings",
+          "default": "derived/embeddings"
+        },
+        "transcripts": {
+          "type": "string",
+          "description": "Processed transcript outputs",
+          "default": "derived/transcripts"
+        },
+        "analysis": {
+          "type": "string",
+          "description": "Analysis outputs (personality scores, etc.)",
+          "default": "derived/analysis"
+        }
+      }
+    },
+    "exports": {
+      "type": "object",
+      "description": "Export/output locations",
+      "properties": {
+        "reports": {
+          "type": "string",
+          "description": "Generated reports",
+          "default": "exports/reports"
+        },
+        "snapshots": {
+          "type": "string",
+          "description": "Configuration snapshots",
+          "default": "exports/snapshots"
+        }
+      }
+    }
+  }
+}

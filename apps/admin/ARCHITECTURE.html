@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HF System Architecture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #fff;
+    }
+    h1 { font-size: 2rem; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-top: 40px; }
+    h2 { font-size: 1.5rem; color: #4f46e5; margin-top: 30px; }
+    h3 { font-size: 1.2rem; margin-top: 20px; }
+    h4 { font-size: 1rem; margin: 10px 0; }
+    pre {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 12px;
+      text-align: left;
+    }
+    th { background: #f8f9fa; font-weight: 600; }
+    tr:nth-child(even) { background: #fafafa; }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .overview-card {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+    .overview-card h3 { margin: 0 0 8px 0; font-size: 1.1rem; }
+    .overview-card p { margin: 0 0 12px 0; color: #6b7280; font-size: 0.9rem; }
+    .overview-card ul { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; }
+    .overview-card li { padding: 4px 0; }
+    .signals-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .signal-card {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .signal-card h4 { margin: 0 0 12px 0; }
+    .signal-card ul { margin: 0; padding-left: 20px; font-size: 0.9rem; }
+    .divider { border-top: 2px solid #e5e7eb; margin: 40px 0; }
+    .footer { text-align: center; margin-top: 60px; color: #6b7280; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-purple { background: #ede9fe; color: #7c3aed; }
+    .badge-green { background: #d1fae5; color: #059669; }
+    .badge-teal { background: #ccfbf1; color: #0d9488; }
+    @media print {
+      body { padding: 20px; }
+      pre { font-size: 10px; }
+      .overview-grid { grid-template-columns: repeat(2, 1fr); }
+      h1 { page-break-before: always; }
+      h1:first-of-type { page-break-before: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<div style="text-align: center; margin-bottom: 40px;">
+  <h1 style="border: none; margin-top: 0; font-size: 2.5rem;">HF System Architecture</h1>
+  <p style="font-size: 1.2rem; color: #6b7280;">Complete Data Flow: Nothing &rarr; Expert Prompts &rarr; Learning</p>
+</div>
+
+<h1>Executive Overview</h1>
+
+<div class="overview-grid">
+  <div class="overview-card">
+    <h3>SOURCES</h3>
+    <p>Raw data inputs</p>
+    <ul>
+      <li>Knowledge docs</li>
+      <li>Transcripts</li>
+      <li>Parameters</li>
+    </ul>
+  </div>
+  <div class="overview-card">
+    <h3>AGENTS</h3>
+    <p>Processing pipelines</p>
+    <ul>
+      <li>Ingestors</li>
+      <li>Processors</li>
+      <li>Analyzers</li>
+    </ul>
+  </div>
+  <div class="overview-card">
+    <h3>DERIVED</h3>
+    <p>Structured outputs</p>
+    <ul>
+      <li>Chunks/Vectors</li>
+      <li>Calls/Users</li>
+      <li>Personalities</li>
+    </ul>
+  </div>
+  <div class="overview-card">
+    <h3>RUNTIME</h3>
+    <p>Live inference</p>
+    <ul>
+      <li>selectSlug()</li>
+      <li>compose()</li>
+      <li>reward()</li>
+    </ul>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<h1>Phase 1: Foundation</h1>
+
+<h2>1.1 Knowledge Ingestion</h2>
+<pre>
+┌────────────────┐      ┌─────────────────────┐      ┌────────────────┐
+│                │      │                     │      │                │
+│   sources/     │ ───► │   knowledge_        │ ───► │   Knowledge    │
+│   knowledge/   │      │   ingestor          │      │   Doc/Chunk    │
+│                │      │                     │      │                │
+└────────────────┘      └─────────────────────┘      └────────────────┘
+      *.md                   Agent                    + VectorEmbedding
+      *.txt                  OpID: knowledge:ingest
+      *.pdf
+</pre>
+<p><strong>Purpose:</strong> Make LLM "expert" in your domain</p>
+
+<h2>1.2 Transcript Processing</h2>
+<pre>
+┌────────────────┐      ┌─────────────────────┐      ┌────────────────┐
+│                │      │                     │      │                │
+│   sources/     │ ───► │   transcript_       │ ───► │   Call         │
+│   transcripts/ │      │   processor         │      │   User         │
+│                │      │                     │      │   Batch        │
+└────────────────┘      └─────────────────────┘      └────────────────┘
+      *.json                 Agent                    Hash-deduplicated
+                             OpID: transcripts:process
+</pre>
+<p><strong>Purpose:</strong> Structure raw calls for analysis</p>
+
+<h2>1.3 Parameter Snapshot</h2>
+<pre>
+┌────────────────┐      ┌─────────────────────┐      ┌────────────────┐
+│                │      │                     │      │                │
+│   Parameter    │ ───► │   parameters_       │ ───► │   Parameter    │
+│   (Active)     │      │   snapshot          │      │   Set          │
+│                │      │                     │      │                │
+└────────────────┘      └─────────────────────┘      └────────────────┘
+                             Agent                    Immutable version
+                             OpID: kb:parameters:snapshot
+</pre>
+<p><strong>Purpose:</strong> Reproducible analysis snapshots</p>
+
+<div class="divider"></div>
+
+<h1>Phase 2: Observation</h1>
+
+<h2>2.1 Personality Analysis</h2>
+<pre>
+┌────────────────┐      ┌─────────────────────┐      ┌────────────────┐
+│   Call         │      │                     │      │   Personality  │
+│   +            │ ───► │   personality_      │ ───► │   Observation  │
+│   ParamSet     │      │   analyzer          │      │   User         │
+│                │      │   (LLM)             │      │   Personality  │
+└────────────────┘      └─────────────────────┘      └────────────────┘
+                             Agent                    Big Five scores
+                             OpID: personality:analyze   + evidence
+</pre>
+
+<h2>2.2 Time-Decay Aggregation</h2>
+<pre>
+                    PersonalityObservation (per call)
+                                │
+                                │  weight = e^(-λt)
+                                │  λ = ln(2) / 30 days
+                                ▼
+                    ┌───────────────────────┐
+                    │   UserPersonality     │
+                    │   (aggregated)        │
+                    │                       │
+                    │   O: 0.72  C: 0.65    │
+                    │   E: 0.48  A: 0.81    │
+                    │   N: 0.33             │
+                    │                       │
+                    │   confidence: 0.85    │
+                    └───────────────────────┘
+</pre>
+
+<div class="divider"></div>
+
+<h1>Phase 3: Prompt Selection</h1>
+
+<h2>3.1 selectPromptSlug() Algorithm</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   INPUT                      PROCESS                    OUTPUT      │
+│                                                                     │
+│   userId/callId    ───►   1. Get personality     ───►  promptSlug  │
+│                           2. Get recent slugs           confidence  │
+│                           3. Get slug stats             reasoning   │
+│                           4. Score candidates           snapshot    │
+│                           5. Select best                            │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+</pre>
+
+<h2>3.2 Prompt Slug Taxonomy</h2>
+<table>
+  <tr><th>Category</th><th>Purpose</th><th>Examples</th></tr>
+  <tr><td><code>engage.*</code></td><td>Build rapport</td><td>active_listening, encourage, validate</td></tr>
+  <tr><td><code>emotion.*</code></td><td>Emotional support</td><td>soothing, empathize, reassure</td></tr>
+  <tr><td><code>control.*</code></td><td>Guide conversation</td><td>clarify, redirect, summarize</td></tr>
+  <tr><td><code>solve.*</code></td><td>Problem resolution</td><td>diagnose, explain, action_plan</td></tr>
+  <tr><td><code>close.*</code></td><td>Wrap up</td><td>confirm, next_steps, farewell</td></tr>
+</table>
+
+<h2>3.3 Personality &rarr; Slug Matching</h2>
+<table>
+  <tr><th>Trait High</th><th>Suggests</th></tr>
+  <tr><td>Openness</td><td><code>engage.*</code>, creative</td></tr>
+  <tr><td>Conscientiousness</td><td>Detailed, plans</td></tr>
+  <tr><td>Extraversion</td><td>Conversational</td></tr>
+  <tr><td>Agreeableness</td><td><code>emotion.*</code></td></tr>
+  <tr><td>Neuroticism</td><td><code>emotion.soothing</code></td></tr>
+</table>
+
+<div class="divider"></div>
+
+<h1>Phase 4: Prompt Composition</h1>
+
+<h2>4.1 Layer Architecture</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   ╔═══════════════════════════════════════════════════════════╗    │
+│   ║  SYSTEM LAYER                                              ║    │
+│   ║  Base persona, capabilities                                ║    │
+│   ║  Source: PromptTemplate                                    ║    │
+│   ╚═══════════════════════════════════════════════════════════╝    │
+│                              ▼                                      │
+│   ╔═══════════════════════════════════════════════════════════╗    │
+│   ║  CONTEXT LAYER                                             ║    │
+│   ║  Retrieved knowledge chunks                                ║    │
+│   ║  Source: KnowledgeChunk (vector search)                    ║    │
+│   ╚═══════════════════════════════════════════════════════════╝    │
+│                              ▼                                      │
+│   ╔═══════════════════════════════════════════════════════════╗    │
+│   ║  PERSONALITY LAYER                                         ║    │
+│   ║  Trait-based tone modifiers                                ║    │
+│   ║  Source: UserPersonality                                   ║    │
+│   ╚═══════════════════════════════════════════════════════════╝    │
+│                              ▼                                      │
+│   ╔═══════════════════════════════════════════════════════════╗    │
+│   ║  RULE LAYER                                                ║    │
+│   ║  Guardrails, compliance                                    ║    │
+│   ║  Source: ControlSet                                        ║    │
+│   ╚═══════════════════════════════════════════════════════════╝    │
+│                              ▼                                      │
+│   ╔═══════════════════════════════════════════════════════════╗    │
+│   ║  OPTIMISATION LAYER                                        ║    │
+│   ║  A/B variants, reward adjustments                          ║    │
+│   ║  Source: PromptSlugStats                                   ║    │
+│   ╚═══════════════════════════════════════════════════════════╝    │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+</pre>
+
+<div class="divider"></div>
+
+<h1>Phase 5: Reward &amp; Learning</h1>
+
+<h2>5.1 Reward Signals</h2>
+<div class="signals-grid">
+  <div class="signal-card">
+    <h4>EXPLICIT</h4>
+    <ul>
+      <li>Agent rating (1-5)</li>
+      <li>Customer CSAT</li>
+      <li>QA score</li>
+      <li>Escalation flag</li>
+    </ul>
+  </div>
+  <div class="signal-card">
+    <h4>IMPLICIT</h4>
+    <ul>
+      <li>Call duration</li>
+      <li>Silence ratio</li>
+      <li>Interruptions</li>
+      <li>Transfer flag</li>
+    </ul>
+  </div>
+  <div class="signal-card">
+    <h4>DERIVED</h4>
+    <ul>
+      <li>Sentiment delta</li>
+      <li>Resolution (LLM)</li>
+      <li>Follow-up needed</li>
+    </ul>
+  </div>
+</div>
+
+<h2>5.2 The Learning Loop</h2>
+<pre>
+                         ┌──────────────────┐
+                         │ selectPromptSlug │◄──────────────────┐
+                         │ (uses stats)     │                   │
+                         └────────┬─────────┘                   │
+                                  │                             │
+                                  ▼                             │
+                         ┌──────────────────┐                   │
+                         │ PromptSlug-      │                   │
+                         │ Selection        │                   │
+                         └────────┬─────────┘                   │
+                                  │                             │
+                                  ▼                             │
+                         ┌──────────────────┐                   │
+                         │ Call Execution   │                   │
+                         │ (prompt used)    │                   │
+                         └────────┬─────────┘                   │
+                                  │                             │
+                                  ▼                             │
+                         ┌──────────────────┐                   │
+                         │ Reward Signals   │                   │
+                         │ (collected)      │                   │
+                         └────────┬─────────┘                   │
+                                  │                             │
+                                  ▼                             │
+                         ┌──────────────────┐                   │
+                         │ PromptSlugStats  │───────────────────┘
+                         │ (updated)        │
+                         └──────────────────┘
+</pre>
+
+<div class="divider"></div>
+
+<h1>Complete Data Model</h1>
+
+<h2>Entity Map</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  SOURCES                  DERIVED                  RUNTIME          │
+│                                                                     │
+│  Parameter ──────────► ParameterSet                                 │
+│      │                     │                                        │
+│      └─────────────► ParameterSetParameter                          │
+│                                                                     │
+│  KnowledgeDoc ───────► KnowledgeChunk ─────► VectorEmbedding       │
+│                            │                                        │
+│                            └─────────► KnowledgeArtifact            │
+│                                                                     │
+│  ProcessedFile ──────► Call ◄────────────────────────────────┐     │
+│                           │                                   │     │
+│                           ▼                                   │     │
+│                        User ◄─────────────────────────────┐  │     │
+│                           │                               │  │     │
+│                           ▼                               │  │     │
+│               PersonalityObservation                      │  │     │
+│                           │                               │  │     │
+│                           ▼                               │  │     │
+│                   UserPersonality                         │  │     │
+│                           │                               │  │     │
+│                           ▼                               │  │     │
+│               PromptSlugSelection ───► PromptSlugReward   │  │     │
+│                                              │            │  │     │
+│                                              ▼            │  │     │
+│                                      PromptSlugStats      │  │     │
+│                                                           │  │     │
+│  ControlSet ─────────────────────────────────────────────┘  │     │
+│      │                                                      │     │
+│      └─► ControlSetParameter                                │     │
+│                                                             │     │
+│  PromptTemplate ◄─────── ControlSet                         │     │
+│                                                             │     │
+│  AgentInstance ─────────► AgentRun ─────────────────────────┘     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+</pre>
+
+<div class="divider"></div>
+
+<h1>Agent Inventory</h1>
+
+<table>
+  <tr><th>Agent</th><th>OpID</th><th>I/O</th><th>Status</th></tr>
+  <tr><td>Knowledge Ingestor</td><td><code>knowledge:ingest</code></td><td>docs &rarr; chunks</td><td>Ready</td></tr>
+  <tr><td>Knowledge Embedder</td><td><code>knowledge:embed</code></td><td>chunks &rarr; vectors</td><td>Ready</td></tr>
+  <tr><td>Transcripts Inventory</td><td><code>transcripts:index</code></td><td>dir &rarr; listing</td><td>Active</td></tr>
+  <tr><td>Transcript Processor</td><td><code>transcripts:process</code></td><td>json &rarr; calls</td><td>Ready</td></tr>
+  <tr><td>Parameters Snapshot</td><td><code>kb:parameters:snapshot</code></td><td>params &rarr; set</td><td>Active</td></tr>
+  <tr><td>Personality Analyzer</td><td><code>personality:analyze</code></td><td>calls &rarr; traits</td><td>Ready</td></tr>
+</table>
+
+<h2>Agent Publishing Flow</h2>
+<pre>
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│             │     │             │     │             │
+│  agents.    │ ──► │  Agent      │ ──► │  Agent      │
+│  json       │     │  Instance   │     │  Instance   │
+│  (defaults) │     │  (DRAFT)    │     │  (PUBLISHED)│
+└─────────────┘     └─────────────┘     └─────────────┘
+                          │                    │
+                    [Edit in UI]         [Used by runs]
+                          │                    │
+                          ▼                    ▼
+                    PUT /api/agents/   POST /api/agents/run
+</pre>
+
+<div class="divider"></div>
+
+<h1>Visual Flow UI</h1>
+
+<h2>Pipeline Nodes</h2>
+<table>
+  <tr><th>Node</th><th>Color</th><th>Description</th></tr>
+  <tr><td>Source</td><td><span class="badge badge-blue">Blue</span></td><td>Knowledge, transcripts, parameters</td></tr>
+  <tr><td>Agent (draft)</td><td><span class="badge badge-purple">Purple</span></td><td>Not yet published</td></tr>
+  <tr><td>Agent (live)</td><td><span class="badge badge-green">Green</span></td><td>Published instance</td></tr>
+  <tr><td>Output</td><td><span class="badge badge-teal">Teal</span></td><td>Database tables</td></tr>
+</table>
+
+<h2>Features</h2>
+<ul>
+  <li>Click node to view details</li>
+  <li>Run agent from panel</li>
+  <li>Drag to rearrange</li>
+  <li>Run All button</li>
+  <li>Real-time status updates</li>
+</ul>
+
+<div class="divider"></div>
+
+<h1>Quick Start</h1>
+
+<h2>URLs</h2>
+<table>
+  <tr><th>Route</th><th>Purpose</th></tr>
+  <tr><td><code>/getting-started</code></td><td>Step-by-step onboarding</td></tr>
+  <tr><td><code>/flow</code></td><td>Visual pipeline</td></tr>
+  <tr><td><code>/pipeline</code></td><td>Sequential runner</td></tr>
+  <tr><td><code>/ops</code></td><td>Low-level ops</td></tr>
+  <tr><td><code>/agents</code></td><td>Agent settings</td></tr>
+</table>
+
+<h2>Environment</h2>
+<pre>
+HF_KB_PATH=/path/to/kb    # Knowledge base root
+HF_OPS_ENABLED=true       # Enable ops API
+DATABASE_URL=postgres://  # Database
+</pre>
+
+<h2>Common Ops</h2>
+<pre>
+# Ingest knowledge
+POST /api/ops/knowledge:ingest
+
+# Process transcripts
+POST /api/ops/transcripts:process
+
+# Snapshot parameters
+POST /api/ops/kb:parameters:snapshot
+
+# Run any agent
+POST /api/agents/run { "agentId": "..." }
+</pre>
+
+<div class="footer">
+  <h2 style="border: none; color: #1a1a1a;">HF System Architecture</h2>
+  <p><em>From Raw Data to Intelligent Prompts</em></p>
+  <p>Document Version: 2.0 | January 2026</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,116 @@
+{
+  "id": "COMP-IE-001",
+  "title": "Intellectual Engagement Analysis",
+  "version": "1.0",
+  "status": "Draft",
+  "date": "2026-02-02",
+  "domain": "companion",
+  "specType": "DOMAIN",
+  "outputType": "MEASURE",
+
+  "story": {
+    "asA": "companion assistant",
+    "iWant": "to measure how intellectually engaged and stimulated the person is",
+    "soThat": "I can adjust my conversation depth and topics to match their interest level"
+  },
+
+  "context": {
+    "applies": "Every conversation with an older adult",
+    "dependsOn": [],
+    "assumptions": [
+      "Person is a curious, intelligent older adult",
+      "They may have varying energy levels across conversations",
+      "Intellectual engagement signals include questions, connections, and insights"
+    ]
+  },
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-COMP-IE-1",
+      "title": "Engagement Level Assessment",
+      "given": "An older adult is having a conversation with the companion",
+      "when": "The person responds to topics or questions",
+      "then": "Measure intellectual engagement level",
+      "measuredBy": ["COMP-ENGAGEMENT"]
+    },
+    {
+      "id": "AC-COMP-IE-2",
+      "title": "Depth Preference Assessment",
+      "given": "The person engages with a topic",
+      "when": "They signal whether they want to go deeper or lighter",
+      "then": "Measure depth preference",
+      "measuredBy": ["COMP-DEPTH-PREFERENCE"]
+    }
+  ],
+
+  "parameters": [
+    {
+      "id": "COMP-ENGAGEMENT",
+      "name": "Intellectual Engagement",
+      "description": "How intellectually engaged and stimulated the person is in the conversation",
+      "section": "companion-state",
+      "isAdjustable": false,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.0, "max": 0.3, "label": "Low Engagement", "implication": "Distracted, giving short answers, not pursuing topics" },
+        { "min": 0.3, "max": 0.7, "label": "Moderate Engagement", "implication": "Participating but not deeply invested" },
+        { "min": 0.7, "max": 1.0, "label": "High Engagement", "implication": "Deeply engaged, asking thoughtful questions, making connections, enjoying the exchange" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Person is intellectually engaged. Offer deeper exploration, follow their curiosity, introduce related ideas.",
+        "whenLow": "Person seems less engaged. Try a different topic, check in on energy level, or suggest a lighter conversation."
+      }
+    },
+    {
+      "id": "COMP-DEPTH-PREFERENCE",
+      "name": "Depth Preference",
+      "description": "Whether the person wants surface chat or deep intellectual exploration",
+      "section": "companion-state",
+      "isAdjustable": false,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.0, "max": 0.3, "label": "Light", "implication": "Prefers lighter conversation, social connection, simple topics" },
+        { "min": 0.3, "max": 0.7, "label": "Moderate", "implication": "Open to either depth or lightness depending on topic" },
+        { "min": 0.7, "max": 1.0, "label": "Deep", "implication": "Wants deep discussion, analysis, nuance, complexity" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Person wants depth. Explore nuances, ask probing questions, offer interesting angles.",
+        "whenLow": "Person prefers lighter conversation. Keep it warm and social, don't overload with complexity."
+      }
+    }
+  ],
+
+  "triggers": [
+    {
+      "name": "Engagement Assessment",
+      "given": "An older adult is having a conversation with the companion",
+      "when": "The person responds to topics or questions",
+      "then": "Measure intellectual engagement level and depth preference",
+      "actions": [
+        {
+          "description": "Measure engagement: Are they asking questions? Making connections? Sharing insights? Exploring tangents?",
+          "parameterId": "COMP-ENGAGEMENT",
+          "weight": 1.0
+        },
+        {
+          "description": "Measure depth preference: Do they want to go deeper or keep it lighter?",
+          "parameterId": "COMP-DEPTH-PREFERENCE",
+          "weight": 0.8
+        }
+      ]
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "C-COMP-IE-1",
+      "type": "sensitivity",
+      "description": "Be sensitive to fatigue - engagement may drop due to tiredness, not disinterest",
+      "severity": "warning"
+    }
+  ],
+
+  "related": [
+    { "id": "COMP-EW-001", "title": "Emotional Wellbeing Monitoring", "relationship": "energy levels affect engagement" }
+  ]
+}

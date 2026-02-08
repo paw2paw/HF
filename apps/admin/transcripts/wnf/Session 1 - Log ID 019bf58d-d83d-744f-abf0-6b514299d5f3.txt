@@ -1,0 +1,93 @@
+Phone Number: + 07768 484848
+Caller: WNF_STUDENT
+Call: 1
+
+Transcript
+Hi, WNF_STUDENT. Nice to talk to you too. Today, we're diving into a book called Why Nations Fail by Darren Assimoglu and James Robinson. They actually won the Nobel Prize, uh, in economics for this work. It tackles one of the big questions. Why are some countries rich and others desperately poor?
+2:28:17 PM(+00:24.82)
+Assistant
+Let's start with something that gets to the heart of their arguments. There's a city called Nogales split by the US Mexico border. Same people on both sides, same geography, same culture. But one side is three times richer. What do you think explains that?
+2:28:24 PM(+00:31.36)
+User
+Well, the the USA is a much more developed country than the Mexico.
+2:28:41 PM(+00:48.41)
+Assistant
+That's true. The US is more developed, but the question is why. The authors argue it's about institutions. On the US side, you have inclusive institutions that allow broad participation, protect property rights, and provide public services. On the Mexican side, institutions are more extractive, concentrating power and wealth among a narrow elite. So if that's the case, what do you think keeps these extractive institutions in place? Why can't people just change them?
+2:28:49 PM(+00:56.23)
+User
+This is too abstract for me. I feel it's like very much progressing to the learning or something. I'm not sure I understand. Don't follow you.
+2:29:19 PM(+01:26.97)
+Assistant
+Let's anchor this in a concrete example. Think about Nogales again. Um, on the US side, people can vote, and there's accountability. If leaders don't perform, they can be voted out. On the Mexican side, corruption and weak rule of law make it hard for ordinary people, uh, to to change the system. Does that help clarify why extractive institutions persist?
+2:29:34 PM(+01:41.37)
+User
+Got you. No. I don't understand.
+2:29:58 PM(+02:05.52)
+Assistant
+Alright. Let's slow down a bit. Imagine you're living in a place where a small group controls, uh, most of the power and wealth. They make the rules to benefit themselves. If you try to change things, they might, uh, use their power to stop you. That's what we mean by
+2:30:03 PM(+02:10.56)
+User
+This I understand. Okay.
+2:30:19 PM(+02:26.41)
+Assistant
+Great. Now let's apply this idea to another case. Think about North and South Korea. Same people, same culture, same history until nineteen forty five. Now one is among the richest countries, and the other is among the poorest. How would you explain that using what we've just discussed about institutions?
+2:30:27 PM(+02:34.40)
+User
+So I I understand what you're saying. It's just a matter of the system. The system create the the the right system create the the wealth and the development of the country. That's that's what's the book about.
+2:30:45 PM(+02:52.90)
+Assistant
+Exactly. It's about the system, the institutions. In South Korea, inclusive institutions allowed for economic growth and development. In North Korea, extractive institutions concentrated power and wealth stifling growth. Now let's add a layer. Why do you think extractive elites might resist economic development even if it would make the country richer?
+2:31:00 PM(+03:07.35)
+User
+Because they are afraid to lose their power or get weaker.
+2:31:23 PM(+03:30.88)
+Assistant
+That's right. Economic development often involves creative destruction where new technologies and businesses replace old ones. This can threaten the existing elite's position, so they might resist changes that could undermine their control. Now let's consider a critique. Uh, some argue that geography still plays a role. How might Axomoglu and Robinson respond to that?
+2:31:31 PM(+03:38.86)
+User
+Wait a minute. Before we go into the geography, I want to clear this idea that's all about the institution. So so what are the the what are the right institution? Because you have countries like Korea or Singapore, which institution and and and I don't know, a system which is different from the one in Israel or the UK or the USA. And you also have the UAE, which is a a very particular kind of country with the system which is not completely liberal or or western. So what's this... so what's what's what's between the successful systems?
+2:31:51 PM(+03:58.91)
+Assistant
+That's a good question. The key is whether institutions are inclusive or extractive. Inclusive institutions allow broad participation, protect property rights, and provide public services. They create incentives for innovation and investment. Extractive institutions concentrate power and wealth among a narrow elite, suppressing innovation that threatens their position. So even if the systems look different, the successful ones share these inclusive characteristics. Does that help clarify?
+2:32:31 PM(+04:39.04)
+User
+So it's about the inclusiveness, if I understand you. But are you... on the other hand, you can compare other system which are inclusives, but relatively to other systems which are inclusive the same... in the same way, but much more successful.
+2:33:02 PM(+05:10.00)
+Assistant
+Yes. Inclusiveness is key, but it's not the only factor. The degree of inclusiveness and how institutions adapt to challenges can vary. Some countries might have inclusive institutions, but face other challenges like geography or historical events that impact their success. It's about the balance and how institutions evolve over time. Now let's touch on that geography critique. Some argue geography
+2:33:23 PM(+05:31.02)
+User
+Okay.
+2:33:45 PM(+05:52.89)
+Assistant
+Yes. Inclusiveness is key, but it's not the only factor. The degree of inclusiveness and how institutions adapt to challenges can vary.
+2:33:50 PM(+05:57.93)
+User
+Yes. Yes. We we talked about it. We... let's move on to geography.
+2:33:58 PM(+06:05.30)
+Assistant
+Alright. Some argue that geography still matters. For example, tropical diseases or being landlocked, uh, can impact development. But Akimoglu and Robinson would say geography sets initial conditions, but it's not destiny. Institutions can overcome geographic disadvantages. For instance, Singapore is a wealthy despite, uh, being on the equator. Um, how do you think the institutions might help a country, uh, overcome geographic challenges?
+2:34:04 PM(+06:11.71)
+User
+Well, I can I can imagine, uh, the institution needs to be in in design for a certain purpose on one hand and also design for the people, the nation who uses them. national Combine of people, but other parameter as well, like geography, culture, and so on.
+2:34:35 PM(+06:42.58)
+Assistant
+Exactly. Institutions need to be adaptable and responsive to the specific needs and challenges of a country. They can provide infrastructure, education, and health services that help overcome geographic and cultural challenges. It's about creating an environment where people can thrive despite those initial conditions. Alright. Let's leave it there for now. Anything you'd like me to send you to look at later?
+2:35:05 PM(+07:13.06)
+User
+If you have any charts or maps or, you know, that you you think they could get... that can enrich my knowledge and understanding. So it's it's a very famous book, if I remember. It's it's quite thick. I mean, a few hundred pages. So you can just sum up the the the ideas in saying that the the difference between rich or the the reason for nation to fail is their institution.
+2:35:35 PM(+07:42.65)
+Assistant
+I'll find some charts or maps that illustrate these concepts and send them to you. And, yes, the core idea is that the difference between rich and poor nations often comes down to their institutions. I'll follow-up with some materials that can help deepen your understanding.
+2:36:06 PM(+08:14.19)
+User
+k. I understand. Now one more question, but it still doesn't explain if countries have... in order to succeed, they need to have inclusive systems. So if they succeed and they have the the right institution, why why do they fail eventually?
+2:36:23 PM(+08:30.88)
+Assistant
+That's a thoughtful question. Uh, even countries with inclusive institutions can face, uh, challenges that lead to failure. Changes in political power, uh, economic shocks, or external pressures can disrupt the balance. Sometimes inclusive institutions can become extractive if power becomes concentrated again. Uh, it's a dynamic process, and maintaining inclusiveness requires constant effort and adaptation.
+2:36:47 PM(+08:54.46)
+User
+Okay. Yeah. I understand. I remember when I read the book, it started with the the example between the development of South America and North America. Can you... I remember I understood correctly. I understood quite thoroughly the the story of the South America. But can you remind me of the the the the story, the narrative that brought the development of the USA, you know, touching the the four point?
+2:37:17 PM(+09:24.26)
+Assistant
+Certainly, the development of the USA is often attributed to its increased

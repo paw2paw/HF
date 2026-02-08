@@ -1,0 +1,112 @@
+{
+  "contractId": "CURRICULUM_PROGRESS_V1",
+  "version": "1.0",
+  "status": "active",
+  "description": "Standard contract for curriculum progress tracking. Defines how CONTENT specs and CURRICULUM tracking specs share data about learning progress through structured content.",
+
+  "appliesTo": {
+    "specRoles": ["CONTENT", "MEASURE", "ADAPT"],
+    "domains": ["curriculum", "content", "learning"]
+  },
+
+  "storage": {
+    "keyPattern": "curriculum:{specSlug}:{key}",
+    "description": "CallerAttribute storage pattern for curriculum progress",
+    "keys": {
+      "currentModule": "current_module",
+      "mastery": "mastery:{moduleId}",
+      "lastAccessed": "last_accessed",
+      "startedAt": "started_at",
+      "completedAt": "completed_at"
+    }
+  },
+
+  "dataSchema": {
+    "currentModule": {
+      "type": "string",
+      "description": "ID of the module the learner is currently working on",
+      "required": false
+    },
+    "mastery": {
+      "type": "object",
+      "description": "Map of moduleId to mastery score (0.0-1.0)",
+      "required": false
+    },
+    "lastAccessed": {
+      "type": "string",
+      "description": "ISO8601 timestamp of last curriculum access",
+      "required": false,
+      "pattern": "ISO8601"
+    },
+    "startedAt": {
+      "type": "string",
+      "description": "ISO8601 timestamp when curriculum was started",
+      "required": false,
+      "pattern": "ISO8601"
+    },
+    "completedAt": {
+      "type": "string",
+      "description": "ISO8601 timestamp when curriculum was completed",
+      "required": false,
+      "pattern": "ISO8601"
+    }
+  },
+
+  "thresholds": {
+    "masteryComplete": 0.7,
+    "masteryInProgress": 0.3,
+    "confidenceMinimum": 0.5
+  },
+
+  "metadata": {
+    "curriculum": {
+      "type": {
+        "type": "string",
+        "description": "Curriculum flow type",
+        "enum": ["sequential", "branching", "open-ended"],
+        "required": true
+      },
+      "trackingMode": {
+        "type": "string",
+        "description": "How progress is tracked",
+        "enum": ["module-based", "competency-based"],
+        "required": true
+      },
+      "moduleSelector": {
+        "type": "string",
+        "description": "How to identify module parameters in spec",
+        "pattern": "field=value",
+        "required": true,
+        "example": "section=content"
+      },
+      "moduleOrder": {
+        "type": "string",
+        "description": "How modules are ordered",
+        "enum": ["sortBySequence", "sortBySectionThenId", "explicit"],
+        "required": true
+      },
+      "progressKey": {
+        "type": "string",
+        "description": "Key name for current progress tracking",
+        "required": true,
+        "example": "current_module"
+      },
+      "masteryThreshold": {
+        "type": "number",
+        "description": "Score threshold for module completion",
+        "min": 0.0,
+        "max": 1.0,
+        "required": true
+      }
+    }
+  },
+
+  "config": {
+    "notes": [
+      "CONTENT specs MUST include metadata.curriculum section",
+      "Module parameters MUST have field matching moduleSelector (e.g., section='content')",
+      "Module IDs come from parameter 'id' field",
+      "Progress is stored in CallerAttribute with keys following storage.keyPattern"
+    ]
+  }
+}

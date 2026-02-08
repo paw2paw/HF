@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function Home() {
-  redirect("/cockpit");
+  // Default to simplified Playbook Studio UI
+  redirect("/x/studio");
 }

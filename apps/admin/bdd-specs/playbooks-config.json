@@ -1,0 +1,122 @@
+{
+  "$schema": "./playbooks-config-schema.json",
+  "version": "1.0",
+  "playbooks": [
+    {
+      "id": "companion-v1",
+      "name": "Companion Playbook v1",
+      "description": "Intellectually engaging companion for seniors - peer-like conversations that respect wisdom and experience",
+      "domain": {
+        "slug": "companion",
+        "name": "Intelligent Companion",
+        "description": "Thoughtful companionship for intellectually curious seniors"
+      },
+      "status": "PUBLISHED",
+      "version": "1.0",
+      "identitySpecs": ["COMPANION-001"],
+      "goals": [
+        {
+          "type": "CONNECT",
+          "name": "Build Meaningful Connection",
+          "description": "Develop an authentic relationship through intellectually stimulating conversations",
+          "isDefault": true,
+          "priority": 10
+        }
+      ],
+      "includeSpecs": {
+        "required": ["VOICE-001", "PERS-001", "MEM-001"],
+        "optional": [],
+        "systemDomains": ["memory", "goals", "engagement"]
+      },
+      "behaviorTargets": {
+        "BEH-WARMTH": 0.85,
+        "BEH-EMPATHY-RATE": 0.75,
+        "BEH-FORMALITY": 0.4,
+        "BEH-DIRECTNESS": 0.5,
+        "BEH-PROACTIVE": 0.7,
+        "BEH-QUESTION-RATE": 0.6,
+        "BEH-QUESTION-FREQUENCY": 0.45,
+        "BEH-INSIGHT-FREQUENCY": 0.6,
+        "BEH-PACE-MATCH": 0.9
+      }
+    },
+    {
+      "id": "wnf-tutor-v1",
+      "name": "WNF Tutor Playbook v1",
+      "description": "Socratic tutoring optimized for Why Nations Fail curriculum",
+      "domain": {
+        "slug": "wnf",
+        "name": "Why Nations Fail - Tutor",
+        "description": "Socratic tutoring for Why Nations Fail curriculum - intelligent questioning, engagement, and knowledge building"
+      },
+      "status": "PUBLISHED",
+      "version": "1.0",
+      "identitySpecs": ["TUT-WNF-001"],
+      "contentSpecs": ["WNF-CONTENT-001"],
+      "goals": [
+        {
+          "type": "LEARN",
+          "name": "Master Why Nations Fail",
+          "description": "Understand institutional economics and why some nations prosper while others fail",
+          "contentSpecSlug": "WNF-CONTENT-001",
+          "isDefault": true,
+          "priority": 10
+        }
+      ],
+      "includeSpecs": {
+        "required": ["CURR-001", "GOAL-001", "MEM-001"],
+        "optional": ["CA-001", "SESSION-001"],
+        "systemDomains": ["engagement", "memory", "goals", "curriculum"]
+      },
+      "behaviorTargets": {
+        "BEH-WARMTH": 0.7,
+        "BEH-EMPATHY-RATE": 0.6,
+        "BEH-FORMALITY": 0.5,
+        "BEH-DIRECTNESS": 0.6,
+        "BEH-PROACTIVE": 0.8,
+        "BEH-QUESTION-RATE": 0.75,
+        "BEH-QUESTION-FREQUENCY": 0.6,
+        "BEH-PACE-MATCH": 0.8
+      }
+    },
+    {
+      "id": "qm-tutor-v1",
+      "name": "QM Tutor Playbook v1",
+      "description": "Socratic tutoring optimized for Quantum Mechanics content",
+      "domain": {
+        "slug": "qm",
+        "name": "Quantum Mechanics - Tutor",
+        "description": "Socratic tutoring for introductory Quantum Mechanics - wave-particle duality, uncertainty, superposition, and entanglement"
+      },
+      "status": "PUBLISHED",
+      "version": "1.0",
+      "identitySpecs": ["TUT-QM-001"],
+      "contentSpecs": ["QM-CONTENT-001"],
+      "goals": [
+        {
+          "type": "LEARN",
+          "name": "Master Quantum Mechanics",
+          "description": "Understand fundamental concepts of quantum mechanics including wave-particle duality, uncertainty, superposition, and entanglement",
+          "contentSpecSlug": "QM-CONTENT-001",
+          "isDefault": true,
+          "priority": 10
+        }
+      ],
+      "includeSpecs": {
+        "required": ["CURR-001", "GOAL-001", "MEM-001"],
+        "optional": ["CA-001", "SESSION-001"],
+        "systemDomains": ["engagement", "memory", "goals", "curriculum"]
+      },
+      "behaviorTargets": {
+        "BEH-WARMTH": 0.7,
+        "BEH-EMPATHY-RATE": 0.65,
+        "BEH-FORMALITY": 0.55,
+        "BEH-DIRECTNESS": 0.55,
+        "BEH-PROACTIVE": 0.75,
+        "BEH-QUESTION-RATE": 0.55,
+        "BEH-QUESTION-FREQUENCY": 0.6,
+        "BEH-PACE-MATCH": 0.85
+      }
+    }
+  ]
+}

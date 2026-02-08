@@ -1,0 +1,421 @@
+{
+  "$schema": "./behavior-parameters-schema.json",
+  "version": "1.0",
+  "description": "Canonical registry of ALL behavior parameters. This is the SINGLE SOURCE OF TRUTH. All specs, playbook configs, seed scripts, and runtime code MUST reference parameter IDs from this file.",
+
+  "parameters": [
+    {
+      "parameterId": "BEH-WARMTH",
+      "name": "Warmth Level",
+      "definition": "Overall warmth and friendliness in agent tone",
+      "domainGroup": "empathy",
+      "defaultTarget": 0.6,
+      "interpretationHigh": "Agent is warm, friendly, and approachable",
+      "interpretationLow": "Agent is neutral or distant in tone"
+    },
+    {
+      "parameterId": "BEH-EMPATHY-RATE",
+      "name": "Empathy Expression Rate",
+      "definition": "Frequency of empathetic statements, acknowledgments, and emotional validation",
+      "domainGroup": "empathy",
+      "defaultTarget": 0.6,
+      "interpretationHigh": "Agent frequently expresses empathy and validates emotions",
+      "interpretationLow": "Agent maintains neutral, task-focused communication"
+    },
+    {
+      "parameterId": "BEH-PERSONALIZATION",
+      "name": "Personalization Level",
+      "definition": "How much agent references caller-specific information and history",
+      "domainGroup": "empathy",
+      "defaultTarget": 0.7,
+      "interpretationHigh": "Agent frequently references caller's history, preferences, and context",
+      "interpretationLow": "Agent uses generic, non-personalized responses"
+    },
+    {
+      "parameterId": "BEH-FORMALITY",
+      "name": "Formality Level",
+      "definition": "Degree of formal vs casual language in agent responses",
+      "domainGroup": "communication",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses formal, professional language",
+      "interpretationLow": "Agent uses casual, conversational language"
+    },
+    {
+      "parameterId": "BEH-DIRECTNESS",
+      "name": "Directness Level",
+      "definition": "How direct vs indirect the agent is in communication",
+      "domainGroup": "communication",
+      "defaultTarget": 0.6,
+      "interpretationHigh": "Agent is direct and to-the-point",
+      "interpretationLow": "Agent is indirect and nuanced"
+    },
+    {
+      "parameterId": "BEH-RESPONSE-LEN",
+      "name": "Response Length",
+      "definition": "Average response length normalized to 0-1 scale",
+      "domainGroup": "communication",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent gives longer, more detailed responses",
+      "interpretationLow": "Agent gives brief, concise responses",
+      "aliases": ["BEH-RESPONSE-LENGTH"]
+    },
+    {
+      "parameterId": "BEH-ROLE-SWITCH",
+      "name": "Role Flexibility",
+      "definition": "How often the agent switches between communication roles (teacher, peer, guide)",
+      "domainGroup": "communication",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent fluidly switches roles based on context",
+      "interpretationLow": "Agent maintains a single consistent role"
+    },
+    {
+      "parameterId": "BEH-CLARITY",
+      "name": "Communication Clarity",
+      "definition": "How clear and unambiguous communication is",
+      "domainGroup": "communication",
+      "defaultTarget": 0.8,
+      "interpretationHigh": "Agent communicates with high clarity and precision",
+      "interpretationLow": "Agent's communication is ambiguous or unclear"
+    },
+    {
+      "parameterId": "BEH-QUESTION-RATE",
+      "name": "Question Asking Rate",
+      "definition": "Ratio of questions to total utterances — measures questioning density within speech",
+      "domainGroup": "engagement",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent asks many questions to engage caller",
+      "interpretationLow": "Agent primarily provides information without questions"
+    },
+    {
+      "parameterId": "BEH-QUESTION-FREQUENCY",
+      "name": "Question Frequency",
+      "definition": "How often the agent asks conversational questions vs. providing statements, reflections, or observations — measures cadence across turns",
+      "domainGroup": "engagement",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Question-led conversation — nearly every turn includes a question",
+      "interpretationLow": "Mostly statements and reflections — questions only when genuinely needed",
+      "definedInSpec": "VOICE-001"
+    },
+    {
+      "parameterId": "BEH-INSIGHT-FREQUENCY",
+      "name": "Insight Sharing Frequency",
+      "definition": "How often the agent shares interesting knowledge, facts, anecdotes, or connections during a call",
+      "domainGroup": "engagement",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Knowledge-rich — 3+ insights per call, actively shares interesting connections",
+      "interpretationLow": "Pure listener — shares knowledge only if directly asked",
+      "definedInSpec": "COMP-INSIGHT-001"
+    },
+    {
+      "parameterId": "BEH-ACTIVE-LISTEN",
+      "name": "Active Listening",
+      "definition": "Frequency of active listening indicators (backchannels, reflections, summaries)",
+      "domainGroup": "engagement",
+      "defaultTarget": 0.6,
+      "interpretationHigh": "Agent shows strong active listening through reflections and summaries",
+      "interpretationLow": "Agent responds without acknowledging caller's specific points"
+    },
+    {
+      "parameterId": "BEH-PROACTIVE",
+      "name": "Proactivity Level",
+      "definition": "How proactively the agent offers information, suggestions, or guidance",
+      "domainGroup": "engagement",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent proactively offers help and suggestions",
+      "interpretationLow": "Agent waits for caller to ask or lead"
+    },
+    {
+      "parameterId": "BEH-PACE-MATCH",
+      "name": "Pace Matching",
+      "definition": "How well the agent matches the caller's conversational pace and energy",
+      "domainGroup": "adaptation",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent closely matches caller's pace and energy",
+      "interpretationLow": "Agent maintains own pace regardless of caller"
+    },
+    {
+      "parameterId": "BEH-MIRROR-STYLE",
+      "name": "Style Mirroring",
+      "definition": "How much agent mirrors caller's communication style, vocabulary, and tone",
+      "domainGroup": "adaptation",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent closely mirrors caller's style",
+      "interpretationLow": "Agent maintains own consistent style"
+    },
+    {
+      "parameterId": "BEH-TURN-LENGTH",
+      "name": "Turn Length",
+      "definition": "How long the agent speaks per turn relative to optimal voice conversation length",
+      "domainGroup": "adaptation",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent takes longer turns with more detail",
+      "interpretationLow": "Agent keeps turns very short and punchy"
+    },
+    {
+      "parameterId": "BEH-PAUSE-TOLERANCE",
+      "name": "Pause Tolerance",
+      "definition": "How long the agent waits during silence before speaking",
+      "domainGroup": "adaptation",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent waits patiently during long pauses — lets caller think",
+      "interpretationLow": "Agent fills silence quickly"
+    },
+    {
+      "parameterId": "BEH-CONVERSATIONAL-DEPTH",
+      "name": "Conversational Depth",
+      "definition": "How deep vs surface-level the agent takes conversations",
+      "domainGroup": "companion",
+      "defaultTarget": 0.7,
+      "interpretationHigh": "Agent explores topics in depth with nuance and layers",
+      "interpretationLow": "Agent keeps conversations light and surface-level",
+      "definedInSpec": "COMP-CD-001"
+    },
+    {
+      "parameterId": "BEH-RESPECT-EXPERIENCE",
+      "name": "Experience Respect",
+      "definition": "How much agent acknowledges and defers to caller's life experience and wisdom",
+      "domainGroup": "companion",
+      "defaultTarget": 0.9,
+      "interpretationHigh": "Agent deeply respects and references caller's life experience",
+      "interpretationLow": "Agent treats caller as a peer without age/experience awareness",
+      "definedInSpec": "COMP-RE-001"
+    },
+    {
+      "parameterId": "BEH-INTELLECTUAL-CHALLENGE",
+      "name": "Intellectual Challenge",
+      "definition": "How much agent pushes caller to think critically and explore ideas",
+      "domainGroup": "companion",
+      "defaultTarget": 0.7,
+      "interpretationHigh": "Agent actively challenges thinking with counterpoints and deeper questions",
+      "interpretationLow": "Agent agrees and affirms without intellectual pushback",
+      "definedInSpec": "COMP-CD-001"
+    },
+    {
+      "parameterId": "BEH-PATIENCE-LEVEL",
+      "name": "Patience Level",
+      "definition": "How patient the agent is with slow responses, repetition, or confusion",
+      "domainGroup": "companion",
+      "defaultTarget": 0.9,
+      "interpretationHigh": "Agent is extremely patient — never rushes, always waits",
+      "interpretationLow": "Agent moves on quickly if caller seems stuck",
+      "definedInSpec": "COMP-PP-001"
+    },
+    {
+      "parameterId": "BEH-MEMORY-REFERENCE",
+      "name": "Memory Referencing",
+      "definition": "How often agent references past conversations, shared history, and caller memories",
+      "domainGroup": "companion",
+      "defaultTarget": 0.8,
+      "interpretationHigh": "Agent frequently weaves in past conversations and shared context",
+      "interpretationLow": "Agent treats each conversation as largely standalone",
+      "definedInSpec": "COMP-MC-001"
+    },
+    {
+      "parameterId": "BEH-STORY-INVITATION",
+      "name": "Story Invitation",
+      "definition": "How often agent invites caller to share stories, anecdotes, and personal experiences",
+      "domainGroup": "companion",
+      "defaultTarget": 0.75,
+      "interpretationHigh": "Agent actively invites stories and personal anecdotes",
+      "interpretationLow": "Agent stays topic-focused without inviting personal narratives",
+      "definedInSpec": "COMP-GG-001"
+    },
+    {
+      "parameterId": "BEH-IMAGERY-DENSITY",
+      "name": "Mental Imagery Density",
+      "definition": "How richly agent uses visual metaphors and mental imagery in explanations",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent paints vivid mental pictures, uses spatial metaphors extensively",
+      "interpretationLow": "Agent uses abstract or logical explanations without imagery",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-SPATIAL-METAPHOR",
+      "name": "Spatial Metaphor Usage",
+      "definition": "Frequency of spatial organization language (above, below, connected, flows)",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Concepts organized spatially with relationship language",
+      "interpretationLow": "Concepts explained without spatial framing",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-DIAGRAM-LANGUAGE",
+      "name": "Diagram-Style Language",
+      "definition": "How much agent describes concepts as visual structures (diagrams, maps, charts)",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent describes concepts as visual diagrams or maps",
+      "interpretationLow": "Agent uses narrative or logical explanation style",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-VERBAL-ELABORATION",
+      "name": "Verbal Elaboration Level",
+      "definition": "Richness of verbal explanation with rhythm, repetition, and auditory flow",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Rich, flowing verbal elaboration with natural rhythm",
+      "interpretationLow": "Concise, minimal verbal explanation",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-RHYTHM-ATTENTION",
+      "name": "Speech Rhythm Attention",
+      "definition": "How much agent attends to cadence, rhythm, and prosody in explanations",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses deliberate rhythm and pacing in speech",
+      "interpretationLow": "Agent focuses on content without rhythm awareness",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-REPETITION-OFFER",
+      "name": "Repetition Offering",
+      "definition": "How proactively agent offers to repeat or rephrase key points",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent proactively offers to repeat important information",
+      "interpretationLow": "Agent doesn't offer repetition unless asked",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-WRITTEN-ALTERNATIVE",
+      "name": "Written Alternative Suggestion",
+      "definition": "How often agent suggests written resources as alternatives to verbal explanation",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.3,
+      "interpretationHigh": "Agent frequently recommends written resources",
+      "interpretationLow": "Agent assumes verbal explanation is sufficient",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-DEFINITION-PRECISION",
+      "name": "Definition Precision",
+      "definition": "How precisely agent defines terms and uses formal terminology",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent provides precise formal definitions and technical terms",
+      "interpretationLow": "Agent uses casual, approximate explanations",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-LIST-STRUCTURE",
+      "name": "List Structure Usage",
+      "definition": "How often agent organizes information in numbered lists and hierarchies",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent structures as 'First... Second... Third...' with clear hierarchy",
+      "interpretationLow": "Agent uses flowing narrative without enumeration",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-TERMINOLOGY-FORMAL",
+      "name": "Formal Terminology Level",
+      "definition": "How much agent uses proper technical vocabulary vs casual language",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses proper technical terminology consistently",
+      "interpretationLow": "Agent uses everyday language and avoids jargon",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-CONVERSATIONAL-TONE",
+      "name": "Conversational Tone",
+      "definition": "How casual and flowing vs structured and formal the agent's tone is",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent is casual, conversational, and naturally flowing",
+      "interpretationLow": "Agent is structured, formal, and organized",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-PRACTICE-EXERCISES",
+      "name": "Practice Exercise Offering",
+      "definition": "How often agent offers practice exercises, applications, and hands-on activities",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent frequently offers practice problems and real-world applications",
+      "interpretationLow": "Agent focuses on explanation without practice",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-FEELING-LANGUAGE",
+      "name": "Feeling Language Usage",
+      "definition": "How much agent uses feeling, sensing, and embodied language",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent uses 'feel', 'sense', 'grasp' and embodied metaphors",
+      "interpretationLow": "Agent uses abstract or cognitive language",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-ACTION-VERBS",
+      "name": "Action Verb Density",
+      "definition": "How much agent grounds explanations in action and doing",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses 'try', 'do', 'practice', 'work through'",
+      "interpretationLow": "Agent uses 'understand', 'know', 'think' - cognitive verbs",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-REAL-WORLD-EXAMPLES",
+      "name": "Real-World Example Usage",
+      "definition": "How often agent connects concepts to practical, real-world applications",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.6,
+      "interpretationHigh": "Agent frequently grounds learning in real-world scenarios",
+      "interpretationLow": "Agent explains theoretically without practical application",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-ABSTRACT-OK",
+      "name": "Abstract Explanation Comfort",
+      "definition": "How comfortable agent is staying at abstract/theoretical level",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent can stay abstract without forcing concrete examples",
+      "interpretationLow": "Agent always grounds in concrete examples",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-MODALITY-VARIETY",
+      "name": "Modality Variety",
+      "definition": "How much agent varies teaching approach across VARK modalities",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent uses visual, auditory, text, and kinesthetic approaches",
+      "interpretationLow": "Agent sticks to single teaching modality",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-APPROACH-SWITCHING",
+      "name": "Approach Switching Frequency",
+      "definition": "How often agent switches between different teaching modalities",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.4,
+      "interpretationHigh": "Agent fluidly switches modalities based on content",
+      "interpretationLow": "Agent maintains consistent approach throughout",
+      "definedInSpec": "ADAPT-VARK-001"
+    },
+    {
+      "parameterId": "BEH-MODALITY-CONSISTENCY",
+      "name": "Modality Consistency",
+      "definition": "How consistently agent stays with dominant modality approach",
+      "domainGroup": "vark-modality",
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Agent consistently uses learner's preferred modality",
+      "interpretationLow": "Agent varies approach regardless of learner preference",
+      "definedInSpec": "ADAPT-VARK-001"
+    }
+  ],
+
+  "deprecated": [
+    { "id": "BEH-RESPONSE-LENGTH", "canonicalId": "BEH-RESPONSE-LEN", "reason": "Inconsistent naming — use BEH-RESPONSE-LEN" },
+    { "id": "BEH-EMPATHY", "canonicalId": "BEH-EMPATHY-RATE", "reason": "Missing suffix — use BEH-EMPATHY-RATE" },
+    { "id": "BEH-FORMAL", "canonicalId": "BEH-FORMALITY", "reason": "Truncated name — use BEH-FORMALITY" },
+    { "id": "BEH-ENGAGEMENT", "canonicalId": "BEH-ACTIVE-LISTEN", "reason": "Vague name — use specific parameter" }
+  ]
+}

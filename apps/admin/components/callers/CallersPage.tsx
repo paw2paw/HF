@@ -1,0 +1,1366 @@
+"use client";
+
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
+import { FancySelect } from "@/components/shared/FancySelect";
+import { DomainPill } from "@/src/components/shared/EntityPill";
+
+type Caller = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  phone: string | null;
+  externalId: string | null;
+  createdAt: string;
+  nextPrompt: string | null;
+  nextPromptComposedAt: string | null;
+  domain?: {
+    id: string;
+    slug: string;
+    name: string;
+  } | null;
+  personality?: {
+    openness: number | null;
+    conscientiousness: number | null;
+    extraversion: number | null;
+    agreeableness: number | null;
+    neuroticism: number | null;
+    confidenceScore: number | null;
+  } | null;
+  _count?: {
+    calls: number;
+    memories: number;
+    personalityObservations: number;
+  };
+};
+
+type Domain = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+type SortOption = "name" | "calls" | "memories" | "createdAt";
+
+interface CallersPageProps {
+  routePrefix?: string;
+}
+
+export function CallersPage({ routePrefix = "" }: CallersPageProps) {
+  const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [callers, setCallers] = useState<Caller[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [resetConfirm, setResetConfirm] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [snapshotModal, setSnapshotModal] = useState<Caller | null>(null);
+  const [snapshotLabel, setSnapshotLabel] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Filter/Sort state
+  const [selectedDomain, setSelectedDomain] = useState<string>("");
+  const [sortBy, setSortBy] = useState<SortOption>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // Delete state
+  const [showDeleteModal, setShowDeleteModal] = useState<Caller | null>(null);
+  const [deleteExclude, setDeleteExclude] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Merge callers state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedCallers, setSelectedCallers] = useState<Set<string>>(new Set());
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
+
+  // Create caller state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCallerName, setNewCallerName] = useState("");
+  const [newCallerEmail, setNewCallerEmail] = useState("");
+  const [newCallerPhone, setNewCallerPhone] = useState("");
+  const [newCallerDomainId, setNewCallerDomainId] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const fetchCallers = () => {
+    fetch("/api/callers?withPersonality=true&withCounts=true")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok) {
+          setCallers(data.callers || []);
+        } else {
+          setError(data.error || "Failed to load callers");
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    searchRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    fetchCallers();
+    // Fetch domains for filter
+    fetch("/api/domains")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          setDomains(data.domains || []);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Auto-clear success message
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  const getCallerLabel = (caller: Caller) => {
+    return caller.name || caller.email || caller.phone || caller.externalId || "Unknown";
+  };
+
+  // Filter and sort callers
+  const filteredAndSortedCallers = useMemo(() => {
+    let result = callers.filter((caller) => {
+      // Search filter
+      if (search) {
+        const s = search.toLowerCase();
+        const matchesSearch =
+          caller.name?.toLowerCase().includes(s) ||
+          caller.email?.toLowerCase().includes(s) ||
+          caller.phone?.toLowerCase().includes(s) ||
+          caller.externalId?.toLowerCase().includes(s);
+        if (!matchesSearch) return false;
+      }
+      // Domain filter
+      if (selectedDomain) {
+        if (caller.domain?.id !== selectedDomain) return false;
+      }
+      return true;
+    });
+
+    // Sort
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case "name":
+          cmp = (getCallerLabel(a)).localeCompare(getCallerLabel(b));
+          break;
+        case "calls":
+          cmp = (a._count?.calls || 0) - (b._count?.calls || 0);
+          break;
+        case "memories":
+          cmp = (a._count?.memories || 0) - (b._count?.memories || 0);
+          break;
+        case "createdAt":
+        default:
+          cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+
+    return result;
+  }, [callers, search, selectedDomain, sortBy, sortDir]);
+
+  const getPersonalityBadge = (caller: Caller) => {
+    if (!caller.personality || caller.personality.confidenceScore === null) return null;
+    const traits = [];
+    if (caller.personality.openness !== null && caller.personality.openness > 0.6) traits.push("Open");
+    if (caller.personality.extraversion !== null && caller.personality.extraversion > 0.6) traits.push("Extraverted");
+    if (caller.personality.agreeableness !== null && caller.personality.agreeableness > 0.6) traits.push("Agreeable");
+    if (caller.personality.conscientiousness !== null && caller.personality.conscientiousness > 0.6) traits.push("Conscientious");
+    if (caller.personality.neuroticism !== null && caller.personality.neuroticism > 0.6) traits.push("Neurotic");
+    return traits.length > 0 ? traits.slice(0, 2).join(", ") : "Balanced";
+  };
+
+  const hasAnalysisData = (caller: Caller) => {
+    return (caller._count?.memories || 0) > 0 ||
+           (caller._count?.personalityObservations || 0) > 0 ||
+           caller.personality?.confidenceScore !== null;
+  };
+
+  const handleReset = async (callerId: string) => {
+    setActionLoading(callerId);
+    try {
+      const res = await fetch(`/api/callers/${callerId}/reset`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(`Reset complete: ${data.deleted.scores} scores, ${data.deleted.memories} memories deleted`);
+        fetchCallers(); // Refresh data
+      } else {
+        setError(data.error || "Failed to reset");
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setActionLoading(null);
+      setResetConfirm(null);
+    }
+  };
+
+  const handleDownload = (caller: Caller) => {
+    const label = encodeURIComponent(snapshotLabel.trim().replace(/\s+/g, "-") || "");
+    const url = `/api/callers/${caller.id}/snapshot${label ? `?label=${label}` : ""}`;
+    window.open(url, "_blank");
+    setSnapshotModal(null);
+    setSnapshotLabel("");
+  };
+
+  const toggleCallerSelection = (callerId: string) => {
+    setSelectedCallers((prev) => {
+      const next = new Set(prev);
+      if (next.has(callerId)) {
+        next.delete(callerId);
+      } else {
+        next.add(callerId);
+      }
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedCallers(new Set());
+    setShowMergeModal(false);
+    setMergeTarget(null);
+  };
+
+  const getSelectedCallersList = () => {
+    return callers.filter((c) => selectedCallers.has(c.id));
+  };
+
+  const handleMerge = async () => {
+    if (!mergeTarget || selectedCallers.size < 2) return;
+
+    const sourceIds = Array.from(selectedCallers).filter((id) => id !== mergeTarget);
+
+    setMerging(true);
+    try {
+      const res = await fetch("/api/callers/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetCallerId: mergeTarget,
+          sourceCallerIds: sourceIds,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(
+          `Merged ${sourceIds.length} caller(s) into ${data.targetCaller?.name || data.targetCaller?.email || "target"}. ` +
+          `Moved ${data.merged?.calls || 0} calls, ${data.merged?.memories || 0} memories.`
+        );
+        exitSelectionMode();
+        fetchCallers();
+      } else {
+        setError(data.error || "Failed to merge callers");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to merge callers");
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleDelete = async (caller: Caller) => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/callers/${caller.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exclude: deleteExclude }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(
+          `Deleted ${getCallerLabel(caller)}${deleteExclude ? " (excluded from future imports)" : ""}`
+        );
+        setShowDeleteModal(null);
+        setDeleteExclude(false);
+        fetchCallers();
+      } else {
+        setError(data.error || "Failed to delete caller");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to delete caller");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCardClick = (caller: Caller, e: React.MouseEvent) => {
+    // Don't navigate if clicking action buttons or in selection mode
+    if (selectionMode) {
+      toggleCallerSelection(caller.id);
+      return;
+    }
+    // Check if click was on an interactive element
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("a")) {
+      return;
+    }
+    router.push(`${routePrefix}/callers/${caller.id}`);
+  };
+
+  const handleCreateCaller = async () => {
+    if (!newCallerName.trim() && !newCallerEmail.trim() && !newCallerPhone.trim()) {
+      setError("Please provide at least a name, email, or phone");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await fetch("/api/callers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCallerName.trim() || null,
+          email: newCallerEmail.trim() || null,
+          phone: newCallerPhone.trim() || null,
+          domainId: newCallerDomainId || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(`Created caller: ${newCallerName || newCallerEmail || newCallerPhone}`);
+        setShowCreateModal(false);
+        setNewCallerName("");
+        setNewCallerEmail("");
+        setNewCallerPhone("");
+        setNewCallerDomainId("");
+        fetchCallers();
+      } else {
+        setError(data.error || "Failed to create caller");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create caller");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Sort options for FancySelect
+  const sortOptions = [
+    { value: "createdAt-desc", label: "Newest first" },
+    { value: "createdAt-asc", label: "Oldest first" },
+    { value: "name-asc", label: "Name A-Z" },
+    { value: "name-desc", label: "Name Z-A" },
+    { value: "calls-desc", label: "Most calls" },
+    { value: "calls-asc", label: "Fewest calls" },
+    { value: "memories-desc", label: "Most memories" },
+    { value: "memories-asc", label: "Fewest memories" },
+  ];
+
+  return (
+    <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+      <SourcePageHeader
+        title="Callers"
+        description="All callers with their calls, memories, and personality profiles"
+        count={callers.length}
+      />
+
+      {/* Success Message */}
+      {successMessage && (
+        <div style={{
+          padding: "12px 16px",
+          background: "var(--status-success-bg)",
+          color: "var(--status-success-text)",
+          borderRadius: 8,
+          marginBottom: 20,
+          border: "1px solid var(--status-success-border)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <span>✓</span> {successMessage}
+        </div>
+      )}
+
+      {/* Search, Filters, and Actions */}
+      <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          ref={searchRef}
+          type="text"
+          placeholder="Search by name, email, phone, or ID..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid var(--border-default)",
+            fontSize: 13,
+            width: 260,
+            background: "var(--surface-primary)",
+            color: "var(--text-primary)",
+          }}
+        />
+
+        {/* Domain Filter */}
+        <FancySelect
+          value={selectedDomain}
+          onChange={setSelectedDomain}
+          placeholder="All domains"
+          searchable={domains.length > 5}
+          clearable={!!selectedDomain}
+          style={{ minWidth: 160 }}
+          options={[
+            { value: "", label: "All domains" },
+            ...domains.map((d) => ({ value: d.id, label: d.name })),
+          ]}
+        />
+
+        {/* Sort */}
+        <FancySelect
+          value={`${sortBy}-${sortDir}`}
+          onChange={(v) => {
+            const [newSort, newDir] = v.split("-") as [SortOption, "asc" | "desc"];
+            setSortBy(newSort);
+            setSortDir(newDir);
+          }}
+          searchable={false}
+          style={{ minWidth: 150 }}
+          options={sortOptions}
+        />
+
+        <div style={{ flex: 1 }} />
+
+        {/* Add Caller Button */}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            background: "var(--button-primary-bg)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          + New Caller
+        </button>
+
+        <button
+          onClick={() => {
+            if (selectionMode) {
+              exitSelectionMode();
+            } else {
+              setSelectionMode(true);
+            }
+          }}
+          style={{
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 500,
+            background: selectionMode ? "var(--button-primary-bg)" : "var(--button-secondary-bg)",
+            color: selectionMode ? "var(--button-primary-text)" : "var(--button-secondary-text)",
+            border: selectionMode ? "none" : "1px solid var(--border-default)",
+            borderRadius: 6,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {selectionMode ? "Cancel Selection" : "Select to Merge"}
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
+          {error}
+          <button
+            onClick={() => setError(null)}
+            style={{ marginLeft: 16, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "inherit" }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading ? (
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+      ) : filteredAndSortedCallers.length === 0 ? (
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            background: "var(--background)",
+            borderRadius: 12,
+            border: "1px solid var(--border-default)",
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
+            {search || selectedDomain ? "No callers match your filters" : "No callers yet"}
+          </div>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+            {search || selectedDomain ? "Try different filters" : "Callers are created when processing transcripts"}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+          {filteredAndSortedCallers.map((caller) => (
+            <div
+              key={caller.id}
+              onClick={(e) => handleCardClick(caller, e)}
+              style={{
+                background: "var(--surface-primary)",
+                border: selectedCallers.has(caller.id)
+                  ? "2px solid var(--button-primary-bg)"
+                  : "1px solid var(--border-default)",
+                borderRadius: 10,
+                padding: selectedCallers.has(caller.id) ? 11 : 12,
+                transition: "all 0.15s ease",
+                cursor: "pointer",
+                position: "relative",
+              }}
+            >
+              {/* Selection checkbox */}
+              {selectionMode && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    left: 8,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 4,
+                    border: selectedCallers.has(caller.id)
+                      ? "none"
+                      : "2px solid var(--border-strong)",
+                    background: selectedCallers.has(caller.id) ? "var(--button-primary-bg)" : "var(--surface-primary)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  {selectedCallers.has(caller.id) && "✓"}
+                </div>
+              )}
+
+              {/* Caller Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {getCallerLabel(caller)}
+                  </div>
+                </div>
+                {caller.domain && (
+                  <DomainPill label={caller.domain.name} size="compact" />
+                )}
+              </div>
+
+              {/* Stats Row */}
+              <div style={{ display: "flex", gap: 8, fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+                <span>📞 {caller._count?.calls || 0}</span>
+                <span>💭 {caller._count?.memories || 0}</span>
+                {caller.nextPrompt && <span style={{ color: "var(--status-success-text)" }}>✨</span>}
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{
+                display: "flex",
+                gap: 4,
+                paddingTop: 8,
+                borderTop: "1px solid var(--border-subtle)"
+              }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); router.push(`${routePrefix}/callers/${caller.id}?tab=ai-call`); }}
+                  title="Start a call"
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    background: "var(--status-success-bg)",
+                    color: "var(--status-success-text)",
+                    border: "1px solid var(--status-success-border)",
+                    borderRadius: 5,
+                    cursor: "pointer",
+                  }}
+                >
+                  📞
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setSnapshotModal(caller); }}
+                  disabled={actionLoading === caller.id}
+                  title="Download snapshot"
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    background: "var(--surface-secondary)",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 5,
+                    cursor: "pointer",
+                  }}
+                >
+                  📥
+                </button>
+                {/* Spacer + Mini OCEAN */}
+                <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "flex-end" }}>
+                  {caller.personality && caller.personality.confidenceScore !== null && (
+                    <div style={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+                      {[
+                        { label: "O", value: caller.personality.openness, color: "#3b82f6" },
+                        { label: "C", value: caller.personality.conscientiousness, color: "#22c55e" },
+                        { label: "E", value: caller.personality.extraversion, color: "#f59e0b" },
+                        { label: "A", value: caller.personality.agreeableness, color: "#ec4899" },
+                        { label: "N", value: caller.personality.neuroticism, color: "#8b5cf6" },
+                      ].map((t, i) => (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 10 }}>
+                          <div style={{ width: 6, height: 14, background: "var(--border-default)", borderRadius: 2, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                            <div style={{ width: "100%", height: `${(t.value || 0) * 100}%`, background: t.color, borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 7, color: "var(--text-placeholder)", marginTop: 1 }}>{t.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {resetConfirm === caller.id ? (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleReset(caller.id); }}
+                      disabled={actionLoading === caller.id}
+                      title="Confirm reset"
+                      style={{
+                        padding: "5px 10px",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        background: "var(--button-destructive-bg)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 5,
+                        cursor: actionLoading === caller.id ? "wait" : "pointer",
+                      }}
+                    >
+                      {actionLoading === caller.id ? "..." : "Yes"}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setResetConfirm(null); }}
+                      style={{
+                        padding: "5px 8px",
+                        fontSize: 10,
+                        background: "var(--surface-secondary)",
+                        color: "var(--text-muted)",
+                        border: "none",
+                        borderRadius: 5,
+                        cursor: "pointer",
+                      }}
+                    >
+                      No
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setResetConfirm(caller.id); }}
+                    disabled={!hasAnalysisData(caller) || actionLoading === caller.id}
+                    title={hasAnalysisData(caller) ? "Reset analysis" : "No data"}
+                    style={{
+                      padding: "5px 10px",
+                      fontSize: 12,
+                      background: hasAnalysisData(caller) ? "var(--status-error-bg)" : "var(--surface-secondary)",
+                      color: hasAnalysisData(caller) ? "var(--status-error-text)" : "var(--text-placeholder)",
+                      border: `1px solid ${hasAnalysisData(caller) ? "var(--status-error-border)" : "var(--border-default)"}`,
+                      borderRadius: 5,
+                      cursor: hasAnalysisData(caller) ? "pointer" : "not-allowed",
+                      opacity: hasAnalysisData(caller) ? 1 : 0.5,
+                    }}
+                  >
+                    🔄
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowDeleteModal(caller); setDeleteExclude(false); }}
+                  title="Delete caller"
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    background: "var(--status-error-bg)",
+                    color: "var(--status-error-text)",
+                    border: "1px solid var(--status-error-border)",
+                    borderRadius: 5,
+                    cursor: "pointer",
+                  }}
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Snapshot Modal */}
+      {snapshotModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setSnapshotModal(null)}
+        >
+          <div
+            style={{
+              background: "var(--surface-primary)",
+              borderRadius: 12,
+              padding: 24,
+              width: 400,
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
+              Download Snapshot
+            </h3>
+            <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "var(--text-muted)" }}>
+              Download analysis data for <strong>{getCallerLabel(snapshotModal)}</strong>
+            </p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
+                Label (optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., playbook-v1, baseline, test-run-3"
+                value={snapshotLabel}
+                onChange={(e) => setSnapshotLabel(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border-default)",
+                  fontSize: 14,
+                }}
+              />
+              <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "var(--text-placeholder)" }}>
+                Label helps identify this snapshot when comparing multiple runs
+              </p>
+            </div>
+
+            <div style={{
+              background: "var(--surface-secondary)",
+              padding: 12,
+              borderRadius: 8,
+              marginBottom: 16,
+              fontSize: 13,
+              color: "var(--text-secondary)",
+            }}>
+              <strong>Comparison Workflow:</strong>
+              <ol style={{ margin: "8px 0 0 0", paddingLeft: 20, lineHeight: 1.6 }}>
+                <li>Download snapshot (label: &quot;baseline&quot;)</li>
+                <li>Reset caller analysis</li>
+                <li>Change playbook/settings</li>
+                <li>Re-run analysis</li>
+                <li>Download snapshot (label: &quot;variant-a&quot;)</li>
+                <li>Use <code style={{ background: "var(--code-bg)", padding: "2px 4px", borderRadius: 3 }}>diff</code> or JSON comparison tool</li>
+              </ol>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  setSnapshotModal(null);
+                  setSnapshotLabel("");
+                }}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDownload(snapshotModal)}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: "var(--button-primary-bg)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                }}
+              >
+                Download JSON
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Action Bar - when 2+ callers selected */}
+      {selectionMode && selectedCallers.size >= 2 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--surface-tertiary)",
+            color: "var(--text-primary)",
+            padding: "12px 24px",
+            borderRadius: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+            zIndex: 1000,
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 500 }}>
+            {selectedCallers.size} callers selected
+          </span>
+          <button
+            onClick={() => {
+              setMergeTarget(null);
+              setShowMergeModal(true);
+            }}
+            disabled={selectedCallers.size < 2}
+            style={{
+              padding: "8px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              background: selectedCallers.size < 2 ? "var(--text-placeholder)" : "var(--button-primary-bg)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              cursor: selectedCallers.size < 2 ? "not-allowed" : "pointer",
+              opacity: selectedCallers.size < 2 ? 0.6 : 1,
+            }}
+          >
+            Merge Selected {selectedCallers.size >= 2 ? `(${selectedCallers.size})` : ""}
+          </button>
+          <button
+            onClick={exitSelectionMode}
+            style={{
+              padding: "8px 16px",
+              fontSize: 14,
+              background: "transparent",
+              color: "var(--text-placeholder)",
+              border: "1px solid var(--border-strong)",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Merge Modal */}
+      {showMergeModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1001,
+          }}
+          onClick={() => !merging && setShowMergeModal(false)}
+        >
+          <div
+            style={{
+              background: "var(--surface-primary)",
+              borderRadius: 12,
+              padding: 24,
+              width: 500,
+              maxWidth: "90vw",
+              maxHeight: "80vh",
+              overflow: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
+              Merge {selectedCallers.size} Callers
+            </h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)" }}>
+              Select which caller will receive all merged data. The other{" "}
+              {selectedCallers.size - 1} caller{selectedCallers.size > 2 ? "s" : ""} will be deleted.
+            </p>
+
+            {!mergeTarget && (
+              <div style={{
+                padding: "12px 16px",
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
+                borderRadius: 8,
+                marginBottom: 16,
+                fontSize: 14,
+                color: "var(--status-warning-text)",
+              }}>
+                ⚠️ Please select a target caller below
+              </div>
+            )}
+
+            {/* Target selection */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 10, color: "var(--text-secondary)" }}>
+                Merge into:
+              </label>
+              {getSelectedCallersList().map((caller) => (
+                <label
+                  key={caller.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    padding: 12,
+                    marginBottom: 8,
+                    background: mergeTarget === caller.id ? "var(--status-info-bg)" : "var(--background)",
+                    border: mergeTarget === caller.id ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="mergeTarget"
+                    value={caller.id}
+                    checked={mergeTarget === caller.id}
+                    onChange={() => setMergeTarget(caller.id)}
+                    style={{ marginTop: 2 }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                      {getCallerLabel(caller)}
+                    </div>
+                    {caller.email && caller.name && (
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                        {caller.email}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 12 }}>
+                      <span>{caller._count?.calls || 0} calls</span>
+                      <span>{caller._count?.memories || 0} memories</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Warning */}
+            <div
+              style={{
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 20,
+                fontSize: 13,
+                color: "var(--status-warning-text)",
+              }}
+            >
+              <strong>Warning:</strong> This action cannot be undone. The{" "}
+              {selectedCallers.size - 1} non-target caller(s) will be permanently
+              deleted after their data is moved.
+            </div>
+
+            {/* Summary */}
+            {mergeTarget && (
+              <div
+                style={{
+                  background: "var(--status-success-bg)",
+                  border: "1px solid var(--status-success-border)",
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 20,
+                  fontSize: 13,
+                  color: "var(--status-success-text)",
+                }}
+              >
+                <strong>Data to be merged:</strong>
+                <ul style={{ margin: "8px 0 0 0", paddingLeft: 20 }}>
+                  <li>
+                    {getSelectedCallersList()
+                      .filter((c) => c.id !== mergeTarget)
+                      .reduce((sum, c) => sum + (c._count?.calls || 0), 0)}{" "}
+                    calls
+                  </li>
+                  <li>
+                    {getSelectedCallersList()
+                      .filter((c) => c.id !== mergeTarget)
+                      .reduce((sum, c) => sum + (c._count?.memories || 0), 0)}{" "}
+                    memories
+                  </li>
+                  <li>
+                    {getSelectedCallersList()
+                      .filter((c) => c.id !== mergeTarget)
+                      .reduce((sum, c) => sum + (c._count?.personalityObservations || 0), 0)}{" "}
+                    personality observations
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowMergeModal(false)}
+                disabled={merging}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: merging ? "not-allowed" : "pointer",
+                  opacity: merging ? 0.5 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMerge}
+                disabled={!mergeTarget || merging}
+                title={!mergeTarget ? "Please select a target caller first" : ""}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: !mergeTarget || merging ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: !mergeTarget || merging ? "not-allowed" : "pointer",
+                }}
+              >
+                {merging ? "Merging..." : "Merge Callers"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1001,
+          }}
+          onClick={() => !deleting && setShowDeleteModal(null)}
+        >
+          <div
+            style={{
+              background: "var(--surface-primary)",
+              borderRadius: 12,
+              padding: 24,
+              width: 440,
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>🗑️</div>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600, textAlign: "center" }}>
+              Delete Caller
+            </h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)", textAlign: "center" }}>
+              Delete <strong>{getCallerLabel(showDeleteModal)}</strong> and all their data?
+            </p>
+
+            {/* Stats */}
+            <div
+              style={{
+                background: "var(--status-error-bg)",
+                border: "1px solid var(--status-error-border)",
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 16,
+                fontSize: 13,
+                color: "var(--status-error-text)",
+              }}
+            >
+              <strong>This will permanently delete:</strong>
+              <ul style={{ margin: "8px 0 0 0", paddingLeft: 20 }}>
+                <li>{showDeleteModal._count?.calls || 0} calls and transcripts</li>
+                <li>{showDeleteModal._count?.memories || 0} memories</li>
+                <li>{showDeleteModal._count?.personalityObservations || 0} personality observations</li>
+                <li>All analysis scores and behavior measurements</li>
+              </ul>
+            </div>
+
+            {/* Exclude Option */}
+            {(showDeleteModal.phone || showDeleteModal.externalId) && (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  padding: 12,
+                  background: deleteExclude ? "var(--status-warning-bg)" : "var(--background)",
+                  border: deleteExclude ? "2px solid var(--status-warning-border)" : "1px solid var(--border-default)",
+                  borderRadius: 8,
+                  marginBottom: 20,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={deleteExclude}
+                  onChange={(e) => setDeleteExclude(e.target.checked)}
+                  style={{ marginTop: 3, width: 18, height: 18 }}
+                />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-secondary)" }}>
+                    Exclude from future imports
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                    When running &quot;Import Transcripts&quot;, calls from{" "}
+                    <strong>{showDeleteModal.phone || showDeleteModal.externalId}</strong>{" "}
+                    will be skipped. Use this for spam callers or test data you don&apos;t want re-imported.
+                  </div>
+                </div>
+              </label>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDeleteModal(null)}
+                disabled={deleting}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  opacity: deleting ? 0.5 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(showDeleteModal)}
+                disabled={deleting}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: deleting ? "var(--button-disabled-bg)" : "var(--button-destructive-bg)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                {deleting ? "Deleting..." : "Delete Caller"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Caller Modal */}
+      {showCreateModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1001,
+          }}
+          onClick={() => !creating && setShowCreateModal(false)}
+        >
+          <div
+            style={{
+              background: "var(--surface-primary)",
+              borderRadius: 12,
+              padding: 24,
+              width: 440,
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
+              New Caller
+            </h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)" }}>
+              Create a new caller profile
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={newCallerName}
+                  onChange={(e) => setNewCallerName(e.target.value)}
+                  placeholder="John Smith"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    fontSize: 14,
+                    background: "var(--surface-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={newCallerEmail}
+                  onChange={(e) => setNewCallerEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    fontSize: 14,
+                    background: "var(--surface-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={newCallerPhone}
+                  onChange={(e) => setNewCallerPhone(e.target.value)}
+                  placeholder="+1 555 123 4567"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    fontSize: 14,
+                    background: "var(--surface-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                  Domain (optional)
+                </label>
+                <FancySelect
+                  value={newCallerDomainId}
+                  onChange={setNewCallerDomainId}
+                  placeholder="Select domain..."
+                  clearable
+                  options={domains.map((d) => ({ value: d.id, label: d.name }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 24 }}>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewCallerName("");
+                  setNewCallerEmail("");
+                  setNewCallerPhone("");
+                  setNewCallerDomainId("");
+                }}
+                disabled={creating}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  background: "var(--button-secondary-bg)",
+                  color: "var(--text-secondary)",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: creating ? "not-allowed" : "pointer",
+                  opacity: creating ? 0.5 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCaller}
+                disabled={creating || (!newCallerName.trim() && !newCallerEmail.trim() && !newCallerPhone.trim())}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: creating ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: creating ? "not-allowed" : "pointer",
+                }}
+              >
+                {creating ? "Creating..." : "Create Caller"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

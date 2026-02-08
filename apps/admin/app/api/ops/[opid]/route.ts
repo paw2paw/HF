@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { execFile as _execFile } from "child_process";
 import { promisify } from "util";
-import path from "node:path";
 
 const execFile = promisify(_execFile);
 
@@ -80,13 +79,6 @@ function projectCwd() {
   return process.cwd();
 }
 
-function kbRootFromEnv(): string {
-  // HF_KB_PATH is the preferred env var for the knowledge base root.
-  // Default: ../../knowledge (relative to the admin app cwd).
-  const env = typeof process.env.HF_KB_PATH === "string" ? process.env.HF_KB_PATH.trim() : "";
-  if (env) return env;
-  return path.resolve(projectCwd(), "../../knowledge");
-}
 
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -112,6 +104,15 @@ function safeName(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   if (!t) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(t)) return null;
+  return t;
+}
+
+function safeId(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  if (!t) return null;
+  // allow cuid/uuid-ish ids
   if (!/^[a-zA-Z0-9_-]+$/.test(t)) return null;
   return t;
 }
@@ -388,6 +389,48 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({ cmd: "npx prisma db seed" }),
   },
 
+  "prisma:migrate:deploy": {
+    title: "Deploy migrations (CI)",
+    description: "Apply pending migrations without creating new ones (safe for CI/production)",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "mutates",
+    effects: { reads: ["prisma/migrations"], writes: ["database", "_prisma_migrations"] },
+    buildCommand: () => ({ cmd: "npx prisma migrate deploy" }),
+  },
+
+  "prisma:migrate:reset": {
+    title: "Reset database",
+    description: "Drop all tables and reapply migrations (DESTRUCTIVE - dev only)",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "destructive",
+    effects: { deletes: ["all database tables"], creates: ["database schema"] },
+    buildCommand: () => ({ cmd: "npx prisma migrate reset --force" }),
+  },
+
+  "db:setup": {
+    title: "Full DB setup (CI)",
+    description: "Deploy migrations + seed database in one step",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "mutates",
+    effects: { reads: ["prisma/migrations", "prisma/seed.ts"], writes: ["database"] },
+    buildCommand: () => ({ cmd: "npx prisma migrate deploy" }),
+  },
+
+  "db:check": {
+    title: "Check database",
+    description: "Verify database connection and show table counts",
+    supportsPlan: false,
+    supportsVerbose: false,
+    risk: "safe",
+    effects: { reads: ["database"] },
+    buildCommand: () => ({
+      cmd: "npx tsx -e \"const {PrismaClient}=require('@prisma/client');const p=new PrismaClient();(async()=>{await p.$connect();const counts={parameters:await p.parameter.count(),tags:await p.tag.count(),users:await p.user.count(),calls:await p.call.count(),parameterSets:await p.parameterSet.count(),analysisRuns:await p.analysisRun.count(),knowledgeDocs:await p.knowledgeDoc.count()};console.log(JSON.stringify({ok:true,counts,summary:'DB connected, '+Object.entries(counts).map(([k,v])=>k+':'+v).join(', ')}));await p.$disconnect();})().catch(e=>{console.error(JSON.stringify({ok:false,error:e.message}));process.exit(1);})\""
+    }),
+  },
+
   "git:status": {
     title: "Git status",
     description: "Shows working tree + branch",
@@ -454,14 +497,21 @@ const OPS: Record<string, OpSpec> = {
       return {
         cmd:
           "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-          "  const res = await m.importParametersSnapshot({ force: " +
-          (force ? "true" : "false") +
-          " });\n" +
+          "  const force = " + (force ? "true" : "false") + ";\n" +
+          "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+          "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+          "  const fn = (typeof mod === 'function') ? mod : (root.importParametersSnapshot || root.importParametersSnapshots || root.importParametersSnapshotFromCsv || root.importParameters || root.importSnapshot || root.import);\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+          "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+          "    throw new Error('No compatible import function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+          "  }\n" +
+          "  const res = await fn({ force });\n" +
           "  console.log(JSON.stringify({ ok: true, snapshot: res }, null, 2));\n" +
           "}).catch((e) => {\n" +
           "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
           "  process.exitCode = 1;\n" +
-          "});\"",
+          "});\""
       };
     },
   },
@@ -671,42 +721,6 @@ const OPS: Record<string, OpSpec> = {
     },
   },
 
-  "transcripts:index": {
-    title: "Transcripts: index",
-    description: "List transcript JSON files in <kb>/transcripts/raw with basic metadata + sha256 (Ops UI)",
-    supportsPlan: true,
-    supportsVerbose: true,
-    risk: "safe",
-    effects: { reads: ["HF_KB_PATH", "<kb>/transcripts/raw"], writes: [] },
-    buildCommand: (body) => {
-      const limit = safeInt(body.limit, 200);
-      return {
-        cmd:
-          "node -e \"" +
-          "const fs=require('fs');" +
-          "const path=require('path');" +
-          "const crypto=require('crypto');" +
-          "const cwd=process.cwd();" +
-          "const env=(process.env.HF_KB_PATH||'').trim();" +
-          "const kbRoot=env||path.resolve(cwd,'../../knowledge');" +
-          "const dir=path.join(kbRoot,'transcripts','raw');" +
-          "const limit=" +
-          limit +
-          ";" +
-          "const sha256=(p)=>{try{const b=fs.readFileSync(p);return crypto.createHash('sha256').update(b).digest('hex');}catch{return null}};" +
-          "let items=[];" +
-          "try{" +
-          "if(!fs.existsSync(dir)){console.log(JSON.stringify({ok:true,kbRoot,dir,exists:false,count:0,items:[]},null,2));process.exit(0);}" +
-          "const names=fs.readdirSync(dir).filter(n=>n.toLowerCase().endsWith('.json')).sort();" +
-          "for(const name of names){if(items.length>=limit) break;const abs=path.join(dir,name);let st=null;try{st=fs.statSync(abs);}catch{continue;}" +
-          "items.push({id:'transcript:'+name,title:name,subtitle:'transcripts/raw',meta:{name,abs,bytes:st.size,modifiedAt:st.mtime.toISOString(),sha256:sha256(abs)}});}" +
-          "}catch(e){console.log(JSON.stringify({ok:false,kbRoot,dir,error:String(e&&e.message||e)},null,2));process.exitCode=1;return;}" +
-          "console.log(JSON.stringify({ok:true,kbRoot,dir,exists:true,count:items.length,items},null,2));" + 
-          "\"",
-      };
-    },
-  },
-
   "snapshots:index": {
     title: "Snapshots: index",
     description: "List KB snapshots (currently: parameters snapshots) for the Ops UI",
@@ -717,7 +731,15 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({
       cmd:
         "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-        "  const snaps = await m.listParameterSnapshots();\n" +
+        "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+        "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+        "  const fn = root.listParameterSnapshots || root.listParametersSnapshots || root.listSnapshots;\n" +
+        "  if (typeof fn !== 'function') {\n" +
+        "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+        "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+        "    throw new Error('No compatible list snapshots function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+        "  }\n" +
+        "  const snaps = await fn();\n" +
         "  const items = (snaps || []).map((s) => ({\n" +
         "    id: 'snapshot:' + (s.id || s.snapshotId || s.name || ''),\n" +
         "    title: s.name || s.id || s.snapshotId || 'snapshot',\n" +
@@ -728,7 +750,7 @@ const OPS: Record<string, OpSpec> = {
         "}).catch((e) => {\n" +
         "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
         "  process.exitCode = 1;\n" +
-        "});\"",
+        "});\""
     }),
   },
 
@@ -756,11 +778,30 @@ const OPS: Record<string, OpSpec> = {
     supportsPlan: true,
     supportsVerbose: true,
     risk: "safe",
-    effects: { reads: ["ParameterSet", "ParameterSetParameter"] },
+    effects: { reads: ["AnalysisProfile", "AnalysisProfileParameter"] },
     buildCommand: () => ({
       cmd:
-        "node -e \"const {PrismaClient}=require('\\@prisma/client');(async()=>{const prisma=new PrismaClient();try{const sets=await prisma.parameterSet.findMany({take:50,orderBy:{createdAt:'desc'},select:{id:true,name:true,createdAt:true}});const ids=sets.map(s=>s.id);const counts=ids.length?await prisma.parameterSetParameter.groupBy({by:['parameterSetId'],where:{parameterSetId:{in:ids}},_count:{_all:true}}):[];const m=new Map(counts.map(c=>[c.parameterSetId,c._count._all]));const out={ok:true,sets:sets.map(s=>({id:s.id,name:s.name,createdAt:s.createdAt,params:m.get(s.id)||0}))};console.log(JSON.stringify(out,null,2));}catch(e){console.error(e);process.exitCode=1;}finally{await prisma.\\$disconnect();}})();\"",
+        "node -e \"const {PrismaClient}=require('\\@prisma/client');(async()=>{const prisma=new PrismaClient();try{const sets=await prisma.analysisProfile.findMany({take:50,orderBy:{createdAt:'desc'},select:{id:true,name:true,createdAt:true}});const ids=sets.map(s=>s.id);const counts=ids.length?await prisma.analysisProfileParameter.groupBy({by:['analysisProfileId'],where:{analysisProfileId:{in:ids}},_count:{_all:true}}):[];const m=new Map(counts.map(c=>[c.analysisProfileId,c._count._all]));const out={ok:true,profiles:sets.map(s=>({id:s.id,name:s.name,createdAt:s.createdAt,params:m.get(s.id)||0}))};console.log(JSON.stringify(out,null,2));}catch(e){console.error(e);process.exitCode=1;}finally{await prisma.\\$disconnect();}})();\"",
     }),
+  },
+  "analysis:read:profile": {
+    title: "Read: AnalysisProfile",
+    description: "Fetch a single AnalysisProfile plus its linked parameters",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "safe",
+    effects: { reads: ["AnalysisProfile", "AnalysisProfileParameter", "Parameter"] },
+    buildCommand: (body) => {
+      const id = safeId((body as any).id) || safeId((body as any).analysisProfileId) || safeId((body as any).parameterSetId);
+      // Embed the id into the node script (safeId prevents injection).
+      const idLit = id ? id : "";
+      return {
+        cmd:
+          "node -e \"const {PrismaClient}=require('\\@prisma/client');(async()=>{const prisma=new PrismaClient();const id='" +
+          idLit +
+          "';try{if(!id){console.log(JSON.stringify({ok:false,error:'Missing id (send {id} or {analysisProfileId})'},null,2));return;}const profile=await prisma.analysisProfile.findUnique({where:{id},select:{id:true,name:true,createdAt:true}});if(!profile){console.log(JSON.stringify({ok:false,error:'Not found',id},null,2));return;}const links=await prisma.analysisProfileParameter.findMany({where:{analysisProfileId:id}});const ids=Array.from(new Set((links||[]).map((x)=>x.parameterId).filter(Boolean)));let parameters=[];if(ids.length){try{parameters=await prisma.parameter.findMany({where:{id:{in:ids}}});}catch(e){parameters=[];}}// Preserve a sensible display order: follow link order first, then append any missing.\nconst order=new Map();(links||[]).forEach((l,i)=>{if(l&&l.parameterId&&!order.has(l.parameterId))order.set(l.parameterId,i);});parameters=(parameters||[]).slice().sort((a,b)=>{const ai=order.has(a.id)?order.get(a.id):Number.MAX_SAFE_INTEGER;const bi=order.has(b.id)?order.get(b.id):Number.MAX_SAFE_INTEGER;return ai-bi;});console.log(JSON.stringify({ok:true,profile,links,parameters},null,2));}catch(e){console.error(e);process.exitCode=1;}finally{await prisma.\\$disconnect();}})();\"",
+      };
+    },
   },
 
   // --- Knowledge cockpit (local KB folder → derived docs → vectors) ---
@@ -777,12 +818,20 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({
       cmd:
         "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-        "  const snaps = await m.listParameterSnapshots();\n" +
-        "  console.log(JSON.stringify({ ok: true, count: snaps.length, snapshots: snaps }, null, 2));\n" +
+        "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+        "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+        "  const fn = root.listParameterSnapshots || root.listParametersSnapshots || root.listSnapshots;\n" +
+        "  if (typeof fn !== 'function') {\n" +
+        "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+        "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+        "    throw new Error('No compatible list snapshots function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+        "  }\n" +
+        "  const snaps = await fn();\n" +
+        "  console.log(JSON.stringify({ ok: true, count: (snaps||[]).length, snapshots: snaps }, null, 2));\n" +
         "}).catch((e) => {\n" +
         "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
         "  process.exitCode = 1;\n" +
-        "});\"",
+        "});\""
     }),
   },
   "kb:snapshots:list": {
@@ -795,12 +844,20 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({
       cmd:
         "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-        "  const snaps = await m.listParameterSnapshots();\n" +
-        "  console.log(JSON.stringify({ ok: true, kind: 'parameters', count: snaps.length, snapshots: snaps }, null, 2));\n" +
+        "  const mod = (m && ((m as any).default ?? m)) as any;\n" +
+        "  const root = (mod && typeof mod === 'object') ? mod : {};\n" +
+        "  const fn = root.listParameterSnapshots || root.listParametersSnapshots || root.listSnapshots;\n" +
+        "  if (typeof fn !== 'function') {\n" +
+        "    const expKeys = m ? Object.keys(m as any) : [];\n" +
+        "    const defKeys = (root && typeof root === 'object') ? Object.keys(root) : [];\n" +
+        "    throw new Error('No compatible list snapshots function found in ./lib/knowledge/parameters. Exports: ' + expKeys.join(', ') + ' | default keys: ' + defKeys.join(', '));\n" +
+        "  }\n" +
+        "  const snaps = await fn();\n" +
+        "  console.log(JSON.stringify({ ok: true, kind: 'parameters', count: (snaps||[]).length, snapshots: snaps }, null, 2));\n" +
         "}).catch((e) => {\n" +
         "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
         "  process.exitCode = 1;\n" +
-        "});\"",
+        "});\""
     }),
   },
 
@@ -820,10 +877,46 @@ const OPS: Record<string, OpSpec> = {
       return {
         cmd:
           "npx tsx -e \"import('./lib/knowledge/parameters').then(async (m) => {\n" +
-          "  const res = await m.importParametersSnapshot({ force: " +
-          (force ? "true" : "false") +
-          " });\n" +
-          "  console.log(JSON.stringify({ ok: true, snapshot: res }, null, 2));\n" +
+          "  const ns = (m || {}) as any;\n" +
+          "  const d1 = ns?.default;\n" +
+          "  const d2 = d1?.default;\n" +
+          "  const force = " + (force ? "true" : "false") + ";\n" +
+          "\n" +
+          "  const candidates: Array<[string, any]> = [\n" +
+          "    ['ns.importParametersSnapshot', ns.importParametersSnapshot],\n" +
+          "    ['ns.importParametersSnapshots', ns.importParametersSnapshots],\n" +
+          "    ['ns.importParametersSnapshotFromCsv', ns.importParametersSnapshotFromCsv],\n" +
+          "    ['ns.default.importParametersSnapshot', d1?.importParametersSnapshot],\n" +
+          "    ['ns.default.importParametersSnapshots', d1?.importParametersSnapshots],\n" +
+          "    ['ns.default.importParametersSnapshotFromCsv', d1?.importParametersSnapshotFromCsv],\n" +
+          "    ['ns.default.default.importParametersSnapshot', d2?.importParametersSnapshot],\n" +
+          "    ['ns.default.default.importParametersSnapshots', d2?.importParametersSnapshots],\n" +
+          "    ['ns.default.default.importParametersSnapshotFromCsv', d2?.importParametersSnapshotFromCsv],\n" +
+          "  ];\n" +
+          "\n" +
+          "  const diag = {\n" +
+          "    exports: ns ? Object.keys(ns) : [],\n" +
+          "    defaultKeys: d1 && typeof d1 === 'object' ? Object.keys(d1) : [],\n" +
+          "    defaultDefaultKeys: d2 && typeof d2 === 'object' ? Object.keys(d2) : [],\n" +
+          "    types: Object.fromEntries(candidates.map(([k, v]) => [k, typeof v])),\n" +
+          "    sample: {\n" +
+          "      d1_importParametersSnapshot: d1?.importParametersSnapshot,\n" +
+          "      d2_importParametersSnapshot: d2?.importParametersSnapshot,\n" +
+          "    }\n" +
+          "  };\n" +
+          "  console.log(JSON.stringify({ ok: true, phase: 'diagnostic', force, diag }, null, 2));\n" +
+          "\n" +
+          "  const hit = candidates.find(([, v]) => typeof v === 'function');\n" +
+          "  const fn = hit ? hit[1] : null;\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    throw new Error('No compatible import function found in ./lib/knowledge/parameters. ' +\n" +
+          "      'exports=' + (diag.exports||[]).join(',') + ' ' +\n" +
+          "      'defaultKeys=' + (diag.defaultKeys||[]).join(',') + ' ' +\n" +
+          "      'defaultDefaultKeys=' + (diag.defaultDefaultKeys||[]).join(','));\n" +
+          "  }\n" +
+          "\n" +
+          "  const res = await (fn as any)({ force });\n" +
+          "  console.log(JSON.stringify({ ok: true, picked: hit ? hit[0] : null, snapshot: res }, null, 2));\n" +
           "}).catch((e) => {\n" +
           "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
           "  process.exitCode = 1;\n" +
@@ -862,6 +955,192 @@ const OPS: Record<string, OpSpec> = {
           "}catch(e){console.log(JSON.stringify({ok:false,dir,error:String(e&&e.message||e)},null,2));process.exitCode=1;return;}" +
           "console.log(JSON.stringify({ok:true,dir,exists:true,count:items.length,items},null,2));" +
           "\"",
+      };
+    },
+  },
+
+  "transcripts:process": {
+    title: "Transcripts: process",
+    description: "Extract calls from raw transcript JSON files into database with hash-based deduplication",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "mutates",
+    effects: {
+      reads: ["HF_KB_PATH", "<kb>/transcripts/raw"],
+      writes: ["ProcessedFile", "TranscriptBatch", "User"],
+      creates: ["ProcessedFile records", "TranscriptBatch records", "User records"]
+    },
+    buildCommand: (body) => {
+      const autoDetectType = asBool(body.autoDetectType, true);
+      const createUsers = asBool(body.createUsers, true);
+      const createBatches = asBool(body.createBatches, true);
+      const filepath = typeof body.filepath === "string" ? body.filepath.trim() : "";
+
+      return {
+        cmd:
+          "npx tsx -e \"import('./lib/ops/transcripts-process').then(async (m) => {\n" +
+          "  const fn = (m && (m.processTranscripts || (m as any).default?.processTranscripts));\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    throw new Error('processTranscripts function not found in ./lib/ops/transcripts-process');\n" +
+          "  }\n" +
+          "  const options = {\n" +
+          "    autoDetectType: " + autoDetectType + ",\n" +
+          "    createUsers: " + createUsers + ",\n" +
+          "    createBatches: " + createBatches + ",\n" +
+          (filepath ? "    filepath: '" + filepath.replace(/'/g, "\\'") + "',\n" : "") +
+          "  };\n" +
+          "  const result = await fn(options);\n" +
+          "  console.log(JSON.stringify({ ok: result.success, result }, null, 2));\n" +
+          "  if (!result.success) process.exitCode = 1;\n" +
+          "}).catch((e) => {\n" +
+          "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
+          "  process.exitCode = 1;\n" +
+          "});\""
+      };
+    },
+  },
+
+  "personality:analyze": {
+    title: "Personality: analyze",
+    description: "Extract personality traits from call transcripts using knowledge bank parameters as scoring rubric. Creates time-series PersonalityObservation records with decay-based aggregation.",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "mutates",
+    effects: {
+      reads: ["Parameter", "Call", "User"],
+      writes: ["PersonalityObservation", "UserPersonality"],
+      creates: ["PersonalityObservation records", "UserPersonality records"]
+    },
+    buildCommand: (body) => {
+      const callId = typeof body.callId === "string" ? body.callId.trim() : "";
+      const aggregate = asBool(body.aggregate, true);
+      const halfLifeDays = safeInt(body.halfLifeDays, 30);
+      const verbose = asBool(body.verbose, false);
+      const plan = asBool(body.plan, false);
+
+      return {
+        cmd:
+          "npx tsx -e \"import('./lib/ops/personality-analyze').then(async (m) => {\n" +
+          "  const fn = (m && (m.analyzePersonality || (m as any).default?.analyzePersonality));\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    throw new Error('analyzePersonality function not found in ./lib/ops/personality-analyze');\n" +
+          "  }\n" +
+          "  const options = {\n" +
+          (callId ? "    callId: '" + callId.replace(/'/g, "\\'") + "',\n" : "") +
+          "    aggregate: " + aggregate + ",\n" +
+          "    halfLifeDays: " + halfLifeDays + ",\n" +
+          "    verbose: " + verbose + ",\n" +
+          "    plan: " + plan + ",\n" +
+          "  };\n" +
+          "  const result = await fn(options);\n" +
+          "  console.log(JSON.stringify({ ok: result.errors.length === 0, result }, null, 2));\n" +
+          "  if (result.errors.length > 0) process.exitCode = 1;\n" +
+          "}).catch((e) => {\n" +
+          "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
+          "  process.exitCode = 1;\n" +
+          "});\""
+      };
+    },
+  },
+
+  "memory:extract": {
+    title: "Memory: extract",
+    description: "Extract structured memories (facts, preferences, events, topics, relationships, context) from call transcripts. Handles key normalization and contradiction resolution.",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "mutates",
+    effects: {
+      reads: ["Call", "User", "UserMemory"],
+      writes: ["UserMemory", "UserMemorySummary"],
+      creates: ["UserMemory records", "UserMemorySummary records"]
+    },
+    buildCommand: (body) => {
+      const callId = typeof body.callId === "string" ? body.callId.trim() : "";
+      const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+      const limit = safeInt(body.limit, 100);
+      const aggregate = asBool(body.aggregate, true);
+      const confidenceThreshold = typeof body.confidenceThreshold === "number" ? body.confidenceThreshold : 0.5;
+      const verbose = asBool(body.verbose, false);
+      const plan = asBool(body.plan, false);
+
+      return {
+        cmd:
+          "npx tsx -e \"import('./lib/ops/memory-extract').then(async (m) => {\n" +
+          "  const fn = (m && (m.extractMemories || (m as any).default?.extractMemories));\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    throw new Error('extractMemories function not found in ./lib/ops/memory-extract');\n" +
+          "  }\n" +
+          "  const options = {\n" +
+          (callId ? "    callId: '" + callId.replace(/'/g, "\\'") + "',\n" : "") +
+          (userId ? "    userId: '" + userId.replace(/'/g, "\\'") + "',\n" : "") +
+          "    limit: " + limit + ",\n" +
+          "    aggregate: " + aggregate + ",\n" +
+          "    confidenceThreshold: " + confidenceThreshold + ",\n" +
+          "    verbose: " + verbose + ",\n" +
+          "    plan: " + plan + ",\n" +
+          "  };\n" +
+          "  const result = await fn(options);\n" +
+          "  console.log(JSON.stringify({ ok: result.errors.length === 0, result }, null, 2));\n" +
+          "  if (result.errors.length > 0) process.exitCode = 1;\n" +
+          "}).catch((e) => {\n" +
+          "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
+          "  process.exitCode = 1;\n" +
+          "});\""
+      };
+    },
+  },
+
+  "knowledge:ingest": {
+    title: "Knowledge: ingest",
+    description: "Ingest knowledge documents (PDFs, markdown, text) with hash-based deduplication and resumable chunking",
+    supportsPlan: true,
+    supportsVerbose: true,
+    risk: "mutates",
+    effects: {
+      reads: ["HF_KB_PATH/sources/knowledge"],
+      writes: ["KnowledgeDoc", "KnowledgeChunk"],
+      creates: ["KnowledgeDoc records", "KnowledgeChunk records"]
+    },
+    buildCommand: (body) => {
+      const maxDocuments = safeInt(body.maxDocuments, 0); // 0 = unlimited
+      const maxCharsPerChunk = safeInt(body.maxCharsPerChunk, 1500);
+      const overlapChars = safeInt(body.overlapChars, 200);
+      const forceReprocess = asBool(body.forceReprocess, false);
+      const resumePartial = asBool(body.resumePartial, true);
+      const verbose = asBool(body.verbose, false);
+      const quiet = asBool(body.quiet, false);
+      const plan = asBool(body.plan, false);
+      const skipPdfs = asBool(body.skipPdfs, false);
+      const maxPdfSizeMB = safeInt(body.maxPdfSizeMB, 100);
+      // Memory limit in MB (default 512MB for background runs)
+      const maxMemoryMB = safeInt(body.maxMemoryMB, 512);
+
+      return {
+        cmd:
+          `node --max-old-space-size=${maxMemoryMB} -e "import('./lib/ops/knowledge-ingest.ts').then(async (m) => {\n` +
+          "  const fn = (m && (m.ingestKnowledge || (m as any).default?.ingestKnowledge));\n" +
+          "  if (typeof fn !== 'function') {\n" +
+          "    throw new Error('ingestKnowledge function not found in ./lib/ops/knowledge-ingest');\n" +
+          "  }\n" +
+          "  const options = {\n" +
+          "    maxDocuments: " + maxDocuments + ",\n" +
+          "    maxCharsPerChunk: " + maxCharsPerChunk + ",\n" +
+          "    overlapChars: " + overlapChars + ",\n" +
+          "    forceReprocess: " + forceReprocess + ",\n" +
+          "    resumePartial: " + resumePartial + ",\n" +
+          "    verbose: " + verbose + ",\n" +
+          "    quiet: " + quiet + ",\n" +
+          "    plan: " + plan + ",\n" +
+          "    skipPdfs: " + skipPdfs + ",\n" +
+          "    maxPdfSizeMB: " + maxPdfSizeMB + ",\n" +
+          "  };\n" +
+          "  const result = await fn(options);\n" +
+          "  console.log(JSON.stringify({ ok: result.errors.length === 0, result }, null, 2));\n" +
+          "  if (result.errors.length > 0) process.exitCode = 1;\n" +
+          "}).catch((e) => {\n" +
+          "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
+          "  process.exitCode = 1;\n" +
+          '});" --experimental-strip-types'
       };
     },
   },
@@ -908,38 +1187,12 @@ const OPS: Record<string, OpSpec> = {
     supportsVerbose: true,
     risk: "safe",
     effects: { reads: ["HF_KB_PATH", "<kb>/sources"], writes: ["<kb>/derived"], creates: ["<kb>/derived/links.json"] },
-    buildCommand: () => ({
-      cmd:
-        "npx tsx -e \"(async () => {\n" +
-        "  const fs = await import('node:fs');\n" +
-        "  const path = await import('node:path');\n" +
-        "  const { listKnowledgeFiles } = await import('./lib/knowledge/loader');\n" +
-        "  const cwd = process.cwd(); const env = (process.env.HF_KB_PATH||'').trim(); const root = env || path.resolve(cwd, '../../knowledge');\n" +
-        "  const src = path.join(root, 'sources');\n" +
-        "  const derived = path.join(root, 'derived');\n" +
-        "  fs.mkdirSync(derived, { recursive: true });\n" +
-        "  const urlRe = /https?:\\/\\/[^\\s)\\\"']+/g;\n" +
-        "  const files = await listKnowledgeFiles({ kbRoot: src });\n" +
-        "  const linksByFile = {};\n" +
-        "  let total = 0;\n" +
-        "  for (const abs of files) {\n" +
-        "    let s = '';\n" +
-        "    try { s = fs.readFileSync(abs, 'utf8'); } catch { continue; }\n" +
-        "    const m = s.match(urlRe) || [];\n" +
-        "    if (m.length) {\n" +
-        "      const rel = path.relative(src, abs).replace(/\\\\\\\\/g, '/');\n" +
-        "      (linksByFile as any)[rel] = Array.from(new Set(m));\n" +
-        "      total += (linksByFile as any)[rel].length;\n" +
-        "    }\n" +
-        "  }\n" +
-        "  const payload = { ok: true, root, sourceDir: src, derivedDir: derived, totalLinks: total, linksByFile };\n" +
-        "  fs.writeFileSync(path.join(derived, 'links.json'), JSON.stringify(payload, null, 2));\n" +
-        "  console.log(JSON.stringify(payload, null, 2));\n" +
-        "})().catch((e) => {\n" +
-        "  console.error(e && (e.stack || e.message) ? (e.stack || e.message) : String(e));\n" +
-        "  process.exitCode = 1;\n" +
-        "});\"",
-    }),
+    buildCommand: (body) => {
+      const dryRun = asBool(body.dryRun, false);
+      return {
+        cmd: `npx tsx lib/ops/kb-links-extract.ts${dryRun ? " --dry-run" : ""}`,
+      };
+    },
   },
 
   "kb:links:scrape": {
@@ -1067,6 +1320,116 @@ const OPS: Record<string, OpSpec> = {
     buildCommand: () => ({
       cmd:
         "node -e \"const {execSync}=require('child_process');const path=require('path');const cwd=process.cwd();const env=(process.env.HF_KB_PATH||'').trim();const root=env||path.resolve(cwd,'../../knowledge');try{execSync('git checkout -- '+root,{stdio:'inherit'});console.log('OK: reverted '+root);}catch(e){process.stderr.write(String(e&&e.message||e));process.exitCode=1;}\"",
+    }),
+  },
+
+  // --- Service Control Operations ---
+
+  "service:status": {
+    title: "Dev Environment: status",
+    description: "Check status of Docker, PostgreSQL, and HF_KB_PATH",
+    supportsPlan: false,
+    supportsVerbose: false,
+    risk: "safe",
+    effects: { reads: ["Docker", "PostgreSQL", "HF_KB_PATH"] },
+    buildCommand: () => ({
+      cmd: "./scripts/dev-start.sh status",
+    }),
+  },
+
+  "service:start": {
+    title: "Dev Environment: start (Colima)",
+    description: "Start Colima + PostgreSQL container (lightweight)",
+    supportsPlan: true,
+    supportsVerbose: false,
+    risk: "mutates",
+    effects: { reads: ["Colima", "Docker"], writes: ["Colima state", "PostgreSQL container"] },
+    buildCommand: () => ({
+      cmd: "./scripts/dev-start.sh colima",
+    }),
+  },
+
+  "service:start:docker": {
+    title: "Dev Environment: start (Docker Desktop)",
+    description: "Start Docker Desktop + PostgreSQL container",
+    supportsPlan: true,
+    supportsVerbose: false,
+    risk: "mutates",
+    effects: { reads: ["Docker Desktop"], writes: ["Docker Desktop state", "PostgreSQL container"] },
+    buildCommand: () => ({
+      cmd: "./scripts/dev-start.sh docker",
+    }),
+  },
+
+  "service:stop": {
+    title: "Dev Environment: stop",
+    description: "Stop PostgreSQL container and Colima",
+    supportsPlan: true,
+    supportsVerbose: false,
+    risk: "mutates",
+    effects: { writes: ["PostgreSQL container", "Colima state"] },
+    buildCommand: () => ({
+      cmd: "./scripts/dev-start.sh stop",
+    }),
+  },
+
+  "service:db:status": {
+    title: "DB: status",
+    description: "Check PostgreSQL container and connection status",
+    supportsPlan: false,
+    supportsVerbose: false,
+    risk: "safe",
+    effects: { reads: ["PostgreSQL container"] },
+    buildCommand: () => ({
+      cmd: "docker exec hf-postgres pg_isready -U postgres",
+    }),
+  },
+
+  "service:db:start": {
+    title: "DB: start container",
+    description: "Start the hf-postgres Docker container",
+    supportsPlan: true,
+    supportsVerbose: false,
+    risk: "mutates",
+    effects: { writes: ["PostgreSQL container"] },
+    buildCommand: () => ({
+      cmd: "docker start hf-postgres",
+    }),
+  },
+
+  "service:db:stop": {
+    title: "DB: stop container",
+    description: "Stop the hf-postgres Docker container",
+    supportsPlan: true,
+    supportsVerbose: false,
+    risk: "mutates",
+    effects: { writes: ["PostgreSQL container"] },
+    buildCommand: () => ({
+      cmd: "docker stop hf-postgres",
+    }),
+  },
+
+  "service:db:restart": {
+    title: "DB: restart container",
+    description: "Restart the hf-postgres Docker container",
+    supportsPlan: true,
+    supportsVerbose: false,
+    risk: "mutates",
+    effects: { writes: ["PostgreSQL container"] },
+    buildCommand: () => ({
+      cmd: "docker restart hf-postgres",
+    }),
+  },
+
+  "service:server:status": {
+    title: "Server: status",
+    description: "Check if Next.js dev server is running on port 3000",
+    supportsPlan: false,
+    supportsVerbose: false,
+    risk: "safe",
+    effects: { reads: ["Network ports"] },
+    buildCommand: () => ({
+      cmd: "lsof -i :3000 -sTCP:LISTEN",
     }),
   },
 };

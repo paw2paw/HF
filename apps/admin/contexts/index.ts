@@ -1,0 +1,11 @@
+export { EntityProvider, useEntityContext, ENTITY_COLORS } from "./EntityContext";
+export type { EntityType, EntityBreadcrumb } from "./EntityContext";
+
+export { ChatProvider, useChatContext, useChatKeyboardShortcut, MODE_CONFIG } from "./ChatContext";
+export type { ChatMode, ChatMessage } from "./ChatContext";
+
+export { ThemeProvider, useTheme, themeInitScript } from "./ThemeContext";
+export type { ThemePreference, ResolvedTheme } from "./ThemeContext";
+
+export { PaletteProvider, usePalette, palettePresets, darkPalettePresets } from "./PaletteContext";
+export type { PalettePreset } from "./PaletteContext";

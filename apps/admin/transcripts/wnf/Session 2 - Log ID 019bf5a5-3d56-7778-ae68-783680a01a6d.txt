@@ -1,0 +1,182 @@
+Phone Number: + 07768 595959
+Caller: WNF_STUDENT
+Call: 2
+Transcript
+Assistant
+Hi. WNF_STUDENT, Good to have you. let's just ease into our session.
+2:53:26 PM(+00:00.93)
+
+
+User
+Nice to talk to you again.
+2:53:32 PM(+00:06.23)
+
+
+Assistant
+Nice to talk to you too, WNF_STUDENT. Uh, today, we're diving into a book called Why Nations Fail by Darren Exmoglu and James Robinson.
+2:53:38 PM(+00:12.04)
+
+
+User
+What's the name of the book?
+
+
+2:53:44 PM(+00:18.83)
+
+
+Assistant
+The book is called Why Nations Fail. It's by Darren Ikimoglu and James Robinson. They actually won the Nobel Prize in economics for this work. It tackles one of the big questions, why are some countries rich and others desperately poor? Let me start with something that gets to the heart of their --
+2:53:48 PM(+00:22.34)
+User
+Isn't it a very simple mystery? It's not it's not everyone's knowledge?
+
+
+2:54:04 PM(+00:38.24)
+
+
+Assistant
+It it might seem straightforward, but the reasons behind why some nations prosper while others struggle are are quite complex. Um, let's explore this with an interesting example. There's a city called Nogales split by the US Mexico border. Same people on both --
+2:54:14 PM(+00:48.52)
+User
+Oh, I know the city. I know this story. I... let's try to explain this from a different angle or a different story. I I don't want to hear about this
+
+
+2:54:29 PM(+01:03.77)
+
+
+Assistant
+Alright. Let's take a different angle. Think about North and South Korea. Same people, same language, same history until nineteen forty five.
+2:54:47 PM(+01:21.75)
+
+
+CurrentTime
+No result returned. If this is unexpected, see troubleshooting tips at https://docs.vapi.ai/tools/custom-tools-troubleshooting#no-result-returned-error
+14:54
+
+
+2:54:50 PM(+01:24.35)
+User
+Okay.
+
+
+2:54:54 PM(+01:28.65)
+
+
+Assistant
+Now one is among the richest countries on earth, and the other is among the poorest. There's a famous satellite photo at night. South Korea is blazing with light, while North Korea is almost completely dark. What do you think explains that?
+2:55:00 PM(+01:34.09)
+User
+South Korea is very rich, and North Korea is very poor. And, uh, I don't know. They have very... North Korea, they have a terrible regime there. They don't want to like the country. They don't want the people to be happy to see where they're going, staying at their homes or whatever.
+
+
+2:55:15 PM(+01:49.84)
+
+
+Assistant
+That's right. North Korea has what's called extractive institutions. Power and wealth are concentrated among a narrow elite, and they use coercion to maintain control. South Korea, on the other hand, developed inclusive institutions. They allow broad participation in economic activity and protect property rights. So if that's true, what would you
+2:55:30 PM(+02:04.91)
+User
+How many If you're saying there is a a narrow eletus, you said... how narrow are is it? How many people in in North Korea told what's... how large is the country, and what is the number of what you call the elite people?
+
+
+2:55:51 PM(+02:25.31)
+
+
+Assistant
+In North Korea, the Elite is a very small group compared to the general population. It's primarily centered around the ruling family, uh, military leaders, and top government officials. The country has a population of about twenty five million, but the elite who hold real power are just a tiny fraction of that. This concentration of power is a key feature of extractive institutions. Why do you think it's so
+2:56:08 PM(+02:42.67)
+User
+Only twenty five million? Are you sure?
+
+
+2:56:32 PM(+03:06.39)
+
+
+Assistant
+Yes. North Korea's population. is around twenty five million people. It's a relatively small country, uh, in terms of population, especially compared to its neighbor, South Korea. The concentration of power among a small elite is what keeps the system extractive. Why do you think, uh, ordinary people can't just change the system?
+2:56:35 PM(+03:09.50)
+User
+This is because they... the the elite wants to keep their strength. They want to keep their power, and I'm not letting anyone else enjoy. They're probably afraid that prosperity or something might steal their influence.
+
+
+2:56:59 PM(+03:33.85)
+
+
+Assistant
+Exactly. The elite often fear that economic development could lead to, uh, creative destruction where new technologies and businesses might threaten their position. So they suppress innovation to maintain control. Let's test this idea against another case. Take East and West Germany after World War two. Uh, how would you explain their divergence using what we've discussed?
+2:57:15 PM(+03:49.43)
+User
+I thought this Germany was quite developed.
+
+
+2:57:39 PM(+04:13.19)
+
+
+Assistant
+Yes. West Germany developed rapidly after World War two, becoming a prosperous democracy with inclusive institutions. East Germany, however, was under Soviet influence with extractive institutions. It stagnated economically and politically. Both started from a similar point after the war, um, but their paths diverged. What do you think, uh, allowed, uh, West Germany to thrive while East Germany struggled?
+2:57:46 PM(+04:20.44)
+User
+I am not sure, but you know what? I I was never in Germany. I had Berlin is quite nice. What do you think?
+
+
+2:58:13 PM(+04:47.67)
+
+
+Assistant
+Berlin is indeed a fascinating city with a rich history. Uh, it's a place where you can see, um, the impact of these institutional differences. The Berlin Wall once divided the city, symbolizing the broader division between East and West Germany. West Berlin thrived under inclusive institutions, while East Berlin was under more restrictive extractive control. This division is a vivid example of how institutions can shape prosperity. If you're interested, I can send you more information about this later.
+2:58:21 PM(+04:55.54)
+User
+Yeah. That's that's really very nice. So what's... so I understand this book The the idea about this book or is is is just about inclusive institute... institution or not. This is the this is the secret. This is this is the no wise idea.
+
+
+2:58:50 PM(+05:24.26)
+
+
+Assistant
+Yes. That's the core idea. Inclusive institutions lead to prosperity by allowing broad participation and protecting rights while extractive institutions concentrate power and wealth, cycling growth. But it's not just about having the right institutions. It's also about how they evolve and respond to challenges. Would you like to explore how these ideas apply to a more complex case like China?
+2:59:14 PM(+05:48.39)
+User
+Yeah. Yeah. That would be very interesting. Yeah.
+
+
+2:59:39 PM(+06:13.30)
+
+
+Assistant
+Alright. China presents a unique case. It has experienced rapid economic growth under extractive political institutions. The authors argue that this growth is similar to the Soviet Union's early growth. It's based on moving labor to factories and importing technology, but without inclusive institutions, they believe China might struggle to sustain innovation led growth. What do you think could happen if if China doesn't transition to more inclusive institutions?
+2:59:43 PM(+06:17.80)
+User
+I think China will find the since they are very educated and the people who run the country are most of them are engineers and people of science stay. Um, I think they might find the the the right path. And reflecting on the idea of the book, they might build their right institution and also think they have been able to provides, um, a larger of the population to enjoy the prosperity so, uh, they can... so they might win it. Um, in this sense, I also like to discuss with you about when nations need... when does nation need to... or when they are... do they they understand when they should change and adapt their existing institution.
+
+
+3:00:13 PM(+06:47.20)
+
+
+Assistant
+That's an insightful point. Nations often face critical junctures, major events that disrupt the existing balance of power and create opportunities for institutional change. These can be, uh, wars, uh, economic crises, or technological shifts. The outcome depends on small initial differences in existing institutions. If a nation can adapt and embrace more inclusive institutions during these moments, it can lead... it can lead to long term prosperity. Would you like to explore a historical example of such a critical juncture?
+3:01:11 PM(+07:45.77)
+User
+Yeah. Yes. That's that's a that's a nice direction. Yeah.
+
+
+3:01:48 PM(+08:22.73)
+
+
+Assistant
+Let's look at the glorious revolution, um, in England in sixteen eighty eight. It was a critical juncture, uh, where parliament overthrew, uh, King James the second, leading to constitutional constraints on the monarchy. This established parliamentary supremacy, secure property rights, and independent courts. These changes laid the foundation for the industrial revolution. Why do you think these institutional changes were so crucial for England's economic development?
+3:01:54 PM(+08:28.87)
+User
+Yeah. I'm guessing I'm not sure. I mean, being original about it. Maybe they let, uh, they they involved more people in the, uh, process of, uh, nation creation.
+
+
+3:02:25 PM(+08:59.24)
+
+
+Assistant
+Exactly. By involving more people in the political process and securing property rights, England created an environment where innovation and investment were encouraged. This inclusivity allowed for the industrial revolution, uh, to take off, leading to sustained economic growth. It's a powerful example of how inclusive institutions can transform, uh, a nation's trajectory. Alright. Let's leave it there. for now. Uh, anything you'd like me to send you to look at later?
+3:02:40 PM(+09:14.85)
+User
+Whatever you think is necessary for our next lesson. Thank you.
+
+
+3:03:09 PM(+09:43.73)

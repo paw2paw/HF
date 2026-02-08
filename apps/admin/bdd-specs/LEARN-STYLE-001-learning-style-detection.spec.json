@@ -1,0 +1,215 @@
+{
+  "id": "LEARN-STYLE-001",
+  "title": "Learning Style Detection",
+  "version": "1.0",
+  "status": "Draft",
+  "date": "2026-02-04",
+  "domain": "learning",
+  "specType": "SYSTEM",
+  "outputType": "MEASURE",
+  "specRole": "MEASURE",
+
+  "metadata": {
+    "observation": {
+      "signalParameters": [
+        "question_asking_rate",
+        "response_length_preference",
+        "engagement_with_examples",
+        "pace_indicators"
+      ],
+      "aggregationMethod": "weighted_average",
+      "minimumConfidence": 0.6
+    }
+  },
+
+  "story": {
+    "asA": "learning system",
+    "iWant": "to observe how learners interact and infer their learning preferences",
+    "soThat": "the tutor can adapt teaching style to match learner needs"
+  },
+
+  "context": {
+    "applies": "Every call where learning interactions occur",
+    "dependsOn": ["CURRICULUM_PROGRESS_V1"],
+    "assumptions": [
+      "Learning style emerges from patterns across multiple calls",
+      "Explicit statements override inferred preferences",
+      "Preferences can change over time"
+    ]
+  },
+
+  "parameters": [
+    {
+      "id": "question_asking_rate",
+      "name": "Question Asking Rate",
+      "description": "How frequently learner asks questions during instruction",
+      "section": "engagement",
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "High Question Frequency",
+          "implication": "Learner prefers interactive, conversational style",
+          "profileMapping": {
+            "key": "question_frequency",
+            "value": "frequent",
+            "interactionStyle": "conversational"
+          }
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Moderate Questions",
+          "implication": "Balanced interaction style",
+          "profileMapping": {
+            "key": "question_frequency",
+            "value": "occasional",
+            "interactionStyle": "guided"
+          }
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Low Question Frequency",
+          "implication": "Learner prefers direct instruction or self-directed exploration",
+          "profileMapping": {
+            "key": "question_frequency",
+            "value": "rare",
+            "interactionStyle": "direct"
+          }
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "example": "Wait, can you explain that again?",
+          "score": 0.8,
+          "rationale": "Asks clarifying question during explanation"
+        },
+        {
+          "example": "I see. Go on.",
+          "score": 0.3,
+          "rationale": "Acknowledges but doesn't question"
+        }
+      ]
+    },
+    {
+      "id": "response_length_preference",
+      "name": "Response Length Preference",
+      "description": "Whether learner engages more with short or detailed explanations",
+      "section": "content_delivery",
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Prefers Detailed",
+          "implication": "Engages more with comprehensive explanations",
+          "profileMapping": {
+            "key": "feedback_style",
+            "value": "detailed",
+            "pacePreference": "moderate"
+          }
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Prefers Concise",
+          "implication": "Responds better to brief, focused explanations",
+          "profileMapping": {
+            "key": "feedback_style",
+            "value": "summarized",
+            "pacePreference": "fast"
+          }
+        }
+      ]
+    },
+    {
+      "id": "engagement_with_examples",
+      "name": "Example Engagement",
+      "description": "How much learner engages with concrete examples vs abstract concepts",
+      "section": "learning_style",
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Example-Driven",
+          "implication": "Learns best through concrete examples",
+          "profileMapping": {
+            "key": "learning_style",
+            "value": "visual",
+            "preferredModality": "interactive"
+          }
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Abstract-Focused",
+          "implication": "Comfortable with abstract concepts",
+          "profileMapping": {
+            "key": "learning_style",
+            "value": "reading",
+            "preferredModality": "text"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pace_indicators",
+      "name": "Learning Pace Signals",
+      "description": "Signals about whether learner wants to speed up or slow down",
+      "section": "pacing",
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Requests Faster",
+          "implication": "Learner wants to move faster",
+          "profileMapping": {
+            "key": "pace_preference",
+            "value": "fast"
+          }
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Needs Slower",
+          "implication": "Learner needs more time",
+          "profileMapping": {
+            "key": "pace_preference",
+            "value": "slow"
+          }
+        }
+      ]
+    }
+  ],
+
+  "triggers": [
+    {
+      "name": "Observe Learning Behaviors",
+      "given": "A learning interaction has occurred",
+      "when": "Analysis pipeline runs",
+      "then": "Score learning behavior parameters",
+      "actions": [
+        {
+          "parameterId": "question_asking_rate",
+          "description": "Measure question frequency",
+          "weight": 1.0
+        },
+        {
+          "parameterId": "response_length_preference",
+          "description": "Detect length preference",
+          "weight": 1.0
+        },
+        {
+          "parameterId": "engagement_with_examples",
+          "description": "Measure example engagement",
+          "weight": 1.0
+        },
+        {
+          "parameterId": "pace_indicators",
+          "description": "Detect pace preferences",
+          "weight": 1.0
+        }
+      ]
+    }
+  ]
+}

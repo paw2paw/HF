@@ -59,6 +59,18 @@ export interface Memory {
   sourceAnalysisId?: ID;
 }
 
+/**
+ * Knowledge chunk retrieved for prompt context enrichment.
+ * Makes the LLM "expert" in the ingested domain.
+ */
+export interface KnowledgeContext {
+  id: ID;
+  title?: string;
+  content: string;
+  relevanceScore: number;
+  source: string;  // e.g., "vector", "keyword", "artifact"
+}
+
 // Deterministic IDs for tests (keeps BDD stable)
 let _seq = 0;
 function id(prefix: string): ID {
@@ -67,16 +79,23 @@ function id(prefix: string): ID {
 }
 
 /**
- * Composes a PromptRun from templates and memory.
+ * Composes a PromptRun from templates, memory, and knowledge context.
  * Pure function. No side effects.
+ *
+ * Knowledge chunks are injected as a CONTEXT layer to make the LLM
+ * "expert" in whatever domain was ingested into the knowledge base.
  */
 export function composePromptRun(params: {
   user: HFUser;
   agent: HFAgent;
   templates: PromptTemplate[];
   memories: Memory[];
+  /** Retrieved knowledge chunks for domain expertise */
+  knowledgeContext?: KnowledgeContext[];
+  /** Max chars for knowledge context (default: 4000) */
+  maxKnowledgeChars?: number;
 }): PromptRun {
-  const { user, agent, templates, memories } = params;
+  const { user, agent, templates, memories, knowledgeContext, maxKnowledgeChars } = params;
 
   const layers: PromptLayerSnapshot[] = [];
 
@@ -87,6 +106,36 @@ export function composePromptRun(params: {
       templateId: t.id,
       layerType: "SYSTEM",
       renderedText: t.content,
+    });
+  }
+
+  // CONTEXT layer: inject retrieved knowledge to make LLM "expert" in the domain
+  if (knowledgeContext && knowledgeContext.length > 0) {
+    const maxChars = maxKnowledgeChars ?? 4000;
+    let renderedText = "Expert Knowledge Context:\n\n";
+    let charCount = renderedText.length;
+
+    for (const chunk of knowledgeContext) {
+      const prefix = chunk.title ? `[${chunk.title}] ` : "";
+      const line = `${prefix}${chunk.content}\n\n`;
+
+      if (charCount + line.length > maxChars) {
+        // Truncate if over budget
+        const remaining = maxChars - charCount - 20;
+        if (remaining > 100) {
+          renderedText += line.substring(0, remaining) + "...\n";
+        }
+        break;
+      }
+
+      renderedText += line;
+      charCount += line.length;
+    }
+
+    layers.push({
+      id: id("pls"),
+      layerType: "CONTEXT",
+      renderedText: renderedText.trim(),
     });
   }
 

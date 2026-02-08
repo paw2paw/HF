@@ -1,0 +1,227 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FeatureSpec",
+  "description": "BDD Feature Specification - single source of truth for analysis specs, parameters, and prompt guidance",
+  "type": "object",
+  "required": ["id", "title", "version", "story", "parameters"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[A-Z]*-?[0-9]+$",
+      "description": "Spec ID, e.g. CA-001, PERS-001, ADAPT-PERS-001"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable spec title"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Semver format: 1.0, 2.1, etc."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Draft", "Review", "Approved", "Deprecated"],
+      "default": "Draft",
+      "description": "Editorial status (informational)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last updated date (informational)"
+    },
+    "domain": {
+      "type": "string",
+      "description": "Category: personality, memory, engagement, style, supervision, etc."
+    },
+    "specType": {
+      "type": "string",
+      "enum": ["SYSTEM", "DOMAIN", "ADAPT", "SUPERVISE"],
+      "default": "DOMAIN",
+      "description": "Pipeline phase - WHEN: SYSTEM=always, DOMAIN=per-playbook, ADAPT=after measurements, SUPERVISE=validation"
+    },
+    "specRole": {
+      "type": "string",
+      "enum": ["IDENTITY", "CONTENT", "META"],
+      "default": "META",
+      "description": "Conceptual role - IDENTITY=who agent is (contributes config to prompts), CONTENT=what it knows (contributes config to prompts), META=how it adapts (produces runtime data via outputType)"
+    },
+    "outputType": {
+      "type": "string",
+      "enum": ["MEASURE", "LEARN", "ADAPT", "MEASURE_AGENT", "REWARD", "COMPOSE", "AGGREGATE"],
+      "default": "MEASURE",
+      "description": "Runtime output (META specs only) - MEASURE=caller scores, LEARN=memories, ADAPT=targets, MEASURE_AGENT=agent scores, REWARD=rewards, COMPOSE=prompts, AGGREGATE=profiles. IDENTITY/CONTENT specs use specRole instead."
+    },
+    "story": {
+      "type": "object",
+      "required": ["asA", "iWant", "soThat"],
+      "description": "User story - used to build spec description",
+      "properties": {
+        "asA": { "type": "string" },
+        "iWant": { "type": "string" },
+        "soThat": { "type": "string" }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Contextual documentation (informational)",
+      "properties": {
+        "applies": { "type": "string" },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "description": "BDD acceptance criteria (documentation - links parameters to behaviors)",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "given", "when", "then"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^AC-[A-Z]*-?[0-9]+$" },
+          "title": { "type": "string" },
+          "given": { "type": "string" },
+          "when": { "type": "string" },
+          "then": { "type": "string" },
+          "measuredBy": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Parameter IDs that measure this AC"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "description": "CRITICAL: The parameters this spec measures/computes - creates Parameter records",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique parameter ID → Parameter.parameterId"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name → Parameter.name"
+          },
+          "description": {
+            "type": "string",
+            "description": "What this measures → Parameter.definition"
+          },
+          "section": {
+            "type": "string",
+            "description": "Section grouping → Parameter.sectionId"
+          },
+          "isAdjustable": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, this is a BEHAVIOR parameter (agent target)"
+          },
+          "targetRange": {
+            "type": "object",
+            "properties": {
+              "min": { "type": "number", "default": 0 },
+              "max": { "type": "number", "default": 1 }
+            }
+          },
+          "config": {
+            "type": "object",
+            "description": "Parameter-specific config (thresholds, linked IDs, etc.)",
+            "additionalProperties": true
+          },
+          "interpretationScale": {
+            "type": "array",
+            "description": "Score ranges → labels → interpretationHigh/Low",
+            "items": {
+              "type": "object",
+              "required": ["min", "max", "label"],
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" },
+                "label": { "type": "string" },
+                "implication": { "type": "string" }
+              }
+            }
+          },
+          "scoringAnchors": {
+            "type": "array",
+            "description": "CRITICAL for MEASURE: Calibration examples → ParameterScoringAnchor records",
+            "items": {
+              "type": "object",
+              "required": ["score", "example"],
+              "properties": {
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "example": {
+                  "type": "string",
+                  "description": "Quote/scenario demonstrating this score"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "isGold": {
+                  "type": "boolean",
+                  "default": true
+                }
+              }
+            }
+          },
+          "promptGuidance": {
+            "type": "object",
+            "description": "CRITICAL: Creates PromptSlug records for prompt injection",
+            "properties": {
+              "whenHigh": {
+                "type": "string",
+                "description": "Guidance when score >= 0.65 → PromptSlug"
+              },
+              "whenLow": {
+                "type": "string",
+                "description": "Guidance when score <= 0.35 → PromptSlug"
+              }
+            }
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Operational constraints (stored in BDDFeatureSet)",
+      "items": {
+        "type": "object",
+        "required": ["id", "description"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "description": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "warning", "info"]
+          }
+        }
+      }
+    },
+    "related": {
+      "type": "array",
+      "description": "Related specs (documentation)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "relationship": { "type": "string" }
+        }
+      }
+    }
+  }
+}

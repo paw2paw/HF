@@ -1,0 +1,339 @@
+import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { seedCompanionDomain } from "../../../../prisma/_archived/seed-companion";
+import { seedFromSpecs } from "../../../../prisma/seed-from-specs";
+
+/**
+ * POST /api/x/seed-domains
+ *
+ * Creates default domains (WNF TUTOR and COMPANION) with all required:
+ * - Domains
+ * - Playbooks
+ * - AnalysisSpecs
+ * - Parameters
+ * - PromptTemplates
+ * - BehaviorTargets
+ * - PlaybookItems (links specs to playbooks)
+ *
+ * NOTE: This route now calls seedFromSpecs() FIRST to ensure all BDD specs
+ * exist in the database before trying to link them to playbooks. This means
+ * the order of "Sync BDD Specifications" vs "Initialize Default Domains"
+ * button clicks doesn't matter.
+ */
+export async function POST() {
+  try {
+    const results = {
+      domainsCreated: [] as string[],
+      playbooksCreated: [] as string[],
+      specsCreated: 0,
+      specsSynced: 0,
+      parametersCreated: 0,
+      errors: [] as string[],
+    };
+
+    // ============================================
+    // PREREQUISITE: SYNC BDD SPECS
+    // ============================================
+    // First ensure all BDD specs are synced from bdd-specs/ folder
+    // This is critical because domain creation links specs to playbooks
+    try {
+      console.log("Syncing BDD specs first...");
+      const specResults = await seedFromSpecs();
+      results.specsSynced = specResults.length;
+      const totalParams = specResults.reduce((acc, r) => acc + r.parametersCreated + r.parametersUpdated, 0);
+      console.log(`   ✓ Synced ${specResults.length} specs (${totalParams} parameters)`);
+    } catch (e: any) {
+      console.error("Error syncing BDD specs:", e);
+      results.errors.push(`BDD SPECS: ${e.message}`);
+    }
+
+    // ============================================
+    // PREREQUISITE: BEHAVIOR PARAMETERS
+    // ============================================
+    // Create essential behavior parameters if they don't exist
+    // These are needed by both COMPANION and WNF domains
+    try {
+      console.log("Ensuring behavior parameters exist...");
+      const createdCount = await ensureBehaviorParameters(prisma);
+      results.parametersCreated += createdCount;
+      console.log(`   ✓ Ensured ${createdCount} behavior parameters`);
+    } catch (e: any) {
+      console.error("Error creating behavior parameters:", e);
+      results.errors.push(`BEHAVIOR PARAMS: ${e.message}`);
+    }
+
+    // ============================================
+    // COMPANION DOMAIN
+    // ============================================
+    try {
+      console.log("Creating COMPANION domain...");
+      await seedCompanionDomain(prisma);
+      results.domainsCreated.push("companion");
+      results.playbooksCreated.push("Companion Playbook v1");
+
+      // Count what was created
+      const companionSpecs = await prisma.analysisSpec.count({
+        where: { slug: { startsWith: "companion-" } },
+      });
+      results.specsCreated += companionSpecs;
+    } catch (e: any) {
+      console.error("Error creating COMPANION domain:", e);
+      results.errors.push(`COMPANION: ${e.message}`);
+    }
+
+    // ============================================
+    // WNF TUTOR DOMAIN
+    // ============================================
+    try {
+      console.log("Creating WNF TUTOR domain...");
+      await createWNFTutorDomain(prisma, results);
+      results.domainsCreated.push("wnf");
+      results.playbooksCreated.push("WNF Tutor Playbook v1");
+    } catch (e: any) {
+      console.error("Error creating WNF TUTOR domain:", e);
+      results.errors.push(`WNF TUTOR: ${e.message}`);
+    }
+
+    const message =
+      results.errors.length === 0
+        ? `Synced ${results.specsSynced} specs, created ${results.domainsCreated.length} domains with ${results.playbooksCreated.length} playbooks, ${results.specsCreated} linked specs, ${results.parametersCreated} parameters`
+        : `Synced ${results.specsSynced} specs, created ${results.domainsCreated.length} domains with ${results.errors.length} errors`;
+
+    return NextResponse.json({
+      ok: results.errors.length === 0,
+      message,
+      details: results,
+    });
+  } catch (error: any) {
+    console.error("POST /api/x/seed-domains error:", error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error?.message || "Failed to create domains",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Creates the WNF (Why Nations Fail) TUTOR domain
+ * This is a simplified version focused on tutoring/teaching
+ */
+async function createWNFTutorDomain(
+  prisma: PrismaClient,
+  results: { specsCreated: number; parametersCreated: number }
+) {
+  // Delete existing WNF domain if it exists
+  const existingDomain = await prisma.domain.findUnique({
+    where: { slug: "wnf" },
+  });
+
+  if (existingDomain) {
+    const playbooks = await prisma.playbook.findMany({
+      where: { domainId: existingDomain.id },
+    });
+    for (const pb of playbooks) {
+      await prisma.behaviorTarget.deleteMany({ where: { playbookId: pb.id } });
+      await prisma.playbookItem.deleteMany({ where: { playbookId: pb.id } });
+      await prisma.playbook.delete({ where: { id: pb.id } });
+    }
+    await prisma.domain.delete({ where: { id: existingDomain.id } });
+    console.log("   🗑️  Deleted existing WNF domain");
+  }
+
+  // Create WNF domain
+  const domain = await prisma.domain.create({
+    data: {
+      slug: "wnf",
+      name: "Why Nations Fail - Tutor",
+      description:
+        "Socratic tutoring for Why Nations Fail curriculum - intelligent questioning, engagement, and knowledge building",
+      isDefault: false,
+      isActive: true,
+    },
+  });
+  console.log(`   ✓ Created domain: ${domain.name}`);
+
+  // Create WNF playbook
+  const playbook = await prisma.playbook.create({
+    data: {
+      name: "WNF Tutor Playbook v1",
+      description: "Socratic tutoring optimized for Why Nations Fail content",
+      domainId: domain.id,
+      status: "PUBLISHED",
+      version: "1.0",
+    },
+  });
+  console.log(`   ✓ Created playbook: ${playbook.name}`);
+
+  // Set behavior targets for tutoring style
+  const tutorTargets = [
+    { parameterId: "BEH-WARMTH", targetValue: 0.7 },
+    { parameterId: "BEH-EMPATHY-RATE", targetValue: 0.6 },
+    { parameterId: "BEH-FORMALITY", targetValue: 0.5 },
+    { parameterId: "BEH-DIRECTNESS", targetValue: 0.6 },
+    { parameterId: "BEH-PROACTIVE", targetValue: 0.8 },
+    { parameterId: "BEH-QUESTION-RATE", targetValue: 0.75 }, // High questioning for Socratic method
+    { parameterId: "BEH-PACE-MATCH", targetValue: 0.8 },
+  ];
+
+  let targetCount = 0;
+  for (const target of tutorTargets) {
+    const param = await prisma.parameter.findUnique({
+      where: { parameterId: target.parameterId },
+    });
+
+    if (param) {
+      await prisma.behaviorTarget.create({
+        data: {
+          parameterId: target.parameterId,
+          playbookId: playbook.id,
+          scope: "PLAYBOOK",
+          targetValue: target.targetValue,
+          confidence: 1.0,
+          source: "SEED",
+        },
+      });
+      targetCount++;
+    }
+  }
+  console.log(`   ✓ Created ${targetCount} behavior targets`);
+
+  // Link any existing tutoring/WNF specs to playbook
+  const educationSpecs = await prisma.analysisSpec.findMany({
+    where: {
+      OR: [
+        { slug: { contains: "tut" } },
+        { slug: { contains: "wnf" } },
+        { slug: { contains: "curriculum" } },
+        { domain: "identity" },
+        { domain: "content" },
+        { domain: "curriculum" },
+        { domain: "session" },
+        { domain: "engagement" },
+        { domain: "memory" },
+        { domain: "goals" },
+      ],
+      isActive: true,
+    },
+  });
+
+  for (const spec of educationSpecs) {
+    await prisma.playbookItem.create({
+      data: {
+        playbookId: playbook.id,
+        itemType: "SPEC",
+        specId: spec.id,
+        isEnabled: true,
+        sortOrder: 0,
+      },
+    });
+  }
+  console.log(`   ✓ Linked ${educationSpecs.length} specs to playbook`);
+
+  results.specsCreated += educationSpecs.length;
+}
+
+/**
+ * Ensures essential behavior parameters exist
+ * These parameters are needed by domain playbooks for behavior targets
+ */
+async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
+  const essentialBehaviorParams = [
+    {
+      parameterId: "BEH-WARMTH",
+      name: "Warmth Level",
+      definition: "Overall warmth and friendliness in agent tone",
+      sectionId: "behavior",
+      domainGroup: "empathy",
+      interpretationHigh: "Agent is warm, friendly, and approachable",
+      interpretationLow: "Agent is neutral or distant in tone",
+    },
+    {
+      parameterId: "BEH-EMPATHY-RATE",
+      name: "Empathy Expression Rate",
+      definition: "Frequency of empathetic statements, acknowledgments, and emotional validation",
+      sectionId: "behavior",
+      domainGroup: "empathy",
+      interpretationHigh: "Agent frequently expresses empathy and validates emotions",
+      interpretationLow: "Agent maintains neutral, task-focused communication",
+    },
+    {
+      parameterId: "BEH-FORMALITY",
+      name: "Formality Level",
+      definition: "Degree of formal vs casual language in agent responses",
+      sectionId: "behavior",
+      domainGroup: "communication",
+      interpretationHigh: "Agent uses formal, professional language",
+      interpretationLow: "Agent uses casual, conversational language",
+    },
+    {
+      parameterId: "BEH-DIRECTNESS",
+      name: "Directness Level",
+      definition: "How direct vs indirect the agent is in communication",
+      sectionId: "behavior",
+      domainGroup: "communication",
+      interpretationHigh: "Agent is direct and to-the-point",
+      interpretationLow: "Agent is indirect and nuanced",
+    },
+    {
+      parameterId: "BEH-PROACTIVE",
+      name: "Proactivity Level",
+      definition: "How proactively the agent offers information, suggestions, or guidance",
+      sectionId: "behavior",
+      domainGroup: "engagement",
+      interpretationHigh: "Agent proactively offers help and suggestions",
+      interpretationLow: "Agent waits for caller to ask or lead",
+    },
+    {
+      parameterId: "BEH-QUESTION-RATE",
+      name: "Question Asking Rate",
+      definition: "Frequency of questions asked by the agent to engage the caller",
+      sectionId: "behavior",
+      domainGroup: "engagement",
+      interpretationHigh: "Agent asks many questions to engage caller",
+      interpretationLow: "Agent primarily provides information without questions",
+    },
+    {
+      parameterId: "BEH-PACE-MATCH",
+      name: "Pace Matching",
+      definition: "How well the agent matches the caller's conversational pace and energy",
+      sectionId: "behavior",
+      domainGroup: "adaptation",
+      interpretationHigh: "Agent closely matches caller's pace and energy",
+      interpretationLow: "Agent maintains own pace regardless of caller",
+    },
+  ];
+
+  let createdCount = 0;
+
+  for (const param of essentialBehaviorParams) {
+    const existing = await prisma.parameter.findUnique({
+      where: { parameterId: param.parameterId },
+    });
+
+    if (!existing) {
+      await prisma.parameter.create({
+        data: {
+          parameterId: param.parameterId,
+          name: param.name,
+          definition: param.definition,
+          sectionId: param.sectionId,
+          domainGroup: param.domainGroup,
+          interpretationHigh: param.interpretationHigh,
+          interpretationLow: param.interpretationLow,
+          scaleType: "0-1",
+          directionality: "neutral",
+          computedBy: "measure_agent",
+          parameterType: "BEHAVIOR",
+          isAdjustable: true,
+        },
+      });
+      createdCount++;
+    }
+  }
+
+  return createdCount;
+}

@@ -1,0 +1,109 @@
+{
+  "id": "COMP-CD-001",
+  "title": "Conversational Depth Management",
+  "version": "1.0",
+  "status": "Draft",
+  "date": "2026-02-02",
+  "domain": "companion",
+  "specType": "DOMAIN",
+  "outputType": "MEASURE_AGENT",
+
+  "story": {
+    "asA": "quality evaluator",
+    "iWant": "to measure whether the companion provides appropriate conversational depth",
+    "soThat": "conversations are intellectually stimulating without being overwhelming"
+  },
+
+  "context": {
+    "applies": "When the companion discusses topics with the person",
+    "dependsOn": ["COMP-IE-001"],
+    "assumptions": [
+      "Depth should match the person's engagement level",
+      "Intellectual challenge is valuable for curious adults",
+      "Too much depth can overwhelm, too little can bore"
+    ]
+  },
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-COMP-CD-1",
+      "title": "Depth Appropriateness",
+      "given": "The companion is discussing a topic with the person",
+      "when": "The companion provides information or explores topics",
+      "then": "Evaluate whether depth is appropriate",
+      "measuredBy": ["BEH-CONVERSATIONAL-DEPTH"]
+    },
+    {
+      "id": "AC-COMP-CD-2",
+      "title": "Intellectual Challenge",
+      "given": "The companion engages in substantive discussion",
+      "when": "Opportunities for intellectual stimulation arise",
+      "then": "Evaluate whether appropriate challenge is provided",
+      "measuredBy": ["BEH-INTELLECTUAL-CHALLENGE"]
+    }
+  ],
+
+  "parameters": [
+    {
+      "id": "BEH-CONVERSATIONAL-DEPTH",
+      "name": "Conversational Depth",
+      "description": "How deeply the companion explores topics with the person",
+      "section": "companion-behavior",
+      "isAdjustable": true,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.0, "max": 0.3, "label": "Surface", "implication": "Keeping conversation light and superficial" },
+        { "min": 0.3, "max": 0.7, "label": "Moderate Depth", "implication": "Exploring topics with some depth" },
+        { "min": 0.7, "max": 1.0, "label": "Deep", "implication": "Going deep into topics, nuanced exploration" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Companion is going deep. Good for engaged, high-energy conversations.",
+        "whenLow": "Companion is staying surface. May need to offer more depth for intellectual stimulation."
+      }
+    },
+    {
+      "id": "BEH-INTELLECTUAL-CHALLENGE",
+      "name": "Intellectual Challenge",
+      "description": "How much intellectual challenge the companion provides",
+      "section": "companion-behavior",
+      "isAdjustable": true,
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.0, "max": 0.3, "label": "Comfortable", "implication": "Keeping things easy and comfortable" },
+        { "min": 0.3, "max": 0.7, "label": "Moderate Challenge", "implication": "Some intellectual stimulation" },
+        { "min": 0.7, "max": 1.0, "label": "Challenging", "implication": "Providing genuine intellectual challenge" }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Companion is challenging intellectually. Great for curious, engaged adults.",
+        "whenLow": "Companion is playing it safe. May be appropriate for low energy, but consider more stimulation."
+      }
+    }
+  ],
+
+  "triggers": [
+    {
+      "name": "Depth Assessment",
+      "given": "The companion is discussing a topic with the person",
+      "when": "The companion provides information or explores topics",
+      "then": "Evaluate depth appropriateness",
+      "actions": [
+        {
+          "description": "Measure conversational depth: Is the companion going deep enough to be stimulating but not overwhelming?",
+          "parameterId": "BEH-CONVERSATIONAL-DEPTH",
+          "weight": 1.0
+        },
+        {
+          "description": "Measure intellectual challenge: Is the companion providing genuine intellectual stimulation?",
+          "parameterId": "BEH-INTELLECTUAL-CHALLENGE",
+          "weight": 0.9
+        }
+      ]
+    }
+  ],
+
+  "constraints": [],
+
+  "related": [
+    { "id": "COMP-IE-001", "title": "Intellectual Engagement Analysis", "relationship": "depth should match engagement" }
+  ]
+}

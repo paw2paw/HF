@@ -1,0 +1,243 @@
+{
+  "id": "STYLE-001",
+  "title": "Conversation Style Measurement",
+  "version": "1.0",
+  "status": "Draft",
+  "date": "2026-01-30",
+  "domain": "style",
+  "specType": "SYSTEM",
+  "outputType": "MEASURE_AGENT",
+
+  "story": {
+    "asA": "quality assurance system",
+    "iWant": "to measure the actual conversation style used by the agent",
+    "soThat": "style can be compared against targets and improved over time"
+  },
+
+  "context": {
+    "applies": "Every call - measures how the agent actually communicated",
+    "dependsOn": [],
+    "assumptions": [
+      "Style is measurable from agent utterances",
+      "Style should adapt to caller personality (targets from ADAPT specs)",
+      "Multiple style dimensions combine to create overall communication approach"
+    ]
+  },
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-STYLE-1",
+      "title": "Warmth Measurement",
+      "given": "Agent responses in a call",
+      "when": "Style measurement runs",
+      "then": "Warmth level is scored based on language choices and tone markers",
+      "measuredBy": ["warmth_actual"]
+    },
+    {
+      "id": "AC-STYLE-2",
+      "title": "Formality Measurement",
+      "given": "Agent responses in a call",
+      "when": "Style measurement runs",
+      "then": "Formality level is scored based on vocabulary and structure",
+      "measuredBy": ["formality_actual"]
+    },
+    {
+      "id": "AC-STYLE-3",
+      "title": "Directness Measurement",
+      "given": "Agent responses in a call",
+      "when": "Style measurement runs",
+      "then": "Directness is scored based on communication clarity and hedging",
+      "measuredBy": ["directness_actual"]
+    },
+    {
+      "id": "AC-STYLE-4",
+      "title": "Pacing Measurement",
+      "given": "Agent responses in a call",
+      "when": "Style measurement runs",
+      "then": "Pacing is scored based on response length and information density",
+      "measuredBy": ["pacing_actual"]
+    },
+    {
+      "id": "AC-STYLE-5",
+      "title": "Exploration vs Structure Measurement",
+      "given": "Agent responses in a call",
+      "when": "Style measurement runs",
+      "then": "Exploration-structure balance is scored based on topic handling",
+      "measuredBy": ["exploration_structure"]
+    }
+  ],
+
+  "parameters": [
+    {
+      "id": "warmth_actual",
+      "name": "Warmth (Actual)",
+      "description": "Measured warmth level in agent's communication - emotional tone, friendliness, care",
+      "section": "tone",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Very Warm", "implication": "Highly friendly, emotionally engaged" },
+        { "min": 0.6, "max": 0.8, "label": "Warm", "implication": "Friendly and caring" },
+        { "min": 0.4, "max": 0.6, "label": "Neutral", "implication": "Pleasant but not notably warm" },
+        { "min": 0.2, "max": 0.4, "label": "Cool", "implication": "Professional but distant" },
+        { "min": 0.0, "max": 0.2, "label": "Cold", "implication": "Detached, impersonal" }
+      ],
+      "scoringAnchors": [
+        { "score": 0.95, "example": "Oh, that's wonderful to hear! I'm so glad things are going well for you. Tell me more about how that made you feel!", "rationale": "High enthusiasm, emotional engagement, personal interest", "isGold": true },
+        { "score": 0.75, "example": "That sounds really positive! I'm happy to hear you're making progress. How has this affected your week?", "rationale": "Genuine warmth, supportive language", "isGold": true },
+        { "score": 0.5, "example": "Good to know. That's a positive development. What happened next?", "rationale": "Polite but limited emotional engagement", "isGold": true },
+        { "score": 0.3, "example": "I see. Let's proceed to the next topic.", "rationale": "Functional but cold", "isGold": true },
+        { "score": 0.1, "example": "The answer to your question is as follows.", "rationale": "No warmth markers, purely transactional", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Warmth is high - maintain if caller responds well, reduce slightly if it feels excessive.",
+        "whenLow": "Warmth is low - increase emotional engagement and personal acknowledgment."
+      }
+    },
+    {
+      "id": "formality_actual",
+      "name": "Formality (Actual)",
+      "description": "Measured formality level - vocabulary sophistication, sentence structure, register",
+      "section": "tone",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Very Formal", "implication": "Professional, structured, sophisticated vocabulary" },
+        { "min": 0.6, "max": 0.8, "label": "Formal", "implication": "Business-appropriate, clear" },
+        { "min": 0.4, "max": 0.6, "label": "Neutral", "implication": "Neither formal nor casual" },
+        { "min": 0.2, "max": 0.4, "label": "Casual", "implication": "Relaxed, conversational" },
+        { "min": 0.0, "max": 0.2, "label": "Very Casual", "implication": "Informal, colloquial" }
+      ],
+      "scoringAnchors": [
+        { "score": 0.9, "example": "I would like to elaborate on the aforementioned concept. The primary consideration involves the systematic evaluation of multiple variables.", "rationale": "Sophisticated vocabulary, complex structure", "isGold": true },
+        { "score": 0.7, "example": "Let me explain this concept in more detail. There are several important factors to consider here.", "rationale": "Professional but accessible", "isGold": true },
+        { "score": 0.5, "example": "So here's how this works. You've got a few things to think about.", "rationale": "Middle ground, readable", "isGold": true },
+        { "score": 0.3, "example": "Okay so basically this is pretty straightforward - you just gotta think about a couple things.", "rationale": "Casual speech patterns", "isGold": true },
+        { "score": 0.1, "example": "Yeah so like, this stuff? Super easy. Just kinda figure it out, ya know?", "rationale": "Very informal, colloquial", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Formality is high - consider if caller prefers this or if it creates distance.",
+        "whenLow": "Formality is low - consider if caller is comfortable or if more professionalism is needed."
+      }
+    },
+    {
+      "id": "directness_actual",
+      "name": "Directness (Actual)",
+      "description": "Measured directness - clarity of communication, use of hedging, assertion level",
+      "section": "style",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Very Direct", "implication": "Clear assertions, no hedging" },
+        { "min": 0.6, "max": 0.8, "label": "Direct", "implication": "Clear with occasional qualification" },
+        { "min": 0.4, "max": 0.6, "label": "Moderate", "implication": "Balanced directness and softening" },
+        { "min": 0.2, "max": 0.4, "label": "Indirect", "implication": "Heavy qualification and hedging" },
+        { "min": 0.0, "max": 0.2, "label": "Very Indirect", "implication": "Evasive, overly tentative" }
+      ],
+      "scoringAnchors": [
+        { "score": 0.95, "example": "You need to change your approach. The current method is ineffective and here's exactly what to do instead.", "rationale": "Direct assertion, clear prescription", "isGold": true },
+        { "score": 0.7, "example": "I'd recommend reconsidering your approach. Based on what you've shared, a different method would likely work better.", "rationale": "Clear recommendation with light softening", "isGold": true },
+        { "score": 0.5, "example": "You might want to think about whether this approach is working. There could be some alternatives worth exploring.", "rationale": "Balanced - suggestion without strong assertion", "isGold": true },
+        { "score": 0.3, "example": "I'm not sure, but perhaps it might be worth considering if maybe there could be other options to possibly look into.", "rationale": "Heavy hedging, unclear position", "isGold": true },
+        { "score": 0.1, "example": "Well, I mean, it's hard to say really, you know, everyone's different and who am I to say what might or might not work for you...", "rationale": "Evasive, no clear guidance", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Directness is high - effective for decisive callers, may feel pushy to others.",
+        "whenLow": "Directness is low - may frustrate callers seeking clear guidance."
+      }
+    },
+    {
+      "id": "pacing_actual",
+      "name": "Pacing (Actual)",
+      "description": "Measured pacing - response length, information density, conversation tempo",
+      "section": "structure",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Fast/Dense", "implication": "Rapid, information-rich responses" },
+        { "min": 0.6, "max": 0.8, "label": "Brisk", "implication": "Efficient, well-paced" },
+        { "min": 0.4, "max": 0.6, "label": "Moderate", "implication": "Balanced tempo" },
+        { "min": 0.2, "max": 0.4, "label": "Relaxed", "implication": "Slower, spacious responses" },
+        { "min": 0.0, "max": 0.2, "label": "Slow/Sparse", "implication": "Very measured, minimal density" }
+      ],
+      "scoringAnchors": [
+        { "score": 0.9, "example": "Three key points: First, X matters because Y. Second, Z leads to W. Third, apply this by doing A, B, C. Questions?", "rationale": "Dense, rapid, efficient", "isGold": true },
+        { "score": 0.7, "example": "There are a few important things to cover here. Let me walk you through the main points, and then we can discuss.", "rationale": "Efficient but not rushed", "isGold": true },
+        { "score": 0.5, "example": "Let's take this one step at a time. First, let me explain X. Does that make sense so far?", "rationale": "Moderate pacing with check-ins", "isGold": true },
+        { "score": 0.3, "example": "Okay... so... let me think about how to explain this. There's this concept... and it's important because... well, let me give you an example.", "rationale": "Slow, exploratory pacing", "isGold": true },
+        { "score": 0.1, "example": "Hmm. ... ... ... So. ... One thing. ... Just one thing for now.", "rationale": "Very slow, sparse content", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Pacing is fast - good for engaged callers, may overwhelm others.",
+        "whenLow": "Pacing is slow - good for processing, may bore quick thinkers."
+      }
+    },
+    {
+      "id": "exploration_structure",
+      "name": "Exploration vs Structure Balance",
+      "description": "Measured balance between exploratory tangents and structured progression",
+      "section": "structure",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Highly Exploratory", "implication": "Follows curiosity, many tangents" },
+        { "min": 0.6, "max": 0.8, "label": "Exploratory", "implication": "Welcomes tangents within structure" },
+        { "min": 0.4, "max": 0.6, "label": "Balanced", "implication": "Flexible but goal-oriented" },
+        { "min": 0.2, "max": 0.4, "label": "Structured", "implication": "Focused, limited tangents" },
+        { "min": 0.0, "max": 0.2, "label": "Highly Structured", "implication": "Rigid agenda, no tangents" }
+      ],
+      "scoringAnchors": [
+        { "score": 0.9, "example": "Oh that's an interesting tangent! Let's explore that. What made you think of that connection? And that reminds me of another idea...", "rationale": "Embraces tangents, follows curiosity", "isGold": true },
+        { "score": 0.7, "example": "That's a great observation - let's spend a moment on that before we come back to our main thread.", "rationale": "Allows exploration within structure", "isGold": true },
+        { "score": 0.5, "example": "Interesting point. We can come back to that. For now, let's continue with our current topic.", "rationale": "Acknowledges but maintains focus", "isGold": true },
+        { "score": 0.3, "example": "Let's stay focused on our current objective. We have specific ground to cover today.", "rationale": "Clear structure, limited deviation", "isGold": true },
+        { "score": 0.1, "example": "That's off-topic. Moving on to point three of five in our agenda.", "rationale": "Rigid adherence to plan", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Style is exploratory - great for high-openness callers, may frustrate structured thinkers.",
+        "whenLow": "Style is structured - great for conscientiousness, may feel limiting to curious callers."
+      }
+    },
+    {
+      "id": "empathy_expression",
+      "name": "Empathy Expression",
+      "description": "Measured level of empathic response to caller emotions",
+      "section": "emotional",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "interpretationScale": [
+        { "min": 0.8, "max": 1.0, "label": "Highly Empathic", "implication": "Deep emotional attunement" },
+        { "min": 0.6, "max": 0.8, "label": "Empathic", "implication": "Acknowledges and validates emotions" },
+        { "min": 0.4, "max": 0.6, "label": "Moderate", "implication": "Some emotional acknowledgment" },
+        { "min": 0.2, "max": 0.4, "label": "Limited", "implication": "Minimal emotional response" },
+        { "min": 0.0, "max": 0.2, "label": "None", "implication": "Ignores emotional content" }
+      ],
+      "scoringAnchors": [
+        { "score": 0.95, "example": "I can really hear how frustrating that must be for you. It sounds like you've been carrying this weight for a while, and that takes a toll. Your feelings are completely valid.", "rationale": "Deep acknowledgment, validation, attunement", "isGold": true },
+        { "score": 0.7, "example": "That sounds really challenging. I understand why you'd feel that way given what you've been through.", "rationale": "Clear empathy and validation", "isGold": true },
+        { "score": 0.5, "example": "I hear you. That's a difficult situation.", "rationale": "Brief acknowledgment", "isGold": true },
+        { "score": 0.3, "example": "Okay, so given that situation, here's what I'd suggest...", "rationale": "Moves past emotion quickly", "isGold": true },
+        { "score": 0.1, "example": "Let's focus on the facts. What specifically happened?", "rationale": "Ignores emotional content", "isGold": true }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Empathy expression is strong - appropriate for emotional moments, may slow task progress.",
+        "whenLow": "Empathy expression is low - consider if caller shared emotions that need acknowledgment."
+      }
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "C-STYLE-1",
+      "type": "consistency",
+      "description": "Style should remain relatively consistent within a single call unless deliberately shifting",
+      "severity": "warning"
+    },
+    {
+      "id": "C-STYLE-2",
+      "type": "alignment",
+      "description": "Measured style should be compared against ADAPT targets to compute style alignment score",
+      "severity": "info"
+    }
+  ],
+
+  "related": [
+    { "id": "PERS-001", "title": "Personality Measurement", "relationship": "style targets derive from personality" },
+    { "id": "adapt-personality-*", "title": "Personality ADAPT specs", "relationship": "set style targets based on personality" },
+    { "id": "REW-001", "title": "Reward Computation", "relationship": "style alignment contributes to rapport reward" }
+  ]
+}

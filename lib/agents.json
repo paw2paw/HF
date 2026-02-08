@@ -1,0 +1,88 @@
+{
+  "version": 8,
+  "groups": [],
+  "data": [
+    {
+      "id": "data:transcripts",
+      "label": "Raw Transcripts",
+      "description": "Raw transcript JSON files from call recordings",
+      "storageType": "path",
+      "path": "sources/transcripts",
+      "role": "source"
+    },
+    {
+      "id": "data:calls",
+      "label": "Calls",
+      "description": "Imported call transcripts in database",
+      "storageType": "table",
+      "table": "Call",
+      "role": "both"
+    },
+    {
+      "id": "data:users",
+      "label": "Callers",
+      "description": "Caller records with personality profiles and memories",
+      "storageType": "table",
+      "table": "Caller",
+      "role": "output"
+    },
+    {
+      "id": "data:memories",
+      "label": "Caller Memories",
+      "description": "Extracted facts, preferences, and context",
+      "storageType": "table",
+      "table": "CallerMemory",
+      "role": "output"
+    },
+    {
+      "id": "data:profiles",
+      "label": "Caller Personalities",
+      "description": "Computed personality profiles from call analysis",
+      "storageType": "table",
+      "table": "CallerPersonality",
+      "role": "output"
+    },
+    {
+      "id": "data:behavior_targets",
+      "label": "Behavior Targets",
+      "description": "Target values for agent communication behaviors",
+      "storageType": "table",
+      "table": "BehaviorTarget",
+      "role": "both"
+    },
+    {
+      "id": "data:behavior_measurements",
+      "label": "Behavior Measurements",
+      "description": "Measured agent behavior per call",
+      "storageType": "table",
+      "table": "BehaviorMeasurement",
+      "role": "output"
+    },
+    {
+      "id": "data:rewards",
+      "label": "Reward Scores",
+      "description": "Computed reward signals comparing targets to actuals",
+      "storageType": "table",
+      "table": "RewardScore",
+      "role": "output"
+    },
+    {
+      "id": "data:specs",
+      "label": "Analysis Specs",
+      "description": "Configurable analysis specifications organized into Playbooks",
+      "storageType": "table",
+      "table": "AnalysisSpec",
+      "role": "config"
+    },
+    {
+      "id": "data:playbooks",
+      "label": "Playbooks",
+      "description": "Collections of specs assigned to domains",
+      "storageType": "table",
+      "table": "Playbook",
+      "role": "config"
+    }
+  ],
+  "agents": [],
+  "layout": {}
+}

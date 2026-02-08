@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -139,7 +140,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
             if (slug) {
               return tx.tag.upsert({
                 where: { slug },
-                create: { name, slug, tone: null },
+                create: { id: randomUUID(), name, slug, tone: null },
                 update: { name, tone: null },
               });
             }
@@ -147,7 +148,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
             // Fallback to name (should be rare)
             return tx.tag.upsert({
               where: { name },
-              create: { name, slug: null, tone: null },
+              create: { id: randomUUID(), name, slug: null, tone: null },
               update: { tone: null },
             });
           })
@@ -171,7 +172,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
         }
         if (toCreate.length) {
           await tx.parameterTag.createMany({
-            data: toCreate.map((tagId) => ({ parameterId: id, tagId })),
+            data: toCreate.map((tagId) => ({ id: randomUUID(), parameterId: id, tagId })),
             skipDuplicates: true,
           });
         }

@@ -1,3 +1,151 @@
+// -------------------------
+// Canonical KB path resolver
+// -------------------------
+
+export type KbPathKey =
+  | "sourcesDir"
+  | "derivedDir"
+  | "vectorsDir"
+  | "pagesDir"
+  | "transcriptsRawDir"
+  | "parametersRawCsv";
+
+export type KbRuntimeConfig = {
+  version: 1;
+  updatedAt: string;
+  /**
+   * Overrides are either:
+   * - a relative suffix (resolved against kbRoot)
+   * - an absolute path
+   */
+  overrides: Partial<Record<KbPathKey, string>>;
+};
+
+export type ResolvedKbPaths = {
+  root: string;
+  configPath: string;
+  config: KbRuntimeConfig;
+  paths: Record<KbPathKey, string>;
+};
+
+const DEFAULT_KB_PATHS: Record<KbPathKey, string> = {
+  sourcesDir: "sources",
+  derivedDir: "derived",
+  vectorsDir: "vectors",
+  // default pagesDir is derivedDir + "/pages" unless overridden
+  pagesDir: "derived/pages",
+  transcriptsRawDir: "transcripts/raw",
+  parametersRawCsv: "parameters/raw/parameters.csv",
+};
+
+function expandHome(p: string): string {
+  const s = String(p || "").trim();
+  if (!s) return s;
+  if (s === "~") return process.env.HOME || s;
+  if (s.startsWith("~/")) return path.join(process.env.HOME || "~", s.slice(2));
+  return s;
+}
+
+function isAbs(p: string): boolean {
+  try {
+    return path.isAbsolute(p);
+  } catch {
+    return false;
+  }
+}
+
+function resolveAgainstRoot(kbRoot: string, maybeRelativeOrAbs: string): string {
+  const s = expandHome(String(maybeRelativeOrAbs || "").trim());
+  if (!s) return kbRoot;
+  return isAbs(s) ? path.resolve(s) : path.resolve(kbRoot, s);
+}
+
+function defaultRuntimeConfig(): KbRuntimeConfig {
+  return { version: 1, updatedAt: new Date().toISOString(), overrides: {} };
+}
+
+export function resolveKbRoot(kbRoot?: string): string {
+  // Canonical env var: HF_KB_PATH (absolute or relative path to KB root).
+  const env = typeof process.env.HF_KB_PATH === "string" ? process.env.HF_KB_PATH : "";
+  const base = (kbRoot && String(kbRoot).trim()) || (env && env.trim()) || "";
+  if (base) return path.resolve(expandHome(base));
+  // Default is a repo-level knowledge folder; safe for local-only.
+  return path.resolve(process.cwd(), "../../knowledge");
+}
+
+export function kbRuntimeConfigPath(kbRoot?: string): string {
+  const root = resolveKbRoot(kbRoot);
+  // Persist under derived so it's near other generated artifacts.
+  return path.join(root, "derived", "runtime-config.json");
+}
+
+export async function readKbRuntimeConfig(kbRoot?: string): Promise<KbRuntimeConfig> {
+  const p = kbRuntimeConfigPath(kbRoot);
+  try {
+    const raw = await fs.readFile(p, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.version === 1 && typeof parsed.updatedAt === "string" && parsed.overrides && typeof parsed.overrides === "object") {
+      return parsed as KbRuntimeConfig;
+    }
+    return defaultRuntimeConfig();
+  } catch {
+    return defaultRuntimeConfig();
+  }
+}
+
+export async function writeKbRuntimeConfig(kbRoot: string, next: KbRuntimeConfig): Promise<void> {
+  const root = resolveKbRoot(kbRoot);
+  const p = kbRuntimeConfigPath(root);
+  await fs.mkdir(path.dirname(p), { recursive: true });
+  const payload: KbRuntimeConfig = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    overrides: next?.overrides || {},
+  };
+  await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
+}
+
+export async function updateKbRuntimeConfig(kbRoot: string, patch: Partial<Record<KbPathKey, string>>): Promise<KbRuntimeConfig> {
+  const cur = await readKbRuntimeConfig(kbRoot);
+  const overrides = { ...(cur.overrides || {}) };
+
+  for (const [k, v] of Object.entries(patch || {})) {
+    const key = k as KbPathKey;
+    const val = typeof v === "string" ? v.trim() : "";
+    if (!val) delete overrides[key];
+    else overrides[key] = val;
+  }
+
+  const next: KbRuntimeConfig = { version: 1, updatedAt: new Date().toISOString(), overrides };
+  await writeKbRuntimeConfig(kbRoot, next);
+  return next;
+}
+
+export async function resolveKbPaths(kbRoot?: string): Promise<ResolvedKbPaths> {
+  const root = resolveKbRoot(kbRoot);
+  const config = await readKbRuntimeConfig(root);
+
+  // If derivedDir is overridden, pagesDir should default to `${derivedDir}/pages` unless explicitly overridden.
+  const derivedSuffix = (config.overrides?.derivedDir || DEFAULT_KB_PATHS.derivedDir).trim();
+  const defaultPages = norm(path.join(derivedSuffix, "pages"));
+
+  const merged: Record<KbPathKey, string> = {
+    ...DEFAULT_KB_PATHS,
+    pagesDir: defaultPages,
+    ...(config.overrides || {}),
+  } as any;
+
+  const resolved = Object.fromEntries(
+    (Object.keys(DEFAULT_KB_PATHS) as KbPathKey[]).map((k) => [k, resolveAgainstRoot(root, merged[k])])
+  ) as Record<KbPathKey, string>;
+
+  return {
+    root,
+    configPath: kbRuntimeConfigPath(root),
+    config,
+    paths: resolved,
+  };
+}
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -111,14 +259,6 @@ function isSubpath(child: string, parent: string) {
   return c === p || c.startsWith(p + "/");
 }
 
-function defaultKbRoot() {
-  // Canonical env var: HF_KB_PATH (absolute or relative path to KB root).
-  // NOTE: HF_KB_DIR was an earlier name; keep it out of the loader to avoid ambiguity.
-  const env = process.env.HF_KB_PATH;
-  if (env && env.trim()) return path.resolve(env.trim());
-  // Default is a repo-level knowledge folder; safe for local-only.
-  return path.resolve(process.cwd(), "../../knowledge");
-}
 
 function defaultIncludeExts() {
   return [".md", ".mdx", ".txt", ".csv", ".json"];
@@ -297,26 +437,25 @@ async function existsFile(p: string) {
 }
 
 export async function resolveKbLayout(opts: LoadKnowledgeOptions = {}): Promise<KbLayout> {
-  const root = path.resolve(opts.kbRoot || defaultKbRoot());
+  const root = resolveKbRoot(opts.kbRoot);
+  const resolved = await resolveKbPaths(root);
 
-  // If root/sources exists, treat root as KB root; otherwise treat root as sources dir.
-  const sourcesCandidate = path.join(root, "sources");
+  // Backward compatible behavior:
+  // - If `<root>/<sourcesDirSuffix>` exists (typical KB root), use it.
+  // - Otherwise treat `root` as the sources directory.
+  const sourcesCandidate = resolved.paths.sourcesDir;
   const isKbRoot = await existsDir(sourcesCandidate);
 
   const sourcesDir = isKbRoot ? sourcesCandidate : root;
-  const kbRoot = isKbRoot ? root : path.dirname(root); // used only for placing derived/vectors near sources
+  const kbRoot = isKbRoot ? root : path.dirname(root);
 
-  const derivedDir = path.join(kbRoot, "derived");
-  const vectorsDir = path.join(kbRoot, "vectors");
-  const pagesDir = path.join(derivedDir, "pages");
+  // If we treated `root` as sourcesDir, keep derived/vectors/pages alongside that sources folder.
+  // This preserves previous behavior for callers that passed a sources directory.
+  const derivedDir = isKbRoot ? resolved.paths.derivedDir : path.join(kbRoot, "derived");
+  const vectorsDir = isKbRoot ? resolved.paths.vectorsDir : path.join(kbRoot, "vectors");
+  const pagesDir = isKbRoot ? resolved.paths.pagesDir : path.join(derivedDir, "pages");
 
-  return {
-    root: kbRoot,
-    sourcesDir,
-    derivedDir,
-    vectorsDir,
-    pagesDir,
-  };
+  return { root: kbRoot, sourcesDir, derivedDir, vectorsDir, pagesDir };
 }
 
 export async function listKnowledgeFiles(opts: LoadKnowledgeOptions = {}) {

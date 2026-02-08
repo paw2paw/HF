@@ -1,12 +1,584 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tailwind Dark Mode Configuration
+   - Use class-based dark mode (.dark on <html>) instead of media query
+   - This allows explicit light/dark override while respecting system preference
+   ═══════════════════════════════════════════════════════════════════════════ */
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Light Theme - Softer, professional palette
+   ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base colors */
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+
+  /* Surface hierarchy (cards, panels, modals) */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f5f5f5;
+  --surface-tertiary: #ebebeb;
+  --surface-selected: #eef2ff;
+  --surface-disabled: #e5e5e5;
+
+  /* Text hierarchy */
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --text-placeholder: #a3a3a3;
+
+  /* Borders */
+  --border-default: #e5e5e5;
+  --border-subtle: #f0f0f0;
+  --border-strong: #d4d4d4;
+
+  /* Interactive elements */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-primary-text: #ffffff;
+
+  /* Status colors - softer versions */
+  --status-success-bg: #ecfdf5;
+  --status-success-text: #059669;
+  --status-warning-bg: #fffbeb;
+  --status-warning-text: #d97706;
+  --status-error-bg: #fef2f2;
+  --status-error-text: #dc2626;
+  --status-info-bg: #eff6ff;
+  --status-info-text: #2563eb;
+  --status-neutral-bg: #f5f5f5;
+  --status-neutral-text: #525252;
+
+  /* Table specific */
+  --table-header-bg: #f5f5f5;
+  --table-row-border: #f0f0f0;
+  --table-row-hover: #fafafa;
+
+  /* Tabs */
+  --tab-active-bg: #3b82f6;
+  --tab-active-text: #ffffff;
+  --tab-inactive-bg: #ffffff;
+  --tab-inactive-text: #525252;
+  --tab-inactive-border: #e5e5e5;
+
+  /* Badge/pill colors */
+  --badge-purple-bg: #f3e8ff;
+  --badge-purple-text: #7c3aed;
+  --badge-blue-bg: #dbeafe;
+  --badge-blue-text: #2563eb;
+  --badge-green-bg: #dcfce7;
+  --badge-green-text: #16a34a;
+  --badge-yellow-bg: #fef3c7;
+  --badge-yellow-text: #d97706;
+
+  /* Buttons */
+  --button-primary-bg: #4f46e5;
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #f3f4f6;
+  --button-secondary-text: #374151;
+  --button-destructive-bg: #dc2626;
+  --button-destructive-text: #ffffff;
+  --button-success-bg: #059669;
+  --button-disabled-bg: #d1d5db;
+
+  /* Inputs */
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+
+  /* Modal */
+  --modal-bg: #ffffff;
+
+  /* Status borders */
+  --status-success-border: #bbf7d0;
+  --status-warning-border: #fde047;
+  --status-error-border: #fecaca;
+  --status-info-border: #dbeafe;
+
+  /* Misc */
+  --hover-bg: #f9fafb;
+  --code-bg: #e2e8f0;
+  --code-text: #1e293b;
+
+  /* Text on dark backgrounds (buttons, dark panels) */
+  --text-on-dark: #ffffff;
+  --text-on-dark-muted: #a5f3fc;
+
+  /* Dark surfaces (terminal panels, code blocks) */
+  --surface-dark: #1f2937;
+  --border-dark: #374151;
+
+  /* Terminal/log panel colors (always dark bg) */
+  --terminal-success-bg: #065f46;
+  --terminal-success-text: #6ee7b7;
+  --terminal-error-bg: #7f1d1d;
+  --terminal-error-text: #fca5a5;
+  --terminal-warning-bg: #78350f;
+  --terminal-warning-text: #fcd34d;
+  --terminal-info-text: #93c5fd;
+  --terminal-purple-text: #c4b5fd;
+
+  /* Additional badge colors */
+  --badge-pink-bg: #fce7f3;
+  --badge-pink-text: #db2777;
+  --badge-pink-border: #f9a8d4;
+  --badge-cyan-text: #06b6d4;
+  --badge-indigo-text: #4f46e5;
+
+  /* Personality trait colors */
+  --trait-openness: #3b82f6;
+  --trait-conscientiousness: #10b981;
+  --trait-extraversion: #f59e0b;
+  --trait-agreeableness: #ec4899;
+  --trait-neuroticism: #8b5cf6;
+
+  /* Slider/Gauge colors (for LED sliders, measurements) */
+  --slider-track-bg-start: #f5f5f5;
+  --slider-track-bg-end: #e5e5e5;
+  --slider-border: #a3a3a3;
+  --slider-gauge-line: #d4d4d4;
+  --slider-gauge-line-mid: #a3a3a3;
+  --slider-gauge-text: #525252;
+  --slider-value-text: #171717;
+  --slider-label-text: #525252;
+  --slider-bar-default-start: #3f3f46;
+  --slider-bar-default-end: #52525b;
+  --slider-target-marker: #71717a;
+  --slider-led-separator: #fafafa;
+
+  /* Tree node colors - semantic colors for explorer trees */
+  --tree-node-root-bg: #f8fafc;
+  --tree-node-root-border: #cbd5e1;
+  --tree-node-root-text: #334155;
+  --tree-node-playbook-bg: #fef3c7;
+  --tree-node-playbook-border: #fcd34d;
+  --tree-node-playbook-text: #92400e;
+  --tree-node-group-bg: #f1f5f9;
+  --tree-node-group-border: #cbd5e1;
+  --tree-node-group-text: #475569;
+  --tree-node-domain-bg: #dbeafe;
+  --tree-node-domain-border: #93c5fd;
+  --tree-node-domain-text: #1e40af;
+  --tree-node-scope-bg: #ede9fe;
+  --tree-node-scope-border: #c4b5fd;
+  --tree-node-scope-text: #5b21b6;
+  --tree-node-spec-bg: #d1fae5;
+  --tree-node-spec-border: #6ee7b7;
+  --tree-node-spec-text: #065f46;
+  --tree-node-trigger-bg: #fef9c3;
+  --tree-node-trigger-border: #fde047;
+  --tree-node-trigger-text: #854d0e;
+  --tree-node-action-bg: #ffedd5;
+  --tree-node-action-border: #fdba74;
+  --tree-node-action-text: #9a3412;
+  --tree-node-parameter-bg: #ede9fe;
+  --tree-node-parameter-border: #c4b5fd;
+  --tree-node-parameter-text: #5b21b6;
+  --tree-node-anchor-bg: #fce7f3;
+  --tree-node-anchor-border: #f9a8d4;
+  --tree-node-anchor-text: #9d174d;
+  --tree-node-target-bg: #cffafe;
+  --tree-node-target-border: #67e8f9;
+  --tree-node-target-text: #155e75;
+  --tree-node-config-bg: #f3f4f6;
+  --tree-node-config-border: #d1d5db;
+  --tree-node-config-text: #374151;
+  --tree-node-template-bg: #fef3c7;
+  --tree-node-template-border: #fcd34d;
+  --tree-node-template-text: #92400e;
+  --tree-node-info-bg: #dbeafe;
+  --tree-node-info-border: #93c5fd;
+  --tree-node-info-text: #1e40af;
+  --tree-node-learn-bg: #f5f3ff;
+  --tree-node-learn-border: #c4b5fd;
+  --tree-node-learn-text: #5b21b6;
+  --tree-node-instruction-bg: #d1fae5;
+  --tree-node-instruction-border: #6ee7b7;
+  --tree-node-instruction-text: #065f46;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dark Theme - Easy on the eyes, reduced contrast
+   Applies via:
+   1. .dark class on <html> (manual override - highest priority)
+   2. System preference via media query (fallback when no class set)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Dark mode via .dark class (manual override) */
+html.dark {
+  /* Base colors - not pure black */
+  --background: #0f0f0f;
+  --foreground: #e5e5e5;
+
+  /* Surface hierarchy */
+  --surface-primary: #171717;
+  --surface-secondary: #1f1f1f;
+  --surface-tertiary: #262626;
+  --surface-selected: #1e3a5f;
+  --surface-disabled: #2a2a2a;
+
+  /* Text hierarchy - reduced brightness for comfort */
+  --text-primary: #e5e5e5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --text-placeholder: #525252;
+
+  /* Borders - subtle in dark mode */
+  --border-default: #2a2a2a;
+  --border-subtle: #1f1f1f;
+  --border-strong: #3a3a3a;
+
+  /* Interactive elements */
+  --accent-primary: #60a5fa;
+  --accent-primary-hover: #3b82f6;
+  --accent-primary-text: #0f0f0f;
+
+  /* Status colors - muted for dark mode */
+  --status-success-bg: #052e16;
+  --status-success-text: #4ade80;
+  --status-warning-bg: #422006;
+  --status-warning-text: #fbbf24;
+  --status-error-bg: #450a0a;
+  --status-error-text: #f87171;
+  --status-info-bg: #172554;
+  --status-info-text: #60a5fa;
+  --status-neutral-bg: #262626;
+  --status-neutral-text: #a3a3a3;
+
+  /* Table specific */
+  --table-header-bg: #1f1f1f;
+  --table-row-border: #262626;
+  --table-row-hover: #1a1a1a;
+
+  /* Tabs */
+  --tab-active-bg: #60a5fa;
+  --tab-active-text: #0f0f0f;
+  --tab-inactive-bg: #171717;
+  --tab-inactive-text: #a3a3a3;
+  --tab-inactive-border: #2a2a2a;
+
+  /* Badge/pill colors */
+  --badge-purple-bg: #2e1065;
+  --badge-purple-text: #c4b5fd;
+  --badge-blue-bg: #172554;
+  --badge-blue-text: #60a5fa;
+  --badge-green-bg: #052e16;
+  --badge-green-text: #4ade80;
+  --badge-yellow-bg: #422006;
+  --badge-yellow-text: #fbbf24;
+
+  /* Buttons */
+  --button-primary-bg: #4f46e5;
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #2a2a2a;
+  --button-secondary-text: #e5e5e5;
+  --button-destructive-bg: #dc2626;
+  --button-destructive-text: #ffffff;
+  --button-success-bg: #059669;
+  --button-disabled-bg: #3a3a3a;
+
+  /* Inputs */
+  --input-bg: #1f1f1f;
+  --input-border: #3a3a3a;
+
+  /* Modal */
+  --modal-bg: #1f1f1f;
+
+  /* Status borders */
+  --status-success-border: #065f46;
+  --status-warning-border: #78350f;
+  --status-error-border: #7f1d1d;
+  --status-info-border: #1e3a5f;
+
+  /* Misc */
+  --hover-bg: #1a1a1a;
+  --code-bg: #2a2a2a;
+  --code-text: #e2e8f0;
+
+  /* Text on dark backgrounds */
+  --text-on-dark: #e5e5e5;
+  --text-on-dark-muted: #67e8f9;
+
+  /* Dark surfaces (terminal panels) - slightly lighter in dark mode for contrast */
+  --surface-dark: #0f0f0f;
+  --border-dark: #2a2a2a;
+
+  /* Terminal/log panel colors */
+  --terminal-success-bg: #052e16;
+  --terminal-success-text: #4ade80;
+  --terminal-error-bg: #450a0a;
+  --terminal-error-text: #f87171;
+  --terminal-warning-bg: #422006;
+  --terminal-warning-text: #fbbf24;
+  --terminal-info-text: #60a5fa;
+  --terminal-purple-text: #c4b5fd;
+
+  /* Additional badge colors */
+  --badge-pink-bg: #500724;
+  --badge-pink-text: #f9a8d4;
+  --badge-pink-border: #9d174d;
+  --badge-cyan-text: #22d3ee;
+  --badge-indigo-text: #818cf8;
+
+  /* Personality trait colors */
+  --trait-openness: #60a5fa;
+  --trait-conscientiousness: #34d399;
+  --trait-extraversion: #fbbf24;
+  --trait-agreeableness: #f472b6;
+  --trait-neuroticism: #a78bfa;
+
+  /* Slider/Gauge colors (for LED sliders, measurements) */
+  --slider-track-bg-start: #27272a;
+  --slider-track-bg-end: #18181b;
+  --slider-border: #3f3f46;
+  --slider-gauge-line: #3f3f46;
+  --slider-gauge-line-mid: #52525b;
+  --slider-gauge-text: #a1a1aa;
+  --slider-value-text: #e4e4e7;
+  --slider-label-text: #a1a1aa;
+  --slider-bar-default-start: #a1a1aa;
+  --slider-bar-default-end: #71717a;
+  --slider-target-marker: #a1a1aa;
+  --slider-led-separator: #18181b;
+
+  /* Tree node colors - dark mode */
+  --tree-node-root-bg: #1f1f1f;
+  --tree-node-root-border: #3a3a3a;
+  --tree-node-root-text: #a3a3a3;
+  --tree-node-playbook-bg: #422006;
+  --tree-node-playbook-border: #78350f;
+  --tree-node-playbook-text: #fbbf24;
+  --tree-node-group-bg: #1f1f1f;
+  --tree-node-group-border: #3a3a3a;
+  --tree-node-group-text: #a3a3a3;
+  --tree-node-domain-bg: #172554;
+  --tree-node-domain-border: #1e3a5f;
+  --tree-node-domain-text: #60a5fa;
+  --tree-node-scope-bg: #2e1065;
+  --tree-node-scope-border: #4c1d95;
+  --tree-node-scope-text: #c4b5fd;
+  --tree-node-spec-bg: #052e16;
+  --tree-node-spec-border: #065f46;
+  --tree-node-spec-text: #4ade80;
+  --tree-node-trigger-bg: #422006;
+  --tree-node-trigger-border: #78350f;
+  --tree-node-trigger-text: #fbbf24;
+  --tree-node-action-bg: #431407;
+  --tree-node-action-border: #7c2d12;
+  --tree-node-action-text: #fb923c;
+  --tree-node-parameter-bg: #2e1065;
+  --tree-node-parameter-border: #4c1d95;
+  --tree-node-parameter-text: #c4b5fd;
+  --tree-node-anchor-bg: #500724;
+  --tree-node-anchor-border: #831843;
+  --tree-node-anchor-text: #f9a8d4;
+  --tree-node-target-bg: #083344;
+  --tree-node-target-border: #155e75;
+  --tree-node-target-text: #22d3ee;
+  --tree-node-config-bg: #262626;
+  --tree-node-config-border: #3a3a3a;
+  --tree-node-config-text: #a3a3a3;
+  --tree-node-template-bg: #422006;
+  --tree-node-template-border: #78350f;
+  --tree-node-template-text: #fbbf24;
+  --tree-node-info-bg: #172554;
+  --tree-node-info-border: #1e3a5f;
+  --tree-node-info-text: #60a5fa;
+  --tree-node-learn-bg: #2e1065;
+  --tree-node-learn-border: #4c1d95;
+  --tree-node-learn-text: #c4b5fd;
+  --tree-node-instruction-bg: #052e16;
+  --tree-node-instruction-border: #065f46;
+  --tree-node-instruction-text: #4ade80;
+}
+
+/* Dark mode via system preference (fallback when no manual override) */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  html:not(.light):not(.dark) {
+    /* Base colors - not pure black */
+    --background: #0f0f0f;
+    --foreground: #e5e5e5;
+
+    /* Surface hierarchy */
+    --surface-primary: #171717;
+    --surface-secondary: #1f1f1f;
+    --surface-tertiary: #262626;
+    --surface-selected: #1e3a5f;
+    --surface-disabled: #2a2a2a;
+
+    /* Text hierarchy - reduced brightness for comfort */
+    --text-primary: #e5e5e5;
+    --text-secondary: #a3a3a3;
+    --text-muted: #737373;
+    --text-placeholder: #525252;
+
+    /* Borders - subtle in dark mode */
+    --border-default: #2a2a2a;
+    --border-subtle: #1f1f1f;
+    --border-strong: #3a3a3a;
+
+    /* Interactive elements */
+    --accent-primary: #60a5fa;
+    --accent-primary-hover: #3b82f6;
+    --accent-primary-text: #0f0f0f;
+
+    /* Status colors - muted for dark mode */
+    --status-success-bg: #052e16;
+    --status-success-text: #4ade80;
+    --status-warning-bg: #422006;
+    --status-warning-text: #fbbf24;
+    --status-error-bg: #450a0a;
+    --status-error-text: #f87171;
+    --status-info-bg: #172554;
+    --status-info-text: #60a5fa;
+    --status-neutral-bg: #262626;
+    --status-neutral-text: #a3a3a3;
+
+    /* Table specific */
+    --table-header-bg: #1f1f1f;
+    --table-row-border: #262626;
+    --table-row-hover: #1a1a1a;
+
+    /* Tabs */
+    --tab-active-bg: #60a5fa;
+    --tab-active-text: #0f0f0f;
+    --tab-inactive-bg: #171717;
+    --tab-inactive-text: #a3a3a3;
+    --tab-inactive-border: #2a2a2a;
+
+    /* Badge/pill colors */
+    --badge-purple-bg: #2e1065;
+    --badge-purple-text: #c4b5fd;
+    --badge-blue-bg: #172554;
+    --badge-blue-text: #60a5fa;
+    --badge-green-bg: #052e16;
+    --badge-green-text: #4ade80;
+    --badge-yellow-bg: #422006;
+    --badge-yellow-text: #fbbf24;
+
+    /* Buttons */
+    --button-primary-bg: #4f46e5;
+    --button-primary-text: #ffffff;
+    --button-secondary-bg: #2a2a2a;
+    --button-secondary-text: #e5e5e5;
+    --button-destructive-bg: #dc2626;
+    --button-destructive-text: #ffffff;
+    --button-success-bg: #059669;
+    --button-disabled-bg: #3a3a3a;
+
+    /* Inputs */
+    --input-bg: #1f1f1f;
+    --input-border: #3a3a3a;
+
+    /* Modal */
+    --modal-bg: #1f1f1f;
+
+    /* Status borders */
+    --status-success-border: #065f46;
+    --status-warning-border: #78350f;
+    --status-error-border: #7f1d1d;
+    --status-info-border: #1e3a5f;
+
+    /* Misc */
+    --hover-bg: #1a1a1a;
+    --code-bg: #2a2a2a;
+    --code-text: #e2e8f0;
+
+    /* Text on dark backgrounds */
+    --text-on-dark: #e5e5e5;
+    --text-on-dark-muted: #67e8f9;
+
+    /* Dark surfaces (terminal panels) - slightly lighter in dark mode for contrast */
+    --surface-dark: #0f0f0f;
+    --border-dark: #2a2a2a;
+
+    /* Terminal/log panel colors */
+    --terminal-success-bg: #052e16;
+    --terminal-success-text: #4ade80;
+    --terminal-error-bg: #450a0a;
+    --terminal-error-text: #f87171;
+    --terminal-warning-bg: #422006;
+    --terminal-warning-text: #fbbf24;
+    --terminal-info-text: #60a5fa;
+    --terminal-purple-text: #c4b5fd;
+
+    /* Additional badge colors */
+    --badge-pink-bg: #500724;
+    --badge-pink-text: #f9a8d4;
+    --badge-pink-border: #9d174d;
+    --badge-cyan-text: #22d3ee;
+    --badge-indigo-text: #818cf8;
+
+    /* Personality trait colors */
+    --trait-openness: #60a5fa;
+    --trait-conscientiousness: #34d399;
+    --trait-extraversion: #fbbf24;
+    --trait-agreeableness: #f472b6;
+    --trait-neuroticism: #a78bfa;
+
+    /* Slider/Gauge colors (for LED sliders, measurements) */
+    --slider-track-bg-start: #27272a;
+    --slider-track-bg-end: #18181b;
+    --slider-border: #3f3f46;
+    --slider-gauge-line: #3f3f46;
+    --slider-gauge-line-mid: #52525b;
+    --slider-gauge-text: #a1a1aa;
+    --slider-value-text: #e4e4e7;
+    --slider-label-text: #a1a1aa;
+    --slider-bar-default-start: #a1a1aa;
+    --slider-bar-default-end: #71717a;
+    --slider-target-marker: #a1a1aa;
+    --slider-led-separator: #18181b;
+
+    /* Tree node colors - dark mode */
+    --tree-node-root-bg: #1f1f1f;
+    --tree-node-root-border: #3a3a3a;
+    --tree-node-root-text: #a3a3a3;
+    --tree-node-playbook-bg: #422006;
+    --tree-node-playbook-border: #78350f;
+    --tree-node-playbook-text: #fbbf24;
+    --tree-node-group-bg: #1f1f1f;
+    --tree-node-group-border: #3a3a3a;
+    --tree-node-group-text: #a3a3a3;
+    --tree-node-domain-bg: #172554;
+    --tree-node-domain-border: #1e3a5f;
+    --tree-node-domain-text: #60a5fa;
+    --tree-node-scope-bg: #2e1065;
+    --tree-node-scope-border: #4c1d95;
+    --tree-node-scope-text: #c4b5fd;
+    --tree-node-spec-bg: #052e16;
+    --tree-node-spec-border: #065f46;
+    --tree-node-spec-text: #4ade80;
+    --tree-node-trigger-bg: #422006;
+    --tree-node-trigger-border: #78350f;
+    --tree-node-trigger-text: #fbbf24;
+    --tree-node-action-bg: #431407;
+    --tree-node-action-border: #7c2d12;
+    --tree-node-action-text: #fb923c;
+    --tree-node-parameter-bg: #2e1065;
+    --tree-node-parameter-border: #4c1d95;
+    --tree-node-parameter-text: #c4b5fd;
+    --tree-node-anchor-bg: #500724;
+    --tree-node-anchor-border: #831843;
+    --tree-node-anchor-text: #f9a8d4;
+    --tree-node-target-bg: #083344;
+    --tree-node-target-border: #155e75;
+    --tree-node-target-text: #22d3ee;
+    --tree-node-config-bg: #262626;
+    --tree-node-config-border: #3a3a3a;
+    --tree-node-config-text: #a3a3a3;
+    --tree-node-template-bg: #422006;
+    --tree-node-template-border: #78350f;
+    --tree-node-template-text: #fbbf24;
+    --tree-node-info-bg: #172554;
+    --tree-node-info-border: #1e3a5f;
+    --tree-node-info-text: #60a5fa;
+    --tree-node-learn-bg: #2e1065;
+    --tree-node-learn-border: #4c1d95;
+    --tree-node-learn-text: #c4b5fd;
+    --tree-node-instruction-bg: #052e16;
+    --tree-node-instruction-border: #065f46;
+    --tree-node-instruction-text: #4ade80;
   }
 }
 
@@ -35,8 +607,17 @@ a {
   text-decoration: none;
 }
 
+/* Color scheme for browser chrome */
+html.dark {
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  html {
+  html:not(.light):not(.dark) {
     color-scheme: dark;
   }
 }
