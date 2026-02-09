@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { GoalType, GoalStatus } from "@prisma/client";
+import { PARAMS } from "@/lib/registry";
 
 export interface GoalProgressUpdate {
   goalId: string;
@@ -155,7 +156,7 @@ async function calculateConnectProgress(
     where: {
       callId,
       parameter: {
-        parameterId: { in: ['BEH-WARMTH', 'BEH-EMPATHY-RATE', 'BEH-ENGAGEMENT'] },
+        parameterId: { in: [PARAMS.BEH_WARMTH, PARAMS.BEH_EMPATHY_RATE, PARAMS.BEH_INSIGHT_FREQUENCY] },
       },
     },
     include: {

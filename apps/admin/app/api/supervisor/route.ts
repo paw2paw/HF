@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
 
 /**
  * GET /api/supervisor
@@ -10,31 +11,12 @@ import { prisma } from "@/lib/prisma";
  * Query params:
  * - domainId: string (optional) - if provided, shows DOMAIN specs for that domain
  *
- * Pipeline stages are loaded from SUPERVISE spec config.
+ * Pipeline stages are loaded from PIPELINE-001 spec (or GUARD-001 fallback).
  * Each stage shows:
  * - Stage metadata (name, order, description, outputTypes)
  * - SYSTEM specs that run in this stage (always enabled)
  * - DOMAIN specs for the selected domain (from published playbook)
  */
-
-interface PipelineStage {
-  name: string;
-  order: number;
-  outputTypes: string[];
-  description?: string;
-  batched?: boolean;
-  requiresMode?: "prep" | "prompt";
-}
-
-const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
-  { name: "EXTRACT", order: 10, outputTypes: ["LEARN", "MEASURE"], description: "Extract caller data", batched: true },
-  { name: "SCORE_AGENT", order: 20, outputTypes: ["MEASURE_AGENT"], description: "Score agent behavior", batched: true },
-  { name: "AGGREGATE", order: 30, outputTypes: ["AGGREGATE"], description: "Aggregate personality profiles" },
-  { name: "REWARD", order: 40, outputTypes: ["REWARD"], description: "Compute reward scores" },
-  { name: "ADAPT", order: 50, outputTypes: ["ADAPT"], description: "Compute personalized targets" },
-  { name: "SUPERVISE", order: 60, outputTypes: ["SUPERVISE"], description: "Validate and clamp targets" },
-  { name: "COMPOSE", order: 100, outputTypes: ["COMPOSE"], description: "Build final prompt", requiresMode: "prompt" },
-];
 
 type SpecInfo = {
   id: string;
@@ -59,42 +41,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const domainId = searchParams.get("domainId");
 
-    // 1. Load pipeline stages from SUPERVISE spec
+    // 1. Load pipeline stages from PIPELINE-001 (or GUARD-001 fallback)
+    const pipelineStages = await loadPipelineStages();
+
+    // Get SUPERVISE spec info for display (if any)
     const superviseSpec = await prisma.analysisSpec.findFirst({
       where: {
         outputType: "SUPERVISE",
         isActive: true,
         isDirty: false,
       },
-      select: { id: true, slug: true, name: true, config: true },
+      select: { id: true, slug: true, name: true },
     });
 
-    let pipelineStages: PipelineStage[] = DEFAULT_PIPELINE_STAGES;
-    let superviseSpecInfo = null;
-
-    if (superviseSpec) {
-      superviseSpecInfo = {
-        id: superviseSpec.id,
-        slug: superviseSpec.slug,
-        name: superviseSpec.name,
-      };
-
-      const config = (superviseSpec.config as any) || {};
-      const parameters: Array<{ id: string; config?: any }> = config.parameters || [];
-      const pipelineConfig = parameters.find((p) => p.id === "pipeline_stages")?.config || {};
-
-      if (pipelineConfig.stages && Array.isArray(pipelineConfig.stages)) {
-        pipelineStages = pipelineConfig.stages.map((s: any) => ({
-          name: s.name,
-          order: s.order,
-          outputTypes: s.outputTypes || [],
-          description: s.description,
-          batched: s.batched,
-          requiresMode: s.requiresMode,
-        }));
-        pipelineStages.sort((a, b) => a.order - b.order);
-      }
-    }
+    const superviseSpecInfo = superviseSpec
+      ? { id: superviseSpec.id, slug: superviseSpec.slug, name: superviseSpec.name }
+      : null;
 
     // 2. Load all SYSTEM specs
     const allSystemSpecs = await prisma.analysisSpec.findMany({

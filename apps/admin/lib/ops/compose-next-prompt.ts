@@ -17,6 +17,7 @@
  */
 
 import { PrismaClient, BehaviorTargetScope } from "@prisma/client";
+import { PARAM_GROUPS, TRAITS, TRAIT_NAMES } from "@/lib/registry";
 
 const prisma = new PrismaClient();
 
@@ -49,6 +50,7 @@ interface ComposeNextPromptConfig {
   };
 }
 
+// Default config uses registry constants instead of hardcoded strings
 const DEFAULT_COMPOSE_CONFIG: ComposeNextPromptConfig = {
   targetLevelThresholds: {
     high: 0.8,
@@ -61,21 +63,16 @@ const DEFAULT_COMPOSE_CONFIG: ComposeNextPromptConfig = {
     wellEstablished: 0.7,
   },
   parameterGroups: {
-    communicationStyle: ["BEH-FORMALITY", "BEH-RESPONSE-LEN", "BEH-WARMTH", "BEH-DIRECTNESS"],
-    engagementApproach: ["BEH-EMPATHY-RATE", "BEH-QUESTION-RATE", "BEH-ACTIVE-LISTEN", "BEH-PROACTIVE"],
-    adaptability: ["BEH-MIRROR-STYLE", "BEH-PACE-MATCH", "BEH-ROLE-SWITCH", "BEH-PERSONALIZATION"],
+    // Use registry constants - changes to parameter IDs flow through automatically
+    communicationStyle: [...PARAM_GROUPS.COMMUNICATION_STYLE],
+    engagementApproach: [...PARAM_GROUPS.ENGAGEMENT_APPROACH],
+    adaptability: [...PARAM_GROUPS.ADAPTABILITY],
   },
   personalityTraits: {
     thresholdHigh: 0.7,
     thresholdLow: 0.3,
-    traitIds: ["B5-O", "B5-C", "B5-E", "B5-A", "B5-N"],
-    traitNames: {
-      "B5-O": "Openness",
-      "B5-C": "Conscientiousness",
-      "B5-E": "Extraversion",
-      "B5-A": "Agreeableness",
-      "B5-N": "Neuroticism",
-    },
+    traitIds: [...PARAM_GROUPS.PERSONALITY_TRAITS],
+    traitNames: { ...TRAIT_NAMES },
   },
   timeWindows: {
     maxAgeHours: 24,

@@ -1,5 +1,5 @@
-<testsuites id="" name="" tests="249" failures="0" skipped="249" errors="0" time="0.03831999999999994">
-<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuites id="" name="" tests="249" failures="0" skipped="249" errors="0" time="0.043989000000000035">
+<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Authentication › Login Flow › should display login page with email and password fields" classname="tests/auth/login.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -37,7 +37,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/callers/callers-list.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/callers/callers-list.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Callers List › should display callers list page" classname="tests/callers/callers-list.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -75,7 +75,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/components/draggable-tabs.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/components/draggable-tabs.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Draggable Tabs › Tab Display › should display tabs on pipeline page" classname="tests/components/draggable-tabs.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -113,7 +113,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/components/fancy-select.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/components/fancy-select.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="FancySelect Component › Dropdown Behavior › should open dropdown on click" classname="tests/components/fancy-select.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -151,7 +151,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/navigation/sidebar.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testsuite name="tests/navigation/sidebar.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="18" failures="0" skipped="18" time="0" errors="0">
 <testcase name="Sidebar Navigation › Navigation Links › should display sidebar on dashboard" classname="tests/navigation/sidebar.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -225,7 +225,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/pipeline/pipeline-page.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/pipeline/pipeline-page.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Pipeline › Pipeline List › should display pipeline page at /x/pipeline" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -263,7 +263,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/playbooks/playbook-crud.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testsuite name="tests/playbooks/playbook-crud.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
 <testcase name="Playbook Management › Playbook List › should display playbooks list at /x/playbooks" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -305,7 +305,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/playground/playground.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="11" failures="0" skipped="11" time="0" errors="0">
+<testsuite name="tests/playground/playground.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="11" failures="0" skipped="11" time="0" errors="0">
 <testcase name="Playground › Playground Page › should display playground at /x/playground" classname="tests/playground/playground.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -351,7 +351,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/settings/theme.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/settings/theme.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Theme Settings › Theme Toggle › should display theme toggle" classname="tests/settings/theme.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -389,7 +389,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/specs/specs-page.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="12" failures="0" skipped="12" time="0" errors="0">
+<testsuite name="tests/specs/specs-page.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="12" failures="0" skipped="12" time="0" errors="0">
 <testcase name="Specs Management › Specs List › should display specs list at /x/specs" classname="tests/specs/specs-page.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -439,7 +439,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/user-preferences/isolation.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testsuite name="tests/user-preferences/isolation.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
 <testcase name="User Preferences Isolation › Multi-User Isolation › Alice preferences should not affect Bob" classname="tests/user-preferences/isolation.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -481,7 +481,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="unauthenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="unauthenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Authentication › Login Flow › should display login page with email and password fields" classname="tests/auth/login.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -519,7 +519,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Authentication › Login Flow › should display login page with email and password fields" classname="tests/auth/login.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -557,7 +557,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/callers/callers-list.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/callers/callers-list.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Callers List › should display callers list page" classname="tests/callers/callers-list.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -595,7 +595,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/components/draggable-tabs.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/components/draggable-tabs.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Draggable Tabs › Tab Display › should display tabs on pipeline page" classname="tests/components/draggable-tabs.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -633,7 +633,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/components/fancy-select.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/components/fancy-select.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="FancySelect Component › Dropdown Behavior › should open dropdown on click" classname="tests/components/fancy-select.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -671,7 +671,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/navigation/sidebar.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testsuite name="tests/navigation/sidebar.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="18" failures="0" skipped="18" time="0" errors="0">
 <testcase name="Sidebar Navigation › Navigation Links › should display sidebar on dashboard" classname="tests/navigation/sidebar.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -745,7 +745,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/pipeline/pipeline-page.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/pipeline/pipeline-page.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Pipeline › Pipeline List › should display pipeline page at /x/pipeline" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -783,7 +783,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/playbooks/playbook-crud.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testsuite name="tests/playbooks/playbook-crud.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="10" failures="0" skipped="10" time="0" errors="0">
 <testcase name="Playbook Management › Playbook List › should display playbooks list at /x/playbooks" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -825,7 +825,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/playground/playground.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="11" failures="0" skipped="11" time="0" errors="0">
+<testsuite name="tests/playground/playground.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="11" failures="0" skipped="11" time="0" errors="0">
 <testcase name="Playground › Playground Page › should display playground at /x/playground" classname="tests/playground/playground.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -871,7 +871,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/settings/theme.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/settings/theme.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Theme Settings › Theme Toggle › should display theme toggle" classname="tests/settings/theme.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -909,7 +909,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/specs/specs-page.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="12" failures="0" skipped="12" time="0" errors="0">
+<testsuite name="tests/specs/specs-page.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="12" failures="0" skipped="12" time="0" errors="0">
 <testcase name="Specs Management › Specs List › should display specs list at /x/specs" classname="tests/specs/specs-page.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -959,7 +959,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/user-preferences/isolation.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="mobile" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testsuite name="tests/user-preferences/isolation.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="mobile" tests="10" failures="0" skipped="10" time="0" errors="0">
 <testcase name="User Preferences Isolation › Multi-User Isolation › Alice preferences should not affect Bob" classname="tests/user-preferences/isolation.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -1001,7 +1001,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="_archived/01-navigation.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="legacy" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testsuite name="_archived/01-navigation.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="legacy" tests="4" failures="0" skipped="4" time="0" errors="0">
 <testcase name="Navigation › should load homepage successfully" classname="_archived/01-navigation.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -1019,7 +1019,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="_archived/02-caller-workflow.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="legacy" tests="3" failures="0" skipped="3" time="0" errors="0">
+<testsuite name="_archived/02-caller-workflow.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="legacy" tests="3" failures="0" skipped="3" time="0" errors="0">
 <testcase name="Caller Management › should view caller list" classname="_archived/02-caller-workflow.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -1033,7 +1033,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="_archived/03-call-simulation.spec.ts" timestamp="2026-02-08T23:46:24.979Z" hostname="legacy" tests="3" failures="0" skipped="3" time="0" errors="0">
+<testsuite name="_archived/03-call-simulation.spec.ts" timestamp="2026-02-09T20:13:44.962Z" hostname="legacy" tests="3" failures="0" skipped="3" time="0" errors="0">
 <testcase name="Call Simulation › should start a simulated call" classname="_archived/03-call-simulation.spec.ts" time="0">
 <skipped>
 </skipped>

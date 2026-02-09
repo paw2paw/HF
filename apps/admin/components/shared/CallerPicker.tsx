@@ -32,6 +32,7 @@ export interface CallerPickerProps {
   disabled?: boolean;
   autoFocus?: boolean;
   style?: React.CSSProperties;
+  onCreateNew?: () => void;
 }
 
 // =====================================================
@@ -46,6 +47,7 @@ export function CallerPicker({
   disabled = false,
   autoFocus = false,
   style,
+  onCreateNew,
 }: CallerPickerProps) {
   // State
   const [callers, setCallers] = useState<CallerSummary[]>([]);
@@ -294,6 +296,31 @@ export function CallerPicker({
               >
                 {filteredCallers.length} caller{filteredCallers.length !== 1 ? "s" : ""}
               </div>
+              {onCreateNew && (
+                <div
+                  onClick={() => {
+                    onCreateNew();
+                    setIsOpen(false);
+                  }}
+                  style={{
+                    padding: "10px 12px",
+                    cursor: "pointer",
+                    background: "transparent",
+                    borderBottom: "1px solid #f3f4f6",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    color: entityColors.caller.accent,
+                    fontWeight: 500,
+                    fontSize: 13,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = entityColors.caller.bg)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ fontSize: 14 }}>+</span>
+                  <span>Create new caller...</span>
+                </div>
+              )}
               {filteredCallers.map((caller, index) => (
                 <div
                   key={caller.id}

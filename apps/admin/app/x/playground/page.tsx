@@ -10,7 +10,6 @@ import {
   entityColors,
   specTypeColors,
   pipelineColors,
-  compareColors,
   diffColors,
 } from "@/src/components/shared/uiColors";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
@@ -73,8 +72,10 @@ type GeneratedPrompt = {
   prompt: string;
   llmPrompt: Record<string, any>;
   inputs?: {
-    sectionsActivated?: string[];
-    sectionsSkipped?: string[];
+    composition?: {
+      sectionsActivated?: string[];
+      sectionsSkipped?: string[];
+    };
   };
 };
 
@@ -102,7 +103,18 @@ type BehaviorParameter = {
 };
 
 type PlaygroundSection = "caller" | "specs" | "prompts";
-type WizardMode = "caller" | "playbook" | "compare";
+type WizardMode = "caller" | "matrix";
+
+// Matrix cell for test matrix
+type MatrixCell = {
+  callerId: string;
+  callerName: string;
+  playbookId: string | null; // null = baseline (no playbook)
+  playbookName: string;
+  status: "pending" | "generating" | "success" | "error";
+  prompt?: GeneratedPrompt;
+  error?: string;
+};
 
 // =============================================================================
 // CONSTANTS
@@ -110,8 +122,7 @@ type WizardMode = "caller" | "playbook" | "compare";
 
 const WIZARD_MODES: { id: WizardMode; label: string; icon: string; description: string }[] = [
   { id: "caller", label: "Prompt Tuner", icon: "✏️", description: "Tune prompt output for one caller" },
-  { id: "compare", label: "Compare Playbooks", icon: "📒📒", description: "A/B compare two playbook configurations" },
-  { id: "playbook", label: "Validate Playbook", icon: "✅", description: "Test playbook across multiple callers" },
+  { id: "matrix", label: "Test Playbooks", icon: "📊", description: "Test N callers × M playbooks" },
 ];
 
 const SPEC_TYPE_INFO: Record<string, { label: string; description: string; icon: string }> = {
@@ -239,7 +250,7 @@ export default function PlaygroundPage() {
 
   // Read mode from URL, default to "caller"
   const modeParam = searchParams.get("mode") as WizardMode | null;
-  const initialMode: WizardMode = modeParam && ["caller", "playbook", "compare"].includes(modeParam) ? modeParam : "caller";
+  const initialMode: WizardMode = modeParam && ["caller", "matrix"].includes(modeParam) ? modeParam : "caller";
 
   // Wizard mode (top-level)
   const [wizardMode, setWizardMode] = useState<WizardMode>(initialMode);
@@ -253,7 +264,7 @@ export default function PlaygroundPage() {
   // Sync mode from URL when navigating via sidebar
   useEffect(() => {
     const urlMode = searchParams.get("mode") as WizardMode | null;
-    if (urlMode && ["caller", "playbook", "compare"].includes(urlMode) && urlMode !== wizardMode) {
+    if (urlMode && ["caller", "matrix"].includes(urlMode) && urlMode !== wizardMode) {
       setWizardMode(urlMode);
     }
   }, [searchParams, wizardMode]);
@@ -315,6 +326,12 @@ export default function PlaygroundPage() {
   const [newCallerDomainId, setNewCallerDomainId] = useState("");
   const [creatingCaller, setCreatingCaller] = useState(false);
 
+  // Create Playbook modal state
+  const [showCreatePlaybookModal, setShowCreatePlaybookModal] = useState(false);
+  const [newPlaybookName, setNewPlaybookName] = useState("");
+  const [newPlaybookDomainId, setNewPlaybookDomainId] = useState("");
+  const [creatingPlaybook, setCreatingPlaybook] = useState(false);
+
   // Spec upload state
   const [uploadingSpec, setUploadingSpec] = useState(false);
   const [specUploadResult, setSpecUploadResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -325,22 +342,13 @@ export default function PlaygroundPage() {
   const [newDomainSlug, setNewDomainSlug] = useState("");
   const [creatingDomain, setCreatingDomain] = useState(false);
 
-  // Create Playbook modal state
-  const [showCreatePlaybookModal, setShowCreatePlaybookModal] = useState(false);
-  const [newPlaybookName, setNewPlaybookName] = useState("");
-  const [newPlaybookDomainId, setNewPlaybookDomainId] = useState("");
-  const [creatingPlaybook, setCreatingPlaybook] = useState(false);
-
-  // Compare mode state
-  const [compareConfigA, setCompareConfigA] = useState<Record<string, boolean>>({});
-  const [compareConfigB, setCompareConfigB] = useState<Record<string, boolean>>({});
-  const [comparePlaybookA, setComparePlaybookA] = useState<string>("");
-  const [comparePlaybookB, setComparePlaybookB] = useState<string>("");
-  const [promptA, setPromptA] = useState<GeneratedPrompt | null>(null);
-  const [promptB, setPromptB] = useState<GeneratedPrompt | null>(null);
-  const [isGeneratingA, setIsGeneratingA] = useState(false);
-  const [isGeneratingB, setIsGeneratingB] = useState(false);
-  const [expandedDiffs, setExpandedDiffs] = useState<Set<string>>(new Set());
+  // Test Matrix state
+  const [matrixCallerIds, setMatrixCallerIds] = useState<string[]>([]);
+  const [matrixPlaybookIds, setMatrixPlaybookIds] = useState<(string | null)[]>([]); // null = baseline
+  const [matrixCells, setMatrixCells] = useState<Map<string, MatrixCell>>(new Map());
+  const [isGeneratingMatrix, setIsGeneratingMatrix] = useState(false);
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set()); // For diff comparison
+  const [showMatrixHelp, setShowMatrixHelp] = useState(false);
 
   // Refs
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -667,7 +675,8 @@ export default function PlaygroundPage() {
       {/* ===== CONTROL BAR HEADER ===== */}
       <div
         style={{
-          padding: "16px 24px",
+          padding: "12px 24px",
+          minHeight: 56,
           background: "var(--surface-primary)",
           borderBottom: "1px solid var(--border-primary)",
           display: "flex",
@@ -675,10 +684,35 @@ export default function PlaygroundPage() {
           gap: 16,
         }}
       >
-        {/* Mode title */}
-        <h1 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)", margin: 0, minWidth: 120 }}>
-          {WIZARD_MODES.find(m => m.id === wizardMode)?.label || "Lab"}
-        </h1>
+        {/* Mode tabs */}
+        <div style={{ display: "flex", gap: 4, background: "var(--surface-secondary)", padding: 4, borderRadius: 8, flexShrink: 0 }}>
+          {WIZARD_MODES.map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => handleModeChange(mode.id)}
+              title={mode.description}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: "none",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+                background: wizardMode === mode.id ? "var(--surface-primary)" : "transparent",
+                color: wizardMode === mode.id ? "var(--text-primary)" : "var(--text-muted)",
+                boxShadow: wizardMode === mode.id ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <span>{mode.icon}</span>
+              <span>{mode.label}</span>
+            </button>
+          ))}
+        </div>
 
         {/* Control bar with pickers - Prompt Tuner mode */}
         {wizardMode === "caller" && (
@@ -708,6 +742,7 @@ export default function PlaygroundPage() {
                     if (id) handleCallerSelect(id);
                   }}
                   placeholder="Select caller..."
+                  onCreateNew={() => setShowCreateCallerModal(true)}
                 />
               </div>
             </div>
@@ -735,15 +770,24 @@ export default function PlaygroundPage() {
               <div style={{ minWidth: 220 }}>
                 <FancySelect
                   value={selectedPlaybookId}
-                  onChange={setSelectedPlaybookId}
-                  options={playbooks
-                    .filter((pb) => !selectedDomainId || pb.domainId === selectedDomainId)
-                    .map((pb) => ({
-                      value: pb.id,
-                      label: pb.name,
-                      subtitle: pb.domain?.name,
-                      badge: pb.status,
-                    }))}
+                  onChange={(val) => {
+                    if (val === "__create__") {
+                      setShowCreatePlaybookModal(true);
+                    } else {
+                      setSelectedPlaybookId(val);
+                    }
+                  }}
+                  options={[
+                    { value: "__create__", label: "+ Create new playbook...", isAction: true },
+                    ...playbooks
+                      .filter((pb) => !selectedDomainId || pb.domainId === selectedDomainId)
+                      .map((pb) => ({
+                        value: pb.id,
+                        label: pb.name,
+                        subtitle: pb.domain?.name,
+                        badge: pb.status,
+                      })),
+                  ]}
                   placeholder="Select playbook..."
                   disabled={!selectedCallerId}
                   selectedStyle={{
@@ -778,8 +822,8 @@ export default function PlaygroundPage() {
                 onClick={generatePrompt}
                 disabled={!selectedCallerId || !selectedPlaybookId || isGenerating}
                 style={{
-                  padding: "10px 20px",
-                  fontSize: 14,
+                  padding: "8px 16px",
+                  fontSize: 13,
                   fontWeight: 600,
                   color: "#fff",
                   background:
@@ -842,7 +886,236 @@ export default function PlaygroundPage() {
             )}
           </div>
         )}
+
+        {/* Control bar - Test Matrix mode */}
+        {wizardMode === "matrix" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
+            {/* Callers count */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  background: matrixCallerIds.length > 0 ? entityColors.caller.bg : "#f3f4f6",
+                  color: matrixCallerIds.length > 0 ? entityColors.caller.text : "#9ca3af",
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {matrixCallerIds.length} caller{matrixCallerIds.length !== 1 ? "s" : ""}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 14 }}>×</span>
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  background: matrixPlaybookIds.length > 0 ? entityColors.playbook.bg : "#f3f4f6",
+                  color: matrixPlaybookIds.length > 0 ? entityColors.playbook.text : "#9ca3af",
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {matrixPlaybookIds.length} config{matrixPlaybookIds.length !== 1 ? "s" : ""}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 14 }}>=</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                {matrixCallerIds.length * matrixPlaybookIds.length} cells
+              </span>
+            </div>
+
+            <div style={{ flex: 1 }} />
+
+            {/* Generate All button */}
+            <button
+              onClick={async () => {
+                if (matrixCallerIds.length === 0 || matrixPlaybookIds.length === 0) return;
+                setIsGeneratingMatrix(true);
+
+                // Initialize all cells as pending
+                const newCells = new Map<string, MatrixCell>();
+                for (const callerId of matrixCallerIds) {
+                  const c = callers.find(c => c.id === callerId);
+                  for (const playbookId of matrixPlaybookIds) {
+                    const pb = playbookId ? playbooks.find(p => p.id === playbookId) : null;
+                    const key = `${callerId}:${playbookId || "baseline"}`;
+                    newCells.set(key, {
+                      callerId,
+                      callerName: c?.name || c?.email || "Unknown",
+                      playbookId,
+                      playbookName: pb?.name || "(baseline)",
+                      status: "generating",
+                    });
+                  }
+                }
+                setMatrixCells(newCells);
+
+                // Generate all in parallel
+                const promises = matrixCallerIds.flatMap(callerId =>
+                  matrixPlaybookIds.map(async playbookId => {
+                    const key = `${callerId}:${playbookId || "baseline"}`;
+                    try {
+                      const body: any = {};
+                      if (playbookId === null) {
+                        body.playbookIds = [];
+                      } else {
+                        body.playbookIds = [playbookId];
+                      }
+                      const res = await fetch(`/api/callers/${callerId}/compose-prompt`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setMatrixCells(prev => {
+                          const next = new Map(prev);
+                          const cell = next.get(key);
+                          if (cell) {
+                            next.set(key, { ...cell, status: "success", prompt: data.prompt });
+                          }
+                          return next;
+                        });
+                      } else {
+                        throw new Error(data.error || "Failed to generate");
+                      }
+                    } catch (err: any) {
+                      setMatrixCells(prev => {
+                        const next = new Map(prev);
+                        const cell = next.get(key);
+                        if (cell) {
+                          next.set(key, { ...cell, status: "error", error: err.message });
+                        }
+                        return next;
+                      });
+                    }
+                  })
+                );
+
+                await Promise.all(promises);
+                setIsGeneratingMatrix(false);
+              }}
+              disabled={matrixCallerIds.length === 0 || matrixPlaybookIds.length === 0 || isGeneratingMatrix}
+              style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#fff",
+                background: isGeneratingMatrix
+                  ? "#9ca3af"
+                  : matrixCallerIds.length > 0 && matrixPlaybookIds.length > 0
+                  ? "linear-gradient(135deg, #8b5cf6, #6366f1)"
+                  : "#d1d5db",
+                border: "none",
+                borderRadius: 8,
+                cursor: matrixCallerIds.length > 0 && matrixPlaybookIds.length > 0 && !isGeneratingMatrix ? "pointer" : "not-allowed",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              {isGeneratingMatrix ? (
+                <>
+                  <span className="animate-spin">⟳</span>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <span>✨</span>
+                  Generate All
+                </>
+              )}
+            </button>
+
+            {/* Help button */}
+            <button
+              onClick={() => setShowMatrixHelp(!showMatrixHelp)}
+              style={{
+                padding: "8px 12px",
+                fontSize: 13,
+                fontWeight: 500,
+                color: showMatrixHelp ? "#6366f1" : "var(--text-muted)",
+                background: showMatrixHelp ? "#eef2ff" : "transparent",
+                border: "1px solid",
+                borderColor: showMatrixHelp ? "#c7d2fe" : "var(--border-default)",
+                borderRadius: 8,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <span>?</span>
+              <span>Help</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Test Matrix Help Panel */}
+      {wizardMode === "matrix" && showMatrixHelp && (
+        <div
+          style={{
+            margin: "0 20px",
+            marginTop: 12,
+            padding: 20,
+            background: "linear-gradient(135deg, #eef2ff 0%, #faf5ff 100%)",
+            borderRadius: 12,
+            border: "1px solid #c7d2fe",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#4338ca", display: "flex", alignItems: "center", gap: 8 }}>
+              <span>📊</span> How to Use Test Matrix
+            </h3>
+            <button
+              onClick={() => setShowMatrixHelp(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#6366f1" }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+            {/* Step 1 */}
+            <div style={{ background: "white", borderRadius: 8, padding: 16, border: "1px solid #e0e7ff" }}>
+              <div style={{ fontSize: 20, marginBottom: 8 }}>1️⃣</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#1e1b4b", marginBottom: 6 }}>Add Items to Matrix</div>
+              <div style={{ fontSize: 12, color: "#4b5563", lineHeight: 1.5 }}>
+                Click <strong style={{ color: entityColors.caller.accent }}>+ Add Callers</strong> and <strong style={{ color: entityColors.playbook.accent }}>+ Add Playbooks</strong> in the left panel to build your test matrix.
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div style={{ background: "white", borderRadius: 8, padding: 16, border: "1px solid #e0e7ff" }}>
+              <div style={{ fontSize: 20, marginBottom: 8 }}>2️⃣</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#1e1b4b", marginBottom: 6 }}>Generate Prompts</div>
+              <div style={{ fontSize: 12, color: "#4b5563", lineHeight: 1.5 }}>
+                Click <strong style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", color: "white", padding: "1px 6px", borderRadius: 4 }}>Generate All</strong> to create prompts for every caller × playbook combination.
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div style={{ background: "white", borderRadius: 8, padding: 16, border: "1px solid #e0e7ff" }}>
+              <div style={{ fontSize: 20, marginBottom: 8 }}>3️⃣</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#1e1b4b", marginBottom: 6 }}>View & Compare</div>
+              <div style={{ fontSize: 12, color: "#4b5563", lineHeight: 1.5 }}>
+                <strong>Click</strong> a cell to view its prompt. <strong>Shift+click</strong> two cells to see a side-by-side diff comparison.
+              </div>
+            </div>
+          </div>
+
+          {/* Tips */}
+          <div style={{ marginTop: 16, padding: 12, background: "white", borderRadius: 8, border: "1px solid #e0e7ff" }}>
+            <div style={{ fontWeight: 600, fontSize: 12, color: "#4338ca", marginBottom: 8 }}>Tips</div>
+            <div style={{ display: "flex", gap: 24, fontSize: 11, color: "#4b5563" }}>
+              <div><span style={{ color: "#3b82f6", fontWeight: 600 }}>A</span> = First selected cell (blue)</div>
+              <div><span style={{ color: "#ec4899", fontWeight: 600 }}>B</span> = Second selected cell (pink)</div>
+              <div><strong>(baseline)</strong> = No playbook applied, uses domain defaults</div>
+              <div>Diff view shows section differences between two prompts</div>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* ===== ERROR ===== */}
@@ -907,6 +1180,7 @@ export default function PlaygroundPage() {
                     }}
                     placeholder="Search callers..."
                     style={{ width: 280 }}
+                    onCreateNew={() => setShowCreateCallerModal(true)}
                   />
                   <button
                     onClick={() => setShowCreateCallerModal(true)}
@@ -1256,94 +1530,181 @@ export default function PlaygroundPage() {
 
 
       {/* ================================================================ */}
-      {/* PLAYBOOK WIZARD CONTENT                                         */}
+      {/* TEST MATRIX CONTENT                                             */}
       {/* ================================================================ */}
-      {wizardMode === "playbook" && (
+      {wizardMode === "matrix" && (
         <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-            <div
-              style={{
-                textAlign: "center",
-                padding: "60px 20px",
-                background: "var(--surface-primary)",
-                borderRadius: 12,
-                border: "1px solid var(--border-primary)",
-              }}
-            >
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
-              <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px 0" }}>
-                Playbook Testing
-              </h2>
-              <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 400, margin: "0 auto 24px" }}>
-                Select a playbook to see how it generates prompts for different callers.
-                Compare outputs across personality types and contexts.
-              </p>
-
-              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 24 }}>
+          <div style={{ maxWidth: 1600, margin: "0 auto" }}>
+            {/* Selection Controls */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+              {/* Callers Selection */}
+              <div
+                style={{
+                  background: "var(--surface-primary)",
+                  border: `2px solid ${entityColors.caller.border}`,
+                  borderRadius: 12,
+                  padding: 16,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 16 }}>👤</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Callers</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
+                    {matrixCallerIds.length} selected
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                  {matrixCallerIds.map(id => {
+                    const c = callers.find(c => c.id === id);
+                    return (
+                      <span
+                        key={id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "4px 8px",
+                          background: entityColors.caller.bg,
+                          color: entityColors.caller.text,
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {c?.name || c?.email || id.slice(0, 8)}
+                        <button
+                          onClick={() => setMatrixCallerIds(prev => prev.filter(x => x !== id))}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 14, color: entityColors.caller.text, opacity: 0.7 }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
                 <FancySelect
-                  value={selectedPlaybookId}
-                  onChange={setSelectedPlaybookId}
-                  placeholder="Select a playbook..."
-                  style={{ minWidth: 280 }}
-                  options={playbooks.filter(p => p.status === "PUBLISHED").map((pb) => ({
-                    value: pb.id,
-                    label: pb.name,
-                    subtitle: pb.domain?.name || "No domain",
-                  }))}
+                  value=""
+                  onChange={(id) => {
+                    if (id && !matrixCallerIds.includes(id)) {
+                      setMatrixCallerIds(prev => [...prev, id]);
+                    }
+                  }}
+                  placeholder="+ Add caller..."
+                  searchable
+                  options={callers
+                    .filter(c => !matrixCallerIds.includes(c.id))
+                    .map(c => ({
+                      value: c.id,
+                      label: c.name || c.email || c.externalId || "Unknown",
+                      subtitle: c.domain?.name,
+                    }))}
                 />
+                <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setMatrixCallerIds(callers.slice(0, 5).map(c => c.id))}
+                    style={{ fontSize: 11, color: "var(--text-muted)", background: "none", border: "1px solid var(--border-default)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}
+                  >
+                    Recent 5
+                  </button>
+                  <button
+                    onClick={() => setMatrixCallerIds([])}
+                    style={{ fontSize: 11, color: "var(--text-muted)", background: "none", border: "1px solid var(--border-default)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
 
-              {selectedPlaybookId && (
-                <div style={{ marginTop: 32, padding: 20, background: "var(--surface-secondary)", borderRadius: 8, textAlign: "left" }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
-                    Selected: {playbooks.find(p => p.id === selectedPlaybookId)?.name}
-                  </div>
-                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    Playbook multi-caller testing coming soon.
-                    This mode will allow you to select multiple sample callers and generate prompts
-                    for each to see how the playbook adapts to different personalities.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================================================================ */}
-      {/* COMPARE WIZARD CONTENT                                          */}
-      {/* ================================================================ */}
-      {wizardMode === "compare" && (
-        <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
-          <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-            {/* Header */}
-            <div style={{ marginBottom: 20, textAlign: "center" }}>
-              <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <span>A/B Compare</span>
-              </h2>
-              <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0 }}>
-                Compare two different configurations side-by-side for the same caller
-              </p>
-            </div>
-
-            {/* Caller Selection */}
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
-              <CallerPicker
-                value={selectedCallerId || null}
-                onChange={(callerId) => {
-                  if (callerId) {
-                    handleCallerSelect(callerId);
-                    // Reset compare prompts when caller changes
-                    setPromptA(null);
-                    setPromptB(null);
-                  }
+              {/* Playbooks Selection */}
+              <div
+                style={{
+                  background: "var(--surface-primary)",
+                  border: `2px solid ${entityColors.playbook.border}`,
+                  borderRadius: 12,
+                  padding: 16,
                 }}
-                placeholder="Select a caller to compare..."
-                style={{ width: 320 }}
-              />
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 16 }}>📒</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Playbooks</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
+                    {matrixPlaybookIds.length} selected
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                  {matrixPlaybookIds.map((id, i) => {
+                    const pb = id ? playbooks.find(p => p.id === id) : null;
+                    return (
+                      <span
+                        key={id || "baseline"}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "4px 8px",
+                          background: id ? entityColors.playbook.bg : "#f3f4f6",
+                          color: id ? entityColors.playbook.text : "#6b7280",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {pb?.name || "(baseline)"}
+                        <button
+                          onClick={() => setMatrixPlaybookIds(prev => prev.filter((_, j) => j !== i))}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 14, color: id ? entityColors.playbook.text : "#6b7280", opacity: 0.7 }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <FancySelect
+                  value=""
+                  onChange={(id) => {
+                    if (id === "__baseline__") {
+                      if (!matrixPlaybookIds.includes(null)) {
+                        setMatrixPlaybookIds(prev => [...prev, null]);
+                      }
+                    } else if (id && !matrixPlaybookIds.includes(id)) {
+                      setMatrixPlaybookIds(prev => [...prev, id]);
+                    }
+                  }}
+                  placeholder="+ Add configuration..."
+                  options={[
+                    { value: "__baseline__", label: "(baseline)", subtitle: "No playbook - system defaults only" },
+                    ...playbooks
+                      .filter(p => p.status === "PUBLISHED" && !matrixPlaybookIds.includes(p.id))
+                      .map(p => ({
+                        value: p.id,
+                        label: p.name,
+                        subtitle: p.domain?.name,
+                      })),
+                  ]}
+                />
+                <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      const published = playbooks.filter(p => p.status === "PUBLISHED").slice(0, 3).map(p => p.id);
+                      setMatrixPlaybookIds([null, ...published]);
+                    }}
+                    style={{ fontSize: 11, color: "var(--text-muted)", background: "none", border: "1px solid var(--border-default)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}
+                  >
+                    Baseline + Top 3
+                  </button>
+                  <button
+                    onClick={() => setMatrixPlaybookIds([])}
+                    style={{ fontSize: 11, color: "var(--text-muted)", background: "none", border: "1px solid var(--border-default)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {!selectedCallerId ? (
+            {/* Matrix Grid */}
+            {matrixCallerIds.length === 0 || matrixPlaybookIds.length === 0 ? (
               <div
                 style={{
                   textAlign: "center",
@@ -1353,434 +1714,253 @@ export default function PlaygroundPage() {
                   border: "1px solid var(--border-primary)",
                 }}
               >
-                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>👤</div>
+                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📊</div>
                 <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-                  Select a caller above to start comparing configurations
+                  Select callers and configurations above to build your test matrix
                 </p>
               </div>
             ) : (
-              <>
-                {/* Two-column layout */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-                  {/* Config A */}
-                  <div
-                    style={{
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${compareColors.configA.border}`,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div style={{ background: compareColors.configA.headerBg, padding: "12px 16px", borderBottom: `1px solid ${entityColors.caller.border}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontWeight: 600, color: compareColors.configA.text }}>Config A</span>
-                        <FancySelect
-                          value={comparePlaybookA}
-                          onChange={setComparePlaybookA}
-                          placeholder="All playbooks"
-                          style={{ flex: 1, maxWidth: 200 }}
-                          options={[
-                            { value: "", label: "All playbooks (domain default)" },
-                            { value: "__none__", label: "No playbook (baseline)" },
-                            ...playbooks.filter(p => p.status === "PUBLISHED").map((pb) => ({
-                              value: pb.id,
-                              label: pb.name,
-                              subtitle: pb.domain?.name || "no domain",
-                            })),
-                          ]}
-                        />
-                        <button
-                          onClick={async () => {
-                            if (!selectedCallerId) return;
-                            setIsGeneratingA(true);
-                            try {
-                              const body: any = {};
-                              if (comparePlaybookA === "__none__") {
-                                body.playbookIds = []; // Empty array = no playbooks
-                              } else if (comparePlaybookA) {
-                                body.playbookIds = [comparePlaybookA]; // Specific playbook
-                              }
-                              // If empty string, don't send playbookIds (use all)
-                              const res = await fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(body),
-                              });
-                              const data = await res.json();
-                              if (data.ok) {
-                                setPromptA(data.prompt);
-                              }
-                            } catch (e) {
-                              console.error(e);
-                            } finally {
-                              setIsGeneratingA(false);
-                            }
-                          }}
-                          disabled={isGeneratingA}
-                          style={{
-                            padding: "6px 12px",
-                            background: isGeneratingA ? entityColors.caller.border : compareColors.configA.border,
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            cursor: isGeneratingA ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {isGeneratingA ? "..." : "Generate"}
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ padding: 16, minHeight: 300 }}>
-                      {isGeneratingA ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)" }}>
-                          Generating...
-                        </div>
-                      ) : promptA ? (
-                        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                          <div style={{ marginBottom: 12, padding: 8, background: compareColors.configA.bg, borderRadius: 6, fontSize: 11, color: compareColors.configA.text }}>
-                            {(promptA.inputs as any)?.playbooksUsed?.join(", ") || "No playbooks"} | {(promptA.inputs as any)?.composition?.sectionsActivated?.length || 0} sections
-                          </div>
-                          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0, maxHeight: 400, overflow: "auto" }}>
-                            {promptA.prompt}
-                          </pre>
-                        </div>
-                      ) : (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-placeholder)", fontSize: 13 }}>
-                          Select playbook config and click Generate
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Config B */}
-                  <div
-                    style={{
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${compareColors.configB.border}`,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div style={{ background: compareColors.configB.headerBg, padding: "12px 16px", borderBottom: `1px solid ${entityColors.playbook.border}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontWeight: 600, color: compareColors.configB.text }}>Config B</span>
-                        <FancySelect
-                          value={comparePlaybookB}
-                          onChange={setComparePlaybookB}
-                          placeholder="All playbooks"
-                          style={{ flex: 1, maxWidth: 200 }}
-                          options={[
-                            { value: "", label: "All playbooks (domain default)" },
-                            { value: "__none__", label: "No playbook (baseline)" },
-                            ...playbooks.filter(p => p.status === "PUBLISHED").map((pb) => ({
-                              value: pb.id,
-                              label: pb.name,
-                              subtitle: pb.domain?.name || "no domain",
-                            })),
-                          ]}
-                        />
-                        <button
-                          onClick={async () => {
-                            if (!selectedCallerId) return;
-                            setIsGeneratingB(true);
-                            try {
-                              const body: any = {};
-                              if (comparePlaybookB === "__none__") {
-                                body.playbookIds = []; // Empty array = no playbooks
-                              } else if (comparePlaybookB) {
-                                body.playbookIds = [comparePlaybookB]; // Specific playbook
-                              }
-                              const res = await fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(body),
-                              });
-                              const data = await res.json();
-                              if (data.ok) {
-                                setPromptB(data.prompt);
-                              }
-                            } catch (e) {
-                              console.error(e);
-                            } finally {
-                              setIsGeneratingB(false);
-                            }
-                          }}
-                          disabled={isGeneratingB}
-                          style={{
-                            padding: "6px 12px",
-                            background: isGeneratingB ? entityColors.playbook.border : compareColors.configB.border,
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            cursor: isGeneratingB ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {isGeneratingB ? "..." : "Generate"}
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ padding: 16, minHeight: 300 }}>
-                      {isGeneratingB ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)" }}>
-                          Generating...
-                        </div>
-                      ) : promptB ? (
-                        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                          <div style={{ marginBottom: 12, padding: 8, background: compareColors.configB.bg, borderRadius: 6, fontSize: 11, color: compareColors.configB.text }}>
-                            {(promptB.inputs as any)?.playbooksUsed?.join(", ") || "No playbooks"} | {(promptB.inputs as any)?.composition?.sectionsActivated?.length || 0} sections
-                          </div>
-                          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0, maxHeight: 400, overflow: "auto" }}>
-                            {promptB.prompt}
-                          </pre>
-                        </div>
-                      ) : (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-placeholder)", fontSize: 13 }}>
-                          Select playbook config and click Generate
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Generate Both button */}
-                <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-                  <button
-                    onClick={async () => {
-                      if (!selectedCallerId) return;
-                      setIsGeneratingA(true);
-                      setIsGeneratingB(true);
-                      try {
-                        const bodyA: any = {};
-                        if (comparePlaybookA === "__none__") bodyA.playbookIds = [];
-                        else if (comparePlaybookA) bodyA.playbookIds = [comparePlaybookA];
-
-                        const bodyB: any = {};
-                        if (comparePlaybookB === "__none__") bodyB.playbookIds = [];
-                        else if (comparePlaybookB) bodyB.playbookIds = [comparePlaybookB];
-
-                        const [resA, resB] = await Promise.all([
-                          fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(bodyA),
-                          }),
-                          fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(bodyB),
-                          }),
-                        ]);
-                        const [dataA, dataB] = await Promise.all([resA.json(), resB.json()]);
-                        if (dataA.ok) setPromptA(dataA.prompt);
-                        if (dataB.ok) setPromptB(dataB.prompt);
-                      } catch (e) {
-                        console.error(e);
-                      } finally {
-                        setIsGeneratingA(false);
-                        setIsGeneratingB(false);
-                      }
-                    }}
-                    disabled={isGeneratingA || isGeneratingB}
-                    style={{
-                      padding: "10px 24px",
-                      background: (isGeneratingA || isGeneratingB) ? "#d1d5db" : "#1f2937",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      cursor: (isGeneratingA || isGeneratingB) ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {(isGeneratingA || isGeneratingB) ? "Generating..." : "Generate Both"}
-                  </button>
-                </div>
-
-                {/* Diff View */}
-                {promptA && promptB && (
-                  <div
-                    style={{
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-primary)",
-                      borderRadius: 12,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {(() => {
-                      const diffResult = computeDiff(promptA.llmPrompt, promptB.llmPrompt);
-                      const changes = diffResult.filter(d => d.status !== "unchanged");
-                      const allExpanded = changes.length > 0 && changes.every(d => expandedDiffs.has(d.key));
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--surface-primary)", borderRadius: 12, overflow: "hidden" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: 12, background: "var(--surface-secondary)", borderBottom: "1px solid var(--border-default)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+                        Caller
+                      </th>
+                      {matrixPlaybookIds.map((pbId, i) => {
+                        const pb = pbId ? playbooks.find(p => p.id === pbId) : null;
+                        return (
+                          <th
+                            key={pbId || "baseline"}
+                            style={{
+                              padding: 12,
+                              background: pbId ? entityColors.playbook.bg : "#f9fafb",
+                              borderBottom: "1px solid var(--border-default)",
+                              textAlign: "center",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: pbId ? entityColors.playbook.text : "#6b7280",
+                              minWidth: 160,
+                            }}
+                          >
+                            {pb?.name || "(baseline)"}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matrixCallerIds.map(callerId => {
+                      const c = callers.find(c => c.id === callerId);
                       return (
-                        <>
-                          <div style={{ background: "var(--surface-secondary)", padding: "12px 16px", borderBottom: "1px solid var(--border-primary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>Differences</span>
-                            {changes.length > 0 && (
-                              <button
-                                onClick={() => {
-                                  if (allExpanded) {
-                                    setExpandedDiffs(new Set());
+                        <tr key={callerId}>
+                          <td style={{ padding: 12, borderBottom: "1px solid var(--border-default)", fontSize: 13, fontWeight: 500, color: "var(--text-primary)", background: entityColors.caller.bg }}>
+                            {c?.name || c?.email || callerId.slice(0, 8)}
+                            {c?.domain && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{c.domain.name}</div>}
+                          </td>
+                          {matrixPlaybookIds.map(pbId => {
+                            const key = `${callerId}:${pbId || "baseline"}`;
+                            const cell = matrixCells.get(key);
+                            const isSelected = selectedCells.has(key);
+                            const selectionIndex = isSelected ? Array.from(selectedCells).indexOf(key) + 1 : 0;
+                            return (
+                              <td
+                                key={key}
+                                onClick={(e) => {
+                                  if (cell?.status !== "success") return;
+                                  if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                                    // Multi-select: toggle cell in selection (max 2)
+                                    setSelectedCells(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(key)) {
+                                        next.delete(key);
+                                      } else if (next.size < 2) {
+                                        next.add(key);
+                                      } else {
+                                        // Replace oldest selection
+                                        const arr = Array.from(next);
+                                        next.delete(arr[0]);
+                                        next.add(key);
+                                      }
+                                      return next;
+                                    });
                                   } else {
-                                    setExpandedDiffs(new Set(changes.map(d => d.key)));
+                                    // Single click: select just this one (or deselect if already sole selection)
+                                    if (selectedCells.size === 1 && selectedCells.has(key)) {
+                                      setSelectedCells(new Set());
+                                    } else {
+                                      setSelectedCells(new Set([key]));
+                                    }
                                   }
                                 }}
                                 style={{
-                                  padding: "4px 10px",
-                                  fontSize: 12,
-                                  background: "var(--surface-primary)",
-                                  border: "1px solid var(--border-primary)",
-                                  borderRadius: 6,
-                                  cursor: "pointer",
-                                  color: "var(--text-primary)",
+                                  padding: 12,
+                                  borderBottom: "1px solid var(--border-default)",
+                                  textAlign: "center",
+                                  cursor: cell?.status === "success" ? "pointer" : "default",
+                                  background: isSelected
+                                    ? selectionIndex === 1 ? "#dbeafe" : "#fce7f3"  // blue for 1st, pink for 2nd
+                                    : "var(--surface-primary)",
+                                  outline: isSelected ? `2px solid ${selectionIndex === 1 ? "#3b82f6" : "#ec4899"}` : "none",
+                                  outlineOffset: -2,
+                                  transition: "background 0.15s",
                                 }}
                               >
-                                {allExpanded ? "Collapse All" : "Expand All"}
-                              </button>
-                            )}
-                          </div>
-                          <div style={{ padding: 16 }}>
-                            {changes.length === 0 ? (
-                              <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>
-                                No differences found between Config A and Config B
-                              </div>
-                            ) : (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {changes.map((d) => {
-                                  const isExpanded = expandedDiffs.has(d.key);
-                                  const aStr = typeof d.previous === "object" ? JSON.stringify(d.previous, null, 2) : String(d.previous ?? "");
-                                  const bStr = typeof d.current === "object" ? JSON.stringify(d.current, null, 2) : String(d.current ?? "");
-                                  return (
-                                    <div
-                                      key={d.key}
-                                      style={{
-                                        padding: "10px 14px",
-                                        borderRadius: 8,
-                                        background:
-                                          d.status === "added" ? diffColors.added.bg :
-                                          d.status === "removed" ? diffColors.removed.bg :
-                                          diffColors.changed.bg,
-                                        border: `1px solid ${
-                                          d.status === "added" ? diffColors.added.border :
-                                          d.status === "removed" ? diffColors.removed.border :
-                                          diffColors.changed.border
-                                        }`,
-                                      }}
-                                    >
-                                      <div
-                                        onClick={() => {
-                                          setExpandedDiffs(prev => {
-                                            const next = new Set(prev);
-                                            if (next.has(d.key)) {
-                                              next.delete(d.key);
-                                            } else {
-                                              next.add(d.key);
-                                            }
-                                            return next;
-                                          });
-                                        }}
-                                        style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, cursor: "pointer" }}
-                                      >
-                                        <span style={{ fontSize: 11, color: "var(--text-muted)", width: 12 }}>{isExpanded ? "▼" : "▶"}</span>
-                                        <span style={{
-                                          fontSize: 11,
-                                          fontWeight: 600,
-                                          color:
-                                            d.status === "added" ? diffColors.added.text :
-                                            d.status === "removed" ? diffColors.removed.text :
-                                            diffColors.changed.text,
-                                        }}>
-                                          {d.status === "added" ? "+ ADDED" : d.status === "removed" ? "- REMOVED" : "~ CHANGED"}
-                                        </span>
-                                        <code style={{ fontSize: 12, color: "var(--text-secondary)" }}>{d.key}</code>
-                                      </div>
-                                      <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>
-                                        {isExpanded ? (
-                                          <div style={{ marginTop: 8 }}>
-                                            {(d.status === "changed" || d.status === "removed") && (
-                                              <div style={{ marginBottom: 8 }}>
-                                                <div style={{ fontSize: 10, fontWeight: 600, color: diffColors.removed.text, marginBottom: 4 }}>A:</div>
-                                                <pre style={{
-                                                  margin: 0,
-                                                  padding: 8,
-                                                  background: "rgba(239,68,68,0.1)",
-                                                  borderRadius: 4,
-                                                  whiteSpace: "pre-wrap",
-                                                  wordBreak: "break-word",
-                                                  color: diffColors.removed.text,
-                                                  maxHeight: 300,
-                                                  overflow: "auto",
-                                                }}>{aStr}</pre>
-                                              </div>
-                                            )}
-                                            {(d.status === "changed" || d.status === "added") && (
-                                              <div>
-                                                <div style={{ fontSize: 10, fontWeight: 600, color: diffColors.added.text, marginBottom: 4 }}>B:</div>
-                                                <pre style={{
-                                                  margin: 0,
-                                                  padding: 8,
-                                                  background: "rgba(34,197,94,0.1)",
-                                                  borderRadius: 4,
-                                                  whiteSpace: "pre-wrap",
-                                                  wordBreak: "break-word",
-                                                  color: diffColors.added.text,
-                                                  maxHeight: 300,
-                                                  overflow: "auto",
-                                                }}>{bStr}</pre>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          d.status === "changed" ? (() => {
-                                            const snippets = getDiffSnippets(aStr, bStr);
-                                            return (
-                                              <>
-                                                <div style={{ color: diffColors.removed.text }}>A: {snippets.a}</div>
-                                                <div style={{ color: diffColors.added.text }}>B: {snippets.b}</div>
-                                              </>
-                                            );
-                                          })() : d.status === "removed" ? (
-                                            <div style={{ color: diffColors.removed.text }}>
-                                              A: {aStr.slice(0, 120)}{aStr.length > 120 ? "..." : ""}
-                                            </div>
-                                          ) : (
-                                            <div style={{ color: diffColors.added.text }}>
-                                              B: {bStr.slice(0, 120)}{bStr.length > 120 ? "..." : ""}
-                                            </div>
-                                          )
-                                        )}
-                                      </div>
+                                {!cell ? (
+                                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>
+                                ) : cell.status === "generating" ? (
+                                  <span className="animate-spin" style={{ fontSize: 16 }}>⟳</span>
+                                ) : cell.status === "error" ? (
+                                  <span style={{ fontSize: 12, color: "#dc2626" }} title={cell.error}>❌</span>
+                                ) : cell.status === "success" && cell.prompt ? (
+                                  <div>
+                                    <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>
+                                      {isSelected ? <span style={{ color: selectionIndex === 1 ? "#3b82f6" : "#ec4899" }}>{selectionIndex === 1 ? "A" : "B"}</span> : "✓"}
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </>
+                                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                                      {cell.prompt.inputs?.composition?.sectionsActivated?.length || 0} sections
+                                    </div>
+                                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                                      {((cell.prompt.prompt?.length || 0) / 1000).toFixed(1)}k chars
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </td>
+                            );
+                          })}
+                        </tr>
                       );
-                    })()}
-                  </div>
-                )}
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-                {/* Info box */}
+            {/* Selection Detail / Diff View */}
+            {selectedCells.size === 0 && matrixCells.size > 0 && (
+              <div style={{ marginTop: 16, padding: 16, background: "var(--surface-secondary)", borderRadius: 8, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                Click a cell to view prompt details. <strong>Shift+click</strong> two cells to compare.
+              </div>
+            )}
+
+            {/* Single Cell Detail */}
+            {selectedCells.size === 1 && (() => {
+              const key = Array.from(selectedCells)[0];
+              const cell = matrixCells.get(key);
+              if (!cell || !cell.prompt) return null;
+              return (
                 <div
                   style={{
                     marginTop: 20,
-                    padding: 16,
-                    background: "#f0f9ff",
-                    border: "1px solid #bae6fd",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    color: "#0369a1",
+                    background: "var(--surface-primary)",
+                    border: "2px solid #3b82f6",
+                    borderRadius: 12,
+                    overflow: "hidden",
                   }}
                 >
-                  <strong>Tip:</strong> Select different playbook configurations for A and B to compare how they affect the prompt.
-                  Choose "No playbook" to see the baseline system prompt without any playbook specs applied.
+                  <div style={{ padding: 16, background: "#dbeafe", borderBottom: "1px solid #93c5fd", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <span style={{ fontWeight: 700, color: "#1d4ed8", marginRight: 8 }}>A</span>
+                      <span style={{ fontWeight: 600, color: "#1e40af" }}>{cell.callerName}</span>
+                      <span style={{ color: "#3b82f6", margin: "0 8px" }}>×</span>
+                      <span style={{ fontWeight: 600, color: "#1e40af" }}>{cell.playbookName}</span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCells(new Set())}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#3b82f6" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div style={{ padding: 16, maxHeight: 400, overflow: "auto" }}>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
+                      Sections: {cell.prompt.inputs?.composition?.sectionsActivated?.join(", ") || "none"}
+                    </div>
+                    <pre style={{ fontSize: 11, background: "var(--surface-secondary)", padding: 12, borderRadius: 8, whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
+                      {cell.prompt.prompt}
+                    </pre>
+                  </div>
                 </div>
-              </>
-            )}
+              );
+            })()}
+
+            {/* Diff View (2 cells selected) */}
+            {selectedCells.size === 2 && (() => {
+              const [keyA, keyB] = Array.from(selectedCells);
+              const cellA = matrixCells.get(keyA);
+              const cellB = matrixCells.get(keyB);
+              if (!cellA?.prompt || !cellB?.prompt) return null;
+
+              const sectionsA = new Set(cellA.prompt.inputs?.composition?.sectionsActivated || []);
+              const sectionsB = new Set(cellB.prompt.inputs?.composition?.sectionsActivated || []);
+              const allSections = new Set([...sectionsA, ...sectionsB]);
+              const onlyInA = [...allSections].filter(s => sectionsA.has(s) && !sectionsB.has(s));
+              const onlyInB = [...allSections].filter(s => sectionsB.has(s) && !sectionsA.has(s));
+              const inBoth = [...allSections].filter(s => sectionsA.has(s) && sectionsB.has(s));
+
+              return (
+                <div style={{ marginTop: 20 }}>
+                  {/* Diff Header */}
+                  <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+                    <div style={{ flex: 1, padding: 12, background: "#dbeafe", borderRadius: 8, border: "2px solid #3b82f6" }}>
+                      <div style={{ fontWeight: 700, color: "#1d4ed8", marginBottom: 4 }}>A</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>{cellA.callerName} × {cellA.playbookName}</div>
+                      <div style={{ fontSize: 11, color: "#3b82f6" }}>{sectionsA.size} sections, {((cellA.prompt.prompt?.length || 0) / 1000).toFixed(1)}k chars</div>
+                    </div>
+                    <div style={{ flex: 1, padding: 12, background: "#fce7f3", borderRadius: 8, border: "2px solid #ec4899" }}>
+                      <div style={{ fontWeight: 700, color: "#be185d", marginBottom: 4 }}>B</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#9d174d" }}>{cellB.callerName} × {cellB.playbookName}</div>
+                      <div style={{ fontSize: 11, color: "#ec4899" }}>{sectionsB.size} sections, {((cellB.prompt.prompt?.length || 0) / 1000).toFixed(1)}k chars</div>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCells(new Set())}
+                      style={{ alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--text-muted)" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Section Diff Summary */}
+                  <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, marginBottom: 16 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Section Differences</div>
+                    <div style={{ display: "flex", gap: 24, fontSize: 12 }}>
+                      <div>
+                        <span style={{ color: "#22c55e", fontWeight: 600 }}>In both ({inBoth.length}):</span>{" "}
+                        <span style={{ color: "var(--text-muted)" }}>{inBoth.join(", ") || "none"}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: "#3b82f6", fontWeight: 600 }}>Only in A ({onlyInA.length}):</span>{" "}
+                        <span style={{ color: "var(--text-muted)" }}>{onlyInA.join(", ") || "none"}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: "#ec4899", fontWeight: 600 }}>Only in B ({onlyInB.length}):</span>{" "}
+                        <span style={{ color: "var(--text-muted)" }}>{onlyInB.join(", ") || "none"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Side-by-Side Prompts */}
+                  <div style={{ display: "flex", gap: 16 }}>
+                    <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid #93c5fd", borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ padding: "8px 12px", background: "#dbeafe", borderBottom: "1px solid #93c5fd", fontWeight: 600, fontSize: 12, color: "#1d4ed8" }}>
+                        Prompt A
+                      </div>
+                      <pre style={{ fontSize: 10, padding: 12, margin: 0, maxHeight: 400, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {cellA.prompt.prompt}
+                      </pre>
+                    </div>
+                    <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid #f9a8d4", borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ padding: "8px 12px", background: "#fce7f3", borderBottom: "1px solid #f9a8d4", fontWeight: 600, fontSize: 12, color: "#be185d" }}>
+                        Prompt B
+                      </div>
+                      <pre style={{ fontSize: 10, padding: 12, margin: 0, maxHeight: 400, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {cellB.prompt.prompt}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1929,6 +2109,133 @@ export default function PlaygroundPage() {
                 }}
               >
                 {creatingCaller ? "Creating..." : "Create Caller"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Playbook Modal */}
+      {showCreatePlaybookModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShowCreatePlaybookModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--surface-primary)",
+              borderRadius: 12,
+              padding: 24,
+              width: 400,
+              maxWidth: "90vw",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+          >
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>Create New Playbook</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={newPlaybookName}
+                  onChange={(e) => setNewPlaybookName(e.target.value)}
+                  placeholder="Enter playbook name"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1px solid var(--border-strong)",
+                    borderRadius: 6,
+                    fontSize: 14,
+                  }}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
+                  Domain *
+                </label>
+                <FancySelect
+                  value={newPlaybookDomainId}
+                  onChange={setNewPlaybookDomainId}
+                  placeholder="Select domain..."
+                  options={domains.map((d) => ({ value: d.id, label: d.name }))}
+                />
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+              <button
+                onClick={() => {
+                  setShowCreatePlaybookModal(false);
+                  setNewPlaybookName("");
+                  setNewPlaybookDomainId("");
+                }}
+                style={{
+                  padding: "10px 20px",
+                  border: "1px solid var(--border-strong)",
+                  borderRadius: 6,
+                  background: "var(--surface-primary)",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!newPlaybookName.trim() || !newPlaybookDomainId) return;
+                  setCreatingPlaybook(true);
+                  try {
+                    const res = await fetch("/api/playbooks", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        name: newPlaybookName.trim(),
+                        domainId: newPlaybookDomainId,
+                        status: "DRAFT",
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                      // Add the new playbook to the list with its domain
+                      const domain = domains.find((d) => d.id === newPlaybookDomainId);
+                      setPlaybooks((prev) => [{ ...data.playbook, domain }, ...prev]);
+                      setSelectedPlaybookId(data.playbook.id);
+                      setShowCreatePlaybookModal(false);
+                      setNewPlaybookName("");
+                      setNewPlaybookDomainId("");
+                    } else {
+                      setError(data.error || "Failed to create playbook");
+                    }
+                  } catch {
+                    setError("Failed to create playbook");
+                  } finally {
+                    setCreatingPlaybook(false);
+                  }
+                }}
+                disabled={!newPlaybookName.trim() || !newPlaybookDomainId || creatingPlaybook}
+                style={{
+                  padding: "10px 20px",
+                  border: "none",
+                  borderRadius: 6,
+                  background: newPlaybookName.trim() && newPlaybookDomainId ? "#4f46e5" : "#e5e7eb",
+                  color: newPlaybookName.trim() && newPlaybookDomainId ? "#fff" : "#9ca3af",
+                  cursor: newPlaybookName.trim() && newPlaybookDomainId ? "pointer" : "not-allowed",
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+              >
+                {creatingPlaybook ? "Creating..." : "Create Playbook"}
               </button>
             </div>
           </div>

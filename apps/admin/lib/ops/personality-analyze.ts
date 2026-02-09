@@ -20,6 +20,7 @@
  */
 
 import { PrismaClient, AnalysisOutputType } from "@prisma/client";
+import { TRAITS } from "@/lib/registry";
 
 const prisma = new PrismaClient();
 
@@ -93,11 +94,11 @@ const DEFAULT_TRAIT_MAPPING: Record<string, string> = {
   "PERS-AGREEABLENESS": "agreeableness",
   "PERS-NEUROTICISM": "neuroticism",
   // Legacy B5-* parameter IDs (for backwards compatibility)
-  "B5-O": "openness",
-  "B5-C": "conscientiousness",
-  "B5-E": "extraversion",
-  "B5-A": "agreeableness",
-  "B5-N": "neuroticism",
+  [TRAITS.B5_O]: "openness",
+  [TRAITS.B5_C]: "conscientiousness",
+  [TRAITS.B5_E]: "extraversion",
+  [TRAITS.B5_A]: "agreeableness",
+  [TRAITS.B5_N]: "neuroticism",
 };
 
 // Cached trait mapping (loaded from spec)

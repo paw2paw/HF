@@ -148,6 +148,45 @@ const roleColors: Record<string, { bg: string; text: string; label: string; icon
   GUARDRAIL: { bg: "#fee2e2", text: "#991b1b", label: "Guardrail", icon: "🛡️", desc: "Safety constraints" },
 };
 
+// =============================================================================
+// UTILITY FUNCTIONS - Tree Navigation
+// =============================================================================
+
+/**
+ * Find a node in the tree by ID
+ */
+function findNodeById(tree: TreeNode | null, targetId: string): TreeNode | null {
+  if (!tree) return null;
+  if (tree.id === targetId) return tree;
+
+  if (tree.children) {
+    for (const child of tree.children) {
+      const found = findNodeById(child, targetId);
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get the path of parent node IDs from root to the target node
+ * Returns an array of IDs that need to be expanded to show the target
+ */
+function getNodePath(tree: TreeNode | null, targetId: string, path: string[] = []): string[] | null {
+  if (!tree) return null;
+  if (tree.id === targetId) return path;
+
+  if (tree.children) {
+    for (const child of tree.children) {
+      const result = getNodePath(child, targetId, [...path, tree.id]);
+      if (result) return result;
+    }
+  }
+
+  return null;
+}
+
 export default function SpecsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -382,6 +421,29 @@ export default function SpecsPage() {
         setDetailLoading(false);
       });
   }, [selectedId, pushEntity]);
+
+  // Sync tree selection with URL selectedId
+  useEffect(() => {
+    if (viewMode !== "tree" || !explorerTree || !selectedId) return;
+
+    // Find the node in the tree that matches the selected spec ID
+    const targetNode = findNodeById(explorerTree, selectedId);
+    if (!targetNode) return;
+
+    // Get the path of parent IDs that need to be expanded
+    const pathToNode = getNodePath(explorerTree, selectedId);
+    if (pathToNode) {
+      // Expand all parent nodes
+      setExpandedNodes((prev) => {
+        const newExpanded = new Set(prev);
+        pathToNode.forEach((id) => newExpanded.add(id));
+        return newExpanded;
+      });
+    }
+
+    // Select the target node in the tree
+    setSelectedTreeNode(targetNode);
+  }, [selectedId, explorerTree, viewMode]);
 
   // Auto-expand and scroll to highlighted trigger/action when coming from graph
   useEffect(() => {

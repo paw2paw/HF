@@ -365,11 +365,255 @@
   ],
 
   "related": [
+    { "id": "TUT-001", "title": "Tutor Identity", "relationship": "Defines tutor identity; INIT-001 provides onboarding flow" },
+    { "id": "COMPANION-001", "title": "Companion Identity", "relationship": "Defines companion identity; INIT-001 provides onboarding flow" },
+    { "id": "COACH-001", "title": "Coach Identity", "relationship": "Defines coach identity; INIT-001 provides onboarding flow" },
     { "id": "COMP-001", "title": "Prompt Composition", "relationship": "Consumes sessionType=FIRST_CALL to adjust prompt" },
-    { "id": "TUT-001", "title": "Tutor Identity", "relationship": "Provides firstCallFlow for tutor contexts" },
     { "id": "GOAL-001", "title": "Learner Goals", "relationship": "Receives discovered goals from first call" },
     { "id": "MEM-001", "title": "Memory Extraction", "relationship": "Receives initial facts from first call" },
     { "id": "INJECT-001", "title": "Pre-Call Injection", "relationship": "Handles empty banks for new callers" },
     { "id": "ADAPT-PERS-001", "title": "Personality Adaptation", "relationship": "Uses initial signals to begin adaptation" }
-  ]
+  ],
+
+  "personas": {
+    "_description": "Per-persona onboarding configurations. Identity specs (TUT-001, COMPANION-001, COACH-001) define WHO the agent is. This section defines only the onboarding-specific flows for each persona type.",
+    "defaultPersona": "tutor",
+
+    "tutor": {
+      "identitySpec": "TUT-001",
+      "name": "Tutor",
+      "description": "Educational and learning-focused conversations",
+      "icon": "📚",
+      "color": { "bg": "#dbeafe", "border": "#3b82f6", "text": "#1e40af" },
+      "welcomeSlug": "init.welcome.tutor",
+      "welcomeTemplate": "Welcome! I'm really glad you're here. I'll be your tutor, and my goal is to make learning feel like a conversation, not a lecture. We'll go at your pace, and I'll adapt to how you learn best. What topic or subject brought you here today?",
+      "_note": "defaultTargets come from TUT-001.interaction_style.defaults and playbooks-config.json",
+      "firstCallFlow": {
+        "phases": [
+          {
+            "phase": "welcome",
+            "duration": "1-2 min",
+            "priority": "critical",
+            "instructionSlug": "init.phase.welcome.tutor",
+            "goals": ["Warm greeting", "Acknowledge this is their first session", "Create safe learning environment"],
+            "avoid": ["Academic jargon", "Testing them immediately", "Overwhelming with options"]
+          },
+          {
+            "phase": "orient",
+            "duration": "1-2 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.orient.tutor",
+            "goals": ["Explain tutoring approach", "Set expectation of dialogue not lecture", "Invite questions about process"],
+            "avoid": ["Long explanations", "Listing all topics we cover", "Making promises about outcomes"]
+          },
+          {
+            "phase": "discover",
+            "duration": "3-5 min",
+            "priority": "critical",
+            "instructionSlug": "init.phase.discover.tutor",
+            "goals": ["Understand what they want to learn", "Assess current knowledge level", "Identify learning motivations"],
+            "avoid": ["Quizzing them", "Making assumptions about their level", "Skipping to content"]
+          },
+          {
+            "phase": "sample",
+            "duration": "5-10 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.sample.tutor",
+            "goals": ["Introduce one foundational concept", "Use concrete examples", "Check understanding"],
+            "avoid": ["Covering too much", "Going too abstract", "Lecturing without interaction"]
+          },
+          {
+            "phase": "close",
+            "duration": "1-2 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.close.tutor",
+            "goals": ["Summarize what we learned together", "Preview what's next", "Confirm they feel good about continuing"],
+            "avoid": ["Rushing the ending", "Forgetting to check their feelings", "Leaving confusion unaddressed"]
+          }
+        ],
+        "successMetrics": [
+          "Learner expressed at least one learning goal",
+          "Learner demonstrated understanding of one concept",
+          "Learner seemed comfortable asking questions",
+          "Agent identified learner's approximate level"
+        ]
+      }
+    },
+
+    "companion": {
+      "identitySpec": "COMPANION-001",
+      "name": "Companion",
+      "description": "Thoughtful conversation partner for exploration and connection",
+      "icon": "💭",
+      "color": { "bg": "#fce7f3", "border": "#ec4899", "text": "#9d174d" },
+      "welcomeSlug": "init.welcome.companion",
+      "welcomeTemplate": "Hello! It's wonderful to meet you. I'm here to be a thoughtful conversation partner - someone to explore ideas with, share stories, or just chat. What would you like to talk about today?",
+      "_note": "defaultTargets come from COMPANION-001 and playbooks-config.json",
+      "firstCallFlow": {
+        "phases": [
+          {
+            "phase": "welcome",
+            "duration": "1-2 min",
+            "priority": "critical",
+            "instructionSlug": "init.phase.welcome.companion",
+            "goals": ["Warm, genuine greeting", "Express interest in them as a person", "Create feeling of connection"],
+            "avoid": ["Being too formal", "Jumping to topics", "Feeling scripted"]
+          },
+          {
+            "phase": "orient",
+            "duration": "1 min",
+            "priority": "medium",
+            "instructionSlug": "init.phase.orient.companion",
+            "goals": ["Lightly explain what kind of conversations we can have", "Emphasize no agenda required", "Make them feel there's no wrong way"],
+            "avoid": ["Making it feel like a service", "Listing capabilities", "Being too structured"]
+          },
+          {
+            "phase": "discover",
+            "duration": "5-8 min",
+            "priority": "critical",
+            "instructionSlug": "init.phase.discover.companion",
+            "goals": ["Learn what's on their mind", "Understand what kind of connection they seek", "Find common interests"],
+            "avoid": ["Rapid-fire questions", "Making them justify why they're here", "Steering conversation too much"]
+          },
+          {
+            "phase": "sample",
+            "duration": "8-12 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.sample.companion",
+            "goals": ["Have a real conversation about something they care about", "Share thoughts genuinely", "Create a memorable moment"],
+            "avoid": ["Being too passive", "Only asking questions", "Forgetting to contribute"]
+          },
+          {
+            "phase": "close",
+            "duration": "1-2 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.close.companion",
+            "goals": ["Express genuine appreciation for the conversation", "Note something specific you enjoyed", "Leave door open warmly"],
+            "avoid": ["Generic goodbyes", "Rushing", "Making next time feel obligatory"]
+          }
+        ],
+        "successMetrics": [
+          "Caller shared something personal or meaningful",
+          "Conversation felt natural, not forced",
+          "Caller seemed more relaxed by the end",
+          "A genuine moment of connection occurred"
+        ]
+      }
+    },
+
+    "coach": {
+      "identitySpec": "COACH-001",
+      "name": "Coach",
+      "description": "Strategic thinking partner for challenges and goal achievement",
+      "icon": "🏆",
+      "color": { "bg": "#d1fae5", "border": "#10b981", "text": "#065f46" },
+      "welcomeSlug": "init.welcome.coach",
+      "welcomeTemplate": "Welcome aboard! I'm excited to work with you. My role is to help you think through challenges and develop strategies that work for you. What's on your mind today - what would be most helpful to focus on?",
+      "_note": "defaultTargets come from COACH-001.interaction_style.defaults and playbooks-config.json",
+      "firstCallFlow": {
+        "phases": [
+          {
+            "phase": "welcome",
+            "duration": "1-2 min",
+            "priority": "critical",
+            "instructionSlug": "init.phase.welcome.coach",
+            "goals": ["Energetic, confident greeting", "Establish partnership dynamic", "Show readiness to help"],
+            "avoid": ["Being too casual", "Overpromising outcomes", "Being too formal/stiff"]
+          },
+          {
+            "phase": "orient",
+            "duration": "1-2 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.orient.coach",
+            "goals": ["Explain coaching approach", "Set expectation of collaborative problem-solving", "Clarify your role as thinking partner"],
+            "avoid": ["Sounding like therapy", "Being too prescriptive", "Making it about advice-giving"]
+          },
+          {
+            "phase": "discover",
+            "duration": "4-6 min",
+            "priority": "critical",
+            "instructionSlug": "init.phase.discover.coach",
+            "goals": ["Understand their main challenge or goal", "Assess what they've already tried", "Identify what success looks like for them"],
+            "avoid": ["Jumping to solutions", "Making assumptions", "Minimizing their challenges"]
+          },
+          {
+            "phase": "sample",
+            "duration": "6-10 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.sample.coach",
+            "goals": ["Work through one aspect of their challenge together", "Demonstrate thinking partnership", "Help them gain one new insight or perspective"],
+            "avoid": ["Giving all the answers", "Making it theoretical", "Ignoring their input"]
+          },
+          {
+            "phase": "close",
+            "duration": "2-3 min",
+            "priority": "high",
+            "instructionSlug": "init.phase.close.coach",
+            "goals": ["Summarize insights and any action items", "Confirm next steps if applicable", "Express confidence in their ability to progress"],
+            "avoid": ["Vague endings", "Forgetting to capture takeaways", "Ending without momentum"]
+          }
+        ],
+        "successMetrics": [
+          "Caller articulated their main challenge clearly",
+          "Caller gained at least one new perspective or insight",
+          "Caller identified at least one concrete next step",
+          "Caller expressed confidence about moving forward"
+        ]
+      }
+    }
+  },
+
+  "promptSlugs": {
+    "_description": "Prompt slugs created from this spec for composition pipeline",
+    "slugs": [
+      {
+        "slug": "init.welcome.tutor",
+        "name": "Tutor Welcome Message",
+        "sourceType": "STATIC",
+        "description": "First-call welcome message for tutor persona"
+      },
+      {
+        "slug": "init.welcome.companion",
+        "name": "Companion Welcome Message",
+        "sourceType": "STATIC",
+        "description": "First-call welcome message for companion persona"
+      },
+      {
+        "slug": "init.welcome.coach",
+        "name": "Coach Welcome Message",
+        "sourceType": "STATIC",
+        "description": "First-call welcome message for coach persona"
+      },
+      {
+        "slug": "init.phase.welcome.default",
+        "name": "Welcome Phase Instructions (Default)",
+        "sourceType": "STATIC",
+        "description": "Default instructions for welcome phase of first call"
+      },
+      {
+        "slug": "init.phase.discover.default",
+        "name": "Discovery Phase Instructions (Default)",
+        "sourceType": "STATIC",
+        "description": "Default instructions for discovery phase of first call"
+      },
+      {
+        "slug": "init.phase.welcome.tutor",
+        "name": "Welcome Phase Instructions (Tutor)",
+        "sourceType": "STATIC",
+        "description": "Tutor-specific instructions for welcome phase"
+      },
+      {
+        "slug": "init.phase.welcome.companion",
+        "name": "Welcome Phase Instructions (Companion)",
+        "sourceType": "STATIC",
+        "description": "Companion-specific instructions for welcome phase"
+      },
+      {
+        "slug": "init.phase.welcome.coach",
+        "name": "Welcome Phase Instructions (Coach)",
+        "sourceType": "STATIC",
+        "description": "Coach-specific instructions for welcome phase"
+      }
+    ]
+  }
 }

@@ -651,30 +651,30 @@ export default function TaxonomyGraphPage() {
         <div ref={containerRef} className="absolute inset-0" />
 
         {/* Type filter panel - top right */}
-        <div className="absolute top-4 right-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-800/95 p-4 shadow-lg w-56">
+        <div className="absolute top-4 right-4 rounded-lg border-2 border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 backdrop-blur-sm p-4 shadow-xl w-56">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Filter by Type</span>
+              <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Filter by Type</span>
               <button
                 onClick={() => setVisibleTypes(new Set<NodeType>(["spec", "parameter", "playbook", "domain", "trigger", "action", "anchor", "promptSlug", "behaviorTarget", "range"]))}
-                className="text-[10px] text-indigo-500 hover:text-indigo-400 font-medium"
+                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold"
               >
                 all
               </button>
             </div>
-            <div className="flex rounded-md overflow-hidden">
+            <div className="flex rounded-md overflow-hidden border-2 border-neutral-300 dark:border-neutral-600">
               <button
                 onClick={() => setIs3D(false)}
-                className={`px-2.5 py-1 text-xs font-medium transition-colors ${
-                  !is3D ? "bg-emerald-600 text-white" : "bg-neutral-200 dark:bg-neutral-600 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-500"
+                className={`px-3 py-1.5 text-xs font-bold transition-all ${
+                  !is3D ? "bg-emerald-600 text-white shadow-inner" : "bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600"
                 }`}
               >
                 2D
               </button>
               <button
                 onClick={() => setIs3D(true)}
-                className={`px-2.5 py-1 text-xs font-medium transition-colors ${
-                  is3D ? "bg-indigo-600 text-white" : "bg-neutral-200 dark:bg-neutral-600 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-500"
+                className={`px-3 py-1.5 text-xs font-bold transition-all ${
+                  is3D ? "bg-indigo-600 text-white shadow-inner" : "bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600"
                 }`}
               >
                 3D
@@ -685,18 +685,18 @@ export default function TaxonomyGraphPage() {
           <div className="mb-3 flex items-center gap-2">
             <button
               onClick={() => setMinimal(!minimal)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all hover:scale-[1.02] ${
                 minimal
-                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
-                  : "bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400 border border-neutral-300 dark:border-neutral-600"
+                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border-2 border-amber-400 dark:border-amber-600 shadow-sm"
+                  : "bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border-2 border-neutral-300 dark:border-neutral-600"
               }`}
               title="Hide triggers/actions (pipeline implementation details)"
             >
-              <span>{minimal ? "✓" : "○"}</span>
+              <span className="text-sm">{minimal ? "✓" : "○"}</span>
               Minimal
             </button>
-            <span className="text-[10px] text-neutral-500" title="Excludes trigger/action nodes which are pipeline implementation details">
-              {minimal ? "Hiding impl. details" : ""}
+            <span className="text-[10px] text-neutral-600 dark:text-neutral-400 font-medium" title="Excludes trigger/action nodes which are pipeline implementation details">
+              {minimal ? "Hiding details" : "Show all"}
             </span>
           </div>
           <div className="flex flex-col gap-1">
@@ -708,86 +708,96 @@ export default function TaxonomyGraphPage() {
                 : type === "behaviorTarget" ? "Targets"
                 : type === "range" ? "Ranges"
                 : `${type}s`;
+              const bgColor = isVisible
+                ? `${color}30`
+                : (isDarkMode ? "#262626" : "#f5f5f5");
+              const borderColor = isVisible ? color : (isDarkMode ? "#525252" : "#d4d4d4");
+              const textColor = isVisible
+                ? (isDarkMode ? "#fafafa" : "#171717")
+                : (isDarkMode ? "#a3a3a3" : "#737373");
               return (
                 <button
                   key={type}
                   onClick={() => toggleType(type)}
-                  className="flex items-center gap-2 px-2 py-1 rounded text-left transition-all"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all hover:scale-[1.02]"
                   style={{
-                    backgroundColor: isVisible ? `${color}20` : "transparent",
-                    border: `1px solid ${isVisible ? color : "#404040"}`,
-                    opacity: isVisible ? 1 : 0.5,
+                    backgroundColor: bgColor,
+                    border: `2px solid ${borderColor}`,
+                    opacity: isVisible ? 1 : 0.6,
                   }}
                 >
                   {/* Shape indicator */}
-                  <svg width="12" height="12" viewBox="0 0 14 14">
+                  <svg width="14" height="14" viewBox="0 0 14 14" className="flex-shrink-0">
                     {shape === "hexagon" ? (
                       <polygon
                         points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4"
                         fill={color}
+                        stroke={isVisible ? color : "#a3a3a3"}
+                        strokeWidth="0.5"
                       />
                     ) : shape === "rounded-rect" ? (
-                      <rect x="1" y="3" width="12" height="8" rx="2" fill={color} />
+                      <rect x="1" y="3" width="12" height="8" rx="2" fill={color} stroke={isVisible ? color : "#a3a3a3"} strokeWidth="0.5" />
                     ) : shape === "diamond" ? (
-                      <polygon points="7,1 13,7 7,13 1,7" fill={color} />
+                      <polygon points="7,1 13,7 7,13 1,7" fill={color} stroke={isVisible ? color : "#a3a3a3"} strokeWidth="0.5" />
                     ) : (
-                      <circle cx="7" cy="7" r="5" fill={color} />
+                      <circle cx="7" cy="7" r="5" fill={color} stroke={isVisible ? color : "#a3a3a3"} strokeWidth="0.5" />
                     )}
                   </svg>
-                  <span className="text-xs capitalize" style={{ color: isVisible ? color : "#737373" }}>
+                  <span className="text-xs font-semibold capitalize" style={{ color: textColor }}>
                     {displayName}
                   </span>
                 </button>
               );
             })}
           </div>
-          <div className="border-t border-neutral-200 dark:border-neutral-700 mt-3 pt-3">
+          <div className="border-t-2 border-neutral-200 dark:border-neutral-700 mt-3 pt-3">
             <VisualizerSearch search={search} placeholder="Search nodes..." />
           </div>
-          <div className="border-t border-neutral-200 dark:border-neutral-700 mt-3 pt-3 text-xs text-neutral-500">
-            <div>Click: Select + Center</div>
-            <div>Right-click: Open detail</div>
-            <div>{is3D ? "Drag: Rotate" : "Drag: Pan"}</div>
-            <div>Scroll: Zoom</div>
-            <div>0: Reset view</div>
+          <div className="border-t-2 border-neutral-200 dark:border-neutral-700 mt-3 pt-3 text-xs text-neutral-600 dark:text-neutral-400 space-y-1">
+            <div className="font-medium">Keyboard Shortcuts:</div>
+            <div className="flex justify-between"><span className="font-semibold">Click</span> <span>Select + Center</span></div>
+            <div className="flex justify-between"><span className="font-semibold">Right-click</span> <span>Open detail</span></div>
+            <div className="flex justify-between"><span className="font-semibold">{is3D ? "Drag" : "Drag"}</span> <span>{is3D ? "Rotate" : "Pan"}</span></div>
+            <div className="flex justify-between"><span className="font-semibold">Scroll</span> <span>Zoom</span></div>
+            <div className="flex justify-between"><span className="font-semibold">0</span> <span>Reset view</span></div>
           </div>
         </div>
 
         {/* Selected node panel - bottom left */}
         {selectedNode && (
-          <div className="absolute bottom-4 left-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg w-72 max-h-[50vh] flex flex-col overflow-hidden">
-            <div className="p-3 border-b border-neutral-200 dark:border-neutral-700">
-              <div className="flex items-center gap-2 mb-1">
-                <svg width="12" height="12" viewBox="0 0 14 14">
+          <div className="absolute bottom-4 left-4 rounded-lg border-2 border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 backdrop-blur-sm shadow-xl w-72 max-h-[50vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b-2 border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
+              <div className="flex items-center gap-2 mb-2">
+                <svg width="14" height="14" viewBox="0 0 14 14" className="flex-shrink-0">
                   {nodeShapes[selectedNode.type] === "hexagon" ? (
-                    <polygon points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4" fill={nodeColors[selectedNode.type]} />
+                    <polygon points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
                   ) : nodeShapes[selectedNode.type] === "rounded-rect" ? (
-                    <rect x="1" y="3" width="12" height="8" rx="2" fill={nodeColors[selectedNode.type]} />
+                    <rect x="1" y="3" width="12" height="8" rx="2" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
                   ) : nodeShapes[selectedNode.type] === "diamond" ? (
-                    <polygon points="7,1 13,7 7,13 1,7" fill={nodeColors[selectedNode.type]} />
+                    <polygon points="7,1 13,7 7,13 1,7" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
                   ) : (
-                    <circle cx="7" cy="7" r="5" fill={nodeColors[selectedNode.type]} />
+                    <circle cx="7" cy="7" r="5" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
                   )}
                 </svg>
-                <span className="text-[10px] font-semibold uppercase" style={{ color: nodeColors[selectedNode.type] }}>
+                <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: nodeColors[selectedNode.type] }}>
                   {selectedNode.type}
                 </span>
                 <button
                   onClick={() => setSelectedNode(null)}
-                  className="ml-auto text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                  className="ml-auto text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 text-xl leading-none font-bold"
                 >×</button>
               </div>
-              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{selectedNode.label}</h3>
+              <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100">{selectedNode.label}</h3>
               {selectedNode.slug && selectedNode.slug !== selectedNode.label && (
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{selectedNode.slug}</p>
+                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate mt-1">{selectedNode.slug}</p>
               )}
               {/* Details section */}
               {selectedNode.details && selectedNode.details.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-neutral-200 dark:border-neutral-700 max-h-32 overflow-y-auto">
+                <div className="mt-3 pt-3 border-t-2 border-neutral-200 dark:border-neutral-700 max-h-32 overflow-y-auto">
                   {selectedNode.details.slice(0, 8).map((detail, i) => (
-                    <div key={i} className="flex gap-2 text-[11px] mb-1">
-                      <span className="text-neutral-500 min-w-[70px] shrink-0">{detail.label}:</span>
-                      <span className="text-neutral-700 dark:text-neutral-300 truncate" title={String(detail.value)}>
+                    <div key={i} className="flex gap-2 text-[11px] mb-1.5">
+                      <span className="text-neutral-600 dark:text-neutral-400 min-w-[70px] shrink-0 font-semibold">{detail.label}:</span>
+                      <span className="text-neutral-900 dark:text-neutral-100 truncate font-medium" title={String(detail.value)}>
                         {typeof detail.value === "boolean" ? (detail.value ? "Yes" : "No") : detail.value}
                       </span>
                     </div>
@@ -796,14 +806,14 @@ export default function TaxonomyGraphPage() {
               )}
               <button
                 onClick={() => navigateToEntity(selectedNode)}
-                className="mt-2 w-full text-xs text-center py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white"
+                className="mt-2 w-full text-xs font-semibold text-center py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-all hover:shadow-md"
               >
                 Open Detail →
               </button>
             </div>
             {connectedNodes.length > 0 && (
               <div className="flex-1 overflow-y-auto">
-                <div className="px-3 py-2 text-[10px] font-semibold uppercase text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50 sticky top-0">
+                <div className="px-3 py-2 text-[11px] font-bold uppercase text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800/80 sticky top-0 border-b border-neutral-200 dark:border-neutral-700">
                   Connected ({connectedNodes.length})
                 </div>
                 {connectedNodes.map(node => (
@@ -814,7 +824,7 @@ export default function TaxonomyGraphPage() {
                       const graphNode = graphRef.current?.graphData()?.nodes?.find((n: any) => n.id === node.id);
                       if (graphNode) centerOnNode(graphNode);
                     }}
-                    className="w-full px-3 py-2 text-left hover:bg-neutral-100 dark:hover:bg-neutral-700/50 flex items-center gap-2"
+                    className="w-full px-3 py-2.5 text-left hover:bg-neutral-100 dark:hover:bg-neutral-700/60 flex items-center gap-2 transition-colors border-b border-neutral-100 dark:border-neutral-800 last:border-0"
                   >
                     <svg width="10" height="10" viewBox="0 0 14 14" className="flex-shrink-0">
                       {nodeShapes[node.type] === "hexagon" ? (
@@ -827,8 +837,8 @@ export default function TaxonomyGraphPage() {
                         <circle cx="7" cy="7" r="5" fill={nodeColors[node.type]} />
                       )}
                     </svg>
-                    <span className="text-xs text-neutral-700 dark:text-neutral-300 truncate flex-1">{node.label}</span>
-                    <span className="text-[10px] text-neutral-500">{node.type}</span>
+                    <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100 truncate flex-1">{node.label}</span>
+                    <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase">{node.type}</span>
                   </button>
                 ))}
               </div>
@@ -837,7 +847,7 @@ export default function TaxonomyGraphPage() {
         )}
 
         {/* Camera controls - bottom right */}
-        <div className="absolute bottom-4 right-4 flex gap-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-1.5">
+        <div className="absolute bottom-4 right-4 flex gap-1 rounded-lg border-2 border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 backdrop-blur-sm p-1.5 shadow-lg">
           <button
             onClick={() => {
               if (is3D) {

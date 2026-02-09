@@ -74,6 +74,36 @@ export interface LoadedDataContext {
   /** Stacked playbooks for domain, ordered by sortOrder (first = highest priority) */
   playbooks: PlaybookData[];
   systemSpecs: SystemSpecData[];
+  /** INIT-001 onboarding spec for first-call defaults (null if not found) */
+  onboardingSpec: OnboardingSpecData | null;
+}
+
+/** INIT-001 onboarding spec shape */
+export interface OnboardingSpecData {
+  id: string;
+  slug: string;
+  name: string;
+  config: {
+    /** Default behavior targets for new callers */
+    defaultTargets?: Record<string, {
+      value: number;
+      confidence: number;
+      rationale?: string;
+    }>;
+    /** First call flow phases */
+    firstCallFlow?: {
+      phases: Array<{
+        phase: string;
+        duration: string;
+        priority: string;
+        goals: string[];
+        avoid: string[];
+      }>;
+      successMetrics?: string[];
+    };
+    /** Welcome templates by domain type */
+    welcomeTemplates?: Record<string, string>;
+  } | null;
 }
 
 // === ASSEMBLED CONTEXT ===

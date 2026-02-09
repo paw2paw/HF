@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-internal-secret": process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret",
       },
       body: JSON.stringify({
         fromKbPath: true,

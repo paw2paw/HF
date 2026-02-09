@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useChatContext } from "@/contexts/ChatContext";
+import { useGuidance } from "@/contexts/GuidanceContext";
 import { useSidebarLayout } from "@/hooks/useSidebarLayout";
 import type { NavSection } from "@/lib/sidebar/types";
 
@@ -19,22 +20,11 @@ const BASE_SECTIONS: NavSection[] = [
     dividerAfter: true,
   },
   {
-    id: "prompts",
-    title: "Prompts",
-    items: [{ href: "/x/playground?mode=caller", label: "Prompt Tuner", icon: "✏️" }],
-  },
-  {
-    id: "playbook-tools",
-    title: "Playbooks",
+    id: "work",
+    title: "Work",
     items: [
-      { href: "/x/playground?mode=compare", label: "Compare Playbooks", icon: "📒📒" },
-      { href: "/x/playground?mode=playbook", label: "Validate Playbook", icon: "✅" },
+      { href: "/x/playground", label: "Playground", icon: "✏️" },
     ],
-  },
-  {
-    id: "history",
-    title: "History",
-    items: [{ href: "/x/pipeline", label: "Run History", icon: "⚙️" }],
     dividerAfter: true,
   },
   {
@@ -42,9 +32,9 @@ const BASE_SECTIONS: NavSection[] = [
     title: "Data",
     items: [
       { href: "/x/callers", label: "Callers", icon: "👤" },
+      { href: "/x/onboarding", label: "Onboard", icon: "🚀" },
       { href: "/x/goals", label: "Goals", icon: "🎯" },
       { href: "/x/import", label: "Import", icon: "📥" },
-      { href: "/x/data-management", label: "Seed Data", icon: "🌱" },
     ],
     dividerAfter: true,
   },
@@ -53,6 +43,7 @@ const BASE_SECTIONS: NavSection[] = [
     title: "Configure",
     items: [
       { href: "/x/domains", label: "Domains", icon: "🌐" },
+      { href: "/x/personas", label: "Personas", icon: "🎭" },
       { href: "/x/playbooks", label: "Playbooks", icon: "📒" },
       { href: "/x/specs", label: "Specs", icon: "📋" },
       { href: "/x/taxonomy", label: "Taxonomy", icon: "🌳" },
@@ -61,22 +52,30 @@ const BASE_SECTIONS: NavSection[] = [
     dividerAfter: true,
   },
   {
-    id: "operations",
-    title: "Operations",
+    id: "system",
+    title: "System",
     items: [
       { href: "/x/metering", label: "Metering", icon: "📈" },
       { href: "/x/ai-config", label: "AI Config", icon: "🤖" },
       { href: "/x/users", label: "Team", icon: "👥" },
-      { href: "/x/settings", label: "Display", icon: "🎨" },
-      { href: "/x/admin/tests", label: "E2E Tests", icon: "🎭" },
-      { href: "/x/debug", label: "Debug", icon: "🐛" },
-      { href: "/x/logs", label: "Logs", icon: "📝" },
+      { href: "/x/settings", label: "Appearance", icon: "🎨" },
     ],
     dividerAfter: true,
   },
   {
     id: "supervisor",
     items: [{ href: "/x/supervisor", label: "Pipeline", icon: "⚡", highlighted: true }],
+  },
+  {
+    id: "devtools",
+    title: "Dev Tools",
+    collapsedByDefault: true,
+    items: [
+      { href: "/x/debug", label: "Debug", icon: "🐛" },
+      { href: "/x/logs", label: "Logs", icon: "📝" },
+      { href: "/x/admin/tests", label: "E2E Tests", icon: "🎭" },
+      { href: "/x/data-management", label: "Seed Data", icon: "🌱" },
+    ],
   },
 ];
 
@@ -97,6 +96,7 @@ export default function SimpleSidebarNav({
   const userId = session?.user?.id;
   const isAdmin = session?.user?.role === "ADMIN";
   const { togglePanel, isOpen: chatOpen } = useChatContext();
+  const guidance = useGuidance();
 
   // Collapse state
   const [internalCollapsed, setInternalCollapsed] = useState(false);
@@ -126,6 +126,50 @@ export default function SimpleSidebarNav({
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sectionId: string } | null>(null);
+
+  // Collapsed sections state (persisted to localStorage)
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [collapsedSectionsLoaded, setCollapsedSectionsLoaded] = useState(false);
+
+  // Hydrate from localStorage after mount (avoids hydration mismatch)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("hf-sidebar-collapsed-sections");
+      if (saved) {
+        setCollapsedSections(new Set(JSON.parse(saved)));
+      } else {
+        // Initialize from collapsedByDefault
+        const defaults = BASE_SECTIONS
+          .filter((s) => s.collapsedByDefault)
+          .map((s) => s.id);
+        if (defaults.length > 0) {
+          setCollapsedSections(new Set(defaults));
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setCollapsedSectionsLoaded(true);
+  }, []);
+
+  // Persist collapsed sections (only after initial load to avoid overwriting)
+  useEffect(() => {
+    if (collapsedSectionsLoaded) {
+      localStorage.setItem("hf-sidebar-collapsed-sections", JSON.stringify([...collapsedSections]));
+    }
+  }, [collapsedSections, collapsedSectionsLoaded]);
+
+  const toggleSectionCollapse = useCallback((sectionId: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
 
   const navRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -312,8 +356,8 @@ export default function SimpleSidebarNav({
               🤖
             </button>
 
-            {/* Layout menu */}
-            {(hasCustomLayout || isAdmin || hiddenSectionIds.length > 0) && (
+            {/* Layout menu - only render after hydration to avoid mismatch */}
+            {isLoaded && (hasCustomLayout || isAdmin || hiddenSectionIds.length > 0) && (
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
@@ -423,7 +467,7 @@ export default function SimpleSidebarNav({
                 }
                 style={{ cursor: collapsed ? "default" : dragState.draggedItem ? "default" : "grab" }}
               >
-                {/* Section title (editable) */}
+                {/* Section title (editable, clickable to collapse) */}
                 {section.title && !collapsed && (
                   <div className="px-2 pb-1">
                     {editingSectionId === section.id ? (
@@ -443,15 +487,28 @@ export default function SimpleSidebarNav({
                         className="w-full text-[11px] font-semibold uppercase tracking-wide bg-transparent border-b border-indigo-400 outline-none text-neutral-700 dark:text-neutral-200"
                       />
                     ) : (
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-                        {section.title}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleSectionCollapse(section.id)}
+                        className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+                      >
+                        <span>{section.title}</span>
+                        <span className="text-[10px] opacity-60 transition-transform" style={{ transform: collapsedSections.has(section.id) ? "rotate(-90deg)" : "rotate(0deg)" }}>
+                          ▼
+                        </span>
+                      </button>
                     )}
                   </div>
                 )}
 
-                {/* Section items */}
-                <div className="flex flex-col gap-0.5">
+                {/* Section items (collapsible) */}
+                <div
+                  className="flex flex-col gap-0.5 overflow-hidden transition-all duration-200"
+                  style={{
+                    maxHeight: section.title && collapsedSections.has(section.id) ? "0px" : "500px",
+                    opacity: section.title && collapsedSections.has(section.id) ? 0 : 1,
+                  }}
+                >
                   {section.items.map((item) => {
                     const active = isActive(item.href);
                     const itemIndex = flatNavItems.findIndex((fi) => fi.href === item.href);
@@ -459,6 +516,12 @@ export default function SimpleSidebarNav({
                     const isDraggingItem = dragState.draggedItem === item.href;
                     const isDragOverThisItem = dragState.dragOverItem === item.href;
                     const baseClass = item.highlighted && !active ? "bg-indigo-50/70 dark:bg-indigo-950/70 " : "";
+
+                    // Dynamic highlight from GuidanceContext
+                    const highlight = guidance?.getHighlight(item.href);
+                    const highlightClass = highlight && !active
+                      ? `sidebar-highlight-${highlight.type} `
+                      : "";
 
                     return (
                       <Link
@@ -476,6 +539,7 @@ export default function SimpleSidebarNav({
                         onFocus={() => setFocusedIndex(itemIndex)}
                         className={
                           baseClass +
+                          highlightClass +
                           "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 " +
                           (isDraggingItem ? "opacity-50 " : "") +
                           (isDragOverThisItem ? "border-t-2 border-indigo-500 " : "") +

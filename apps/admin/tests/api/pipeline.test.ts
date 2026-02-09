@@ -319,47 +319,50 @@ describe('Pipeline Stages', () => {
     vi.clearAllMocks();
   });
 
-  describe('DEFAULT_PIPELINE_STAGES', () => {
-    it('should define stages in correct order', async () => {
-      // Import to get access to constants (if exported)
-      // The default stages should be:
-      const expectedStages = [
-        { name: 'EXTRACT', order: 10 },
-        { name: 'SCORE_AGENT', order: 20 },
-        { name: 'AGGREGATE', order: 30 },
-        { name: 'REWARD', order: 40 },
-        { name: 'ADAPT', order: 50 },
-        { name: 'SUPERVISE', order: 60 },
-        { name: 'COMPOSE', order: 100 },
-      ];
+  describe('DEFAULT_PIPELINE_STAGES (from lib/pipeline/config)', () => {
+    // Import from the shared config module
+    let DEFAULT_PIPELINE_STAGES: any[];
 
-      for (let i = 0; i < expectedStages.length - 1; i++) {
-        expect(expectedStages[i].order).toBeLessThan(expectedStages[i + 1].order);
+    beforeAll(async () => {
+      const config = await import('@/lib/pipeline/config');
+      DEFAULT_PIPELINE_STAGES = config.DEFAULT_PIPELINE_STAGES;
+    });
+
+    it('should define 7 stages', () => {
+      expect(DEFAULT_PIPELINE_STAGES).toHaveLength(7);
+    });
+
+    it('should define stages in correct order', () => {
+      const stages = DEFAULT_PIPELINE_STAGES;
+      for (let i = 0; i < stages.length - 1; i++) {
+        expect(stages[i].order).toBeLessThan(stages[i + 1].order);
       }
     });
 
-    it('should have COMPOSE require mode="prompt"', () => {
-      // COMPOSE stage should only run when mode="prompt"
-      const composeStage = {
-        name: 'COMPOSE',
-        order: 100,
-        outputTypes: ['COMPOSE'],
-        requiresMode: 'prompt' as const,
-      };
+    it('should have expected stage names', () => {
+      const names = DEFAULT_PIPELINE_STAGES.map(s => s.name);
+      expect(names).toContain('EXTRACT');
+      expect(names).toContain('SCORE_AGENT');
+      expect(names).toContain('AGGREGATE');
+      expect(names).toContain('REWARD');
+      expect(names).toContain('ADAPT');
+      expect(names).toContain('SUPERVISE');
+      expect(names).toContain('COMPOSE');
+    });
 
+    it('should have COMPOSE require mode="prompt"', () => {
+      const composeStage = DEFAULT_PIPELINE_STAGES.find(s => s.name === 'COMPOSE');
+      expect(composeStage).toBeDefined();
       expect(composeStage.requiresMode).toBe('prompt');
     });
   });
 
   describe('EXTRACT stage', () => {
-    it('should process LEARN and MEASURE output types', () => {
-      const extractStage = {
-        name: 'EXTRACT',
-        order: 10,
-        outputTypes: ['LEARN', 'MEASURE'],
-        batched: true,
-      };
+    it('should process LEARN and MEASURE output types', async () => {
+      const { DEFAULT_PIPELINE_STAGES } = await import('@/lib/pipeline/config');
+      const extractStage = DEFAULT_PIPELINE_STAGES.find(s => s.name === 'EXTRACT');
 
+      expect(extractStage).toBeDefined();
       expect(extractStage.outputTypes).toContain('LEARN');
       expect(extractStage.outputTypes).toContain('MEASURE');
       expect(extractStage.batched).toBe(true);
@@ -367,14 +370,11 @@ describe('Pipeline Stages', () => {
   });
 
   describe('SCORE_AGENT stage', () => {
-    it('should process MEASURE_AGENT output type', () => {
-      const scoreAgentStage = {
-        name: 'SCORE_AGENT',
-        order: 20,
-        outputTypes: ['MEASURE_AGENT'],
-        batched: true,
-      };
+    it('should process MEASURE_AGENT output type', async () => {
+      const { DEFAULT_PIPELINE_STAGES } = await import('@/lib/pipeline/config');
+      const scoreAgentStage = DEFAULT_PIPELINE_STAGES.find(s => s.name === 'SCORE_AGENT');
 
+      expect(scoreAgentStage).toBeDefined();
       expect(scoreAgentStage.outputTypes).toContain('MEASURE_AGENT');
       expect(scoreAgentStage.batched).toBe(true);
     });

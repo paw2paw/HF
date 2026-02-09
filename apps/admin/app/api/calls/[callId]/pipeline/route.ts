@@ -35,7 +35,10 @@ import { prisma } from "@/lib/prisma";
 import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
 import { trackGoalProgress } from "@/lib/goals/track-progress";
+import { extractGoals } from "@/lib/goals/extract-goals";
+import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
 import { logAI } from "@/lib/logger";
+import { TRAITS } from "@/lib/registry";
 
 // =====================================================
 // TRANSCRIPT LIMITS (from AIConfig)
@@ -917,11 +920,11 @@ async function aggregatePersonality(
   // Extract config with defaults
   const config = (aggregateSpec?.config as any) || {};
   const traitMapping: Record<string, string> = config.traitMapping || {
-    "B5-O": "openness",
-    "B5-C": "conscientiousness",
-    "B5-E": "extraversion",
-    "B5-A": "agreeableness",
-    "B5-N": "neuroticism",
+    [TRAITS.B5_O]: "openness",
+    [TRAITS.B5_C]: "conscientiousness",
+    [TRAITS.B5_E]: "extraversion",
+    [TRAITS.B5_A]: "agreeableness",
+    [TRAITS.B5_N]: "neuroticism",
   };
   const halfLifeDays: number = config.halfLifeDays || 30;
   const defaultConfidence: number = config.defaultConfidence || 0.7;
@@ -1156,30 +1159,7 @@ async function computeAdapt(
 // PIPELINE STAGE CONFIGURATION
 // =====================================================
 
-/**
- * Pipeline stage definition loaded from SUPERVISE spec
- */
-interface PipelineStage {
-  name: string;
-  order: number;
-  outputTypes: string[];
-  description?: string;
-  batched?: boolean;
-  requiresMode?: "prep" | "prompt";
-}
-
-/**
- * Default pipeline stages if no SUPERVISE spec found
- */
-const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
-  { name: "EXTRACT", order: 10, outputTypes: ["LEARN", "MEASURE"], description: "Extract caller data", batched: true },
-  { name: "SCORE_AGENT", order: 20, outputTypes: ["MEASURE_AGENT"], description: "Score agent behavior", batched: true },
-  { name: "AGGREGATE", order: 30, outputTypes: ["AGGREGATE"], description: "Aggregate personality profiles" },
-  { name: "REWARD", order: 40, outputTypes: ["REWARD"], description: "Compute reward scores" },
-  { name: "ADAPT", order: 50, outputTypes: ["ADAPT"], description: "Compute personalized targets" },
-  { name: "SUPERVISE", order: 60, outputTypes: ["SUPERVISE"], description: "Validate and clamp targets" },
-  { name: "COMPOSE", order: 100, outputTypes: ["COMPOSE"], description: "Build final prompt", requiresMode: "prompt" },
-];
+// PipelineStage type imported from @/lib/pipeline/config
 
 // =====================================================
 // GUARDRAILS LOADER
@@ -1199,7 +1179,6 @@ interface GuardrailsConfig {
     confidenceGrowthPerCall: number;
     maxAggregatedConfidence: number;
   };
-  pipelineStages: PipelineStage[];
 }
 
 // Default guardrails if no SUPERVISE spec found
@@ -1214,7 +1193,6 @@ const DEFAULT_GUARDRAILS: GuardrailsConfig = {
     confidenceGrowthPerCall: 0.1,
     maxAggregatedConfidence: 0.95,
   },
-  pipelineStages: DEFAULT_PIPELINE_STAGES,
 };
 
 /**
@@ -1250,22 +1228,6 @@ async function loadGuardrails(log: ReturnType<typeof createLogger>): Promise<Gua
   const mockConfig = getParamConfig("mock_behavior");
   const aiConfig = getParamConfig("ai_settings");
   const aggConfig = getParamConfig("aggregation");
-  const pipelineConfig = getParamConfig("pipeline_stages");
-
-  // Load pipeline stages from spec or use defaults
-  let pipelineStages: PipelineStage[] = DEFAULT_PIPELINE_STAGES;
-  if (pipelineConfig.stages && Array.isArray(pipelineConfig.stages)) {
-    pipelineStages = pipelineConfig.stages.map((s: any) => ({
-      name: s.name,
-      order: s.order,
-      outputTypes: s.outputTypes || [],
-      description: s.description,
-      batched: s.batched,
-      requiresMode: s.requiresMode,
-    }));
-    // Sort by order
-    pipelineStages.sort((a, b) => a.order - b.order);
-  }
 
   const guardrails: GuardrailsConfig = {
     targetClamp: {
@@ -1292,12 +1254,10 @@ async function loadGuardrails(log: ReturnType<typeof createLogger>): Promise<Gua
       confidenceGrowthPerCall: aggConfig.confidenceGrowthPerCall ?? DEFAULT_GUARDRAILS.aggregation.confidenceGrowthPerCall,
       maxAggregatedConfidence: aggConfig.maxAggregatedConfidence ?? DEFAULT_GUARDRAILS.aggregation.maxAggregatedConfidence,
     },
-    pipelineStages,
   };
 
   log.info(`Guardrails loaded from "${superviseSpec.slug}"`, {
     targetClamp: guardrails.targetClamp,
-    pipelineStages: pipelineStages.length,
   });
 
   return guardrails;
@@ -1654,6 +1614,7 @@ interface PipelineContext {
   call: { id: string; transcript: string | null };
   engine: AIEngine;
   guardrails: GuardrailsConfig;
+  pipelineStages: PipelineStage[];
   mode: "prep" | "prompt";
   log: ReturnType<typeof createLogger>;
   request: NextRequest;
@@ -1741,7 +1702,16 @@ const stageExecutors: Record<string, StageExecutor> = {
       errors: ruleBasedResult.errors
     });
 
-    // 3. Track goal progress based on call outcomes
+    // 3. Extract goals from transcript (GOAL-001)
+    const goalExtractionResult = await extractGoals(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+    ctx.log.info(`Goal extraction completed`, {
+      goalsCreated: goalExtractionResult.goalsCreated,
+      goalsUpdated: goalExtractionResult.goalsUpdated,
+      goalsSkipped: goalExtractionResult.goalsSkipped,
+      errors: goalExtractionResult.errors,
+    });
+
+    // 4. Track goal progress based on call outcomes
     const goalResult = await trackGoalProgress(ctx.callerId, ctx.callId);
     ctx.log.info(`Goal tracking completed`, {
       goalsUpdated: goalResult.updated,
@@ -1753,7 +1723,10 @@ const stageExecutors: Record<string, StageExecutor> = {
       callerTargetsCreated: ruleBasedResult.targetsCreated,
       callerTargetsUpdated: ruleBasedResult.targetsUpdated,
       adaptSpecsRun: ruleBasedResult.specsRun,
-      goalsUpdated: goalResult.updated,
+      goalsExtracted: goalExtractionResult.goalsCreated,
+      goalsUpdatedFromExtraction: goalExtractionResult.goalsUpdated,
+      goalsSkipped: goalExtractionResult.goalsSkipped,
+      goalsProgressUpdated: goalResult.updated,
       goalsCompleted: goalResult.completed,
     };
   },
@@ -1807,8 +1780,7 @@ async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
   summary: Record<string, any>;
   prompt?: string;
 }> {
-  const { guardrails, mode, log } = ctx;
-  const stages = guardrails.pipelineStages;
+  const { pipelineStages: stages, mode, log } = ctx;
 
   log.info(`Running spec-driven pipeline with ${stages.length} stages`, {
     stages: stages.map((s) => s.name),
@@ -1944,13 +1916,14 @@ export async function POST(
     }
 
     // =====================================================
-    // LOAD GUARDRAILS & PIPELINE CONFIG (SUPERVISE SPEC)
+    // LOAD GUARDRAILS & PIPELINE CONFIG
     // =====================================================
     const guardrails = await loadGuardrails(log);
+    const pipelineStages = await loadPipelineStages(log);
 
     // =====================================================
     // SPEC-DRIVEN PIPELINE EXECUTION
-    // Stages are loaded from SUPERVISE spec, not hardcoded
+    // Stages are loaded from PIPELINE-001 spec (or GUARD-001 fallback)
     // =====================================================
 
     const pipelineCtx: PipelineContext = {
@@ -1959,6 +1932,7 @@ export async function POST(
       call,
       engine,
       guardrails,
+      pipelineStages,
       mode: mode as "prep" | "prompt",
       log,
       request,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // =============================================================================
 // TYPES
@@ -21,6 +21,15 @@ interface PipelineStep {
   sourceFile: string;
 }
 
+interface PipelineStage {
+  name: string;
+  order: number;
+  outputTypes: string[];
+  description?: string;
+  batched?: boolean;
+  requiresMode?: "prep" | "prompt";
+}
+
 interface CompositionSection {
   id: string;
   label: string;
@@ -31,7 +40,21 @@ interface CompositionSection {
   dependsOn: string[];
 }
 
-type ViewMode = "horizontal" | "timeline";
+type ViewMode = "stages" | "timeline";
+
+// =============================================================================
+// STAGE METADATA (enriches API data with icons/details)
+// =============================================================================
+
+const STAGE_MANIFEST: Record<string, { icon: string; phase: "learn" | "adapt"; hasAiCall: boolean }> = {
+  EXTRACT: { icon: "📥", phase: "learn", hasAiCall: true },
+  SCORE_AGENT: { icon: "📏", phase: "learn", hasAiCall: true },
+  AGGREGATE: { icon: "📊", phase: "learn", hasAiCall: false },
+  REWARD: { icon: "⭐", phase: "learn", hasAiCall: false },
+  ADAPT: { icon: "🎯", phase: "adapt", hasAiCall: true },
+  SUPERVISE: { icon: "🛡️", phase: "adapt", hasAiCall: false },
+  COMPOSE: { icon: "✍️", phase: "adapt", hasAiCall: false },
+};
 
 // =============================================================================
 // STEP DATA (from manifest)
@@ -154,6 +177,70 @@ const STEPS: PipelineStep[] = [
     sourceFile: "lib/ops/compute-reward.ts",
   },
   {
+    id: "goals:extract",
+    order: 3,
+    label: "Extract Goals",
+    description: "Extract learner goals from transcript - explicit ('I want to learn X') and implicit (frustrations, curiosities)",
+    phase: "learn",
+    icon: "🎯",
+    hasAiCall: true,
+    specKeys: ["GOAL-001"],
+    inputs: ["Call.transcript", "Goal[]"],
+    outputs: ["Goal"],
+    pseudoCode: [
+      "existingGoals = getCallerGoals(caller)",
+      "prompt = buildGoalExtractionPrompt(transcript, existingGoals)",
+      "response = await callAI(prompt)",
+      "goals = parseGoals(response)  // EXPLICIT or IMPLICIT",
+      "for goal in goals:",
+      "  if duplicate: updateGoalEvidence(existing, goal)",
+      "  else: createGoal({ callerId, playbookId: null })",
+    ],
+    sourceFile: "lib/goals/extract-goals.ts",
+  },
+  {
+    id: "goals:track",
+    order: 3,
+    label: "Track Goal Progress",
+    description: "Update progress on existing goals based on conversation evidence",
+    phase: "learn",
+    icon: "📈",
+    hasAiCall: true,
+    specKeys: ["GOAL-001"],
+    inputs: ["Call.transcript", "Goal[]"],
+    outputs: ["Goal (updated)"],
+    pseudoCode: [
+      "activeGoals = getActiveGoals(caller)",
+      "for goal in activeGoals:",
+      "  progress = assessProgress(transcript, goal)",
+      "  if progress.completed: markComplete(goal)",
+      "  else: updateProgress(goal, progress)",
+    ],
+    sourceFile: "lib/goals/track-progress.ts",
+  },
+  {
+    id: "adapt:targets",
+    order: 3,
+    label: "Compute Targets",
+    description: "Compute personalized behavior targets for next call based on personality, goals, and history",
+    phase: "adapt",
+    icon: "🎛️",
+    hasAiCall: true,
+    specKeys: ["adapt-*"],
+    inputs: ["CallerPersonality", "Goal[]", "CallScore[]", "RewardScore"],
+    outputs: ["CallerTarget"],
+    pseudoCode: [
+      "profile = getCallerProfile(caller)",
+      "goals = getActiveGoals(caller)",
+      "scores = getRecentScores(caller)",
+      "prompt = buildAdaptPrompt(profile, goals, scores)",
+      "targets = await callAI(prompt)",
+      "clampedTargets = applyGuardrails(targets)",
+      "saveCallerTargets(caller, clampedTargets)",
+    ],
+    sourceFile: "lib/ops/compute-adapt.ts",
+  },
+  {
     id: "prompt:compose",
     order: 4,
     label: "Compose Prompt",
@@ -190,13 +277,82 @@ const COMPOSITION_SECTIONS: CompositionSection[] = [
 // COMPONENT
 // =============================================================================
 
-export default function FlowVisualizer() {
-  const [viewMode, setViewMode] = useState<ViewMode>("timeline");
-  const [expandedStep, setExpandedStep] = useState<string | null>(null);
-  const [showComposition, setShowComposition] = useState(false);
+// Types for supervisor API response
+interface StageSpec {
+  id: string;
+  slug: string;
+  name: string;
+  outputType: string;
+  specRole: string | null;
+  scope: string;
+  isActive: boolean;
+  priority: number;
+  domain: string | null;
+}
 
-  const learnSteps = STEPS.filter((s) => s.phase === "learn");
-  const adaptSteps = STEPS.filter((s) => s.phase === "adapt");
+interface StageWithSpecs extends PipelineStage {
+  systemSpecs: StageSpec[];
+  domainSpecs: StageSpec[];
+  totalSpecs: number;
+}
+
+export default function FlowVisualizer() {
+  const [viewMode, setViewMode] = useState<ViewMode>("stages");
+  const [expandedStep, setExpandedStep] = useState<string | null>(null);
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
+  const [showComposition, setShowComposition] = useState(false);
+  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [stagesWithSpecs, setStagesWithSpecs] = useState<StageWithSpecs[]>([]);
+  const [stagesLoading, setStagesLoading] = useState(true);
+
+  // Load pipeline stages and specs from API
+  useEffect(() => {
+    async function loadStages() {
+      try {
+        // Fetch both endpoints in parallel
+        const [stagesRes, supervisorRes] = await Promise.all([
+          fetch("/api/pipeline/stages"),
+          fetch("/api/supervisor"),
+        ]);
+        const stagesData = await stagesRes.json();
+        const supervisorData = await supervisorRes.json();
+
+        if (stagesData.ok && stagesData.stages) {
+          setStages(stagesData.stages);
+        }
+
+        // Merge stages with specs from supervisor API
+        if (supervisorData.ok && supervisorData.stages) {
+          setStagesWithSpecs(supervisorData.stages);
+        }
+      } catch (error) {
+        console.error("Failed to load pipeline stages:", error);
+      } finally {
+        setStagesLoading(false);
+      }
+    }
+    loadStages();
+  }, []);
+
+  // Group stages by phase for rendering (use stagesWithSpecs if available, fall back to stages)
+  const stagesData = stagesWithSpecs.length > 0 ? stagesWithSpecs : stages;
+  const learnStages = stagesData.filter((s) => {
+    const manifest = STAGE_MANIFEST[s.name];
+    return manifest?.phase === "learn";
+  });
+  const adaptStages = stagesData.filter((s) => {
+    const manifest = STAGE_MANIFEST[s.name];
+    return manifest?.phase === "adapt";
+  });
+
+  // Helper to get specs for a stage
+  const getStageSpecs = (stageName: string): { systemSpecs: StageSpec[]; domainSpecs: StageSpec[] } => {
+    const stageWithSpecs = stagesWithSpecs.find(s => s.name === stageName);
+    return {
+      systemSpecs: stageWithSpecs?.systemSpecs || [],
+      domainSpecs: stageWithSpecs?.domainSpecs || [],
+    };
+  };
 
   return (
     <div className="p-6">
@@ -205,14 +361,14 @@ export default function FlowVisualizer() {
         <div className="flex items-center gap-4">
           <div className="flex rounded-lg overflow-hidden border border-neutral-300 dark:border-neutral-600">
             <button
-              onClick={() => setViewMode("horizontal")}
+              onClick={() => setViewMode("stages")}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
-                viewMode === "horizontal"
+                viewMode === "stages"
                   ? "bg-indigo-600 text-white"
                   : "bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
               }`}
             >
-              Flowchart
+              Stages
             </button>
             <button
               onClick={() => setViewMode("timeline")}
@@ -222,118 +378,311 @@ export default function FlowVisualizer() {
                   : "bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
               }`}
             >
-              Timeline
+              Operations
             </button>
           </div>
           <span className="text-sm text-neutral-500">
-            {STEPS.length} steps, {STEPS.filter((s) => s.hasAiCall).length} AI calls
+            {viewMode === "stages"
+              ? `${stages.length} stages from PIPELINE-001`
+              : `${STEPS.length} operations, ${STEPS.filter((s) => s.hasAiCall).length} AI calls`}
           </span>
         </div>
-        <button
-          onClick={() => setShowComposition(!showComposition)}
-          className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-            showComposition
-              ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700"
-              : "bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400 border border-neutral-300 dark:border-neutral-600"
-          }`}
-        >
-          {showComposition ? "Hide" : "Show"} Composition Sections
-        </button>
+        <div className="flex items-center gap-2">
+          {viewMode === "stages" && stagesWithSpecs.length > 0 && (
+            <>
+              <button
+                onClick={() => setExpandedStage(expandedStage ? null : stagesWithSpecs[0]?.name)}
+                className="px-3 py-1.5 text-sm rounded-lg transition-colors bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400 border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+              >
+                {expandedStage ? "Collapse" : "Expand"}
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setShowComposition(!showComposition)}
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              showComposition
+                ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700"
+                : "bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400 border border-neutral-300 dark:border-neutral-600"
+            }`}
+          >
+            {showComposition ? "Hide" : "Show"} Composition
+          </button>
+        </div>
       </div>
 
-      {/* Horizontal Flowchart View */}
-      {viewMode === "horizontal" && (
+      {/* Pipeline Stages View (from PIPELINE-001 spec) */}
+      {viewMode === "stages" && (
         <div className="space-y-8">
-          {/* Learn Phase */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xl">📚</span>
-              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                Learn Phase
-              </h3>
-              <span className="text-sm text-neutral-500">Post-call analysis</span>
+          {stagesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+              <span className="ml-3 text-neutral-500">Loading pipeline stages...</span>
             </div>
-            <div className="flex items-start gap-4 overflow-x-auto pb-4">
-              {learnSteps.map((step, idx) => (
-                <div key={step.id} className="flex items-start">
-                  <StepCard
-                    step={step}
-                    isExpanded={expandedStep === step.id}
-                    onToggle={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
-                  />
-                  {idx < learnSteps.length - 1 && (
-                    <div className="flex items-center px-2 pt-12">
-                      <svg className="w-8 h-8 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </div>
-                  )}
+          ) : (
+            <>
+              {/* Learn Phase Stages */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xl">📚</span>
+                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    Learn Phase
+                  </h3>
+                  <span className="text-sm text-neutral-500">Post-call analysis</span>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="flex items-start gap-4 overflow-x-auto pb-4">
+                  {learnStages.map((stage, idx) => {
+                    const manifest = STAGE_MANIFEST[stage.name] || { icon: "📦", phase: "learn", hasAiCall: false };
+                    const { systemSpecs, domainSpecs } = getStageSpecs(stage.name);
+                    const totalSpecs = systemSpecs.length + domainSpecs.length;
+                    const isExpanded = expandedStage === stage.name;
+                    return (
+                      <div key={stage.name} className="flex items-start">
+                        <div
+                          className={`w-64 p-4 rounded-xl border cursor-pointer transition-all ${
+                            isExpanded
+                              ? "bg-blue-100 dark:bg-blue-900/40 border-blue-400 dark:border-blue-600 shadow-lg"
+                              : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:border-blue-400"
+                          }`}
+                          onClick={() => setExpandedStage(isExpanded ? null : stage.name)}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-700">
+                              {manifest.icon}
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-neutral-900 dark:text-neutral-100">{stage.name}</h4>
+                              <span className="text-xs text-neutral-500">Order {stage.order}</span>
+                            </div>
+                            {totalSpecs > 0 && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
+                                {totalSpecs} specs
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                            {stage.description}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {stage.outputTypes.map((type) => (
+                              <span
+                                key={type}
+                                className="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+                              >
+                                {type}
+                              </span>
+                            ))}
+                            {stage.batched && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                                batched
+                              </span>
+                            )}
+                            {manifest.hasAiCall && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                🤖 AI
+                              </span>
+                            )}
+                          </div>
 
-          {/* Phase Divider */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-gradient-to-r from-blue-500 to-pink-500" />
-            <span className="text-sm font-medium text-neutral-500">Data feeds into</span>
-            <div className="flex-1 h-px bg-gradient-to-r from-pink-500 to-blue-500" />
-          </div>
-
-          {/* Adapt Phase */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xl">🎯</span>
-              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                Adapt Phase
-              </h3>
-              <span className="text-sm text-neutral-500">Pre-call preparation</span>
-            </div>
-            <div className="flex items-start gap-4">
-              {adaptSteps.map((step) => (
-                <StepCard
-                  key={step.id}
-                  step={step}
-                  isExpanded={expandedStep === step.id}
-                  onToggle={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Composition Sections */}
-          {showComposition && (
-            <div className="mt-8 p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-200 dark:border-orange-800">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">📦</span>
-                <h4 className="font-semibold text-orange-800 dark:text-orange-200">
-                  Composition Sections (Step 6)
-                </h4>
+                          {/* Expanded: Show specs */}
+                          {isExpanded && totalSpecs > 0 && (
+                            <div
+                              className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700 space-y-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="text-xs font-semibold text-neutral-500 uppercase">Specs in this stage</div>
+                              {systemSpecs.map((spec) => (
+                                <a
+                                  key={spec.id}
+                                  href={`/x/dictionary?search=${encodeURIComponent(spec.slug)}`}
+                                  className="block p-2 bg-white dark:bg-neutral-800 rounded border border-blue-200 dark:border-blue-700 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100">
+                                      {spec.name}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400">
+                                      {spec.scope}
+                                    </span>
+                                    <span className="ml-auto text-[10px] text-indigo-500">→</span>
+                                  </div>
+                                  <div className="text-[10px] text-neutral-500 font-mono mt-1">{spec.slug}</div>
+                                </a>
+                              ))}
+                              {domainSpecs.map((spec) => (
+                                <a
+                                  key={spec.id}
+                                  href={`/x/dictionary?search=${encodeURIComponent(spec.slug)}`}
+                                  className="block p-2 bg-white dark:bg-neutral-800 rounded border border-purple-200 dark:border-purple-700 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100">
+                                      {spec.name}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300">
+                                      DOMAIN
+                                    </span>
+                                    <span className="ml-auto text-[10px] text-indigo-500">→</span>
+                                  </div>
+                                  <div className="text-[10px] text-neutral-500 font-mono mt-1">{spec.slug}</div>
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {idx < learnStages.length - 1 && (
+                          <div className="flex items-center px-2 pt-8">
+                            <svg className="w-6 h-6 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="grid grid-cols-4 gap-3">
-                {COMPOSITION_SECTIONS.map((section) => (
-                  <div
-                    key={section.id}
-                    className="p-3 bg-white dark:bg-neutral-800 rounded-lg border border-orange-200 dark:border-orange-800/50"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span>{section.icon}</span>
-                      <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                        {section.label}
-                      </span>
-                    </div>
-                    <div className="text-xs text-neutral-500">
-                      {section.activateWhen}
-                    </div>
-                  </div>
-                ))}
+
+              {/* Phase Divider */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-gradient-to-r from-blue-500 to-pink-500" />
+                <span className="text-sm font-medium text-neutral-500">Data feeds into</span>
+                <div className="flex-1 h-px bg-gradient-to-r from-pink-500 to-blue-500" />
               </div>
-            </div>
+
+              {/* Adapt Phase Stages */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xl">🎯</span>
+                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    Adapt Phase
+                  </h3>
+                  <span className="text-sm text-neutral-500">Pre-call preparation</span>
+                </div>
+                <div className="flex items-start gap-4 overflow-x-auto pb-4">
+                  {adaptStages.map((stage, idx) => {
+                    const manifest = STAGE_MANIFEST[stage.name] || { icon: "📦", phase: "adapt", hasAiCall: false };
+                    const { systemSpecs, domainSpecs } = getStageSpecs(stage.name);
+                    const totalSpecs = systemSpecs.length + domainSpecs.length;
+                    const isExpanded = expandedStage === stage.name;
+                    return (
+                      <div key={stage.name} className="flex items-start">
+                        <div
+                          className={`w-64 p-4 rounded-xl border cursor-pointer transition-all ${
+                            isExpanded
+                              ? "bg-pink-100 dark:bg-pink-900/40 border-pink-400 dark:border-pink-600 shadow-lg"
+                              : "bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 hover:border-pink-400"
+                          }`}
+                          onClick={() => setExpandedStage(isExpanded ? null : stage.name)}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg bg-pink-100 dark:bg-pink-900/50 border border-pink-300 dark:border-pink-700">
+                              {manifest.icon}
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-neutral-900 dark:text-neutral-100">{stage.name}</h4>
+                              <span className="text-xs text-neutral-500">Order {stage.order}</span>
+                            </div>
+                            {totalSpecs > 0 && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
+                                {totalSpecs} specs
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                            {stage.description}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {stage.outputTypes.map((type) => (
+                              <span
+                                key={type}
+                                className="px-2 py-0.5 text-xs rounded-full bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300"
+                              >
+                                {type}
+                              </span>
+                            ))}
+                            {stage.requiresMode && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                                mode: {stage.requiresMode}
+                              </span>
+                            )}
+                            {manifest.hasAiCall && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                🤖 AI
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Expanded: Show specs */}
+                          {isExpanded && totalSpecs > 0 && (
+                            <div
+                              className="mt-3 pt-3 border-t border-pink-200 dark:border-pink-700 space-y-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="text-xs font-semibold text-neutral-500 uppercase">Specs in this stage</div>
+                              {systemSpecs.map((spec) => (
+                                <a
+                                  key={spec.id}
+                                  href={`/x/dictionary?search=${encodeURIComponent(spec.slug)}`}
+                                  className="block p-2 bg-white dark:bg-neutral-800 rounded border border-pink-200 dark:border-pink-700 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100">
+                                      {spec.name}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400">
+                                      {spec.scope}
+                                    </span>
+                                    <span className="ml-auto text-[10px] text-indigo-500">→</span>
+                                  </div>
+                                  <div className="text-[10px] text-neutral-500 font-mono mt-1">{spec.slug}</div>
+                                </a>
+                              ))}
+                              {domainSpecs.map((spec) => (
+                                <a
+                                  key={spec.id}
+                                  href={`/x/dictionary?search=${encodeURIComponent(spec.slug)}`}
+                                  className="block p-2 bg-white dark:bg-neutral-800 rounded border border-purple-200 dark:border-purple-700 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100">
+                                      {spec.name}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300">
+                                      DOMAIN
+                                    </span>
+                                    <span className="ml-auto text-[10px] text-indigo-500">→</span>
+                                  </div>
+                                  <div className="text-[10px] text-neutral-500 font-mono mt-1">{spec.slug}</div>
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {idx < adaptStages.length - 1 && (
+                          <div className="flex items-center px-2 pt-8">
+                            <svg className="w-6 h-6 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Source info */}
+              <div className="text-center text-sm text-neutral-500 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+                Stages loaded from <span className="font-mono text-indigo-600 dark:text-indigo-400">PIPELINE-001</span> spec via{" "}
+                <span className="font-mono text-neutral-600 dark:text-neutral-400">/api/pipeline/stages</span>
+              </div>
+            </>
           )}
         </div>
       )}
 
-      {/* Timeline View */}
+      {/* Operations View (Timeline) */}
       {viewMode === "timeline" && (
         <div className="relative">
           {/* Group steps by order for parallel rendering */}
@@ -474,9 +823,13 @@ export default function FlowVisualizer() {
                                       <div className="text-xs font-semibold text-neutral-500 uppercase mb-2">Spec Keys</div>
                                       <div className="flex flex-wrap gap-1">
                                         {step.specKeys.map((key) => (
-                                          <span key={key} className="px-2 py-1 text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded">
-                                            {key}
-                                          </span>
+                                          <a
+                                            key={key}
+                                            href={`/x/dictionary?search=${encodeURIComponent(key)}`}
+                                            className="px-2 py-1 text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded hover:bg-violet-200 dark:hover:bg-violet-800/50 transition-colors"
+                                          >
+                                            {key} →
+                                          </a>
                                         ))}
                                       </div>
                                     </div>
@@ -535,97 +888,6 @@ export default function FlowVisualizer() {
               </div>
             </div>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// =============================================================================
-// STEP CARD COMPONENT
-// =============================================================================
-
-function StepCard({
-  step,
-  isExpanded,
-  onToggle,
-}: {
-  step: PipelineStep;
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div
-      className={`w-64 flex-shrink-0 rounded-xl border transition-all cursor-pointer ${
-        isExpanded
-          ? "bg-white dark:bg-neutral-800 shadow-lg border-indigo-300 dark:border-indigo-600"
-          : "bg-neutral-50 dark:bg-neutral-800/50 border-neutral-200 dark:border-neutral-700 hover:border-indigo-300 dark:hover:border-indigo-600"
-      }`}
-      onClick={onToggle}
-    >
-      {/* Header */}
-      <div className="p-4">
-        <div className="flex items-center gap-3 mb-2">
-          <div
-            className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
-              step.phase === "learn"
-                ? "bg-blue-100 dark:bg-blue-900/50"
-                : "bg-pink-100 dark:bg-pink-900/50"
-            }`}
-          >
-            {step.icon}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-bold text-neutral-400">#{step.order}</span>
-              {step.hasAiCall && <span className="text-xs">🤖</span>}
-            </div>
-            <h4 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 leading-tight">
-              {step.label}
-            </h4>
-          </div>
-        </div>
-        <p className="text-xs text-neutral-500 line-clamp-2">{step.description}</p>
-      </div>
-
-      {/* Expanded Details */}
-      {isExpanded && (
-        <div className="px-4 pb-4 pt-2 border-t border-neutral-200 dark:border-neutral-700 space-y-3">
-          <div>
-            <div className="text-[10px] font-semibold text-neutral-500 uppercase mb-1">Outputs</div>
-            <div className="flex flex-wrap gap-1">
-              {step.outputs.map((output) => (
-                <span
-                  key={output}
-                  className="px-1.5 py-0.5 text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded"
-                >
-                  {output}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {step.specKeys.length > 0 && (
-            <div>
-              <div className="text-[10px] font-semibold text-neutral-500 uppercase mb-1">Specs</div>
-              <div className="flex flex-wrap gap-1">
-                {step.specKeys.map((key) => (
-                  <span
-                    key={key}
-                    className="px-1.5 py-0.5 text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded"
-                  >
-                    {key}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <pre className="p-2 bg-neutral-100 dark:bg-neutral-900 rounded text-[10px] font-mono text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-24">
-            {step.pseudoCode.join("\n")}
-          </pre>
-
-          <div className="text-[10px] text-neutral-400">📁 {step.sourceFile}</div>
         </div>
       )}
     </div>

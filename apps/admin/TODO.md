@@ -148,6 +148,159 @@ User feedback: "this kind of edit is EXACTLY what I want Admin users to be able 
 
 ---
 
+### 🎭 Persona Slider Tuning Setup
+**Status**: NOT STARTED
+**Priority**: High
+**Estimated Effort**: 2-3 days
+**Related**: Agent Configuration UI
+
+**Goal**: Create an interactive UI for tuning persona behavior parameters using sliders, making it easy to adjust personality traits, teaching styles, and response patterns for different agent personas (Tutor, Companion, Coach).
+
+**Current State:**
+- Personas defined in specs (TUTOR-001, COMPANION-001, COACH-001)
+- Behavior parameters exist in database (warmth, empathy, formality, etc.)
+- No UI for adjusting persona-specific behavior targets
+- Tuning requires manual JSON editing
+
+**What Admins Need:**
+- Per-persona configuration page
+- LED-style vertical sliders (like in caller targets) for each behavior parameter
+- Real-time preview showing how changes affect agent responses
+- Preset templates (e.g., "Warm Tutor", "Professional Coach", "Friendly Companion")
+- Compare mode: side-by-side view of different persona configurations
+- Save/publish workflow with version history
+
+**Behavior Parameters to Include:**
+```typescript
+// Teaching/Tutoring Behaviors
+- BEH_WARMTH          // Friendliness and approachability
+- BEH_EMPATHY_RATE    // Emotional support frequency
+- BEH_QUESTION_RATE   // Socratic questioning frequency
+- BEH_FORMALITY       // Professional vs casual tone
+- BEH_PRAISE_RATE     // Encouragement frequency
+- BEH_SCAFFOLDING     // Guidance vs independence
+
+// Conversation Style
+- BEH_TURN_LENGTH     // Response length (brief vs detailed)
+- BEH_PACING          // Conversation speed
+- BEH_ENTHUSIASM      // Energy level
+- BEH_HUMOR_RATE      // Appropriate humor usage
+
+// Knowledge Delivery
+- BEH_ELABORATION     // Detail depth
+- BEH_EXAMPLE_RATE    // How often to give examples
+- BEH_CLARIFICATION   // Proactive checking understanding
+```
+
+**UI Components Needed:**
+```
+app/x/personas/
+├── page.tsx                          # Persona list/selector
+├── [personaId]/
+│   ├── configure/
+│   │   ├── page.tsx                  # Main config interface
+│   │   └── components/
+│   │       ├── BehaviorSliders.tsx   # Grouped sliders by category
+│   │       ├── PresetSelector.tsx    # Load preset configs
+│   │       ├── CompareView.tsx       # Side-by-side comparison
+│   │       └── PromptPreview.tsx     # Live prompt rendering
+│   └── test/
+│       └── page.tsx                  # Test persona with sample scenarios
+
+components/persona/
+├── PersonaCard.tsx                   # Display persona summary
+├── BehaviorSliderGroup.tsx           # Reuse from VerticalSlider
+└── PresetLibrary.tsx                 # Preset configuration templates
+```
+
+**Features:**
+1. **Slider Interface**
+   - Use existing VerticalSlider component from `/components/shared/VerticalSlider.tsx`
+   - Group sliders by category (Teaching, Conversation, Knowledge)
+   - Color-coded by behavior type (warmth=pink, formality=blue, etc.)
+   - Show current value, target range, and description
+
+2. **Preset Templates**
+   ```typescript
+   const TUTOR_PRESETS = {
+     "warm-supportive": {
+       BEH_WARMTH: 0.8,
+       BEH_EMPATHY_RATE: 0.7,
+       BEH_FORMALITY: 0.4,
+       BEH_SCAFFOLDING: 0.8,
+       ...
+     },
+     "professional-direct": {
+       BEH_WARMTH: 0.5,
+       BEH_FORMALITY: 0.8,
+       BEH_SCAFFOLDING: 0.5,
+       ...
+     },
+     // More presets...
+   };
+   ```
+
+3. **Live Preview**
+   - Show sample conversation with current settings
+   - "Test Response" button sends sample prompt with current config
+   - Display how parameters affect actual agent behavior
+   - Side-by-side before/after comparison
+
+4. **Version History**
+   - Track configuration changes over time
+   - Rollback to previous versions
+   - Compare different versions
+   - Export/import configurations
+
+**Database Schema Updates:**
+```prisma
+model PersonaConfig {
+  id              String   @id @default(uuid())
+  personaSlug     String   // "tutor", "companion", "coach"
+  version         String   // "1.0", "1.1", etc.
+  status          String   // "draft", "published", "archived"
+
+  behaviorTargets Json     // { "BEH_WARMTH": 0.7, ... }
+  voiceRules      Json?    // Optional voice-specific rules
+
+  createdBy       String
+  createdAt       DateTime @default(now())
+  publishedAt     DateTime?
+
+  @@unique([personaSlug, version])
+}
+```
+
+**API Endpoints:**
+```typescript
+// GET /api/personas - List all personas
+// GET /api/personas/[slug] - Get persona details
+// GET /api/personas/[slug]/config - Get current config
+// PUT /api/personas/[slug]/config - Update config
+// POST /api/personas/[slug]/test - Test with sample scenario
+// GET /api/personas/[slug]/presets - Get preset templates
+```
+
+**Acceptance Criteria:**
+- [ ] Admin can view list of all personas (Tutor, Companion, Coach)
+- [ ] Admin can adjust behavior parameters via sliders for each persona
+- [ ] Changes update in real-time with visual feedback
+- [ ] Preset templates can be loaded with one click
+- [ ] Live preview shows how config affects agent responses
+- [ ] Compare mode shows side-by-side persona differences
+- [ ] Configurations can be saved as drafts or published
+- [ ] Version history tracks all changes with rollback capability
+- [ ] Export/import persona configs for sharing
+
+**Why This Matters:**
+- Enables rapid iteration on persona behavior without code changes
+- Visual, intuitive interface for non-technical admins
+- Easy A/B testing of different configurations
+- Consistent behavior across all agents using the same persona
+- Reduces time from "I want to change X" to "change is live"
+
+---
+
 ### 🔐 Authentication & Admin Users
 **Status**: IN PROGRESS (Basic auth implemented 2026-02-08)
 **Priority**: High
@@ -197,6 +350,44 @@ SMTP_PASSWORD="pass"
 ---
 
 ## Medium Priority
+
+### 🎯 User Guidance System - Multi-Step Missions
+**Status**: Phase 1 & 2 COMPLETE | Phases 3-6 NOT STARTED
+**Priority**: Medium
+**Estimated Effort**: 5-6 days total
+**Plan File**: `.claude/plans/declarative-swimming-kettle.md`
+
+**What's Done (Feb 2026):**
+- [x] Phase 1: Sidebar highlight system (pulse/flash/glow animations)
+- [x] Phase 2: AI Chat guidance integration (AI can highlight sidebar items)
+- [x] GuidanceContext, GuidanceBridge, CSS animations, ChatContext parsing
+
+**Remaining Phases:**
+
+**Phase 3: Mission Framework (2 days)**
+- [ ] `lib/guidance/missions.ts` - Define multi-step workflow missions
+- [ ] `components/guidance/MissionPanel.tsx` - Floating progress panel
+- [ ] `lib/guidance/mission-checks.ts` - Step completion detection
+- [ ] AI can trigger missions via `{"action":"mission","id":"first-onboarding-setup"}`
+
+Example missions:
+- "Setup First Onboarding Call" → Create caller → Assign persona → Generate prompt
+- "Import Your First Spec" → Go to import → Upload spec → Activate
+
+**Phase 4: Persona-Caller Connection (1 day)**
+- [ ] Add `personaSlug` field to Caller model (tutor/companion/coach)
+- [ ] Update caller create UI with persona selector
+- [ ] Pass persona to prompt composition for welcome messages
+
+**Phase 5: Contextual Help Tooltips (1 day)**
+- [ ] Show tooltip with guidance message near highlighted item
+- [ ] "Got it" dismiss button, link to docs
+
+**Phase 6: Onboarding Checklist Widget (2 days)**
+- [ ] Dashboard widget showing setup progress for new users
+- [ ] "Continue Setup" button starts relevant mission
+
+---
 
 ### 🧠 Additional Learner Profiling Specs
 **Status**: NOT STARTED
@@ -319,6 +510,99 @@ curl -X POST http://localhost:3000/api/callers/analyze-all
 ---
 
 ## UI/UX Enhancements
+
+### 🎨 UI Styling Consistency & Design System Extraction
+**Status**: NOT STARTED
+**Priority**: Medium
+**Estimated Effort**: 3-4 days
+**Context**: After improving taxonomy-graph contrast (2026-02-09), established patterns that should be extracted and applied app-wide.
+
+**Goal**: Extract the improved UI patterns from taxonomy-graph into reusable components and apply consistent styling across the entire app.
+
+**Established Patterns** (from taxonomy-graph improvements):
+1. **Border weights**: 2px borders for emphasis, 1px for subtle
+2. **Panel styling**: Solid backgrounds with `backdrop-blur-sm`, shadow-xl for depth
+3. **Button states**: 30% opacity backgrounds, 2px borders, hover scale effects
+4. **Typography**: Bold headers, semibold labels, medium body text
+5. **Dark mode**: Proper contrast ratios (WCAG AA standard: 4.5:1)
+6. **Spacing**: Consistent padding (px-3, py-2 for buttons, px-4, py-3 for panels)
+7. **Interactive feedback**: Hover states, transitions, scale animations
+
+**Files That Need Updates**:
+- [ ] `/x/specs` page - Apply panel and button patterns
+- [ ] `/x/playbooks` page - Consistent form controls
+- [ ] `/x/domains` page - Better contrast on cards
+- [ ] Caller detail page - Improved panel hierarchy
+- [ ] Data dictionary - Enhanced readability
+- [ ] Settings pages - Unified form styling
+- [ ] Modal dialogs - Consistent overlay patterns
+
+**Components to Extract**:
+```typescript
+// Proposed new shared components
+components/shared/
+├── Panel.tsx              // Styled panel with consistent borders/shadows
+├── Button.tsx             // Primary/secondary/destructive variants
+├── ToggleGroup.tsx        // 2D/3D style segmented control
+├── FilterButton.tsx       // Type filter button pattern
+├── StatusBadge.tsx        // Unified badge styling (enhance existing)
+└── FormSection.tsx        // Consistent form section wrapper
+```
+
+**CSS Variables to Add** (globals.css):
+```css
+/* Interactive element scales */
+--hover-scale: 1.02;
+--active-scale: 0.98;
+
+/* Panel elevations */
+--panel-border-default: 2px;
+--panel-border-subtle: 1px;
+--shadow-panel: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+--shadow-panel-hover: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+
+/* Button backgrounds */
+--button-bg-opacity: 30%;  // For colored backgrounds
+--button-disabled-opacity: 0.6;
+```
+
+**Implementation Phases**:
+1. **Extract Components** (1 day)
+   - Create reusable Panel, Button, ToggleGroup components
+   - Use entityColors and CSS variables
+   - Document usage patterns
+
+2. **Update Core Pages** (1.5 days)
+   - Apply to specs, playbooks, domains, callers
+   - Ensure dark mode consistency
+   - Test contrast ratios
+
+3. **Form Standardization** (1 day)
+   - Unified form controls (inputs, selects, checkboxes)
+   - Consistent validation styling
+   - Better error states
+
+4. **Documentation** (0.5 days)
+   - Add design system guide to `/docs/DESIGN-SYSTEM.md`
+   - Component usage examples
+   - Color palette reference
+
+**Success Criteria**:
+- [ ] All major pages use consistent panel styling
+- [ ] Buttons follow unified design patterns
+- [ ] Dark mode contrast meets WCAG AA standards across app
+- [ ] No more than 3 button variants (primary/secondary/destructive)
+- [ ] Hover/focus states are consistent
+- [ ] Design system documented for future reference
+
+**Why This Matters**:
+- Improved accessibility and readability
+- Faster development (reusable components)
+- Professional, polished appearance
+- Easier onboarding for new developers
+- Better user experience across all pages
+
+---
 
 ### 📈 Advanced Behaviour Measurement Visualization
 **Status**: Future Enhancement

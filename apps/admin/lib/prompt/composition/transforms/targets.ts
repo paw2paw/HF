@@ -25,6 +25,9 @@ export interface NormalizedTarget {
 /**
  * Merge CallerTargets + BehaviorTargets with scope priority,
  * then group by domainGroup.
+ *
+ * For first-call (isFirstCall=true), injects INIT-001 defaults
+ * for any parameters that don't have targets yet.
  */
 registerTransform("mergeAndGroupTargets", (
   rawData: { behaviorTargets: BehaviorTargetData[]; callerTargets: CallerTargetData[] },
@@ -33,11 +36,38 @@ registerTransform("mergeAndGroupTargets", (
 ) => {
   const { behaviorTargets, callerTargets } = rawData;
   const playbooks = context.loadedData.playbooks;
+  const { isFirstCall } = context.sharedState;
+  const onboardingSpec = context.loadedData.onboardingSpec;
 
   // Merge with priority: CallerTarget > PLAYBOOK > DOMAIN > SYSTEM
   // Pass all stacked playbook IDs - targets from any stacked playbook apply
   const playbookIds = playbooks.map(pb => pb.id);
-  const merged = mergeTargets(behaviorTargets, callerTargets, playbookIds);
+  let merged = mergeTargets(behaviorTargets, callerTargets, playbookIds);
+
+  // INIT-001: Inject first-call defaults for missing parameters
+  if (isFirstCall && onboardingSpec?.config?.defaultTargets) {
+    const existingParams = new Set(merged.map(t => t.parameterId));
+    const defaultTargets = onboardingSpec.config.defaultTargets;
+
+    for (const [paramId, defaults] of Object.entries(defaultTargets)) {
+      if (!existingParams.has(paramId)) {
+        merged.push({
+          parameterId: paramId,
+          targetValue: defaults.value,
+          confidence: defaults.confidence,
+          source: "BehaviorTarget",
+          scope: "INIT_DEFAULT", // Mark as first-call default
+          parameter: {
+            name: paramId.replace("BEH-", "").replace(/-/g, " ").toLowerCase(),
+            interpretationLow: null,
+            interpretationHigh: null,
+            domainGroup: "First Call Defaults",
+          },
+        });
+      }
+    }
+    console.log(`[targets] First call: injected ${Object.keys(defaultTargets).length - existingParams.size} INIT-001 defaults`);
+  }
 
   // Apply preview overrides if provided (for Playground tuning)
   const targetOverrides = (context.specConfig?.targetOverrides || {}) as Record<string, number>;

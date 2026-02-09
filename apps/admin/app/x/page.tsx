@@ -3,15 +3,26 @@ import Link from "next/link";
 import AskAISearchBar from "@/components/shared/AskAISearchBar";
 
 export default async function XDashboardPage() {
-  // Fetch system stats
-  const [domainsCount, playbooksCount, callersCount, specsCount, parametersCount] =
-    await Promise.all([
-      prisma.domain.count(),
-      prisma.playbook.count(),
-      prisma.caller.count(),
-      prisma.analysisSpec.count(),
-      prisma.parameter.count(),
+  // Fetch system stats (with fallback for missing tables)
+  let domainsCount = 0,
+    playbooksCount = 0,
+    callersCount = 0,
+    specsCount = 0,
+    parametersCount = 0;
+
+  try {
+    const counts = await Promise.all([
+      prisma.domain.count().catch(() => 0),
+      prisma.playbook.count().catch(() => 0),
+      prisma.caller.count().catch(() => 0),
+      prisma.analysisSpec.count().catch(() => 0),
+      prisma.parameter.count().catch(() => 0),
     ]);
+    [domainsCount, playbooksCount, callersCount, specsCount, parametersCount] = counts;
+  } catch (error) {
+    // If tables don't exist, just use 0 for all counts
+    console.warn("Database not fully initialized - showing 0 counts");
+  }
 
   const stats = [
     { label: "Domains", value: domainsCount, href: "/x/domains", icon: "🌐" },

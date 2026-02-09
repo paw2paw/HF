@@ -77,60 +77,6 @@
         "confidenceGrowthPerCall": 0.1,
         "maxAggregatedConfidence": 0.95
       }
-    },
-    {
-      "id": "pipeline_stages",
-      "name": "Pipeline Stage Configuration",
-      "description": "Defines the order and grouping of pipeline stages. Specs are grouped by outputType and executed in stage order.",
-      "config": {
-        "stages": [
-          {
-            "name": "EXTRACT",
-            "order": 10,
-            "outputTypes": ["LEARN", "MEASURE"],
-            "description": "Extract caller data: memories and personality scores",
-            "batched": true
-          },
-          {
-            "name": "SCORE_AGENT",
-            "order": 20,
-            "outputTypes": ["MEASURE_AGENT"],
-            "description": "Score agent behavior in the call",
-            "batched": true
-          },
-          {
-            "name": "AGGREGATE",
-            "order": 30,
-            "outputTypes": ["AGGREGATE"],
-            "description": "Aggregate scores into personality profiles"
-          },
-          {
-            "name": "REWARD",
-            "order": 40,
-            "outputTypes": ["REWARD"],
-            "description": "Compute reward scores from measurements"
-          },
-          {
-            "name": "ADAPT",
-            "order": 50,
-            "outputTypes": ["ADAPT"],
-            "description": "Compute personalized targets for next call"
-          },
-          {
-            "name": "SUPERVISE",
-            "order": 60,
-            "outputTypes": ["SUPERVISE"],
-            "description": "Validate and clamp targets to safe ranges"
-          },
-          {
-            "name": "COMPOSE",
-            "order": 100,
-            "outputTypes": ["COMPOSE"],
-            "description": "Build the final prompt from gathered context",
-            "requiresMode": "prompt"
-          }
-        ]
-      }
     }
   ],
 

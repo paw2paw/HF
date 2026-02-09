@@ -157,6 +157,38 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // Canonical Specs (Architectural Dependencies)
+  // ---------------------------------------------------------------------------
+  specs: {
+    /**
+     * Onboarding Spec (default: INIT-001)
+     * Defines first-call experience, personas (tutor/companion/coach), and welcome templates.
+     * Can be overridden via ONBOARDING_SPEC_SLUG env var.
+     */
+    get onboarding(): string {
+      return optional("ONBOARDING_SPEC_SLUG", "INIT-001");
+    },
+
+    /**
+     * Pipeline Spec (default: PIPELINE-001)
+     * Defines pipeline stages: EXTRACT → AGGREGATE → REWARD → ADAPT → SUPERVISE → COMPOSE
+     * Can be overridden via PIPELINE_SPEC_SLUG env var.
+     */
+    get pipeline(): string {
+      return optional("PIPELINE_SPEC_SLUG", "PIPELINE-001");
+    },
+
+    /**
+     * Pipeline Fallback Spec (default: GUARD-001)
+     * Legacy spec used as fallback when PIPELINE-001 is not found.
+     * Can be overridden via PIPELINE_FALLBACK_SPEC_SLUG env var.
+     */
+    get pipelineFallback(): string {
+      return optional("PIPELINE_FALLBACK_SPEC_SLUG", "GUARD-001");
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // Application
   // ---------------------------------------------------------------------------
   app: {
@@ -249,6 +281,14 @@ export function validateConfig(): void {
     );
   }
 
+  // Log canonical spec configuration
+  if (config.app.isDevelopment) {
+    console.log("✓ Canonical specs configured:");
+    console.log(`  - Onboarding: ${config.specs.onboarding}`);
+    console.log(`  - Pipeline: ${config.specs.pipeline}`);
+    console.log(`  - Pipeline fallback: ${config.specs.pipelineFallback}`);
+  }
+
   if (errors.length > 0) {
     throw new Error(
       `Configuration validation failed:\n${errors.map((e) => `  - ${e}`).join("\n")}\n\n` +
@@ -293,6 +333,11 @@ export function getConfigSummary(): Record<string, unknown> {
     },
     features: {
       opsEnabled: config.features.opsEnabled,
+    },
+    specs: {
+      onboarding: config.specs.onboarding,
+      pipeline: config.specs.pipeline,
+      pipelineFallback: config.specs.pipelineFallback,
     },
     app: {
       url: config.app.url,

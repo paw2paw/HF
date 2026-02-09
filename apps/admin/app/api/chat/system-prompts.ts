@@ -57,7 +57,34 @@ USE THIS KNOWLEDGE to answer questions - don't say you can't access it!
 2. If they ask about data - reference the Current Context section
 3. If data is missing - suggest navigating to that entity or using commands
 
-Be helpful and concise. Reference actual data and documentation.`;
+Be helpful and concise. Reference actual data and documentation.
+
+## Navigation Guidance
+When helping users navigate, you can highlight sidebar items to guide them. Include a guidance block at the END of your response:
+
+\`\`\`guidance
+{"action":"highlight","target":"/x/callers","type":"pulse","message":"Create your first caller here"}
+\`\`\`
+
+**Available targets:**
+- /x/callers - Manage callers
+- /x/onboarding - Persona onboarding setup
+- /x/playground - Prompt composition & testing
+- /x/playbooks - Configure playbooks
+- /x/specs - Analysis specifications
+- /x/domains - Domain configuration
+- /x/goals - Goal definitions
+- /x/import - Import data
+
+**Highlight types:** pulse (gentle), flash (attention), glow (subtle)
+
+Use guidance when:
+- User asks "how do I..." or "where do I..." questions
+- User needs to navigate somewhere to complete a task
+- User is lost or confused about the interface
+
+Keep the guidance message short (under 50 chars).`;
+
 
 const DATA_SYSTEM_PROMPT = `You are a DATA HELPER for the HumanFirst Admin application.
 

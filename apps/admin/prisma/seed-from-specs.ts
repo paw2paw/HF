@@ -195,6 +195,8 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     specRole = SpecRole.VOICE;
   } else if (declaredSpecRole === SpecRole.GUARDRAIL) {
     specRole = SpecRole.GUARDRAIL;
+  } else if (declaredSpecRole === SpecRole.BOOTSTRAP) {
+    specRole = SpecRole.BOOTSTRAP;
   } else {
     // Map outputType to specRole for META/unspecified specs
     switch (declaredOutputType) {
@@ -350,8 +352,13 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     }
 
     // 3. Create prompt slugs from param.promptGuidance
-    if (param.promptGuidance && Array.isArray(param.promptGuidance)) {
-      for (const pg of param.promptGuidance) {
+    // Handle both object and array formats (align with activation route behavior)
+    if (param.promptGuidance) {
+      const guidances = Array.isArray(param.promptGuidance)
+        ? param.promptGuidance
+        : [param.promptGuidance];
+
+      for (const pg of guidances) {
         const slugId = `spec-${parameterId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-guidance`;
 
         const existingSlug = await prisma.promptSlug.findUnique({
@@ -414,14 +421,18 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     }
   }
 
-  // 3b. For ADAPT specs: Auto-create behavior parameters from adaptation rules
+  // 3b. For ADAPT specs: Auto-create behavior parameters from adaptation rules AND triggers
   if (outputType === AnalysisOutputType.ADAPT) {
-    console.log(`      🔗 Processing ADAPT spec - extracting target parameters from adaptation rules...`);
+    console.log(`      🔗 Processing ADAPT spec - extracting target parameters...`);
 
-    // Extract all targetParameter values from adaptation rules in all parameters
+    // Extract all targetParameter values from:
+    // 1. parameters[].config.adaptationRules[].actions[] (ADAPT-LEARN-001 style)
+    // 2. triggers[].actions[].parameterId (ADAPT-PERS-001, ADAPT-VARK-001, ADAPT-CURR-001 style)
+    // 3. triggers[].parameterId (legacy format)
     const targetParameterIds = new Set<string>();
     const targetParameterMetadata = new Map<string, { section?: string; rationale?: string }>();
 
+    // Source 1: parameters[].config.adaptationRules[].actions[]
     for (const param of compiledParams) {
       if (param.config?.adaptationRules && Array.isArray(param.config.adaptationRules)) {
         for (const rule of param.config.adaptationRules) {
@@ -440,6 +451,38 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
               }
             }
           }
+        }
+      }
+    }
+
+    // Source 2 & 3: triggers[].actions[].parameterId and triggers[].parameterId
+    const specTriggers = rawSpecData?.triggers || [];
+    for (const trigger of specTriggers) {
+      // Source 2: triggers[].actions[].parameterId (new format)
+      if (trigger.actions && Array.isArray(trigger.actions)) {
+        for (const action of trigger.actions) {
+          if (action.parameterId) {
+            targetParameterIds.add(action.parameterId);
+
+            if (!targetParameterMetadata.has(action.parameterId)) {
+              targetParameterMetadata.set(action.parameterId, {
+                section: scoringSpec?.domain || "behavior",
+                rationale: action.rationale || trigger.then,
+              });
+            }
+          }
+        }
+      }
+
+      // Source 3: triggers[].parameterId (legacy format)
+      if (trigger.parameterId) {
+        targetParameterIds.add(trigger.parameterId);
+
+        if (!targetParameterMetadata.has(trigger.parameterId)) {
+          targetParameterMetadata.set(trigger.parameterId, {
+            section: scoringSpec?.domain || "behavior",
+            rationale: trigger.then,
+          });
         }
       }
     }
@@ -570,7 +613,59 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
       config.metadata = rawSpecData.metadata;
       console.log(`      Copied metadata from rawSpec (sections: ${Object.keys(rawSpecData.metadata).join(", ")})`);
     }
-    console.log(`      Built config for ${specRole} spec with ${(config.parameters as any[]).length} parameters and keys: ${Object.keys(config).slice(0, 5).join(", ")}...`);
+
+    // For module-based curricula: include curriculum-specific fields in config
+    // This allows prompt composers to access modules, learningOutcomes, etc. directly
+    if (rawSpecData?.modules) {
+      config.modules = rawSpecData.modules;
+      config.learningOutcomes = rawSpecData.learningOutcomes;
+      config.qualification = rawSpecData.qualification;
+      config.assessment = rawSpecData.assessment;
+      config.misconceptionBank = rawSpecData.misconceptionBank;
+      config.sessionStructure = rawSpecData.sessionStructure;
+      config.assessmentStrategy = rawSpecData.assessmentStrategy;
+      console.log(`      Built config for module-based curriculum with ${rawSpecData.modules.length} modules`);
+    } else {
+      console.log(`      Built config for ${specRole} spec with ${(config.parameters as any[]).length} parameters and keys: ${Object.keys(config).slice(0, 5).join(", ")}...`);
+    }
+  }
+  // For BOOTSTRAP specs (like INIT-001): preserve parameters AND copy top-level flow/template data
+  else if (specRole === SpecRole.BOOTSTRAP) {
+    config = {
+      parameters: compiledParams.map(p => ({
+        id: p.id || p.parameterId,
+        config: p.config || {},
+      })),
+    };
+    // Flatten parameter configs for backward compat
+    for (const param of compiledParams) {
+      if (param.config) {
+        Object.assign(config, param.config);
+      }
+    }
+    // Copy top-level firstCallFlow from rawSpec (critical for INIT-001)
+    if (rawSpecData?.firstCallFlow) {
+      config.firstCallFlow = rawSpecData.firstCallFlow;
+      console.log(`      Copied firstCallFlow with ${rawSpecData.firstCallFlow.phases?.length || 0} phases`);
+    }
+    // Copy outputs and constraints if present
+    if (rawSpecData?.outputs) {
+      config.outputs = rawSpecData.outputs;
+    }
+    if (rawSpecData?.constraints) {
+      config.constraints = rawSpecData.constraints;
+    }
+    // Copy personas object for per-persona onboarding configs (INIT-001)
+    if (rawSpecData?.personas) {
+      config.personas = rawSpecData.personas;
+      const personaKeys = Object.keys(rawSpecData.personas).filter(k => !k.startsWith("_") && k !== "defaultPersona");
+      console.log(`      Copied personas config for: ${personaKeys.join(", ")}`);
+    }
+    // Copy promptSlugs definitions (will be created below)
+    if (rawSpecData?.promptSlugs) {
+      config.promptSlugs = rawSpecData.promptSlugs;
+    }
+    console.log(`      Built BOOTSTRAP config with ${compiledParams.length} parameters and keys: ${Object.keys(config).slice(0, 8).join(", ")}...`);
   }
   // For ADAPT, AGGREGATE, etc.: preserve parameters array for pipeline to read configs
   else if (compiledParams.length > 0 && compiledParams.some(p => p.config)) {
@@ -683,12 +778,109 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     console.log(`      ⚠️ Agent creation skipped (deprecated) - identity data stored in spec.config`);
   }
 
-  // 4c. Create Curriculum record for CONTENT specs
+  // 4c. Create PromptSlugs for BOOTSTRAP specs (INIT-001 onboarding)
+  if (specRole === SpecRole.BOOTSTRAP && rawSpecData?.personas) {
+    const personaKeys = Object.keys(rawSpecData.personas).filter(k => !k.startsWith("_") && k !== "defaultPersona");
+    let slugsCreated = 0;
+
+    for (const personaSlug of personaKeys) {
+      const personaConfig = rawSpecData.personas[personaSlug];
+
+      // Create welcome message slug for each persona
+      if (personaConfig.welcomeTemplate && personaConfig.welcomeSlug) {
+        const existingSlug = await prisma.promptSlug.findUnique({
+          where: { slug: personaConfig.welcomeSlug },
+        });
+
+        if (!existingSlug) {
+          await prisma.promptSlug.create({
+            data: {
+              slug: personaConfig.welcomeSlug,
+              name: `${personaConfig.name || personaSlug} Welcome Message`,
+              description: `First-call welcome message for ${personaSlug} persona`,
+              sourceType: "COMPOSITE", // Static text, not parameter-driven
+              fallbackPrompt: personaConfig.welcomeTemplate,
+              priority: 100,
+              isActive: true,
+              version: featureSet.version,
+              sourceFeatureSetId: featureSet.id,
+            },
+          });
+          slugsCreated++;
+        } else {
+          // Update the fallback prompt if the template changed
+          await prisma.promptSlug.update({
+            where: { slug: personaConfig.welcomeSlug },
+            data: {
+              fallbackPrompt: personaConfig.welcomeTemplate,
+              version: featureSet.version,
+            },
+          });
+        }
+      }
+
+      // Create phase instruction slugs for each phase in the persona's flow
+      if (personaConfig.firstCallFlow?.phases) {
+        for (const phase of personaConfig.firstCallFlow.phases) {
+          if (phase.instructionSlug) {
+            const existingPhaseSlug = await prisma.promptSlug.findUnique({
+              where: { slug: phase.instructionSlug },
+            });
+
+            // Build instruction text from phase goals/avoid
+            const instructionText = [
+              `Phase: ${phase.phase.toUpperCase()} (${phase.duration})`,
+              `Priority: ${phase.priority}`,
+              "",
+              "GOALS:",
+              ...phase.goals.map((g: string) => `- ${g}`),
+              "",
+              "AVOID:",
+              ...phase.avoid.map((a: string) => `- ${a}`),
+            ].join("\n");
+
+            if (!existingPhaseSlug) {
+              await prisma.promptSlug.create({
+                data: {
+                  slug: phase.instructionSlug,
+                  name: `${phase.phase} Phase - ${personaConfig.name || personaSlug}`,
+                  description: `Instructions for ${phase.phase} phase of first call for ${personaSlug} persona`,
+                  sourceType: "COMPOSITE",
+                  fallbackPrompt: instructionText,
+                  priority: 90,
+                  isActive: true,
+                  version: featureSet.version,
+                  sourceFeatureSetId: featureSet.id,
+                },
+              });
+              slugsCreated++;
+            } else {
+              await prisma.promptSlug.update({
+                where: { slug: phase.instructionSlug },
+                data: {
+                  fallbackPrompt: instructionText,
+                  version: featureSet.version,
+                },
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (slugsCreated > 0) {
+      console.log(`      ✓ Created ${slugsCreated} onboarding PromptSlugs for ${personaKeys.length} personas`);
+    } else {
+      console.log(`      ℹ️ Onboarding PromptSlugs already exist (updated ${personaKeys.length} personas)`);
+    }
+  }
+
+  // 4e. Create Curriculum record for CONTENT specs
   if (specRole === SpecRole.CONTENT) {
     // Create slug from spec ID (e.g., "WNF-CONTENT-001" -> "wnf-content-001")
     const curriculumSlug = featureSet.featureId.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-    // Extract content config from parameters
+    // Extract content config from parameters or rawSpec
     let authors: string[] = [];
     let sourceTitle: string | null = null;
     let sourceYear: number | null = null;
@@ -699,28 +891,77 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     let critiques: any = null;
     let deliveryConfig: any = null;
 
-    for (const param of compiledParams) {
-      const cfg = param.config || {};
-      if (param.id === "source_metadata" || param.name?.includes("Source")) {
-        authors = cfg.authors || [];
-        sourceTitle = cfg.title || null;
-        sourceYear = cfg.year || null;
-        notableInfo = cfg.notableInfo || null;
+    // Check if this is a module-based curriculum (has modules array in rawSpec)
+    const isModuleCurriculum = rawSpecData?.modules && Array.isArray(rawSpecData.modules);
+
+    if (isModuleCurriculum) {
+      // Module-based curriculum (e.g., Food Safety L2)
+      console.log(`      📚 Detected module-based curriculum with ${rawSpecData.modules.length} modules`);
+
+      // Extract qualification metadata as source info
+      const qual = rawSpecData.qualification || {};
+      sourceTitle = qual.name || rawSpecData.title;
+      authors = qual.primaryReference ? [qual.primaryReference] : [];
+
+      // Store learning outcomes and qualification in notableInfo
+      notableInfo = {
+        qualification: rawSpecData.qualification,
+        learningOutcomes: rawSpecData.learningOutcomes,
+        assessment: rawSpecData.assessment,
+      };
+
+      // Store modules as core content
+      coreArgument = {
+        modules: rawSpecData.modules,
+        totalModules: rawSpecData.modules.length,
+        estimatedDuration: rawSpecData.modules.reduce((sum: number, m: any) => sum + (m.durationMinutes || 0), 0),
+      };
+
+      // Store misconception bank as critiques (things to watch for)
+      critiques = rawSpecData.misconceptionBank || null;
+
+      // Store session structure and assessment strategy in delivery config
+      deliveryConfig = {
+        sessionStructure: rawSpecData.sessionStructure,
+        assessmentStrategy: rawSpecData.assessmentStrategy,
+      };
+
+      // Discussion questions can be extracted from modules' examTopics
+      const allExamTopics: string[] = [];
+      for (const mod of rawSpecData.modules) {
+        if (mod.examTopics) {
+          allExamTopics.push(...mod.examTopics);
+        }
       }
-      if (param.id === "core_argument" || param.name?.includes("Core Argument") || param.name?.includes("Thesis")) {
-        coreArgument = cfg;
+      if (allExamTopics.length > 0) {
+        discussionQuestions = { examTopics: allExamTopics };
       }
-      if (param.id === "case_studies" || param.name?.includes("Case Studies")) {
-        caseStudies = cfg.studies || cfg;
-      }
-      if (param.id === "discussion_questions" || param.name?.includes("Discussion")) {
-        discussionQuestions = cfg.questions || cfg;
-      }
-      if (param.id === "critiques" || param.name?.includes("Critiques")) {
-        critiques = cfg.critiques || cfg;
-      }
-      if (param.id === "delivery_config" || param.name?.includes("Delivery")) {
-        deliveryConfig = cfg;
+
+    } else {
+      // Book-based curriculum (e.g., Why Nations Fail)
+      for (const param of compiledParams) {
+        const cfg = param.config || {};
+        if (param.id === "source_metadata" || param.name?.includes("Source")) {
+          authors = cfg.authors || [];
+          sourceTitle = cfg.title || null;
+          sourceYear = cfg.year || null;
+          notableInfo = cfg.notableInfo || null;
+        }
+        if (param.id === "core_argument" || param.name?.includes("Core Argument") || param.name?.includes("Thesis")) {
+          coreArgument = cfg;
+        }
+        if (param.id === "case_studies" || param.name?.includes("Case Studies")) {
+          caseStudies = cfg.studies || cfg;
+        }
+        if (param.id === "discussion_questions" || param.name?.includes("Discussion")) {
+          discussionQuestions = cfg.questions || cfg;
+        }
+        if (param.id === "critiques" || param.name?.includes("Critiques")) {
+          critiques = cfg.critiques || cfg;
+        }
+        if (param.id === "delivery_config" || param.name?.includes("Delivery")) {
+          deliveryConfig = cfg;
+        }
       }
     }
 
@@ -749,7 +990,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
           version: featureSet.version,
         },
       });
-      console.log(`      ✓ Updated Curriculum: ${curriculumSlug}`);
+      console.log(`      ✓ Updated Curriculum: ${curriculumSlug}${isModuleCurriculum ? ` (${rawSpecData.modules.length} modules)` : ""}`);
     } else {
       await prisma.curriculum.create({
         data: {
@@ -771,7 +1012,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
         },
       });
       results.curriculumCreated = true;
-      console.log(`      ✓ Created Curriculum: ${curriculumSlug}`);
+      console.log(`      ✓ Created Curriculum: ${curriculumSlug}${isModuleCurriculum ? ` (${rawSpecData.modules.length} modules)` : ""}`);
     }
   }
 

@@ -4,10 +4,11 @@ import { useState, useEffect, Suspense, lazy } from "react";
 import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
 
-// Lazy load the FlowVisualizer to avoid loading force-graph on initial page load
+// Lazy load heavy components
 const FlowVisualizer = lazy(() => import("./components/FlowVisualizer"));
+const RunInspector = lazy(() => import("@/app/x/pipeline/components/RunInspector"));
 
-type TabId = "stages" | "flow";
+type TabId = "stages" | "flow" | "traces";
 
 type Domain = {
   id: string;
@@ -55,8 +56,9 @@ type SupervisorData = {
 };
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: "stages", label: "Pipeline Stages", icon: "📋" },
   { id: "flow", label: "Flow Visualizer", icon: "🔀" },
+  { id: "stages", label: "Pipeline Stages", icon: "📋" },
+  { id: "traces", label: "Traces", icon: "🔍" },
 ];
 
 export default function SupervisorPage() {
@@ -386,6 +388,18 @@ export default function SupervisorPage() {
           }
         >
           <FlowVisualizer />
+        </Suspense>
+      )}
+
+      {activeTab === "traces" && (
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-24">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+            </div>
+          }
+        >
+          <RunInspector />
         </Suspense>
       )}
     </div>

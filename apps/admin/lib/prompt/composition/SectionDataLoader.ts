@@ -7,6 +7,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { getLearnerProfile } from "@/lib/learner/profile";
 import type { LoadedDataContext } from "./types";
 
@@ -46,6 +47,7 @@ export async function loadAllData(
     goals,
     playbooks,
     systemSpecs,
+    onboardingSpec,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
     loaderRegistry.get("memories")!(callerId, { limit: memoriesLimit }),
@@ -59,6 +61,7 @@ export async function loadAllData(
     loaderRegistry.get("goals")!(callerId),
     loaderRegistry.get("playbooks")!(callerId, { playbookIds: specConfig.playbookIds }),
     loaderRegistry.get("systemSpecs")!(callerId),
+    loaderRegistry.get("onboardingSpec")!(callerId),
   ]);
 
   return {
@@ -74,6 +77,7 @@ export async function loadAllData(
     goals: goals || [],
     playbooks: playbooks || [],
     systemSpecs: systemSpecs || [],
+    onboardingSpec: onboardingSpec || null,
   };
 }
 
@@ -324,4 +328,32 @@ registerLoader("systemSpecs", async (_callerId) => {
       domain: true,
     },
   });
+});
+
+/**
+ * Load the onboarding/bootstrap spec for first-call defaults.
+ * Uses env-configurable spec slug (default: INIT-001, configurable via ONBOARDING_SPEC_SLUG).
+ * Returns the spec config with default targets and first-call flow.
+ */
+registerLoader("onboardingSpec", async (_callerId) => {
+  // Get onboarding spec slug from config (env-configurable)
+  const onboardingSlug = config.specs.onboarding;
+
+  const spec = await prisma.analysisSpec.findFirst({
+    where: {
+      OR: [
+        { slug: { contains: onboardingSlug.toLowerCase(), mode: "insensitive" } },
+        { slug: { contains: "onboarding" } },
+        { domain: "onboarding" },
+      ],
+      isActive: true,
+    },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      config: true,
+    },
+  });
+  return spec;
 });

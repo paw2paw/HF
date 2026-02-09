@@ -415,6 +415,10 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       const playbookData = await playbookRes.json();
       const availableData = await availableRes.json();
 
+      // Debug logging for troubleshooting
+      console.log("[PlaybookBuilder] Fetched playbook:", playbookData.ok, "items:", playbookData.playbook?.items?.length);
+      console.log("[PlaybookBuilder] Fetched available:", availableData.ok, "systemSpecs:", availableData.systemSpecs?.length);
+
       if (playbookData.ok) {
         setPlaybook(playbookData.playbook);
         setItems(playbookData.playbook.items);
@@ -479,9 +483,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       }
 
       if (availableData.ok) {
+        console.log("[PlaybookBuilder] Setting availableItems with", availableData.systemSpecs?.length, "system specs");
         setAvailableItems(availableData);
+      } else {
+        console.error("[PlaybookBuilder] availableData not ok:", availableData.error);
       }
     } catch (err: any) {
+      console.error("[PlaybookBuilder] fetchData error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -521,6 +529,10 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     try {
       const res = await fetch(`/api/playbooks/${playbookId}/tree`);
       const data = await res.json();
+      console.log("[PlaybookBuilder] Tree API response:", data.ok, "tree:", !!data.tree, "stats:", data.stats);
+      if (!data.ok) {
+        console.error("[PlaybookBuilder] Tree API error:", data.error);
+      }
       if (data.ok) {
         setExplorerTree(data.tree);
         // Auto-expand first two levels and select root

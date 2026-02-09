@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { seedCompanionDomain } from "../../../../prisma/_archived/seed-companion";
 import { seedFromSpecs } from "../../../../prisma/seed-from-specs";
+import { PARAMS } from "@/lib/registry";
 
 /**
  * POST /api/x/seed-domains
@@ -170,13 +171,13 @@ async function createWNFTutorDomain(
 
   // Set behavior targets for tutoring style
   const tutorTargets = [
-    { parameterId: "BEH-WARMTH", targetValue: 0.7 },
-    { parameterId: "BEH-EMPATHY-RATE", targetValue: 0.6 },
-    { parameterId: "BEH-FORMALITY", targetValue: 0.5 },
-    { parameterId: "BEH-DIRECTNESS", targetValue: 0.6 },
-    { parameterId: "BEH-PROACTIVE", targetValue: 0.8 },
-    { parameterId: "BEH-QUESTION-RATE", targetValue: 0.75 }, // High questioning for Socratic method
-    { parameterId: "BEH-PACE-MATCH", targetValue: 0.8 },
+    { parameterId: PARAMS.BEH_WARMTH, targetValue: 0.7 },
+    { parameterId: PARAMS.BEH_EMPATHY_RATE, targetValue: 0.6 },
+    { parameterId: PARAMS.BEH_FORMALITY, targetValue: 0.5 },
+    { parameterId: PARAMS.BEH_DIRECTNESS, targetValue: 0.6 },
+    { parameterId: PARAMS.BEH_PROACTIVE, targetValue: 0.8 },
+    { parameterId: PARAMS.BEH_QUESTION_RATE, targetValue: 0.75 }, // High questioning for Socratic method
+    { parameterId: PARAMS.BEH_PACE_MATCH, targetValue: 0.8 },
   ];
 
   let targetCount = 0;
@@ -243,7 +244,7 @@ async function createWNFTutorDomain(
 async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
   const essentialBehaviorParams = [
     {
-      parameterId: "BEH-WARMTH",
+      parameterId: PARAMS.BEH_WARMTH,
       name: "Warmth Level",
       definition: "Overall warmth and friendliness in agent tone",
       sectionId: "behavior",
@@ -252,7 +253,7 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
       interpretationLow: "Agent is neutral or distant in tone",
     },
     {
-      parameterId: "BEH-EMPATHY-RATE",
+      parameterId: PARAMS.BEH_EMPATHY_RATE,
       name: "Empathy Expression Rate",
       definition: "Frequency of empathetic statements, acknowledgments, and emotional validation",
       sectionId: "behavior",
@@ -261,7 +262,7 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
       interpretationLow: "Agent maintains neutral, task-focused communication",
     },
     {
-      parameterId: "BEH-FORMALITY",
+      parameterId: PARAMS.BEH_FORMALITY,
       name: "Formality Level",
       definition: "Degree of formal vs casual language in agent responses",
       sectionId: "behavior",
@@ -270,7 +271,7 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
       interpretationLow: "Agent uses casual, conversational language",
     },
     {
-      parameterId: "BEH-DIRECTNESS",
+      parameterId: PARAMS.BEH_DIRECTNESS,
       name: "Directness Level",
       definition: "How direct vs indirect the agent is in communication",
       sectionId: "behavior",
@@ -279,7 +280,7 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
       interpretationLow: "Agent is indirect and nuanced",
     },
     {
-      parameterId: "BEH-PROACTIVE",
+      parameterId: PARAMS.BEH_PROACTIVE,
       name: "Proactivity Level",
       definition: "How proactively the agent offers information, suggestions, or guidance",
       sectionId: "behavior",
@@ -288,7 +289,7 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
       interpretationLow: "Agent waits for caller to ask or lead",
     },
     {
-      parameterId: "BEH-QUESTION-RATE",
+      parameterId: PARAMS.BEH_QUESTION_RATE,
       name: "Question Asking Rate",
       definition: "Frequency of questions asked by the agent to engage the caller",
       sectionId: "behavior",
@@ -297,7 +298,7 @@ async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
       interpretationLow: "Agent primarily provides information without questions",
     },
     {
-      parameterId: "BEH-PACE-MATCH",
+      parameterId: PARAMS.BEH_PACE_MATCH,
       name: "Pace Matching",
       definition: "How well the agent matches the caller's conversational pace and energy",
       sectionId: "behavior",

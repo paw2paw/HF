@@ -1,10 +1,26 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
+import { GeneralImportWizard } from "./GeneralImportWizard";
 
 type ImportTab = "transcripts" | "specs";
+
+// Wrapper to read search params (must be in Suspense)
+function SearchParamsReader({ onTab }: { onTab: (tab: ImportTab) => void }) {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
+  useEffect(() => {
+    if (tabParam === "specs") {
+      onTab("specs");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return null;
+}
 
 interface ImportConflict {
   conflictKey: string;
@@ -76,6 +92,15 @@ type ImportStep = "select" | "conflicts" | "result";
 
 export default function ImportPage() {
   const [activeTab, setActiveTab] = useState<ImportTab>("transcripts");
+  const [tabInitialized, setTabInitialized] = useState(false);
+
+  // Handle tab from URL (wrapped in Suspense for Next.js App Router)
+  const handleTabFromUrl = (tab: ImportTab) => {
+    if (!tabInitialized) {
+      setActiveTab(tab);
+      setTabInitialized(true);
+    }
+  };
 
   // Transcript state
   const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
@@ -92,12 +117,25 @@ export default function ImportPage() {
   const [conflictResolutions, setConflictResolutions] = useState<Record<string, "merge" | "create_new" | "skip">>({});
 
   // Spec state
+  const [specImportMode, setSpecImportMode] = useState<"schema" | "general">("schema");
   const [specFiles, setSpecFiles] = useState<File[]>([]);
   const [specImporting, setSpecImporting] = useState(false);
   const [specResult, setSpecResult] = useState<SpecResult | null>(null);
   const [specError, setSpecError] = useState<string | null>(null);
   const [autoActivate, setAutoActivate] = useState(true);
   const specFileInputRef = useRef<HTMLInputElement>(null);
+
+  // General Import wizard state
+  const [generalImportStep, setGeneralImportStep] = useState<1 | 2 | 3 | 4>(1);
+  const [generalFile, setGeneralFile] = useState<File | null>(null);
+  const [generalRawText, setGeneralRawText] = useState("");
+  const [generalParsing, setGeneralParsing] = useState(false);
+  const [generalDetectedType, setGeneralDetectedType] = useState<string | null>(null);
+  const [generalSelectedType, setGeneralSelectedType] = useState<string>("CURRICULUM");
+  const [generalExtracting, setGeneralExtracting] = useState(false);
+  const [generalExtractedSpec, setGeneralExtractedSpec] = useState<any>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const generalFileInputRef = useRef<HTMLInputElement>(null);
 
   // Transcript handlers
   const handleTranscriptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -283,6 +321,11 @@ export default function ImportPage() {
 
   return (
     <div>
+      {/* Read URL params in Suspense boundary (required by Next.js App Router) */}
+      <Suspense fallback={null}>
+        <SearchParamsReader onTab={handleTabFromUrl} />
+      </Suspense>
+
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Import</h1>
         <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
@@ -683,173 +726,271 @@ export default function ImportPage() {
       {/* BDD Specs Tab */}
       {activeTab === "specs" && (
         <div>
-          {/* Drop Zone */}
-          <div
-            onDrop={handleSpecDrop}
-            onDragOver={(e) => e.preventDefault()}
-            onClick={() => specFileInputRef.current?.click()}
-            style={{
-              border: "2px dashed var(--border-default)",
-              borderRadius: 12,
-              padding: 40,
-              textAlign: "center",
-              cursor: "pointer",
-              background: specFiles.length > 0 ? "var(--warning-bg)" : "var(--surface-secondary)",
-              transition: "all 0.15s",
-            }}
-          >
-            <input
-              ref={specFileInputRef}
-              type="file"
-              multiple
-              accept=".json,.spec.json"
-              onChange={handleSpecFileChange}
-              style={{ display: "none" }}
-            />
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-            {specFiles.length > 0 ? (
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)" }}>
-                  {specFiles.length} spec file(s) selected
-                </div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
-                  {specFiles.map((f) => f.name).join(", ")}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)" }}>
-                  Drop .spec.json files here or click to browse
-                </div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
-                  BDD specification files (e.g., CA-001-cognitive-activation.spec.json)
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Options */}
-          <div style={{ marginTop: 20, padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={autoActivate}
-                onChange={(e) => setAutoActivate(e.target.checked)}
-                style={{ width: 18, height: 18 }}
-              />
-              <div>
-                <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>Auto-activate specs</span>
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  Create Parameters, ScoringAnchors, and AnalysisSpec records automatically
-                </div>
-              </div>
-            </label>
-          </div>
-
-          {/* Import Button */}
-          <div style={{ marginTop: 20 }}>
+          {/* Mode Toggle */}
+          <div style={{
+            display: "flex",
+            gap: 8,
+            marginBottom: 24,
+            padding: 4,
+            background: "var(--surface-tertiary)",
+            borderRadius: 12,
+            width: "fit-content",
+          }}>
             <button
-              onClick={handleSpecImport}
-              disabled={specFiles.length === 0 || specImporting}
+              onClick={() => {
+                setSpecImportMode("schema");
+                setGeneralFile(null);
+                setGeneralRawText("");
+                setGeneralExtractedSpec(null);
+                setGeneralError(null);
+                setGeneralImportStep(1);
+              }}
               style={{
-                padding: "12px 24px",
-                fontSize: 15,
+                padding: "10px 20px",
+                fontSize: 14,
                 fontWeight: 600,
-                background: specFiles.length === 0 || specImporting ? "var(--text-placeholder)" : "var(--warning-text)",
-                color: specFiles.length === 0 || specImporting ? "var(--text-muted)" : "#fff",
-                border: "none",
                 borderRadius: 8,
-                cursor: specFiles.length === 0 || specImporting ? "not-allowed" : "pointer",
+                border: "none",
+                cursor: "pointer",
+                background: specImportMode === "schema" ? "var(--surface-primary)" : "transparent",
+                color: specImportMode === "schema" ? "var(--text-primary)" : "var(--text-muted)",
+                boxShadow: specImportMode === "schema" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s",
               }}
             >
-              {specImporting ? "Importing..." : "Import BDD Specs"}
+              Schema Ready
+            </button>
+            <button
+              onClick={() => {
+                setSpecImportMode("general");
+                setSpecFiles([]);
+                setSpecResult(null);
+                setSpecError(null);
+              }}
+              style={{
+                padding: "10px 20px",
+                fontSize: 14,
+                fontWeight: 600,
+                borderRadius: 8,
+                border: "none",
+                cursor: "pointer",
+                background: specImportMode === "general" ? "var(--surface-primary)" : "transparent",
+                color: specImportMode === "general" ? "var(--accent-primary)" : "var(--text-muted)",
+                boxShadow: specImportMode === "general" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>✨</span>
+              General Import
             </button>
           </div>
 
-          {/* Error */}
-          {specError && (
-            <div style={{ marginTop: 20, padding: 16, background: "var(--error-bg)", color: "var(--error-text)", borderRadius: 8 }}>
-              {specError}
-            </div>
-          )}
-
-          {/* Result */}
-          {specResult && (
-            <div style={{ marginTop: 20, padding: 20, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: 12 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)", marginBottom: 12 }}>
-                Import Complete
-              </div>
-              <div style={{ display: "flex", gap: 24, fontSize: 14, color: "var(--text-primary)" }}>
-                <span>Created: {specResult.created || 0}</span>
-                <span>Updated: {specResult.updated || 0}</span>
-                {(specResult.errors || 0) > 0 && <span style={{ color: "var(--error-text)" }}>Errors: {specResult.errors}</span>}
-              </div>
-
-              {specResult.results && specResult.results.length > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>Results:</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {specResult.results.map((r) => (
-                      <div
-                        key={r.specId}
-                        style={{
-                          padding: "8px 12px",
-                          background: r.status === "error" ? "var(--error-bg)" : r.status === "created" ? "var(--success-bg)" : "var(--surface-secondary)",
-                          border: r.status === "error" ? "1px solid var(--error-border)" : "1px solid var(--border-default)",
-                          borderRadius: 6,
-                          fontSize: 13,
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{r.specId}</span>
-                          <span
-                            style={{
-                              padding: "2px 8px",
-                              borderRadius: 4,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              background: r.status === "error" ? "var(--error-text)" : r.status === "created" ? "var(--success-text)" : "var(--text-muted)",
-                              color: "#fff",
-                            }}
-                          >
-                            {r.status.toUpperCase()}
-                          </span>
-                        </div>
-                        <div style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>{r.name}</div>
-                        {r.error && (
-                          <div style={{ color: "var(--error-text)", fontSize: 11, marginTop: 4 }}>{r.error}</div>
-                        )}
-                        {r.compileWarnings && r.compileWarnings.length > 0 && (
-                          <div style={{ color: "var(--warning-text)", fontSize: 11, marginTop: 4 }}>
-                            Warnings: {r.compileWarnings.join(", ")}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+          {/* Schema Ready Mode */}
+          {specImportMode === "schema" && (
+            <>
+              {/* Drop Zone */}
+              <div
+                onDrop={handleSpecDrop}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => specFileInputRef.current?.click()}
+                style={{
+                  border: "2px dashed var(--border-default)",
+                  borderRadius: 12,
+                  padding: 40,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  background: specFiles.length > 0 ? "var(--warning-bg)" : "var(--surface-secondary)",
+                  transition: "all 0.15s",
+                }}
+              >
+                <input
+                  ref={specFileInputRef}
+                  type="file"
+                  multiple
+                  accept=".json,.spec.json"
+                  onChange={handleSpecFileChange}
+                  style={{ display: "none" }}
+                />
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+                {specFiles.length > 0 ? (
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)" }}>
+                      {specFiles.length} spec file(s) selected
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                      {specFiles.map((f) => f.name).join(", ")}
+                    </div>
                   </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)" }}>
+                      Drop .spec.json files here or click to browse
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                      BDD specification files (e.g., CA-001-cognitive-activation.spec.json)
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Options */}
+              <div style={{ marginTop: 20, padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={autoActivate}
+                    onChange={(e) => setAutoActivate(e.target.checked)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  <div>
+                    <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>Auto-activate specs</span>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      Create Parameters, ScoringAnchors, and AnalysisSpec records automatically
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Import Button */}
+              <div style={{ marginTop: 20 }}>
+                <button
+                  onClick={handleSpecImport}
+                  disabled={specFiles.length === 0 || specImporting}
+                  style={{
+                    padding: "12px 24px",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    background: specFiles.length === 0 || specImporting ? "var(--text-placeholder)" : "var(--warning-text)",
+                    color: specFiles.length === 0 || specImporting ? "var(--text-muted)" : "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    cursor: specFiles.length === 0 || specImporting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {specImporting ? "Importing..." : "Import BDD Specs"}
+                </button>
+              </div>
+
+              {/* Error */}
+              {specError && (
+                <div style={{ marginTop: 20, padding: 16, background: "var(--error-bg)", color: "var(--error-text)", borderRadius: 8 }}>
+                  {specError}
                 </div>
               )}
-            </div>
+
+              {/* Result */}
+              {specResult && (
+                <div style={{ marginTop: 20, padding: 20, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: 12 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)", marginBottom: 12 }}>
+                    Import Complete
+                  </div>
+                  <div style={{ display: "flex", gap: 24, fontSize: 14, color: "var(--text-primary)" }}>
+                    <span>Created: {specResult.created || 0}</span>
+                    <span>Updated: {specResult.updated || 0}</span>
+                    {(specResult.errors || 0) > 0 && <span style={{ color: "var(--error-text)" }}>Errors: {specResult.errors}</span>}
+                  </div>
+
+                  {specResult.results && specResult.results.length > 0 && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>Results:</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {specResult.results.map((r) => (
+                          <div
+                            key={r.specId}
+                            style={{
+                              padding: "8px 12px",
+                              background: r.status === "error" ? "var(--error-bg)" : r.status === "created" ? "var(--success-bg)" : "var(--surface-secondary)",
+                              border: r.status === "error" ? "1px solid var(--error-border)" : "1px solid var(--border-default)",
+                              borderRadius: 6,
+                              fontSize: 13,
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{r.specId}</span>
+                              <span
+                                style={{
+                                  padding: "2px 8px",
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  background: r.status === "error" ? "var(--error-text)" : r.status === "created" ? "var(--success-text)" : "var(--text-muted)",
+                                  color: "#fff",
+                                }}
+                              >
+                                {r.status.toUpperCase()}
+                              </span>
+                            </div>
+                            <div style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>{r.name}</div>
+                            {r.error && (
+                              <div style={{ color: "var(--error-text)", fontSize: 11, marginTop: 4 }}>{r.error}</div>
+                            )}
+                            {r.compileWarnings && r.compileWarnings.length > 0 && (
+                              <div style={{ color: "var(--warning-text)", fontSize: 11, marginTop: 4 }}>
+                                Warnings: {r.compileWarnings.join(", ")}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Help Section */}
+              <div style={{ marginTop: 32, padding: 20, background: "var(--surface-secondary)", borderRadius: 8 }}>
+                <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                  About BDD Specs
+                </h3>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
+                  <p><strong>BDD Specs</strong> define analysis parameters, triggers, actions, and prompt guidance.</p>
+                  <p>Each spec creates:</p>
+                  <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                    <li><strong>BDDFeatureSet</strong> - Stores the raw spec JSON</li>
+                    <li><strong>AnalysisSpec</strong> - Runtime spec with compiled promptTemplate</li>
+                    <li><strong>Parameters</strong> - Measurable dimensions (traits, behaviors)</li>
+                    <li><strong>ScoringAnchors</strong> - What high/low values mean</li>
+                    <li><strong>PromptSlugs</strong> - Reusable prompt components</li>
+                  </ul>
+                  <p>Specs are stored in the database, removing the need for filesystem access at runtime.</p>
+                </div>
+              </div>
+            </>
           )}
 
-          {/* Help Section */}
-          <div style={{ marginTop: 32, padding: 20, background: "var(--surface-secondary)", borderRadius: 8 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-              About BDD Specs
-            </h3>
-            <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
-              <p><strong>BDD Specs</strong> define analysis parameters, triggers, actions, and prompt guidance.</p>
-              <p>Each spec creates:</p>
-              <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-                <li><strong>BDDFeatureSet</strong> - Stores the raw spec JSON</li>
-                <li><strong>AnalysisSpec</strong> - Runtime spec with compiled promptTemplate</li>
-                <li><strong>Parameters</strong> - Measurable dimensions (traits, behaviors)</li>
-                <li><strong>ScoringAnchors</strong> - What high/low values mean</li>
-                <li><strong>PromptSlugs</strong> - Reusable prompt components</li>
-              </ul>
-              <p>Specs are stored in the database, removing the need for filesystem access at runtime.</p>
-            </div>
-          </div>
+          {/* General Import Mode */}
+          {specImportMode === "general" && (
+            <GeneralImportWizard
+              step={generalImportStep}
+              setStep={setGeneralImportStep}
+              file={generalFile}
+              setFile={setGeneralFile}
+              rawText={generalRawText}
+              setRawText={setGeneralRawText}
+              parsing={generalParsing}
+              setParsing={setGeneralParsing}
+              detectedType={generalDetectedType}
+              setDetectedType={setGeneralDetectedType}
+              selectedType={generalSelectedType}
+              setSelectedType={setGeneralSelectedType}
+              extracting={generalExtracting}
+              setExtracting={setGeneralExtracting}
+              extractedSpec={generalExtractedSpec}
+              setExtractedSpec={setGeneralExtractedSpec}
+              error={generalError}
+              setError={setGeneralError}
+              fileInputRef={generalFileInputRef}
+              autoActivate={autoActivate}
+              setAutoActivate={setAutoActivate}
+              onImportComplete={(result) => {
+                setSpecResult(result);
+                setSpecImportMode("schema");
+              }}
+            />
+          )}
         </div>
       )}
     </div>

@@ -5,7 +5,9 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
 import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript } from '@/contexts';
+import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { ChatPanel } from '@/components/chat';
+import { GuidanceBridge } from '@/src/components/shared/GuidanceBridge';
 import './globals.css';
 
 const SIDEBAR_WIDTH_KEY = 'hf.sidebar.width';
@@ -175,13 +177,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PaletteProvider>
             <SessionProvider>
               <EntityProvider>
-                <ChatProvider>
-                  <Suspense fallback={null}>
-                    <LayoutInner>{children}</LayoutInner>
-                  </Suspense>
-                  {/* AI Chat Panel */}
-                  <ChatPanel />
-                </ChatProvider>
+                <GuidanceProvider>
+                  <ChatProvider>
+                    <GuidanceBridge />
+                    <Suspense fallback={null}>
+                      <LayoutInner>{children}</LayoutInner>
+                    </Suspense>
+                    {/* AI Chat Panel */}
+                    <ChatPanel />
+                  </ChatProvider>
+                </GuidanceProvider>
               </EntityProvider>
             </SessionProvider>
           </PaletteProvider>

@@ -1,18 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ParameterType, AnalysisOutputType, SpecificationScope, MemoryCategory, SpecType } from "@prisma/client";
+import {
+  ParameterType,
+  AnalysisOutputType,
+  SpecificationScope,
+  MemoryCategory,
+  SpecType,
+  SpecRole,
+} from "@prisma/client";
+import { parseJsonSpec } from "@/lib/bdd/ai-parser";
+import { compileSpecToTemplate } from "@/lib/bdd/compile-specs";
 
 /**
  * POST /api/lab/features/[id]/activate
  *
- * Activate a BDDFeatureSet by creating/updating:
- * 1. Parameter records for each parameter in the feature set
- * 2. ParameterScoringAnchor records for calibration
- * 3. AnalysisSpec records with triggers and actions (MEASURE for parameters)
- * 4. AnalysisSpec records for memory extraction (LEARN specs)
- * 5. PromptSlug records for personality-based prompt composition
+ * Activate a BDDFeatureSet by creating/updating all derived records.
+ * This has FULL PARITY with seed-from-specs.ts so that UI import + activate
+ * produces the exact same result as running the seed script.
  *
- * This bridges the Lab → Analysis pipeline.
+ * Creates:
+ * 1. Parameter records (for MEASURE specs, auto-created for ADAPT specs)
+ * 2. ParameterScoringAnchor records for calibration
+ * 3. AnalysisSpec records with proper config based on specRole/outputType
+ * 4. AnalysisTrigger and AnalysisAction records
+ * 5. PromptSlug records (for personality prompts and BOOTSTRAP personas)
+ * 6. Curriculum records (for CONTENT specs)
  */
 export async function POST(
   req: Request,
@@ -54,246 +66,436 @@ export async function POST(
       );
     }
 
-    // Parse the compiled data
     const compiledParams = (featureSet.parameters as any[]) || [];
     const compiledConstraints = (featureSet.constraints as any[]) || [];
-    const compiledDefinitions = (featureSet.definitions as Record<string, any>) || {};
     const scoringSpec = featureSet.scoringSpec as any;
-    const promptGuidance = (featureSet.promptGuidance as Record<string, any>) || {};
-    // Use specType from feature set, defaulting to DOMAIN
-    const specType = featureSet.specType || SpecType.DOMAIN;
+    const rawSpecData = featureSet.rawSpec as any;
+
+    // Map specType string to valid SpecType enum (only SYSTEM and DOMAIN are valid)
+    const rawSpecType = featureSet.specType || "DOMAIN";
+    const specType = rawSpecType === "SYSTEM" ? SpecType.SYSTEM : SpecType.DOMAIN;
+
+    const declaredOutputType = (scoringSpec?.outputType as AnalysisOutputType) || AnalysisOutputType.MEASURE;
+
+    // Determine specRole (UI category) based on declared specRole or outputType
+    let specRole: SpecRole;
+    const declaredSpecRole = scoringSpec?.specRole as SpecRole | undefined;
+
+    if (declaredSpecRole === SpecRole.IDENTITY) {
+      specRole = SpecRole.IDENTITY;
+    } else if (declaredSpecRole === SpecRole.CONTENT) {
+      specRole = SpecRole.CONTENT;
+    } else if (declaredSpecRole === SpecRole.VOICE) {
+      specRole = SpecRole.VOICE;
+    } else if (declaredSpecRole === SpecRole.GUARDRAIL) {
+      specRole = SpecRole.GUARDRAIL;
+    } else if (declaredSpecRole === SpecRole.BOOTSTRAP) {
+      specRole = SpecRole.BOOTSTRAP;
+    } else {
+      // Map outputType to specRole for META/unspecified specs
+      switch (declaredOutputType) {
+        case AnalysisOutputType.MEASURE:
+        case AnalysisOutputType.MEASURE_AGENT:
+        case AnalysisOutputType.LEARN:
+          specRole = SpecRole.MEASURE;
+          break;
+        case AnalysisOutputType.ADAPT:
+          specRole = SpecRole.ADAPT;
+          break;
+        case AnalysisOutputType.REWARD:
+          specRole = SpecRole.REWARD;
+          break;
+        case AnalysisOutputType.SUPERVISE:
+          specRole = SpecRole.GUARDRAIL;
+          break;
+        default:
+          specRole = SpecRole.MEASURE;
+      }
+    }
+
+    // Determine outputType: IDENTITY/CONTENT/VOICE specs use COMPOSE
+    let outputType: AnalysisOutputType;
+    if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT || specRole === SpecRole.VOICE) {
+      outputType = AnalysisOutputType.COMPOSE;
+    } else {
+      outputType = declaredOutputType;
+    }
 
     const results = {
       parametersCreated: 0,
       parametersUpdated: 0,
       anchorsCreated: 0,
       specsCreated: 0,
-      learnSpecsCreated: 0,
       triggersCreated: 0,
       actionsCreated: 0,
       promptSlugsCreated: 0,
+      curriculumCreated: false,
     };
 
-    // Extract learn specs from definitions (type: "learn_spec")
-    const learnSpecs: any[] = [];
-    for (const [key, def] of Object.entries(compiledDefinitions)) {
-      if (def.type === "learn_spec" || def.type === "memory_extraction") {
-        learnSpecs.push({ id: key, ...def });
-      }
-    }
+    // Determine if this is a config spec (no Parameter records needed)
+    const isConfigSpec =
+      specRole === SpecRole.IDENTITY ||
+      specRole === SpecRole.CONTENT ||
+      specRole === SpecRole.VOICE ||
+      specRole === SpecRole.GUARDRAIL ||
+      outputType === AnalysisOutputType.LEARN ||
+      outputType === AnalysisOutputType.COMPOSE;
 
-    // Extract prompt guidance specs from definitions (type: "prompt_guidance")
-    const promptSpecs: any[] = [];
-    for (const [key, def] of Object.entries(compiledDefinitions)) {
-      if (def.type === "prompt_guidance" || def.type === "personality_prompt") {
-        promptSpecs.push({ id: key, ...def });
-      }
-    }
-    // Also include promptGuidance from feature set
-    for (const [key, guidance] of Object.entries(promptGuidance)) {
-      if (typeof guidance === "object") {
-        promptSpecs.push({ id: key, ...guidance });
-      }
-    }
-    // Also extract promptGuidance directly from each parameter
-    for (const param of compiledParams) {
-      if (param.promptGuidance && Array.isArray(param.promptGuidance)) {
-        for (const pg of param.promptGuidance) {
-          promptSpecs.push({
-            id: pg.id || `${param.id}-guidance`,
-            parameterId: param.id,
-            ...pg,
-          });
-        }
-      }
-    }
+    // 1. Create/update Parameter records (skip for config specs)
+    if (!isConfigSpec) {
+      for (const param of compiledParams) {
+        const parameterId = param.id || param.parameterId;
+        if (!parameterId) continue;
 
-    // 1. Create/update Parameter records
-    for (const param of compiledParams) {
-      const parameterId = param.id || param.parameterId;
-      if (!parameterId) continue;
-
-      const existingParam = await prisma.parameter.findUnique({
-        where: { parameterId },
-      });
-
-      const paramData = {
-        parameterId,
-        name: param.name || parameterId,
-        definition: param.description || param.definition || null,
-        sectionId: param.section || "lab-imported",
-        domainGroup: param.domain || "lab",
-        scaleType: param.scaleType || "0-1",
-        directionality: param.directionality || "positive",
-        computedBy: "lab-bdd",
-        parameterType: ParameterType.STATE, // Default to STATE for analyzed parameters
-        interpretationHigh: param.interpretationHigh || null,
-        interpretationLow: param.interpretationLow || null,
-        sourceFeatureSetId: featureSet.id, // Track provenance
-      };
-
-      if (existingParam) {
-        await prisma.parameter.update({
+        const existingParam = await prisma.parameter.findUnique({
           where: { parameterId },
-          data: paramData,
         });
-        results.parametersUpdated++;
+
+        // Determine parameter type
+        let parameterType: ParameterType = ParameterType.STATE;
+        if (scoringSpec?.domain === "personality") {
+          parameterType = ParameterType.TRAIT;
+        } else if (param.isAdjustable) {
+          parameterType = ParameterType.BEHAVIOR;
+        }
+
+        // Extract interpretation from interpretationScale
+        let interpretationHigh: string | null = null;
+        let interpretationLow: string | null = null;
+        if (param.interpretationScale && Array.isArray(param.interpretationScale)) {
+          const highRange = param.interpretationScale.find((r: any) => r.max >= 0.9 || r.label?.toLowerCase().includes("high"));
+          const lowRange = param.interpretationScale.find((r: any) => r.min <= 0.1 || r.label?.toLowerCase().includes("low"));
+          if (highRange) interpretationHigh = `${highRange.label}: ${highRange.implication || ""}`;
+          if (lowRange) interpretationLow = `${lowRange.label}: ${lowRange.implication || ""}`;
+        }
+
+        const paramData = {
+          parameterId,
+          name: param.name || parameterId,
+          definition: param.description || param.definition || null,
+          sectionId: param.section || "lab-imported",
+          domainGroup: scoringSpec?.domain || "lab",
+          scaleType: param.scaleType || "0-1",
+          directionality: param.directionality || "positive",
+          computedBy: `spec:${featureSet.featureId}`,
+          parameterType,
+          interpretationHigh,
+          interpretationLow,
+          sourceFeatureSetId: featureSet.id,
+        };
+
+        if (existingParam) {
+          await prisma.parameter.update({
+            where: { parameterId },
+            data: paramData,
+          });
+          results.parametersUpdated++;
+        } else {
+          await prisma.parameter.create({
+            data: paramData,
+          });
+          results.parametersCreated++;
+        }
+
+        // Create scoring anchors
+        if (param.scoringAnchors && Array.isArray(param.scoringAnchors)) {
+          for (const anchor of param.scoringAnchors) {
+            const existing = await prisma.parameterScoringAnchor.findFirst({
+              where: { parameterId, example: anchor.example },
+            });
+            if (!existing && anchor.example) {
+              await prisma.parameterScoringAnchor.create({
+                data: {
+                  parameterId,
+                  example: anchor.example,
+                  score: anchor.score ?? 0.5,
+                  rationale: anchor.rationale || null,
+                  source: `lab:${featureSet.featureId}`,
+                  sourceFeatureSetId: featureSet.id,
+                  isGold: anchor.isGold ?? true,
+                },
+              });
+              results.anchorsCreated++;
+            }
+          }
+        }
+
+        // Add interpretation scale as anchors
+        if (param.interpretationScale && Array.isArray(param.interpretationScale)) {
+          for (const range of param.interpretationScale) {
+            const avgScore = ((range.min || 0) + (range.max || 1)) / 2;
+            const existing = await prisma.parameterScoringAnchor.findFirst({
+              where: { parameterId, example: { contains: range.label } },
+            });
+            if (!existing) {
+              await prisma.parameterScoringAnchor.create({
+                data: {
+                  parameterId,
+                  example: `${range.label}: ${range.implication || ""}`,
+                  score: avgScore,
+                  rationale: `Interpretation range ${range.min}-${range.max}`,
+                  source: `lab:${featureSet.featureId}`,
+                  sourceFeatureSetId: featureSet.id,
+                  isGold: true,
+                },
+              });
+              results.anchorsCreated++;
+            }
+          }
+        }
+
+        // Create PromptSlugs from promptGuidance
+        if (param.promptGuidance) {
+          const pg = param.promptGuidance;
+          const slugId = `prompt-${parameterId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+          const existingSlug = await prisma.promptSlug.findUnique({
+            where: { slug: slugId },
+          });
+
+          if (!existingSlug && (pg.whenHigh || pg.whenLow || pg.always)) {
+            const promptSlugRecord = await prisma.promptSlug.create({
+              data: {
+                slug: slugId,
+                name: param.name || parameterId,
+                description: param.description,
+                sourceType: "PARAMETER",
+                fallbackPrompt: pg.always || null,
+                priority: 0,
+                isActive: true,
+                version: featureSet.version,
+                sourceFeatureSetId: featureSet.id,
+              },
+            });
+
+            // Create ranges
+            const ranges: any[] = [];
+            if (pg.whenHigh) {
+              ranges.push({ minValue: 0.7, maxValue: 1.0, label: "High", prompt: pg.whenHigh });
+            }
+            if (pg.whenLow) {
+              ranges.push({ minValue: 0.0, maxValue: 0.3, label: "Low", prompt: pg.whenLow });
+            }
+            if (pg.whenMedium || (pg.whenHigh && pg.whenLow)) {
+              ranges.push({ minValue: 0.3, maxValue: 0.7, label: "Medium", prompt: pg.whenMedium || pg.always || "" });
+            }
+
+            for (let i = 0; i < ranges.length; i++) {
+              await prisma.promptSlugRange.create({
+                data: {
+                  slugId: promptSlugRecord.id,
+                  minValue: ranges[i].minValue,
+                  maxValue: ranges[i].maxValue,
+                  label: ranges[i].label,
+                  prompt: ranges[i].prompt,
+                  sortOrder: i,
+                },
+              });
+            }
+
+            // Link to parameter
+            await prisma.promptSlugParameter.create({
+              data: {
+                slugId: promptSlugRecord.id,
+                parameterId,
+                weight: 1.0,
+                mode: "ABSOLUTE",
+                sortOrder: 0,
+              },
+            });
+
+            results.promptSlugsCreated++;
+          }
+        }
+      }
+    }
+
+    // 2. For ADAPT specs: Auto-create behavior parameters from adaptation rules AND triggers
+    if (outputType === AnalysisOutputType.ADAPT) {
+      const targetParameterIds = new Set<string>();
+      const targetParameterMetadata = new Map<string, { section?: string; rationale?: string }>();
+
+      // Source 1: parameters[].config.adaptationRules[].actions[]
+      for (const param of compiledParams) {
+        if (param.config?.adaptationRules && Array.isArray(param.config.adaptationRules)) {
+          for (const rule of param.config.adaptationRules) {
+            if (rule.actions && Array.isArray(rule.actions)) {
+              for (const action of rule.actions) {
+                if (action.targetParameter) {
+                  targetParameterIds.add(action.targetParameter);
+                  if (!targetParameterMetadata.has(action.targetParameter)) {
+                    targetParameterMetadata.set(action.targetParameter, {
+                      section: param.section,
+                      rationale: action.rationale,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Source 2 & 3: triggers[].actions[].parameterId and triggers[].parameterId
+      const specTriggers = rawSpecData?.triggers || [];
+      for (const trigger of specTriggers) {
+        if (trigger.actions && Array.isArray(trigger.actions)) {
+          for (const action of trigger.actions) {
+            if (action.parameterId) {
+              targetParameterIds.add(action.parameterId);
+              if (!targetParameterMetadata.has(action.parameterId)) {
+                targetParameterMetadata.set(action.parameterId, {
+                  section: scoringSpec?.domain || "behavior",
+                  rationale: action.rationale || trigger.then,
+                });
+              }
+            }
+          }
+        }
+        if (trigger.parameterId) {
+          targetParameterIds.add(trigger.parameterId);
+          if (!targetParameterMetadata.has(trigger.parameterId)) {
+            targetParameterMetadata.set(trigger.parameterId, {
+              section: scoringSpec?.domain || "behavior",
+              rationale: trigger.then,
+            });
+          }
+        }
+      }
+
+      // Create missing behavior parameters
+      for (const parameterId of targetParameterIds) {
+        const existing = await prisma.parameter.findUnique({
+          where: { parameterId },
+        });
+
+        if (!existing) {
+          const metadata = targetParameterMetadata.get(parameterId);
+          const name = parameterId
+            .split("-")
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+          const domainGroup = metadata?.section || scoringSpec?.domain || "teaching";
+
+          await prisma.parameter.create({
+            data: {
+              parameterId,
+              name,
+              definition: metadata?.rationale || `Behavior parameter auto-created from ${featureSet.featureId}`,
+              sectionId: metadata?.section || "teaching",
+              domainGroup,
+              scaleType: "0-1",
+              directionality: "positive",
+              computedBy: `spec:${featureSet.featureId}`,
+              parameterType: ParameterType.BEHAVIOR,
+              isAdjustable: true,
+            },
+          });
+          results.parametersCreated++;
+        }
+      }
+    }
+
+    // 3. Build config based on specRole/outputType
+    let config: Record<string, any> | null = null;
+
+    if (outputType === AnalysisOutputType.COMPOSE) {
+      if (specRole === SpecRole.CONTENT && featureSet.parameters) {
+        config = { parameters: featureSet.parameters };
       } else {
-        await prisma.parameter.create({
-          data: paramData,
-        });
-        results.parametersCreated++;
+        config = {
+          parameters: compiledParams.map(p => ({
+            id: p.id || p.parameterId,
+            config: p.config || {},
+          })),
+        };
       }
-
-      // 2. Create scoring anchors - first from direct scoringAnchors array
-      if (param.scoringAnchors && Array.isArray(param.scoringAnchors)) {
-        for (const anchor of param.scoringAnchors) {
-          const existing = await prisma.parameterScoringAnchor.findFirst({
-            where: {
-              parameterId,
-              example: anchor.example,
-            },
-          });
-          if (!existing && anchor.example) {
-            await prisma.parameterScoringAnchor.create({
-              data: {
-                parameterId,
-                example: anchor.example,
-                score: anchor.score ?? 0.5,
-                rationale: anchor.rationale || null,
-                source: `lab:${featureSet.featureId}`,
-                sourceFeatureSetId: featureSet.id,
-                isGold: anchor.isGold ?? true, // Direct anchors from BDD are authoritative
-              },
-            });
-            results.anchorsCreated++;
-          }
+      for (const param of compiledParams) {
+        if (param.config) Object.assign(config, param.config);
+      }
+      if (rawSpecData?.metadata) config.metadata = rawSpecData.metadata;
+      if (rawSpecData?.sections) config.sections = rawSpecData.sections;
+    } else if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT) {
+      config = { parameters: featureSet.parameters || [] };
+      for (const param of compiledParams) {
+        const paramId = param.id || param.parameterId;
+        if (param.config) {
+          Object.assign(config, param.config);
+          if (paramId) config[paramId] = param.config;
         }
       }
-
-      // Also create scoring anchors from submetrics or examples
-      if (param.submetrics && Array.isArray(param.submetrics)) {
-        for (const sub of param.submetrics) {
-          // Extract example definitions as anchors
-          if (sub.definitions) {
-            for (const [term, def] of Object.entries(sub.definitions)) {
-              // Skip if anchor already exists
-              const existing = await prisma.parameterScoringAnchor.findFirst({
-                where: {
-                  parameterId,
-                  example: { contains: term },
-                },
-              });
-              if (!existing) {
-                await prisma.parameterScoringAnchor.create({
-                  data: {
-                    parameterId,
-                    example: `${term}: ${def}`,
-                    score: 0.5, // Default middle score - can be refined
-                    rationale: `Definition from submetric ${sub.id || sub.name}`,
-                    source: `lab:${featureSet.featureId}`,
-                    sourceFeatureSetId: featureSet.id,
-                  },
-                });
-                results.anchorsCreated++;
-              }
-            }
-          }
-
-          // Extract thresholds as anchors
-          if (sub.thresholds) {
-            for (const [name, thresh] of Object.entries(sub.thresholds as Record<string, any>)) {
-              const score = typeof thresh.value === "number" ? thresh.value / 100 : 0.5;
-              const existing = await prisma.parameterScoringAnchor.findFirst({
-                where: {
-                  parameterId,
-                  example: { contains: name },
-                },
-              });
-              if (!existing) {
-                await prisma.parameterScoringAnchor.create({
-                  data: {
-                    parameterId,
-                    example: `Threshold "${name}": ${thresh.basis || thresh.value}`,
-                    score: Math.min(1, Math.max(0, score)),
-                    rationale: thresh.basis || `Threshold from ${sub.id || sub.name}`,
-                    source: `lab:${featureSet.featureId}`,
-                    sourceFeatureSetId: featureSet.id,
-                  },
-                });
-                results.anchorsCreated++;
-              }
-            }
-          }
-        }
+      if (rawSpecData?.metadata) config.metadata = rawSpecData.metadata;
+      if (rawSpecData?.modules) {
+        config.modules = rawSpecData.modules;
+        config.learningOutcomes = rawSpecData.learningOutcomes;
+        config.qualification = rawSpecData.qualification;
+        config.assessment = rawSpecData.assessment;
+        config.misconceptionBank = rawSpecData.misconceptionBank;
+        config.sessionStructure = rawSpecData.sessionStructure;
+        config.assessmentStrategy = rawSpecData.assessmentStrategy;
       }
+    } else if (specRole === SpecRole.BOOTSTRAP) {
+      config = {
+        parameters: compiledParams.map(p => ({
+          id: p.id || p.parameterId,
+          config: p.config || {},
+        })),
+      };
+      for (const param of compiledParams) {
+        if (param.config) Object.assign(config, param.config);
+      }
+      if (rawSpecData?.firstCallFlow) config.firstCallFlow = rawSpecData.firstCallFlow;
+      if (rawSpecData?.outputs) config.outputs = rawSpecData.outputs;
+      if (rawSpecData?.constraints) config.constraints = rawSpecData.constraints;
+      if (rawSpecData?.personas) config.personas = rawSpecData.personas;
+      if (rawSpecData?.promptSlugs) config.promptSlugs = rawSpecData.promptSlugs;
+    } else if (compiledParams.length > 0 && compiledParams.some(p => p.config)) {
+      config = {
+        parameters: compiledParams.map(p => ({
+          id: p.id || p.parameterId,
+          config: p.config || {},
+        })),
+      };
+    }
 
-      // Add interpretation scale as anchors
-      if (param.interpretationScale && Array.isArray(param.interpretationScale)) {
-        for (const range of param.interpretationScale) {
-          const avgScore = ((range.min || 0) + (range.max || 1)) / 2;
-          const existing = await prisma.parameterScoringAnchor.findFirst({
-            where: {
-              parameterId,
-              example: { contains: range.label },
-            },
-          });
-          if (!existing) {
-            await prisma.parameterScoringAnchor.create({
-              data: {
-                parameterId,
-                example: `${range.label}: ${range.implication || ""}`,
-                score: avgScore,
-                rationale: `Interpretation range ${range.min}-${range.max}`,
-                source: `lab:${featureSet.featureId}`,
-                sourceFeatureSetId: featureSet.id,
-                isGold: true, // Interpretation scales are authoritative
-              },
-            });
-            results.anchorsCreated++;
-          }
-        }
+    // 4. Compile promptTemplate from rawSpec
+    let promptTemplate: string | null = null;
+    if (featureSet.rawSpec) {
+      const parseResult = parseJsonSpec(JSON.stringify(featureSet.rawSpec));
+      if (parseResult.success) {
+        const compileResult = compileSpecToTemplate(parseResult.data);
+        promptTemplate = compileResult.promptTemplate;
       }
     }
 
-    // 3. Create AnalysisSpec for the feature set
-    const specSlug = `lab-${featureSet.featureId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    // 5. Create/update AnalysisSpec
+    const specSlug = `spec-${featureSet.featureId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    const description = featureSet.description || `Analysis spec from ${featureSet.featureId}`;
+    const scope = specType === SpecType.SYSTEM ? SpecificationScope.SYSTEM : SpecificationScope.DOMAIN;
 
-    // Build instruction from scoring spec or constraints
-    let instruction = "";
-    if (scoringSpec?.instruction) {
-      instruction = scoringSpec.instruction;
-    } else if (compiledConstraints.length > 0) {
-      instruction = compiledConstraints
-        .map((c: any) => `- ${c.description || c.rule || c.name}`)
-        .join("\n");
-    } else {
-      instruction = `Analyze the transcript and score the following parameters: ${compiledParams.map((p: any) => p.id || p.name).join(", ")}`;
-    }
-
-    // Upsert the AnalysisSpec
     const existingSpec = await prisma.analysisSpec.findUnique({
       where: { slug: specSlug },
     });
 
-    let spec;
     const specData = {
       name: featureSet.name,
-      description: featureSet.description || `Analysis spec generated from BDD Lab feature ${featureSet.featureId}`,
-      scope: SpecificationScope.DOMAIN,
-      outputType: AnalysisOutputType.MEASURE,
-      specType: specType as SpecType, // Use specType from feature set
-      domain: "lab",
-      priority: 10,
+      description,
+      scope,
+      outputType,
+      specRole,
+      specType,
+      domain: scoringSpec?.domain || "general",
+      priority: specType === SpecType.SYSTEM ? 50 : 10,
       isActive: true,
       version: featureSet.version,
-      promptTemplate: instruction,
       compiledAt: new Date(),
-      compiledSetId: featureSet.id, // Deprecated - kept for backwards compatibility
-      sourceFeatureSetId: featureSet.id, // Proper FK for provenance tracking
+      compiledSetId: featureSet.id,
       isDirty: false,
+      ...(config && { config }),
+      ...(promptTemplate && { promptTemplate }),
     };
 
+    let spec;
     if (existingSpec) {
       spec = await prisma.analysisSpec.update({
         where: { slug: specSlug },
@@ -301,260 +503,405 @@ export async function POST(
       });
     } else {
       spec = await prisma.analysisSpec.create({
-        data: {
-          slug: specSlug,
-          ...specData,
-        },
+        data: { slug: specSlug, ...specData },
       });
       results.specsCreated++;
     }
 
-    // 4. Create AnalysisTrigger (one per spec, contains the full Gherkin)
-    // First, delete existing triggers to replace them
+    // 6. Create PromptSlugs for BOOTSTRAP specs (personas, welcome messages, phase instructions)
+    if (specRole === SpecRole.BOOTSTRAP && rawSpecData?.personas) {
+      const personaKeys = Object.keys(rawSpecData.personas).filter(k => !k.startsWith("_") && k !== "defaultPersona");
+
+      for (const personaSlug of personaKeys) {
+        const personaConfig = rawSpecData.personas[personaSlug];
+
+        // Create welcome message slug
+        if (personaConfig.welcomeTemplate && personaConfig.welcomeSlug) {
+          const existingSlug = await prisma.promptSlug.findUnique({
+            where: { slug: personaConfig.welcomeSlug },
+          });
+
+          if (!existingSlug) {
+            await prisma.promptSlug.create({
+              data: {
+                slug: personaConfig.welcomeSlug,
+                name: `${personaConfig.name || personaSlug} Welcome Message`,
+                description: `First-call welcome message for ${personaSlug} persona`,
+                sourceType: "COMPOSITE",
+                fallbackPrompt: personaConfig.welcomeTemplate,
+                priority: 100,
+                isActive: true,
+                version: featureSet.version,
+                sourceFeatureSetId: featureSet.id,
+              },
+            });
+            results.promptSlugsCreated++;
+          } else {
+            await prisma.promptSlug.update({
+              where: { slug: personaConfig.welcomeSlug },
+              data: { fallbackPrompt: personaConfig.welcomeTemplate, version: featureSet.version },
+            });
+          }
+        }
+
+        // Create phase instruction slugs
+        if (personaConfig.firstCallFlow?.phases) {
+          for (const phase of personaConfig.firstCallFlow.phases) {
+            if (phase.instructionSlug) {
+              const existingPhaseSlug = await prisma.promptSlug.findUnique({
+                where: { slug: phase.instructionSlug },
+              });
+
+              const instructionText = [
+                `Phase: ${phase.phase.toUpperCase()} (${phase.duration})`,
+                `Priority: ${phase.priority}`,
+                "",
+                "GOALS:",
+                ...phase.goals.map((g: string) => `- ${g}`),
+                "",
+                "AVOID:",
+                ...phase.avoid.map((a: string) => `- ${a}`),
+              ].join("\n");
+
+              if (!existingPhaseSlug) {
+                await prisma.promptSlug.create({
+                  data: {
+                    slug: phase.instructionSlug,
+                    name: `${phase.phase} Phase - ${personaConfig.name || personaSlug}`,
+                    description: `Instructions for ${phase.phase} phase of first call for ${personaSlug} persona`,
+                    sourceType: "COMPOSITE",
+                    fallbackPrompt: instructionText,
+                    priority: 90,
+                    isActive: true,
+                    version: featureSet.version,
+                    sourceFeatureSetId: featureSet.id,
+                  },
+                });
+                results.promptSlugsCreated++;
+              } else {
+                await prisma.promptSlug.update({
+                  where: { slug: phase.instructionSlug },
+                  data: { fallbackPrompt: instructionText, version: featureSet.version },
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 7. Create Curriculum record for CONTENT specs
+    if (specRole === SpecRole.CONTENT) {
+      const curriculumSlug = featureSet.featureId.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const isModuleCurriculum = rawSpecData?.modules && Array.isArray(rawSpecData.modules);
+
+      let authors: string[] = [];
+      let sourceTitle: string | null = null;
+      let sourceYear: number | null = null;
+      let notableInfo: any = null;
+      let coreArgument: any = null;
+      let caseStudies: any = null;
+      let discussionQuestions: any = null;
+      let critiques: any = null;
+      let deliveryConfig: any = null;
+
+      if (isModuleCurriculum) {
+        const qual = rawSpecData.qualification || {};
+        sourceTitle = qual.name || rawSpecData.title;
+        authors = qual.primaryReference ? [qual.primaryReference] : [];
+        notableInfo = {
+          qualification: rawSpecData.qualification,
+          learningOutcomes: rawSpecData.learningOutcomes,
+          assessment: rawSpecData.assessment,
+        };
+        coreArgument = {
+          modules: rawSpecData.modules,
+          totalModules: rawSpecData.modules.length,
+          estimatedDuration: rawSpecData.modules.reduce((sum: number, m: any) => sum + (m.durationMinutes || 0), 0),
+        };
+        critiques = rawSpecData.misconceptionBank || null;
+        deliveryConfig = {
+          sessionStructure: rawSpecData.sessionStructure,
+          assessmentStrategy: rawSpecData.assessmentStrategy,
+        };
+        const allExamTopics: string[] = [];
+        for (const mod of rawSpecData.modules) {
+          if (mod.examTopics) allExamTopics.push(...mod.examTopics);
+        }
+        if (allExamTopics.length > 0) {
+          discussionQuestions = { examTopics: allExamTopics };
+        }
+      } else {
+        for (const param of compiledParams) {
+          const cfg = param.config || {};
+          if (param.id === "source_metadata" || param.name?.includes("Source")) {
+            authors = cfg.authors || [];
+            sourceTitle = cfg.title || null;
+            sourceYear = cfg.year || null;
+            notableInfo = cfg.notableInfo || null;
+          }
+          if (param.id === "core_argument" || param.name?.includes("Core Argument") || param.name?.includes("Thesis")) {
+            coreArgument = cfg;
+          }
+          if (param.id === "case_studies" || param.name?.includes("Case Studies")) {
+            caseStudies = cfg.studies || cfg;
+          }
+          if (param.id === "discussion_questions" || param.name?.includes("Discussion")) {
+            discussionQuestions = cfg.questions || cfg;
+          }
+          if (param.id === "critiques" || param.name?.includes("Critiques")) {
+            critiques = cfg.critiques || cfg;
+          }
+          if (param.id === "delivery_config" || param.name?.includes("Delivery")) {
+            deliveryConfig = cfg;
+          }
+        }
+      }
+
+      const existingCurriculum = await prisma.curriculum.findUnique({
+        where: { slug: curriculumSlug },
+      });
+
+      const curriculumData = {
+        name: featureSet.name,
+        description: featureSet.description,
+        authors,
+        sourceTitle,
+        sourceYear,
+        notableInfo,
+        coreArgument,
+        caseStudies,
+        discussionQuestions,
+        critiques,
+        deliveryConfig,
+        constraints: compiledConstraints,
+        sourceSpecId: spec.id,
+        version: featureSet.version,
+      };
+
+      if (existingCurriculum) {
+        await prisma.curriculum.update({
+          where: { slug: curriculumSlug },
+          data: curriculumData,
+        });
+      } else {
+        await prisma.curriculum.create({
+          data: { slug: curriculumSlug, ...curriculumData },
+        });
+        results.curriculumCreated = true;
+      }
+    }
+
+    // 8. Create triggers and actions
     await prisma.analysisTrigger.deleteMany({
       where: { specId: spec.id },
     });
 
-    const trigger = await prisma.analysisTrigger.create({
-      data: {
-        specId: spec.id,
-        given: "A call transcript is available for analysis",
-        when: "The analysis pipeline processes the call",
-        then: `Score the following parameters: ${compiledParams.map((p: any) => p.id || p.name).join(", ")}`,
-        name: featureSet.name,
-        notes: instruction,
-        sortOrder: 0,
-      },
-    });
-    results.triggersCreated++;
+    const explicitTriggers = rawSpecData?.triggers || [];
 
-    // 5. Create AnalysisAction for each parameter
-    for (let i = 0; i < compiledParams.length; i++) {
-      const param = compiledParams[i];
-      const parameterId = param.id || param.parameterId;
-
-      // Verify parameter exists
-      const paramRecord = await prisma.parameter.findUnique({
-        where: { parameterId },
-      });
-
-      if (paramRecord) {
-        await prisma.analysisAction.create({
+    // Use explicit triggers if present (except for ADAPT which needs special handling)
+    if (explicitTriggers.length > 0 && outputType !== AnalysisOutputType.ADAPT) {
+      for (let i = 0; i < explicitTriggers.length; i++) {
+        const t = explicitTriggers[i];
+        const trigger = await prisma.analysisTrigger.create({
           data: {
-            triggerId: trigger.id,
-            description: param.description || `Score ${parameterId} based on transcript evidence`,
-            weight: 1.0,
-            parameterId,
+            specId: spec.id,
+            given: t.given || "A call transcript is available",
+            when: t.when || "The analysis pipeline runs",
+            then: t.then || "Process the trigger",
+            name: t.name || `Trigger ${i + 1}`,
             sortOrder: i,
           },
         });
-        results.actionsCreated++;
+        results.triggersCreated++;
+
+        const triggerActions = t.actions || [];
+        for (let j = 0; j < triggerActions.length; j++) {
+          const a = triggerActions[j];
+
+          if (a.parameterId) {
+            const paramExists = await prisma.parameter.findUnique({
+              where: { parameterId: a.parameterId },
+            });
+            await prisma.analysisAction.create({
+              data: {
+                triggerId: trigger.id,
+                description: a.description || `Process ${a.parameterId}`,
+                weight: a.weight ?? 1.0,
+                parameterId: paramExists ? a.parameterId : null,
+                sortOrder: j,
+              },
+            });
+            results.actionsCreated++;
+          } else if (a.learnCategory) {
+            let memoryCategory: MemoryCategory = MemoryCategory.FACT;
+            const cat = (a.learnCategory || "").toUpperCase();
+            if (cat === "PREFERENCE") memoryCategory = MemoryCategory.PREFERENCE;
+            else if (cat === "EVENT") memoryCategory = MemoryCategory.EVENT;
+            else if (cat === "TOPIC") memoryCategory = MemoryCategory.TOPIC;
+            else if (cat === "RELATIONSHIP") memoryCategory = MemoryCategory.RELATIONSHIP;
+            else if (cat === "CONTEXT") memoryCategory = MemoryCategory.CONTEXT;
+
+            await prisma.analysisAction.create({
+              data: {
+                triggerId: trigger.id,
+                description: a.description || `Extract ${a.learnKeyPrefix || "memory"}`,
+                weight: a.weight ?? 1.0,
+                learnCategory: memoryCategory,
+                learnKeyPrefix: a.learnKeyPrefix || null,
+                learnKeyHint: a.learnKeyHint || null,
+                sortOrder: j,
+              },
+            });
+            results.actionsCreated++;
+          } else {
+            await prisma.analysisAction.create({
+              data: {
+                triggerId: trigger.id,
+                description: a.description || "Process action",
+                weight: a.weight ?? 1.0,
+                sortOrder: j,
+              },
+            });
+            results.actionsCreated++;
+          }
+        }
       }
     }
-
-    // 6. Create LEARN specs for memory extraction
-    const createdLearnSpecs: any[] = [];
-    for (const learnSpec of learnSpecs) {
-      const learnSlug = `lab-learn-${learnSpec.id.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-
-      const existingLearnSpec = await prisma.analysisSpec.findUnique({
-        where: { slug: learnSlug },
-      });
-
-      const learnSpecData = {
-        name: learnSpec.term || learnSpec.name || `Learn: ${learnSpec.id}`,
-        description: learnSpec.definition || learnSpec.description || `Extract ${learnSpec.category || "facts"} from transcript`,
-        scope: SpecificationScope.DOMAIN,
-        outputType: AnalysisOutputType.LEARN,
-        specType: specType as SpecType, // Use specType from feature set (LEARN specs usually SYSTEM)
-        domain: learnSpec.domain || "memory",
-        priority: learnSpec.priority || 5,
-        isActive: true,
-        version: featureSet.version,
-        promptTemplate: learnSpec.promptTemplate || null,
-        compiledAt: new Date(),
-        compiledSetId: featureSet.id, // Deprecated - kept for backwards compatibility
-        sourceFeatureSetId: featureSet.id, // Proper FK for provenance tracking
-        isDirty: false,
-      };
-
-      let learnSpecRecord;
-      if (existingLearnSpec) {
-        learnSpecRecord = await prisma.analysisSpec.update({
-          where: { slug: learnSlug },
-          data: learnSpecData,
-        });
-      } else {
-        learnSpecRecord = await prisma.analysisSpec.create({
-          data: {
-            slug: learnSlug,
-            ...learnSpecData,
-          },
-        });
-        results.learnSpecsCreated++;
-      }
-
-      // Delete existing triggers for this learn spec
-      await prisma.analysisTrigger.deleteMany({
-        where: { specId: learnSpecRecord.id },
-      });
-
-      // Create trigger for the learn spec
-      const learnTrigger = await prisma.analysisTrigger.create({
+    // Auto-generate triggers based on outputType/specRole
+    else if (outputType === AnalysisOutputType.MEASURE && explicitTriggers.length === 0) {
+      const trigger = await prisma.analysisTrigger.create({
         data: {
-          specId: learnSpecRecord.id,
-          given: learnSpec.given || "A call transcript is available",
-          when: learnSpec.when || "The caller mentions personal information",
-          then: learnSpec.then || `Extract ${learnSpec.category || "facts"} about the caller`,
-          name: learnSpec.term || learnSpec.name,
-          notes: learnSpec.definition,
+          specId: spec.id,
+          given: "A call transcript is available for analysis",
+          when: "The analysis pipeline processes the call",
+          then: `Score the following parameters: ${compiledParams.map((p: any) => p.id || p.name).join(", ")}`,
+          name: featureSet.name,
           sortOrder: 0,
         },
       });
       results.triggersCreated++;
 
-      // Create actions for each extraction target
-      const extractionTargets = learnSpec.extractions || learnSpec.targets || [learnSpec];
-      for (let i = 0; i < extractionTargets.length; i++) {
-        const target = extractionTargets[i];
-        const category = (target.category || learnSpec.category || "FACT").toUpperCase();
+      for (let i = 0; i < compiledParams.length; i++) {
+        const param = compiledParams[i];
+        const parameterId = param.id || param.parameterId;
+        const paramRecord = await prisma.parameter.findUnique({ where: { parameterId } });
+        if (paramRecord) {
+          await prisma.analysisAction.create({
+            data: {
+              triggerId: trigger.id,
+              description: param.description || `Score ${parameterId}`,
+              weight: 1.0,
+              parameterId,
+              sortOrder: i,
+            },
+          });
+          results.actionsCreated++;
+        }
+      }
+    } else if (outputType === AnalysisOutputType.ADAPT) {
+      for (let i = 0; i < explicitTriggers.length; i++) {
+        const t = explicitTriggers[i];
+        const trigger = await prisma.analysisTrigger.create({
+          data: {
+            specId: spec.id,
+            given: t.given,
+            when: t.when,
+            then: t.then,
+            name: t.name,
+            sortOrder: i,
+          },
+        });
+        results.triggersCreated++;
 
-        // Map category string to MemoryCategory enum
-        let memoryCategory: MemoryCategory;
-        switch (category) {
-          case "PREFERENCE": memoryCategory = MemoryCategory.PREFERENCE; break;
-          case "EVENT": memoryCategory = MemoryCategory.EVENT; break;
-          case "TOPIC": memoryCategory = MemoryCategory.TOPIC; break;
-          case "RELATIONSHIP": memoryCategory = MemoryCategory.RELATIONSHIP; break;
-          case "CONTEXT": memoryCategory = MemoryCategory.CONTEXT; break;
-          default: memoryCategory = MemoryCategory.FACT; break;
+        const triggerActions = t.actions || [];
+        for (let j = 0; j < triggerActions.length; j++) {
+          const action = triggerActions[j];
+          if (action.parameterId) {
+            const paramExists = await prisma.parameter.findUnique({ where: { parameterId: action.parameterId } });
+            await prisma.analysisAction.create({
+              data: {
+                triggerId: trigger.id,
+                description: action.description || `Apply ${action.parameterId}`,
+                weight: action.weight ?? 1.0,
+                parameterId: paramExists ? action.parameterId : null,
+                sortOrder: j,
+              },
+            });
+            results.actionsCreated++;
+          }
         }
 
+        // Legacy format: parameterId on trigger directly
+        if (t.parameterId && triggerActions.length === 0) {
+          const paramExists = await prisma.parameter.findUnique({ where: { parameterId: t.parameterId } });
+          await prisma.analysisAction.create({
+            data: {
+              triggerId: trigger.id,
+              description: paramExists
+                ? `${t.then} [targetValue=${t.targetValue ?? 0.5}]`
+                : `${t.then} [targetValue=${t.targetValue ?? 0.5}] [parameterId=${t.parameterId}]`,
+              weight: t.targetValue ?? 0.5,
+              parameterId: paramExists ? t.parameterId : null,
+              sortOrder: 0,
+            },
+          });
+          results.actionsCreated++;
+        }
+      }
+    } else if (specRole === SpecRole.IDENTITY && explicitTriggers.length === 0) {
+      const trigger = await prisma.analysisTrigger.create({
+        data: {
+          specId: spec.id,
+          given: "A playbook needs to define agent identity",
+          when: "The identity is assembled",
+          then: "Define who the agent is and how it behaves",
+          name: featureSet.name,
+          sortOrder: 0,
+        },
+      });
+      results.triggersCreated++;
+
+      for (let i = 0; i < compiledParams.length; i++) {
+        const param = compiledParams[i];
         await prisma.analysisAction.create({
           data: {
-            triggerId: learnTrigger.id,
-            description: target.description || target.definition || `Extract ${target.keyPrefix || category.toLowerCase()} information`,
+            triggerId: trigger.id,
+            description: param.description || `Define ${param.name || param.id}`,
             weight: 1.0,
-            learnCategory: memoryCategory,
-            learnKeyPrefix: target.keyPrefix || target.key_prefix || null,
-            learnKeyHint: target.keyHint || target.hint || null,
             sortOrder: i,
           },
         });
         results.actionsCreated++;
       }
-
-      createdLearnSpecs.push({
-        id: learnSpecRecord.id,
-        slug: learnSpecRecord.slug,
-        name: learnSpecRecord.name,
+    } else if (specRole === SpecRole.CONTENT && explicitTriggers.length === 0) {
+      const trigger = await prisma.analysisTrigger.create({
+        data: {
+          specId: spec.id,
+          given: "A playbook needs to define content/curriculum",
+          when: "The content is assembled",
+          then: "Define what the agent knows and teaches",
+          name: featureSet.name,
+          sortOrder: 0,
+        },
       });
-    }
+      results.triggersCreated++;
 
-    // 7. Create PromptSlug records for personality-based prompt composition
-    const createdPromptSlugs: any[] = [];
-    for (const promptSpec of promptSpecs) {
-      const slugId = `lab-prompt-${promptSpec.id.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-
-      const existingSlug = await prisma.promptSlug.findUnique({
-        where: { slug: slugId },
-      });
-
-      if (!existingSlug) {
-        // Determine source type based on spec
-        const sourceType = promptSpec.parameterId ? "PARAMETER" : "COMPOSITE";
-
-        const promptSlugRecord = await prisma.promptSlug.create({
+      for (let i = 0; i < compiledParams.length; i++) {
+        const param = compiledParams[i];
+        await prisma.analysisAction.create({
           data: {
-            slug: slugId,
-            name: promptSpec.term || promptSpec.name || promptSpec.id,
-            description: promptSpec.definition || promptSpec.description,
-            sourceType,
-            fallbackPrompt: promptSpec.fallback || null,
-            priority: promptSpec.priority || 0,
-            isActive: true,
-            version: featureSet.version,
-            sourceFeatureSetId: featureSet.id, // Track provenance
+            triggerId: trigger.id,
+            description: param.description || `Provide ${param.name || param.id}`,
+            weight: 1.0,
+            sortOrder: i,
           },
         });
-
-        // Create ranges if provided (high/low personality thresholds)
-        if (promptSpec.ranges || promptSpec.whenHigh || promptSpec.whenLow) {
-          const ranges = promptSpec.ranges || [];
-
-          // Add high range
-          if (promptSpec.whenHigh) {
-            ranges.push({
-              minValue: 0.7,
-              maxValue: 1.0,
-              label: "High",
-              prompt: promptSpec.whenHigh,
-            });
-          }
-
-          // Add low range
-          if (promptSpec.whenLow) {
-            ranges.push({
-              minValue: 0.0,
-              maxValue: 0.3,
-              label: "Low",
-              prompt: promptSpec.whenLow,
-            });
-          }
-
-          // Add medium range if both high and low exist
-          if (promptSpec.whenMedium || (promptSpec.whenHigh && promptSpec.whenLow)) {
-            ranges.push({
-              minValue: 0.3,
-              maxValue: 0.7,
-              label: "Medium",
-              prompt: promptSpec.whenMedium || promptSpec.fallback || "",
-            });
-          }
-
-          for (let i = 0; i < ranges.length; i++) {
-            const range = ranges[i];
-            await prisma.promptSlugRange.create({
-              data: {
-                slugId: promptSlugRecord.id,
-                minValue: range.minValue ?? range.min ?? null,
-                maxValue: range.maxValue ?? range.max ?? null,
-                label: range.label,
-                prompt: range.prompt || range.text || "",
-                sortOrder: i,
-              },
-            });
-          }
-        }
-
-        // Link to parameter if specified
-        if (promptSpec.parameterId) {
-          const paramExists = await prisma.parameter.findUnique({
-            where: { parameterId: promptSpec.parameterId },
-          });
-          if (paramExists) {
-            await prisma.promptSlugParameter.create({
-              data: {
-                slugId: promptSlugRecord.id,
-                parameterId: promptSpec.parameterId,
-                weight: 1.0,
-                mode: "ABSOLUTE",
-                sortOrder: 0,
-              },
-            });
-          }
-        }
-
-        results.promptSlugsCreated++;
-        createdPromptSlugs.push({
-          id: promptSlugRecord.id,
-          slug: promptSlugRecord.slug,
-          name: promptSlugRecord.name,
-        });
+        results.actionsCreated++;
       }
     }
 
-    // 8. Update the feature set as active
+    // 9. Update feature set as active
     const updatedFeature = await prisma.bDDFeatureSet.update({
       where: { id },
       data: {
@@ -573,14 +920,12 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       feature: updatedFeature,
-      specs: {
-        measure: {
-          id: spec.id,
-          slug: spec.slug,
-          name: spec.name,
-        },
-        learn: createdLearnSpecs,
-        promptSlugs: createdPromptSlugs,
+      spec: {
+        id: spec.id,
+        slug: spec.slug,
+        name: spec.name,
+        specRole,
+        outputType,
       },
       results,
     });

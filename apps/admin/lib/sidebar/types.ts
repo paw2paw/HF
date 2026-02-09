@@ -12,6 +12,7 @@ export type NavSection = {
   title?: string;
   items: NavItem[];
   dividerAfter?: boolean;
+  collapsedByDefault?: boolean;
 };
 
 // Persisted layout configuration

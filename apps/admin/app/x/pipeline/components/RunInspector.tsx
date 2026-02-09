@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ExpandMore,
   ExpandLess,
@@ -156,6 +156,13 @@ export default function RunInspector() {
 
   const selectedRun = runs.find((r) => r.id === selectedRunId);
 
+  // Expand all steps by default when a run is selected
+  useEffect(() => {
+    if (selectedRun) {
+      setExpandedSteps(new Set(selectedRun.steps.map((s) => s.id)));
+    }
+  }, [selectedRunId]);
+
   const toggleStep = (stepId: string) => {
     setExpandedSteps((prev) => {
       const next = new Set(prev);
@@ -188,8 +195,17 @@ export default function RunInspector() {
 
   return (
     <div>
-      {/* Add spin keyframes */}
-      <style dangerouslySetInnerHTML={{ __html: SPIN_KEYFRAMES }} />
+      {/* Add spin keyframes + highlight animation */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        ${SPIN_KEYFRAMES}
+        @keyframes highlightPulse {
+          0% { background-color: rgba(139, 92, 246, 0.3); }
+          100% { background-color: transparent; }
+        }
+        .highlight-row {
+          animation: highlightPulse 1.5s ease-out;
+        }
+      ` }} />
 
       {/* Filters */}
       <div
@@ -549,6 +565,176 @@ function AICallBadge({
 }
 
 // =============================================================================
+// DATA VIEWER - Type-aware rendering for different data types
+// =============================================================================
+
+function DataViewer({
+  data,
+  dataType,
+  highlight,
+}: {
+  data: unknown;
+  dataType: string;
+  highlight: boolean;
+}) {
+  // Handle arrays - render as rows
+  if (Array.isArray(data)) {
+    if (data.length === 0) {
+      return (
+        <div style={{ padding: 12, color: "var(--text-muted)", fontSize: 12, fontStyle: "italic" }}>
+          Empty array
+        </div>
+      );
+    }
+
+    // Special handling for memories array
+    if (dataType === "memories") {
+      return (
+        <div style={{ padding: 0 }}>
+          {data.map((item: any, i: number) => (
+            <div
+              key={i}
+              className={highlight ? "highlight-row" : ""}
+              style={{
+                padding: "10px 12px",
+                borderBottom: i < data.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "var(--text-on-dark)", marginBottom: 4 }}>
+                {item.content || item.text || item.memory || JSON.stringify(item)}
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", gap: 8 }}>
+                {item.category && <span style={{ background: "rgba(255,255,255,0.1)", padding: "1px 6px", borderRadius: 4 }}>{item.category}</span>}
+                {item.importance && <span>★ {item.importance}</span>}
+                {item.createdAt && <span>{new Date(item.createdAt).toLocaleDateString()}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Generic array rendering
+    return (
+      <div style={{ padding: 0 }}>
+        {data.map((item: any, i: number) => (
+          <div
+            key={i}
+            className={highlight ? "highlight-row" : ""}
+            style={{
+              padding: "10px 12px",
+              borderBottom: i < data.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
+              fontSize: 11,
+              color: "var(--text-on-dark)",
+            }}
+          >
+            {typeof item === "object" ? (
+              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                {JSON.stringify(item, null, 2)}
+              </pre>
+            ) : (
+              String(item)
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Handle objects with 'all' array (common pattern for targets, etc.)
+  if (data && typeof data === "object" && "all" in data && Array.isArray((data as any).all)) {
+    const allItems = (data as any).all;
+    return (
+      <div style={{ padding: 0 }}>
+        {allItems.map((item: any, i: number) => (
+          <div
+            key={i}
+            className={highlight ? "highlight-row" : ""}
+            style={{
+              padding: "10px 12px",
+              borderBottom: i < allItems.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ fontSize: 12, color: "var(--text-on-dark)" }}>
+              {item.name || item.parameterId || item.key || `Item ${i + 1}`}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {item.value !== undefined && (
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#a78bfa",
+                  fontFamily: "monospace",
+                }}>
+                  {typeof item.value === "number" ? item.value.toFixed(2) : item.value}
+                </span>
+              )}
+              {item.confidence !== undefined && (
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  ±{(item.confidence * 100).toFixed(0)}%
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Handle plain objects - render as key-value pairs
+  if (data && typeof data === "object") {
+    const entries = Object.entries(data as Record<string, unknown>).filter(([k]) => !k.startsWith("_"));
+    return (
+      <div style={{ padding: 0 }}>
+        {entries.map(([key, value], i) => (
+          <div
+            key={key}
+            className={highlight ? "highlight-row" : ""}
+            style={{
+              padding: "8px 12px",
+              borderBottom: i < entries.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 16,
+            }}
+          >
+            <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{key}</span>
+            <span style={{
+              fontSize: 11,
+              color: "var(--text-on-dark)",
+              textAlign: "right",
+              wordBreak: "break-word",
+              fontFamily: typeof value === "number" || typeof value === "boolean" ? "monospace" : "inherit",
+            }}>
+              {typeof value === "object" ? JSON.stringify(value) : String(value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Fallback for primitives
+  return (
+    <pre
+      style={{
+        color: "var(--text-on-dark)",
+        padding: 12,
+        margin: 0,
+        fontSize: 11,
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+      }}
+    >
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
+
+// =============================================================================
 // STEP CARD
 // =============================================================================
 
@@ -566,6 +752,8 @@ function StepCard({
   aiConfigs: Record<string, AIConfigInfo>;
 }) {
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [highlightRows, setHighlightRows] = useState(false);
+  const dataViewerRef = useRef<HTMLDivElement>(null);
 
   // Extract llmPrompt from outputs for structured viewing
   const llmPrompt = (step.outputs as any)?.llmPrompt || null;
@@ -583,6 +771,16 @@ function StepCard({
     step.outputs ||
     step.sectionsActivated.length > 0 ||
     step.sectionsSkipped.length > 0;
+
+  // Scroll to data viewer and trigger highlight when section changes
+  useEffect(() => {
+    if (activeSection && dataViewerRef.current) {
+      dataViewerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      setHighlightRows(true);
+      const timer = setTimeout(() => setHighlightRows(false), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeSection]);
 
   return (
     <div
@@ -939,6 +1137,7 @@ function StepCard({
                     {/* Active section content */}
                     {activeSection && llmPrompt[activeSection] && (
                       <div
+                        ref={dataViewerRef}
                         style={{
                           background: "var(--surface-dark)",
                           borderRadius: 6,
@@ -955,22 +1154,18 @@ function StepCard({
                             fontWeight: 600,
                             fontSize: 12,
                             borderBottom: "1px solid var(--border-dark)",
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 1,
                           }}
                         >
                           {activeSection}
                         </div>
-                        <pre
-                          style={{
-                            color: "var(--text-on-dark)",
-                            padding: 12,
-                            margin: 0,
-                            fontSize: 11,
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {JSON.stringify(llmPrompt[activeSection], null, 2)}
-                        </pre>
+                        <DataViewer
+                          data={llmPrompt[activeSection]}
+                          dataType={activeSection}
+                          highlight={highlightRows}
+                        />
                       </div>
                     )}
                     {!activeSection && (

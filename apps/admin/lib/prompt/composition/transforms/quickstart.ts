@@ -9,6 +9,7 @@
 import { registerTransform } from "../TransformRegistry";
 import { classifyValue } from "../types";
 import type { AssembledContext } from "../types";
+import { PARAMS } from "@/lib/registry";
 
 registerTransform("computeQuickStart", (
   _rawData: any,
@@ -93,9 +94,9 @@ registerTransform("computeQuickStart", (
     key_memory: deduplicated[0] ? `${deduplicated[0].key}: ${deduplicated[0].value}` : null,
 
     voice_style: (() => {
-      const warmth = mergedTargets.find((t: any) => t.parameterId === "BEH-WARMTH");
-      const questions = mergedTargets.find((t: any) => t.parameterId === "BEH-QUESTION-RATE");
-      const responseLength = mergedTargets.find((t: any) => t.parameterId === "BEH-RESPONSE-LEN");
+      const warmth = mergedTargets.find((t: any) => t.parameterId === PARAMS.BEH_WARMTH);
+      const questions = mergedTargets.find((t: any) => t.parameterId === PARAMS.BEH_QUESTION_RATE);
+      const responseLength = mergedTargets.find((t: any) => t.parameterId === PARAMS.BEH_RESPONSE_LEN);
       const warmthLevel = classifyValue(warmth?.targetValue ?? 0.5, thresholds) || "MODERATE";
       const questionLevel = classifyValue(questions?.targetValue ?? 0.5, thresholds) || "MODERATE";
       const responseLengthLevel = classifyValue(responseLength?.targetValue ?? 0.5, thresholds) || "MODERATE";
@@ -103,9 +104,9 @@ registerTransform("computeQuickStart", (
     })(),
 
     critical_voice: (() => {
-      const responseLength = mergedTargets.find((t: any) => t.parameterId === "BEH-RESPONSE-LEN");
-      const turnLength = mergedTargets.find((t: any) => t.parameterId === "BEH-TURN-LENGTH");
-      const pauseTolerance = mergedTargets.find((t: any) => t.parameterId === "BEH-PAUSE-TOLERANCE");
+      const responseLength = mergedTargets.find((t: any) => t.parameterId === PARAMS.BEH_RESPONSE_LEN);
+      const turnLength = mergedTargets.find((t: any) => t.parameterId === PARAMS.BEH_TURN_LENGTH);
+      const pauseTolerance = mergedTargets.find((t: any) => t.parameterId === PARAMS.BEH_PAUSE_TOLERANCE);
       const rl = classifyValue(responseLength?.targetValue ?? 0.5, thresholds);
       const tl = classifyValue(turnLength?.targetValue ?? 0.5, thresholds);
       const pt = classifyValue(pauseTolerance?.targetValue ?? 0.5, thresholds);

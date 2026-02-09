@@ -18,6 +18,7 @@
  */
 
 import { PrismaClient, AnalysisOutputType } from "@prisma/client";
+import { PARAMS } from "@/lib/registry";
 
 const prisma = new PrismaClient();
 
@@ -158,20 +159,20 @@ function mockScoreBehavior(
   let score = baseScore;
   let evidence: string[] = [];
 
-  if (parameterId === "BEH-EMPATHY-RATE") {
+  if (parameterId === PARAMS.BEH_EMPATHY_RATE) {
     // Count empathy markers from config
     const markers = evidenceMarkers.empathy || [];
     const markerRegex = new RegExp(markers.join("|"), "gi");
     const empathyCount = (transcript.match(markerRegex) || []).length;
     score = Math.min(config.scoring.maxScore, empathyCount / mockScoring.empathyDivisor);
     evidence = [`Found ${empathyCount} empathy markers`];
-  } else if (parameterId === "BEH-RESPONSE-LEN") {
+  } else if (parameterId === PARAMS.BEH_DEFINITION_PRECISION) {
     // Estimate average response length
     const agentResponses = transcript.split(/Agent:|Customer:/i).filter((_, i) => i % 2 === 1);
     const avgWords = agentResponses.reduce((sum, r) => sum + r.split(/\s+/).length, 0) / Math.max(1, agentResponses.length);
     score = Math.min(config.scoring.maxScore, avgWords / mockScoring.responseLengthMax);
     evidence = [`Average response length: ${Math.round(avgWords)} words`];
-  } else if (parameterId === "BEH-QUESTION-RATE") {
+  } else if (parameterId === PARAMS.BEH_QUESTION_RATE) {
     // Count questions using config markers
     const markers = evidenceMarkers.questionAsking || ["?"];
     const questionMarkerRegex = new RegExp(markers.filter(m => m !== "?").join("|"), "gi");
@@ -180,14 +181,14 @@ function mockScoreBehavior(
     const responses = transcript.split(/Agent:/i).length - 1;
     score = Math.min(config.scoring.maxScore, (questionMarks + otherQuestions) / Math.max(1, responses) / mockScoring.questionRateDivisor);
     evidence = [`${questionMarks + otherQuestions} question markers across ${responses} responses`];
-  } else if (parameterId === "BEH-WARMTH") {
+  } else if (parameterId === PARAMS.BEH_CONVERSATIONAL_TONE) {
     // Count warmth markers from config
     const markers = evidenceMarkers.warmth || [];
     const markerRegex = new RegExp(markers.join("|"), "gi");
     const warmCount = (transcript.match(markerRegex) || []).length;
     score = Math.min(config.scoring.maxScore, warmCount / mockScoring.warmthDivisor);
     evidence = [`Found ${warmCount} warmth markers`];
-  } else if (parameterId === "BEH-ACTIVE-LISTEN") {
+  } else if (parameterId === PARAMS.BEH_CONVERSATIONAL_DEPTH) {
     // Count active listening markers from config
     const markers = evidenceMarkers.activeListening || [];
     const markerRegex = new RegExp(markers.join("|"), "gi");

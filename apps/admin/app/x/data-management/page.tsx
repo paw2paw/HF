@@ -19,34 +19,35 @@ type Operation = {
   warning: string;
   endpoint: string;
   method?: "GET" | "POST";
-  requiresMode?: boolean; // If true, shows mode selection buttons
+  requiresMode?: boolean;
+};
+
+type PlaybookOption = {
+  id: string;
+  name: string;
+  description: string;
+  domain: {
+    slug: string;
+    name: string;
+    description: string;
+  };
+  status: string;
+  specCount: number;
+  behaviorTargetCount: number;
+  identitySpecs: string[];
+  contentSpecs: string[];
+  requiredSpecs: string[];
+  optionalSpecs: string[];
+  systemDomains: string[];
 };
 
 const OPERATIONS: Operation[] = [
   {
-    id: "scan-specs",
-    title: "Scan for New Specs",
-    description: "Scans /bdd-specs directory for new spec files not yet in the database. Import just new specs without recreating domains or playbooks.",
-    icon: "\u{1F50D}",
-    warning: "This will import new spec files into the database, creating BDDFeatureSet records, AnalysisSpec records, Parameters, and related entities.",
-    endpoint: "/api/admin/spec-sync",
-    method: "GET",
-  },
-  {
-    id: "system",
-    title: "Initialize System (Domains + Specs)",
-    description: "Creates default domains (WNF TUTOR, COMPANION) with playbooks, then syncs all BDD specifications from /bdd-specs directory. This establishes the complete foundation: domains, playbooks, specs, parameters, anchors, and behavior targets.",
-    icon: "\u{1F680}",
-    warning: "This will create/recreate WNF TUTOR and COMPANION domains AND sync all specs. Existing domains with these slugs will be deleted along with their playbooks. AnalysisSpecs and Parameters from /bdd-specs/*.spec.json will be updated. All behavior targets and runtime spec customizations will be reset.",
-    endpoint: "/api/x/seed-system",
-    method: "POST",
-  },
-  {
     id: "transcripts",
     title: "Import Transcripts from Raw",
     description: "Scans HF_KB_PATH/sources/transcripts/raw for .json and .txt files. Creates Callers (by phone) and Calls. Updates caller names if better data is found.",
-    icon: "\u{1F4DE}",
-    warning: "Choose whether to REPLACE all existing callers/calls (fresh start) or KEEP existing data (skip duplicates). Run 'Initialize System' first for proper domain assignment.",
+    icon: "📞",
+    warning: "Choose whether to REPLACE all existing callers/calls (fresh start) or KEEP existing data (skip duplicates). Run 'Sync All BDD Specs' first for proper domain assignment.",
     endpoint: "/api/x/seed-transcripts",
     method: "POST",
     requiresMode: true,
@@ -55,7 +56,7 @@ const OPERATIONS: Operation[] = [
     id: "cleanup",
     title: "Cleanup Orphaned Callers",
     description: "Deletes callers that have 0 calls. These are typically created during failed imports or testing.",
-    icon: "\u{1F9F9}",
+    icon: "🧹",
     warning: "This will permanently delete all Caller records that have no associated Calls. This is safe and recommended after imports.",
     endpoint: "/api/x/cleanup-callers",
     method: "POST",
@@ -73,8 +74,8 @@ export default function DataManagementPage() {
   const [loadingStats, setLoadingStats] = useState(true);
 
   const [operationStatus, setOperationStatus] = useState<Record<string, OperationStatus>>({
-    system: "idle",
-    "scan-specs": "idle",
+    "sync-specs": "idle",
+    "create-domains": "idle",
     transcripts: "idle",
     cleanup: "idle",
   });
@@ -84,17 +85,24 @@ export default function DataManagementPage() {
   const [selectedMode, setSelectedMode] = useState<"replace" | "keep" | null>(null);
   const [showAIModels, setShowAIModels] = useState(false);
 
-  // Scan results for the spec scanner
-  const [scanResults, setScanResults] = useState<{
-    summary: { totalFiles: number; synced: number; unseeded: number; orphaned: number };
-    synced: Array<{ id: string; filename: string; dbSlug: string; specType: string; specRole: string | null }>;
-    unseeded: Array<{ id: string; filename: string; title: string; specType: string; specRole: string }>;
-    orphaned: Array<{ dbId: string; slug: string; name: string; specType: string; isActive: boolean }>;
+  // Playbook selection for create-domains
+  const [availablePlaybooks, setAvailablePlaybooks] = useState<PlaybookOption[]>([]);
+  const [selectedPlaybooks, setSelectedPlaybooks] = useState<Set<string>>(new Set());
+  const [loadingPlaybooks, setLoadingPlaybooks] = useState(false);
+
+  // Sync status for specs
+  const [syncStatus, setSyncStatus] = useState<{
+    totalFiles: number;
+    syncedFiles: number;
+    unsyncedFiles: number;
   } | null>(null);
+  const [loadingSyncStatus, setLoadingSyncStatus] = useState(false);
 
   // Load current stats
   useEffect(() => {
     loadStats();
+    loadAvailablePlaybooks();
+    loadSyncStatus();
   }, []);
 
   async function loadStats() {
@@ -112,72 +120,111 @@ export default function DataManagementPage() {
     }
   }
 
-  async function executeScan() {
-    setOperationStatus((prev) => ({ ...prev, "scan-specs": "running" }));
-    setOperationResults((prev) => ({ ...prev, "scan-specs": {} }));
-    setScanResults(null);
-
+  async function loadAvailablePlaybooks() {
+    setLoadingPlaybooks(true);
     try {
-      const res = await fetch("/api/admin/spec-sync");
+      const res = await fetch("/api/x/create-domains");
       const data = await res.json();
-
       if (data.ok) {
-        setScanResults(data);
-        setOperationStatus((prev) => ({ ...prev, "scan-specs": "success" }));
-        setOperationResults((prev) => ({
-          ...prev,
-          "scan-specs": {
-            message: `Found ${data.summary.unseeded} new spec(s), ${data.summary.synced} synced, ${data.summary.orphaned} orphaned`,
-            details: data,
-          },
-        }));
-      } else {
-        setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
-        setOperationResults((prev) => ({
-          ...prev,
-          "scan-specs": { error: data.error || "Scan failed" },
-        }));
+        setAvailablePlaybooks(data.playbooks);
       }
-    } catch (e: any) {
-      setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
-      setOperationResults((prev) => ({
-        ...prev,
-        "scan-specs": { error: e.message || "Network error" },
-      }));
+    } catch (e) {
+      console.error("Failed to load available playbooks:", e);
+    } finally {
+      setLoadingPlaybooks(false);
     }
   }
 
-  async function executeImportNewSpecs() {
+  async function loadSyncStatus() {
+    setLoadingSyncStatus(true);
+    try {
+      const res = await fetch("/api/x/sync-specs");
+      const data = await res.json();
+      if (data.ok) {
+        setSyncStatus({
+          totalFiles: data.totalFiles,
+          syncedFiles: data.syncedFiles,
+          unsyncedFiles: data.unsyncedFiles,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load sync status:", e);
+    } finally {
+      setLoadingSyncStatus(false);
+    }
+  }
+
+  async function executeSyncSpecs() {
     setShowModal(null);
-    setOperationStatus((prev) => ({ ...prev, "scan-specs": "running" }));
+    setOperationStatus((prev) => ({ ...prev, "sync-specs": "running" }));
+    setOperationResults((prev) => ({ ...prev, "sync-specs": {} }));
 
     try {
-      const res = await fetch("/api/admin/spec-sync", {
+      const res = await fetch("/api/x/sync-specs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       const data = await res.json();
 
       if (data.ok) {
-        setOperationStatus((prev) => ({ ...prev, "scan-specs": "success" }));
+        setOperationStatus((prev) => ({ ...prev, "sync-specs": "success" }));
         setOperationResults((prev) => ({
           ...prev,
-          "scan-specs": { message: data.message, details: data },
+          "sync-specs": { message: data.message, details: data },
         }));
-        setScanResults(null); // Clear scan results after successful import
-        loadStats(); // Refresh stats
+        loadStats();
+        loadSyncStatus(); // Refresh sync status after syncing
       } else {
-        setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
+        setOperationStatus((prev) => ({ ...prev, "sync-specs": "error" }));
         setOperationResults((prev) => ({
           ...prev,
-          "scan-specs": { error: data.error || "Import failed" },
+          "sync-specs": { error: data.error || "Sync failed" },
         }));
       }
     } catch (e: any) {
-      setOperationStatus((prev) => ({ ...prev, "scan-specs": "error" }));
+      setOperationStatus((prev) => ({ ...prev, "sync-specs": "error" }));
       setOperationResults((prev) => ({
         ...prev,
-        "scan-specs": { error: e.message || "Network error" },
+        "sync-specs": { error: e.message || "Network error" },
+      }));
+    }
+  }
+
+  async function executeCreateDomains() {
+    setShowModal(null);
+    setOperationStatus((prev) => ({ ...prev, "create-domains": "running" }));
+    setOperationResults((prev) => ({ ...prev, "create-domains": {} }));
+
+    try {
+      const res = await fetch("/api/x/create-domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playbookIds: Array.from(selectedPlaybooks),
+        }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        setOperationStatus((prev) => ({ ...prev, "create-domains": "success" }));
+        setOperationResults((prev) => ({
+          ...prev,
+          "create-domains": { message: data.message, details: data },
+        }));
+        loadStats();
+        setSelectedPlaybooks(new Set()); // Clear selection after success
+      } else {
+        setOperationStatus((prev) => ({ ...prev, "create-domains": "error" }));
+        setOperationResults((prev) => ({
+          ...prev,
+          "create-domains": { error: data.error || "Create failed" },
+        }));
+      }
+    } catch (e: any) {
+      setOperationStatus((prev) => ({ ...prev, "create-domains": "error" }));
+      setOperationResults((prev) => ({
+        ...prev,
+        "create-domains": { error: e.message || "Network error" },
       }));
     }
   }
@@ -204,7 +251,6 @@ export default function DataManagementPage() {
           ...prev,
           [op.id]: { message: data.message, details: data },
         }));
-        // Reload stats after successful operation
         loadStats();
       } else {
         setOperationStatus((prev) => ({ ...prev, [op.id]: "error" }));
@@ -230,7 +276,7 @@ export default function DataManagementPage() {
           Data Management
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-          Re-load database from source files (transcripts, specs, domains)
+          Initialize system from source files (specs, domains, playbooks, transcripts)
         </p>
       </div>
 
@@ -319,32 +365,53 @@ export default function DataManagementPage() {
         </div>
         <ol style={{ fontSize: 13, color: "var(--status-info-text)", margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
           <li>
-            <strong>Initialize System</strong> - Syncs all BDD specs, then creates WNF TUTOR and COMPANION domains with playbooks and behavior targets
+            <strong>Sync All BDD Specs</strong> - Import all spec files from /bdd-specs directory (parameters, analysis specs, anchors)
           </li>
           <li>
-            <strong>Import Transcripts</strong> - Creates callers and calls, assigns to domains
+            <strong>Create Domains & Playbooks</strong> - Select and create domains with playbooks and behavior targets (requires specs to exist)
+          </li>
+          <li>
+            <strong>Import Transcripts</strong> - Create callers and calls from raw transcripts (requires domains for assignment)
           </li>
         </ol>
       </div>
 
       {/* Operation Cards */}
       <div style={{ display: "grid", gap: 20 }}>
-        {OPERATIONS.map((op) => {
-          // Special handling for scan-specs card
-          if (op.id === "scan-specs") {
-            return (
-              <ScanSpecsCard
-                key={op.id}
-                operation={op}
-                status={operationStatus[op.id]}
-                result={operationResults[op.id]}
-                scanResults={scanResults}
-                onScan={executeScan}
-                onImport={() => setShowModal("scan-specs")}
-              />
-            );
-          }
+        {/* Sync All BDD Specs */}
+        <SyncSpecsCard
+          status={operationStatus["sync-specs"]}
+          result={operationResults["sync-specs"]}
+          syncStatus={syncStatus}
+          loadingSyncStatus={loadingSyncStatus}
+          onExecute={() => setShowModal("sync-specs")}
+        />
 
+        {/* Create Domains & Playbooks */}
+        <CreateDomainsCard
+          status={operationStatus["create-domains"]}
+          result={operationResults["create-domains"]}
+          availablePlaybooks={availablePlaybooks}
+          selectedPlaybooks={selectedPlaybooks}
+          onTogglePlaybook={(id) => {
+            const newSelection = new Set(selectedPlaybooks);
+            if (newSelection.has(id)) {
+              newSelection.delete(id);
+            } else {
+              newSelection.add(id);
+            }
+            setSelectedPlaybooks(newSelection);
+          }}
+          onExecute={() => {
+            if (selectedPlaybooks.size > 0) {
+              setShowModal("create-domains");
+            }
+          }}
+          loadingPlaybooks={loadingPlaybooks}
+        />
+
+        {/* Other Operations */}
+        {OPERATIONS.map((op) => {
           return (
             <OperationCard
               key={op.id}
@@ -364,33 +431,64 @@ export default function DataManagementPage() {
         })}
       </div>
 
-      {/* Confirmation Modal */}
-      {showModal &&
-        (showModal === "scan-specs" ? (
-          <ConfirmationModal
-            operation={{
-              id: "scan-specs",
-              title: "Import New Specs",
-              description: "",
-              icon: "📥",
-              warning: `This will import ${scanResults?.unseeded.length || 0} new spec(s) into the database. This creates BDDFeatureSet records, AnalysisSpec records, Parameters, and related entities.`,
-              endpoint: "/api/admin/spec-sync",
-            }}
-            mode={null}
-            onConfirm={executeImportNewSpecs}
-            onCancel={() => setShowModal(null)}
-          />
-        ) : (
-          <ConfirmationModal
-            operation={OPERATIONS.find((op) => op.id === showModal)!}
-            mode={selectedMode}
-            onConfirm={() => executeOperation(OPERATIONS.find((op) => op.id === showModal)!, selectedMode || undefined)}
-            onCancel={() => {
-              setShowModal(null);
-              setSelectedMode(null);
-            }}
-          />
-        ))}
+      {/* Confirmation Modals */}
+      {showModal === "sync-specs" && (
+        <ConfirmationModal
+          title="Sync All BDD Specs"
+          icon="📦"
+          warning="This will read all .spec.json files from /bdd-specs directory and create/update Parameters, AnalysisSpecs, Anchors, and PromptSlugs in the database. Existing specs will be updated with new definitions."
+          onConfirm={executeSyncSpecs}
+          onCancel={() => setShowModal(null)}
+        />
+      )}
+
+      {showModal === "create-domains" && (
+        <ConfirmationModal
+          title={`Create ${selectedPlaybooks.size} Playbook(s)`}
+          icon="🎯"
+          warning={`This will create ${selectedPlaybooks.size} domain(s) and playbook(s) with all required specs, behavior targets, and dependencies. Existing domains with the same slugs will be deleted first. All created playbooks will be set to PUBLISHED status.`}
+          details={
+            <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-muted)" }}>
+              <strong>Selected playbooks:</strong>
+              <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+                {Array.from(selectedPlaybooks).map((id) => {
+                  const pb = availablePlaybooks.find((p) => p.id === id);
+                  return pb ? (
+                    <li key={id}>
+                      {pb.name} → {pb.domain.name}
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            </div>
+          }
+          onConfirm={executeCreateDomains}
+          onCancel={() => setShowModal(null)}
+        />
+      )}
+
+      {showModal && OPERATIONS.find((op) => op.id === showModal) && (
+        <ConfirmationModal
+          title={OPERATIONS.find((op) => op.id === showModal)!.title}
+          icon={OPERATIONS.find((op) => op.id === showModal)!.icon}
+          warning={
+            selectedMode === "replace"
+              ? "⚠️ DESTRUCTIVE: This will DELETE all existing Callers and Calls from the database, then import fresh from /transcripts directory. All analysis artifacts, behavior targets, and caller histories will be permanently removed. This cannot be undone."
+              : OPERATIONS.find((op) => op.id === showModal)!.warning
+          }
+          destructive={selectedMode === "replace"}
+          onConfirm={() =>
+            executeOperation(
+              OPERATIONS.find((op) => op.id === showModal)!,
+              selectedMode || undefined
+            )
+          }
+          onCancel={() => {
+            setShowModal(null);
+            setSelectedMode(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -401,6 +499,352 @@ function StatItem({ label, value }: { label: string; value: number }) {
       <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
     </div>
+  );
+}
+
+function SyncSpecsCard({
+  status,
+  result,
+  syncStatus,
+  loadingSyncStatus,
+  onExecute,
+}: {
+  status: OperationStatus;
+  result?: OperationResult;
+  syncStatus: { totalFiles: number; syncedFiles: number; unsyncedFiles: number } | null;
+  loadingSyncStatus: boolean;
+  onExecute: () => void;
+}) {
+  const isRunning = status === "running";
+  const isSuccess = status === "success";
+  const isError = status === "error";
+
+  return (
+    <div
+      style={{
+        padding: 24,
+        background: "var(--surface-primary)",
+        borderRadius: 12,
+        border: `2px solid ${
+          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
+        }`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+        <div style={{ fontSize: 32, lineHeight: 1 }}>📦</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>
+              Sync All BDD Specs
+            </div>
+            {/* Sync Status Pills */}
+            {!loadingSyncStatus && syncStatus && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <span
+                  style={{
+                    padding: "4px 10px",
+                    background: "var(--status-success-bg)",
+                    border: "1px solid var(--status-success-border)",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--status-success-text)",
+                  }}
+                >
+                  {syncStatus.syncedFiles} synced
+                </span>
+                {syncStatus.unsyncedFiles > 0 && (
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      background: "var(--status-warning-bg)",
+                      border: "1px solid var(--status-warning-border)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--status-warning-text)",
+                    }}
+                  >
+                    {syncStatus.unsyncedFiles} unsynced
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
+            Reads all .spec.json files from /bdd-specs directory and creates/updates Parameters, AnalysisSpecs,
+            Anchors, and PromptSlugs. Run this first to establish the spec foundation.
+          </div>
+
+          {isRunning && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-warning-text)",
+                marginBottom: 12,
+              }}
+            >
+              ⏳ Syncing specs...
+            </div>
+          )}
+
+          {isSuccess && result?.message && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-success-bg)",
+                border: "1px solid var(--status-success-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-success-text)",
+                marginBottom: 12,
+              }}
+            >
+              ✅ {result.message}
+            </div>
+          )}
+
+          {isError && result?.error && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-error-bg)",
+                border: "1px solid var(--status-error-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-error-text)",
+                marginBottom: 12,
+              }}
+            >
+              ❌ {result.error}
+            </div>
+          )}
+
+          <button
+            onClick={onExecute}
+            disabled={isRunning}
+            style={{
+              padding: "10px 20px",
+              background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: isRunning ? "not-allowed" : "pointer",
+              opacity: isRunning ? 0.6 : 1,
+            }}
+          >
+            {isRunning ? "Syncing..." : "Sync All Specs"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateDomainsCard({
+  status,
+  result,
+  availablePlaybooks,
+  selectedPlaybooks,
+  onTogglePlaybook,
+  onExecute,
+  loadingPlaybooks,
+}: {
+  status: OperationStatus;
+  result?: OperationResult;
+  availablePlaybooks: PlaybookOption[];
+  selectedPlaybooks: Set<string>;
+  onTogglePlaybook: (id: string) => void;
+  onExecute: () => void;
+  loadingPlaybooks: boolean;
+}) {
+  const isRunning = status === "running";
+  const isSuccess = status === "success";
+  const isError = status === "error";
+
+  return (
+    <div
+      style={{
+        padding: 24,
+        background: "var(--surface-primary)",
+        borderRadius: 12,
+        border: `2px solid ${
+          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
+        }`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+        <div style={{ fontSize: 32, lineHeight: 1 }}>🎯</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
+            Create Domains & Playbooks
+          </div>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
+            Select playbooks to create with their domains, behavior targets, and all required specs. Each playbook
+            will be created as PUBLISHED and ready to use.
+          </div>
+
+          {isRunning && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-warning-text)",
+                marginBottom: 12,
+              }}
+            >
+              ⏳ Creating domains and playbooks...
+            </div>
+          )}
+
+          {isSuccess && result?.message && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-success-bg)",
+                border: "1px solid var(--status-success-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-success-text)",
+                marginBottom: 12,
+              }}
+            >
+              ✅ {result.message}
+            </div>
+          )}
+
+          {isError && result?.error && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--status-error-bg)",
+                border: "1px solid var(--status-error-border)",
+                borderRadius: 8,
+                fontSize: 14,
+                color: "var(--status-error-text)",
+                marginBottom: 12,
+              }}
+            >
+              ❌ {result.error}
+            </div>
+          )}
+
+          {/* Playbook Selection */}
+          {loadingPlaybooks ? (
+            <div style={{ padding: 12, fontSize: 14, color: "var(--text-muted)" }}>
+              Loading available playbooks...
+            </div>
+          ) : (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
+                Select playbooks to create:
+              </div>
+              <div style={{ display: "grid", gap: 12 }}>
+                {availablePlaybooks.map((pb) => (
+                  <PlaybookCheckbox
+                    key={pb.id}
+                    playbook={pb}
+                    isSelected={selectedPlaybooks.has(pb.id)}
+                    onToggle={() => onTogglePlaybook(pb.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              onClick={onExecute}
+              disabled={isRunning || selectedPlaybooks.size === 0}
+              style={{
+                padding: "10px 20px",
+                background:
+                  isRunning || selectedPlaybooks.size === 0
+                    ? "var(--button-disabled-bg)"
+                    : "var(--button-primary-bg)",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isRunning || selectedPlaybooks.size === 0 ? "not-allowed" : "pointer",
+                opacity: isRunning || selectedPlaybooks.size === 0 ? 0.6 : 1,
+              }}
+            >
+              {isRunning
+                ? "Creating..."
+                : selectedPlaybooks.size === 0
+                ? "Select Playbooks"
+                : `Create ${selectedPlaybooks.size} Playbook(s)`}
+            </button>
+            {selectedPlaybooks.size > 0 && (
+              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                {selectedPlaybooks.size} playbook(s) selected
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlaybookCheckbox({
+  playbook,
+  isSelected,
+  onToggle,
+}: {
+  playbook: PlaybookOption;
+  isSelected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        padding: 12,
+        background: isSelected ? "var(--status-info-bg)" : "var(--background)",
+        border: `1px solid ${isSelected ? "var(--status-info-border)" : "var(--border-default)"}`,
+        borderRadius: 8,
+        cursor: "pointer",
+        transition: "all 0.15s ease",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={onToggle}
+        style={{
+          marginTop: 2,
+          width: 16,
+          height: 16,
+          cursor: "pointer",
+        }}
+      />
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+          {playbook.name}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
+          {playbook.description}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <strong>Domain:</strong> {playbook.domain.name} • <strong>Specs:</strong> ~{playbook.specCount} •{" "}
+          <strong>Targets:</strong> {playbook.behaviorTargetCount}
+        </div>
+      </div>
+    </label>
   );
 }
 
@@ -431,10 +875,7 @@ function OperationCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        {/* Icon */}
         <div style={{ fontSize: 32, lineHeight: 1 }}>{operation.icon}</div>
-
-        {/* Content */}
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
             {operation.title}
@@ -443,7 +884,6 @@ function OperationCard({
             {operation.description}
           </div>
 
-          {/* Status/Results */}
           {isRunning && (
             <div
               style={{
@@ -492,7 +932,6 @@ function OperationCard({
             </div>
           )}
 
-          {/* Buttons */}
           {operation.requiresMode ? (
             <div style={{ display: "flex", gap: 12 }}>
               <button
@@ -555,303 +994,23 @@ function OperationCard({
   );
 }
 
-function ScanSpecsCard({
-  operation,
-  status,
-  result,
-  scanResults,
-  onScan,
-  onImport,
-}: {
-  operation: Operation;
-  status: OperationStatus;
-  result?: OperationResult;
-  scanResults: {
-    summary: { totalFiles: number; synced: number; unseeded: number; orphaned: number };
-    unseeded: Array<{ id: string; filename: string; title: string; specType: string; specRole: string }>;
-    orphaned: Array<{ dbId: string; slug: string; name: string; specType: string }>;
-  } | null;
-  onScan: () => void;
-  onImport: () => void;
-}) {
-  const [showUnseeded, setShowUnseeded] = useState(true);
-  const [showOrphaned, setShowOrphaned] = useState(false);
-  const isRunning = status === "running";
-  const isSuccess = status === "success";
-  const isError = status === "error";
-
-  return (
-    <div
-      style={{
-        padding: 24,
-        background: "var(--surface-primary)",
-        borderRadius: 12,
-        border: `2px solid ${
-          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
-        }`,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        <div style={{ fontSize: 32, lineHeight: 1 }}>{operation.icon}</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
-            {operation.title}
-          </div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
-            {operation.description}
-          </div>
-
-          {/* Status Messages */}
-          {isRunning && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-warning-bg)",
-                border: "1px solid var(--status-warning-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-warning-text)",
-                marginBottom: 12,
-              }}
-            >
-              Scanning specs directory...
-            </div>
-          )}
-
-          {isSuccess && result?.message && !scanResults && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-success-bg)",
-                border: "1px solid var(--status-success-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-success-text)",
-                marginBottom: 12,
-              }}
-            >
-              {result.message}
-            </div>
-          )}
-
-          {isError && result?.error && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-error-bg)",
-                border: "1px solid var(--status-error-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-error-text)",
-                marginBottom: 12,
-              }}
-            >
-              {result.error}
-            </div>
-          )}
-
-          {/* Scan Results */}
-          {scanResults && (
-            <div style={{ marginBottom: 16 }}>
-              {/* Summary */}
-              <div
-                style={{
-                  padding: 12,
-                  background: "var(--status-info-bg)",
-                  border: "1px solid var(--status-info-border)",
-                  borderRadius: 8,
-                  marginBottom: 12,
-                }}
-              >
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-info-text)" }}>
-                  Scan Results: {scanResults.summary.totalFiles} files total
-                </div>
-                <div style={{ fontSize: 13, color: "var(--status-info-text)", marginTop: 4 }}>
-                  {scanResults.summary.synced} synced | {scanResults.summary.unseeded} new |{" "}
-                  {scanResults.summary.orphaned} orphaned
-                </div>
-              </div>
-
-              {/* New Specs List */}
-              {scanResults.unseeded.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <button
-                    onClick={() => setShowUnseeded(!showUnseeded)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                      New Specs ({scanResults.unseeded.length})
-                    </span>
-                    <span style={{ color: "var(--text-muted)" }}>{showUnseeded ? "▼" : "▶"}</span>
-                  </button>
-                  {showUnseeded && (
-                    <div style={{ paddingLeft: 16, borderLeft: "2px solid var(--status-success-border)" }}>
-                      {scanResults.unseeded.map((spec) => (
-                        <div key={spec.id} style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
-                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{spec.id}</span>
-                          <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
-                            ({spec.specType}/{spec.specRole})
-                          </span>
-                          <div style={{ color: "var(--text-muted)", fontSize: 12 }}>{spec.title}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Orphaned Specs Warning */}
-              {scanResults.orphaned.length > 0 && (
-                <div
-                  style={{
-                    padding: 12,
-                    background: "var(--status-warning-bg)",
-                    border: "1px solid var(--status-warning-border)",
-                    borderRadius: 8,
-                    marginBottom: 12,
-                  }}
-                >
-                  <button
-                    onClick={() => setShowOrphaned(!showOrphaned)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      width: "100%",
-                    }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--status-warning-text)" }}>
-                      Orphaned Specs ({scanResults.orphaned.length}) - in DB but file missing
-                    </span>
-                    <span style={{ color: "var(--status-warning-text)" }}>{showOrphaned ? "▼" : "▶"}</span>
-                  </button>
-                  {showOrphaned && (
-                    <div style={{ marginTop: 8, paddingLeft: 16 }}>
-                      {scanResults.orphaned.map((spec) => (
-                        <div key={spec.dbId} style={{ fontSize: 12, color: "var(--status-warning-text)", marginBottom: 4 }}>
-                          {spec.slug} ({spec.name})
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* All Synced Message */}
-              {scanResults.unseeded.length === 0 && (
-                <div
-                  style={{
-                    padding: 12,
-                    background: "var(--status-success-bg)",
-                    border: "1px solid var(--status-success-border)",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    color: "var(--status-success-text)",
-                    marginBottom: 12,
-                  }}
-                >
-                  All specs are synced! No new specs to import.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div style={{ display: "flex", gap: 12 }}>
-            <button
-              onClick={onScan}
-              disabled={isRunning}
-              style={{
-                padding: "10px 20px",
-                background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: isRunning ? "not-allowed" : "pointer",
-                opacity: isRunning ? 0.6 : 1,
-              }}
-            >
-              {isRunning ? "Scanning..." : "Scan for New Specs"}
-            </button>
-
-            {scanResults && scanResults.unseeded.length > 0 && (
-              <button
-                onClick={onImport}
-                disabled={isRunning}
-                style={{
-                  padding: "10px 20px",
-                  background: isRunning ? "var(--button-disabled-bg)" : "var(--button-success-bg)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: isRunning ? "not-allowed" : "pointer",
-                  opacity: isRunning ? 0.6 : 1,
-                }}
-              >
-                Import {scanResults.unseeded.length} New Spec(s)
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ConfirmationModal({
-  operation,
-  mode,
+  title,
+  icon,
+  warning,
+  details,
+  destructive,
   onConfirm,
   onCancel,
 }: {
-  operation: Operation;
-  mode: "replace" | "keep" | null;
+  title: string;
+  icon: string;
+  warning: string;
+  details?: React.ReactNode;
+  destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  // Get mode-specific warning if applicable
-  const getWarning = () => {
-    if (operation.requiresMode && mode) {
-      if (mode === "replace") {
-        return "⚠️ DESTRUCTIVE: This will DELETE all existing Callers and Calls from the database, then import fresh from /transcripts directory. All analysis artifacts, behavior targets, and caller histories will be permanently removed. This cannot be undone.";
-      } else {
-        return "This will import transcripts from /transcripts directory. Existing callers/calls will be kept, and only new data will be added. Calls with matching externalId will be skipped.";
-      }
-    }
-    return operation.warning;
-  };
-
-  const getButtonColor = () => {
-    if (operation.requiresMode && mode === "replace") {
-      return "var(--button-destructive-bg)"; // Red for destructive
-    }
-    return "var(--button-destructive-bg)"; // Red for all confirmations
-  };
-
-  const getTitle = () => {
-    if (operation.requiresMode && mode) {
-      return `${operation.title} - ${mode === "replace" ? "Replace ALL" : "Keep ALL"}`;
-    }
-    return operation.title;
-  };
-
   return (
     <div
       style={{
@@ -879,25 +1038,32 @@ function ConfirmationModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ fontSize: 48, textAlign: "center", marginBottom: 16 }}>
-          {operation.requiresMode && mode === "replace" ? "🗑️" : "⚠️"}
-        </div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textAlign: "center" }}>
-          {getTitle()}
+        <div style={{ fontSize: 48, textAlign: "center", marginBottom: 16 }}>{icon}</div>
+        <div
+          style={{
+            fontSize: 20,
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            marginBottom: 12,
+            textAlign: "center",
+          }}
+        >
+          {title}
         </div>
         <div
           style={{
             padding: 16,
-            background: operation.requiresMode && mode === "replace" ? "var(--status-error-bg)" : "var(--status-warning-bg)",
-            border: `1px solid ${operation.requiresMode && mode === "replace" ? "var(--status-error-border)" : "var(--status-warning-border)"}`,
+            background: destructive ? "var(--status-error-bg)" : "var(--status-warning-bg)",
+            border: `1px solid ${destructive ? "var(--status-error-border)" : "var(--status-warning-border)"}`,
             borderRadius: 8,
             fontSize: 14,
-            color: operation.requiresMode && mode === "replace" ? "var(--status-error-text)" : "var(--status-warning-text)",
+            color: destructive ? "var(--status-error-text)" : "var(--status-warning-text)",
             lineHeight: 1.6,
             marginBottom: 24,
           }}
         >
-          {getWarning()}
+          {warning}
+          {details}
         </div>
 
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
@@ -920,7 +1086,7 @@ function ConfirmationModal({
             onClick={onConfirm}
             style={{
               padding: "10px 20px",
-              background: getButtonColor(),
+              background: destructive ? "var(--button-destructive-bg)" : "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 8,
