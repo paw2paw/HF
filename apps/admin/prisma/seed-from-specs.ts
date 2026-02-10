@@ -72,8 +72,8 @@ export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; r
 
   const files = fs.readdirSync(specsFolder).filter(f =>
     f.endsWith(".spec.json") &&
-    !f.includes("schema") &&
-    !f.includes("config")
+    f !== "schema.spec.json" &&
+    f !== "config.spec.json"
   );
   console.log(`   Found ${files.length} spec files in ${specsFolder}`);
 
@@ -183,39 +183,54 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   const declaredOutputType = (scoringSpec?.outputType as AnalysisOutputType) || AnalysisOutputType.MEASURE;
 
   // Determine specRole (UI category) based on declared specRole or outputType
-  // This maps the old META catch-all to specific categories
   let specRole: SpecRole;
   const declaredSpecRole = scoringSpec?.specRole as SpecRole | undefined;
 
-  if (declaredSpecRole === SpecRole.IDENTITY) {
+  // NEW TAXONOMY (Feb 2026): ORCHESTRATE, EXTRACT, SYNTHESISE, CONSTRAIN, IDENTITY, CONTENT, VOICE
+  if (declaredSpecRole === SpecRole.ORCHESTRATE) {
+    specRole = SpecRole.ORCHESTRATE;
+  } else if (declaredSpecRole === SpecRole.EXTRACT) {
+    specRole = SpecRole.EXTRACT;
+  } else if (declaredSpecRole === SpecRole.SYNTHESISE) {
+    specRole = SpecRole.SYNTHESISE;
+  } else if (declaredSpecRole === SpecRole.CONSTRAIN) {
+    specRole = SpecRole.CONSTRAIN;
+  } else if (declaredSpecRole === SpecRole.IDENTITY) {
     specRole = SpecRole.IDENTITY;
   } else if (declaredSpecRole === SpecRole.CONTENT) {
     specRole = SpecRole.CONTENT;
   } else if (declaredSpecRole === SpecRole.VOICE) {
     specRole = SpecRole.VOICE;
+  // DEPRECATED VALUES (backward compatibility) - map to new taxonomy
+  } else if (declaredSpecRole === SpecRole.MEASURE) {
+    specRole = SpecRole.EXTRACT;
+  } else if (declaredSpecRole === SpecRole.ADAPT) {
+    specRole = SpecRole.SYNTHESISE;
+  } else if (declaredSpecRole === SpecRole.REWARD) {
+    specRole = SpecRole.SYNTHESISE;
   } else if (declaredSpecRole === SpecRole.GUARDRAIL) {
-    specRole = SpecRole.GUARDRAIL;
+    specRole = SpecRole.CONSTRAIN;
   } else if (declaredSpecRole === SpecRole.BOOTSTRAP) {
-    specRole = SpecRole.BOOTSTRAP;
+    specRole = SpecRole.ORCHESTRATE;
   } else {
-    // Map outputType to specRole for META/unspecified specs
+    // Map outputType to specRole for unspecified specs
     switch (declaredOutputType) {
       case AnalysisOutputType.MEASURE:
       case AnalysisOutputType.MEASURE_AGENT:
       case AnalysisOutputType.LEARN:
-        specRole = SpecRole.MEASURE;
+        specRole = SpecRole.EXTRACT; // Measurement/learning
         break;
       case AnalysisOutputType.ADAPT:
-        specRole = SpecRole.ADAPT;
+        specRole = SpecRole.SYNTHESISE; // Behavioral adaptation
         break;
       case AnalysisOutputType.REWARD:
-        specRole = SpecRole.REWARD;
+        specRole = SpecRole.SYNTHESISE; // Reward computation
         break;
       case AnalysisOutputType.SUPERVISE:
-        specRole = SpecRole.GUARDRAIL;
+        specRole = SpecRole.CONSTRAIN; // Guardrails
         break;
       default:
-        specRole = SpecRole.MEASURE; // Default for COMPOSE, AGGREGATE, etc.
+        specRole = SpecRole.EXTRACT; // Default for COMPOSE, AGGREGATE, etc.
     }
   }
 
