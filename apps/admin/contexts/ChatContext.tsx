@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { useSession } from "next-auth/react";
 import { EntityBreadcrumb, useEntityContext } from "./EntityContext";
 
-export type ChatMode = "CHAT" | "DATA" | "SPEC" | "INBOX" | "TICKETS";
+export type ChatMode = "CHAT" | "DATA" | "SPEC";
 export type ChatLayout = "vertical" | "horizontal" | "popout";
 
 // Types for messaging system
@@ -77,16 +77,15 @@ interface ChatState {
   error: string | null;
   // Guidance directives from AI responses
   pendingGuidance: GuidanceDirective[];
-  // Inbox state
-  inboxMessages: InboxMessage[];
-  inboxLoading: boolean;
-  selectedMessageId: string | null;
-  unreadCount: number;
-  // Tickets state
-  tickets: Ticket[];
-  ticketsLoading: boolean;
-  selectedTicketId: string | null;
-  ticketStats: { open: number; inProgress: number; myAssigned: number } | null;
+  // Inbox/Tickets state - DEPRECATED (moved to separate features)
+  // inboxMessages: InboxMessage[];
+  // inboxLoading: boolean;
+  // selectedMessageId: string | null;
+  // unreadCount: number;
+  // tickets: Ticket[];
+  // ticketsLoading: boolean;
+  // selectedTicketId: string | null;
+  // ticketStats: { open: number; inProgress: number; myAssigned: number } | null;
 }
 
 interface ChatActions {
@@ -102,16 +101,15 @@ interface ChatActions {
   clearHistory: (mode?: ChatMode) => void;
   cancelStream: () => void;
   setError: (error: string | null) => void;
-  // Inbox actions
-  fetchInbox: () => Promise<void>;
-  selectMessage: (id: string | null) => void;
-  sendInboxMessage: (recipientId: string, content: string, subject?: string, parentId?: string) => Promise<void>;
-  // Tickets actions
-  fetchTickets: () => Promise<void>;
-  selectTicket: (id: string | null) => void;
-  createTicket: (data: { title: string; description: string; priority?: string; category?: string; assigneeId?: string }) => Promise<void>;
-  updateTicket: (id: string, data: Partial<Ticket>) => Promise<void>;
-  addTicketComment: (ticketId: string, content: string) => Promise<void>;
+  // Inbox/Tickets actions - DEPRECATED (moved to separate features)
+  // fetchInbox: () => Promise<void>;
+  // selectMessage: (id: string | null) => void;
+  // sendInboxMessage: (recipientId: string, content: string, subject?: string, parentId?: string) => Promise<void>;
+  // fetchTickets: () => Promise<void>;
+  // selectTicket: (id: string | null) => void;
+  // createTicket: (data: { title: string; description: string; priority?: string; category?: string; assigneeId?: string }) => Promise<void>;
+  // updateTicket: (id: string, data: Partial<Ticket>) => Promise<void>;
+  // addTicketComment: (ticketId: string, content: string) => Promise<void>;
   // Guidance actions
   consumeGuidance: () => GuidanceDirective[];
 }
@@ -138,7 +136,7 @@ export const MODE_CONFIG: Record<ChatMode, { label: string; icon: string; color:
     label: "Chat",
     icon: "💬",
     color: "#3b82f6",
-    description: "General Q&A about the platform",
+    description: "General AI assistance",
   },
   DATA: {
     label: "Data",
@@ -151,18 +149,6 @@ export const MODE_CONFIG: Record<ChatMode, { label: string; icon: string; color:
     icon: "📋",
     color: "#8b5cf6",
     description: "Spec development assistant",
-  },
-  INBOX: {
-    label: "Inbox",
-    icon: "📬",
-    color: "#f59e0b",
-    description: "Messages with team members",
-  },
-  TICKETS: {
-    label: "Tickets",
-    icon: "🎫",
-    color: "#ef4444",
-    description: "Track issues and requests",
   },
 };
 
@@ -299,19 +285,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [initialized, setInitialized] = useState(false);
   const [lastUserId, setLastUserId] = useState<string | undefined>(undefined);
 
-  // Inbox state
-  const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
-  const [inboxLoading, setInboxLoading] = useState(false);
-  const [inboxFetched, setInboxFetched] = useState(false); // Track if initial fetch done
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Tickets state
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
-  const [ticketsFetched, setTicketsFetched] = useState(false); // Track if initial fetch done
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [ticketStats, setTicketStats] = useState<{ open: number; inProgress: number; myAssigned: number } | null>(null);
+  // Inbox/Tickets state - DEPRECATED (moved to separate features)
+  // const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
+  // const [inboxLoading, setInboxLoading] = useState(false);
+  // const [inboxFetched, setInboxFetched] = useState(false);
+  // const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  // const [unreadCount, setUnreadCount] = useState(0);
+  // const [tickets, setTickets] = useState<Ticket[]>([]);
+  // const [ticketsLoading, setTicketsLoading] = useState(false);
+  // const [ticketsFetched, setTicketsFetched] = useState(false);
+  // const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  // const [ticketStats, setTicketStats] = useState<{ open: number; inProgress: number; myAssigned: number } | null>(null);
 
   // Guidance directives from AI responses
   const [pendingGuidance, setPendingGuidance] = useState<GuidanceDirective[]>([]);
@@ -611,147 +595,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 
   // ========================
-  // INBOX ACTIONS
+  // INBOX/TICKETS ACTIONS - DEPRECATED (moved to separate features)
   // ========================
 
-  const fetchInbox = useCallback(async () => {
-    setInboxLoading(true);
-    try {
-      const [messagesRes, unreadRes] = await Promise.all([
-        fetch("/api/messages?type=inbox&limit=50"),
-        fetch("/api/messages/unread-count"),
-      ]);
+  // Commented out - these features are now accessed through separate pages/components
 
-      if (messagesRes.ok) {
-        const data = await messagesRes.json();
-        if (data.ok) setInboxMessages(data.messages);
-      }
-
-      if (unreadRes.ok) {
-        const data = await unreadRes.json();
-        if (data.ok) setUnreadCount(data.count);
-      }
-    } catch (err) {
-      console.error("Failed to fetch inbox:", err);
-    } finally {
-      setInboxLoading(false);
-      setInboxFetched(true);
-    }
-  }, []);
-
-  const selectMessage = useCallback((id: string | null) => {
-    setSelectedMessageId(id);
-    // Mark as read when selected
-    if (id) {
-      fetch(`/api/messages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ readAt: new Date().toISOString() }) })
-        .then(() => {
-          setInboxMessages(prev => prev.map(m => m.id === id ? { ...m, readAt: new Date().toISOString() } : m));
-          setUnreadCount(prev => Math.max(0, prev - 1));
-        })
-        .catch(console.error);
-    }
-  }, []);
-
-  const sendInboxMessage = useCallback(async (recipientId: string, content: string, subject?: string, parentId?: string) => {
-    const res = await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientId, content, subject, parentId }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Failed to send message");
-    }
-
-    // Refresh inbox after sending
-    await fetchInbox();
-  }, [fetchInbox]);
-
-  // ========================
-  // TICKETS ACTIONS
-  // ========================
-
-  const fetchTickets = useCallback(async () => {
-    setTicketsLoading(true);
-    try {
-      const [ticketsRes, statsRes] = await Promise.all([
-        fetch("/api/tickets?limit=50"),
-        fetch("/api/tickets/stats"),
-      ]);
-
-      if (ticketsRes.ok) {
-        const data = await ticketsRes.json();
-        if (data.ok) setTickets(data.tickets);
-      }
-
-      if (statsRes.ok) {
-        const data = await statsRes.json();
-        if (data.ok) {
-          setTicketStats({
-            open: data.stats.byStatus.OPEN,
-            inProgress: data.stats.byStatus.IN_PROGRESS,
-            myAssigned: data.stats.myAssigned,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch tickets:", err);
-    } finally {
-      setTicketsLoading(false);
-      setTicketsFetched(true);
-    }
-  }, []);
-
-  const selectTicket = useCallback((id: string | null) => {
-    setSelectedTicketId(id);
-  }, []);
-
-  const createTicket = useCallback(async (data: { title: string; description: string; priority?: string; category?: string; assigneeId?: string }) => {
-    const res = await fetch("/api/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) {
-      const json = await res.json();
-      throw new Error(json.error || "Failed to create ticket");
-    }
-
-    await fetchTickets();
-  }, [fetchTickets]);
-
-  const updateTicket = useCallback(async (id: string, data: Partial<Ticket>) => {
-    const res = await fetch(`/api/tickets/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) {
-      const json = await res.json();
-      throw new Error(json.error || "Failed to update ticket");
-    }
-
-    const updated = await res.json();
-    if (updated.ok) {
-      setTickets(prev => prev.map(t => t.id === id ? updated.ticket : t));
-    }
-  }, []);
-
-  const addTicketComment = useCallback(async (ticketId: string, content: string) => {
-    const res = await fetch(`/api/tickets/${ticketId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
-    });
-
-    if (!res.ok) {
-      const json = await res.json();
-      throw new Error(json.error || "Failed to add comment");
-    }
-  }, []);
+  /*
+  const fetchInbox = useCallback(async () => { ... }, []);
+  const selectMessage = useCallback((id: string | null) => { ... }, []);
+  const sendInboxMessage = useCallback(async (recipientId: string, content: string, subject?: string, parentId?: string) => { ... }, [fetchInbox]);
+  const fetchTickets = useCallback(async () => { ... }, []);
+  const selectTicket = useCallback((id: string | null) => { ... }, []);
+  const createTicket = useCallback(async (data: { ... }) => { ... }, [fetchTickets]);
+  const updateTicket = useCallback(async (id: string, data: Partial<Ticket>) => { ... }, []);
+  const addTicketComment = useCallback(async (ticketId: string, content: string) => { ... }, []);
+  */
 
   // Consume and clear pending guidance directives
   const consumeGuidance = useCallback((): GuidanceDirective[] => {
@@ -760,34 +618,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return directives;
   }, [pendingGuidance]);
 
-  // Fetch inbox/tickets when mode changes to those modes (only on first visit)
-  useEffect(() => {
-    if (mode === "INBOX" && !inboxFetched && !inboxLoading) {
-      fetchInbox();
-    } else if (mode === "TICKETS" && !ticketsFetched && !ticketsLoading) {
-      fetchTickets();
-    }
-  }, [mode, inboxFetched, ticketsFetched, inboxLoading, ticketsLoading, fetchInbox, fetchTickets]);
+  // Fetch inbox/tickets when mode changes - DEPRECATED (commented out)
+  // useEffect(() => {
+  //   if (mode === "INBOX" && !inboxFetched && !inboxLoading) {
+  //     fetchInbox();
+  //   } else if (mode === "TICKETS" && !ticketsFetched && !ticketsLoading) {
+  //     fetchTickets();
+  //   }
+  // }, [mode, inboxFetched, ticketsFetched, inboxLoading, ticketsLoading, fetchInbox, fetchTickets]);
 
-  // Poll for unread count every 30 seconds when panel is open
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const pollUnread = async () => {
-      try {
-        const res = await fetch("/api/messages/unread-count");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.ok) setUnreadCount(data.count);
-        }
-      } catch {
-        // Ignore polling errors
-      }
-    };
-
-    const interval = setInterval(pollUnread, 30000);
-    return () => clearInterval(interval);
-  }, [isOpen]);
+  // Poll for unread count - DEPRECATED (commented out)
+  // useEffect(() => {
+  //   if (!isOpen) return;
+  //   const pollUnread = async () => {
+  //     try {
+  //       const res = await fetch("/api/messages/unread-count");
+  //       if (res.ok) {
+  //         const data = await res.json();
+  //         if (data.ok) setUnreadCount(data.count);
+  //       }
+  //     } catch {
+  //       // Ignore polling errors
+  //     }
+  //   };
+  //   const interval = setInterval(pollUnread, 30000);
+  //   return () => clearInterval(interval);
+  // }, [isOpen]);
 
   const value: ChatContextValue = {
     // State
@@ -798,16 +654,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     isStreaming,
     streamingMessageId,
     error,
-    // Inbox state
-    inboxMessages,
-    inboxLoading,
-    selectedMessageId,
-    unreadCount,
-    // Tickets state
-    tickets,
-    ticketsLoading,
-    selectedTicketId,
-    ticketStats,
     // Guidance state
     pendingGuidance,
     // Actions
@@ -823,16 +669,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     clearHistory,
     cancelStream,
     setError,
-    // Inbox actions
-    fetchInbox,
-    selectMessage,
-    sendInboxMessage,
-    // Tickets actions
-    fetchTickets,
-    selectTicket,
-    createTicket,
-    updateTicket,
-    addTicketComment,
     // Guidance actions
     consumeGuidance,
   };

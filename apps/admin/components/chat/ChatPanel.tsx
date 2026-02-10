@@ -4,8 +4,9 @@ import React from "react";
 import { useChatContext, useChatKeyboardShortcut, MODE_CONFIG } from "@/contexts/ChatContext";
 import { useEntityContext, ENTITY_COLORS, EntityBreadcrumb } from "@/contexts/EntityContext";
 import { useEntityDetection } from "@/hooks/useEntityDetection";
-import { InboxView } from "./InboxView";
-import { TicketsView } from "./TicketsView";
+// Inbox/Tickets views removed - now separate features
+// import { InboxView } from "./InboxView";
+// import { TicketsView } from "./TicketsView";
 import { AIModelBadge } from "@/components/shared/AIModelBadge";
 
 // Sub-components
@@ -78,7 +79,7 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
 }
 
 function ModeTabs() {
-  const { mode, setMode, unreadCount, ticketStats } = useChatContext();
+  const { mode, setMode } = useChatContext();
 
   return (
     <div
@@ -91,11 +92,6 @@ function ModeTabs() {
       {(Object.keys(MODE_CONFIG) as Array<keyof typeof MODE_CONFIG>).map((m) => {
         const config = MODE_CONFIG[m];
         const isActive = mode === m;
-
-        // Badge count for specific modes
-        let badgeCount = 0;
-        if (m === "INBOX" && unreadCount > 0) badgeCount = unreadCount;
-        if (m === "TICKETS" && ticketStats && ticketStats.myAssigned > 0) badgeCount = ticketStats.myAssigned;
 
         return (
           <button
@@ -122,22 +118,6 @@ function ModeTabs() {
           >
             <span>{config.icon}</span>
             <span>{config.label}</span>
-            {badgeCount > 0 && (
-              <span
-                style={{
-                  background: "#ef4444",
-                  color: "white",
-                  borderRadius: 10,
-                  padding: "1px 5px",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  minWidth: 16,
-                  textAlign: "center",
-                }}
-              >
-                {badgeCount > 99 ? "99+" : badgeCount}
-              </span>
-            )}
           </button>
         );
       })}
@@ -531,23 +511,17 @@ export function ChatPanel() {
         {/* Mode Tabs */}
         <ModeTabs />
 
-        {/* Mode-specific content */}
-        {mode === "INBOX" ? (
-          <InboxView />
-        ) : mode === "TICKETS" ? (
-          <TicketsView />
-        ) : (
-          <>
-            {/* Context Breadcrumbs - only for AI modes */}
-            <ChatBreadcrumbStripe breadcrumbs={breadcrumbs} />
+        {/* AI Chat Interface */}
+        <>
+          {/* Context Breadcrumbs */}
+          <ChatBreadcrumbStripe breadcrumbs={breadcrumbs} />
 
-            {/* Messages */}
-            <ChatMessages />
+          {/* Messages */}
+          <ChatMessages />
 
-            {/* Input */}
-            <ChatInput />
-          </>
-        )}
+          {/* Input */}
+          <ChatInput />
+        </>
       </div>
     </>
   );
