@@ -141,13 +141,20 @@ const scopeColors: Record<string, { bg: string; text: string; icon: string; desc
 };
 
 const roleColors: Record<string, { bg: string; text: string; label: string; icon: string; desc: string }> = {
-  IDENTITY: { bg: "#dbeafe", text: "#1e40af", label: "Identity", icon: "🎭", desc: "Who the agent is" },
-  CONTENT: { bg: "#d1fae5", text: "#065f46", label: "Content", icon: "📚", desc: "Domain knowledge/curriculum" },
-  VOICE: { bg: "#fef3c7", text: "#92400e", label: "Voice", icon: "🎤", desc: "Voice-specific guidance" },
-  MEASURE: { bg: "#fef9c3", text: "#854d0e", label: "Measure", icon: "📊", desc: "Measurement/scoring specs" },
-  ADAPT: { bg: "#ede9fe", text: "#5b21b6", label: "Adapt", icon: "🔄", desc: "Behavioral adaptation" },
-  REWARD: { bg: "#fce7f3", text: "#9d174d", label: "Reward", icon: "🏆", desc: "Reward computation" },
-  GUARDRAIL: { bg: "#fee2e2", text: "#991b1b", label: "Guardrail", icon: "🛡️", desc: "Safety constraints" },
+  // New taxonomy
+  ORCHESTRATE: { bg: "#dbeafe", text: "#1e40af", label: "Orchestrate", icon: "🎯", desc: "Flow/sequence control" },
+  EXTRACT: { bg: "#dcfce7", text: "#166534", label: "Extract", icon: "🔍", desc: "Measurement/learning" },
+  SYNTHESISE: { bg: "#fef3c7", text: "#92400e", label: "Synthesise", icon: "🧮", desc: "Combine/transform data" },
+  CONSTRAIN: { bg: "#fee2e2", text: "#991b1b", label: "Constrain", icon: "📏", desc: "Bounds/guardrails" },
+  IDENTITY: { bg: "#e0e7ff", text: "#4338ca", label: "Identity", icon: "👤", desc: "Agent personas" },
+  CONTENT: { bg: "#fce7f3", text: "#be185d", label: "Content", icon: "📚", desc: "Curriculum" },
+  VOICE: { bg: "#e0e7ff", text: "#4338ca", label: "Voice", icon: "🎙️", desc: "Voice guidance" },
+  // Deprecated (backward compatibility) - grayed out
+  MEASURE: { bg: "#f3f4f6", text: "#6b7280", label: "Measure (→Extract)", icon: "📊", desc: "DEPRECATED: Use EXTRACT" },
+  ADAPT: { bg: "#f3f4f6", text: "#6b7280", label: "Adapt (→Synthesise)", icon: "🔄", desc: "DEPRECATED: Use SYNTHESISE" },
+  REWARD: { bg: "#f3f4f6", text: "#6b7280", label: "Reward (→Synthesise)", icon: "⭐", desc: "DEPRECATED: Use SYNTHESISE" },
+  GUARDRAIL: { bg: "#f3f4f6", text: "#6b7280", label: "Guardrail (→Constrain)", icon: "🛡️", desc: "DEPRECATED: Use CONSTRAIN" },
+  BOOTSTRAP: { bg: "#f3f4f6", text: "#6b7280", label: "Bootstrap (→Orchestrate)", icon: "🔄", desc: "DEPRECATED: Use ORCHESTRATE" },
 };
 
 // =============================================================================
