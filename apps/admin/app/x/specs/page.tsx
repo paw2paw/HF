@@ -320,7 +320,19 @@ export default function SpecsPage() {
     setExpandedNodes(new Set([explorerTree.id]));
   }, [explorerTree]);
 
-  // Handle tree node double-click - navigate to spec
+  // Handle tree node selection - navigate to spec
+  const handleTreeNodeSelect = useCallback(
+    (node: TreeNode) => {
+      setSelectedTreeNode(node);
+      // Navigate to spec detail if it's a spec node
+      if (node.type === "spec" && node.meta?.specId) {
+        router.push(`/x/specs?id=${node.meta.specId}`, { scroll: false });
+      }
+    },
+    [router]
+  );
+
+  // Handle tree node double-click - same as single click for specs
   const handleTreeDoubleClick = useCallback(
     (node: TreeNode) => {
       if (node.type === "spec" && node.meta?.specId) {
@@ -336,7 +348,7 @@ export default function SpecsPage() {
     expandedNodes,
     selectedNode: selectedTreeNode,
     onToggleExpand: toggleNodeExpand,
-    onSelectNode: setSelectedTreeNode,
+    onSelectNode: handleTreeNodeSelect,
   });
 
   // Fetch tree when switching to tree view
@@ -1137,7 +1149,7 @@ export default function SpecsPage() {
                       expandedNodes={expandedNodes}
                       selectedNode={selectedTreeNode}
                       onToggle={toggleNodeExpand}
-                      onSelect={setSelectedTreeNode}
+                      onSelect={handleTreeNodeSelect}
                       onDoubleClick={handleTreeDoubleClick}
                     />
                   </div>
@@ -1306,10 +1318,20 @@ export default function SpecsPage() {
                       style={{ maxWidth: 300 }}
                       options={[
                         { value: "", label: "None" },
-                        { value: "IDENTITY", label: "IDENTITY", subtitle: "who the agent is" },
-                        { value: "CONTENT", label: "CONTENT", subtitle: "domain knowledge" },
-                        { value: "CONTEXT", label: "CONTEXT", subtitle: "caller-specific" },
-                        { value: "META", label: "META", subtitle: "legacy" },
+                        // New taxonomy
+                        { value: "ORCHESTRATE", label: "🎯 ORCHESTRATE", subtitle: "Flow/sequence control" },
+                        { value: "EXTRACT", label: "🔍 EXTRACT", subtitle: "Measurement/learning" },
+                        { value: "SYNTHESISE", label: "🧮 SYNTHESISE", subtitle: "Combine/transform data" },
+                        { value: "CONSTRAIN", label: "📏 CONSTRAIN", subtitle: "Bounds/guardrails" },
+                        { value: "IDENTITY", label: "👤 IDENTITY", subtitle: "Agent personas" },
+                        { value: "CONTENT", label: "📚 CONTENT", subtitle: "Curriculum" },
+                        { value: "VOICE", label: "🎙️ VOICE", subtitle: "Voice guidance" },
+                        // Deprecated (backward compatibility)
+                        { value: "MEASURE", label: "📊 MEASURE (deprecated)", subtitle: "Use EXTRACT instead" },
+                        { value: "ADAPT", label: "🔄 ADAPT (deprecated)", subtitle: "Use SYNTHESISE instead" },
+                        { value: "REWARD", label: "⭐ REWARD (deprecated)", subtitle: "Use SYNTHESISE instead" },
+                        { value: "GUARDRAIL", label: "🛡️ GUARDRAIL (deprecated)", subtitle: "Use CONSTRAIN instead" },
+                        { value: "BOOTSTRAP", label: "🔄 BOOTSTRAP (deprecated)", subtitle: "Use ORCHESTRATE instead" },
                       ]}
                     />
                   </div>
