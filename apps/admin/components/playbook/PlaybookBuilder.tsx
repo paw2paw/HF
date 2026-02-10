@@ -8,6 +8,7 @@ import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider"
 import { DraggableTabs, TabDefinition } from "@/components/shared/DraggableTabs";
 import { useEntityContext } from "@/contexts/EntityContext";
 import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
+import { SpecRoleBadge } from "@/components/shared/SpecRoleBadge";
 
 type ScoringAnchor = {
   id: string;
@@ -57,7 +58,7 @@ type SpecDetail = {
   scope: "CALLER" | "DOMAIN" | "SYSTEM";
   specType: "SYSTEM" | "DOMAIN";
   outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
-  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
+  specRole: "ORCHESTRATE" | "EXTRACT" | "SYNTHESISE" | "CONSTRAIN" | "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL" | "BOOTSTRAP";
   domain: string | null;
   priority: number;
   isActive: boolean;
@@ -75,7 +76,7 @@ type Spec = {
   scope: "CALLER" | "DOMAIN" | "SYSTEM";
   specType: "SYSTEM" | "DOMAIN";
   outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
-  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
+  specRole: "ORCHESTRATE" | "EXTRACT" | "SYNTHESISE" | "CONSTRAIN" | "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL" | "BOOTSTRAP";
   domain: string | null;
   priority: number;
   isActive?: boolean;
@@ -299,7 +300,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [expandedSlugNodes, setExpandedSlugNodes] = useState<Set<string>>(new Set());
 
   // Global filter for stats across tabs
-  // Filter by specRole/category: IDENTITY, CONTENT, VOICE, MEASURE, LEARN, ADAPT
+  // Filter by specRole/category: ORCHESTRATE, EXTRACT, SYNTHESISE, CONSTRAIN, IDENTITY, CONTENT, VOICE
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [parameterSearch, setParameterSearch] = useState("");
 
@@ -1413,26 +1414,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     );
   };
 
-  const specRoleBadge = (specRole?: string) => {
-    if (!specRole) return null;
-    const styles: Record<string, { bg: string; color: string; label: string }> = {
-      // COMPOSE spec roles (for prompt assembly)
-      IDENTITY: { bg: "var(--badge-blue-bg)", color: "var(--status-info-text)", label: "WHO" },
-      CONTENT: { bg: "var(--status-success-bg)", color: "var(--status-success-text)", label: "WHAT" },
-      VOICE: { bg: "var(--status-warning-bg)", color: "var(--status-warning-text)", label: "VOICE" },
-      MEASURE: { bg: "var(--status-success-bg)", color: "var(--status-success-text)", label: "MEASURE" },
-      ADAPT: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", label: "ADAPT" },
-      REWARD: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", label: "REWARD" },
-      GUARDRAIL: { bg: "var(--status-error-bg)", color: "var(--status-error-text)", label: "GUARD" },
-    };
-    const fallback = { bg: "var(--surface-secondary)", color: "var(--text-muted)", label: specRole };
-    const s = styles[specRole] || fallback;
-    return (
-      <span style={{ fontSize: 8, padding: "1px 4px", background: s.bg, color: s.color, borderRadius: 3, fontWeight: 600 }}>
-        {s.label}
-      </span>
-    );
-  };
+  // Removed old specRoleBadge - now using SpecRoleBadge component from @/components/shared/SpecRoleBadge
 
   const scopeBadge = (scope: string) => {
     const styles: Record<string, { bg: string; color: string }> = {
@@ -1496,17 +1478,20 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   // CONTENT: What the AI knows/teaches
   const contentItems = domainItems.filter(item => item.spec?.specRole === "CONTENT");
 
-  // CALLER: Understanding the caller (everything else - MEASURE, ADAPT, REWARD, LEARN specs)
+  // CALLER: Understanding the caller (EXTRACT, SYNTHESISE, CONSTRAIN specs + old deprecated roles)
   // Exclude items already in AGENT or CONTENT to ensure no duplicates
   const agentItemIds = new Set(agentItems.map(i => i.id));
   const contentItemIds = new Set(contentItems.map(i => i.id));
   const callerItems = domainItems.filter(item =>
     !agentItemIds.has(item.id) &&
     !contentItemIds.has(item.id) &&
-    (item.spec?.specRole === "MEASURE" ||
-     item.spec?.specRole === "ADAPT" ||
-     item.spec?.specRole === "REWARD" ||
-     item.spec?.specRole === "GUARDRAIL" ||
+    (item.spec?.specRole === "EXTRACT" ||
+     item.spec?.specRole === "SYNTHESISE" ||
+     item.spec?.specRole === "CONSTRAIN" ||
+     item.spec?.specRole === "MEASURE" ||  // deprecated
+     item.spec?.specRole === "ADAPT" ||     // deprecated
+     item.spec?.specRole === "REWARD" ||    // deprecated
+     item.spec?.specRole === "GUARDRAIL" || // deprecated
      item.spec?.outputType === "LEARN" ||
      item.spec?.outputType === "MEASURE" ||
      item.spec?.outputType === "MEASURE_AGENT" ||
@@ -1532,10 +1517,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     s.specRole === "IDENTITY" || s.specRole === "VOICE"
   ) || [];
   const availableCallerSpecs = availableItems?.domainSpecs.filter(s =>
-    s.specRole === "MEASURE" ||
-    s.specRole === "ADAPT" ||
-    s.specRole === "REWARD" ||
-    s.specRole === "GUARDRAIL" ||
+    s.specRole === "EXTRACT" ||
+    s.specRole === "SYNTHESISE" ||
+    s.specRole === "CONSTRAIN" ||
+    s.specRole === "MEASURE" ||      // deprecated
+    s.specRole === "ADAPT" ||        // deprecated
+    s.specRole === "REWARD" ||       // deprecated
+    s.specRole === "GUARDRAIL" ||    // deprecated
     s.outputType === "LEARN" ||
     s.outputType === "MEASURE" ||
     s.outputType === "MEASURE_AGENT" ||
@@ -1551,7 +1539,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     (s.specRole === "IDENTITY" || s.specRole === "VOICE") && systemSpecToggles.get(s.id) !== false
   );
   const systemCallerSpecs = (availableItems?.systemSpecs || []).filter(s =>
-    (s.specRole === "MEASURE" || s.specRole === "ADAPT" || s.specRole === "REWARD" || s.specRole === "GUARDRAIL" ||
+    (s.specRole === "EXTRACT" || s.specRole === "SYNTHESISE" || s.specRole === "CONSTRAIN" ||
+     s.specRole === "MEASURE" || s.specRole === "ADAPT" || s.specRole === "REWARD" || s.specRole === "GUARDRAIL" ||  // deprecated
      s.outputType === "LEARN" || s.outputType === "MEASURE" || s.outputType === "MEASURE_AGENT" || s.outputType === "AGGREGATE" ||
      s.outputType === "REWARD" || s.outputType === "SUPERVISE") && systemSpecToggles.get(s.id) !== false
   );
@@ -2275,16 +2264,23 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   grouped.get(group)!.push(spec);
                 }
 
-                // Category order and labels
-                const specRoleOrder = ["IDENTITY", "CONTENT", "VOICE", "MEASURE", "ADAPT", "GUARDRAIL", "REWARD"];
+                // Category order and labels (new + deprecated roles)
+                const specRoleOrder = ["ORCHESTRATE", "IDENTITY", "CONTENT", "VOICE", "EXTRACT", "SYNTHESISE", "CONSTRAIN", "MEASURE", "ADAPT", "GUARDRAIL", "REWARD", "BOOTSTRAP"];
                 const specRoleLabels: Record<string, string> = {
-                  IDENTITY: "🎭 WHO (Identity)",
-                  CONTENT: "📚 WHAT (Content)",
-                  VOICE: "🗣️ SPEECH (Voice)",
-                  MEASURE: "📊 OBSERVE (Measure)",
-                  ADAPT: "🎯 ADJUST (Adapt)",
-                  GUARDRAIL: "🛡️ GUARD (Guardrail)",
-                  REWARD: "⭐ EVALUATE (Reward)",
+                  // New taxonomy
+                  ORCHESTRATE: "🎯 ORCHESTRATE (Flow Control)",
+                  EXTRACT: "🔍 EXTRACT (Measurement)",
+                  SYNTHESISE: "🧮 SYNTHESISE (Transform)",
+                  CONSTRAIN: "📏 CONSTRAIN (Guardrails)",
+                  IDENTITY: "👤 IDENTITY (Who)",
+                  CONTENT: "📚 CONTENT (Curriculum)",
+                  VOICE: "🎙️ VOICE (Speech)",
+                  // Deprecated (backward compatibility)
+                  MEASURE: "📊 MEASURE (deprecated → EXTRACT)",
+                  ADAPT: "🎯 ADAPT (deprecated → SYNTHESISE)",
+                  REWARD: "⭐ REWARD (deprecated → SYNTHESISE)",
+                  GUARDRAIL: "🛡️ GUARDRAIL (deprecated → CONSTRAIN)",
+                  BOOTSTRAP: "🔄 BOOTSTRAP (deprecated → ORCHESTRATE)",
                 };
                 const sortedGroups = Array.from(grouped.entries()).sort(
                   (a, b) => specRoleOrder.indexOf(a[0]) - specRoleOrder.indexOf(b[0])
@@ -2345,7 +2341,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 2, flexWrap: "wrap" }}>
-                                  {specRoleBadge(spec.specRole)}
+                                  <SpecRoleBadge role={spec.specRole} size="sm" showIcon={false} />
                                   {!isGloballyActive && (
                                     <span style={{
                                       fontSize: 9,
@@ -2569,7 +2565,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
-                    {specRoleBadge(spec.specRole)}
+                    <SpecRoleBadge role={spec.specRole} size="sm" showIcon={false} />
                     <Link href={`${routePrefix}/specs/${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
                   </div>
                   {spec.description && (
@@ -2675,7 +2671,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 2, flexWrap: "wrap" }}>
                           {item.spec && (
                             <>
-                              {specRoleBadge(item.spec.specRole)}
+                              <SpecRoleBadge role={item.spec.specRole} size="sm" showIcon={false} />
                               {item.spec.scope === "SYSTEM" && (
                                 <span style={{ fontSize: 8, padding: "1px 4px", background: "var(--surface-secondary)", color: "var(--text-muted)", borderRadius: 3, fontWeight: 600 }}>
                                   ⚙️
@@ -3334,7 +3330,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
-                    {specRoleBadge(spec.specRole)}
+                    <SpecRoleBadge role={spec.specRole} size="sm" showIcon={false} />
                     <Link href={`${routePrefix}/specs/${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
                   </div>
                   {spec.description && (
@@ -4424,7 +4420,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                               <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                                                {specRoleBadge(specNode.meta?.specRole || spec?.specRole)}
+                                                <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
                                                 {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
                                                 {!isGloballyActive && (
                                                   <span style={{
@@ -4559,7 +4555,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                           <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                                            {specRoleBadge(specNode.meta?.specRole || spec?.specRole)}
+                                            <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
                                             {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
                                           </div>
                                           <Link
