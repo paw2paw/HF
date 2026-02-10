@@ -13,6 +13,7 @@ import {
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
 import { SpecPill, ParameterPill, DomainPill, StatusBadge } from "@/src/components/shared/EntityPill";
+import { SpecRoleBadge, getSpecEditorRoute, requiresSpecialEditor } from "@/components/shared/SpecRoleBadge";
 
 type Spec = {
   id: string;
@@ -87,6 +88,7 @@ type SpecDetail = {
   isActive: boolean;
   isLocked: boolean;
   lockedReason: string | null;
+  isDeletable: boolean;
   priority: number;
   version: string | null;
   compiledAt: string | null;
@@ -517,6 +519,16 @@ export default function SpecsPage() {
   });
 
   const selectSpec = (id: string) => {
+    // Check if this spec requires a special editor (ORCHESTRATE, SYNTHESISE, CONSTRAIN)
+    const selectedSpec = specs.find(s => s.id === id);
+    if (selectedSpec && requiresSpecialEditor(selectedSpec.specRole)) {
+      // Redirect to special editor
+      const editorRoute = getSpecEditorRoute(selectedSpec.slug, selectedSpec.specRole);
+      router.push(editorRoute);
+      return;
+    }
+
+    // Normal spec detail view
     router.push(`/x/specs?id=${id}`, { scroll: false });
   };
 
@@ -1059,7 +1071,7 @@ export default function SpecsPage() {
                           transition: "border-color 0.15s, box-shadow 0.15s",
                         }}
                       >
-                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
                           <span
                             style={{
                               fontSize: 10,
@@ -1084,6 +1096,7 @@ export default function SpecsPage() {
                           >
                             {s.outputType}
                           </span>
+                          {s.specRole && <SpecRoleBadge role={s.specRole} size="sm" />}
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{s.name}</div>
                         <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
@@ -1196,6 +1209,11 @@ export default function SpecsPage() {
                 {spec.isLocked && (
                   <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#fee2e2", color: "#b91c1c" }}>
                     Locked
+                  </span>
+                )}
+                {spec.isDeletable === false && (
+                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>
+                    🔒 Cannot Delete
                   </span>
                 )}
                 {!spec.isActive && (
