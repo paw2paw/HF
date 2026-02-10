@@ -15,7 +15,9 @@
   },
   "context": {
     "applies": "All voice conversations after initial greeting phase",
-    "dependsOn": ["PERS-001"],
+    "dependsOn": [
+      "PERS-001"
+    ],
     "assumptions": [
       "Caller has been in conversation for at least 60 seconds",
       "Audio quality is sufficient for prosodic analysis",
@@ -30,7 +32,9 @@
       "when": "The system analyzes the caller's linguistic and prosodic features",
       "then": "A cognitive activation score between 0-1 is produced within 500ms",
       "rationale": "Real-time engagement metrics enable dynamic conversation adaptation",
-      "measuredBy": ["CP-004"],
+      "measuredBy": [
+        "CP-004"
+      ],
       "thresholds": {
         "latency": {
           "value": 500,
@@ -47,7 +51,9 @@
       "when": "Turn durations and interruption patterns are analyzed",
       "then": "Conversation dominance ratio is calculated accurately",
       "rationale": "Understanding who controls the conversation helps calibrate agent behavior",
-      "measuredBy": ["CONV_DOM"],
+      "measuredBy": [
+        "CONV_DOM"
+      ],
       "thresholds": {
         "accuracy": {
           "value": 0.85,
@@ -63,7 +69,9 @@
       "when": "Tone and linguistic markers are analyzed",
       "then": "Assertiveness level is measured on 0-1 scale",
       "rationale": "Assertiveness affects how the agent should phrase recommendations",
-      "measuredBy": ["TONE_ASSERT"]
+      "measuredBy": [
+        "TONE_ASSERT"
+      ]
     },
     {
       "id": "AC-CA-004",
@@ -72,7 +80,9 @@
       "when": "Conversation pace score is computed",
       "then": "Agent response timing adapts to match caller pace",
       "rationale": "Matching pace creates rapport and improves engagement",
-      "measuredBy": ["CONV_PACE"]
+      "measuredBy": [
+        "CONV_PACE"
+      ]
     }
   ],
   "constraints": [
@@ -238,7 +248,9 @@
         "whenMedium": "Caller is moderately engaged. Use clear explanations with occasional technical terms when helpful. Offer to elaborate on complex points if they want more detail.",
         "promptTemplate": "{{#if (gte cognitive_activation 0.7)}}The caller is highly engaged and processing information deeply. Feel free to present nuanced options and invite their analysis.{{else if (lte cognitive_activation 0.3)}}The caller seems to have low engagement right now. Keep responses simple and check for understanding frequently.{{else}}The caller is moderately engaged. Balance clarity with appropriate detail.{{/if}}"
       },
-      "usedBy": ["AC-CA-001"]
+      "usedBy": [
+        "AC-CA-001"
+      ]
     },
     {
       "id": "CONV_DOM",
@@ -337,7 +349,9 @@
         "whenMedium": "Conversation balance is healthy. Continue current approach while monitoring for shifts.",
         "promptTemplate": "{{#if (gte conversation_dominance 0.7)}}Let the caller lead - they have a lot to share. Focus on active listening and targeted clarifications.{{else if (lte conversation_dominance 0.3)}}Create more space for the caller to participate. Ask what questions they have and pause for their input.{{/if}}"
       },
-      "usedBy": ["AC-CA-002"]
+      "usedBy": [
+        "AC-CA-002"
+      ]
     },
     {
       "id": "TONE_ASSERT",
@@ -442,7 +456,9 @@
         "whenMedium": "Standard assertiveness level. Use balanced communication that's neither overly formal nor too casual.",
         "promptTemplate": "{{#if (gte assertiveness_level 0.7)}}Be direct and efficient with this caller. They know what they want - don't over-explain or add unnecessary pleasantries.{{else if (lte assertiveness_level 0.3)}}This caller may need encouragement to express preferences. Ask open questions and validate their input.{{/if}}"
       },
-      "usedBy": ["AC-CA-003"]
+      "usedBy": [
+        "AC-CA-003"
+      ]
     },
     {
       "id": "CONV_PACE",
@@ -541,7 +557,9 @@
         "whenMedium": "Standard conversation pace. Use normal response timing and pacing.",
         "promptTemplate": "{{#if (gte conversation_pace 0.7)}}This caller speaks quickly - match their pace with concise responses.{{else if (lte conversation_pace 0.3)}}This caller is deliberate - don't rush them, allow pauses for processing.{{/if}}"
       },
-      "usedBy": ["AC-CA-004"]
+      "usedBy": [
+        "AC-CA-004"
+      ]
     }
   ],
   "workedExamples": [
@@ -588,5 +606,6 @@
       "title": "Caller Memory Extraction",
       "relationship": "feeds - engagement patterns inform memory importance weighting"
     }
-  ]
+  ],
+  "specRole": "EXTRACT"
 }

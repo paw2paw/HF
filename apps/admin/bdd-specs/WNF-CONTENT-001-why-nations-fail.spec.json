@@ -2,28 +2,27 @@
   "id": "WNF-CONTENT-001",
   "title": "Why Nations Fail Curriculum",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-01-31",
   "domain": "content",
   "specType": "DOMAIN",
   "specRole": "CONTENT",
-
   "story": {
     "asA": "curriculum provider",
     "iWant": "to define the complete study material for Why Nations Fail by Acemoglu & Robinson",
     "soThat": "tutors can guide learners through the book's core arguments and case studies"
   },
-
   "context": {
     "applies": "Playbooks teaching Why Nations Fail content",
-    "dependsOn": ["TUT-WNF-001"],
+    "dependsOn": [
+      "TUT-WNF-001"
+    ],
     "assumptions": [
       "This spec defines WHAT is taught - the study material",
       "Identity specs define HOW to teach it",
       "Tutor must ONLY use content from this spec - no invented facts"
     ]
   },
-
   "parameters": [
     {
       "id": "book_metadata",
@@ -32,7 +31,10 @@
       "section": "structure",
       "config": {
         "title": "Why Nations Fail: The Origins of Power, Prosperity, and Poverty",
-        "authors": ["Daron Acemoglu", "James A. Robinson"],
+        "authors": [
+          "Daron Acemoglu",
+          "James A. Robinson"
+        ],
         "authorCredentials": {
           "acemoglu": "MIT economist",
           "robinson": "University of Chicago political scientist"
@@ -83,12 +85,23 @@
           "arizona": {
             "side": "US",
             "income": "$30,000 average household",
-            "characteristics": ["Most adults finished high school", "Access to electricity, sewage, public health, roads", "Low crime", "Citizens can vote and expect law enforcement to be accountable"]
+            "characteristics": [
+              "Most adults finished high school",
+              "Access to electricity, sewage, public health, roads",
+              "Low crime",
+              "Citizens can vote and expect law enforcement to be accountable"
+            ]
           },
           "sonora": {
             "side": "Mexico",
             "income": "$10,000 average household",
-            "characteristics": ["High infant mortality", "Unreliable public services", "Corruption endemic", "Rule of law weaker", "Organised crime more present"]
+            "characteristics": [
+              "High infant mortality",
+              "Unreliable public services",
+              "Corruption endemic",
+              "Rule of law weaker",
+              "Organised crime more present"
+            ]
           }
         },
         "explanation": "The border marks an institutional line, not a natural one. The US side has inclusive political institutions (democracy, rule of law, accountability) that created inclusive economic institutions (property rights, public investment, opportunity). The Mexican side inherited extractive institutions from Spanish colonialism - elite control, weak property rights, corruption - that persisted even after independence.",
@@ -368,7 +381,6 @@
       }
     }
   ],
-
   "constraints": [
     {
       "id": "C-WNF-1",
@@ -395,9 +407,16 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "TUT-WNF-001", "title": "WNF Tutor Identity", "relationship": "defines how this content is taught" },
-    { "id": "CURR-001", "title": "Curriculum Tracking", "relationship": "tracks progress through this curriculum" }
+    {
+      "id": "TUT-WNF-001",
+      "title": "WNF Tutor Identity",
+      "relationship": "defines how this content is taught"
+    },
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Tracking",
+      "relationship": "tracks progress through this curriculum"
+    }
   ]
 }

@@ -2,20 +2,18 @@
   "id": "TUT-QM-001",
   "title": "Quantum Mechanics Session Tutor",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-06",
   "domain": "identity",
   "specType": "DOMAIN",
-  "specRole": "IDENTITY",
+  "specRole": "CONTENT",
   "agentScope": "DOMAIN",
   "extendsAgent": "TUT-001",
-
   "story": {
     "asA": "conversational tutor",
     "iWant": "to have a clear identity with specific teaching behaviors for quantum mechanics",
     "soThat": "learners build genuine intuition for counterintuitive quantum phenomena"
   },
-
   "context": {
     "applies": "Playbooks for Quantum Mechanics tutoring sessions",
     "dependsOn": [],
@@ -26,7 +24,6 @@
       "Quantum concepts require intuition BEFORE formalism"
     ]
   },
-
   "parameters": [
     {
       "id": "core_identity",
@@ -327,7 +324,6 @@
       }
     }
   ],
-
   "constraints": [
     {
       "id": "C-TUT-QM-1",
@@ -366,10 +362,21 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "QM-CONTENT-001", "title": "Quantum Mechanics Curriculum", "relationship": "content this tutor teaches" },
-    { "id": "TUT-001", "title": "Generic Tutor Identity", "relationship": "base identity this extends" },
-    { "id": "CURR-001", "title": "Curriculum Tracking", "relationship": "tracks learner progress" }
+    {
+      "id": "QM-CONTENT-001",
+      "title": "Quantum Mechanics Curriculum",
+      "relationship": "content this tutor teaches"
+    },
+    {
+      "id": "TUT-001",
+      "title": "Generic Tutor Identity",
+      "relationship": "base identity this extends"
+    },
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Tracking",
+      "relationship": "tracks learner progress"
+    }
   ]
 }

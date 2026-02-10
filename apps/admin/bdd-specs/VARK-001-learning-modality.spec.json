@@ -15,7 +15,9 @@
   },
   "context": {
     "applies": "All learning-oriented conversations - modality assessment runs continuously",
-    "dependsOn": ["PERS-001"],
+    "dependsOn": [
+      "PERS-001"
+    ],
     "assumptions": [
       "Sufficient conversational turns to establish modality patterns",
       "Caller is speaking naturally about learning topics",
@@ -31,7 +33,9 @@
       "when": "The system analyzes spatial language and visualization requests",
       "then": "A Visual modality score between 0-1 is produced",
       "rationale": "Visual learners process information best through mental imagery and spatial relationships",
-      "measuredBy": ["VARK-V"]
+      "measuredBy": [
+        "VARK-V"
+      ]
     },
     {
       "id": "AC-VARK-002",
@@ -40,7 +44,9 @@
       "when": "The system analyzes verbal processing patterns and sound-based language",
       "then": "An Auditory modality score between 0-1 is produced",
       "rationale": "Auditory learners process information best through verbal explanation and discussion",
-      "measuredBy": ["VARK-A"]
+      "measuredBy": [
+        "VARK-A"
+      ]
     },
     {
       "id": "AC-VARK-003",
@@ -49,7 +55,9 @@
       "when": "The system analyzes text-oriented language and structured thinking patterns",
       "then": "A Reading/Writing modality score between 0-1 is produced",
       "rationale": "Read/Write learners process information best through written words and structured text",
-      "measuredBy": ["VARK-R"]
+      "measuredBy": [
+        "VARK-R"
+      ]
     },
     {
       "id": "AC-VARK-004",
@@ -58,7 +66,9 @@
       "when": "The system analyzes experiential language and action-oriented requests",
       "then": "A Kinesthetic modality score between 0-1 is produced",
       "rationale": "Kinesthetic learners process information best through physical experience and practice",
-      "measuredBy": ["VARK-K"]
+      "measuredBy": [
+        "VARK-K"
+      ]
     },
     {
       "id": "AC-VARK-005",
@@ -67,7 +77,9 @@
       "when": "The system determines the caller's modality profile",
       "then": "A multimodal classification is produced (unimodal, bimodal, trimodal, or quadmodal)",
       "rationale": "Most learners have multiple strong modalities; knowing the combination guides adaptation",
-      "measuredBy": ["VARK-PROFILE"]
+      "measuredBy": [
+        "VARK-PROFILE"
+      ]
     }
   ],
   "constraints": [
@@ -276,7 +288,9 @@
         "whenMedium": "Include some visual elements and spatial organization, but balance with other approaches. Offer to 'paint a picture' if helpful.",
         "promptTemplate": "{{#if (gte visual_modality 0.65)}}Paint mental pictures for this visual learner. Use phrases like 'imagine you can see...' and organize concepts spatially. Describe relationships as visual structures.{{else if (lte visual_modality 0.3)}}This learner doesn't process visually - focus on verbal explanation or hands-on examples instead.{{/if}}"
       },
-      "usedBy": ["AC-VARK-001"]
+      "usedBy": [
+        "AC-VARK-001"
+      ]
     },
     {
       "id": "VARK-A",
@@ -438,7 +452,9 @@
         "whenMedium": "Balance verbal explanation with other modalities. Some discussion and verbal elaboration, but don't make it the only approach.",
         "promptTemplate": "{{#if (gte auditory_modality 0.65)}}Use rich verbal elaboration with this auditory learner. Encourage them to talk through their understanding. Ask 'does this sound right?' and offer to repeat key points.{{else if (lte auditory_modality 0.3)}}Keep verbal explanations concise - this learner prefers other modalities.{{/if}}"
       },
-      "usedBy": ["AC-VARK-002"]
+      "usedBy": [
+        "AC-VARK-002"
+      ]
     },
     {
       "id": "VARK-R",
@@ -601,7 +617,9 @@
         "whenMedium": "Provide some structure and definitions, but balance with verbal and experiential elements. Offer to summarize key points.",
         "promptTemplate": "{{#if (gte reading_writing_modality 0.65)}}Use precise definitions and structured lists with this Read/Write learner. Organize information hierarchically. Offer summaries and recommend reading resources.{{else if (lte reading_writing_modality 0.3)}}Keep it conversational - this learner doesn't need formal definitions or extensive text structure.{{/if}}"
       },
-      "usedBy": ["AC-VARK-003"]
+      "usedBy": [
+        "AC-VARK-003"
+      ]
     },
     {
       "id": "VARK-K",
@@ -769,7 +787,9 @@
         "whenMedium": "Include practical examples and some hands-on elements, but balance with other modalities. Offer to work through applications when it would help.",
         "promptTemplate": "{{#if (gte kinesthetic_modality 0.65)}}Use action and experience with this kinesthetic learner. Ground concepts in practical application. Ask 'how does that feel?' Use physical metaphors and offer practice exercises.{{else if (lte kinesthetic_modality 0.3)}}Theoretical explanation works well - this learner doesn't need extensive practice to understand.{{/if}}"
       },
-      "usedBy": ["AC-VARK-004"]
+      "usedBy": [
+        "AC-VARK-004"
+      ]
     },
     {
       "id": "VARK-PROFILE",
@@ -839,7 +859,9 @@
         "whenMedium": "Blend 2-3 modalities based on relative strengths. Lead with strongest, support with secondary.",
         "promptTemplate": "{{#if (gte multimodal_profile 0.75)}}This quadmodal learner processes through all channels - vary your approach: visuals, discussion, lists, and practice.{{else if (lte multimodal_profile 0.25)}}This unimodal learner has one clear preference - focus on their dominant modality.{{else}}Blend multiple approaches, leading with strongest modalities.{{/if}}"
       },
-      "usedBy": ["AC-VARK-005"]
+      "usedBy": [
+        "AC-VARK-005"
+      ]
     }
   ],
   "workedExamples": [
@@ -932,5 +954,6 @@
       "title": "Prompt Composition",
       "relationship": "consumedBy - VARK guidance injected into prompts"
     }
-  ]
+  ],
+  "specRole": "EXTRACT"
 }

@@ -15,7 +15,9 @@
   },
   "context": {
     "applies": "All voice conversations - memory extraction runs continuously",
-    "dependsOn": ["PERS-001"],
+    "dependsOn": [
+      "PERS-001"
+    ],
     "assumptions": [
       "Caller has consented to information being stored",
       "Extracted memories are verified before permanent storage",
@@ -30,7 +32,9 @@
       "when": "The system identifies factual statements about the caller",
       "then": "Personal facts are extracted with confidence scores and categories",
       "rationale": "Personal facts enable personalized service and relationship building",
-      "measuredBy": ["MEM_FACTS"]
+      "measuredBy": [
+        "MEM_FACTS"
+      ]
     },
     {
       "id": "AC-MEM-002",
@@ -39,7 +43,9 @@
       "when": "The system identifies preference statements",
       "then": "Preferences are captured with polarity and strength",
       "rationale": "Knowing preferences allows proactive personalization",
-      "measuredBy": ["MEM_PREFS"]
+      "measuredBy": [
+        "MEM_PREFS"
+      ]
     },
     {
       "id": "AC-MEM-003",
@@ -48,7 +54,9 @@
       "when": "The system identifies situational context",
       "then": "Context is captured with relevance and time-sensitivity flags",
       "rationale": "Situational context enables empathetic and relevant responses",
-      "measuredBy": ["MEM_CONTEXT"]
+      "measuredBy": [
+        "MEM_CONTEXT"
+      ]
     },
     {
       "id": "AC-MEM-004",
@@ -57,7 +65,9 @@
       "when": "The system identifies relationship references",
       "then": "Relationships are mapped with roles and importance",
       "rationale": "Understanding relationships enables more natural conversation",
-      "measuredBy": ["MEM_RELATIONS"]
+      "measuredBy": [
+        "MEM_RELATIONS"
+      ]
     },
     {
       "id": "AC-MEM-005",
@@ -66,7 +76,9 @@
       "when": "The system evaluates each memory for storage",
       "then": "Each memory is scored for importance and replay priority",
       "rationale": "Prioritizing important memories prevents information overload",
-      "measuredBy": ["MEM_IMPORTANCE"]
+      "measuredBy": [
+        "MEM_IMPORTANCE"
+      ]
     }
   ],
   "constraints": [
@@ -221,7 +233,9 @@
         "whenMedium": "Moderate quality facts. Store with appropriate confidence level. Can reference but be open to correction.",
         "promptTemplate": "{{#if (gte personal_facts 0.7)}}Remember: {{extracted_fact}} (high confidence){{else if (lte personal_facts 0.4)}}[Fact too vague to store reliably]{{/if}}"
       },
-      "usedBy": ["AC-MEM-001"]
+      "usedBy": [
+        "AC-MEM-001"
+      ]
     },
     {
       "id": "MEM_PREFS",
@@ -332,7 +346,9 @@
         "whenMedium": "Clear preference worth noting. Respect it when possible but it's not critical.",
         "promptTemplate": "{{#if (gte preferences 0.8)}}IMPORTANT: Caller strongly prefers {{preference}} - always honor this.{{else if (gte preferences 0.5)}}Preference noted: {{preference}}{{/if}}"
       },
-      "usedBy": ["AC-MEM-002"]
+      "usedBy": [
+        "AC-MEM-002"
+      ]
     },
     {
       "id": "MEM_CONTEXT",
@@ -443,7 +459,9 @@
         "whenMedium": "Relevant situation worth remembering. May inform how you approach the interaction.",
         "promptTemplate": "{{#if (gte situational_context 0.8)}}SENSITIVE: Caller is dealing with {{context}} - approach with care and prioritize.{{else if (gte situational_context 0.5)}}Context: {{context}} - may be relevant to this interaction.{{/if}}"
       },
-      "usedBy": ["AC-MEM-003"]
+      "usedBy": [
+        "AC-MEM-003"
+      ]
     },
     {
       "id": "MEM_RELATIONS",
@@ -554,7 +572,9 @@
         "whenMedium": "Notable relationship worth remembering for personalized conversation.",
         "promptTemplate": "{{#if (gte relationships 0.7)}}Key relationship: {{person_name}} ({{relationship}}) - remember for future interactions{{/if}}"
       },
-      "usedBy": ["AC-MEM-004"]
+      "usedBy": [
+        "AC-MEM-004"
+      ]
     },
     {
       "id": "MEM_IMPORTANCE",
@@ -676,7 +696,9 @@
         "whenMedium": "Worthwhile memory to store. Include in profile but don't prioritize over higher-importance items.",
         "promptTemplate": "{{#if (gte memory_importance 0.7)}}PRIORITY MEMORY: Store and surface in future interactions{{else if (lte memory_importance 0.3)}}Low priority - consider discarding{{/if}}"
       },
-      "usedBy": ["AC-MEM-005"]
+      "usedBy": [
+        "AC-MEM-005"
+      ]
     }
   ],
   "workedExamples": [
@@ -723,5 +745,6 @@
       "title": "Cognitive Activation Assessment",
       "relationship": "informs - engagement level affects memory extraction quality"
     }
-  ]
+  ],
+  "specRole": "EXTRACT"
 }

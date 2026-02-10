@@ -2,18 +2,16 @@
   "id": "COMP-IX-001",
   "title": "Interests & Expertise Mapping",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "LEARN",
-
   "story": {
     "asA": "companion assistant",
     "iWant": "to map the person's intellectual interests, expertise areas, and curiosities",
     "soThat": "I can provide stimulating conversation on topics they care about"
   },
-
   "context": {
     "applies": "When topics of interest emerge in conversation",
     "dependsOn": [],
@@ -23,7 +21,6 @@
       "Current curiosities indicate topics to explore together"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-IX-1",
@@ -31,7 +28,9 @@
       "given": "The person discusses topics they care about",
       "when": "Intellectual interests are expressed",
       "then": "Extract and categorize intellectual interests",
-      "measuredBy": ["interest_extraction"]
+      "measuredBy": [
+        "interest_extraction"
+      ]
     },
     {
       "id": "AC-COMP-IX-2",
@@ -39,10 +38,11 @@
       "given": "The person demonstrates knowledge in an area",
       "when": "Professional or deep expertise emerges",
       "then": "Extract expertise areas for future reference",
-      "measuredBy": ["expertise_extraction"]
+      "measuredBy": [
+        "expertise_extraction"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "interest_extraction",
@@ -85,7 +85,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Interest Extraction",
@@ -120,10 +119,13 @@
       ]
     }
   ],
-
   "constraints": [],
-
   "related": [
-    { "id": "COMP-IS-001", "title": "Intellectual Stimulation", "relationship": "interests inform stimulation opportunities" }
-  ]
+    {
+      "id": "COMP-IS-001",
+      "title": "Intellectual Stimulation",
+      "relationship": "interests inform stimulation opportunities"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

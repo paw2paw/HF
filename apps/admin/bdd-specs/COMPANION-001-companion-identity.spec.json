@@ -18,7 +18,11 @@
       "Seniors who want a peer-like conversational partner",
       "People seeking companionship that respects their intelligence"
     ],
-    "dependsOn": ["VOICE-001", "PERS-001", "MEM-001"],
+    "dependsOn": [
+      "VOICE-001",
+      "PERS-001",
+      "MEM-001"
+    ],
     "assumptions": [
       "Caller has rich life experiences worth exploring",
       "Caller values substantive conversation over small talk",

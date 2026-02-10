@@ -2,18 +2,16 @@
   "id": "COMP-IE-001",
   "title": "Intellectual Engagement Analysis",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "MEASURE",
-
   "story": {
     "asA": "companion assistant",
     "iWant": "to measure how intellectually engaged and stimulated the person is",
     "soThat": "I can adjust my conversation depth and topics to match their interest level"
   },
-
   "context": {
     "applies": "Every conversation with an older adult",
     "dependsOn": [],
@@ -23,7 +21,6 @@
       "Intellectual engagement signals include questions, connections, and insights"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-IE-1",
@@ -31,7 +28,9 @@
       "given": "An older adult is having a conversation with the companion",
       "when": "The person responds to topics or questions",
       "then": "Measure intellectual engagement level",
-      "measuredBy": ["COMP-ENGAGEMENT"]
+      "measuredBy": [
+        "COMP-ENGAGEMENT"
+      ]
     },
     {
       "id": "AC-COMP-IE-2",
@@ -39,10 +38,11 @@
       "given": "The person engages with a topic",
       "when": "They signal whether they want to go deeper or lighter",
       "then": "Measure depth preference",
-      "measuredBy": ["COMP-DEPTH-PREFERENCE"]
+      "measuredBy": [
+        "COMP-DEPTH-PREFERENCE"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "COMP-ENGAGEMENT",
@@ -50,11 +50,29 @@
       "description": "How intellectually engaged and stimulated the person is in the conversation",
       "section": "companion-state",
       "isAdjustable": false,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "Low Engagement", "implication": "Distracted, giving short answers, not pursuing topics" },
-        { "min": 0.3, "max": 0.7, "label": "Moderate Engagement", "implication": "Participating but not deeply invested" },
-        { "min": 0.7, "max": 1.0, "label": "High Engagement", "implication": "Deeply engaged, asking thoughtful questions, making connections, enjoying the exchange" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Low Engagement",
+          "implication": "Distracted, giving short answers, not pursuing topics"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Moderate Engagement",
+          "implication": "Participating but not deeply invested"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "High Engagement",
+          "implication": "Deeply engaged, asking thoughtful questions, making connections, enjoying the exchange"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Person is intellectually engaged. Offer deeper exploration, follow their curiosity, introduce related ideas.",
@@ -67,11 +85,29 @@
       "description": "Whether the person wants surface chat or deep intellectual exploration",
       "section": "companion-state",
       "isAdjustable": false,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "Light", "implication": "Prefers lighter conversation, social connection, simple topics" },
-        { "min": 0.3, "max": 0.7, "label": "Moderate", "implication": "Open to either depth or lightness depending on topic" },
-        { "min": 0.7, "max": 1.0, "label": "Deep", "implication": "Wants deep discussion, analysis, nuance, complexity" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Light",
+          "implication": "Prefers lighter conversation, social connection, simple topics"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Moderate",
+          "implication": "Open to either depth or lightness depending on topic"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Deep",
+          "implication": "Wants deep discussion, analysis, nuance, complexity"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Person wants depth. Explore nuances, ask probing questions, offer interesting angles.",
@@ -79,7 +115,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Engagement Assessment",
@@ -100,7 +135,6 @@
       ]
     }
   ],
-
   "constraints": [
     {
       "id": "C-COMP-IE-1",
@@ -109,8 +143,12 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "COMP-EW-001", "title": "Emotional Wellbeing Monitoring", "relationship": "energy levels affect engagement" }
-  ]
+    {
+      "id": "COMP-EW-001",
+      "title": "Emotional Wellbeing Monitoring",
+      "relationship": "energy levels affect engagement"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

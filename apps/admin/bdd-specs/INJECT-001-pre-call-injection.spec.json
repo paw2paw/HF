@@ -2,21 +2,24 @@
   "id": "INJECT-001",
   "title": "Pre-Call Data Injection",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-01-31",
   "domain": "injection",
   "specType": "SYSTEM",
   "outputType": "COMPOSE",
-
   "story": {
     "asA": "pre-call preparation system",
     "iWant": "to assemble relevant content, memories, goals, and context for the upcoming call",
     "soThat": "the agent enters each call with the right data banks prepared"
   },
-
   "context": {
     "applies": "Before each call - prepares data banks for COMP-001 to assemble into prompt",
-    "dependsOn": ["CURR-001", "MEM-001", "GOAL-001", "SESSION-001"],
+    "dependsOn": [
+      "CURR-001",
+      "MEM-001",
+      "GOAL-001",
+      "SESSION-001"
+    ],
     "assumptions": [
       "Caller may or may not have curriculum attached",
       "Memory and goal banks are always prepared",
@@ -24,7 +27,6 @@
       "Spaced retrieval logic uses CURR-001 review_status data"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-INJECT-1",
@@ -32,7 +34,9 @@
       "given": "Caller has a CONTENT spec attached",
       "when": "Injection runs before call",
       "then": "Content bank includes new_units, recap_units, and review_units based on curriculum position",
-      "measuredBy": ["content_bank_quality"]
+      "measuredBy": [
+        "content_bank_quality"
+      ]
     },
     {
       "id": "AC-INJECT-2",
@@ -40,7 +44,9 @@
       "given": "Caller has memories from MEM-001",
       "when": "Injection runs before call",
       "then": "Relevant memories are selected and categorized for the agent",
-      "measuredBy": ["memory_bank_quality"]
+      "measuredBy": [
+        "memory_bank_quality"
+      ]
     },
     {
       "id": "AC-INJECT-3",
@@ -48,7 +54,9 @@
       "given": "Caller has goals from GOAL-001",
       "when": "Injection runs before call",
       "then": "Active goals are prioritized and session objectives are set",
-      "measuredBy": ["goal_bank_quality"]
+      "measuredBy": [
+        "goal_bank_quality"
+      ]
     },
     {
       "id": "AC-INJECT-4",
@@ -56,7 +64,9 @@
       "given": "Caller has session history from SESSION-001",
       "when": "Injection runs before call",
       "then": "Session continuity context and open threads are prepared",
-      "measuredBy": ["context_bank_quality"]
+      "measuredBy": [
+        "context_bank_quality"
+      ]
     },
     {
       "id": "AC-INJECT-5",
@@ -64,10 +74,11 @@
       "given": "Caller has NO curriculum attached (chat companion, etc.)",
       "when": "Injection runs before call",
       "then": "Content bank is empty but memory, goal, and context banks are still prepared",
-      "measuredBy": ["no_curriculum_handling"]
+      "measuredBy": [
+        "no_curriculum_handling"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "content_bank_quality",
@@ -76,9 +87,19 @@
       "section": "content_injection",
       "appliesWhen": "caller has CONTENT spec attached",
       "config": {
-        "newUnitsPerCall": { "min": 1, "max": 3 },
-        "recapUnitsPerCall": { "min": 0, "max": 2 },
-        "reviewTriggers": ["spaced_interval_due", "declining_mastery", "caller_request"]
+        "newUnitsPerCall": {
+          "min": 1,
+          "max": 3
+        },
+        "recapUnitsPerCall": {
+          "min": 0,
+          "max": 2
+        },
+        "reviewTriggers": [
+          "spaced_interval_due",
+          "declining_mastery",
+          "caller_request"
+        ]
       },
       "outputs": {
         "new_units": "Units to introduce this call (based on mastery + prerequisites)",
@@ -86,14 +107,44 @@
         "review_units": "Units due for spaced retrieval or with declining mastery"
       },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Optimal Selection", "implication": "Right mix of new, recap, and review content" },
-        { "min": 0.5, "max": 0.8, "label": "Good Selection", "implication": "Reasonable content selection" },
-        { "min": 0.0, "max": 0.5, "label": "Poor Selection", "implication": "Content selection issues" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Optimal Selection",
+          "implication": "Right mix of new, recap, and review content"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Good Selection",
+          "implication": "Reasonable content selection"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Poor Selection",
+          "implication": "Content selection issues"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "2 new units (prerequisites met), 1 recap from last call, 1 review (overdue by 3 calls)", "rationale": "Balanced, appropriate selection", "isGold": true },
-        { "score": 0.7, "example": "1 new unit selected, no recap or review despite overdue units", "rationale": "Missed review opportunity", "isGold": true },
-        { "score": 0.3, "example": "3 new units selected when prerequisites not met for 2 of them", "rationale": "Prerequisite violation", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "2 new units (prerequisites met), 1 recap from last call, 1 review (overdue by 3 calls)",
+          "rationale": "Balanced, appropriate selection",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "1 new unit selected, no recap or review despite overdue units",
+          "rationale": "Missed review opportunity",
+          "isGold": true
+        },
+        {
+          "score": 0.3,
+          "example": "3 new units selected when prerequisites not met for 2 of them",
+          "rationale": "Prerequisite violation",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Content selection is well-balanced for this caller's position.",
@@ -118,14 +169,44 @@
         "context": "Current situational context"
       },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Rich Context", "implication": "Comprehensive, relevant memories selected" },
-        { "min": 0.5, "max": 0.8, "label": "Good Context", "implication": "Key memories included" },
-        { "min": 0.0, "max": 0.5, "label": "Limited Context", "implication": "Few or irrelevant memories" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Rich Context",
+          "implication": "Comprehensive, relevant memories selected"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Good Context",
+          "implication": "Key memories included"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Limited Context",
+          "implication": "Few or irrelevant memories"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Memories include: daughter Emma starting college, prefers email, dealing with job transition", "rationale": "Rich, relevant, actionable context", "isGold": true },
-        { "score": 0.6, "example": "Memories include basic facts but miss recent context", "rationale": "Incomplete picture", "isGold": true },
-        { "score": 0.2, "example": "Only generic memories, nothing recent or specific", "rationale": "Weak personalization potential", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Memories include: daughter Emma starting college, prefers email, dealing with job transition",
+          "rationale": "Rich, relevant, actionable context",
+          "isGold": true
+        },
+        {
+          "score": 0.6,
+          "example": "Memories include basic facts but miss recent context",
+          "rationale": "Incomplete picture",
+          "isGold": true
+        },
+        {
+          "score": 0.2,
+          "example": "Only generic memories, nothing recent or specific",
+          "rationale": "Weak personalization potential",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Memory bank provides rich personalization context.",
@@ -148,14 +229,44 @@
         "goal_progress": "Progress summary on each active goal"
       },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Clear Goals", "implication": "Well-defined, prioritized goals" },
-        { "min": 0.5, "max": 0.8, "label": "Some Goals", "implication": "Goals exist but may lack clarity" },
-        { "min": 0.0, "max": 0.5, "label": "No Goals", "implication": "No active goals defined" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Clear Goals",
+          "implication": "Well-defined, prioritized goals"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Some Goals",
+          "implication": "Goals exist but may lack clarity"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "No Goals",
+          "implication": "No active goals defined"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Active goals: (1) Understand institutions framework [70% complete], (2) Apply to current events [not started]", "rationale": "Clear, prioritized, with progress", "isGold": true },
-        { "score": 0.5, "example": "Goal exists but hasn't been referenced in 3 calls", "rationale": "May be stale", "isGold": true },
-        { "score": 0.1, "example": "No goals defined for this caller", "rationale": "Consider goal discovery", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Active goals: (1) Understand institutions framework [70% complete], (2) Apply to current events [not started]",
+          "rationale": "Clear, prioritized, with progress",
+          "isGold": true
+        },
+        {
+          "score": 0.5,
+          "example": "Goal exists but hasn't been referenced in 3 calls",
+          "rationale": "May be stale",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "No goals defined for this caller",
+          "rationale": "Consider goal discovery",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Goals are clear - orient session around them.",
@@ -179,14 +290,44 @@
         "time_since_last_call": "Days since last interaction"
       },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Strong Continuity", "implication": "Clear connection to previous calls" },
-        { "min": 0.5, "max": 0.8, "label": "Some Continuity", "implication": "Basic history available" },
-        { "min": 0.0, "max": 0.5, "label": "Weak Continuity", "implication": "Limited or no history" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Strong Continuity",
+          "implication": "Clear connection to previous calls"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Some Continuity",
+          "implication": "Basic history available"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Weak Continuity",
+          "implication": "Limited or no history"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Last call: covered Nogales case, open thread: student asked about China exception, arc: 2 of 5 modules complete", "rationale": "Rich continuity context", "isGold": true },
-        { "score": 0.5, "example": "Last call summary available but no open threads tracked", "rationale": "Partial continuity", "isGold": true },
-        { "score": 0.1, "example": "First call or no history available", "rationale": "Starting fresh", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Last call: covered Nogales case, open thread: student asked about China exception, arc: 2 of 5 modules complete",
+          "rationale": "Rich continuity context",
+          "isGold": true
+        },
+        {
+          "score": 0.5,
+          "example": "Last call summary available but no open threads tracked",
+          "rationale": "Partial continuity",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "First call or no history available",
+          "rationale": "Starting fresh",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Strong continuity context - reference previous conversations naturally.",
@@ -200,12 +341,32 @@
       "section": "edge_cases",
       "appliesWhen": "caller has NO CONTENT spec attached",
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Proper Handling", "implication": "Content bank empty, other banks prepared" },
-        { "min": 0.0, "max": 0.8, "label": "Handling Issue", "implication": "Error in no-curriculum path" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Proper Handling",
+          "implication": "Content bank empty, other banks prepared"
+        },
+        {
+          "min": 0.0,
+          "max": 0.8,
+          "label": "Handling Issue",
+          "implication": "Error in no-curriculum path"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Chat companion caller: content_bank=empty, memory_bank=full, goal_bank=full, context_bank=full", "rationale": "Correct no-curriculum handling", "isGold": true },
-        { "score": 0.0, "example": "System errors when no curriculum attached", "rationale": "Edge case not handled", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Chat companion caller: content_bank=empty, memory_bank=full, goal_bank=full, context_bank=full",
+          "rationale": "Correct no-curriculum handling",
+          "isGold": true
+        },
+        {
+          "score": 0.0,
+          "example": "System errors when no curriculum attached",
+          "rationale": "Edge case not handled",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "No-curriculum handling is correct.",
@@ -213,7 +374,6 @@
       }
     }
   ],
-
   "outputs": {
     "description": "INJECT-001 outputs JSON banks consumed by COMP-001",
     "banks": {
@@ -259,7 +419,6 @@
       }
     }
   },
-
   "constraints": [
     {
       "id": "C-INJECT-1",
@@ -286,13 +445,37 @@
       "severity": "critical"
     }
   ],
-
   "related": [
-    { "id": "CURR-001", "title": "Curriculum Tracking", "relationship": "provides progress data for content selection" },
-    { "id": "MEM-001", "title": "Memory Extraction", "relationship": "provides memories for memory_bank" },
-    { "id": "GOAL-001", "title": "Learner Goals", "relationship": "provides goals for goal_bank" },
-    { "id": "SESSION-001", "title": "Session Planning", "relationship": "provides context for context_bank" },
-    { "id": "ADAPT-PERS-001", "title": "Personality Adaptation", "relationship": "provides style targets for personality_bank" },
-    { "id": "COMP-001", "title": "Prompt Composition", "relationship": "consumes INJECT output to build prompt" }
-  ]
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Tracking",
+      "relationship": "provides progress data for content selection"
+    },
+    {
+      "id": "MEM-001",
+      "title": "Memory Extraction",
+      "relationship": "provides memories for memory_bank"
+    },
+    {
+      "id": "GOAL-001",
+      "title": "Learner Goals",
+      "relationship": "provides goals for goal_bank"
+    },
+    {
+      "id": "SESSION-001",
+      "title": "Session Planning",
+      "relationship": "provides context for context_bank"
+    },
+    {
+      "id": "ADAPT-PERS-001",
+      "title": "Personality Adaptation",
+      "relationship": "provides style targets for personality_bank"
+    },
+    {
+      "id": "COMP-001",
+      "title": "Prompt Composition",
+      "relationship": "consumes INJECT output to build prompt"
+    }
+  ],
+  "specRole": "ORCHESTRATE"
 }

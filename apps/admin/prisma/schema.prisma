@@ -1098,18 +1098,23 @@ model FailedCall {
 // =========================
 
 // Personality observation from a single call (time series data)
+// MIGRATED Feb 2026: Now uses dynamic parameterValues instead of hardcoded OCEAN
 model PersonalityObservation {
   id       String @id @default(uuid())
-  callerId String 
+  callerId String
   callId   String @unique
 
-  // Observed personality traits from this call (0-1 scale)
-  // Scored against Parameters in knowledge bank
-  openness          Float?
-  conscientiousness Float?
-  extraversion      Float?
-  agreeableness     Float?
-  neuroticism       Float?
+  // DYNAMIC PARAMETERS - stores ANY personality parameters from database
+  // Format: { "B5-O": 0.75, "B5-C": 0.82, "VARK-VISUAL": 0.65, ... }
+  parameterValues Json   @default("{}")
+
+  // LEGACY FIELDS - Deprecated Feb 2026, kept for backward compatibility only
+  // Will be removed after data migration is complete
+  openness          Float? // DEPRECATED: Use parameterValues["B5-O"] or parameterValues["PERS-OPENNESS"]
+  conscientiousness Float? // DEPRECATED: Use parameterValues["B5-C"] or parameterValues["PERS-CONSCIENTIOUSNESS"]
+  extraversion      Float? // DEPRECATED: Use parameterValues["B5-E"] or parameterValues["PERS-EXTRAVERSION"]
+  agreeableness     Float? // DEPRECATED: Use parameterValues["B5-A"] or parameterValues["PERS-AGREEABLENESS"]
+  neuroticism       Float? // DEPRECATED: Use parameterValues["B5-N"] or parameterValues["PERS-NEUROTICISM"]
 
   // Metadata
   observedAt  DateTime @default(now())
@@ -1131,13 +1136,17 @@ model CallerPersonality {
   id       String @id @default(uuid())
   callerId String @unique 
 
-  // Aggregated personality traits (0-1 scale)
-  // Computed from PersonalityObservations with time decay
-  openness          Float?
-  conscientiousness Float?
-  extraversion      Float?
-  agreeableness     Float?
-  neuroticism       Float?
+  // DYNAMIC PARAMETERS - stores ANY personality parameters from database
+  // Format: { "B5-O": 0.75, "B5-C": 0.82, "VARK-VISUAL": 0.65, ... }
+  parameterValues Json   @default("{}")
+
+  // LEGACY FIELDS - Deprecated Feb 2026, kept for backward compatibility only
+  // Will be removed after data migration is complete
+  openness          Float? // DEPRECATED: Use parameterValues["B5-O"] or parameterValues["PERS-OPENNESS"]
+  conscientiousness Float? // DEPRECATED: Use parameterValues["B5-C"] or parameterValues["PERS-CONSCIENTIOUSNESS"]
+  extraversion      Float? // DEPRECATED: Use parameterValues["B5-E"] or parameterValues["PERS-EXTRAVERSION"]
+  agreeableness     Float? // DEPRECATED: Use parameterValues["B5-A"] or parameterValues["PERS-AGREEABLENESS"]
+  neuroticism       Float? // DEPRECATED: Use parameterValues["B5-N"] or parameterValues["PERS-NEUROTICISM"]
 
   // Communication style preferences (derived from patterns)
   preferredTone   String? // casual, formal, professional
@@ -1575,15 +1584,29 @@ enum SpecType {
 }
 
 // Spec role: categorizes what the spec contributes to the pipeline
+// Determines which UI editor to use and special treatment
 enum SpecRole {
-  IDENTITY // Defines agent identity and persona
-  CONTENT // Defines content/curriculum
-  VOICE // Voice-specific guidance
-  MEASURE // Measurement specs (scoring parameters)
-  ADAPT // Adaptation specs (behavioral adjustments)
-  REWARD // Reward computation specs
-  GUARDRAIL // Guardrail/safety constraint specs
-  BOOTSTRAP // Initialization/onboarding specs (like INIT-001)
+  // === META-SYSTEM (Controls runtime behavior) ===
+  ORCHESTRATE  // Flow/sequence control → Flow Builder UI (PIPELINE-001, INIT-001, SESSION-001, INJECT-001)
+
+  // === DATA PROCESSING (Acts on data) ===
+  EXTRACT      // Measurement/learning → Standard spec editor (PERS-001, VARK-001, MEM-001, STYLE-001, SUPV-001)
+  SYNTHESISE   // Combine/transform → Formula Builder UI (COMP-001, LEARN-PROF-001, REW-001, ADAPT-*)
+
+  // === VALIDATION (Enforces rules) ===
+  CONSTRAIN    // Bounds/guards → Rule Editor UI (GUARD-001, GUARD-VOICEMAIL-001)
+
+  // === CONTENT (What to say/teach) ===
+  IDENTITY     // Agent personas → Standard spec editor (TUT-001, COACH-001, COMPANION-001)
+  CONTENT      // Curriculum → Standard spec editor (WNF-CONTENT-001, QM-CONTENT-001)
+  VOICE        // Voice guidance → Standard spec editor (VOICE-001)
+
+  // === DEPRECATED (Legacy roles - migrate to above) ===
+  MEASURE      // DEPRECATED: Use EXTRACT instead
+  ADAPT        // DEPRECATED: Use SYNTHESISE instead
+  REWARD       // DEPRECATED: Use SYNTHESISE instead
+  GUARDRAIL    // DEPRECATED: Use CONSTRAIN instead
+  BOOTSTRAP    // DEPRECATED: Use ORCHESTRATE instead
 }
 
 // =========================
@@ -1711,12 +1734,15 @@ model AnalysisSpec {
 
   // Spec classification
   specType SpecType @default(DOMAIN) // SYSTEM or DOMAIN
-  specRole SpecRole @default(MEASURE) // What the spec contributes to the pipeline
+  specRole SpecRole @default(EXTRACT) // What the spec contributes to the pipeline (changed default from MEASURE to EXTRACT)
 
   // Domain grouping (personality, memory, engagement, etc.)
   domain   String? // e.g., "personality", "memory", "engagement"
   priority Int     @default(0) // Higher = more important
   isActive Boolean @default(true)
+
+  // Deletion control - prevents accidental deletion of critical specs
+  isDeletable Boolean @default(true) // ORCHESTRATE specs (PIPELINE-001, INIT-001) should be false
 
   // Versioning
   version String @default("1.0")

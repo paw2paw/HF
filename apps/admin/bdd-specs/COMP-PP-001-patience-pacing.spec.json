@@ -2,28 +2,27 @@
   "id": "COMP-PP-001",
   "title": "Patience & Pacing",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "MEASURE_AGENT",
-
   "story": {
     "asA": "quality evaluator",
     "iWant": "to measure whether the companion maintains appropriate patience and pacing",
     "soThat": "conversations feel unhurried and comfortable"
   },
-
   "context": {
     "applies": "Throughout the conversation",
-    "dependsOn": ["COMP-EW-001"],
+    "dependsOn": [
+      "COMP-EW-001"
+    ],
     "assumptions": [
       "Older adults often appreciate unhurried conversation",
       "Energy levels affect appropriate pacing",
       "Rushing feels disrespectful"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-PP-1",
@@ -31,7 +30,9 @@
       "given": "The conversation progresses",
       "when": "The companion responds and guides conversation flow",
       "then": "Evaluate patience level",
-      "measuredBy": ["BEH-PATIENCE-LEVEL"]
+      "measuredBy": [
+        "BEH-PATIENCE-LEVEL"
+      ]
     },
     {
       "id": "AC-COMP-PP-2",
@@ -39,10 +40,11 @@
       "given": "The person has their own conversational rhythm",
       "when": "The companion sets the pace",
       "then": "Evaluate pace matching",
-      "measuredBy": ["BEH-PACE-MATCH"]
+      "measuredBy": [
+        "BEH-PACE-MATCH"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "BEH-PATIENCE-LEVEL",
@@ -50,11 +52,29 @@
       "description": "How patient and unhurried the companion is",
       "section": "companion-behavior",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "Rushed", "implication": "Moving too fast, not allowing time" },
-        { "min": 0.3, "max": 0.7, "label": "Moderate", "implication": "Reasonable pace" },
-        { "min": 0.7, "max": 1.0, "label": "Patient", "implication": "Unhurried, allowing time for thought, not rushing" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Rushed",
+          "implication": "Moving too fast, not allowing time"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Moderate",
+          "implication": "Reasonable pace"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Patient",
+          "implication": "Unhurried, allowing time for thought, not rushing"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Companion is patient. Good for relaxed, meaningful conversation.",
@@ -67,11 +87,29 @@
       "description": "How well the companion adapts to the person's energy and rhythm",
       "section": "companion-behavior",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "Mismatched", "implication": "Not matching the person's pace" },
-        { "min": 0.3, "max": 0.7, "label": "Partially Matched", "implication": "Some pace adaptation" },
-        { "min": 0.7, "max": 1.0, "label": "Well Matched", "implication": "Adapting well to person's energy and rhythm" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Mismatched",
+          "implication": "Not matching the person's pace"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Partially Matched",
+          "implication": "Some pace adaptation"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Well Matched",
+          "implication": "Adapting well to person's energy and rhythm"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Companion is matching pace well. Continue adapting to their rhythm.",
@@ -79,7 +117,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Pacing Assessment",
@@ -100,11 +137,18 @@
       ]
     }
   ],
-
   "constraints": [],
-
   "related": [
-    { "id": "COMP-EW-001", "title": "Emotional Wellbeing Monitoring", "relationship": "energy affects appropriate pacing" },
-    { "id": "COMP-CP-001", "title": "Communication Style Preferences", "relationship": "pace preferences inform targets" }
-  ]
+    {
+      "id": "COMP-EW-001",
+      "title": "Emotional Wellbeing Monitoring",
+      "relationship": "energy affects appropriate pacing"
+    },
+    {
+      "id": "COMP-CP-001",
+      "title": "Communication Style Preferences",
+      "relationship": "pace preferences inform targets"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

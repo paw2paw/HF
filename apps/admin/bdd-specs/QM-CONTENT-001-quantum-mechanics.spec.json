@@ -2,24 +2,25 @@
   "id": "QM-CONTENT-001",
   "title": "Quantum Mechanics Curriculum",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-04",
   "domain": "content",
   "specType": "DOMAIN",
   "specRole": "CONTENT",
   "outputType": "COMPOSE",
-
-  "implements": ["CURRICULUM_PROGRESS_V1"],
-
+  "implements": [
+    "CURRICULUM_PROGRESS_V1"
+  ],
   "story": {
     "asA": "curriculum provider",
     "iWant": "to define the complete study material for introductory Quantum Mechanics",
     "soThat": "tutors can guide learners through the fundamental concepts and phenomena of quantum physics"
   },
-
   "context": {
     "applies": "Playbooks teaching Quantum Mechanics content",
-    "dependsOn": ["TUT-001"],
+    "dependsOn": [
+      "TUT-001"
+    ],
     "assumptions": [
       "This spec defines WHAT is taught - the study material",
       "Identity specs define HOW to teach it",
@@ -27,7 +28,6 @@
       "Learners are assumed to have basic calculus and classical physics background"
     ]
   },
-
   "metadata": {
     "curriculum": {
       "type": "sequential",
@@ -38,7 +38,6 @@
       "masteryThreshold": 0.7
     }
   },
-
   "parameters": [
     {
       "id": "subject_metadata",
@@ -48,15 +47,40 @@
       "config": {
         "title": "Introduction to Quantum Mechanics",
         "scope": "Undergraduate-level quantum mechanics fundamentals",
-        "prerequisites": ["Classical mechanics", "Basic calculus", "Wave phenomena"],
+        "prerequisites": [
+          "Classical mechanics",
+          "Basic calculus",
+          "Wave phenomena"
+        ],
         "keyFigures": [
-          {"name": "Max Planck", "contribution": "Quantization of energy (1900)"},
-          {"name": "Albert Einstein", "contribution": "Photoelectric effect, photon concept (1905)"},
-          {"name": "Niels Bohr", "contribution": "Atomic model, complementarity (1913)"},
-          {"name": "Werner Heisenberg", "contribution": "Uncertainty principle, matrix mechanics (1925)"},
-          {"name": "Erwin Schrödinger", "contribution": "Wave equation, wave mechanics (1926)"},
-          {"name": "Paul Dirac", "contribution": "Relativistic quantum mechanics, bra-ket notation (1928)"},
-          {"name": "Max Born", "contribution": "Probabilistic interpretation of wave function (1926)"}
+          {
+            "name": "Max Planck",
+            "contribution": "Quantization of energy (1900)"
+          },
+          {
+            "name": "Albert Einstein",
+            "contribution": "Photoelectric effect, photon concept (1905)"
+          },
+          {
+            "name": "Niels Bohr",
+            "contribution": "Atomic model, complementarity (1913)"
+          },
+          {
+            "name": "Werner Heisenberg",
+            "contribution": "Uncertainty principle, matrix mechanics (1925)"
+          },
+          {
+            "name": "Erwin Schrödinger",
+            "contribution": "Wave equation, wave mechanics (1926)"
+          },
+          {
+            "name": "Paul Dirac",
+            "contribution": "Relativistic quantum mechanics, bra-ket notation (1928)"
+          },
+          {
+            "name": "Max Born",
+            "contribution": "Probabilistic interpretation of wave function (1926)"
+          }
         ],
         "centralQuestion": "How do particles behave at the atomic and subatomic scale, where classical physics breaks down?"
       }
@@ -94,7 +118,9 @@
           "statement": "Heisenberg's principle: ΔxΔp ≥ ℏ/2",
           "meaning": "Position and momentum cannot both be precisely known simultaneously",
           "notAbout": "This is NOT about measurement limitations - it's a fundamental property of nature",
-          "otherPairs": ["Energy-Time: ΔEΔt ≥ ℏ/2"]
+          "otherPairs": [
+            "Energy-Time: ΔEΔt ≥ ℏ/2"
+          ]
         }
       }
     },
@@ -200,7 +226,11 @@
         "solvingIt": {
           "approach": "Find energy eigenstates - states with definite energy",
           "quantization": "Boundary conditions often force only certain energies to be allowed",
-          "examples": ["Particle in a box", "Harmonic oscillator", "Hydrogen atom"]
+          "examples": [
+            "Particle in a box",
+            "Harmonic oscillator",
+            "Hydrogen atom"
+          ]
         },
         "particleInBox": {
           "setup": "Particle confined between walls at x=0 and x=L",
@@ -226,9 +256,18 @@
           "setup": "Cat in box with quantum trigger for poison. Atom in superposition → cat in superposition of alive and dead?",
           "purpose": "Schrödinger's thought experiment to show the absurdity of superposition at macroscopic scales",
           "interpretations": [
-            {"name": "Copenhagen", "view": "Collapse happens at measurement - cat is definite when we look"},
-            {"name": "Many-worlds", "view": "No collapse - universe branches into alive-cat and dead-cat worlds"},
-            {"name": "Decoherence", "view": "Interaction with environment destroys superposition for large objects"}
+            {
+              "name": "Copenhagen",
+              "view": "Collapse happens at measurement - cat is definite when we look"
+            },
+            {
+              "name": "Many-worlds",
+              "view": "No collapse - universe branches into alive-cat and dead-cat worlds"
+            },
+            {
+              "name": "Decoherence",
+              "view": "Interaction with environment destroys superposition for large objects"
+            }
           ]
         },
         "decoherence": {
@@ -293,7 +332,11 @@
           "resolution": "No - measurement outcomes are random. You can't control what your partner receives.",
           "analogy": "Like magic gloves: if you open a box and find the left glove, you instantly know the other box has the right glove. But you can't send a message this way."
         },
-        "applications": ["Quantum cryptography", "Quantum computing", "Quantum teleportation"]
+        "applications": [
+          "Quantum cryptography",
+          "Quantum computing",
+          "Quantum teleportation"
+        ]
       }
     },
     {
@@ -455,7 +498,6 @@
       }
     }
   ],
-
   "constraints": [
     {
       "id": "C-QM-1",
@@ -482,10 +524,21 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "TUT-QM-001", "title": "Quantum Mechanics Tutor Identity", "relationship": "defines how this content is taught" },
-    { "id": "TUT-001", "title": "Generic Tutor Identity", "relationship": "base identity that TUT-QM-001 extends" },
-    { "id": "CURR-001", "title": "Curriculum Tracking", "relationship": "tracks progress through this curriculum" }
+    {
+      "id": "TUT-QM-001",
+      "title": "Quantum Mechanics Tutor Identity",
+      "relationship": "defines how this content is taught"
+    },
+    {
+      "id": "TUT-001",
+      "title": "Generic Tutor Identity",
+      "relationship": "base identity that TUT-QM-001 extends"
+    },
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Tracking",
+      "relationship": "tracks progress through this curriculum"
+    }
   ]
 }

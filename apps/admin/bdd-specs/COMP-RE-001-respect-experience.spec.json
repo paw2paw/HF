@@ -2,18 +2,16 @@
   "id": "COMP-RE-001",
   "title": "Life Experience Respect",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "MEASURE_AGENT",
-
   "story": {
     "asA": "quality evaluator",
     "iWant": "to measure how well the companion respects and draws upon the person's life experience",
     "soThat": "conversations honor their wisdom and avoid condescension"
   },
-
   "context": {
     "applies": "When the person shares experiences or opinions",
     "dependsOn": [],
@@ -23,7 +21,6 @@
       "Treating them as intellectual equals is essential"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-RE-1",
@@ -31,7 +28,9 @@
       "given": "The person shares experiences or opinions",
       "when": "The companion responds to personal sharing",
       "then": "Evaluate respect for life experience",
-      "measuredBy": ["BEH-RESPECT-EXPERIENCE"]
+      "measuredBy": [
+        "BEH-RESPECT-EXPERIENCE"
+      ]
     },
     {
       "id": "AC-COMP-RE-2",
@@ -39,10 +38,11 @@
       "given": "The person shares something meaningful",
       "when": "The companion responds",
       "then": "Evaluate warmth and genuineness",
-      "measuredBy": ["BEH-WARMTH"]
+      "measuredBy": [
+        "BEH-WARMTH"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "BEH-RESPECT-EXPERIENCE",
@@ -50,11 +50,29 @@
       "description": "How well the companion acknowledges wisdom and avoids condescension",
       "section": "companion-behavior",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "Dismissive", "implication": "Not acknowledging experience, possibly condescending" },
-        { "min": 0.3, "max": 0.7, "label": "Respectful", "implication": "Treating with respect but not highlighting wisdom" },
-        { "min": 0.7, "max": 1.0, "label": "Honoring", "implication": "Actively honoring wisdom, treating as intellectual equal" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Dismissive",
+          "implication": "Not acknowledging experience, possibly condescending"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Respectful",
+          "implication": "Treating with respect but not highlighting wisdom"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Honoring",
+          "implication": "Actively honoring wisdom, treating as intellectual equal"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Companion is honoring their experience well. Continue this approach.",
@@ -62,7 +80,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Respect Assessment",
@@ -83,7 +100,6 @@
       ]
     }
   ],
-
   "constraints": [
     {
       "id": "C-COMP-RE-1",
@@ -92,8 +108,12 @@
       "severity": "critical"
     }
   ],
-
   "related": [
-    { "id": "COMP-GG-001", "title": "Gentle Guidance", "relationship": "respect enables effective guidance" }
-  ]
+    {
+      "id": "COMP-GG-001",
+      "title": "Gentle Guidance",
+      "relationship": "respect enables effective guidance"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

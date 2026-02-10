@@ -2,28 +2,27 @@
   "id": "CURR-001",
   "title": "Curriculum Progress Tracking",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-01-30",
   "domain": "curriculum",
   "specType": "SYSTEM",
   "outputType": "MEASURE",
-
   "story": {
     "asA": "learning facilitator",
     "iWant": "to track learner progress through structured curriculum modules",
     "soThat": "conversations advance learning in a coherent sequence"
   },
-
   "context": {
     "applies": "Domains with structured learning content (tutoring, training, onboarding)",
-    "dependsOn": ["GOAL-001"],
+    "dependsOn": [
+      "GOAL-001"
+    ],
     "assumptions": [
       "Curriculum is defined as a sequence of modules with prerequisites",
       "Each module has concepts, skills, and mastery criteria",
       "Progress can be non-linear but should respect prerequisites"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-CURR-1",
@@ -31,7 +30,9 @@
       "given": "A new curriculum module is introduced in conversation",
       "when": "Curriculum tracking runs",
       "then": "Module status moves from 'not_started' to 'introduced' with timestamp",
-      "measuredBy": ["module_introduction"]
+      "measuredBy": [
+        "module_introduction"
+      ]
     },
     {
       "id": "AC-CURR-2",
@@ -39,7 +40,9 @@
       "given": "Concepts from a module are discussed",
       "when": "Curriculum tracking runs",
       "then": "Exposure count and depth are recorded per concept",
-      "measuredBy": ["concept_exposure"]
+      "measuredBy": [
+        "concept_exposure"
+      ]
     },
     {
       "id": "AC-CURR-3",
@@ -47,7 +50,9 @@
       "given": "Learner demonstrates understanding of a concept",
       "when": "Comprehension is assessed",
       "then": "Comprehension score is recorded with evidence",
-      "measuredBy": ["comprehension_score"]
+      "measuredBy": [
+        "comprehension_score"
+      ]
     },
     {
       "id": "AC-CURR-4",
@@ -55,7 +60,9 @@
       "given": "Learner applies a concept to a new situation",
       "when": "Application is detected",
       "then": "Application score reflects transfer quality",
-      "measuredBy": ["application_score"]
+      "measuredBy": [
+        "application_score"
+      ]
     },
     {
       "id": "AC-CURR-5",
@@ -63,7 +70,9 @@
       "given": "Learner has sufficient comprehension and application scores",
       "when": "Mastery is evaluated",
       "then": "Module status reflects mastery level (novice/competent/proficient/expert)",
-      "measuredBy": ["module_mastery"]
+      "measuredBy": [
+        "module_mastery"
+      ]
     },
     {
       "id": "AC-CURR-6",
@@ -71,10 +80,11 @@
       "given": "A module has prerequisites",
       "when": "Advancing to that module",
       "then": "Prerequisites must be at least 'competent' before full introduction",
-      "measuredBy": ["prerequisite_check"]
+      "measuredBy": [
+        "prerequisite_check"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "module_introduction",
@@ -82,16 +92,56 @@
       "description": "Tracks whether and when a curriculum module was introduced to the learner",
       "section": "module_tracking",
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Fully Introduced", "implication": "All core concepts presented" },
-        { "min": 0.5, "max": 0.8, "label": "Partially Introduced", "implication": "Some concepts presented" },
-        { "min": 0.1, "max": 0.5, "label": "Mentioned", "implication": "Topic referenced but not taught" },
-        { "min": 0.0, "max": 0.1, "label": "Not Started", "implication": "Module not yet introduced" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Fully Introduced",
+          "implication": "All core concepts presented"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Partially Introduced",
+          "implication": "Some concepts presented"
+        },
+        {
+          "min": 0.1,
+          "max": 0.5,
+          "label": "Mentioned",
+          "implication": "Topic referenced but not taught"
+        },
+        {
+          "min": 0.0,
+          "max": 0.1,
+          "label": "Not Started",
+          "implication": "Module not yet introduced"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "All 5 concepts in the 'Supply and Demand' module have been explained with examples", "rationale": "Full introduction complete", "isGold": true },
-        { "score": 0.7, "example": "3 of 5 concepts covered, 2 remaining for next session", "rationale": "Substantial but incomplete", "isGold": true },
-        { "score": 0.4, "example": "Module topic mentioned as preview for upcoming content", "rationale": "Awareness without depth", "isGold": true },
-        { "score": 0.0, "example": "Module not yet mentioned in any conversation", "rationale": "No introduction", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "All 5 concepts in the 'Supply and Demand' module have been explained with examples",
+          "rationale": "Full introduction complete",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "3 of 5 concepts covered, 2 remaining for next session",
+          "rationale": "Substantial but incomplete",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Module topic mentioned as preview for upcoming content",
+          "rationale": "Awareness without depth",
+          "isGold": true
+        },
+        {
+          "score": 0.0,
+          "example": "Module not yet mentioned in any conversation",
+          "rationale": "No introduction",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Module fully introduced - focus on comprehension and application activities.",
@@ -103,18 +153,61 @@
       "name": "Concept Exposure Depth",
       "description": "Measures how deeply a concept has been explored across conversations",
       "section": "concept_tracking",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Deep Exposure", "implication": "Multiple examples, contexts, and applications" },
-        { "min": 0.5, "max": 0.8, "label": "Good Exposure", "implication": "Concept explained with examples" },
-        { "min": 0.2, "max": 0.5, "label": "Basic Exposure", "implication": "Concept defined, minimal examples" },
-        { "min": 0.0, "max": 0.2, "label": "Minimal Exposure", "implication": "Concept mentioned briefly" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Deep Exposure",
+          "implication": "Multiple examples, contexts, and applications"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Good Exposure",
+          "implication": "Concept explained with examples"
+        },
+        {
+          "min": 0.2,
+          "max": 0.5,
+          "label": "Basic Exposure",
+          "implication": "Concept defined, minimal examples"
+        },
+        {
+          "min": 0.0,
+          "max": 0.2,
+          "label": "Minimal Exposure",
+          "implication": "Concept mentioned briefly"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Compound interest explained 3 times with different examples, learner has applied it to multiple scenarios", "rationale": "Deep, varied exposure", "isGold": true },
-        { "score": 0.7, "example": "Concept explained once with 2 examples, learner asked clarifying questions", "rationale": "Solid foundation", "isGold": true },
-        { "score": 0.4, "example": "Concept defined in one sentence, one example given", "rationale": "Basic introduction", "isGold": true },
-        { "score": 0.1, "example": "Term mentioned in passing without explanation", "rationale": "Awareness only", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Compound interest explained 3 times with different examples, learner has applied it to multiple scenarios",
+          "rationale": "Deep, varied exposure",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Concept explained once with 2 examples, learner asked clarifying questions",
+          "rationale": "Solid foundation",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Concept defined in one sentence, one example given",
+          "rationale": "Basic introduction",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "Term mentioned in passing without explanation",
+          "rationale": "Awareness only",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Concept well-exposed - ready for application and transfer activities.",
@@ -126,21 +219,79 @@
       "name": "Comprehension Score",
       "description": "Measures learner's demonstrated understanding of concepts",
       "section": "assessment",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Strong Comprehension", "implication": "Can explain accurately in own words" },
-        { "min": 0.6, "max": 0.8, "label": "Good Comprehension", "implication": "Understands core ideas" },
-        { "min": 0.4, "max": 0.6, "label": "Partial Comprehension", "implication": "Gets main idea, misses nuances" },
-        { "min": 0.2, "max": 0.4, "label": "Weak Comprehension", "implication": "Significant misconceptions" },
-        { "min": 0.0, "max": 0.2, "label": "No Comprehension", "implication": "Cannot demonstrate understanding" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Strong Comprehension",
+          "implication": "Can explain accurately in own words"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good Comprehension",
+          "implication": "Understands core ideas"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Partial Comprehension",
+          "implication": "Gets main idea, misses nuances"
+        },
+        {
+          "min": 0.2,
+          "max": 0.4,
+          "label": "Weak Comprehension",
+          "implication": "Significant misconceptions"
+        },
+        {
+          "min": 0.0,
+          "max": 0.2,
+          "label": "No Comprehension",
+          "implication": "Cannot demonstrate understanding"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Learner accurately explains concept using own words and creates novel example", "rationale": "Full understanding demonstrated", "isGold": true },
-        { "score": 0.8, "example": "Learner correctly answers comprehension probe and identifies key principles", "rationale": "Strong grasp of material", "isGold": true },
-        { "score": 0.6, "example": "Learner can repeat explanation but struggles with 'why' questions", "rationale": "Surface understanding", "isGold": true },
-        { "score": 0.4, "example": "Learner has partial understanding, confuses related concepts", "rationale": "Incomplete mental model", "isGold": true },
-        { "score": 0.2, "example": "Learner gives incorrect explanation with fundamental errors", "rationale": "Misconceptions present", "isGold": true },
-        { "score": 0.0, "example": "Learner says 'I don't understand' or gives completely wrong answer", "rationale": "No demonstrated comprehension", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Learner accurately explains concept using own words and creates novel example",
+          "rationale": "Full understanding demonstrated",
+          "isGold": true
+        },
+        {
+          "score": 0.8,
+          "example": "Learner correctly answers comprehension probe and identifies key principles",
+          "rationale": "Strong grasp of material",
+          "isGold": true
+        },
+        {
+          "score": 0.6,
+          "example": "Learner can repeat explanation but struggles with 'why' questions",
+          "rationale": "Surface understanding",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Learner has partial understanding, confuses related concepts",
+          "rationale": "Incomplete mental model",
+          "isGold": true
+        },
+        {
+          "score": 0.2,
+          "example": "Learner gives incorrect explanation with fundamental errors",
+          "rationale": "Misconceptions present",
+          "isGold": true
+        },
+        {
+          "score": 0.0,
+          "example": "Learner says 'I don't understand' or gives completely wrong answer",
+          "rationale": "No demonstrated comprehension",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Comprehension is strong - advance to application activities or next concept.",
@@ -152,20 +303,73 @@
       "name": "Application Score",
       "description": "Measures learner's ability to apply concepts to new situations",
       "section": "assessment",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Expert Application", "implication": "Applies fluently to novel situations" },
-        { "min": 0.6, "max": 0.8, "label": "Good Application", "implication": "Applies with some guidance" },
-        { "min": 0.4, "max": 0.6, "label": "Emerging Application", "implication": "Attempts application, needs support" },
-        { "min": 0.2, "max": 0.4, "label": "Limited Application", "implication": "Struggles to apply" },
-        { "min": 0.0, "max": 0.2, "label": "No Application", "implication": "Cannot apply concept" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Expert Application",
+          "implication": "Applies fluently to novel situations"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good Application",
+          "implication": "Applies with some guidance"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Emerging Application",
+          "implication": "Attempts application, needs support"
+        },
+        {
+          "min": 0.2,
+          "max": 0.4,
+          "label": "Limited Application",
+          "implication": "Struggles to apply"
+        },
+        {
+          "min": 0.0,
+          "max": 0.2,
+          "label": "No Application",
+          "implication": "Cannot apply concept"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Learner independently identifies where concept applies and executes correctly in new context", "rationale": "Full transfer achieved", "isGold": true },
-        { "score": 0.7, "example": "Learner applies concept correctly when prompted to a new scenario", "rationale": "Guided application successful", "isGold": true },
-        { "score": 0.5, "example": "Learner attempts application but makes minor errors", "rationale": "Emerging skill", "isGold": true },
-        { "score": 0.3, "example": "Learner knows concept should apply but unsure how", "rationale": "Recognition without execution", "isGold": true },
-        { "score": 0.0, "example": "Learner doesn't recognize opportunity to apply concept", "rationale": "No transfer", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Learner independently identifies where concept applies and executes correctly in new context",
+          "rationale": "Full transfer achieved",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Learner applies concept correctly when prompted to a new scenario",
+          "rationale": "Guided application successful",
+          "isGold": true
+        },
+        {
+          "score": 0.5,
+          "example": "Learner attempts application but makes minor errors",
+          "rationale": "Emerging skill",
+          "isGold": true
+        },
+        {
+          "score": 0.3,
+          "example": "Learner knows concept should apply but unsure how",
+          "rationale": "Recognition without execution",
+          "isGold": true
+        },
+        {
+          "score": 0.0,
+          "example": "Learner doesn't recognize opportunity to apply concept",
+          "rationale": "No transfer",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Application is strong - this concept is mastered, ready for advanced applications.",
@@ -177,21 +381,74 @@
       "name": "Module Mastery Level",
       "description": "Overall mastery assessment combining comprehension and application",
       "section": "assessment",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "formula": "0.4 * avg(comprehension_scores) + 0.6 * avg(application_scores)",
       "interpretationScale": [
-        { "min": 0.85, "max": 1.0, "label": "Expert", "implication": "Can teach others, handle edge cases" },
-        { "min": 0.7, "max": 0.85, "label": "Proficient", "implication": "Reliable independent application" },
-        { "min": 0.5, "max": 0.7, "label": "Competent", "implication": "Can apply with occasional support" },
-        { "min": 0.3, "max": 0.5, "label": "Novice", "implication": "Basic understanding, needs guidance" },
-        { "min": 0.0, "max": 0.3, "label": "Beginner", "implication": "Still learning fundamentals" }
+        {
+          "min": 0.85,
+          "max": 1.0,
+          "label": "Expert",
+          "implication": "Can teach others, handle edge cases"
+        },
+        {
+          "min": 0.7,
+          "max": 0.85,
+          "label": "Proficient",
+          "implication": "Reliable independent application"
+        },
+        {
+          "min": 0.5,
+          "max": 0.7,
+          "label": "Competent",
+          "implication": "Can apply with occasional support"
+        },
+        {
+          "min": 0.3,
+          "max": 0.5,
+          "label": "Novice",
+          "implication": "Basic understanding, needs guidance"
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Beginner",
+          "implication": "Still learning fundamentals"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Learner demonstrates expert-level understanding, identifies edge cases, could teach concept", "rationale": "Full mastery", "isGold": true },
-        { "score": 0.75, "example": "Learner consistently applies concept correctly without prompting", "rationale": "Proficient level", "isGold": true },
-        { "score": 0.55, "example": "Learner understands and usually applies correctly, occasional errors", "rationale": "Competent level", "isGold": true },
-        { "score": 0.35, "example": "Learner has basic understanding but struggles with application", "rationale": "Novice level", "isGold": true },
-        { "score": 0.1, "example": "Learner just starting to grasp basic concepts", "rationale": "Beginner level", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Learner demonstrates expert-level understanding, identifies edge cases, could teach concept",
+          "rationale": "Full mastery",
+          "isGold": true
+        },
+        {
+          "score": 0.75,
+          "example": "Learner consistently applies concept correctly without prompting",
+          "rationale": "Proficient level",
+          "isGold": true
+        },
+        {
+          "score": 0.55,
+          "example": "Learner understands and usually applies correctly, occasional errors",
+          "rationale": "Competent level",
+          "isGold": true
+        },
+        {
+          "score": 0.35,
+          "example": "Learner has basic understanding but struggles with application",
+          "rationale": "Novice level",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "Learner just starting to grasp basic concepts",
+          "rationale": "Beginner level",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Module mastered - can advance to dependent modules, use this concept as foundation.",
@@ -203,17 +460,55 @@
       "name": "Prerequisite Readiness",
       "description": "Checks if prerequisites are met before advancing",
       "section": "sequencing",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.7, "max": 1.0, "label": "Ready", "implication": "All prerequisites at competent+ level" },
-        { "min": 0.4, "max": 0.7, "label": "Nearly Ready", "implication": "Most prerequisites met" },
-        { "min": 0.0, "max": 0.4, "label": "Not Ready", "implication": "Prerequisites need more work" }
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Ready",
+          "implication": "All prerequisites at competent+ level"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Nearly Ready",
+          "implication": "Most prerequisites met"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Not Ready",
+          "implication": "Prerequisites need more work"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "All 3 prerequisite modules at 'competent' or higher", "rationale": "Full readiness", "isGold": true },
-        { "score": 0.7, "example": "2 of 3 prerequisites met, third at 'novice'", "rationale": "Minor gap", "isGold": true },
-        { "score": 0.3, "example": "1 of 3 prerequisites met", "rationale": "Significant gaps", "isGold": true },
-        { "score": 0.0, "example": "No prerequisites completed", "rationale": "Not ready for this module", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "All 3 prerequisite modules at 'competent' or higher",
+          "rationale": "Full readiness",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "2 of 3 prerequisites met, third at 'novice'",
+          "rationale": "Minor gap",
+          "isGold": true
+        },
+        {
+          "score": 0.3,
+          "example": "1 of 3 prerequisites met",
+          "rationale": "Significant gaps",
+          "isGold": true
+        },
+        {
+          "score": 0.0,
+          "example": "No prerequisites completed",
+          "rationale": "Not ready for this module",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Prerequisites met - safe to introduce new module.",
@@ -226,12 +521,29 @@
       "description": "Tracks spaced retrieval schedule and review eligibility for curriculum units",
       "section": "review_tracking",
       "config": {
-        "defaultIntervals": ["1 call", "3 calls", "7 calls", "14 calls"],
+        "defaultIntervals": [
+          "1 call",
+          "3 calls",
+          "7 calls",
+          "14 calls"
+        ],
         "decliningMasteryTrigger": -0.15,
         "contentTypeOverrides": {
-          "formula": ["1 call", "2 calls", "4 calls"],
-          "concept": ["1 call", "3 calls", "7 calls"],
-          "skill": ["1 call", "2 calls", "5 calls"]
+          "formula": [
+            "1 call",
+            "2 calls",
+            "4 calls"
+          ],
+          "concept": [
+            "1 call",
+            "3 calls",
+            "7 calls"
+          ],
+          "skill": [
+            "1 call",
+            "2 calls",
+            "5 calls"
+          ]
         }
       },
       "fields": {
@@ -242,16 +554,56 @@
         "trend_delta": "change in mastery since last review"
       },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Review Current", "implication": "Recently reviewed, mastery stable or improving" },
-        { "min": 0.5, "max": 0.8, "label": "Review Due Soon", "implication": "Approaching next scheduled review" },
-        { "min": 0.2, "max": 0.5, "label": "Review Overdue", "implication": "Missed scheduled review window" },
-        { "min": 0.0, "max": 0.2, "label": "Urgent Review", "implication": "Mastery declining or significantly overdue" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Review Current",
+          "implication": "Recently reviewed, mastery stable or improving"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Review Due Soon",
+          "implication": "Approaching next scheduled review"
+        },
+        {
+          "min": 0.2,
+          "max": 0.5,
+          "label": "Review Overdue",
+          "implication": "Missed scheduled review window"
+        },
+        {
+          "min": 0.0,
+          "max": 0.2,
+          "label": "Urgent Review",
+          "implication": "Mastery declining or significantly overdue"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Unit reviewed 1 call ago, mastery stable at 0.8", "rationale": "Fresh review, strong retention", "isGold": true },
-        { "score": 0.7, "example": "Unit due for review in 2 calls, mastery stable", "rationale": "On schedule", "isGold": true },
-        { "score": 0.4, "example": "Unit was due for review 3 calls ago", "rationale": "Overdue for spaced retrieval", "isGold": true },
-        { "score": 0.1, "example": "Unit mastery dropped 0.2 since last review", "rationale": "Declining mastery, urgent review needed", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Unit reviewed 1 call ago, mastery stable at 0.8",
+          "rationale": "Fresh review, strong retention",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Unit due for review in 2 calls, mastery stable",
+          "rationale": "On schedule",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Unit was due for review 3 calls ago",
+          "rationale": "Overdue for spaced retrieval",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "Unit mastery dropped 0.2 since last review",
+          "rationale": "Declining mastery, urgent review needed",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Review status is current - no urgent review needed.",
@@ -259,7 +611,6 @@
       }
     }
   ],
-
   "constraints": [
     {
       "id": "C-CURR-1",
@@ -280,10 +631,22 @@
       "severity": "info"
     }
   ],
-
   "related": [
-    { "id": "GOAL-001", "title": "Learner Goals", "relationship": "curriculum progress informs goal tracking" },
-    { "id": "REW-001", "title": "Reward Computation", "relationship": "curriculum progress feeds learning reward" },
-    { "id": "SESSION-001", "title": "Session Arc Planning", "relationship": "curriculum state informs session planning" }
-  ]
+    {
+      "id": "GOAL-001",
+      "title": "Learner Goals",
+      "relationship": "curriculum progress informs goal tracking"
+    },
+    {
+      "id": "REW-001",
+      "title": "Reward Computation",
+      "relationship": "curriculum progress feeds learning reward"
+    },
+    {
+      "id": "SESSION-001",
+      "title": "Session Arc Planning",
+      "relationship": "curriculum state informs session planning"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

@@ -2,28 +2,27 @@
   "id": "ADAPT-PERS-001",
   "title": "Big Five Personality Adaptation",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-01-30",
   "domain": "personality-adaptation",
   "specType": "ADAPT",
   "outputType": "ADAPT",
-
   "story": {
     "asA": "conversational agent",
     "iWant": "to adapt my communication style based on caller personality traits",
     "soThat": "interactions feel natural and personalized to each caller"
   },
-
   "context": {
     "applies": "Every call - uses personality measurements to compute style targets",
-    "dependsOn": ["PERS-001"],
+    "dependsOn": [
+      "PERS-001"
+    ],
     "assumptions": [
       "Personality traits are stable and measured from PERS-001",
       "Different personality profiles benefit from different communication styles",
       "Adaptation improves rapport and engagement"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-ADAPT-PERS-1",
@@ -31,7 +30,9 @@
       "given": "Caller's openness score is measured",
       "when": "Computing communication targets",
       "then": "Exploration vs structure target is set based on openness level",
-      "measuredBy": ["openness_adaptation"]
+      "measuredBy": [
+        "openness_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-PERS-2",
@@ -39,7 +40,9 @@
       "given": "Caller's conscientiousness score is measured",
       "when": "Computing communication targets",
       "then": "Structure and detail level targets are set based on conscientiousness",
-      "measuredBy": ["conscientiousness_adaptation"]
+      "measuredBy": [
+        "conscientiousness_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-PERS-3",
@@ -47,7 +50,9 @@
       "given": "Caller's extraversion score is measured",
       "when": "Computing communication targets",
       "then": "Energy and pacing targets are set based on extraversion level",
-      "measuredBy": ["extraversion_adaptation"]
+      "measuredBy": [
+        "extraversion_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-PERS-4",
@@ -55,7 +60,9 @@
       "given": "Caller's agreeableness score is measured",
       "when": "Computing communication targets",
       "then": "Warmth and directness targets are set based on agreeableness",
-      "measuredBy": ["agreeableness_adaptation"]
+      "measuredBy": [
+        "agreeableness_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-PERS-5",
@@ -63,10 +70,11 @@
       "given": "Caller's neuroticism score is measured",
       "when": "Computing communication targets",
       "then": "Reassurance and emotional sensitivity targets are set",
-      "measuredBy": ["neuroticism_adaptation"]
+      "measuredBy": [
+        "neuroticism_adaptation"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "openness_adaptation",
@@ -74,16 +82,34 @@
       "description": "Communication style target based on caller's openness: high openness = exploratory style, low openness = practical style",
       "section": "personality",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "traitId": "B5-O",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "Exploratory Style", "implication": "Explore ideas, creative discussions, intellectual curiosity" },
-        { "min": 0.35, "max": 0.65, "label": "Balanced Style", "implication": "Mix of practical and exploratory approaches" },
-        { "min": 0.0, "max": 0.35, "label": "Practical Style", "implication": "Concrete, practical, tried-and-true approaches" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "Exploratory Style",
+          "implication": "Explore ideas, creative discussions, intellectual curiosity"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Balanced Style",
+          "implication": "Mix of practical and exploratory approaches"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Practical Style",
+          "implication": "Concrete, practical, tried-and-true approaches"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Feel free to explore tangential ideas. Offer creative alternatives and 'what if' scenarios. Engage with abstract or theoretical discussions. Don't rush to conclusions.",
@@ -96,16 +122,34 @@
       "description": "Structure and detail level based on caller's conscientiousness: high = organized details, low = flexible overview",
       "section": "personality",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "traitId": "B5-C",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "Structured Detail", "implication": "Organized, detailed, action-oriented responses" },
-        { "min": 0.35, "max": 0.65, "label": "Balanced Structure", "implication": "Moderate detail with some flexibility" },
-        { "min": 0.0, "max": 0.35, "label": "Flexible Overview", "implication": "Big picture focus, adaptable, less rigid" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "Structured Detail",
+          "implication": "Organized, detailed, action-oriented responses"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Balanced Structure",
+          "implication": "Moderate detail with some flexibility"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Flexible Overview",
+          "implication": "Big picture focus, adaptable, less rigid"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Structure responses clearly (numbered lists work well). Be specific about next steps and timelines. Follow up on previous commitments. Provide complete, detailed information.",
@@ -118,16 +162,34 @@
       "description": "Energy and conversational style based on caller's extraversion: high = energetic dialogue, low = measured pace",
       "section": "personality",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "traitId": "B5-E",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "Energetic Dialogue", "implication": "Dynamic, enthusiastic, expressive conversation" },
-        { "min": 0.35, "max": 0.65, "label": "Moderate Energy", "implication": "Balanced conversational energy" },
-        { "min": 0.0, "max": 0.35, "label": "Measured Pace", "implication": "Quieter, space-giving, reflective style" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "Energetic Dialogue",
+          "implication": "Dynamic, enthusiastic, expressive conversation"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Moderate Energy",
+          "implication": "Balanced conversational energy"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Measured Pace",
+          "implication": "Quieter, space-giving, reflective style"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Match their energy level. Be expressive and enthusiastic. Encourage dialogue, ask follow-up questions. Keep the conversation flowing.",
@@ -140,16 +202,34 @@
       "description": "Warmth and directness based on caller's agreeableness: high = warm cooperative, low = direct honest",
       "section": "personality",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "traitId": "B5-A",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "Warm Cooperative", "implication": "Friendly, harmony-focused, relationship-building" },
-        { "min": 0.35, "max": 0.65, "label": "Balanced Tone", "implication": "Mix of warmth and directness" },
-        { "min": 0.0, "max": 0.35, "label": "Direct Honest", "implication": "Straightforward, efficient, no-nonsense" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "Warm Cooperative",
+          "implication": "Friendly, harmony-focused, relationship-building"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Balanced Tone",
+          "implication": "Mix of warmth and directness"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Direct Honest",
+          "implication": "Straightforward, efficient, no-nonsense"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Be warm and friendly. Emphasize collaboration. Soften any criticism or difficult news. Show appreciation and gratitude. Build and maintain rapport.",
@@ -162,16 +242,34 @@
       "description": "Emotional sensitivity based on caller's neuroticism: high = reassuring calm, low = straightforward",
       "section": "personality",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "traitId": "B5-N",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "Reassuring Calm", "implication": "Extra reassurance, calm steady presence, acknowledge concerns" },
-        { "min": 0.35, "max": 0.65, "label": "Balanced Support", "implication": "Moderate reassurance as needed" },
-        { "min": 0.0, "max": 0.35, "label": "Straightforward", "implication": "Direct communication, trust their resilience" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "Reassuring Calm",
+          "implication": "Extra reassurance, calm steady presence, acknowledge concerns"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Balanced Support",
+          "implication": "Moderate reassurance as needed"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Straightforward",
+          "implication": "Direct communication, trust their resilience"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Be calm and reassuring. Acknowledge their concerns as valid. Provide clear information to reduce uncertainty. Celebrate progress and provide encouragement.",
@@ -179,7 +277,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "High Openness → Proactivity",
@@ -262,7 +359,6 @@
       "targetValue": 0.5
     }
   ],
-
   "constraints": [
     {
       "id": "C-ADAPT-PERS-1",
@@ -277,10 +373,22 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "PERS-001", "title": "Personality Measurement", "relationship": "provides input measurements" },
-    { "id": "STYLE-001", "title": "Conversation Style Measurement", "relationship": "targets inform agent behavior measurement" },
-    { "id": "REW-001", "title": "Reward Computation", "relationship": "style alignment feeds rapport reward" }
-  ]
+    {
+      "id": "PERS-001",
+      "title": "Personality Measurement",
+      "relationship": "provides input measurements"
+    },
+    {
+      "id": "STYLE-001",
+      "title": "Conversation Style Measurement",
+      "relationship": "targets inform agent behavior measurement"
+    },
+    {
+      "id": "REW-001",
+      "title": "Reward Computation",
+      "relationship": "style alignment feeds rapport reward"
+    }
+  ],
+  "specRole": "SYNTHESISE"
 }

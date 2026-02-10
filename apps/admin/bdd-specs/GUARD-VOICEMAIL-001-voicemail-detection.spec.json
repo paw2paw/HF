@@ -2,19 +2,17 @@
   "id": "GUARD-VOICEMAIL-001",
   "title": "Voicemail & Answering Machine Detection",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-05",
   "domain": "safety",
   "specType": "SYSTEM",
-  "specRole": "GUARDRAIL",
+  "specRole": "CONSTRAIN",
   "outputType": "SUPERVISE",
-
   "story": {
     "asA": "voice AI safety system",
     "iWant": "to detect voicemail, answering machines, and pre-recorded messages immediately",
     "soThat": "the agent never leaves a message or talks to a machine"
   },
-
   "context": {
     "applies": "Start of every outbound call — first 5 seconds",
     "dependsOn": [],
@@ -25,7 +23,6 @@
       "The call platform (VAPI) may provide its own voicemail detection signals"
     ]
   },
-
   "parameters": [
     {
       "id": "voicemail_detection",
@@ -54,7 +51,6 @@
       }
     }
   ],
-
   "constraints": [
     {
       "id": "C-VM-1",

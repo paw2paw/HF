@@ -2,19 +2,17 @@
   "id": "CURR-FS-L2-001",
   "title": "Level 2 Food Hygiene and Safety Certificate",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-09",
   "domain": "curriculum",
   "specType": "DOMAIN",
   "outputType": "COMPOSE",
   "specRole": "CONTENT",
-
   "story": {
     "asA": "learner preparing for the Highfield Level 2 Award in Food Safety for Catering",
     "iWant": "to learn food safety principles through conversational AI tutoring",
     "soThat": "I can pass the qualification exam and work safely in a food environment"
   },
-
   "context": {
     "applies": "When tutoring a learner through the Level 2 Food Safety curriculum",
     "dependsOn": [],
@@ -25,7 +23,6 @@
       "Formative assessment should happen throughout, not just at end"
     ]
   },
-
   "qualification": {
     "name": "Highfield Level 2 Award in Food Safety for Catering (RQF)",
     "number": "603/4937/2",
@@ -36,69 +33,136 @@
     "primaryReference": "Food Safety Handbook (Level 2), Richard A. Sprenger, Highfield Publications (37th Ed., 2022)",
     "crossReference": "Qualsafe Level 2 Award (603/2594/X)"
   },
-
   "assessment": {
     "format": "Multiple choice",
     "questions": 20,
     "durationMinutes": 45,
     "passMarkPercent": 66,
     "passMarkRaw": 13,
-    "grades": ["Pass", "Fail"],
+    "grades": [
+      "Pass",
+      "Fail"
+    ],
     "weightByLO": {
-      "LO1": { "questions": "3-4", "percent": "15-20%" },
-      "LO2": { "questions": "3-4", "percent": "15-20%" },
-      "LO3": { "questions": "3-4", "percent": "15-20%" },
-      "LO4": { "questions": "8-10", "percent": "40-50%" }
+      "LO1": {
+        "questions": "3-4",
+        "percent": "15-20%"
+      },
+      "LO2": {
+        "questions": "3-4",
+        "percent": "15-20%"
+      },
+      "LO3": {
+        "questions": "3-4",
+        "percent": "15-20%"
+      },
+      "LO4": {
+        "questions": "8-10",
+        "percent": "40-50%"
+      }
     }
   },
-
   "learningOutcomes": [
     {
       "id": "LO1",
       "title": "Understand how individuals can take personal responsibility for food safety",
       "criteria": [
-        { "id": "1.1", "text": "Identify the importance of food safety procedures", "bloomsLevel": "Knowledge" },
-        { "id": "1.2", "text": "State how to report food safety hazards", "bloomsLevel": "Knowledge" },
-        { "id": "1.3", "text": "Recognise the legal responsibilities of food handlers and food business operators", "bloomsLevel": "Understanding" }
+        {
+          "id": "1.1",
+          "text": "Identify the importance of food safety procedures",
+          "bloomsLevel": "Knowledge"
+        },
+        {
+          "id": "1.2",
+          "text": "State how to report food safety hazards",
+          "bloomsLevel": "Knowledge"
+        },
+        {
+          "id": "1.3",
+          "text": "Recognise the legal responsibilities of food handlers and food business operators",
+          "bloomsLevel": "Understanding"
+        }
       ]
     },
     {
       "id": "LO2",
       "title": "Understand the importance of maintaining personal hygiene",
       "criteria": [
-        { "id": "2.1", "text": "Recognise the importance of personal hygiene in food safety including its role in reducing the risk of contamination", "bloomsLevel": "Understanding" },
-        { "id": "2.2", "text": "Identify effective personal hygiene practices", "bloomsLevel": "Knowledge" }
+        {
+          "id": "2.1",
+          "text": "Recognise the importance of personal hygiene in food safety including its role in reducing the risk of contamination",
+          "bloomsLevel": "Understanding"
+        },
+        {
+          "id": "2.2",
+          "text": "Identify effective personal hygiene practices",
+          "bloomsLevel": "Knowledge"
+        }
       ]
     },
     {
       "id": "LO3",
       "title": "Understand the importance of keeping work areas clean and hygienic",
       "criteria": [
-        { "id": "3.1", "text": "Identify how to keep the work area and equipment clean and tidy", "bloomsLevel": "Knowledge" },
-        { "id": "3.2", "text": "State how workflow, work surfaces and equipment can reduce contamination risks and aid cleaning", "bloomsLevel": "Knowledge" },
-        { "id": "3.3", "text": "Identify the importance of pest control", "bloomsLevel": "Knowledge" }
+        {
+          "id": "3.1",
+          "text": "Identify how to keep the work area and equipment clean and tidy",
+          "bloomsLevel": "Knowledge"
+        },
+        {
+          "id": "3.2",
+          "text": "State how workflow, work surfaces and equipment can reduce contamination risks and aid cleaning",
+          "bloomsLevel": "Knowledge"
+        },
+        {
+          "id": "3.3",
+          "text": "Identify the importance of pest control",
+          "bloomsLevel": "Knowledge"
+        }
       ]
     },
     {
       "id": "LO4",
       "title": "Understand the importance of keeping food safe",
       "criteria": [
-        { "id": "4.1", "text": "Identify the sources and risks to food safety from contamination and cross-contamination", "bloomsLevel": "Knowledge" },
-        { "id": "4.2", "text": "State how to deal with food spoilage", "bloomsLevel": "Knowledge" },
-        { "id": "4.3", "text": "Identify safe handling practices and procedures for storing, preparing, cooking, chilling, reheating, holding, serving and transporting food", "bloomsLevel": "Knowledge" },
-        { "id": "4.4", "text": "Recognise the importance of temperature controls when storing, preparing, cooking, chilling, reheating, holding, serving and transporting food", "bloomsLevel": "Understanding" },
-        { "id": "4.5", "text": "Identify stock control procedures", "bloomsLevel": "Knowledge" }
+        {
+          "id": "4.1",
+          "text": "Identify the sources and risks to food safety from contamination and cross-contamination",
+          "bloomsLevel": "Knowledge"
+        },
+        {
+          "id": "4.2",
+          "text": "State how to deal with food spoilage",
+          "bloomsLevel": "Knowledge"
+        },
+        {
+          "id": "4.3",
+          "text": "Identify safe handling practices and procedures for storing, preparing, cooking, chilling, reheating, holding, serving and transporting food",
+          "bloomsLevel": "Knowledge"
+        },
+        {
+          "id": "4.4",
+          "text": "Recognise the importance of temperature controls when storing, preparing, cooking, chilling, reheating, holding, serving and transporting food",
+          "bloomsLevel": "Understanding"
+        },
+        {
+          "id": "4.5",
+          "text": "Identify stock control procedures",
+          "bloomsLevel": "Knowledge"
+        }
       ]
     }
   ],
-
   "modules": [
     {
       "id": "MOD-1",
       "title": "Introduction to Food Safety",
       "durationMinutes": 45,
       "learningOutcome": "LO1",
-      "assessmentCriteria": ["1.1", "1.2"],
+      "assessmentCriteria": [
+        "1.1",
+        "1.2"
+      ],
       "sprengerReference": "Chapter: Food Safety Law & Enforcement; HACCP from Purchase to Service",
       "learningObjectives": [
         "Define food safety and explain why it matters to public health and business",
@@ -153,11 +217,26 @@
         }
       ],
       "keyTerms": [
-        { "term": "Food safety", "definition": "Practices that prevent foodborne illness during handling, preparation, and storage of food" },
-        { "term": "HACCP", "definition": "Hazard Analysis and Critical Control Point – a systematic approach to food safety management" },
-        { "term": "CCP", "definition": "Critical Control Point – a step where control can be applied to prevent, eliminate, or reduce a hazard" },
-        { "term": "EHP/EHO", "definition": "Environmental Health Practitioner/Officer – the local authority officer responsible for food safety enforcement" },
-        { "term": "Due diligence", "definition": "A legal defence available to food businesses that can demonstrate they took all reasonable precautions" }
+        {
+          "term": "Food safety",
+          "definition": "Practices that prevent foodborne illness during handling, preparation, and storage of food"
+        },
+        {
+          "term": "HACCP",
+          "definition": "Hazard Analysis and Critical Control Point – a systematic approach to food safety management"
+        },
+        {
+          "term": "CCP",
+          "definition": "Critical Control Point – a step where control can be applied to prevent, eliminate, or reduce a hazard"
+        },
+        {
+          "term": "EHP/EHO",
+          "definition": "Environmental Health Practitioner/Officer – the local authority officer responsible for food safety enforcement"
+        },
+        {
+          "term": "Due diligence",
+          "definition": "A legal defence available to food businesses that can demonstrate they took all reasonable precautions"
+        }
       ],
       "examTopics": [
         "Why food safety procedures are important (AC 1.1)",
@@ -168,7 +247,9 @@
       "tutoringGuidance": {
         "entryCheck": "Ask the learner to describe their food handling role (if any) to personalise examples",
         "scaffolding": "Start with concrete examples (food poisoning outbreaks in the news) before introducing HACCP theory",
-        "commonMisconceptions": ["HACCP is 'just for big companies' – clarify it applies to all food businesses"],
+        "commonMisconceptions": [
+          "HACCP is 'just for big companies' – clarify it applies to all food businesses"
+        ],
         "readinessIndicator": "Learner can name at least 3 consequences of poor food safety and explain who to report hazards to"
       }
     },
@@ -177,7 +258,10 @@
       "title": "Food Hazards and Food Poisoning",
       "durationMinutes": 60,
       "learningOutcome": "LO4",
-      "assessmentCriteria": ["4.1", "4.2"],
+      "assessmentCriteria": [
+        "4.1",
+        "4.2"
+      ],
       "sprengerReference": "Chapters: Microbiological Hazards; Food Poisoning & Its Control; Contamination Hazards & Controls",
       "learningObjectives": [
         "Identify the four types of food hazards (microbiological, chemical, physical, allergenic)",
@@ -245,15 +329,42 @@
         }
       ],
       "keyTerms": [
-        { "term": "Pathogenic bacteria", "definition": "Bacteria that cause illness in humans" },
-        { "term": "Binary fission", "definition": "The process by which bacteria reproduce by splitting in two" },
-        { "term": "Danger zone", "definition": "Temperature range (8°C–63°C) where most bacteria multiply rapidly" },
-        { "term": "Toxin", "definition": "A poisonous substance produced by bacteria" },
-        { "term": "High-risk food", "definition": "Ready-to-eat food that supports bacterial growth, usually high in protein and moisture" },
-        { "term": "Allergen", "definition": "A substance that causes an immune reaction in sensitive individuals" },
-        { "term": "Cross-contamination", "definition": "The transfer of bacteria or other hazards from one food (or surface) to another" },
-        { "term": "Onset period", "definition": "The time between eating contaminated food and the first symptoms of illness" },
-        { "term": "Spore", "definition": "A resistant structure formed by some bacteria (e.g. Clostridium, Bacillus) that survives cooking" }
+        {
+          "term": "Pathogenic bacteria",
+          "definition": "Bacteria that cause illness in humans"
+        },
+        {
+          "term": "Binary fission",
+          "definition": "The process by which bacteria reproduce by splitting in two"
+        },
+        {
+          "term": "Danger zone",
+          "definition": "Temperature range (8°C–63°C) where most bacteria multiply rapidly"
+        },
+        {
+          "term": "Toxin",
+          "definition": "A poisonous substance produced by bacteria"
+        },
+        {
+          "term": "High-risk food",
+          "definition": "Ready-to-eat food that supports bacterial growth, usually high in protein and moisture"
+        },
+        {
+          "term": "Allergen",
+          "definition": "A substance that causes an immune reaction in sensitive individuals"
+        },
+        {
+          "term": "Cross-contamination",
+          "definition": "The transfer of bacteria or other hazards from one food (or surface) to another"
+        },
+        {
+          "term": "Onset period",
+          "definition": "The time between eating contaminated food and the first symptoms of illness"
+        },
+        {
+          "term": "Spore",
+          "definition": "A resistant structure formed by some bacteria (e.g. Clostridium, Bacillus) that survives cooking"
+        }
       ],
       "examTopics": [
         "Naming the four types of food hazard (AC 4.1)",
@@ -279,7 +390,10 @@
       "title": "Personal Hygiene",
       "durationMinutes": 45,
       "learningOutcome": "LO2",
-      "assessmentCriteria": ["2.1", "2.2"],
+      "assessmentCriteria": [
+        "2.1",
+        "2.2"
+      ],
       "sprengerReference": "Chapter: Food Handlers & Personal Hygiene",
       "learningObjectives": [
         "Explain why personal hygiene is critical in food safety",
@@ -340,10 +454,22 @@
         }
       ],
       "keyTerms": [
-        { "term": "PPE", "definition": "Personal Protective Equipment – clothing and equipment worn to minimise exposure to hazards" },
-        { "term": "Carrier", "definition": "A person who carries pathogenic organisms without showing symptoms of illness" },
-        { "term": "Cross-contamination", "definition": "Transfer of harmful organisms from one surface/food to another, often via hands" },
-        { "term": "Detectable plaster", "definition": "A blue, waterproof, metal-detectable dressing used to cover wounds in food environments" }
+        {
+          "term": "PPE",
+          "definition": "Personal Protective Equipment – clothing and equipment worn to minimise exposure to hazards"
+        },
+        {
+          "term": "Carrier",
+          "definition": "A person who carries pathogenic organisms without showing symptoms of illness"
+        },
+        {
+          "term": "Cross-contamination",
+          "definition": "Transfer of harmful organisms from one surface/food to another, often via hands"
+        },
+        {
+          "term": "Detectable plaster",
+          "definition": "A blue, waterproof, metal-detectable dressing used to cover wounds in food environments"
+        }
       ],
       "examTopics": [
         "When to wash hands (AC 2.2)",
@@ -355,7 +481,9 @@
       ],
       "tutoringGuidance": {
         "interactiveRecall": "Ask learner to list all the occasions when they should wash their hands (aim for at least 8)",
-        "commonMisconceptions": ["Wearing gloves means I don't need to wash my hands – critical to correct"],
+        "commonMisconceptions": [
+          "Wearing gloves means I don't need to wash my hands – critical to correct"
+        ],
         "scenarioLearning": "You arrive at work with a cut on your hand. What do you do?",
         "readinessIndicator": "Learner can describe the 5-step handwashing procedure and list at least 5 occasions requiring handwashing, plus state the 48-hour rule for vomiting/diarrhoea"
       }
@@ -365,7 +493,11 @@
       "title": "Contamination, Time and Temperature",
       "durationMinutes": 75,
       "learningOutcome": "LO4",
-      "assessmentCriteria": ["4.1", "4.3", "4.4"],
+      "assessmentCriteria": [
+        "4.1",
+        "4.3",
+        "4.4"
+      ],
       "sprengerReference": "Chapters: Contamination Hazards & Controls; HACCP from Purchase to Service; Spoilage & Preservation",
       "learningObjectives": [
         "Explain the three types of contamination (microbiological, chemical, physical) and how cross-contamination occurs",
@@ -439,13 +571,34 @@
         }
       ],
       "keyTerms": [
-        { "term": "Danger zone", "definition": "8°C to 63°C – the temperature range where bacteria multiply most rapidly" },
-        { "term": "Core temperature", "definition": "The temperature at the thickest part / centre of the food" },
-        { "term": "Probe thermometer", "definition": "A device used to measure the internal temperature of food" },
-        { "term": "FIFO", "definition": "First In, First Out – stock rotation method ensuring oldest stock is used first" },
-        { "term": "Use-by date", "definition": "The date by which food must be consumed; after this date food is legally unfit for sale" },
-        { "term": "Best-before date", "definition": "An indicator of quality, not safety; food may still be safe after this date" },
-        { "term": "Cross-contamination", "definition": "Transfer of harmful organisms from one food/surface to another" }
+        {
+          "term": "Danger zone",
+          "definition": "8°C to 63°C – the temperature range where bacteria multiply most rapidly"
+        },
+        {
+          "term": "Core temperature",
+          "definition": "The temperature at the thickest part / centre of the food"
+        },
+        {
+          "term": "Probe thermometer",
+          "definition": "A device used to measure the internal temperature of food"
+        },
+        {
+          "term": "FIFO",
+          "definition": "First In, First Out – stock rotation method ensuring oldest stock is used first"
+        },
+        {
+          "term": "Use-by date",
+          "definition": "The date by which food must be consumed; after this date food is legally unfit for sale"
+        },
+        {
+          "term": "Best-before date",
+          "definition": "An indicator of quality, not safety; food may still be safe after this date"
+        },
+        {
+          "term": "Cross-contamination",
+          "definition": "Transfer of harmful organisms from one food/surface to another"
+        }
       ],
       "examTopics": [
         "The temperature danger zone (AC 4.4)",
@@ -472,7 +625,11 @@
       "title": "Cleaning, Sanitising, Premises and Equipment",
       "durationMinutes": 60,
       "learningOutcome": "LO3",
-      "assessmentCriteria": ["3.1", "3.2", "3.3"],
+      "assessmentCriteria": [
+        "3.1",
+        "3.2",
+        "3.3"
+      ],
       "sprengerReference": "Chapters: Cleaning & Disinfection; Food Premises & Equipment; Food Pests & Control",
       "learningObjectives": [
         "Distinguish between cleaning, disinfection, and sanitising",
@@ -562,12 +719,30 @@
         }
       ],
       "keyTerms": [
-        { "term": "Sanitising", "definition": "The process of cleaning and disinfecting a surface to make it safe for food contact" },
-        { "term": "Detergent", "definition": "A chemical that removes grease and dirt but does not kill bacteria" },
-        { "term": "Disinfectant", "definition": "A chemical that reduces bacteria to a safe level" },
-        { "term": "COSHH", "definition": "Control of Substances Hazardous to Health – regulations governing safe use of chemicals" },
-        { "term": "Cleaning schedule", "definition": "A written document specifying what, when, how, and by whom cleaning should be done" },
-        { "term": "Infestation", "definition": "The presence of pests in numbers that could cause contamination or damage" }
+        {
+          "term": "Sanitising",
+          "definition": "The process of cleaning and disinfecting a surface to make it safe for food contact"
+        },
+        {
+          "term": "Detergent",
+          "definition": "A chemical that removes grease and dirt but does not kill bacteria"
+        },
+        {
+          "term": "Disinfectant",
+          "definition": "A chemical that reduces bacteria to a safe level"
+        },
+        {
+          "term": "COSHH",
+          "definition": "Control of Substances Hazardous to Health – regulations governing safe use of chemicals"
+        },
+        {
+          "term": "Cleaning schedule",
+          "definition": "A written document specifying what, when, how, and by whom cleaning should be done"
+        },
+        {
+          "term": "Infestation",
+          "definition": "The presence of pests in numbers that could cause contamination or damage"
+        }
       ],
       "examTopics": [
         "The difference between cleaning, disinfection, and sanitising (AC 3.1)",
@@ -581,7 +756,9 @@
         "keyDistinction": "cleaning ≠ disinfection ≠ sanitising – this is a very common exam question",
         "mnemonic": "'People Must Rinse, Disinfect, Rinse, Dry' for 6-stage cleaning",
         "scenarioLearning": "You notice small black droppings behind a storage shelf. What are they likely from and what do you do?",
-        "commonMisconceptions": ["If it looks clean, it is clean – visible cleanliness does not mean bacteriologically safe"],
+        "commonMisconceptions": [
+          "If it looks clean, it is clean – visible cleanliness does not mean bacteriologically safe"
+        ],
         "readinessIndicator": "Learner can state the difference between cleaning and sanitising, list 3+ signs of pest infestation, and describe the 6-stage cleaning procedure"
       }
     },
@@ -590,7 +767,10 @@
       "title": "Food Handling Responsibilities and the Law",
       "durationMinutes": 45,
       "learningOutcome": "LO1",
-      "assessmentCriteria": ["1.3", "4.5"],
+      "assessmentCriteria": [
+        "1.3",
+        "4.5"
+      ],
       "sprengerReference": "Chapters: Food Safety Law & Enforcement; HACCP from Purchase to Service",
       "learningObjectives": [
         "State the legal responsibilities of food handlers",
@@ -666,12 +846,30 @@
         }
       ],
       "keyTerms": [
-        { "term": "Food business operator", "definition": "The person or persons responsible for ensuring food law is met within the business they control" },
-        { "term": "Improvement Notice", "definition": "A legal notice requiring a food business to make specific improvements within a set time" },
-        { "term": "Prohibition Notice", "definition": "A legal notice that prevents a food business (or part of it) from operating" },
-        { "term": "FHRS", "definition": "Food Hygiene Rating Scheme – a 0–5 rating system for food businesses in England, Wales, and Northern Ireland" },
-        { "term": "FIFO", "definition": "First In, First Out – stock rotation principle" },
-        { "term": "Due diligence", "definition": "A legal defence requiring proof that all reasonable precautions were taken" }
+        {
+          "term": "Food business operator",
+          "definition": "The person or persons responsible for ensuring food law is met within the business they control"
+        },
+        {
+          "term": "Improvement Notice",
+          "definition": "A legal notice requiring a food business to make specific improvements within a set time"
+        },
+        {
+          "term": "Prohibition Notice",
+          "definition": "A legal notice that prevents a food business (or part of it) from operating"
+        },
+        {
+          "term": "FHRS",
+          "definition": "Food Hygiene Rating Scheme – a 0–5 rating system for food businesses in England, Wales, and Northern Ireland"
+        },
+        {
+          "term": "FIFO",
+          "definition": "First In, First Out – stock rotation principle"
+        },
+        {
+          "term": "Due diligence",
+          "definition": "A legal defence requiring proof that all reasonable precautions were taken"
+        }
       ],
       "examTopics": [
         "Legal responsibilities of food handlers vs food business operators (AC 1.3)",
@@ -684,49 +882,135 @@
       "tutoringGuidance": {
         "practicalFraming": "Keep legal content grounded in 'what this means for you in the kitchen' rather than abstract law",
         "keyDistinction": "use-by (safety, illegal to sell after) vs best-before (quality, not illegal)",
-        "commonMisconceptions": ["The owner is responsible, not me – food handlers have personal legal responsibilities too"],
+        "commonMisconceptions": [
+          "The owner is responsible, not me – food handlers have personal legal responsibilities too"
+        ],
         "scenarioLearning": "An EHP arrives for an unannounced inspection. What are they looking for and what can they do?",
         "readinessIndicator": "Learner can state at least 3 food handler responsibilities, 3 food business operator responsibilities, the difference between use-by and best-before, and explain what FIFO means"
       }
     }
   ],
-
   "misconceptionBank": [
-    { "id": "MC-01", "misconception": "Freezing kills bacteria", "correction": "Freezing stops bacterial growth but does not kill bacteria; they revive on thawing", "modules": ["MOD-2", "MOD-4"] },
-    { "id": "MC-02", "misconception": "If food looks and smells fine, it's safe", "correction": "Pathogenic bacteria are often undetectable by sight, smell, or taste", "modules": ["MOD-2"] },
-    { "id": "MC-03", "misconception": "The 5-second rule", "correction": "Bacteria transfer to food immediately on contact with a contaminated surface", "modules": ["MOD-2"] },
-    { "id": "MC-04", "misconception": "Wearing gloves means I don't need to wash my hands", "correction": "Hands must be washed before putting on gloves and gloves must be changed frequently", "modules": ["MOD-3"] },
-    { "id": "MC-05", "misconception": "If it looks clean, it is clean", "correction": "A surface can look clean but still harbour harmful bacteria; sanitising is required", "modules": ["MOD-5"] },
-    { "id": "MC-06", "misconception": "HACCP is only for big companies", "correction": "HACCP principles apply to all food businesses regardless of size", "modules": ["MOD-1"] },
-    { "id": "MC-07", "misconception": "Best-before and use-by mean the same thing", "correction": "Use-by = safety (illegal to sell after); best-before = quality (not illegal)", "modules": ["MOD-4", "MOD-6"] },
-    { "id": "MC-08", "misconception": "Food safety is the manager's responsibility, not mine", "correction": "Food handlers have personal legal responsibilities under food hygiene regulations", "modules": ["MOD-6"] },
-    { "id": "MC-09", "misconception": "Bleach is the best way to clean everything", "correction": "Cleaning requires the right chemical for the right surface; bleach alone does not remove grease", "modules": ["MOD-5"] },
-    { "id": "MC-10", "misconception": "You can tell if food has gone off by tasting a small amount", "correction": "Never taste food you suspect is spoiled; some toxins are present in undetectable amounts", "modules": ["MOD-2"] }
+    {
+      "id": "MC-01",
+      "misconception": "Freezing kills bacteria",
+      "correction": "Freezing stops bacterial growth but does not kill bacteria; they revive on thawing",
+      "modules": [
+        "MOD-2",
+        "MOD-4"
+      ]
+    },
+    {
+      "id": "MC-02",
+      "misconception": "If food looks and smells fine, it's safe",
+      "correction": "Pathogenic bacteria are often undetectable by sight, smell, or taste",
+      "modules": [
+        "MOD-2"
+      ]
+    },
+    {
+      "id": "MC-03",
+      "misconception": "The 5-second rule",
+      "correction": "Bacteria transfer to food immediately on contact with a contaminated surface",
+      "modules": [
+        "MOD-2"
+      ]
+    },
+    {
+      "id": "MC-04",
+      "misconception": "Wearing gloves means I don't need to wash my hands",
+      "correction": "Hands must be washed before putting on gloves and gloves must be changed frequently",
+      "modules": [
+        "MOD-3"
+      ]
+    },
+    {
+      "id": "MC-05",
+      "misconception": "If it looks clean, it is clean",
+      "correction": "A surface can look clean but still harbour harmful bacteria; sanitising is required",
+      "modules": [
+        "MOD-5"
+      ]
+    },
+    {
+      "id": "MC-06",
+      "misconception": "HACCP is only for big companies",
+      "correction": "HACCP principles apply to all food businesses regardless of size",
+      "modules": [
+        "MOD-1"
+      ]
+    },
+    {
+      "id": "MC-07",
+      "misconception": "Best-before and use-by mean the same thing",
+      "correction": "Use-by = safety (illegal to sell after); best-before = quality (not illegal)",
+      "modules": [
+        "MOD-4",
+        "MOD-6"
+      ]
+    },
+    {
+      "id": "MC-08",
+      "misconception": "Food safety is the manager's responsibility, not mine",
+      "correction": "Food handlers have personal legal responsibilities under food hygiene regulations",
+      "modules": [
+        "MOD-6"
+      ]
+    },
+    {
+      "id": "MC-09",
+      "misconception": "Bleach is the best way to clean everything",
+      "correction": "Cleaning requires the right chemical for the right surface; bleach alone does not remove grease",
+      "modules": [
+        "MOD-5"
+      ]
+    },
+    {
+      "id": "MC-10",
+      "misconception": "You can tell if food has gone off by tasting a small amount",
+      "correction": "Never taste food you suspect is spoiled; some toxins are present in undetectable amounts",
+      "modules": [
+        "MOD-2"
+      ]
+    }
   ],
-
   "sessionStructure": {
     "opening": {
       "durationMinutes": "1-2",
-      "activities": ["Greet learner", "State module topic", "Check prior knowledge with 1-2 questions"]
+      "activities": [
+        "Greet learner",
+        "State module topic",
+        "Check prior knowledge with 1-2 questions"
+      ]
     },
     "teach": {
       "durationMinutes": "10-15 per sub-section",
-      "activities": ["Present key content", "Interleave with comprehension checks (not monologue)"]
+      "activities": [
+        "Present key content",
+        "Interleave with comprehension checks (not monologue)"
+      ]
     },
     "scenarioPractice": {
       "durationMinutes": "5 per sub-section",
-      "activities": ["'What would you do if…?' questions grounded in real kitchen situations"]
+      "activities": [
+        "'What would you do if…?' questions grounded in real kitchen situations"
+      ]
     },
     "moduleRecap": {
       "durationMinutes": "3-5",
-      "activities": ["Key facts summary", "Learner restates the most important points"]
+      "activities": [
+        "Key facts summary",
+        "Learner restates the most important points"
+      ]
     },
     "formativeCheck": {
       "durationMinutes": "5",
-      "activities": ["3-5 MCQ-style questions", "Flag areas below 66% for revisit"]
+      "activities": [
+        "3-5 MCQ-style questions",
+        "Flag areas below 66% for revisit"
+      ]
     }
   },
-
   "assessmentStrategy": {
     "formativeChecks": "3-5 MCQ-style questions per module to identify gaps",
     "spacedRepetition": "Key facts (temperatures, allergens, bacterial names) revisited across sessions",
@@ -734,7 +1018,6 @@
     "mockExam": "Full 20-question mock under timed conditions before final assessment",
     "confidenceCalibration": "After each mock question, ask learner how confident they are – identifies 'unknown unknowns'"
   },
-
   "parameters": [
     {
       "id": "CURR-FS-PROGRESS",
@@ -742,11 +1025,29 @@
       "description": "Overall progress through the Level 2 Food Safety curriculum",
       "section": "curriculum-tracking",
       "isAdjustable": false,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.33, "label": "Early", "implication": "Learner is in early modules (1-2)" },
-        { "min": 0.33, "max": 0.66, "label": "Mid-course", "implication": "Learner is progressing through middle modules (3-4)" },
-        { "min": 0.66, "max": 1.0, "label": "Near completion", "implication": "Learner is in final modules (5-6) or assessment prep" }
+        {
+          "min": 0.0,
+          "max": 0.33,
+          "label": "Early",
+          "implication": "Learner is in early modules (1-2)"
+        },
+        {
+          "min": 0.33,
+          "max": 0.66,
+          "label": "Mid-course",
+          "implication": "Learner is progressing through middle modules (3-4)"
+        },
+        {
+          "min": 0.66,
+          "max": 1.0,
+          "label": "Near completion",
+          "implication": "Learner is in final modules (5-6) or assessment prep"
+        }
       ]
     },
     {
@@ -755,11 +1056,29 @@
       "description": "Can the learner state key facts unprompted",
       "section": "curriculum-assessment",
       "isAdjustable": false,
-      "targetRange": { "min": 0.66, "max": 1.0 },
+      "targetRange": {
+        "min": 0.66,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.33, "label": "Weak recall", "implication": "Learner struggles to recall key facts; needs more drilling" },
-        { "min": 0.33, "max": 0.66, "label": "Partial recall", "implication": "Learner remembers some facts but gaps remain" },
-        { "min": 0.66, "max": 1.0, "label": "Strong recall", "implication": "Learner can recall key facts reliably" }
+        {
+          "min": 0.0,
+          "max": 0.33,
+          "label": "Weak recall",
+          "implication": "Learner struggles to recall key facts; needs more drilling"
+        },
+        {
+          "min": 0.33,
+          "max": 0.66,
+          "label": "Partial recall",
+          "implication": "Learner remembers some facts but gaps remain"
+        },
+        {
+          "min": 0.66,
+          "max": 1.0,
+          "label": "Strong recall",
+          "implication": "Learner can recall key facts reliably"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Learner has strong knowledge recall. Move to application and scenario questions.",
@@ -772,11 +1091,29 @@
       "description": "Does the learner express known misconceptions",
       "section": "curriculum-assessment",
       "isAdjustable": false,
-      "targetRange": { "min": 0.0, "max": 0.2 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 0.2
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.2, "label": "Few misconceptions", "implication": "Learner has accurate understanding" },
-        { "min": 0.2, "max": 0.5, "label": "Some misconceptions", "implication": "Address specific misconceptions identified" },
-        { "min": 0.5, "max": 1.0, "label": "Many misconceptions", "implication": "Significant re-teaching needed" }
+        {
+          "min": 0.0,
+          "max": 0.2,
+          "label": "Few misconceptions",
+          "implication": "Learner has accurate understanding"
+        },
+        {
+          "min": 0.2,
+          "max": 0.5,
+          "label": "Some misconceptions",
+          "implication": "Address specific misconceptions identified"
+        },
+        {
+          "min": 0.5,
+          "max": 1.0,
+          "label": "Many misconceptions",
+          "implication": "Significant re-teaching needed"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Learner has many misconceptions. Directly address and correct each one with clear explanations.",
@@ -789,12 +1126,35 @@
       "description": "Score on formative MCQs indicating exam readiness",
       "section": "curriculum-assessment",
       "isAdjustable": false,
-      "targetRange": { "min": 0.66, "max": 1.0 },
+      "targetRange": {
+        "min": 0.66,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.50, "label": "Not ready", "implication": "Learner needs significant revision before attempting exam" },
-        { "min": 0.50, "max": 0.66, "label": "Borderline", "implication": "Learner close to pass mark but needs targeted revision" },
-        { "min": 0.66, "max": 0.80, "label": "Ready", "implication": "Learner likely to pass; focus on weak areas" },
-        { "min": 0.80, "max": 1.0, "label": "Strong", "implication": "Learner well-prepared for exam" }
+        {
+          "min": 0.0,
+          "max": 0.50,
+          "label": "Not ready",
+          "implication": "Learner needs significant revision before attempting exam"
+        },
+        {
+          "min": 0.50,
+          "max": 0.66,
+          "label": "Borderline",
+          "implication": "Learner close to pass mark but needs targeted revision"
+        },
+        {
+          "min": 0.66,
+          "max": 0.80,
+          "label": "Ready",
+          "implication": "Learner likely to pass; focus on weak areas"
+        },
+        {
+          "min": 0.80,
+          "max": 1.0,
+          "label": "Strong",
+          "implication": "Learner well-prepared for exam"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Learner is assessment-ready. Offer mock exam or proceed to final assessment.",
@@ -802,7 +1162,6 @@
       }
     }
   ],
-
   "acceptanceCriteria": [
     {
       "id": "AC-CURR-FS-1",
@@ -810,7 +1169,9 @@
       "given": "A learner is studying a module",
       "when": "They complete all content sections and pass the formative check (≥66%)",
       "then": "Mark the module as complete and unlock the next module",
-      "measuredBy": ["CURR-FS-PROGRESS"]
+      "measuredBy": [
+        "CURR-FS-PROGRESS"
+      ]
     },
     {
       "id": "AC-CURR-FS-2",
@@ -818,7 +1179,9 @@
       "given": "A learner expresses a known misconception",
       "when": "The tutor detects the misconception",
       "then": "Immediately and clearly correct the misconception with the accurate information",
-      "measuredBy": ["CURR-FS-MISCONCEPTIONS"]
+      "measuredBy": [
+        "CURR-FS-MISCONCEPTIONS"
+      ]
     },
     {
       "id": "AC-CURR-FS-3",
@@ -826,10 +1189,11 @@
       "given": "A learner has completed all 6 modules",
       "when": "They request to take the final assessment",
       "then": "Only proceed if assessment readiness score is ≥66%; otherwise recommend revision",
-      "measuredBy": ["CURR-FS-READINESS"]
+      "measuredBy": [
+        "CURR-FS-READINESS"
+      ]
     }
   ],
-
   "triggers": [
     {
       "name": "Module Start",
@@ -837,7 +1201,11 @@
       "when": "Session starts or learner transitions to new module",
       "then": "Inject module content, learning objectives, and tutoring guidance into context",
       "actions": [
-        { "description": "Load module content for context injection", "parameterId": "CURR-FS-PROGRESS", "weight": 1.0 }
+        {
+          "description": "Load module content for context injection",
+          "parameterId": "CURR-FS-PROGRESS",
+          "weight": 1.0
+        }
       ]
     },
     {
@@ -846,7 +1214,11 @@
       "when": "Statement matches a pattern in the misconception bank",
       "then": "Flag for immediate correction and log for tracking",
       "actions": [
-        { "description": "Detect and correct misconception", "parameterId": "CURR-FS-MISCONCEPTIONS", "weight": 1.0 }
+        {
+          "description": "Detect and correct misconception",
+          "parameterId": "CURR-FS-MISCONCEPTIONS",
+          "weight": 1.0
+        }
       ]
     },
     {
@@ -855,11 +1227,14 @@
       "when": "Tutor presents formative check questions",
       "then": "Score responses and update readiness metric",
       "actions": [
-        { "description": "Assess knowledge and update readiness", "parameterId": "CURR-FS-READINESS", "weight": 1.0 }
+        {
+          "description": "Assess knowledge and update readiness",
+          "parameterId": "CURR-FS-READINESS",
+          "weight": 1.0
+        }
       ]
     }
   ],
-
   "constraints": [
     {
       "id": "C-CURR-FS-1",
@@ -886,9 +1261,16 @@
       "severity": "error"
     }
   ],
-
   "related": [
-    { "id": "TUT-001", "title": "Tutor Identity", "relationship": "provides tutor persona for curriculum delivery" },
-    { "id": "LEARN-STYLE-001", "title": "Learning Style Detection", "relationship": "adapts delivery based on learner preferences" }
+    {
+      "id": "TUT-001",
+      "title": "Tutor Identity",
+      "relationship": "provides tutor persona for curriculum delivery"
+    },
+    {
+      "id": "LEARN-STYLE-001",
+      "title": "Learning Style Detection",
+      "relationship": "adapts delivery based on learner preferences"
+    }
   ]
 }

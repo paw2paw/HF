@@ -7,16 +7,17 @@
   "domain": "learning-adaptation",
   "specType": "ADAPT",
   "outputType": "ADAPT",
-
   "story": {
     "asA": "conversational tutor",
     "iWant": "to adapt my teaching style based on the learner's VARK modality profile",
     "soThat": "I deliver information in the format they process most effectively"
   },
-
   "context": {
     "applies": "Every learning interaction - VARK adaptation runs after modality scores are available",
-    "dependsOn": ["VARK-001", "PERS-001"],
+    "dependsOn": [
+      "VARK-001",
+      "PERS-001"
+    ],
     "assumptions": [
       "VARK modality scores have been computed with confidence >= 0.5",
       "Behavior parameters exist for teaching style adjustment",
@@ -24,7 +25,6 @@
       "Multimodal learners benefit from varied approaches"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-ADAPT-VARK-1",
@@ -32,7 +32,9 @@
       "given": "Learner's visual modality score is measured",
       "when": "Computing teaching style targets",
       "then": "Visual-related behavior parameters are adjusted based on VARK-V score",
-      "measuredBy": ["visual_adaptation"]
+      "measuredBy": [
+        "visual_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-VARK-2",
@@ -40,7 +42,9 @@
       "given": "Learner's auditory modality score is measured",
       "when": "Computing teaching style targets",
       "then": "Verbal elaboration parameters are adjusted based on VARK-A score",
-      "measuredBy": ["auditory_adaptation"]
+      "measuredBy": [
+        "auditory_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-VARK-3",
@@ -48,7 +52,9 @@
       "given": "Learner's reading/writing modality score is measured",
       "when": "Computing teaching style targets",
       "then": "Structure and definition parameters are adjusted based on VARK-R score",
-      "measuredBy": ["reading_writing_adaptation"]
+      "measuredBy": [
+        "reading_writing_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-VARK-4",
@@ -56,7 +62,9 @@
       "given": "Learner's kinesthetic modality score is measured",
       "when": "Computing teaching style targets",
       "then": "Practice and experiential parameters are adjusted based on VARK-K score",
-      "measuredBy": ["kinesthetic_adaptation"]
+      "measuredBy": [
+        "kinesthetic_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-VARK-5",
@@ -64,10 +72,11 @@
       "given": "Learner's multimodal profile is computed",
       "when": "Computing overall teaching approach",
       "then": "Teaching variety parameters are adjusted based on modal diversity",
-      "measuredBy": ["multimodal_adaptation"]
+      "measuredBy": [
+        "multimodal_adaptation"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "visual_adaptation",
@@ -75,16 +84,34 @@
       "description": "Teaching style targets based on visual modality strength",
       "section": "modality_adaptation",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "sourceParameterId": "VARK-V",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "High Visual", "implication": "Use rich mental imagery, spatial metaphors, and visualization language" },
-        { "min": 0.35, "max": 0.65, "label": "Moderate Visual", "implication": "Include some visual framing but balance with other modalities" },
-        { "min": 0.0, "max": 0.35, "label": "Low Visual", "implication": "Minimize visual-heavy explanations; use other approaches" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "High Visual",
+          "implication": "Use rich mental imagery, spatial metaphors, and visualization language"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Moderate Visual",
+          "implication": "Include some visual framing but balance with other modalities"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Low Visual",
+          "implication": "Minimize visual-heavy explanations; use other approaches"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Paint vivid mental pictures. Use spatial language: 'imagine looking at...', 'picture a landscape where...', 'from this perspective you can see...'. Describe concepts as diagrams, maps, or visual structures. Organize hierarchically with visual metaphors.",
@@ -97,16 +124,34 @@
       "description": "Teaching style targets based on auditory modality strength",
       "section": "modality_adaptation",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "sourceParameterId": "VARK-A",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "High Auditory", "implication": "Use rich verbal elaboration, encourage talk-through, attend to rhythm" },
-        { "min": 0.35, "max": 0.65, "label": "Moderate Auditory", "implication": "Balanced verbal explanation with other modalities" },
-        { "min": 0.0, "max": 0.35, "label": "Low Auditory", "implication": "Keep verbal explanations concise; consider written or visual alternatives" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "High Auditory",
+          "implication": "Use rich verbal elaboration, encourage talk-through, attend to rhythm"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Moderate Auditory",
+          "implication": "Balanced verbal explanation with other modalities"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Low Auditory",
+          "implication": "Keep verbal explanations concise; consider written or visual alternatives"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Use rich verbal elaboration. Let explanations breathe with natural rhythm. Encourage the learner to talk through their understanding. Ask 'does that sound right?' Offer to repeat key points. The cadence and flow of your explanation matters.",
@@ -119,16 +164,34 @@
       "description": "Teaching style targets based on reading/writing modality strength",
       "section": "modality_adaptation",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "sourceParameterId": "VARK-R",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "High Read/Write", "implication": "Use precise definitions, structured lists, and formal terminology" },
-        { "min": 0.35, "max": 0.65, "label": "Moderate Read/Write", "implication": "Some structure and definitions helpful but don't overdo" },
-        { "min": 0.0, "max": 0.35, "label": "Low Read/Write", "implication": "Keep it conversational; avoid heavy structure or formal definitions" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "High Read/Write",
+          "implication": "Use precise definitions, structured lists, and formal terminology"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Moderate Read/Write",
+          "implication": "Some structure and definitions helpful but don't overdo"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Low Read/Write",
+          "implication": "Keep it conversational; avoid heavy structure or formal definitions"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Structure your explanations clearly. Use numbered lists and explicit hierarchies ('First... Second... Third...'). Provide precise definitions: 'To define this technically, X means...'. Use formal terminology. Recommend written resources.",
@@ -141,16 +204,34 @@
       "description": "Teaching style targets based on kinesthetic modality strength",
       "section": "modality_adaptation",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "sourceParameterId": "VARK-K",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "High Kinesthetic", "implication": "Ground in practical experience, action, and feeling" },
-        { "min": 0.35, "max": 0.65, "label": "Moderate Kinesthetic", "implication": "Include practice and examples but balance with explanation" },
-        { "min": 0.0, "max": 0.35, "label": "Low Kinesthetic", "implication": "Theory-first approach is fine; practice is optional" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "High Kinesthetic",
+          "implication": "Ground in practical experience, action, and feeling"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Moderate Kinesthetic",
+          "implication": "Include practice and examples but balance with explanation"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Low Kinesthetic",
+          "implication": "Theory-first approach is fine; practice is optional"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Ground everything in action and experience. Use physical metaphors: 'get your hands on', 'feel your way through'. Ask 'how does that feel?' Offer practice exercises and real-world applications. Let them try before extensive explanation.",
@@ -163,16 +244,34 @@
       "description": "Teaching variety targets based on overall modality profile diversity",
       "section": "profile_adaptation",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "sourceParameterId": "VARK-PROFILE",
         "thresholdHigh": 0.65,
         "thresholdLow": 0.35
       },
       "interpretationScale": [
-        { "min": 0.65, "max": 1.0, "label": "Highly Multimodal", "implication": "Vary approaches freely - all modalities effective" },
-        { "min": 0.35, "max": 0.65, "label": "Mixed Profile", "implication": "Lead with strongest modality, support with secondary" },
-        { "min": 0.0, "max": 0.35, "label": "Unimodal", "implication": "Focus primarily on dominant modality" }
+        {
+          "min": 0.65,
+          "max": 1.0,
+          "label": "Highly Multimodal",
+          "implication": "Vary approaches freely - all modalities effective"
+        },
+        {
+          "min": 0.35,
+          "max": 0.65,
+          "label": "Mixed Profile",
+          "implication": "Lead with strongest modality, support with secondary"
+        },
+        {
+          "min": 0.0,
+          "max": 0.35,
+          "label": "Unimodal",
+          "implication": "Focus primarily on dominant modality"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "This learner processes through all channels. Vary your approach based on the moment - visual metaphors, verbal discussion, structured summaries, practical exercises. Match the content to the most appropriate modality.",
@@ -180,7 +279,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "High Visual → Imagery-Rich",
@@ -188,9 +286,21 @@
       "when": "Computing teaching style targets",
       "then": "Set imagery and spatial language targets high",
       "actions": [
-        { "parameterId": "BEH-IMAGERY-DENSITY", "targetValue": 0.85, "rationale": "Visual learner benefits from rich mental imagery" },
-        { "parameterId": "BEH-SPATIAL-METAPHOR", "targetValue": 0.80, "rationale": "Use spatial organization and metaphors" },
-        { "parameterId": "BEH-DIAGRAM-LANGUAGE", "targetValue": 0.75, "rationale": "Describe concepts as visual structures" }
+        {
+          "parameterId": "BEH-IMAGERY-DENSITY",
+          "targetValue": 0.85,
+          "rationale": "Visual learner benefits from rich mental imagery"
+        },
+        {
+          "parameterId": "BEH-SPATIAL-METAPHOR",
+          "targetValue": 0.80,
+          "rationale": "Use spatial organization and metaphors"
+        },
+        {
+          "parameterId": "BEH-DIAGRAM-LANGUAGE",
+          "targetValue": 0.75,
+          "rationale": "Describe concepts as visual structures"
+        }
       ]
     },
     {
@@ -199,8 +309,16 @@
       "when": "Computing teaching style targets",
       "then": "Reduce visual-heavy language",
       "actions": [
-        { "parameterId": "BEH-IMAGERY-DENSITY", "targetValue": 0.30, "rationale": "Visual approaches won't resonate" },
-        { "parameterId": "BEH-SPATIAL-METAPHOR", "targetValue": 0.25, "rationale": "Don't force spatial framing" }
+        {
+          "parameterId": "BEH-IMAGERY-DENSITY",
+          "targetValue": 0.30,
+          "rationale": "Visual approaches won't resonate"
+        },
+        {
+          "parameterId": "BEH-SPATIAL-METAPHOR",
+          "targetValue": 0.25,
+          "rationale": "Don't force spatial framing"
+        }
       ]
     },
     {
@@ -209,9 +327,21 @@
       "when": "Computing teaching style targets",
       "then": "Set verbal elaboration and rhythm targets high",
       "actions": [
-        { "parameterId": "BEH-VERBAL-ELABORATION", "targetValue": 0.85, "rationale": "Auditory learner benefits from rich verbal explanation" },
-        { "parameterId": "BEH-RHYTHM-ATTENTION", "targetValue": 0.75, "rationale": "Cadence and flow of speech matters" },
-        { "parameterId": "BEH-REPETITION-OFFER", "targetValue": 0.70, "rationale": "Offer to repeat key points" }
+        {
+          "parameterId": "BEH-VERBAL-ELABORATION",
+          "targetValue": 0.85,
+          "rationale": "Auditory learner benefits from rich verbal explanation"
+        },
+        {
+          "parameterId": "BEH-RHYTHM-ATTENTION",
+          "targetValue": 0.75,
+          "rationale": "Cadence and flow of speech matters"
+        },
+        {
+          "parameterId": "BEH-REPETITION-OFFER",
+          "targetValue": 0.70,
+          "rationale": "Offer to repeat key points"
+        }
       ]
     },
     {
@@ -220,8 +350,16 @@
       "when": "Computing teaching style targets",
       "then": "Keep verbal explanations brief",
       "actions": [
-        { "parameterId": "BEH-VERBAL-ELABORATION", "targetValue": 0.35, "rationale": "Extended verbal explanation not effective" },
-        { "parameterId": "BEH-WRITTEN-ALTERNATIVE", "targetValue": 0.70, "rationale": "Consider offering written reference" }
+        {
+          "parameterId": "BEH-VERBAL-ELABORATION",
+          "targetValue": 0.35,
+          "rationale": "Extended verbal explanation not effective"
+        },
+        {
+          "parameterId": "BEH-WRITTEN-ALTERNATIVE",
+          "targetValue": 0.70,
+          "rationale": "Consider offering written reference"
+        }
       ]
     },
     {
@@ -230,9 +368,21 @@
       "when": "Computing teaching style targets",
       "then": "Set structure and definition targets high",
       "actions": [
-        { "parameterId": "BEH-DEFINITION-PRECISION", "targetValue": 0.85, "rationale": "R/W learner values precise definitions" },
-        { "parameterId": "BEH-LIST-STRUCTURE", "targetValue": 0.80, "rationale": "Organize as numbered lists and hierarchies" },
-        { "parameterId": "BEH-TERMINOLOGY-FORMAL", "targetValue": 0.75, "rationale": "Use proper technical terminology" }
+        {
+          "parameterId": "BEH-DEFINITION-PRECISION",
+          "targetValue": 0.85,
+          "rationale": "R/W learner values precise definitions"
+        },
+        {
+          "parameterId": "BEH-LIST-STRUCTURE",
+          "targetValue": 0.80,
+          "rationale": "Organize as numbered lists and hierarchies"
+        },
+        {
+          "parameterId": "BEH-TERMINOLOGY-FORMAL",
+          "targetValue": 0.75,
+          "rationale": "Use proper technical terminology"
+        }
       ]
     },
     {
@@ -241,9 +391,21 @@
       "when": "Computing teaching style targets",
       "then": "Keep it casual and flowing",
       "actions": [
-        { "parameterId": "BEH-DEFINITION-PRECISION", "targetValue": 0.30, "rationale": "Formal definitions not needed" },
-        { "parameterId": "BEH-LIST-STRUCTURE", "targetValue": 0.25, "rationale": "Don't over-structure" },
-        { "parameterId": "BEH-CONVERSATIONAL-TONE", "targetValue": 0.80, "rationale": "Keep it casual and natural" }
+        {
+          "parameterId": "BEH-DEFINITION-PRECISION",
+          "targetValue": 0.30,
+          "rationale": "Formal definitions not needed"
+        },
+        {
+          "parameterId": "BEH-LIST-STRUCTURE",
+          "targetValue": 0.25,
+          "rationale": "Don't over-structure"
+        },
+        {
+          "parameterId": "BEH-CONVERSATIONAL-TONE",
+          "targetValue": 0.80,
+          "rationale": "Keep it casual and natural"
+        }
       ]
     },
     {
@@ -252,10 +414,26 @@
       "when": "Computing teaching style targets",
       "then": "Set practice and experiential targets high",
       "actions": [
-        { "parameterId": "BEH-PRACTICE-EXERCISES", "targetValue": 0.85, "rationale": "K learner learns by doing" },
-        { "parameterId": "BEH-FEELING-LANGUAGE", "targetValue": 0.80, "rationale": "Use feel/sense/touch language" },
-        { "parameterId": "BEH-ACTION-VERBS", "targetValue": 0.75, "rationale": "Ground in action rather than abstraction" },
-        { "parameterId": "BEH-REAL-WORLD-EXAMPLES", "targetValue": 0.85, "rationale": "Connect to practical application" }
+        {
+          "parameterId": "BEH-PRACTICE-EXERCISES",
+          "targetValue": 0.85,
+          "rationale": "K learner learns by doing"
+        },
+        {
+          "parameterId": "BEH-FEELING-LANGUAGE",
+          "targetValue": 0.80,
+          "rationale": "Use feel/sense/touch language"
+        },
+        {
+          "parameterId": "BEH-ACTION-VERBS",
+          "targetValue": 0.75,
+          "rationale": "Ground in action rather than abstraction"
+        },
+        {
+          "parameterId": "BEH-REAL-WORLD-EXAMPLES",
+          "targetValue": 0.85,
+          "rationale": "Connect to practical application"
+        }
       ]
     },
     {
@@ -264,8 +442,16 @@
       "when": "Computing teaching style targets",
       "then": "Theory and abstraction are fine",
       "actions": [
-        { "parameterId": "BEH-PRACTICE-EXERCISES", "targetValue": 0.30, "rationale": "Practice not required for understanding" },
-        { "parameterId": "BEH-ABSTRACT-OK", "targetValue": 0.80, "rationale": "Comfortable with theoretical concepts" }
+        {
+          "parameterId": "BEH-PRACTICE-EXERCISES",
+          "targetValue": 0.30,
+          "rationale": "Practice not required for understanding"
+        },
+        {
+          "parameterId": "BEH-ABSTRACT-OK",
+          "targetValue": 0.80,
+          "rationale": "Comfortable with theoretical concepts"
+        }
       ]
     },
     {
@@ -274,8 +460,16 @@
       "when": "Computing teaching variety targets",
       "then": "Vary approaches across modalities",
       "actions": [
-        { "parameterId": "BEH-MODALITY-VARIETY", "targetValue": 0.85, "rationale": "Use all channels based on content" },
-        { "parameterId": "BEH-APPROACH-SWITCHING", "targetValue": 0.70, "rationale": "Switch between modalities freely" }
+        {
+          "parameterId": "BEH-MODALITY-VARIETY",
+          "targetValue": 0.85,
+          "rationale": "Use all channels based on content"
+        },
+        {
+          "parameterId": "BEH-APPROACH-SWITCHING",
+          "targetValue": 0.70,
+          "rationale": "Switch between modalities freely"
+        }
       ]
     },
     {
@@ -284,12 +478,19 @@
       "when": "Computing teaching focus targets",
       "then": "Focus on dominant modality",
       "actions": [
-        { "parameterId": "BEH-MODALITY-CONSISTENCY", "targetValue": 0.80, "rationale": "Stick with what works" },
-        { "parameterId": "BEH-APPROACH-SWITCHING", "targetValue": 0.25, "rationale": "Minimize modality switching" }
+        {
+          "parameterId": "BEH-MODALITY-CONSISTENCY",
+          "targetValue": 0.80,
+          "rationale": "Stick with what works"
+        },
+        {
+          "parameterId": "BEH-APPROACH-SWITCHING",
+          "targetValue": 0.25,
+          "rationale": "Minimize modality switching"
+        }
       ]
     }
   ],
-
   "constraints": [
     {
       "id": "C-ADAPT-VARK-1",
@@ -310,7 +511,6 @@
       "severity": "info"
     }
   ],
-
   "crossModalitySynergies": {
     "description": "When VARK modalities combine with Big Five personality traits, richer adaptations emerge",
     "synergies": [
@@ -351,12 +551,32 @@
       }
     ]
   },
-
   "related": [
-    { "id": "VARK-001", "title": "VARK Learning Modality Assessment", "relationship": "provides input measurements" },
-    { "id": "PERS-001", "title": "Big Five Personality Measurement", "relationship": "synergy with personality traits" },
-    { "id": "ADAPT-PERS-001", "title": "Personality Adaptation", "relationship": "complementary adaptation layer" },
-    { "id": "ADAPT-LEARN-001", "title": "Learner Profile Adaptation", "relationship": "parallel learning adaptation" },
-    { "id": "COMP-001", "title": "Prompt Composition", "relationship": "targets consumed by prompt system" }
-  ]
+    {
+      "id": "VARK-001",
+      "title": "VARK Learning Modality Assessment",
+      "relationship": "provides input measurements"
+    },
+    {
+      "id": "PERS-001",
+      "title": "Big Five Personality Measurement",
+      "relationship": "synergy with personality traits"
+    },
+    {
+      "id": "ADAPT-PERS-001",
+      "title": "Personality Adaptation",
+      "relationship": "complementary adaptation layer"
+    },
+    {
+      "id": "ADAPT-LEARN-001",
+      "title": "Learner Profile Adaptation",
+      "relationship": "parallel learning adaptation"
+    },
+    {
+      "id": "COMP-001",
+      "title": "Prompt Composition",
+      "relationship": "targets consumed by prompt system"
+    }
+  ],
+  "specRole": "SYNTHESISE"
 }

@@ -30,7 +30,9 @@
       "when": "The system analyzes linguistic creativity and abstract thinking markers",
       "then": "An Openness score between 0-1 is produced",
       "rationale": "Openness affects how much novelty and complexity a caller can handle",
-      "measuredBy": ["B5-O"]
+      "measuredBy": [
+        "B5-O"
+      ]
     },
     {
       "id": "AC-PERS-002",
@@ -39,7 +41,9 @@
       "when": "The system analyzes organization and detail-orientation markers",
       "then": "A Conscientiousness score between 0-1 is produced",
       "rationale": "Conscientiousness affects how much structure and detail callers prefer",
-      "measuredBy": ["B5-C"]
+      "measuredBy": [
+        "B5-C"
+      ]
     },
     {
       "id": "AC-PERS-003",
@@ -48,7 +52,9 @@
       "when": "The system analyzes speech patterns and social engagement markers",
       "then": "An Extraversion score between 0-1 is produced",
       "rationale": "Extraversion affects conversation pacing and social interaction style",
-      "measuredBy": ["B5-E"]
+      "measuredBy": [
+        "B5-E"
+      ]
     },
     {
       "id": "AC-PERS-004",
@@ -57,7 +63,9 @@
       "when": "The system analyzes cooperation and conflict-handling markers",
       "then": "An Agreeableness score between 0-1 is produced",
       "rationale": "Agreeableness affects how to frame recommendations and handle objections",
-      "measuredBy": ["B5-A"]
+      "measuredBy": [
+        "B5-A"
+      ]
     },
     {
       "id": "AC-PERS-005",
@@ -66,7 +74,9 @@
       "when": "The system analyzes emotional stability markers",
       "then": "A Neuroticism score between 0-1 is produced",
       "rationale": "Neuroticism affects how to handle stress and provide reassurance",
-      "measuredBy": ["B5-N"]
+      "measuredBy": [
+        "B5-N"
+      ]
     }
   ],
   "constraints": [
@@ -211,7 +221,9 @@
         "whenMedium": "Balance practical information with occasional context. Offer explanations if asked but don't over-elaborate. This caller appreciates both efficiency and understanding.",
         "promptTemplate": "{{#if (gte openness 0.7)}}Feel free to explore ideas and explain underlying concepts with this curious caller.{{else if (lte openness 0.3)}}Keep it practical and concrete - this caller wants straightforward answers.{{/if}}"
       },
-      "usedBy": ["AC-PERS-001"]
+      "usedBy": [
+        "AC-PERS-001"
+      ]
     },
     {
       "id": "B5-C",
@@ -322,7 +334,9 @@
         "whenMedium": "Provide clear information without excessive detail. Offer structure but don't force rigid processes. Balance thoroughness with flexibility.",
         "promptTemplate": "{{#if (gte conscientiousness 0.7)}}Provide specific details, timelines, and clear next steps for this organized caller.{{else if (lte conscientiousness 0.3)}}Keep it flexible and high-level - this caller doesn't need rigid structure.{{/if}}"
       },
-      "usedBy": ["AC-PERS-002"]
+      "usedBy": [
+        "AC-PERS-002"
+      ]
     },
     {
       "id": "B5-E",
@@ -433,7 +447,9 @@
         "whenMedium": "Be personable but balanced. Some friendly exchange is welcome but don't overdo it. Read their cues for how much social interaction they want.",
         "promptTemplate": "{{#if (gte extraversion 0.7)}}Be warm and engaging with this sociable caller - they enjoy the interaction!{{else if (lte extraversion 0.3)}}Keep it efficient and professional - this caller prefers focused communication.{{/if}}"
       },
-      "usedBy": ["AC-PERS-003"]
+      "usedBy": [
+        "AC-PERS-003"
+      ]
     },
     {
       "id": "B5-A",
@@ -544,7 +560,9 @@
         "whenMedium": "Provide clear reasoning but don't over-justify. This caller will ask if they have concerns. Balance being helpful with respecting their judgment.",
         "promptTemplate": "{{#if (gte agreeableness 0.7)}}Check in with this trusting caller - actively invite any concerns they might have.{{else if (lte agreeableness 0.3)}}Be ready to explain your reasoning - this caller will question and needs to be convinced.{{/if}}"
       },
-      "usedBy": ["AC-PERS-004"]
+      "usedBy": [
+        "AC-PERS-004"
+      ]
     },
     {
       "id": "B5-N",
@@ -655,7 +673,9 @@
         "whenMedium": "Provide clear information and some reassurance when appropriate. Acknowledge any concerns they raise but don't assume they need extensive emotional support.",
         "promptTemplate": "{{#if (gte neuroticism 0.7)}}Provide extra reassurance and be patient - this caller is anxious and needs to feel supported.{{else if (lte neuroticism 0.3)}}This caller handles stress well - be direct and efficient.{{/if}}"
       },
-      "usedBy": ["AC-PERS-005"]
+      "usedBy": [
+        "AC-PERS-005"
+      ]
     }
   ],
   "workedExamples": [
@@ -697,5 +717,6 @@
       "title": "Caller Memory Extraction",
       "relationship": "consumes - personality traits stored as caller memory"
     }
-  ]
+  ],
+  "specRole": "EXTRACT"
 }

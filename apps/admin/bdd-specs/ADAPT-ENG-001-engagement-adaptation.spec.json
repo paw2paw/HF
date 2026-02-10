@@ -2,21 +2,21 @@
   "id": "ADAPT-ENG-001",
   "title": "Engagement & Learning Adaptation",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-01-30",
   "domain": "engagement",
   "specType": "ADAPT",
   "outputType": "ADAPT",
-
   "story": {
     "asA": "adaptive learning system",
     "iWant": "to adjust content and pacing based on caller engagement and learning patterns",
     "soThat": "each caller receives optimally paced and appropriately complex content"
   },
-
   "context": {
     "applies": "Every call - uses engagement and learning signals to compute delivery targets",
-    "dependsOn": ["CA-001"],
+    "dependsOn": [
+      "CA-001"
+    ],
     "assumptions": [
       "Engagement can be measured from caller behavior signals",
       "Learning velocity varies between callers",
@@ -24,7 +24,6 @@
       "Communication complexity should match caller's level"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-ADAPT-ENG-1",
@@ -32,7 +31,9 @@
       "given": "Caller's engagement level is measured",
       "when": "Computing content delivery targets",
       "then": "Content depth and complexity targets are set based on engagement",
-      "measuredBy": ["engagement_adaptation"]
+      "measuredBy": [
+        "engagement_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-ENG-2",
@@ -40,7 +41,9 @@
       "given": "Caller's learning pace is observed",
       "when": "Computing pacing targets",
       "then": "Content pacing and reinforcement levels are adjusted",
-      "measuredBy": ["learning_velocity_adaptation"]
+      "measuredBy": [
+        "learning_velocity_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-ENG-3",
@@ -48,7 +51,9 @@
       "given": "Time since last call is known",
       "when": "Starting a new conversation",
       "then": "Continuity and context refresh levels are set appropriately",
-      "measuredBy": ["call_frequency_adaptation"]
+      "measuredBy": [
+        "call_frequency_adaptation"
+      ]
     },
     {
       "id": "AC-ADAPT-ENG-4",
@@ -56,10 +61,11 @@
       "given": "Caller's language complexity is observed",
       "when": "Composing responses",
       "then": "Vocabulary and sentence complexity match caller's level",
-      "measuredBy": ["communication_complexity_adaptation"]
+      "measuredBy": [
+        "communication_complexity_adaptation"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "engagement_adaptation",
@@ -67,16 +73,34 @@
       "description": "Content depth and complexity target based on caller engagement: high engagement = deeper content, low engagement = re-engage or simplify",
       "section": "engagement",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "parameterId": "engagement",
         "thresholdHigh": 0.7,
         "thresholdLow": 0.4
       },
       "interpretationScale": [
-        { "min": 0.7, "max": 1.0, "label": "High Engagement", "implication": "Increase depth and complexity, encourage exploration" },
-        { "min": 0.4, "max": 0.7, "label": "Moderate Engagement", "implication": "Maintain current approach, monitor for changes" },
-        { "min": 0.0, "max": 0.4, "label": "Low Engagement", "implication": "Simplify, re-engage, or check for issues" }
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "High Engagement",
+          "implication": "Increase depth and complexity, encourage exploration"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Moderate Engagement",
+          "implication": "Maintain current approach, monitor for changes"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Low Engagement",
+          "implication": "Simplify, re-engage, or check for issues"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Increase content depth and complexity. Introduce advanced concepts or nuances. Encourage independent exploration. Challenge with harder questions. Build on their momentum.",
@@ -89,16 +113,34 @@
       "description": "Pacing target based on how quickly caller absorbs new information: fast learners = accelerated, slow learners = more reinforcement",
       "section": "learning",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "fastThreshold": 0.8,
         "slowThreshold": 0.5,
         "assessmentWindow": 3
       },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Fast Learner", "implication": "Accelerate pacing, introduce advanced material earlier" },
-        { "min": 0.5, "max": 0.8, "label": "Moderate Pace", "implication": "Standard pacing with periodic checks" },
-        { "min": 0.0, "max": 0.5, "label": "Needs Reinforcement", "implication": "Slow pacing, add reinforcement and practice" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Fast Learner",
+          "implication": "Accelerate pacing, introduce advanced material earlier"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Moderate Pace",
+          "implication": "Standard pacing with periodic checks"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Needs Reinforcement",
+          "implication": "Slow pacing, add reinforcement and practice"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Accelerate the pacing. Skip or condense basic explanations. Introduce advanced concepts earlier. Provide enrichment material. Challenge with edge cases and exceptions.",
@@ -111,15 +153,33 @@
       "description": "Continuity approach based on time since last call: frequent callers = maintain continuity, infrequent = context refresh",
       "section": "retention",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "frequentThresholdDays": 3,
         "infrequentThresholdDays": 14
       },
       "interpretationScale": [
-        { "min": 0.7, "max": 1.0, "label": "Frequent Caller", "implication": "Maintain continuity, build on previous session" },
-        { "min": 0.3, "max": 0.7, "label": "Regular Caller", "implication": "Brief context, then continue" },
-        { "min": 0.0, "max": 0.3, "label": "Returning After Break", "implication": "Provide context refresh, welcome back warmly" }
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Frequent Caller",
+          "implication": "Maintain continuity, build on previous session"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Regular Caller",
+          "implication": "Brief context, then continue"
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Returning After Break",
+          "implication": "Provide context refresh, welcome back warmly"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Start with continuity ('Let's pick up where we left off...'). Reference recent topics naturally. Build incrementally on previous material. Acknowledge their commitment.",
@@ -132,15 +192,33 @@
       "description": "Vocabulary and sentence complexity target based on caller's demonstrated language level",
       "section": "communication",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "config": {
         "simpleThreshold": 0.4,
         "advancedThreshold": 0.7
       },
       "interpretationScale": [
-        { "min": 0.7, "max": 1.0, "label": "Advanced Communication", "implication": "Match their intellectual level, use precise terminology" },
-        { "min": 0.4, "max": 0.7, "label": "Standard Communication", "implication": "Clear, accessible language" },
-        { "min": 0.0, "max": 0.4, "label": "Simple Communication", "implication": "Use clear, simple language without jargon" }
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Advanced Communication",
+          "implication": "Match their intellectual level, use precise terminology"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Standard Communication",
+          "implication": "Clear, accessible language"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Simple Communication",
+          "implication": "Use clear, simple language without jargon"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Match their vocabulary level. Use precise technical terminology. Engage with nuance and complexity. Don't over-explain obvious concepts. Appreciate intellectual depth.",
@@ -148,7 +226,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "High Engagement → Question Rate",
@@ -191,7 +268,6 @@
       "targetValue": 0.8
     }
   ],
-
   "constraints": [
     {
       "id": "C-ADAPT-ENG-1",
@@ -206,10 +282,22 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "CA-001", "title": "Cognitive Activation", "relationship": "provides engagement measurements" },
-    { "id": "CURR-001", "title": "Curriculum Tracker", "relationship": "pacing affects curriculum progression" },
-    { "id": "SESSION-001", "title": "Session Planning", "relationship": "frequency affects session continuity" }
-  ]
+    {
+      "id": "CA-001",
+      "title": "Cognitive Activation",
+      "relationship": "provides engagement measurements"
+    },
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Tracker",
+      "relationship": "pacing affects curriculum progression"
+    },
+    {
+      "id": "SESSION-001",
+      "title": "Session Planning",
+      "relationship": "frequency affects session continuity"
+    }
+  ],
+  "specRole": "SYNTHESISE"
 }

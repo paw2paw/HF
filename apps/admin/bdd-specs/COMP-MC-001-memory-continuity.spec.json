@@ -2,28 +2,28 @@
   "id": "COMP-MC-001",
   "title": "Memory & Continuity",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "MEASURE_AGENT",
-
   "story": {
     "asA": "quality evaluator",
     "iWant": "to measure how well the companion maintains conversational continuity",
     "soThat": "past conversations feel remembered and relationships feel continuous"
   },
-
   "context": {
     "applies": "When opportunities arise to reference past conversations",
-    "dependsOn": ["COMP-LC-001", "COMP-IX-001"],
+    "dependsOn": [
+      "COMP-LC-001",
+      "COMP-IX-001"
+    ],
     "assumptions": [
       "Memory references show the person is valued",
       "Continuity builds relationship over time",
       "References should feel natural, not forced"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-MC-1",
@@ -31,10 +31,11 @@
       "given": "The companion has access to past conversation memories",
       "when": "Opportunities arise to reference previous conversations or known facts",
       "then": "Evaluate appropriate memory utilization",
-      "measuredBy": ["BEH-MEMORY-REFERENCE"]
+      "measuredBy": [
+        "BEH-MEMORY-REFERENCE"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "BEH-MEMORY-REFERENCE",
@@ -42,11 +43,29 @@
       "description": "How often and appropriately the companion references previous conversations and known facts",
       "section": "companion-behavior",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "No References", "implication": "Not referencing past conversations or known facts" },
-        { "min": 0.3, "max": 0.7, "label": "Some References", "implication": "Occasionally referencing past information" },
-        { "min": 0.7, "max": 1.0, "label": "Good Continuity", "implication": "Appropriately referencing family names, interests, past conversations" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "No References",
+          "implication": "Not referencing past conversations or known facts"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Some References",
+          "implication": "Occasionally referencing past information"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Good Continuity",
+          "implication": "Appropriately referencing family names, interests, past conversations"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Companion is using memory well. Shows the person is valued and remembered.",
@@ -54,7 +73,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Continuity Assessment",
@@ -70,7 +88,6 @@
       ]
     }
   ],
-
   "constraints": [
     {
       "id": "C-COMP-MC-1",
@@ -79,10 +96,22 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "COMP-LC-001", "title": "Life Context Learning", "relationship": "provides facts to reference" },
-    { "id": "COMP-IX-001", "title": "Interests & Expertise Mapping", "relationship": "provides interests to reference" },
-    { "id": "COMP-CG-001", "title": "Cognitive Pattern Observation", "relationship": "reminiscence benefits from memory" }
-  ]
+    {
+      "id": "COMP-LC-001",
+      "title": "Life Context Learning",
+      "relationship": "provides facts to reference"
+    },
+    {
+      "id": "COMP-IX-001",
+      "title": "Interests & Expertise Mapping",
+      "relationship": "provides interests to reference"
+    },
+    {
+      "id": "COMP-CG-001",
+      "title": "Cognitive Pattern Observation",
+      "relationship": "reminiscence benefits from memory"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

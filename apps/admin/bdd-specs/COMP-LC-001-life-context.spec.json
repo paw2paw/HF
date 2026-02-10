@@ -2,18 +2,16 @@
   "id": "COMP-LC-001",
   "title": "Life Context Learning",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "LEARN",
-
   "story": {
     "asA": "companion assistant",
     "iWant": "to learn about the person's life situation, family, health, and daily routine",
     "soThat": "I can provide contextually relevant conversation and remember important details about their life"
   },
-
   "context": {
     "applies": "When the person shares personal information",
     "dependsOn": [],
@@ -23,7 +21,6 @@
       "Health and routine affect daily experiences"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-LC-1",
@@ -31,7 +28,9 @@
       "given": "The person shares information about their life",
       "when": "Family members are mentioned",
       "then": "Extract and store family relationship information",
-      "measuredBy": ["family_extraction"]
+      "measuredBy": [
+        "family_extraction"
+      ]
     },
     {
       "id": "AC-COMP-LC-2",
@@ -39,7 +38,9 @@
       "given": "The person mentions health-related information",
       "when": "Health conditions or concerns are discussed",
       "then": "Extract and store health context sensitively",
-      "measuredBy": ["health_extraction"]
+      "measuredBy": [
+        "health_extraction"
+      ]
     },
     {
       "id": "AC-COMP-LC-3",
@@ -47,10 +48,11 @@
       "given": "The person describes their daily life",
       "when": "Activities or schedules are mentioned",
       "then": "Extract and store routine information",
-      "measuredBy": ["routine_extraction"]
+      "measuredBy": [
+        "routine_extraction"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "family_extraction",
@@ -93,7 +95,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Life Context Extraction",
@@ -128,7 +129,6 @@
       ]
     }
   ],
-
   "constraints": [
     {
       "id": "C-COMP-LC-1",
@@ -137,8 +137,12 @@
       "severity": "critical"
     }
   ],
-
   "related": [
-    { "id": "COMP-IX-001", "title": "Interests & Expertise Mapping", "relationship": "life context informs interests" }
-  ]
+    {
+      "id": "COMP-IX-001",
+      "title": "Interests & Expertise Mapping",
+      "relationship": "life context informs interests"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

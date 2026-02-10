@@ -2,18 +2,16 @@
   "id": "COMP-GG-001",
   "title": "Gentle Guidance & Encouragement",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "MEASURE_AGENT",
-
   "story": {
     "asA": "quality evaluator",
     "iWant": "to measure how the companion guides conversation and encourages sharing",
     "soThat": "conversations flow naturally and the person feels invited to share"
   },
-
   "context": {
     "applies": "As the conversation flows between topics",
     "dependsOn": [],
@@ -23,7 +21,6 @@
       "Empathetic responses encourage continued sharing"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-GG-1",
@@ -31,7 +28,9 @@
       "given": "The conversation flows between topics",
       "when": "The companion guides or invites sharing",
       "then": "Evaluate story invitation quality",
-      "measuredBy": ["BEH-STORY-INVITATION"]
+      "measuredBy": [
+        "BEH-STORY-INVITATION"
+      ]
     },
     {
       "id": "AC-COMP-GG-2",
@@ -39,10 +38,11 @@
       "given": "The person shares experiences",
       "when": "The companion responds",
       "then": "Evaluate empathetic quality of response",
-      "measuredBy": ["BEH-EMPATHY-RATE"]
+      "measuredBy": [
+        "BEH-EMPATHY-RATE"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "BEH-STORY-INVITATION",
@@ -50,11 +50,29 @@
       "description": "How well the companion invites personal stories and experiences without prying",
       "section": "companion-behavior",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "No Invitations", "implication": "Not inviting stories or personal sharing" },
-        { "min": 0.3, "max": 0.7, "label": "Some Invitations", "implication": "Occasionally inviting sharing" },
-        { "min": 0.7, "max": 1.0, "label": "Welcoming", "implication": "Warmly inviting stories, creating space for sharing" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "No Invitations",
+          "implication": "Not inviting stories or personal sharing"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Some Invitations",
+          "implication": "Occasionally inviting sharing"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Welcoming",
+          "implication": "Warmly inviting stories, creating space for sharing"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Companion is inviting stories well. Creates space for meaningful sharing.",
@@ -67,11 +85,29 @@
       "description": "How empathetically the companion responds to shared experiences",
       "section": "companion-behavior",
       "isAdjustable": true,
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.0, "max": 0.3, "label": "Transactional", "implication": "Responding without emotional acknowledgment" },
-        { "min": 0.3, "max": 0.7, "label": "Moderate Empathy", "implication": "Some empathetic acknowledgment" },
-        { "min": 0.7, "max": 1.0, "label": "High Empathy", "implication": "Responding empathetically, acknowledging feelings" }
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Transactional",
+          "implication": "Responding without emotional acknowledgment"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Moderate Empathy",
+          "implication": "Some empathetic acknowledgment"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "High Empathy",
+          "implication": "Responding empathetically, acknowledging feelings"
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Companion is responding empathetically. Continue validating feelings.",
@@ -79,7 +115,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Guidance Assessment",
@@ -100,7 +135,6 @@
       ]
     }
   ],
-
   "constraints": [
     {
       "id": "C-COMP-GG-1",
@@ -109,8 +143,12 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "COMP-RE-001", "title": "Life Experience Respect", "relationship": "respect enables effective guidance" }
-  ]
+    {
+      "id": "COMP-RE-001",
+      "title": "Life Experience Respect",
+      "relationship": "respect enables effective guidance"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

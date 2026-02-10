@@ -7,8 +7,7 @@
   "domain": "learning",
   "specType": "SYSTEM",
   "outputType": "ADAPT",
-  "specRole": "ADAPT",
-
+  "specRole": "SYNTHESISE",
   "metadata": {
     "adaptation": {
       "inputSource": "LEARNER_PROFILE",
@@ -17,23 +16,22 @@
       "minimumConfidence": 0.6
     }
   },
-
   "story": {
     "asA": "teaching system",
     "iWant": "to adjust agent behavior based on inferred learner preferences",
     "soThat": "the learning experience feels personalized and adaptive"
   },
-
   "context": {
     "applies": "After learner profile has been aggregated",
-    "dependsOn": ["LEARN-PROF-001"],
+    "dependsOn": [
+      "LEARN-PROF-001"
+    ],
     "assumptions": [
       "Learner profile exists with confidence > 0.6",
       "Behavior parameters exist in the system",
       "Adaptations are additive - don't override explicit caller settings"
     ]
   },
-
   "parameters": [
     {
       "id": "adapt_to_learning_style",
@@ -374,7 +372,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Adapt Behavior to Learner Profile",
@@ -410,7 +407,6 @@
       ]
     }
   ],
-
   "config": {
     "notes": [
       "Adaptations are applied as CallerTarget entries",
@@ -427,11 +423,26 @@
           "interactionStyle": "conversational"
         },
         "adaptations": [
-          { "parameter": "example-richness", "value": 0.9 },
-          { "parameter": "analogy-usage", "value": 0.85 },
-          { "parameter": "explanation-depth", "value": 0.85 },
-          { "parameter": "concept-density", "value": 0.3 },
-          { "parameter": "socratic-questioning", "value": 0.85 }
+          {
+            "parameter": "example-richness",
+            "value": 0.9
+          },
+          {
+            "parameter": "analogy-usage",
+            "value": 0.85
+          },
+          {
+            "parameter": "explanation-depth",
+            "value": 0.85
+          },
+          {
+            "parameter": "concept-density",
+            "value": 0.3
+          },
+          {
+            "parameter": "socratic-questioning",
+            "value": 0.85
+          }
         ]
       }
     ]

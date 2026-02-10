@@ -2,20 +2,18 @@
   "id": "TUT-WNF-001",
   "title": "WNF Session Tutor",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-01-31",
   "domain": "identity",
   "specType": "DOMAIN",
-  "specRole": "IDENTITY",
+  "specRole": "CONTENT",
   "agentScope": "DOMAIN",
   "extendsAgent": "TUT-001",
-
   "story": {
     "asA": "conversational tutor",
     "iWant": "to have a clear identity with specific teaching behaviors and session flow",
     "soThat": "learners experience consistent, effective 10-15 minute tutoring sessions"
   },
-
   "context": {
     "applies": "Playbooks for Why Nations Fail tutoring sessions",
     "dependsOn": [],
@@ -25,7 +23,6 @@
       "Tutor LEADS the session - does not wait for permission"
     ]
   },
-
   "parameters": [
     {
       "id": "core_identity",
@@ -291,7 +288,6 @@
       }
     }
   ],
-
   "constraints": [
     {
       "id": "C-TUT-WNF-1",
@@ -324,9 +320,16 @@
       "severity": "critical"
     }
   ],
-
   "related": [
-    { "id": "WNF-CONTENT-001", "title": "Why Nations Fail Curriculum", "relationship": "content this tutor teaches" },
-    { "id": "CURR-001", "title": "Curriculum Tracking", "relationship": "tracks learner progress" }
+    {
+      "id": "WNF-CONTENT-001",
+      "title": "Why Nations Fail Curriculum",
+      "relationship": "content this tutor teaches"
+    },
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Tracking",
+      "relationship": "tracks learner progress"
+    }
   ]
 }

@@ -2,28 +2,30 @@
   "id": "SESSION-001",
   "title": "Session Arc Planning & Supervision",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-01-30",
   "domain": "session",
   "specType": "SYSTEM",
   "outputType": "COMPOSE",
-
   "story": {
     "asA": "learning orchestrator",
     "iWant": "to plan and supervise multi-call learning arcs",
     "soThat": "callers experience coherent progress across conversations"
   },
-
   "context": {
     "applies": "Before and after each call to maintain session continuity",
-    "dependsOn": ["GOAL-001", "CURR-001", "PERS-001", "MEM-001"],
+    "dependsOn": [
+      "GOAL-001",
+      "CURR-001",
+      "PERS-001",
+      "MEM-001"
+    ],
     "assumptions": [
       "Callers have multiple interactions over time",
       "Each call should build on previous progress",
       "Session planning should balance goals, curriculum, and caller state"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-SESSION-1",
@@ -31,7 +33,9 @@
       "given": "A new call is starting",
       "when": "Session planning runs",
       "then": "Relevant context from previous calls is assembled for the agent",
-      "measuredBy": ["context_relevance"]
+      "measuredBy": [
+        "context_relevance"
+      ]
     },
     {
       "id": "AC-SESSION-2",
@@ -39,7 +43,9 @@
       "given": "Caller has active goals and curriculum position",
       "when": "Session planning runs",
       "then": "Appropriate session goals are identified and prioritized",
-      "measuredBy": ["session_goal_quality"]
+      "measuredBy": [
+        "session_goal_quality"
+      ]
     },
     {
       "id": "AC-SESSION-3",
@@ -47,7 +53,9 @@
       "given": "Previous call had unfinished threads",
       "when": "Session planning runs",
       "then": "Unfinished threads are flagged for potential continuation",
-      "measuredBy": ["continuity_score"]
+      "measuredBy": [
+        "continuity_score"
+      ]
     },
     {
       "id": "AC-SESSION-4",
@@ -55,7 +63,9 @@
       "given": "Caller is in a multi-call learning arc",
       "when": "Session supervision runs",
       "then": "Arc progress is validated and next steps are recommended",
-      "measuredBy": ["arc_progress"]
+      "measuredBy": [
+        "arc_progress"
+      ]
     },
     {
       "id": "AC-SESSION-5",
@@ -63,7 +73,9 @@
       "given": "Multiple calls have occurred",
       "when": "Session supervision runs",
       "then": "Pacing is evaluated against optimal learning curves",
-      "measuredBy": ["pacing_alignment"]
+      "measuredBy": [
+        "pacing_alignment"
+      ]
     },
     {
       "id": "AC-SESSION-6",
@@ -71,28 +83,72 @@
       "given": "A call is ending",
       "when": "Session supervision runs",
       "then": "Session closure is evaluated for proper wrap-up and setup for next call",
-      "measuredBy": ["closure_quality"]
+      "measuredBy": [
+        "closure_quality"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "context_relevance",
       "name": "Context Relevance Score",
       "description": "How relevant the assembled context is to the likely direction of this session",
       "section": "planning",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Highly Relevant", "implication": "Context perfectly primes the session" },
-        { "min": 0.6, "max": 0.8, "label": "Relevant", "implication": "Good context selection" },
-        { "min": 0.4, "max": 0.6, "label": "Adequate", "implication": "Basic context available" },
-        { "min": 0.0, "max": 0.4, "label": "Poor", "implication": "Missing key context" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Highly Relevant",
+          "implication": "Context perfectly primes the session"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Relevant",
+          "implication": "Good context selection"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Adequate",
+          "implication": "Basic context available"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Poor",
+          "implication": "Missing key context"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Context includes: recent goal progress, last call's unfinished topic, personality-based style guidance, and relevant memories", "rationale": "Comprehensive, prioritized context", "isGold": true },
-        { "score": 0.7, "example": "Context includes caller's active goals and last call summary", "rationale": "Key elements present", "isGold": true },
-        { "score": 0.4, "example": "Context only includes basic caller profile", "rationale": "Missing recent interaction context", "isGold": true },
-        { "score": 0.1, "example": "Caller treated as new with no history context", "rationale": "Failed to retrieve relevant history", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Context includes: recent goal progress, last call's unfinished topic, personality-based style guidance, and relevant memories",
+          "rationale": "Comprehensive, prioritized context",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Context includes caller's active goals and last call summary",
+          "rationale": "Key elements present",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Context only includes basic caller profile",
+          "rationale": "Missing recent interaction context",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "Caller treated as new with no history context",
+          "rationale": "Failed to retrieve relevant history",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Context assembly is strong - agent is well-prepared for continuity.",
@@ -104,18 +160,61 @@
       "name": "Session Goal Quality",
       "description": "Quality of the goals identified for this specific session",
       "section": "planning",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Excellent Goals", "implication": "Clear, achievable, aligned with caller priorities" },
-        { "min": 0.6, "max": 0.8, "label": "Good Goals", "implication": "Reasonable session objectives" },
-        { "min": 0.4, "max": 0.6, "label": "Adequate Goals", "implication": "Generic but acceptable" },
-        { "min": 0.0, "max": 0.4, "label": "Poor Goals", "implication": "Unclear or misaligned goals" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Excellent Goals",
+          "implication": "Clear, achievable, aligned with caller priorities"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good Goals",
+          "implication": "Reasonable session objectives"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Adequate Goals",
+          "implication": "Generic but acceptable"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Poor Goals",
+          "implication": "Unclear or misaligned goals"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Session goals: (1) Review last session's concept application, (2) Introduce next curriculum module, (3) Address caller's specific question from last call", "rationale": "Specific, sequenced, caller-aligned", "isGold": true },
-        { "score": 0.7, "example": "Session goals: Continue curriculum progress and check in on goals", "rationale": "Reasonable but generic", "isGold": true },
-        { "score": 0.4, "example": "Session goal: Have a good conversation", "rationale": "Too vague to guide session", "isGold": true },
-        { "score": 0.1, "example": "No session goals identified", "rationale": "No planning occurred", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Session goals: (1) Review last session's concept application, (2) Introduce next curriculum module, (3) Address caller's specific question from last call",
+          "rationale": "Specific, sequenced, caller-aligned",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Session goals: Continue curriculum progress and check in on goals",
+          "rationale": "Reasonable but generic",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Session goal: Have a good conversation",
+          "rationale": "Too vague to guide session",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "No session goals identified",
+          "rationale": "No planning occurred",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Session goals are clear - agent can work toward specific outcomes.",
@@ -127,18 +226,61 @@
       "name": "Continuity Score",
       "description": "How well the session maintains continuity with previous interactions",
       "section": "supervision",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Strong Continuity", "implication": "Seamless connection to previous calls" },
-        { "min": 0.6, "max": 0.8, "label": "Good Continuity", "implication": "Clear connection maintained" },
-        { "min": 0.4, "max": 0.6, "label": "Some Continuity", "implication": "Basic references to history" },
-        { "min": 0.0, "max": 0.4, "label": "Weak Continuity", "implication": "Feels like starting fresh" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Strong Continuity",
+          "implication": "Seamless connection to previous calls"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good Continuity",
+          "implication": "Clear connection maintained"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Some Continuity",
+          "implication": "Basic references to history"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Weak Continuity",
+          "implication": "Feels like starting fresh"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Agent references: specific thing caller said last time, progress made, and picks up exactly where they left off", "rationale": "Perfect continuity", "isGold": true },
-        { "score": 0.7, "example": "Agent acknowledges previous call and asks about progress since then", "rationale": "Good connection", "isGold": true },
-        { "score": 0.4, "example": "Agent makes generic 'welcome back' without specific references", "rationale": "Minimal continuity", "isGold": true },
-        { "score": 0.1, "example": "Agent treats caller as if first interaction, asks already-known information", "rationale": "Continuity failure", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Agent references: specific thing caller said last time, progress made, and picks up exactly where they left off",
+          "rationale": "Perfect continuity",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Agent acknowledges previous call and asks about progress since then",
+          "rationale": "Good connection",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Agent makes generic 'welcome back' without specific references",
+          "rationale": "Minimal continuity",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "Agent treats caller as if first interaction, asks already-known information",
+          "rationale": "Continuity failure",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Continuity is strong - caller feels known and progress is tracked.",
@@ -150,20 +292,68 @@
       "name": "Learning Arc Progress",
       "description": "Progress through multi-call learning arcs",
       "section": "supervision",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "formula": "weighted_sum(module_progress) / total_arc_weight",
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Near Completion", "implication": "Arc almost finished" },
-        { "min": 0.6, "max": 0.8, "label": "Good Progress", "implication": "Advancing well through arc" },
-        { "min": 0.4, "max": 0.6, "label": "Mid-Arc", "implication": "Halfway through learning arc" },
-        { "min": 0.2, "max": 0.4, "label": "Early Arc", "implication": "Just started the arc" },
-        { "min": 0.0, "max": 0.2, "label": "Beginning", "implication": "Arc not yet started" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Near Completion",
+          "implication": "Arc almost finished"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good Progress",
+          "implication": "Advancing well through arc"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Mid-Arc",
+          "implication": "Halfway through learning arc"
+        },
+        {
+          "min": 0.2,
+          "max": 0.4,
+          "label": "Early Arc",
+          "implication": "Just started the arc"
+        },
+        {
+          "min": 0.0,
+          "max": 0.2,
+          "label": "Beginning",
+          "implication": "Arc not yet started"
+        }
       ],
       "scoringAnchors": [
-        { "score": 0.9, "example": "Caller has completed 4 of 5 modules in the arc, mastery demonstrated", "rationale": "Near arc completion", "isGold": true },
-        { "score": 0.6, "example": "Caller is competent in 2 modules, working on third", "rationale": "Mid-progress", "isGold": true },
-        { "score": 0.3, "example": "Caller just finished introduction module", "rationale": "Early in arc", "isGold": true },
-        { "score": 0.0, "example": "Caller hasn't started the learning arc yet", "rationale": "Pre-arc", "isGold": true }
+        {
+          "score": 0.9,
+          "example": "Caller has completed 4 of 5 modules in the arc, mastery demonstrated",
+          "rationale": "Near arc completion",
+          "isGold": true
+        },
+        {
+          "score": 0.6,
+          "example": "Caller is competent in 2 modules, working on third",
+          "rationale": "Mid-progress",
+          "isGold": true
+        },
+        {
+          "score": 0.3,
+          "example": "Caller just finished introduction module",
+          "rationale": "Early in arc",
+          "isGold": true
+        },
+        {
+          "score": 0.0,
+          "example": "Caller hasn't started the learning arc yet",
+          "rationale": "Pre-arc",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Arc nearly complete - plan for arc conclusion and next arc introduction.",
@@ -175,19 +365,67 @@
       "name": "Pacing Alignment",
       "description": "How well the actual pacing matches optimal learning curves",
       "section": "supervision",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Optimal Pacing", "implication": "Learning rate is ideal for this caller" },
-        { "min": 0.6, "max": 0.8, "label": "Good Pacing", "implication": "Pacing is appropriate" },
-        { "min": 0.4, "max": 0.6, "label": "Acceptable Pacing", "implication": "Some pacing adjustments needed" },
-        { "min": 0.2, "max": 0.4, "label": "Poor Pacing", "implication": "Significant pacing mismatch" },
-        { "min": 0.0, "max": 0.2, "label": "Critical Pacing", "implication": "Pacing causing problems" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Optimal Pacing",
+          "implication": "Learning rate is ideal for this caller"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good Pacing",
+          "implication": "Pacing is appropriate"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Acceptable Pacing",
+          "implication": "Some pacing adjustments needed"
+        },
+        {
+          "min": 0.2,
+          "max": 0.4,
+          "label": "Poor Pacing",
+          "implication": "Significant pacing mismatch"
+        },
+        {
+          "min": 0.0,
+          "max": 0.2,
+          "label": "Critical Pacing",
+          "implication": "Pacing causing problems"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Caller is advancing at their learning velocity, retention is high, engagement is strong", "rationale": "Perfect pace match", "isGold": true },
-        { "score": 0.7, "example": "Caller is keeping up with slight challenge, occasional review needed", "rationale": "Good stretch pace", "isGold": true },
-        { "score": 0.4, "example": "Caller showing signs of overload or boredom (pace too fast or slow)", "rationale": "Pacing mismatch detected", "isGold": true },
-        { "score": 0.2, "example": "Caller repeatedly forgetting previous content, or disengaging due to repetition", "rationale": "Serious pacing problem", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Caller is advancing at their learning velocity, retention is high, engagement is strong",
+          "rationale": "Perfect pace match",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Caller is keeping up with slight challenge, occasional review needed",
+          "rationale": "Good stretch pace",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Caller showing signs of overload or boredom (pace too fast or slow)",
+          "rationale": "Pacing mismatch detected",
+          "isGold": true
+        },
+        {
+          "score": 0.2,
+          "example": "Caller repeatedly forgetting previous content, or disengaging due to repetition",
+          "rationale": "Serious pacing problem",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Pacing is well-aligned - maintain current progression rate.",
@@ -199,18 +437,61 @@
       "name": "Session Closure Quality",
       "description": "Quality of session wrap-up and setup for next interaction",
       "section": "supervision",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Excellent Closure", "implication": "Clear summary, next steps, and anticipation built" },
-        { "min": 0.6, "max": 0.8, "label": "Good Closure", "implication": "Reasonable wrap-up" },
-        { "min": 0.4, "max": 0.6, "label": "Basic Closure", "implication": "Conversation ended but minimal setup" },
-        { "min": 0.0, "max": 0.4, "label": "Poor Closure", "implication": "Abrupt end, no setup for next time" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Excellent Closure",
+          "implication": "Clear summary, next steps, and anticipation built"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good Closure",
+          "implication": "Reasonable wrap-up"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Basic Closure",
+          "implication": "Conversation ended but minimal setup"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Poor Closure",
+          "implication": "Abrupt end, no setup for next time"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Session ended with: summary of what was covered, acknowledgment of progress, preview of next topic, and personal note", "rationale": "Comprehensive closure", "isGold": true },
-        { "score": 0.7, "example": "Session ended with summary and mention of what's coming next time", "rationale": "Good closure elements", "isGold": true },
-        { "score": 0.4, "example": "Session ended with 'talk to you next time' without recap", "rationale": "Minimal closure", "isGold": true },
-        { "score": 0.1, "example": "Call ended abruptly mid-topic with no closure", "rationale": "No closure", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Session ended with: summary of what was covered, acknowledgment of progress, preview of next topic, and personal note",
+          "rationale": "Comprehensive closure",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Session ended with summary and mention of what's coming next time",
+          "rationale": "Good closure elements",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Session ended with 'talk to you next time' without recap",
+          "rationale": "Minimal closure",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "Call ended abruptly mid-topic with no closure",
+          "rationale": "No closure",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Closure was strong - caller leaves with clear sense of progress and anticipation.",
@@ -222,18 +503,61 @@
       "name": "Thread Management",
       "description": "How well open conversational threads are tracked and resolved",
       "section": "supervision",
-      "targetRange": { "min": 0.0, "max": 1.0 },
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
       "interpretationScale": [
-        { "min": 0.8, "max": 1.0, "label": "Excellent", "implication": "All threads tracked and appropriately handled" },
-        { "min": 0.6, "max": 0.8, "label": "Good", "implication": "Most threads managed well" },
-        { "min": 0.4, "max": 0.6, "label": "Adequate", "implication": "Some threads tracked" },
-        { "min": 0.0, "max": 0.4, "label": "Poor", "implication": "Threads frequently dropped" }
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Excellent",
+          "implication": "All threads tracked and appropriately handled"
+        },
+        {
+          "min": 0.6,
+          "max": 0.8,
+          "label": "Good",
+          "implication": "Most threads managed well"
+        },
+        {
+          "min": 0.4,
+          "max": 0.6,
+          "label": "Adequate",
+          "implication": "Some threads tracked"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Poor",
+          "implication": "Threads frequently dropped"
+        }
       ],
       "scoringAnchors": [
-        { "score": 1.0, "example": "Agent tracked 3 open threads from last call, addressed 2, explicitly tabled 1 for next time with caller agreement", "rationale": "Explicit thread management", "isGold": true },
-        { "score": 0.7, "example": "Agent returned to unfinished topic from last call", "rationale": "Thread continuity maintained", "isGold": true },
-        { "score": 0.4, "example": "Agent vaguely references 'where we left off' without specifics", "rationale": "Weak thread tracking", "isGold": true },
-        { "score": 0.1, "example": "Important thread from last call never mentioned again", "rationale": "Thread dropped", "isGold": true }
+        {
+          "score": 1.0,
+          "example": "Agent tracked 3 open threads from last call, addressed 2, explicitly tabled 1 for next time with caller agreement",
+          "rationale": "Explicit thread management",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Agent returned to unfinished topic from last call",
+          "rationale": "Thread continuity maintained",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Agent vaguely references 'where we left off' without specifics",
+          "rationale": "Weak thread tracking",
+          "isGold": true
+        },
+        {
+          "score": 0.1,
+          "example": "Important thread from last call never mentioned again",
+          "rationale": "Thread dropped",
+          "isGold": true
+        }
       ],
       "promptGuidance": {
         "whenHigh": "Thread management is strong - caller feels heard and topics are properly resolved.",
@@ -241,7 +565,6 @@
       }
     }
   ],
-
   "constraints": [
     {
       "id": "C-SESSION-1",
@@ -262,11 +585,27 @@
       "severity": "warning"
     }
   ],
-
   "related": [
-    { "id": "GOAL-001", "title": "Learner Goals", "relationship": "goals inform session planning" },
-    { "id": "CURR-001", "title": "Curriculum Tracker", "relationship": "curriculum position informs session planning" },
-    { "id": "MEM-001", "title": "Memory Extraction", "relationship": "memories provide context for sessions" },
-    { "id": "REW-001", "title": "Reward Computation", "relationship": "session outcomes feed rewards" }
-  ]
+    {
+      "id": "GOAL-001",
+      "title": "Learner Goals",
+      "relationship": "goals inform session planning"
+    },
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Tracker",
+      "relationship": "curriculum position informs session planning"
+    },
+    {
+      "id": "MEM-001",
+      "title": "Memory Extraction",
+      "relationship": "memories provide context for sessions"
+    },
+    {
+      "id": "REW-001",
+      "title": "Reward Computation",
+      "relationship": "session outcomes feed rewards"
+    }
+  ],
+  "specRole": "ORCHESTRATE"
 }

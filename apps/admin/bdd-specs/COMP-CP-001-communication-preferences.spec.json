@@ -2,18 +2,16 @@
   "id": "COMP-CP-001",
   "title": "Communication Style Preferences",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-02",
   "domain": "companion",
   "specType": "DOMAIN",
   "outputType": "LEARN",
-
   "story": {
     "asA": "companion assistant",
     "iWant": "to learn how this person prefers to communicate",
     "soThat": "I can adapt my communication style to match their preferences"
   },
-
   "context": {
     "applies": "When communication patterns emerge in conversation",
     "dependsOn": [],
@@ -23,7 +21,6 @@
       "Learning preferences enables better adaptation"
     ]
   },
-
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-CP-1",
@@ -31,7 +28,9 @@
       "given": "The person has a conversation style",
       "when": "Communication pace patterns emerge",
       "then": "Record preferred conversation pace",
-      "measuredBy": ["pace_preference"]
+      "measuredBy": [
+        "pace_preference"
+      ]
     },
     {
       "id": "AC-COMP-CP-2",
@@ -39,10 +38,11 @@
       "given": "The person communicates with the companion",
       "when": "Formality signals are present",
       "then": "Record preferred formality level",
-      "measuredBy": ["formality_preference"]
+      "measuredBy": [
+        "formality_preference"
+      ]
     }
   ],
-
   "parameters": [
     {
       "id": "pace_preference",
@@ -75,7 +75,6 @@
       }
     }
   ],
-
   "triggers": [
     {
       "name": "Style Preference Detection",
@@ -104,10 +103,13 @@
       ]
     }
   ],
-
   "constraints": [],
-
   "related": [
-    { "id": "COMP-PP-001", "title": "Patience & Pacing", "relationship": "preferences inform pacing targets" }
-  ]
+    {
+      "id": "COMP-PP-001",
+      "title": "Patience & Pacing",
+      "relationship": "preferences inform pacing targets"
+    }
+  ],
+  "specRole": "EXTRACT"
 }

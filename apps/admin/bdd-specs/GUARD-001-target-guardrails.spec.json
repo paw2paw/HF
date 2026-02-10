@@ -2,19 +2,17 @@
   "id": "GUARD-001",
   "title": "Target Value Guardrails",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-04",
   "domain": "guardrails",
   "specType": "SYSTEM",
   "outputType": "SUPERVISE",
-  "specRole": "GUARDRAIL",
-
+  "specRole": "CONSTRAIN",
   "story": {
     "asA": "pipeline supervisor",
     "iWant": "to enforce safe bounds on computed values",
     "soThat": "the agent never exhibits extreme or erratic behavior"
   },
-
   "context": {
     "applies": "After ADAPT specs compute targets, before targets are stored",
     "dependsOn": [],
@@ -24,7 +22,6 @@
       "Confidence scores should be bounded to prevent overconfidence"
     ]
   },
-
   "parameters": [
     {
       "id": "target_clamp",
@@ -79,7 +76,6 @@
       }
     }
   ],
-
   "acceptanceCriteria": [
     {
       "id": "AC-GUARD-1",
@@ -96,7 +92,6 @@
       "then": "Confidence is clamped to configured bounds"
     }
   ],
-
   "constraints": [
     {
       "id": "C-GUARD-1",

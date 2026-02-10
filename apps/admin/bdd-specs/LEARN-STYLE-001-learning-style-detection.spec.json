@@ -2,13 +2,12 @@
   "id": "LEARN-STYLE-001",
   "title": "Learning Style Detection",
   "version": "1.0",
-  "status": "Draft",
+  "status": "Active",
   "date": "2026-02-04",
   "domain": "learning",
   "specType": "SYSTEM",
   "outputType": "MEASURE",
-  "specRole": "MEASURE",
-
+  "specRole": "EXTRACT",
   "metadata": {
     "observation": {
       "signalParameters": [
@@ -21,23 +20,22 @@
       "minimumConfidence": 0.6
     }
   },
-
   "story": {
     "asA": "learning system",
     "iWant": "to observe how learners interact and infer their learning preferences",
     "soThat": "the tutor can adapt teaching style to match learner needs"
   },
-
   "context": {
     "applies": "Every call where learning interactions occur",
-    "dependsOn": ["CURRICULUM_PROGRESS_V1"],
+    "dependsOn": [
+      "CURRICULUM_PROGRESS_V1"
+    ],
     "assumptions": [
       "Learning style emerges from patterns across multiple calls",
       "Explicit statements override inferred preferences",
       "Preferences can change over time"
     ]
   },
-
   "parameters": [
     {
       "id": "question_asking_rate",
@@ -181,7 +179,6 @@
       ]
     }
   ],
-
   "triggers": [
     {
       "name": "Observe Learning Behaviors",
