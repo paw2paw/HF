@@ -6,6 +6,7 @@ import { useEntityContext, ENTITY_COLORS, EntityBreadcrumb } from "@/contexts/En
 import { useEntityDetection } from "@/hooks/useEntityDetection";
 import { InboxView } from "./InboxView";
 import { TicketsView } from "./TicketsView";
+import { AIModelBadge } from "@/components/shared/AIModelBadge";
 
 // Sub-components
 function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[] }) {
@@ -240,12 +241,16 @@ function ChatMessages() {
                 marginTop: 4,
                 paddingLeft: isUser ? 0 : 4,
                 paddingRight: isUser ? 4 : 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
               {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               {msg.metadata?.command && (
                 <span style={{ marginLeft: 8, color: "#8b5cf6" }}>{msg.metadata.command}</span>
               )}
+              {!isUser && <AIModelBadge callPoint={`chat.${mode.toLowerCase()}`} variant="text" size="sm" />}
             </div>
           </div>
         );

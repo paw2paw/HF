@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FancySelect, FancySelectOption } from "@/components/shared/FancySelect";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
 import { FlashSidebar } from "@/components/shared/FlashSidebar";
+import { AIModelBadge } from "@/components/shared/AIModelBadge";
 
 // ============================================================================
 // Types (matching JsonFeatureSpec from ai-parser.ts)
@@ -936,6 +937,9 @@ export default function CreateSpecPage() {
               <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "4px 0 0" }}>
                 Describe what you want to measure, and I'll build the spec for you
               </p>
+              <div style={{ marginTop: 8 }}>
+                <AIModelBadge callPoint="spec.assistant" variant="text" size="sm" />
+              </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>

@@ -13,6 +13,7 @@ import {
   diffColors,
 } from "@/src/components/shared/uiColors";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
+import { AIModelBadge } from "@/components/shared/AIModelBadge";
 
 // =============================================================================
 // TYPES
@@ -1436,6 +1437,7 @@ export default function PlaygroundPage() {
                       <span style={{ fontSize: 14 }}>✨</span>
                       <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Generated Prompt</span>
                       <AIConfigButton callPoint="compose.prompt" label="Prompt Composition" />
+                      <AIModelBadge callPoint="compose.prompt" variant="badge" size="sm" />
                       <div style={{ flex: 1 }} />
                       <div style={{ display: "flex", gap: 4 }}>
                         <button
