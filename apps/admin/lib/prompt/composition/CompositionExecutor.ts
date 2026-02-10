@@ -197,6 +197,9 @@ function checkActivation(
     case "callCount == 0":
       return context.sharedState.isFirstCall;
 
+    case "firstCallInDomain":
+      return context.sharedState.isFirstCallInDomain;
+
     default:
       return true;
   }

@@ -29,17 +29,8 @@ type CallerProfile = {
 };
 
 type PersonalityProfile = {
-  openness: number | null;
-  conscientiousness: number | null;
-  extraversion: number | null;
-  agreeableness: number | null;
-  neuroticism: number | null;
-  confidenceScore: number | null;
-  lastAggregatedAt: string | null;
-  observationsUsed: number;
-  preferredTone: string | null;
-  preferredLength: string | null;
-  technicalLevel: string | null;
+  parameterValues: Record<string, number>; // Dynamic parameter values (Big Five, VARK, etc.)
+  lastUpdatedAt: string | null;
 };
 
 type PersonalityObservation = {
@@ -209,15 +200,10 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   CONTEXT: { bg: "var(--surface-secondary)", text: "var(--text-secondary)" },
 };
 
-const TRAIT_INFO = {
-  openness: { label: "Openness", color: "var(--trait-openness)", desc: "Curiosity, creativity, openness to new experiences" },
-  conscientiousness: { label: "Conscientiousness", color: "var(--trait-conscientiousness)", desc: "Organization, dependability, self-discipline" },
-  extraversion: { label: "Extraversion", color: "var(--trait-extraversion)", desc: "Sociability, assertiveness, positive emotions" },
-  agreeableness: { label: "Agreeableness", color: "var(--trait-agreeableness)", desc: "Cooperation, trust, helpfulness" },
-  neuroticism: { label: "Neuroticism", color: "var(--trait-neuroticism)", desc: "Emotional instability, anxiety, moodiness" },
-};
+// Parameter display config will be fetched dynamically from /api/parameters/display-config
+// NO HARDCODING - all parameter metadata comes from database
 
-type SectionId = "calls" | "transcripts" | "memories" | "personality" | "scores" | "learning" | "agent-behavior" | "prompt" | "ai-call" | "slugs";
+type SectionId = "calls" | "transcripts" | "memories" | "traits" | "scores" | "learning" | "agent-behavior" | "ai-call" | "slugs";
 
 type ComposedPrompt = {
   id: string;
@@ -245,7 +231,7 @@ export default function CallerDetailPage() {
 
   // Get initial tab from URL param (e.g., ?tab=ai-call)
   const tabParam = searchParams.get("tab") as SectionId | null;
-  const validTabs: SectionId[] = ["calls", "transcripts", "memories", "personality", "scores", "learning", "agent-behavior", "prompt", "ai-call", "slugs"];
+  const validTabs: SectionId[] = ["calls", "transcripts", "memories", "traits", "scores", "learning", "agent-behavior", "prompt", "ai-call", "slugs"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : null;
 
   const [data, setData] = useState<CallerData | null>(null);
@@ -253,9 +239,33 @@ export default function CallerDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SectionId | null>(initialTab);
 
+  // Dynamic parameter display configuration (fetched from database)
+  type ParamDisplayInfo = { parameterId: string; label: string; description: string; color: string; section: string };
+  const [paramConfig, setParamConfig] = useState<{
+    grouped: Record<string, ParamDisplayInfo[]>;
+    params: Record<string, ParamDisplayInfo>;
+  } | null>(null);
+
+  // Build TRAIT_INFO from paramConfig for backward compatibility with existing code
+  // ALL DATA COMES FROM DATABASE - NO HARDCODING
+  const TRAIT_INFO: Record<string, { label: string; color: string; desc: string; group: string }> = paramConfig
+    ? Object.fromEntries(
+        Object.entries(paramConfig.params).map(([id, info]) => [
+          id,
+          {
+            label: info.label,
+            color: info.color,
+            desc: info.description,
+            group: id.startsWith('B5-') ? 'Big Five' : id.startsWith('VARK-') ? 'VARK' : 'Other',
+          },
+        ])
+      )
+    : {};
+
   // Expanded states
   const [expandedCall, setExpandedCall] = useState<string | null>(null);
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
+  const [activePromptExpanded, setActivePromptExpanded] = useState(false); // Active Prompt section starts collapsed
 
   // Prompts state
   const [composedPrompts, setComposedPrompts] = useState<ComposedPrompt[]>([]);
@@ -418,7 +428,11 @@ export default function CallerDetailPage() {
       .then((r) => r.json())
       .then((result) => {
         if (result.ok) {
-          setData(result);
+          // Map personalityProfile -> personality for backward compatibility
+          setData({
+            ...result,
+            personality: result.personalityProfile || null,
+          });
           // Register with entity context for AI Chat
           pushEntity({
             type: "caller",
@@ -464,6 +478,21 @@ export default function CallerDetailPage() {
         }
       })
       .catch(() => {});
+
+    // Fetch dynamic parameter display configuration (NO HARDCODING)
+    fetch("/api/parameters/display-config")
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.ok) {
+          setParamConfig({
+            grouped: result.grouped,
+            params: result.params,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load parameter display config:", err);
+      });
   }, [callerId, pushEntity, isInXArea]);
 
   // Update caller domain
@@ -493,12 +522,12 @@ export default function CallerDetailPage() {
     }
   };
 
-  // Fetch prompts when switching to prompt tab
+  // Fetch prompts on mount for Active Prompt section
   useEffect(() => {
-    if (activeSection === "prompt" && composedPrompts.length === 0) {
+    if (composedPrompts.length === 0) {
       fetchPrompts();
     }
-  }, [activeSection, fetchPrompts, composedPrompts.length]);
+  }, [fetchPrompts, composedPrompts.length]);
 
   const getCallerLabel = (caller: CallerProfile | undefined) => {
     if (!caller) return "Unknown";
@@ -535,20 +564,19 @@ export default function CallerDetailPage() {
     { id: "calls", label: "Calls", icon: "📞", count: data.counts.calls, group: "history" },
     // Caller group
     { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories, group: "caller" },
-    { id: "personality", label: "Person", icon: "🧠", count: data.counts.observations, group: "caller" },
+    { id: "traits", label: "Traits", icon: "🧠", count: data.counts.observations, group: "caller" },
     { id: "learning", label: "Goals", icon: "🎯", count: data.counts.activeGoals || 0, group: "caller" },
     // Shared group - data for both caller and agent
     { id: "slugs", label: "Slugs", icon: "🏷️", group: "shared" },
     { id: "scores", label: "Scores", icon: "📈", count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0, group: "shared" },
     // Behaviour-specific group (includes targets + measurements)
     { id: "agent-behavior", label: "Behaviour", icon: "🤖", count: (data.counts.targets || 0) + (data.counts.measurements || 0), group: "agent" },
-    { id: "prompt", label: "Prompt", icon: "📝", count: data.counts.prompts || undefined, group: "agent" },
     // Action group
     { id: "ai-call", label: "Call", icon: "📞", special: true, group: "action" },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: 1400, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: 1920, margin: "0 auto", width: "100%" }}>
       {/* Header */}
       <div style={{ padding: "24px 24px 16px 24px", flexShrink: 0 }}>
         <Link href={backLink} style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>
@@ -641,32 +669,34 @@ export default function CallerDetailPage() {
                   ID: {data.caller.externalId}
                 </span>
               )}
-              {/* Compact Personality Profile */}
-              {data.personality && (
+              {/* Compact Personality Profile - DYNAMIC (shows first 6 parameters) */}
+              {data.personality && data.personality.parameterValues && paramConfig && (
                 <div style={{ display: "flex", gap: 6, marginLeft: 8, padding: "4px 8px", background: "var(--surface-secondary)", borderRadius: 6 }}>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>🧠</span>
-                  {Object.entries(TRAIT_INFO).map(([key, info]) => {
-                    const value = data.personality?.[key as keyof typeof TRAIT_INFO] as number | null;
-                    if (value === null) return null;
-                    const level = value >= 0.7 ? "HIGH" : value <= 0.3 ? "LOW" : "MED";
-                    const levelColor = level === "HIGH" ? "var(--status-success-text)" : level === "LOW" ? "var(--status-error-text)" : "var(--text-muted)";
-                    return (
-                      <span
-                        key={key}
-                        title={`${info.label}: ${(value * 100).toFixed(0)}%`}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 600,
-                          color: levelColor,
-                          padding: "1px 4px",
-                          background: level === "HIGH" ? "var(--status-success-bg)" : level === "LOW" ? "var(--status-error-bg)" : "var(--border-default)",
-                          borderRadius: 3,
-                        }}
-                      >
-                        {info.label.charAt(0)}{(value * 100).toFixed(0)}
-                      </span>
-                    );
-                  })}
+                  {Object.entries(data.personality.parameterValues)
+                    .slice(0, 6)
+                    .map(([key, value]) => {
+                      const info = paramConfig.params[key];
+                      if (!info || value === undefined || value === null) return null;
+                      const level = value >= 0.7 ? "HIGH" : value <= 0.3 ? "LOW" : "MED";
+                      const levelColor = level === "HIGH" ? "var(--status-success-text)" : level === "LOW" ? "var(--status-error-text)" : "var(--text-muted)";
+                      return (
+                        <span
+                          key={key}
+                          title={`${info.label}: ${(value * 100).toFixed(0)}%`}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: levelColor,
+                            padding: "1px 4px",
+                            background: level === "HIGH" ? "var(--status-success-bg)" : level === "LOW" ? "var(--status-error-bg)" : "var(--border-default)",
+                            borderRadius: 3,
+                          }}
+                        >
+                          {info.label.charAt(0)}{(value * 100).toFixed(0)}
+                        </span>
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -760,6 +790,51 @@ export default function CallerDetailPage() {
         </div>
       </div>
 
+      {/* Active Prompt Section - Shows most recent prompt for next call */}
+      {composedPrompts.length > 0 && (
+        <div style={{ background: "var(--surface-secondary)", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+          <button
+            onClick={() => setActivePromptExpanded(!activePromptExpanded)}
+            style={{
+              width: "100%",
+              padding: "16px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <span style={{ fontSize: 16, fontWeight: 600 }}>🎯 Active Prompt</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              (Will be used for the next call)
+            </span>
+            {composedPrompts.length > 1 && (
+              <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: "auto" }}>
+                +{composedPrompts.length - 1} previous prompt{composedPrompts.length > 2 ? 's' : ''}
+              </span>
+            )}
+            <span style={{ fontSize: 12, marginLeft: composedPrompts.length === 1 ? "auto" : 0 }}>
+              {activePromptExpanded ? "▼" : "▶"}
+            </span>
+          </button>
+          {activePromptExpanded && (
+            <div style={{ padding: "0 24px 16px 24px" }}>
+              <UnifiedPromptSection
+                prompts={composedPrompts}
+                loading={promptsLoading}
+                expandedPrompt={expandedPrompt}
+                setExpandedPrompt={setExpandedPrompt}
+                onRefresh={fetchPrompts}
+                defaultExpandFirst={false}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Section Tabs - Grouped: History | Caller | Agent | Action */}
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-default)", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", zIndex: 10, padding: "8px 24px 0 24px", marginLeft: -24, marginRight: -24, flexShrink: 0 }}>
         {sections.map((section, index) => {
@@ -834,7 +909,7 @@ export default function CallerDetailPage() {
       {/* Section Content - Scrollable */}
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px 24px" }}>
       {activeSection === null && (
-        <OverviewSection data={data} onNavigate={setActiveSection} />
+        <OverviewSection data={data} onNavigate={setActiveSection} paramConfig={paramConfig} />
       )}
 
       {activeSection === "calls" && (
@@ -848,7 +923,13 @@ export default function CallerDetailPage() {
             fetch(`/api/callers/${callerId}`)
               .then((r) => r.json())
               .then((result) => {
-                if (result.ok) setData(result);
+                if (result.ok) {
+                  // Map personalityProfile -> personality for backward compatibility
+                  setData({
+                    ...result,
+                    personality: result.personalityProfile || null,
+                  });
+                }
               });
             // Refresh prompts list to show newly composed prompts
             fetchPrompts();
@@ -869,10 +950,11 @@ export default function CallerDetailPage() {
         />
       )}
 
-      {activeSection === "personality" && (
+      {activeSection === "traits" && (
         <PersonalitySection
           personality={data.personality}
           observations={data.observations}
+          paramConfig={paramConfig}
         />
       )}
 
@@ -890,16 +972,6 @@ export default function CallerDetailPage() {
         <CallerSlugsSection callerId={callerId} />
       )}
 
-      {activeSection === "prompt" && (
-        <UnifiedPromptSection
-          prompts={composedPrompts}
-          loading={promptsLoading}
-          expandedPrompt={expandedPrompt}
-          setExpandedPrompt={setExpandedPrompt}
-          onRefresh={fetchPrompts}
-        />
-      )}
-
       {activeSection === "ai-call" && (
         <AICallSection
           callerId={callerId}
@@ -910,7 +982,13 @@ export default function CallerDetailPage() {
             fetch(`/api/callers/${callerId}`)
               .then((r) => r.json())
               .then((result) => {
-                if (result.ok) setData(result);
+                if (result.ok) {
+                  // Map personalityProfile -> personality for backward compatibility
+                  setData({
+                    ...result,
+                    personality: result.personalityProfile || null,
+                  });
+                }
               });
             // Refresh prompts
             fetchPrompts();
@@ -926,9 +1004,14 @@ export default function CallerDetailPage() {
 function OverviewSection({
   data,
   onNavigate,
+  paramConfig,
 }: {
   data: CallerData;
   onNavigate: (section: SectionId | null) => void;
+  paramConfig: {
+    grouped: Record<string, { parameterId: string; label: string; description: string; color: string; section: string }[]>;
+    params: Record<string, { parameterId: string; label: string; description: string; color: string; section: string }>;
+  } | null;
 }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
@@ -940,43 +1023,60 @@ function OverviewSection({
           <StatCard label="Memories" value={data.counts.memories} icon="💭" onClick={() => onNavigate("memories")} />
           <StatCard label="Observations" value={data.counts.observations} icon="👁️" onClick={() => onNavigate("personality")} />
           <StatCard
-            label="Confidence"
-            value={data.personality?.confidenceScore ? `${(data.personality.confidenceScore * 100).toFixed(0)}%` : "—"}
+            label="Parameters"
+            value={data.personality?.parameterValues ? Object.keys(data.personality.parameterValues).length : 0}
             icon="📊"
+            onClick={() => onNavigate("personality")}
           />
         </div>
       </div>
 
-      {/* Personality Summary */}
-      {data.personality && (
+      {/* Personality Summary - Dynamically show all parameter groups */}
+      {data.personality && data.personality.parameterValues && paramConfig && (
         <div
           style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
           onClick={() => onNavigate("personality")}
         >
           <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Personality Profile</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {Object.entries(TRAIT_INFO).map(([key, info]) => {
-              const value = data.personality?.[key as keyof typeof TRAIT_INFO] as number | null;
-              return (
-                <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)", width: 100 }}>{info.label}</span>
-                  <div style={{ flex: 1, height: 8, background: "var(--border-default)", borderRadius: 4, overflow: "hidden" }}>
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${(value || 0) * 100}%`,
-                        background: info.color,
-                        borderRadius: 4,
-                      }}
-                    />
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", width: 40, textAlign: "right" }}>
-                    {value !== null ? (value * 100).toFixed(0) : "—"}
-                  </span>
+
+          {/* Dynamically render all parameter groups */}
+          {Object.entries(paramConfig.grouped).map(([groupName, params]) => {
+            // Check if any parameters in this group have values
+            const hasValues = params.some(param => data.personality?.parameterValues?.[param.parameterId] !== undefined);
+            if (!hasValues) return null;
+
+            return (
+              <div key={groupName} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-placeholder)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  {groupName}
                 </div>
-              );
-            })}
-          </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {params.map(param => {
+                    const value = data.personality?.parameterValues?.[param.parameterId];
+                    if (value === undefined) return null;
+                    return (
+                      <div key={param.parameterId} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", width: 100 }}>{param.label}</span>
+                        <div style={{ flex: 1, height: 8, background: "var(--border-default)", borderRadius: 4, overflow: "hidden" }}>
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${(value || 0) * 100}%`,
+                              background: param.color,
+                              borderRadius: 4,
+                            }}
+                          />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", width: 40, textAlign: "right" }}>
+                          {value !== null ? (value * 100).toFixed(0) : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2026,7 +2126,7 @@ function CallDetailPanel({
   details: any;
   loading: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "scores" | "measurements" | "prompt">("transcript");
+  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "traits" | "scores" | "measurements" | "prompt">("transcript");
 
   if (loading) {
     return (
@@ -2049,6 +2149,7 @@ function CallDetailPanel({
     { id: "transcript", label: "Trans", icon: "📄", count: null, tooltip: "View the full call transcript" },
     // Caller group
     { id: "memories", label: "Mem", icon: "💭", count: memories.length, tooltip: "Memories extracted from the caller" },
+    { id: "traits", label: "Traits", icon: "🧠", count: personalityObservation ? 1 : null, tooltip: "Personality observation from this call" },
     // Shared group
     { id: "scores", label: "Scores", icon: "📊", count: scores.length, tooltip: "Behavior and caller scores" },
     // Behaviour group (targets + measurements combined)
@@ -2097,6 +2198,10 @@ function CallDetailPanel({
 
         {activeTab === "memories" && (
           <MemoriesTab memories={memories} />
+        )}
+
+        {activeTab === "traits" && (
+          <CallTraitsTab observation={personalityObservation} />
         )}
 
         {activeTab === "scores" && (
@@ -2608,6 +2713,8 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 }
 
 // Personality Observation Tab - shows personality data observed from this call
+// NOTE: This displays LEGACY PersonalityObservation model with hardcoded OCEAN fields
+// TODO: Migrate PersonalityObservation to use parameterValues field for dynamic parameters
 function PersonalityObservationTab({ observation }: { observation: any }) {
   if (!observation) {
     return (
@@ -2617,6 +2724,7 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
     );
   }
 
+  // LEGACY: PersonalityObservation has hardcoded OCEAN fields - will be migrated to parameterValues
   const traits = [
     { key: "openness", label: "Openness", color: "var(--trait-openness)", desc: "Curiosity, creativity, openness to new experiences" },
     { key: "conscientiousness", label: "Conscientiousness", color: "var(--trait-conscientiousness)", desc: "Organization, dependability, self-discipline" },
@@ -3354,12 +3462,14 @@ function TwoColumnTargetsDisplay({
     }
 
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start", width: "100%" }}>
         {Object.entries(targets).map(([group, groupTargets]) => (
           <div
             key={`${prefix}-${group}`}
             style={{
-              flex: "0 0 auto",
+              flex: "1 1 auto",
+              minWidth: "fit-content",
+              maxWidth: "100%",
               background: "var(--surface-secondary)",
               borderRadius: 12,
               padding: "12px 16px 16px",
@@ -3380,12 +3490,13 @@ function TwoColumnTargetsDisplay({
             >
               {group} ({groupTargets.length})
             </div>
-            {/* Flex layout for vertical sliders - keeps group together */}
+            {/* Flex layout for vertical sliders - allows wrapping within group */}
             <div
               style={{
                 display: "flex",
                 gap: 12,
-                flexWrap: "nowrap",
+                flexWrap: "wrap",
+                justifyContent: "flex-start",
               }}
             >
               {groupTargets.map((target: any) => renderTargetCard(target, prefix))}
@@ -3451,10 +3562,16 @@ function TwoColumnTargetsDisplay({
         <span style={{ color: "var(--text-placeholder)" }}>(later overrides earlier)</span>
       </div>
 
-      {/* Two-column layout - flex for responsiveness */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+      {/* Two-column layout - CSS Grid for clean separation */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
         {/* Personalized Adjustments Column */}
-        <div style={{ flex: "1 1 400px", minWidth: 0 }}>
+        <div style={{
+          minWidth: 0,
+          background: "var(--surface-primary)",
+          padding: 16,
+          borderRadius: 12,
+          border: "2px solid var(--status-success-border)",
+        }}>
           <div
             title="Personalized Adjustments\n\nThese are behavior targets that have been automatically adjusted for this specific caller based on their interactions and preferences.\n\nADAPT specs analyze each call and fine-tune these parameters to optimize the AI's behavior for this individual.\n\nLeft bar: Target value\nRight bar: Most recent actual value from call analysis\n\nThese override the base playbook configuration."
             style={{
@@ -3476,7 +3593,13 @@ function TwoColumnTargetsDisplay({
         </div>
 
         {/* Base Configuration Column */}
-        <div style={{ flex: "1 1 400px", minWidth: 0 }}>
+        <div style={{
+          minWidth: 0,
+          background: "var(--surface-primary)",
+          padding: 16,
+          borderRadius: 12,
+          border: "2px solid var(--status-info-border)",
+        }}>
           <div
             title="Base Configuration\n\nThese are the baseline behavior targets defined by the playbook for this domain.\n\nThey provide the starting point before any personalization occurs.\n\nLeft bar: Target value\nRight bar: Most recent actual value from call analysis\n\nCaller-specific adjustments (left column) will override these base values."
             style={{
@@ -3506,88 +3629,101 @@ function TwoColumnTargetsDisplay({
 function ScoresTab({ scores }: { scores: any[] }) {
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
 
+  if (scores.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+        <div style={{ fontSize: 14, fontWeight: 500 }}>No scores</div>
+        <div style={{ fontSize: 12, marginTop: 4 }}>
+          Scores haven't been measured for this call yet.
+        </div>
+      </div>
+    );
+  }
+
   const renderScoreCard = (score: any) => {
     const isExpanded = expandedScore === score.id;
+    const percentage = (score.score * 100).toFixed(0);
+    const color = score.score >= 0.7 ? "var(--status-success-text)" :
+                  score.score >= 0.4 ? "var(--status-warning-text)" :
+                  "var(--status-error-text)";
 
     return (
       <div
         key={score.id}
         style={{
-          background: "var(--surface-primary)",
+          background: "var(--surface-secondary)",
           borderRadius: 8,
           border: "1px solid var(--border-default)",
-          overflow: "hidden",
+          padding: 16,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          cursor: (score.reasoning || (score.evidence && score.evidence.length > 0)) ? "pointer" : "default",
+        }}
+        onClick={() => {
+          if (score.reasoning || (score.evidence && score.evidence.length > 0)) {
+            setExpandedScore(isExpanded ? null : score.id);
+          }
         }}
       >
-        {/* Header */}
-        <div
-          onClick={() => setExpandedScore(isExpanded ? null : score.id)}
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 16,
-            padding: 12,
-            cursor: "pointer",
-          }}
-        >
-          {/* Score gauge */}
-          <div style={{ width: 60, textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: 24,
-                fontWeight: 700,
-                color: score.score >= 0.7 ? "var(--status-success-text)" : score.score >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
-              }}
-            >
-              {(score.score * 100).toFixed(0)}
-            </div>
-            <div style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
-              {(score.confidence * 100).toFixed(0)}% conf
-            </div>
-          </div>
+        {/* Header with Score */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {score.parameter?.name || score.parameterId}
+          </span>
+          <span style={{ fontSize: 18, fontWeight: 700, color }}>
+            {percentage}%
+          </span>
+        </div>
 
-          {/* Details */}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-              {score.parameter?.name || score.parameterId}
-            </div>
-            {score.parameter?.definition && (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>
-                {score.parameter.definition}
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 10, color: "var(--text-placeholder)", flexWrap: "wrap" }}>
-              <span>Scored by {score.scoredBy || "unknown"}</span>
-              {score.analysisSpec && (
-                <>
-                  <span>•</span>
-                  <span style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>
-                    {score.analysisSpec.slug || score.analysisSpec.name}
-                  </span>
-                </>
-              )}
-              {(score.reasoning || (score.evidence && score.evidence.length > 0)) && (
-                <span style={{ color: "var(--button-primary-bg)" }}>{isExpanded ? "▼ less" : "▶ more"}</span>
-              )}
-            </div>
-          </div>
+        {/* Progress Bar */}
+        <div style={{
+          width: "100%",
+          height: 8,
+          background: "var(--surface-tertiary)",
+          borderRadius: 4,
+          overflow: "hidden"
+        }}>
+          <div style={{
+            width: `${percentage}%`,
+            height: "100%",
+            background: color,
+            transition: "width 0.3s ease"
+          }} />
+        </div>
+
+        {/* Definition */}
+        {score.parameter?.definition && (
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.4 }}>
+            {score.parameter.definition}
+          </p>
+        )}
+
+        {/* Metadata */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: "var(--text-placeholder)", flexWrap: "wrap" }}>
+          <span>Confidence: {(score.confidence * 100).toFixed(0)}%</span>
+          {score.analysisSpec && (
+            <>
+              <span>•</span>
+              <span style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>
+                {score.analysisSpec.slug || score.analysisSpec.name}
+              </span>
+            </>
+          )}
+          {(score.reasoning || (score.evidence && score.evidence.length > 0)) && (
+            <>
+              <span>•</span>
+              <span style={{ color: "var(--button-primary-bg)", fontWeight: 500 }}>
+                {isExpanded ? "▼ Hide details" : "▶ Show details"}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Expanded: show reasoning and evidence */}
         {isExpanded && (
-          <div style={{ borderTop: "1px solid var(--border-default)", padding: 12, background: "var(--background)" }}>
-            {/* Source Spec info */}
-            {score.analysisSpec && (
-              <div style={{ marginBottom: 12, padding: 8, background: "var(--badge-purple-bg)", borderRadius: 6 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--badge-purple-text)", marginBottom: 4 }}>
-                  Source Spec
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  <strong>{score.analysisSpec.name}</strong> ({score.analysisSpec.slug})
-                </div>
-              </div>
-            )}
-
+          <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px solid var(--border-default)" }}>
             {/* Reasoning */}
             {score.reasoning && (
               <div style={{ marginBottom: 12 }}>
@@ -3615,7 +3751,7 @@ function ScoresTab({ scores }: { scores: any[] }) {
                         color: "var(--text-secondary)",
                         fontStyle: "italic",
                         padding: 8,
-                        background: "var(--surface-primary)",
+                        background: "var(--background)",
                         borderRadius: 4,
                         borderLeft: "3px solid var(--status-info-border)",
                       }}
@@ -3641,7 +3777,7 @@ function ScoresTab({ scores }: { scores: any[] }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
       {scores.map(renderScoreCard)}
     </div>
   );
@@ -3791,6 +3927,130 @@ function MemoriesTab({ memories }: { memories: any[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Call Traits Tab - shows personality observation from this specific call
+function CallTraitsTab({ observation }: { observation: any }) {
+  if (!observation) {
+    return (
+      <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
+        <div style={{ fontSize: 14, fontWeight: 500 }}>No personality observation</div>
+        <div style={{ fontSize: 12, marginTop: 4 }}>
+          Personality traits haven't been measured for this call yet.
+        </div>
+      </div>
+    );
+  }
+
+  // Extract trait values (Big Five)
+  const traits = [
+    { id: "openness", label: "Openness", value: observation.openness, desc: "Curiosity, creativity, openness to new experiences" },
+    { id: "conscientiousness", label: "Conscientiousness", value: observation.conscientiousness, desc: "Organization, dependability, discipline" },
+    { id: "extraversion", label: "Extraversion", value: observation.extraversion, desc: "Sociability, assertiveness, talkativeness" },
+    { id: "agreeableness", label: "Agreeableness", value: observation.agreeableness, desc: "Compassion, respectfulness, trust" },
+    { id: "neuroticism", label: "Neuroticism", value: observation.neuroticism, desc: "Anxiety, moodiness, emotional reactivity" },
+  ].filter(t => t.value !== null);
+
+  if (traits.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
+        <div style={{ fontSize: 14, fontWeight: 500 }}>No trait values</div>
+        <div style={{ fontSize: 12, marginTop: 4 }}>
+          Personality observation exists but no trait scores are available.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Personality Observation</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+            Measured from this call on {new Date(observation.observedAt).toLocaleString()}
+          </p>
+        </div>
+        {observation.confidence && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Confidence:</span>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>
+              {(observation.confidence * 100).toFixed(0)}%
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Trait Cards Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+        {traits.map((trait) => {
+          const percentage = ((trait.value || 0) * 100).toFixed(0);
+          const color = trait.value >= 0.7 ? "var(--status-success-text)" :
+                       trait.value >= 0.3 ? "var(--status-info-text)" :
+                       "var(--status-warning-text)";
+
+          return (
+            <div
+              key={trait.id}
+              style={{
+                background: "var(--surface-secondary)",
+                border: "1px solid var(--border-default)",
+                borderRadius: 8,
+                padding: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              {/* Trait Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{trait.label}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color }}>{percentage}%</span>
+              </div>
+
+              {/* Progress Bar */}
+              <div style={{
+                width: "100%",
+                height: 8,
+                background: "var(--surface-tertiary)",
+                borderRadius: 4,
+                overflow: "hidden"
+              }}>
+                <div style={{
+                  width: `${percentage}%`,
+                  height: "100%",
+                  background: color,
+                  transition: "width 0.3s ease"
+                }} />
+              </div>
+
+              {/* Description */}
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.4 }}>
+                {trait.desc}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Decay Factor Info */}
+      {observation.decayFactor !== undefined && observation.decayFactor !== 1.0 && (
+        <div style={{
+          fontSize: 11,
+          color: "var(--text-placeholder)",
+          padding: 12,
+          background: "var(--background)",
+          borderRadius: 6,
+          border: "1px solid var(--border-default)"
+        }}>
+          📊 Decay factor: {observation.decayFactor.toFixed(2)} (used for time-weighted aggregation)
+        </div>
+      )}
     </div>
   );
 }
@@ -4136,118 +4396,259 @@ function MemoriesSection({
   );
 }
 
-// Personality Section
+// Traits Section (formerly Personality) - FULLY DYNAMIC
 function PersonalitySection({
   personality,
   observations,
+  paramConfig,
 }: {
   personality: PersonalityProfile | null;
   observations: PersonalityObservation[];
+  paramConfig: {
+    grouped: Record<string, { parameterId: string; label: string; description: string; color: string; section: string }[]>;
+    params: Record<string, { parameterId: string; label: string; description: string; color: string; section: string }>;
+  } | null;
 }) {
+  // Show message if no paramConfig loaded
+  if (!paramConfig) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⚙️</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>Loading parameter configuration...</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Fetching dynamic parameter metadata from database</div>
+      </div>
+    );
+  }
+
   if (!personality && observations.length === 0) {
     return (
       <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No personality data yet</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run the Personality Analyzer agent</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No trait data yet</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run analysis to measure personality traits</div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-      {/* Aggregated Profile */}
-      {personality && (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
+      {/* Aggregated Profile - FULLY DYNAMIC from database */}
+      {personality && personality.parameterValues && Object.keys(personality.parameterValues).length > 0 && (
         <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>
-            Aggregated Profile
-            {personality.confidenceScore !== null && (
-              <span style={{ fontWeight: 400, color: "var(--text-placeholder)", marginLeft: 8 }}>
-                ({(personality.confidenceScore * 100).toFixed(0)}% confidence)
-              </span>
-            )}
+            Measured Traits
+            <span style={{ fontWeight: 400, color: "var(--text-placeholder)", marginLeft: 8 }}>
+              ({Object.keys(personality.parameterValues).length} parameters across {Object.keys(paramConfig.grouped).length} groups)
+            </span>
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {Object.entries(TRAIT_INFO).map(([key, info]) => {
-              const value = personality[key as keyof typeof TRAIT_INFO] as number | null;
+
+          {/* Dynamically render all parameter groups from paramConfig.grouped */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
+            {Object.entries(paramConfig.grouped).map(([groupName, params]) => {
+              // Check if any parameters in this group have values
+              const hasValues = params.some(param => personality.parameterValues[param.parameterId] !== undefined);
+              if (!hasValues) return null;
+
               return (
-                <div key={key}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{info.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{value !== null ? (value * 100).toFixed(0) : "—"}</span>
+                <div key={groupName}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-placeholder)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {groupName}
                   </div>
-                  <div style={{ height: 10, background: "var(--border-default)", borderRadius: 5, overflow: "hidden" }}>
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${(value || 0) * 100}%`,
-                        background: info.color,
-                        borderRadius: 5,
-                      }}
-                    />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {params.map(param => {
+                      const value = personality.parameterValues[param.parameterId];
+                      if (value === undefined) return null;
+                      return (
+                        <div key={param.parameterId}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 13, fontWeight: 500 }}>{param.label}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>{value !== null ? (value * 100).toFixed(0) : "—"}</span>
+                          </div>
+                          <div style={{ height: 10, background: "var(--border-default)", borderRadius: 5, overflow: "hidden" }}>
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${(value || 0) * 100}%`,
+                                background: param.color,
+                                borderRadius: 5,
+                              }}
+                            />
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginTop: 4 }}>{param.description}</div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginTop: 4 }}>{info.desc}</div>
                 </div>
               );
             })}
           </div>
-          {personality.lastAggregatedAt && (
+
+          {personality.lastUpdatedAt && (
             <div style={{ marginTop: 16, fontSize: 11, color: "var(--text-placeholder)" }}>
-              Last updated: {new Date(personality.lastAggregatedAt).toLocaleString()} ({personality.observationsUsed} observations)
+              Last updated: {new Date(personality.lastUpdatedAt).toLocaleString()}
             </div>
           )}
         </div>
       )}
 
-      {/* Communication Preferences */}
-      {personality && (personality.preferredTone || personality.preferredLength || personality.technicalLevel) && (
+      {/* Trait History with Sparklines - Fully Dynamic */}
+      {observations.length > 1 && personality && personality.parameterValues && paramConfig && (
         <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Communication Preferences</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {personality.preferredTone && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Preferred Tone</span>
-                <span style={{ fontWeight: 500, textTransform: "capitalize" }}>{personality.preferredTone}</span>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
+            📈 Trait History
+          </h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+            Showing trends across {observations.length} observations
+          </p>
+
+          {/* Dynamic sparklines for ALL parameters from paramConfig */}
+          {Object.entries(paramConfig.grouped).map(([groupName, params]) => {
+            // Filter params that have historical data
+            const paramsWithHistory = params.filter(param => {
+              const hasHistory = observations.some((obs: any) => {
+                const obsValues = typeof obs.parameterValues === 'string'
+                  ? JSON.parse(obs.parameterValues)
+                  : (obs.parameterValues || {});
+                return obsValues[param.parameterId] !== undefined;
+              });
+              return hasHistory;
+            });
+
+            if (paramsWithHistory.length === 0) return null;
+
+            return (
+              <div key={groupName} style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-placeholder)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  {groupName}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+                  {paramsWithHistory.map(param => {
+                    // Get historical values for this parameter from parameterValues
+                    const history = observations
+                      .map((obs: any) => {
+                        const obsValues = typeof obs.parameterValues === 'string'
+                          ? JSON.parse(obs.parameterValues)
+                          : (obs.parameterValues || {});
+                        return obsValues[param.parameterId];
+                      })
+                      .filter((v): v is number => v !== null && v !== undefined)
+                      .slice(-10); // Last 10 observations
+
+                    if (history.length === 0) return null;
+
+                    const currentValue = personality.parameterValues[param.parameterId] || history[history.length - 1];
+                    const min = Math.min(...history);
+                    const max = Math.max(...history);
+                    const range = max - min;
+
+                    // Create sparkline points
+                    const width = 100;
+                    const height = 30;
+                    const points = history.map((value, i) => {
+                      const x = (i / (history.length - 1)) * width;
+                      const y = range > 0 ? height - ((value - min) / range) * height : height / 2;
+                      return `${x},${y}`;
+                    }).join(" ");
+
+                    return (
+                      <div key={param.parameterId} style={{ padding: 12, background: "var(--surface-secondary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 500 }}>{param.label}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: param.color }}>
+                            {((currentValue || 0) * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <svg width={width} height={height} style={{ width: "100%", height: "30px" }}>
+                          <polyline
+                            points={points}
+                            fill="none"
+                            stroke={param.color}
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          {/* Latest point highlight */}
+                          <circle
+                            cx={history.length > 1 ? width : width / 2}
+                            cy={range > 0 ? height - ((history[history.length - 1] - min) / range) * height : height / 2}
+                            r="3"
+                            fill={param.color}
+                          />
+                        </svg>
+                        <div style={{ fontSize: 10, color: "var(--text-placeholder)", marginTop: 4 }}>
+                          {history.length} observations · Range: {(min * 100).toFixed(0)}%-{(max * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-            {personality.preferredLength && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Response Length</span>
-                <span style={{ fontWeight: 500, textTransform: "capitalize" }}>{personality.preferredLength}</span>
-              </div>
-            )}
-            {personality.technicalLevel && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Technical Level</span>
-                <span style={{ fontWeight: 500, textTransform: "capitalize" }}>{personality.technicalLevel}</span>
-              </div>
-            )}
-          </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Observations Timeline */}
+{/* Communication Preferences section removed - fields no longer exist in PersonalityProfile */}
+
+      {/* Observations Timeline - DEPRECATED: Legacy OCEAN data only */}
+      {/* TODO: Simplify display, enhance with history sparklines showing parameter trends over time */}
       {observations.length > 0 && (
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, gridColumn: "1 / -1" }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>
-            Observation History ({observations.length})
-          </h3>
+        <details style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
+          <summary style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, background: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>DEPRECATED</span>
+            Observation History ({observations.length}) - Legacy Big Five Only
+            <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-placeholder)" }}>Click to expand</span>
+          </summary>
+          <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginTop: 12, marginBottom: 16, padding: 12, background: "var(--background)", borderRadius: 8, border: "1px solid var(--border-subtle)" }}>
+            ⚠️ <strong>Legacy data</strong> - This table stores only Big Five (OCEAN) traits in hardcoded columns.
+            <br />Current system uses dynamic <code style={{ background: "var(--surface-secondary)", padding: "2px 4px", borderRadius: 3 }}>CallerPersonalityProfile.parameterValues</code> which measures all parameters shown above.
+            <br />See TODO in API route: Migrate PersonalityObservation to dynamic storage.
+          </div>
+
+          {/* OCEAN Header Row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 0", borderBottom: "2px solid var(--border-default)", marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", width: 140 }}>Date/Time</span>
+            <div style={{ display: "flex", gap: 8, flex: 1 }}>
+              {[
+                { label: "O", title: "Openness", color: "var(--trait-openness)" },
+                { label: "C", title: "Conscientiousness", color: "var(--trait-conscientiousness)" },
+                { label: "E", title: "Extraversion", color: "var(--trait-extraversion)" },
+                { label: "A", title: "Agreeableness", color: "var(--trait-agreeableness)" },
+                { label: "N", title: "Neuroticism", color: "var(--trait-neuroticism)" },
+              ].map((trait) => (
+                <div key={trait.label} style={{ display: "flex", alignItems: "center", gap: 4 }} title={trait.title}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: trait.color, width: 10 }}>{trait.label}</span>
+                  <div style={{ width: 40, height: 6 }} />
+                </div>
+              ))}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Conf</span>
+          </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {observations.slice(0, 10).map((obs) => (
               <div key={obs.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                 <span style={{ fontSize: 11, color: "var(--text-placeholder)", width: 140 }}>{new Date(obs.observedAt).toLocaleString()}</span>
                 <div style={{ display: "flex", gap: 8, flex: 1 }}>
-                  {Object.entries(TRAIT_INFO).map(([key, info]) => {
-                    const value = obs[key as keyof typeof TRAIT_INFO] as number | null;
+                  {/* Legacy observations use old field names */}
+                  {[
+                    { key: "openness", label: "O", color: "var(--trait-openness)" },
+                    { key: "conscientiousness", label: "C", color: "var(--trait-conscientiousness)" },
+                    { key: "extraversion", label: "E", color: "var(--trait-extraversion)" },
+                    { key: "agreeableness", label: "A", color: "var(--trait-agreeableness)" },
+                    { key: "neuroticism", label: "N", color: "var(--trait-neuroticism)" },
+                  ].map((trait) => {
+                    const value = obs[trait.key as keyof PersonalityObservation] as number | null;
                     return (
-                      <div key={key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{info.label.charAt(0)}</span>
+                      <div key={trait.key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{trait.label}</span>
                         <div style={{ width: 40, height: 6, background: "var(--border-default)", borderRadius: 3, overflow: "hidden" }}>
                           <div
                             style={{
                               height: "100%",
                               width: `${(value || 0) * 100}%`,
-                              background: info.color,
+                              background: trait.color,
                             }}
                           />
                         </div>
@@ -4261,7 +4662,7 @@ function PersonalitySection({
               </div>
             ))}
           </div>
-        </div>
+        </details>
       )}
     </div>
   );
@@ -4760,16 +5161,25 @@ function UnifiedPromptSection({
   expandedPrompt,
   setExpandedPrompt,
   onRefresh,
+  defaultExpandFirst = false,
 }: {
   prompts: ComposedPrompt[];
   loading: boolean;
   expandedPrompt: string | null;
   setExpandedPrompt: (id: string | null) => void;
   onRefresh: () => void;
+  defaultExpandFirst?: boolean;
 }) {
   const [viewMode, setViewMode] = useState<"human" | "llm">("human");
   const [llmViewMode, setLlmViewMode] = useState<"pretty" | "raw">("pretty");
   const [copiedButton, setCopiedButton] = useState<string | null>(null);
+
+  // Auto-expand first prompt if defaultExpandFirst is true
+  useEffect(() => {
+    if (defaultExpandFirst && prompts.length > 0 && !expandedPrompt) {
+      setExpandedPrompt(prompts[0].id);
+    }
+  }, [defaultExpandFirst, prompts, expandedPrompt, setExpandedPrompt]);
   const copyToClipboard = (text: string, buttonId: string) => {
     navigator.clipboard.writeText(text);
     setCopiedButton(buttonId);

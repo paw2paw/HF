@@ -107,18 +107,18 @@ model Parameter {
   behaviorTargets      BehaviorTarget[]
   behaviorMeasurements BehaviorMeasurement[]
   callerTargets        CallerTarget[] // Personalized targets computed by ADAPT specs
-  callTargets          CallTarget[]   // Per-call targets computed by ADAPT specs
+  callTargets          CallTarget[] // Per-call targets computed by ADAPT specs
 
   // Provenance: which BDDFeatureSet created this parameter (if any)
   sourceFeatureSetId String?
   sourceFeatureSet   BDDFeatureSet? @relation(fields: [sourceFeatureSetId], references: [id], onDelete: SetNull)
 
   // Registry fields - Parameter table is the single source of truth
-  isCanonical  Boolean    @default(true)  // Is this a canonical parameter (vs experimental)?
-  deprecatedAt DateTime?                   // When deprecated (null = active)
-  replacedBy   String?                     // If deprecated, which parameter replaces it?
-  aliases      String[]   @default([])     // Alternative names for this parameter
-  defaultTarget Float      @default(0.5)   // Default target value (0-1 scale)
+  isCanonical   Boolean   @default(true) // Is this a canonical parameter (vs experimental)?
+  deprecatedAt  DateTime? // When deprecated (null = active)
+  replacedBy    String? // If deprecated, which parameter replaces it?
+  aliases       String[]  @default([]) // Alternative names for this parameter
+  defaultTarget Float     @default(0.5) // Default target value (0-1 scale)
 
   @@index([sourceFeatureSetId])
   @@index([isCanonical])
@@ -320,17 +320,26 @@ model Domain {
   // Status
   isActive Boolean @default(true)
 
+  // Onboarding Configuration (merged from Persona concept)
+  onboardingWelcome        String? // Custom welcome message for first call in this domain
+  onboardingIdentitySpecId String? // Which identity spec to use (TUT-001, COMPANION-001, COACH-001)
+  onboardingIdentitySpec   AnalysisSpec? @relation("DomainOnboardingIdentity", fields: [onboardingIdentitySpecId], references: [id])
+  onboardingFlowPhases     Json? // Custom first-call flow phases (optional override of INIT-001 defaults)
+  onboardingDefaultTargets Json? // Custom default behavior targets for first call
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  callers   Caller[] // Callers assigned to this domain
-  playbooks Playbook[] // Playbooks for this domain
+  callers            Caller[] // Callers assigned to this domain
+  playbooks          Playbook[] // Playbooks for this domain
+  onboardingSessions OnboardingSession[] // Track onboarding per domain
 
   @@index([slug])
   @@index([isDefault])
   @@index([isActive])
+  @@index([onboardingIdentitySpecId])
 }
 
 // =========================
@@ -378,10 +387,10 @@ model Segment {
 // Lower levels override higher levels
 
 enum BehaviorTargetScope {
-  SYSTEM   // Global defaults (base layer)
+  SYSTEM // Global defaults (base layer)
   PLAYBOOK // Per-playbook overrides (set during playbook creation)
-  SEGMENT  // Per-segment (community/domain/cohort)
-  CALLER   // Per-individual caller (learned over time)
+  SEGMENT // Per-segment (community/domain/cohort)
+  CALLER // Per-individual caller (learned over time)
 }
 
 // Inheritance cascade: SYSTEM → PLAYBOOK → SEGMENT → CALLER
@@ -491,19 +500,19 @@ model BehaviorMeasurement {
 // "Caller" = End-users who interact with the AI agent (customers, students, contacts)
 
 enum UserRole {
-  ADMIN    // Full system access
+  ADMIN // Full system access
   OPERATOR // Can run operations, view data
-  VIEWER   // Read-only access
+  VIEWER // Read-only access
 }
 
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
   emailVerified DateTime? // For NextAuth
-  passwordHash  String?   // For password auth (optional)
+  passwordHash  String? // For password auth (optional)
   role          UserRole  @default(ADMIN) // Default to ADMIN for initial team
   name          String?
-  image         String?   // For NextAuth (avatar)
+  image         String? // For NextAuth (avatar)
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -520,6 +529,9 @@ model User {
   createdTickets  Ticket[]        @relation("CreatedTickets")
   assignedTickets Ticket[]        @relation("AssignedTickets")
   ticketComments  TicketComment[] @relation("TicketComments")
+
+  // AI Task Guidance
+  tasks UserTask[] @relation("UserTasks")
 
   @@index([email])
   @@index([role])
@@ -571,7 +583,7 @@ model Invite {
   role      UserRole  @default(ADMIN) // Role to assign on signup
   expiresAt DateTime
   usedAt    DateTime? // Null until used
-  createdBy String?   // User who created the invite
+  createdBy String? // User who created the invite
   createdAt DateTime  @default(now())
 
   @@index([token])
@@ -586,8 +598,10 @@ model Caller {
   externalId String? @unique
 
   // Domain assignment - each caller belongs to exactly one domain
-  domainId String?
-  domain   Domain? @relation(fields: [domainId], references: [id])
+  domainId          String?
+  domain            Domain? @relation(fields: [domainId], references: [id])
+  previousDomainId  String? // Track last domain for re-onboarding detection
+  domainSwitchCount Int     @default(0) // Number of times caller switched domains
 
   // Relations
   personality             CallerPersonality?
@@ -618,19 +632,23 @@ model Caller {
   // Caller's goals (learn, achieve, connect, etc.)
   goals Goal[]
 
+  // Onboarding tracking per domain
+  onboardingSessions OnboardingSession[]
+
   createdAt DateTime @default(now())
 
   @@index([externalId])
   @@index([domainId])
+  @@index([previousDomainId])
 }
 
 // ExcludedCaller - Phone numbers/IDs to skip during transcript import
 // Used when deleting spam callers or test data that shouldn't be re-imported
 model ExcludedCaller {
   id         String   @id @default(uuid())
-  phone      String?  // Phone number to exclude
-  externalId String?  // External ID to exclude
-  reason     String?  // Optional reason for exclusion
+  phone      String? // Phone number to exclude
+  externalId String? // External ID to exclude
+  reason     String? // Optional reason for exclusion
   createdAt  DateTime @default(now())
 
   @@unique([phone])
@@ -645,7 +663,7 @@ model CallTarget {
   id String @id @default(uuid())
 
   callId String
-  call   Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  call   Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
 
   parameterId String
   parameter   Parameter @relation(fields: [parameterId], references: [parameterId])
@@ -726,7 +744,7 @@ model CallerAttribute {
   sourceSpecSlug String?
 
   // Value type and storage (only one should be set based on valueType)
-  valueType    String  // "STRING" | "NUMBER" | "BOOLEAN" | "JSON"
+  valueType    String // "STRING" | "NUMBER" | "BOOLEAN" | "JSON"
   stringValue  String?
   numberValue  Float?
   booleanValue Boolean?
@@ -792,6 +810,40 @@ model Goal {
   @@index([playbookId])
 }
 
+// OnboardingSession - Tracks onboarding completion per caller per domain
+// Supports domain switching with optional re-onboarding
+model OnboardingSession {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  domainId String
+  domain   Domain @relation(fields: [domainId], references: [id])
+
+  // Onboarding state
+  currentPhase    String? // "welcome", "orient", "discover", "sample", "close"
+  completedPhases Json    @default("[]") // Array of {phase, completedAt, duration}
+  isComplete      Boolean @default(false)
+  wasSkipped      Boolean @default(false)
+
+  // First call in this domain
+  firstCallId String?
+  firstCall   Call?   @relation(fields: [firstCallId], references: [id])
+
+  // Metrics
+  discoveredGoals   Int   @default(0)
+  successMetricsMet Json? // Track INIT-001 success metrics
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([callerId, domainId]) // One onboarding session per caller per domain
+  @@index([callerId])
+  @@index([domainId])
+  @@index([isComplete])
+}
+
 model Call {
   id         String   @id @default(uuid())
   source     String
@@ -800,7 +852,7 @@ model Call {
   createdAt  DateTime @default(now())
 
   // Caller tracking
-  callerId String? 
+  callerId String?
 
   caller Caller? @relation(fields: [callerId], references: [id])
 
@@ -833,6 +885,9 @@ model Call {
   // Per-call behavior targets (computed by ADAPT specs)
   callTargets CallTarget[]
 
+  // Onboarding tracking (if this call was the first in a domain)
+  onboardingSessionsAsFirstCall OnboardingSession[]
+
   @@index([source])
   @@index([externalId])
   @@index([callerId], map: "Call_userId_idx")
@@ -844,7 +899,7 @@ model CallScore {
   id            String  @id @default(uuid())
   analysisRunId String? // Optional - can be scored by agent without a run
   callId        String
-  callerId      String?  // Denormalized for efficient queries
+  callerId      String? // Denormalized for efficient queries
   parameterId   String
 
   // Scoring result
@@ -1106,7 +1161,7 @@ model PersonalityObservation {
 
   // DYNAMIC PARAMETERS - stores ANY personality parameters from database
   // Format: { "B5-O": 0.75, "B5-C": 0.82, "VARK-VISUAL": 0.65, ... }
-  parameterValues Json   @default("{}")
+  parameterValues Json @default("{}")
 
   // LEGACY FIELDS - Deprecated Feb 2026, kept for backward compatibility only
   // Will be removed after data migration is complete
@@ -1134,11 +1189,11 @@ model PersonalityObservation {
 // Aggregated personality profile (computed from observations with decay)
 model CallerPersonality {
   id       String @id @default(uuid())
-  callerId String @unique 
+  callerId String @unique
 
   // DYNAMIC PARAMETERS - stores ANY personality parameters from database
   // Format: { "B5-O": 0.75, "B5-C": 0.82, "VARK-VISUAL": 0.65, ... }
-  parameterValues Json   @default("{}")
+  parameterValues Json @default("{}")
 
   // LEGACY FIELDS - Deprecated Feb 2026, kept for backward compatibility only
   // Will be removed after data migration is complete
@@ -1170,7 +1225,7 @@ model CallerPersonality {
 // Used by PromptSlugComposer to look up any parameter value
 model CallerPersonalityProfile {
   id       String @id @default(uuid())
-  callerId String @unique 
+  callerId String @unique
 
   // All parameter values as JSON object
   // { "B5-O": 0.72, "B5-C": 0.65, "engagement": 0.8, ... }
@@ -1215,7 +1270,7 @@ enum MemorySource {
 // Individual memory entries extracted from calls
 model CallerMemory {
   id       String  @id @default(uuid())
-  callerId String  
+  callerId String
   callId   String? // Source call (null if inferred from multiple)
 
   // Memory classification
@@ -1266,7 +1321,7 @@ model CallerMemory {
 // Aggregated memory summary per caller (like a "profile card")
 model CallerMemorySummary {
   id       String @id @default(uuid())
-  callerId String @unique 
+  callerId String @unique
 
   // Aggregated memory counts by category
   factCount       Int @default(0)
@@ -1492,7 +1547,7 @@ model AgentRun {
 model PromptSlugSelection {
   id       String  @id @default(uuid())
   callId   String
-  callerId String? 
+  callerId String?
 
   // Selected prompt slug
   promptSlug String
@@ -1587,26 +1642,26 @@ enum SpecType {
 // Determines which UI editor to use and special treatment
 enum SpecRole {
   // === META-SYSTEM (Controls runtime behavior) ===
-  ORCHESTRATE  // Flow/sequence control → Flow Builder UI (PIPELINE-001, INIT-001, SESSION-001, INJECT-001)
+  ORCHESTRATE // Flow/sequence control → Flow Builder UI (PIPELINE-001, INIT-001, SESSION-001, INJECT-001)
 
   // === DATA PROCESSING (Acts on data) ===
-  EXTRACT      // Measurement/learning → Standard spec editor (PERS-001, VARK-001, MEM-001, STYLE-001, SUPV-001)
-  SYNTHESISE   // Combine/transform → Formula Builder UI (COMP-001, LEARN-PROF-001, REW-001, ADAPT-*)
+  EXTRACT // Measurement/learning → Standard spec editor (PERS-001, VARK-001, MEM-001, STYLE-001, SUPV-001)
+  SYNTHESISE // Combine/transform → Formula Builder UI (COMP-001, LEARN-PROF-001, REW-001, ADAPT-*)
 
   // === VALIDATION (Enforces rules) ===
-  CONSTRAIN    // Bounds/guards → Rule Editor UI (GUARD-001, GUARD-VOICEMAIL-001)
+  CONSTRAIN // Bounds/guards → Rule Editor UI (GUARD-001, GUARD-VOICEMAIL-001)
 
   // === CONTENT (What to say/teach) ===
-  IDENTITY     // Agent personas → Standard spec editor (TUT-001, COACH-001, COMPANION-001)
-  CONTENT      // Curriculum → Standard spec editor (WNF-CONTENT-001, QM-CONTENT-001)
-  VOICE        // Voice guidance → Standard spec editor (VOICE-001)
+  IDENTITY // Agent personas → Standard spec editor (TUT-001, COACH-001, COMPANION-001)
+  CONTENT // Curriculum → Standard spec editor (WNF-CONTENT-001, QM-CONTENT-001)
+  VOICE // Voice guidance → Standard spec editor (VOICE-001)
 
   // === DEPRECATED (Legacy roles - migrate to above) ===
-  MEASURE      // DEPRECATED: Use EXTRACT instead
-  ADAPT        // DEPRECATED: Use SYNTHESISE instead
-  REWARD       // DEPRECATED: Use SYNTHESISE instead
-  GUARDRAIL    // DEPRECATED: Use CONSTRAIN instead
-  BOOTSTRAP    // DEPRECATED: Use ORCHESTRATE instead
+  MEASURE // DEPRECATED: Use EXTRACT instead
+  ADAPT // DEPRECATED: Use SYNTHESISE instead
+  REWARD // DEPRECATED: Use SYNTHESISE instead
+  GUARDRAIL // DEPRECATED: Use CONSTRAIN instead
+  BOOTSTRAP // DEPRECATED: Use ORCHESTRATE instead
 }
 
 // =========================
@@ -1616,22 +1671,22 @@ enum SpecRole {
 // The rawSpec field is the source of truth for runtime compilation
 
 model BDDFeatureSet {
-  id        String  @id @default(uuid())
-  featureId String  @unique // e.g., "PERS-001", "MEM-001"
-  name      String
+  id          String  @id @default(uuid())
+  featureId   String  @unique // e.g., "PERS-001", "MEM-001"
+  name        String
   description String? @db.Text
 
   // Spec metadata
-  version   String @default("1.0")
-  specType  String @default("DOMAIN") // DOMAIN, SYSTEM, etc.
+  version  String @default("1.0")
+  specType String @default("DOMAIN") // DOMAIN, SYSTEM, etc.
 
   // Parsed spec data (JSON)
-  parameters  Json @default("[]")
-  constraints Json @default("[]")
-  definitions Json @default("{}")
-  validations Json @default("[]")
+  parameters     Json @default("[]")
+  constraints    Json @default("[]")
+  definitions    Json @default("{}")
+  validations    Json @default("[]")
   promptGuidance Json @default("{}")
-  thresholds  Json @default("[]")
+  thresholds     Json @default("[]")
 
   // Raw JSON spec (source of truth for compilation)
   rawSpec Json?
@@ -1649,10 +1704,10 @@ model BDDFeatureSet {
   activatedAt DateTime?
 
   // Reverse relations: entities created by this feature set
-  createdSpecs      AnalysisSpec[]
-  createdParameters Parameter[]
+  createdSpecs       AnalysisSpec[]
+  createdParameters  Parameter[]
   createdPromptSlugs PromptSlug[]
-  createdAnchors    ParameterScoringAnchor[]
+  createdAnchors     ParameterScoringAnchor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1662,10 +1717,10 @@ model BDDFeatureSet {
 }
 
 model BDDUpload {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   filename String
-  content  String @db.Text
-  status   String @default("pending") // pending, processing, completed, error
+  content  String  @db.Text
+  status   String  @default("pending") // pending, processing, completed, error
   error    String?
 
   createdAt DateTime @default(now())
@@ -1808,6 +1863,9 @@ model AnalysisSpec {
 
   // Goals that use this spec as content (for LEARN goals with curriculum)
   goals Goal[]
+
+  // Domains using this spec for onboarding identity (TUT-001, COMPANION-001, etc.)
+  domainsUsingForOnboarding Domain[] @relation("DomainOnboardingIdentity")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1983,9 +2041,9 @@ model PlaybookItem {
   // === GROUPING ===
   // Optional grouping for organizing items under categories (e.g., acceptance criteria)
   // Examples: "AC-1", "AC-2", "PIPELINE", "COMPOSE"
-  groupId    String?  // Group identifier (e.g., "AC-1")
-  groupLabel String?  // Display label (e.g., "Cognitive activation cadence")
-  groupOrder Int?     // Order of this group (for sorting groups)
+  groupId    String? // Group identifier (e.g., "AC-1")
+  groupLabel String? // Display label (e.g., "Cognitive activation cadence")
+  groupOrder Int? // Order of this group (for sorting groups)
 
   // === SPEC item ===
   specId String?
@@ -2405,7 +2463,7 @@ model CallerIdentity {
   id String @id @default(uuid())
 
   // Caller reference (the person this identity belongs to)
-  callerId String? 
+  callerId String?
   caller   Caller? @relation(fields: [callerId], references: [id])
 
   // External identifier (phone number, account ID, etc.)
@@ -2515,12 +2573,12 @@ model ComposedPrompt {
 
 // System-wide error and event logging for administrators
 model SystemLog {
-  id        String   @id @default(uuid())
-  level     String   // DEBUG, INFO, WARN, ERROR, CRITICAL
-  category  String   // CURRICULUM, AI_PROVIDER, SPEC_PROCESSING, etc.
-  message   String   @db.Text
-  context   Json?    // Additional context data
-  error     Json?    // Error details (name, message, stack)
+  id       String @id @default(uuid())
+  level    String // DEBUG, INFO, WARN, ERROR, CRITICAL
+  category String // CURRICULUM, AI_PROVIDER, SPEC_PROCESSING, etc.
+  message  String @db.Text
+  context  Json? // Additional context data
+  error    Json? // Error details (name, message, stack)
 
   // Request context
   requestId String?
@@ -2544,11 +2602,11 @@ model SystemLog {
 // Supports rollups for efficient period-based queries (hour/day/week/month)
 
 enum UsageCategory {
-  AI        // LLM API calls (Claude, OpenAI)
-  DATABASE  // Expensive DB queries (>100ms)
-  COMPUTE   // CPU-intensive operations (pipeline runs, analysis)
-  STORAGE   // File storage operations
-  EXTERNAL  // Third-party API calls (webhooks, external services)
+  AI // LLM API calls (Claude, OpenAI)
+  DATABASE // Expensive DB queries (>100ms)
+  COMPUTE // CPU-intensive operations (pipeline runs, analysis)
+  STORAGE // File storage operations
+  EXTERNAL // Third-party API calls (webhooks, external services)
 }
 
 enum RollupPeriod {
@@ -2560,29 +2618,29 @@ enum RollupPeriod {
 
 // Individual usage events - fine-grained tracking
 model UsageEvent {
-  id        String        @id @default(uuid())
+  id String @id @default(uuid())
 
   // Categorization
   category  UsageCategory
-  operation String        // e.g., "ai:claude:input", "db:Caller.findMany", "compute:pipeline"
+  operation String // e.g., "ai:claude:input", "db:Caller.findMany", "compute:pipeline"
 
   // Attribution
-  userId    String?       // Admin user who triggered this
-  callerId  String?       // Related caller
-  callId    String?       // Related call
+  userId   String? // Admin user who triggered this
+  callerId String? // Related caller
+  callId   String? // Related call
 
   // Quantity and cost
-  quantity  Float         @default(1)
-  unitType  String        @default("count")  // "tokens", "ms", "bytes", "count"
-  costCents Float         @default(0)        // Calculated cost in cents
+  quantity  Float  @default(1)
+  unitType  String @default("count") // "tokens", "ms", "bytes", "count"
+  costCents Float  @default(0) // Calculated cost in cents
 
   // Context
-  engine    String?       // "claude", "openai", "postgres"
-  model     String?       // "claude-sonnet-4", "gpt-4o"
-  sourceOp  String?       // Which operation triggered this: "pipeline:run", "chat", "compose-prompt"
-  metadata  Json?         // Additional context
+  engine   String? // "claude", "openai", "postgres"
+  model    String? // "claude-sonnet-4", "gpt-4o"
+  sourceOp String? // Which operation triggered this: "pipeline:run", "chat", "compose-prompt"
+  metadata Json? // Additional context
 
-  createdAt DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([category])
   @@index([operation])
@@ -2594,25 +2652,25 @@ model UsageEvent {
 
 // Pre-aggregated rollups for dashboard performance
 model UsageRollup {
-  id          String        @id @default(uuid())
+  id String @id @default(uuid())
 
   // Time period
   period      RollupPeriod
-  periodStart DateTime      // Start of the period (truncated hour/day/week/month)
-  periodEnd   DateTime      // End of the period
+  periodStart DateTime // Start of the period (truncated hour/day/week/month)
+  periodEnd   DateTime // End of the period
 
   // Dimensions
-  category    UsageCategory
-  operation   String?       // null = total for category
-  userId      String?       // null = all users
+  category  UsageCategory
+  operation String? // null = total for category
+  userId    String? // null = all users
 
   // Aggregates
-  eventCount  Int           @default(0)
-  totalQty    Float         @default(0)  // Sum of quantity
-  totalCost   Float         @default(0)  // Sum of costCents
+  eventCount Int   @default(0)
+  totalQty   Float @default(0) // Sum of quantity
+  totalCost  Float @default(0) // Sum of costCents
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([period, periodStart, category, operation, userId])
   @@index([period, periodStart])
@@ -2623,24 +2681,24 @@ model UsageRollup {
 // Cost rate configuration (admin-editable)
 // Allows customization of cost rates per category/operation
 model UsageCostRate {
-  id            String        @id @default(uuid())
+  id String @id @default(uuid())
 
-  category      UsageCategory
-  operation     String?       // null = default for category
+  category  UsageCategory
+  operation String? // null = default for category
 
   // Rate definition
-  costPerUnit   Float         // Cost in cents per unit
-  unitType      String        // What unit: "tokens", "ms", "bytes", "count"
+  costPerUnit Float // Cost in cents per unit
+  unitType    String // What unit: "tokens", "ms", "bytes", "count"
 
   // Validity period (for historical rates)
-  effectiveFrom  DateTime     @default(now())
-  effectiveUntil DateTime?    // null = currently active
+  effectiveFrom  DateTime  @default(now())
+  effectiveUntil DateTime? // null = currently active
 
   // Metadata
-  description    String?
+  description String?
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([category, operation])
   @@index([effectiveFrom])
@@ -2653,55 +2711,55 @@ model UsageCostRate {
 // Used for debugging, visualization, and understanding pipeline behavior
 
 enum PipelinePhase {
-  LEARN  // Post-call analysis: transcripts → measure → memory → reward
-  ADAPT  // Pre-call preparation: compose prompt
+  LEARN // Post-call analysis: transcripts → measure → memory → reward
+  ADAPT // Pre-call preparation: compose prompt
 }
 
 enum PipelineStepStatus {
-  PENDING    // Queued but not started
-  RUNNING    // Currently executing
-  SUCCESS    // Completed successfully
-  FAILED     // Execution failed
-  SKIPPED    // Skipped (condition not met)
+  PENDING // Queued but not started
+  RUNNING // Currently executing
+  SUCCESS // Completed successfully
+  FAILED // Execution failed
+  SKIPPED // Skipped (condition not met)
 }
 
 // Top-level pipeline execution record
 // Groups all steps for a single pipeline invocation
 model PipelineRun {
-  id          String        @id @default(uuid())
+  id String @id @default(uuid())
 
   // Which pipeline phase this run belongs to
-  phase       PipelinePhase
+  phase PipelinePhase
 
   // Context: what triggered this run
   callerId    String?
-  callId      String?       // For LEARN phase: the call being analyzed
-  triggeredBy String?       // "manual" | "post_call" | "scheduled" | "api"
+  callId      String? // For LEARN phase: the call being analyzed
+  triggeredBy String? // "manual" | "post_call" | "scheduled" | "api"
 
   // Overall status (computed from steps)
-  status      PipelineStepStatus @default(PENDING)
+  status PipelineStepStatus @default(PENDING)
 
   // Timing
-  startedAt   DateTime      @default(now())
-  finishedAt  DateTime?
-  durationMs  Int?          // Total duration
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int? // Total duration
 
   // Summary stats (computed at completion)
-  stepsTotal     Int        @default(0)
-  stepsSucceeded Int        @default(0)
-  stepsFailed    Int        @default(0)
-  stepsSkipped   Int        @default(0)
+  stepsTotal     Int @default(0)
+  stepsSucceeded Int @default(0)
+  stepsFailed    Int @default(0)
+  stepsSkipped   Int @default(0)
 
   // Error summary (if any step failed)
-  errorSummary   String?
+  errorSummary String?
 
   // Metadata
-  metadata    Json?         // Additional context (e.g., dry run, version info)
+  metadata Json? // Additional context (e.g., dry run, version info)
 
-  createdAt   DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   // Steps in this run
-  steps       PipelineStep[]
+  steps PipelineStep[]
 
   @@index([phase])
   @@index([callerId])
@@ -2713,53 +2771,53 @@ model PipelineRun {
 // Individual step execution within a pipeline run
 // Records inputs, outputs, timing, and status for each operation
 model PipelineStep {
-  id          String              @id @default(uuid())
-  runId       String
+  id    String @id @default(uuid())
+  runId String
 
   // Step identification
-  operation   String              // e.g., "transcripts:process", "personality:analyze"
-  label       String?             // Human-readable label
+  operation String // e.g., "transcripts:process", "personality:analyze"
+  label     String? // Human-readable label
 
   // Ordering
-  sortOrder   Int                 @default(0)
+  sortOrder Int @default(0)
 
   // Status and timing
-  status      PipelineStepStatus  @default(PENDING)
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  durationMs  Int?
+  status     PipelineStepStatus @default(PENDING)
+  startedAt  DateTime?
+  finishedAt DateTime?
+  durationMs Int?
 
   // === CONFIGURATION ===
   // Which spec configured this step (if data-driven)
-  specId      String?             // AnalysisSpec ID
-  specSlug    String?             // Denormalized for display
+  specId   String? // AnalysisSpec ID
+  specSlug String? // Denormalized for display
 
   // === INPUTS ===
   // Snapshot of data that went into this step
-  inputs      Json?               // { transcript: "...", callerId: "..." }
-  inputCounts Json?               // { memories: 12, targets: 5 } - summary counts
+  inputs      Json? // { transcript: "...", callerId: "..." }
+  inputCounts Json? // { memories: 12, targets: 5 } - summary counts
 
   // === OUTPUTS ===
   // What this step produced
-  outputs     Json?               // { personality: {...}, memories: [...] }
-  outputCounts Json?              // { memoriesCreated: 4, scoresComputed: 8 }
+  outputs      Json? // { personality: {...}, memories: [...] }
+  outputCounts Json? // { memoriesCreated: 4, scoresComputed: 8 }
 
   // Links to created records (for navigation)
-  createdRecordIds Json?          // { memories: ["id1", "id2"], scores: ["id3"] }
+  createdRecordIds Json? // { memories: ["id1", "id2"], scores: ["id3"] }
 
   // === ERROR HANDLING ===
-  error       String?             // Error message if failed
-  errorStack  String?   @db.Text  // Full stack trace
+  error      String? // Error message if failed
+  errorStack String? @db.Text // Full stack trace
 
   // === COMPOSITION DETAILS ===
   // For COMPOSE steps: additional metadata about section processing
-  sectionsActivated String[]      // Which sections were included
-  sectionsSkipped   String[]      // Which sections were skipped (with reasons)
-  sectionTimings    Json?         // { personality: 12, memories: 45, ... } in ms
+  sectionsActivated String[] // Which sections were included
+  sectionsSkipped   String[] // Which sections were skipped (with reasons)
+  sectionTimings    Json? // { personality: 12, memories: 45, ... } in ms
 
-  run         PipelineRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime            @default(now())
+  createdAt DateTime @default(now())
 
   @@index([runId])
   @@index([operation])
@@ -2774,27 +2832,27 @@ model PipelineStep {
 // Configurable AI model settings for each call point in the system
 // Allows admins to switch between providers/models per operation
 model AIConfig {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Unique identifier for the call point (e.g., "pipeline.measure", "pipeline.learn")
-  callPoint   String   @unique
+  callPoint String @unique
 
   // Human-readable label for the UI
-  label       String
+  label String
 
   // AI Provider: claude, openai, mock
-  provider    String   @default("claude")
+  provider String @default("claude")
 
   // Specific model ID (e.g., "claude-sonnet-4-20250514", "gpt-4o", "claude-3-haiku-20240307")
-  model       String
+  model String
 
   // Optional overrides
   maxTokens       Int?
   temperature     Float?
-  transcriptLimit Int?     // Max chars of transcript to include in prompt (cost optimization)
+  transcriptLimit Int? // Max chars of transcript to include in prompt (cost optimization)
 
   // Whether this config is active (allows disabling without deleting)
-  isActive    Boolean  @default(true)
+  isActive Boolean @default(true)
 
   // Metadata
   description String?  @db.Text
@@ -2808,25 +2866,25 @@ model AIConfig {
 // Available AI models that can be selected in AIConfig
 // Stored in DB so admins can add/remove models without code changes
 model AIModel {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Model identifier used in API calls (e.g., "claude-sonnet-4-20250514", "gpt-4o")
-  modelId   String   @unique
+  modelId String @unique
 
   // Provider this model belongs to
-  provider  String   // claude, openai, mock
+  provider String // claude, openai, mock
 
   // Human-readable label for the UI
-  label     String
+  label String
 
   // Model tier for cost/capability indication
-  tier      String   // flagship, standard, fast, test
+  tier String // flagship, standard, fast, test
 
   // Whether this model is available for selection
-  isActive  Boolean  @default(true)
+  isActive Boolean @default(true)
 
   // Sort order for UI display (lower = first)
-  sortOrder Int      @default(0)
+  sortOrder Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2891,29 +2949,29 @@ model AuditLog {
 // =========================
 
 model Message {
-  id          String    @id @default(uuid())
+  id String @id @default(uuid())
 
   // Participants
   senderId    String
-  sender      User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  sender      User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   recipientId String
-  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipient   User   @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
 
   // Content
-  subject     String?
-  content     String    @db.Text
+  subject String?
+  content String  @db.Text
 
   // Status
-  readAt      DateTime?
+  readAt DateTime?
 
   // For threading (replies)
-  parentId    String?
-  parent      Message?  @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
-  replies     Message[] @relation("MessageReplies")
+  parentId String?
+  parent   Message?  @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  Message[] @relation("MessageReplies")
 
   // Timestamps
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([senderId])
   @@index([recipientId])
@@ -2927,11 +2985,11 @@ model Message {
 // =========================
 
 enum TicketStatus {
-  OPEN        // Newly created
+  OPEN // Newly created
   IN_PROGRESS // Being worked on
-  WAITING     // Waiting on requester
-  RESOLVED    // Issue resolved
-  CLOSED      // Ticket closed
+  WAITING // Waiting on requester
+  RESOLVED // Issue resolved
+  CLOSED // Ticket closed
 }
 
 enum TicketPriority {
@@ -2942,45 +3000,45 @@ enum TicketPriority {
 }
 
 enum TicketCategory {
-  BUG      // Something is broken
-  FEATURE  // Feature request
+  BUG // Something is broken
+  FEATURE // Feature request
   QUESTION // General question
-  SUPPORT  // Support request
+  SUPPORT // Support request
   OTHER
 }
 
 model Ticket {
-  id           String         @id @default(uuid())
+  id String @id @default(uuid())
 
   // Human-readable reference number
-  ticketNumber Int            @unique @default(autoincrement())
+  ticketNumber Int @unique @default(autoincrement())
 
   // Creator and assignment
-  creatorId    String
-  creator      User           @relation("CreatedTickets", fields: [creatorId], references: [id], onDelete: Cascade)
-  assigneeId   String?
-  assignee     User?          @relation("AssignedTickets", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creatorId  String
+  creator    User    @relation("CreatedTickets", fields: [creatorId], references: [id], onDelete: Cascade)
+  assigneeId String?
+  assignee   User?   @relation("AssignedTickets", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   // Content
-  title        String
-  description  String         @db.Text
+  title       String
+  description String @db.Text
 
   // Classification
-  status       TicketStatus   @default(OPEN)
-  priority     TicketPriority @default(MEDIUM)
-  category     TicketCategory @default(OTHER)
+  status   TicketStatus   @default(OPEN)
+  priority TicketPriority @default(MEDIUM)
+  category TicketCategory @default(OTHER)
 
   // Optional tags for flexible categorization
-  tags         String[]
+  tags String[]
 
   // Timestamps
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  resolvedAt   DateTime?
-  closedAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+  closedAt   DateTime?
 
   // Relations
-  comments     TicketComment[]
+  comments TicketComment[]
 
   @@index([creatorId])
   @@index([assigneeId])
@@ -2992,27 +3050,133 @@ model Ticket {
 }
 
 model TicketComment {
-  id         String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Parent ticket
-  ticketId   String
-  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   // Author
-  authorId   String
-  author     User     @relation("TicketComments", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation("TicketComments", fields: [authorId], references: [id], onDelete: Cascade)
 
   // Content
-  content    String   @db.Text
+  content String @db.Text
 
   // Internal notes (visible only to admins/operators)
-  isInternal Boolean  @default(false)
+  isInternal Boolean @default(false)
 
   // Timestamps
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([ticketId])
   @@index([authorId])
   @@index([createdAt])
+}
+
+// =========================
+// AI KNOWLEDGE ACCUMULATION
+// =========================
+
+// Logs all AI interactions for learning and improvement
+model AIInteractionLog {
+  id String @id @default(uuid())
+
+  // Where this interaction occurred
+  callPoint String // 'spec.assistant', 'pipeline.measure', etc.
+
+  // The interaction
+  userMessage String @db.Text
+  aiResponse  String @db.Text
+
+  // Outcome classification
+  outcome String // 'success', 'correction', 'failure'
+
+  // Additional context
+  metadata Json? // { entityType, entityId, action, corrections, etc. }
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([callPoint])
+  @@index([outcome])
+  @@index([createdAt])
+}
+
+// Patterns learned from successful interactions
+model AILearnedPattern {
+  id String @id @default(uuid())
+
+  // The pattern (e.g., "create_spec_for_personality")
+  pattern String
+
+  // Where this pattern applies
+  callPoint String
+
+  // Optional domain
+  domain String?
+
+  // Confidence and frequency
+  confidence  Float @default(0.5) // 0-1
+  occurrences Int   @default(1)
+
+  // Example interactions that demonstrate this pattern
+  examples String[] // Array of example messages
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pattern, callPoint])
+  @@index([callPoint])
+  @@index([domain])
+  @@index([confidence])
+  @@index([occurrences])
+}
+
+// =========================
+// TASK GUIDANCE & FLASH SIDEBAR
+// =========================
+
+enum TaskStatus {
+  in_progress
+  completed
+  abandoned
+}
+
+// Tracks user tasks for contextual guidance
+model UserTask {
+  id String @id @default(uuid())
+
+  // User performing the task
+  userId String
+  user   User   @relation("UserTasks", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Task type (e.g., 'create_spec', 'configure_caller')
+  taskType String
+
+  // Task status
+  status TaskStatus @default(in_progress)
+
+  // Progress tracking
+  currentStep    Int      @default(1)
+  totalSteps     Int
+  completedSteps String[] // Array of step IDs completed
+
+  // Blockers preventing progress
+  blockers String[] // Array of blocker descriptions
+
+  // Additional context (user intent, entity IDs, etc.)
+  context Json?
+
+  // Timestamps
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([taskType])
+  @@index([startedAt])
 }

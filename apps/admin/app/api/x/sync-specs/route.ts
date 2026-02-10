@@ -18,18 +18,32 @@ export async function GET() {
 
     // Get all BDDFeatureSet records (one per file imported)
     const featureSets = await prisma.bDDFeatureSet.findMany({
-      select: { filename: true },
+      select: { featureId: true },
     });
 
-    const syncedFiles = new Set(featureSets.map(fs => fs.filename));
+    const syncedFeatureIds = new Set(featureSets.map(fs => fs.featureId));
 
-    // Check which files are unsynced
-    const unsyncedFiles = files.filter(f => !syncedFiles.has(f));
+    // Extract featureId from JSON content (most reliable method)
+    const fileFeatureIds = files.map(f => {
+      try {
+        const filePath = path.join(specsDir, f);
+        const content = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        return content.id || null;
+      } catch {
+        return null;
+      }
+    });
+
+    // Check which files are unsynced (no matching BDDFeatureSet record)
+    const unsyncedFiles = files.filter((f, i) => {
+      const featureId = fileFeatureIds[i];
+      return featureId && !syncedFeatureIds.has(featureId);
+    });
 
     return NextResponse.json({
       ok: true,
       totalFiles,
-      syncedFiles: syncedFiles.size,
+      syncedFiles: totalFiles - unsyncedFiles.length, // Fixed: count of synced files, not DB records
       unsyncedFiles: unsyncedFiles.length,
       unsyncedList: unsyncedFiles,
     });

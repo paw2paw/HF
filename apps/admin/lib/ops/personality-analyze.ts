@@ -84,8 +84,10 @@ interface AnalysisResult {
   }>;
 }
 
-// Default trait mapping (loaded from AGGREGATE spec when available)
-// Maps parameterId -> CallerPersonality field name
+// LEGACY: Default trait mapping for CallerPersonality + PersonalityObservation models
+// These models have hardcoded OCEAN fields (will be migrated to dynamic parameterValues)
+// Maps parameterId -> legacy field name
+// NOTE: CallerPersonalityProfile already uses dynamic parameterValues - this is only for backward compat
 const DEFAULT_TRAIT_MAPPING: Record<string, string> = {
   // New PERS-* parameter IDs
   "PERS-OPENNESS": "openness",

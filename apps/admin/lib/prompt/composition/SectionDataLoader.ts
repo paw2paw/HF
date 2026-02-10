@@ -48,6 +48,7 @@ export async function loadAllData(
     playbooks,
     systemSpecs,
     onboardingSpec,
+    onboardingSession,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
     loaderRegistry.get("memories")!(callerId, { limit: memoriesLimit }),
@@ -62,6 +63,7 @@ export async function loadAllData(
     loaderRegistry.get("playbooks")!(callerId, { playbookIds: specConfig.playbookIds }),
     loaderRegistry.get("systemSpecs")!(callerId),
     loaderRegistry.get("onboardingSpec")!(callerId),
+    loaderRegistry.get("onboardingSession")!(callerId),
   ]);
 
   return {
@@ -78,6 +80,7 @@ export async function loadAllData(
     playbooks: playbooks || [],
     systemSpecs: systemSpecs || [],
     onboardingSpec: onboardingSpec || null,
+    onboardingSession: onboardingSession || null,
   };
 }
 
@@ -95,11 +98,26 @@ registerLoader("caller", async (callerId) => {
       phone: true,
       externalId: true,
       domainId: true,
+      previousDomainId: true,
+      domainSwitchCount: true,
       domain: {
         select: {
           id: true,
           name: true,
           description: true,
+          slug: true,
+          // Onboarding configuration (from merged Persona concept)
+          onboardingWelcome: true,
+          onboardingIdentitySpecId: true,
+          onboardingFlowPhases: true,
+          onboardingDefaultTargets: true,
+          onboardingIdentitySpec: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+            },
+          },
         },
       },
     },
@@ -126,20 +144,35 @@ registerLoader("memories", async (callerId, config) => {
 });
 
 registerLoader("personality", async (callerId) => {
-  return prisma.callerPersonality.findUnique({
+  // Load from CallerPersonalityProfile for dynamic parameter values (Big Five, VARK, etc.)
+  const profile = await prisma.callerPersonalityProfile.findUnique({
     where: { callerId },
     select: {
-      openness: true,
-      conscientiousness: true,
-      extraversion: true,
-      agreeableness: true,
-      neuroticism: true,
+      parameterValues: true,
+      lastUpdatedAt: true,
+    },
+  });
+
+  // Also load legacy CallerPersonality for backward compatibility fields
+  const legacy = await prisma.callerPersonality.findUnique({
+    where: { callerId },
+    select: {
       preferredTone: true,
       preferredLength: true,
       technicalLevel: true,
       confidenceScore: true,
     },
   });
+
+  // Merge profile parameter values with legacy fields
+  return {
+    ...(profile?.parameterValues as Record<string, number> || {}),
+    preferredTone: legacy?.preferredTone,
+    preferredLength: legacy?.preferredLength,
+    technicalLevel: legacy?.technicalLevel,
+    confidenceScore: legacy?.confidenceScore,
+    lastUpdatedAt: profile?.lastUpdatedAt,
+  };
 });
 
 registerLoader("learnerProfile", async (callerId) => {
@@ -334,6 +367,7 @@ registerLoader("systemSpecs", async (_callerId) => {
  * Load the onboarding/bootstrap spec for first-call defaults.
  * Uses env-configurable spec slug (default: INIT-001, configurable via ONBOARDING_SPEC_SLUG).
  * Returns the spec config with default targets and first-call flow.
+ * NOTE: This is now a FALLBACK - Domain.onboarding* fields take precedence.
  */
 registerLoader("onboardingSpec", async (_callerId) => {
   // Get onboarding spec slug from config (env-configurable)
@@ -356,4 +390,38 @@ registerLoader("onboardingSpec", async (_callerId) => {
     },
   });
   return spec;
+});
+
+/**
+ * Load the caller's OnboardingSession for their current domain.
+ * Used to determine if this is their first call in the domain.
+ */
+registerLoader("onboardingSession", async (callerId) => {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+
+  if (!caller?.domainId) {
+    return null;
+  }
+
+  return prisma.onboardingSession.findUnique({
+    where: {
+      callerId_domainId: {
+        callerId,
+        domainId: caller.domainId,
+      },
+    },
+    select: {
+      id: true,
+      currentPhase: true,
+      completedPhases: true,
+      isComplete: true,
+      wasSkipped: true,
+      discoveredGoals: true,
+      createdAt: true,
+      completedAt: true,
+    },
+  });
 });

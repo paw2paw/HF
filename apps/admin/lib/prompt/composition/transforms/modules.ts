@@ -189,6 +189,11 @@ export function computeSharedState(
   const masteryThreshold = metadata?.masteryThreshold ?? 0.7;
 
   const isFirstCall = data.recentCalls.length === 0;
+
+  // Check if this is first call in current domain (for domain-switch re-onboarding)
+  const onboardingSession = data.onboardingSession;
+  const isFirstCallInDomain = !onboardingSession || !onboardingSession.isComplete;
+
   const lastCall = data.recentCalls[0];
   const daysSinceLastCall = lastCall
     ? Math.floor((Date.now() - new Date(lastCall.createdAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -258,6 +263,7 @@ export function computeSharedState(
   return {
     modules,
     isFirstCall,
+    isFirstCallInDomain, // For domain-switch re-onboarding
     daysSinceLastCall,
     completedModules,
     estimatedProgress,

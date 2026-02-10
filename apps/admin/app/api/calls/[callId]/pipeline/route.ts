@@ -587,7 +587,50 @@ async function runBatchedCallerAnalysis(
       if (jsonContent.startsWith("```")) {
         jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
       }
-      const parsed = JSON.parse(jsonContent);
+
+      // Sanitize JSON - fix unterminated fractional numbers
+      jsonContent = jsonContent.replace(/(\d+\.)(?=\s*[,}\]]|$)/g, (_match, num) => num + '0');
+
+      // Try parsing with recovery if needed
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonContent);
+      } catch (parseError) {
+        log.warn("JSON parse failed in EXTRACT, attempting recovery", { contentLength: jsonContent.length });
+        let fixed = jsonContent;
+
+        // Remove incomplete trailing entries (everything after the last complete key-value pair)
+        // Strategy: Remove everything from the last comma to the end if it's incomplete
+        // First, check if there's an odd number of quotes (indicating unterminated string)
+        const quoteCount = (fixed.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) {
+          // Odd number of quotes - find and remove the incomplete entry
+          // Remove from the last comma before the unterminated quote to the end
+          fixed = fixed.replace(/,\s*[^,]*$/g, '');
+        }
+
+        // Remove trailing commas before closing braces/brackets
+        fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+
+        // Fix incomplete key-value pairs
+        fixed = fixed.replace(/["']([^"']+)["']\s*:\s*$/g, '"$1": 0.5');
+
+        // Count and add missing closing characters
+        const openBraces = (fixed.match(/\{/g) || []).length;
+        const closeBraces = (fixed.match(/\}/g) || []).length;
+        const openBrackets = (fixed.match(/\[/g) || []).length;
+        const closeBrackets = (fixed.match(/\]/g) || []).length;
+
+        for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += "]";
+        for (let i = 0; i < openBraces - closeBraces; i++) fixed += "}";
+
+        try {
+          parsed = JSON.parse(fixed);
+          log.info("EXTRACT JSON recovery successful");
+        } catch {
+          throw parseError;
+        }
+      }
 
       // Store scores (handle both full and compact keys: score/s, confidence/c)
       if (parsed.scores) {
@@ -767,7 +810,8 @@ async function runBatchedAgentAnalysis(
     try {
       // More tokens for agent analysis with many parameters
       // ~100 tokens per param (score + confidence + evidence array)
-      const estimatedTokens = Math.max(2048, agentParams.length * 120);
+      // Add 25% buffer to prevent truncation
+      const estimatedTokens = Math.max(2048, Math.ceil(agentParams.length * 150));
 
       const result = await getMeteredAICompletion({
         engine,
@@ -793,8 +837,31 @@ async function runBatchedAgentAnalysis(
         parsed = JSON.parse(jsonContent);
       } catch (parseError) {
         log.warn("JSON parse failed, attempting recovery", { contentLength: jsonContent.length });
-        // Try to fix truncated JSON - add closing braces
+        // Try to fix truncated JSON
         let fixed = jsonContent;
+
+        // Fix unterminated fractional numbers (e.g., "0." -> "0.0")
+        // Match patterns like: 0., 1., etc at end of string or before closing brace/bracket
+        fixed = fixed.replace(/(\d+\.)(?=\s*[,}\]]|$)/g, (_match, num) => num + '0');
+
+        // Remove incomplete trailing entries (everything after the last complete key-value pair)
+        // Strategy: Remove everything from the last comma to the end if it's incomplete
+        // First, check if there's an odd number of quotes (indicating unterminated string)
+        const quoteCount = (fixed.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) {
+          // Odd number of quotes - find and remove the incomplete entry
+          // Remove from the last comma before the unterminated quote to the end
+          fixed = fixed.replace(/,\s*[^,]*$/g, '');
+        }
+
+        // Remove trailing commas before closing braces/brackets
+        fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+
+        // Fix incomplete key-value pairs at end (e.g., {"key": or "key")
+        // If JSON ends with a key but no value, add a default value
+        fixed = fixed.replace(/["']([^"']+)["']\s*:\s*$/g, '"$1": 0.5');
+        fixed = fixed.replace(/["']([^"']+)["']\s*:\s*\{\s*["']([^"']+)["']\s*$/g, '"$1": {"$2": 0.5');
+
         // Count open vs close braces
         const openBraces = (fixed.match(/\{/g) || []).length;
         const closeBraces = (fixed.match(/\}/g) || []).length;
@@ -1418,7 +1485,59 @@ async function runAdaptSpecs(
       if (jsonContent.startsWith("```")) {
         jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
       }
-      const parsed = JSON.parse(jsonContent);
+
+      // Sanitize JSON - fix unterminated fractional numbers
+      jsonContent = jsonContent.replace(/(\d+\.)(?=\s*[,}\]]|$)/g, (_match, num) => num + '0');
+
+      // Try parsing with recovery if needed
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonContent);
+      } catch (parseError) {
+        log.warn("JSON parse failed in ADAPT, attempting recovery", { contentLength: jsonContent.length });
+        let fixed = jsonContent;
+
+        // Remove incomplete trailing entries (everything after the last complete key-value pair)
+        // Strategy: Remove everything from the last comma to the end if it's incomplete
+        // First, check if there's an odd number of quotes (indicating unterminated string)
+        const quoteCount = (fixed.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) {
+          // Odd number of quotes - find and remove the incomplete entry
+          // Remove from the last comma before the unterminated quote to the end
+          fixed = fixed.replace(/,\s*[^,]*$/g, '');
+        }
+
+        // Remove trailing commas before closing braces/brackets
+        fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+
+        // Fix incomplete key-value pairs
+        fixed = fixed.replace(/["']([^"']+)["']\s*:\s*$/g, '"$1": 0.5');
+        fixed = fixed.replace(/["']([^"']+)["']\s*:\s*\{\s*["']([^"']+)["']\s*$/g, '"$1": {"$2": 0.5');
+
+        // Count and add missing closing characters
+        const openBraces = (fixed.match(/\{/g) || []).length;
+        const closeBraces = (fixed.match(/\}/g) || []).length;
+        const openBrackets = (fixed.match(/\[/g) || []).length;
+        const closeBrackets = (fixed.match(/\]/g) || []).length;
+
+        for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += "]";
+        for (let i = 0; i < openBraces - closeBraces; i++) fixed += "}";
+
+        try {
+          parsed = JSON.parse(fixed);
+          log.info("ADAPT JSON recovery successful", {
+            originalLength: jsonContent.length,
+            fixedLength: fixed.length
+          });
+        } catch (recoveryError: any) {
+          log.error("ADAPT JSON recovery also failed", {
+            originalError: (parseError as Error).message,
+            recoveryError: recoveryError.message,
+            lastChars: fixed.slice(-200)
+          });
+          throw parseError;
+        }
+      }
 
       if (parsed.targets) {
         for (const [parameterId, targetData] of Object.entries(parsed.targets as Record<string, any>)) {

@@ -44,29 +44,39 @@ registerTransform("mergeAndGroupTargets", (
   const playbookIds = playbooks.map(pb => pb.id);
   let merged = mergeTargets(behaviorTargets, callerTargets, playbookIds);
 
-  // INIT-001: Inject first-call defaults for missing parameters
-  if (isFirstCall && onboardingSpec?.config?.defaultTargets) {
+  // ONBOARDING: Inject first-call defaults for missing parameters
+  // Priority: Domain.onboardingDefaultTargets > INIT-001 fallback
+  if (isFirstCall) {
     const existingParams = new Set(merged.map(t => t.parameterId));
-    const defaultTargets = onboardingSpec.config.defaultTargets;
 
-    for (const [paramId, defaults] of Object.entries(defaultTargets)) {
-      if (!existingParams.has(paramId)) {
-        merged.push({
-          parameterId: paramId,
-          targetValue: defaults.value,
-          confidence: defaults.confidence,
-          source: "BehaviorTarget",
-          scope: "INIT_DEFAULT", // Mark as first-call default
-          parameter: {
-            name: paramId.replace("BEH-", "").replace(/-/g, " ").toLowerCase(),
-            interpretationLow: null,
-            interpretationHigh: null,
-            domainGroup: "First Call Defaults",
-          },
-        });
+    // Try Domain onboarding defaults first
+    const domain = context.loadedData.caller?.domain;
+    const domainDefaults = domain?.onboardingDefaultTargets as Record<string, { value: number; confidence: number; rationale?: string }> | null;
+
+    // Fall back to INIT-001 spec defaults if domain doesn't have custom defaults
+    const defaultTargets = domainDefaults || onboardingSpec?.config?.defaultTargets;
+    const source = domainDefaults ? `Domain ${domain?.slug}` : "INIT-001";
+
+    if (defaultTargets) {
+      for (const [paramId, defaults] of Object.entries(defaultTargets)) {
+        if (!existingParams.has(paramId)) {
+          merged.push({
+            parameterId: paramId,
+            targetValue: defaults.value,
+            confidence: defaults.confidence,
+            source: "BehaviorTarget",
+            scope: domainDefaults ? "DOMAIN_ONBOARDING" : "INIT_DEFAULT",
+            parameter: {
+              name: paramId.replace("BEH-", "").replace(/-/g, " ").toLowerCase(),
+              interpretationLow: null,
+              interpretationHigh: null,
+              domainGroup: "First Call Defaults",
+            },
+          });
+        }
       }
+      console.log(`[targets] First call: injected ${Object.keys(defaultTargets).length - existingParams.size} defaults from ${source}`);
     }
-    console.log(`[targets] First call: injected ${Object.keys(defaultTargets).length - existingParams.size} INIT-001 defaults`);
   }
 
   // Apply preview overrides if provided (for Playground tuning)

@@ -416,25 +416,46 @@ export default function AIConfigPage() {
             immediately at runtime.
           </p>
         </div>
-        <button
-          onClick={openModelsManager}
-          style={{
-            padding: "8px 16px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span>Manage Models</span>
-          <span style={{ fontSize: 16 }}>{showModelsManager ? "▼" : "▶"}</span>
-        </button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <a
+            href="/x/ai-knowledge"
+            style={{
+              padding: "8px 16px",
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
+              color: "var(--text-primary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              textDecoration: "none",
+            }}
+          >
+            🧠 AI Knowledge
+          </a>
+          <button
+            onClick={openModelsManager}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
+              color: "var(--text-primary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span>Manage Models</span>
+            <span style={{ fontSize: 16 }}>{showModelsManager ? "▼" : "▶"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Models Manager Section */}

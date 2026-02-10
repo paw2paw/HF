@@ -4,6 +4,7 @@ import { createMeteredStream } from "@/lib/metering";
 import { buildSystemPrompt } from "./system-prompts";
 import { executeCommand, parseCommand } from "@/lib/chat/commands";
 import { logAI } from "@/lib/logger";
+import { logAIInteraction } from "@/lib/ai/knowledge-accumulation";
 
 export const runtime = "nodejs";
 
@@ -82,6 +83,23 @@ export async function POST(request: NextRequest) {
       historyLength: conversationHistory.length,
       entityContext: entityContext.map((e) => `${e.type}:${e.id}`).join(", "),
     });
+
+    // Log for AI knowledge accumulation (in background)
+    const entityInfo = entityContext.length > 0 ? entityContext[0] : null;
+    logAIInteraction({
+      callPoint: `chat.${mode.toLowerCase()}`,
+      userMessage: message,
+      aiResponse: "(streaming response)",
+      outcome: "success",
+      metadata: {
+        mode,
+        entityType: entityInfo?.type,
+        entityId: entityInfo?.id,
+        action: "chat",
+        model: selectedEngine, // e.g., "anthropic", "openai"
+        provider: selectedEngine,
+      },
+    }).catch(console.error);
 
     return new Response(meteredStream, {
       headers: {

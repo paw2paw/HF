@@ -80,8 +80,8 @@ export default async function XDashboardPage() {
           icon: "📥",
         },
         {
-          title: "Seed Data",
-          description: "Manage seed data for development",
+          title: "Data Management",
+          description: "Import specs, transcripts, and manage system data",
           href: "/x/data-management",
           icon: "🌱",
         },

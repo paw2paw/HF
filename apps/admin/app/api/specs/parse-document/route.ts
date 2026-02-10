@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAICompletion, getDefaultEngine } from "@/lib/ai/client";
+import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 
 export const runtime = "nodejs";
 
@@ -86,6 +87,27 @@ export async function POST(request: NextRequest) {
         suggestedId: "SPEC-001",
       };
     }
+
+    // Log document parsing for AI learning
+    logAssistantCall(
+      {
+        callPoint: "spec.parse",
+        userMessage: `Parse document type: ${file.name}`,
+        metadata: {
+          action: "parse",
+          fileName: file.name,
+          fileSize: file.size,
+        },
+      },
+      {
+        response: result.content,
+        success: true,
+        suggestions: {
+          type: parsed.suggestedType,
+          confidence: parsed.confidence,
+        },
+      }
+    );
 
     return NextResponse.json({
       ok: true,

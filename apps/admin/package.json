@@ -15,7 +15,7 @@
     "dev:start:docker": "./scripts/dev-start.sh docker",
     "dev:stop": "./scripts/dev-start.sh stop",
     "dev:status": "./scripts/dev-start.sh status",
-    "prebuild": "npm run registry:generate && npm run registry:validate",
+    "prebuild": "sh -c 'if [ -n \"$DATABASE_URL\" ]; then npm run registry:generate && npm run registry:validate; else echo \"SKIP registry\"; fi'",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

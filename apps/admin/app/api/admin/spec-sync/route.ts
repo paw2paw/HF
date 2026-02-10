@@ -85,7 +85,7 @@ export async function GET() {
           filename: file.filename,
           title: file.content.title || specId,
           specType: file.rawJson.specType || "DOMAIN",
-          specRole: file.rawJson.specRole || "MEASURE",
+          specRole: file.rawJson.specRole || "EXTRACT",  // Default to EXTRACT (measurement/learning)
         });
       }
     }

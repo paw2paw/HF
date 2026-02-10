@@ -21,11 +21,13 @@ type Caller = {
     name: string;
   } | null;
   personality?: {
-    openness: number | null;
-    conscientiousness: number | null;
-    extraversion: number | null;
-    agreeableness: number | null;
-    neuroticism: number | null;
+    parameterValues?: Record<string, number>;
+    // LEGACY: Deprecated fields for backward compatibility
+    openness?: number | null;
+    conscientiousness?: number | null;
+    extraversion?: number | null;
+    agreeableness?: number | null;
+    neuroticism?: number | null;
     confidenceScore: number | null;
   } | null;
   _count?: {
@@ -178,12 +180,24 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
   const getPersonalityBadge = (caller: Caller) => {
     if (!caller.personality || caller.personality.confidenceScore === null) return null;
+
+    // Helper to get parameter value (checks parameterValues first, then legacy fields)
+    const getParam = (paramId: string, legacyField?: number | null) => {
+      return caller.personality?.parameterValues?.[paramId] ?? legacyField ?? null;
+    };
+
     const traits = [];
-    if (caller.personality.openness !== null && caller.personality.openness > 0.6) traits.push("Open");
-    if (caller.personality.extraversion !== null && caller.personality.extraversion > 0.6) traits.push("Extraverted");
-    if (caller.personality.agreeableness !== null && caller.personality.agreeableness > 0.6) traits.push("Agreeable");
-    if (caller.personality.conscientiousness !== null && caller.personality.conscientiousness > 0.6) traits.push("Conscientious");
-    if (caller.personality.neuroticism !== null && caller.personality.neuroticism > 0.6) traits.push("Neurotic");
+    const openness = getParam("B5-O", caller.personality.openness);
+    const extraversion = getParam("B5-E", caller.personality.extraversion);
+    const agreeableness = getParam("B5-A", caller.personality.agreeableness);
+    const conscientiousness = getParam("B5-C", caller.personality.conscientiousness);
+    const neuroticism = getParam("B5-N", caller.personality.neuroticism);
+
+    if (openness !== null && openness > 0.6) traits.push("Open");
+    if (extraversion !== null && extraversion > 0.6) traits.push("Extraverted");
+    if (agreeableness !== null && agreeableness > 0.6) traits.push("Agreeable");
+    if (conscientiousness !== null && conscientiousness > 0.6) traits.push("Conscientious");
+    if (neuroticism !== null && neuroticism > 0.6) traits.push("Neurotic");
     return traits.length > 0 ? traits.slice(0, 2).join(", ") : "Balanced";
   };
 
@@ -621,24 +635,31 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 </button>
                 {/* Spacer + Mini OCEAN */}
                 <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "flex-end" }}>
-                  {caller.personality && caller.personality.confidenceScore !== null && (
-                    <div style={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
-                      {[
-                        { label: "O", value: caller.personality.openness, color: "#3b82f6" },
-                        { label: "C", value: caller.personality.conscientiousness, color: "#22c55e" },
-                        { label: "E", value: caller.personality.extraversion, color: "#f59e0b" },
-                        { label: "A", value: caller.personality.agreeableness, color: "#ec4899" },
-                        { label: "N", value: caller.personality.neuroticism, color: "#8b5cf6" },
-                      ].map((t, i) => (
-                        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 10 }}>
-                          <div style={{ width: 6, height: 14, background: "var(--border-default)", borderRadius: 2, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                            <div style={{ width: "100%", height: `${(t.value || 0) * 100}%`, background: t.color, borderRadius: 2 }} />
+                  {caller.personality && caller.personality.confidenceScore !== null && (() => {
+                    // Helper to get parameter value (checks parameterValues first, then legacy fields)
+                    const getParam = (paramId: string, legacyField?: number | null) => {
+                      return caller.personality?.parameterValues?.[paramId] ?? legacyField ?? null;
+                    };
+
+                    return (
+                      <div style={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+                        {[
+                          { label: "O", value: getParam("B5-O", caller.personality.openness), color: "#3b82f6" },
+                          { label: "C", value: getParam("B5-C", caller.personality.conscientiousness), color: "#22c55e" },
+                          { label: "E", value: getParam("B5-E", caller.personality.extraversion), color: "#f59e0b" },
+                          { label: "A", value: getParam("B5-A", caller.personality.agreeableness), color: "#ec4899" },
+                          { label: "N", value: getParam("B5-N", caller.personality.neuroticism), color: "#8b5cf6" },
+                        ].map((t, i) => (
+                          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 10 }}>
+                            <div style={{ width: 6, height: 14, background: "var(--border-default)", borderRadius: 2, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                              <div style={{ width: "100%", height: `${(t.value || 0) * 100}%`, background: t.color, borderRadius: 2 }} />
+                            </div>
+                            <span style={{ fontSize: 7, color: "var(--text-placeholder)", marginTop: 1 }}>{t.label}</span>
                           </div>
-                          <span style={{ fontSize: 7, color: "var(--text-placeholder)", marginTop: 1 }}>{t.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 {resetConfirm === caller.id ? (
                   <>

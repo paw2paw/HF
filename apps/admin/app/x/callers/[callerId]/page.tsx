@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import CallerDetailPage from "@/app/_archived/legacy-pages/callers/[callerId]/page";
+import CallerDetailPage from "../../../../_archived/legacy-pages/callers/[callerId]/page";
 
 // Re-export the caller detail page from archived location
 // TODO: Consider properly migrating this large component to /components

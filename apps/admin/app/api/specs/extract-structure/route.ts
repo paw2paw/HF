@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAICompletion, getDefaultEngine } from "@/lib/ai/client";
+import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 
 export const runtime = "nodejs";
 
@@ -129,7 +130,7 @@ Required output structure (respond with ONLY valid JSON):
   "domain": "behavior",
   "specType": "DOMAIN",
   "outputType": "MEASURE",
-  "specRole": "MEASURE",
+  "specRole": "EXTRACT",
 
   "story": {
     "asA": "system measuring [what]",
@@ -369,11 +370,17 @@ export async function POST(request: NextRequest) {
       // Generate ID if not present or generic
       if (!spec.id || spec.id.includes("XXX")) {
         const prefix = specType === "CURRICULUM" ? "CURR" :
-                       specType === "MEASURE" ? "MEAS" :
+                       specType === "MEASURE" ? "MEAS" :      // deprecated - use EXTRACT
+                       specType === "EXTRACT" ? "EXTR" :
+                       specType === "SYNTHESISE" ? "SYNTH" :
+                       specType === "CONSTRAIN" ? "CONST" :
+                       specType === "ORCHESTRATE" ? "ORCH" :
                        specType === "IDENTITY" ? "IDENT" :
                        specType === "CONTENT" ? "CONT" :
-                       specType === "ADAPT" ? "ADAPT" :
-                       specType === "GUARDRAIL" ? "GUARD" : "SPEC";
+                       specType === "VOICE" ? "VOICE" :
+                       specType === "ADAPT" ? "ADAPT" :       // deprecated - use SYNTHESISE
+                       specType === "GUARDRAIL" ? "GUARD" :   // deprecated - use CONSTRAIN
+                       "SPEC";
         const suffix = fileName
           ? fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9]/g, "-").toUpperCase().slice(0, 20)
           : "001";
@@ -387,11 +394,44 @@ export async function POST(request: NextRequest) {
 
     } catch (parseError) {
       console.error("Failed to parse AI extraction response:", result.content);
+
+      // Log failed extraction
+      logAssistantCall(
+        {
+          callPoint: "spec.extract",
+          userMessage: `Extract ${specType} from ${fileName || "document"}`,
+          metadata: { action: "extract", specType, fileName },
+        },
+        {
+          response: result.content,
+          success: false,
+        }
+      );
+
       return NextResponse.json(
         { ok: false, error: "Failed to parse extracted structure. Please try again." },
         { status: 500 }
       );
     }
+
+    // Log successful extraction for AI learning
+    logAssistantCall(
+      {
+        callPoint: "spec.extract",
+        userMessage: `Extract ${specType} from ${fileName || "document"}`,
+        metadata: {
+          action: "extract",
+          specType,
+          fileName,
+          extractedId: spec.id,
+        },
+      },
+      {
+        response: result.content,
+        success: true,
+        fieldUpdates: spec,
+      }
+    );
 
     return NextResponse.json({
       ok: true,

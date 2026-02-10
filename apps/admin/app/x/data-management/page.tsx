@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AIModelsManager } from "@/components/shared/AIModelsManager";
+import { SpecSyncDetailModal } from "@/components/shared/SpecSyncDetailModal";
 
 type OperationStatus = "idle" | "running" | "success" | "error";
 
@@ -43,6 +44,15 @@ type PlaybookOption = {
 
 const OPERATIONS: Operation[] = [
   {
+    id: "sync-parameters",
+    title: "Sync Missing Parameters",
+    description: "Scans all active specs for parameter references in triggers/actions. Creates Parameter records for any missing parameters that specs reference but don't exist in database.",
+    icon: "🔧",
+    warning: "This will create Parameter records for any parameters that specs reference but don't exist in the database. Safe to run anytime - only creates missing parameters, never modifies existing ones.",
+    endpoint: "/api/admin/sync-parameters",
+    method: "POST",
+  },
+  {
     id: "transcripts",
     title: "Import Transcripts from Raw",
     description: "Scans HF_KB_PATH/sources/transcripts/raw for .json and .txt files. Creates Callers (by phone) and Calls. Updates caller names if better data is found.",
@@ -76,6 +86,7 @@ export default function DataManagementPage() {
   const [operationStatus, setOperationStatus] = useState<Record<string, OperationStatus>>({
     "sync-specs": "idle",
     "create-domains": "idle",
+    "sync-parameters": "idle",
     transcripts: "idle",
     cleanup: "idle",
   });
@@ -84,6 +95,7 @@ export default function DataManagementPage() {
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<"replace" | "keep" | null>(null);
   const [showAIModels, setShowAIModels] = useState(false);
+  const [showSpecSyncModal, setShowSpecSyncModal] = useState(false);
 
   // Playbook selection for create-domains
   const [availablePlaybooks, setAvailablePlaybooks] = useState<PlaybookOption[]>([]);
@@ -271,51 +283,67 @@ export default function DataManagementPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{
+          fontSize: 28,
+          fontWeight: 700,
+          color: "var(--text-primary)",
+          marginBottom: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 12
+        }}>
+          <span style={{ fontSize: 32 }}>🌱</span>
           Data Management
         </h1>
-        <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+        <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
           Initialize system from source files (specs, domains, playbooks, transcripts)
         </p>
       </div>
 
       {/* Current Stats Card */}
-      <div
-        style={{
-          padding: 20,
-          background: "var(--background)",
-          borderRadius: 12,
-          border: "1px solid var(--border-default)",
-          marginBottom: 24,
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
-          Current Database State
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            marginBottom: 4,
+          }}>
+            Current Database State
+          </h2>
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            Current counts of key entities in your system
+          </p>
         </div>
         {loadingStats ? (
-          <div style={{ fontSize: 14, color: "var(--text-muted)" }}>Loading...</div>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", padding: 20 }}>Loading...</div>
         ) : stats ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
-            <StatItem label="Domains" value={stats.domains} />
-            <StatItem label="Playbooks" value={stats.playbooks} />
-            <StatItem label="Specs" value={stats.specs} />
-            <StatItem label="Callers" value={stats.callers} />
-            <StatItem label="Calls" value={stats.calls} />
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            gap: 16,
+          }}>
+            <StatItem label="Domains" value={stats.domains} icon="🌐" />
+            <StatItem label="Playbooks" value={stats.playbooks} icon="📚" />
+            <StatItem label="Specs" value={stats.specs} icon="📐" />
+            <StatItem label="Callers" value={stats.callers} icon="👥" />
+            <StatItem label="Calls" value={stats.calls} icon="📞" />
           </div>
         ) : (
-          <div style={{ fontSize: 14, color: "var(--status-error-text)" }}>Failed to load stats</div>
+          <div style={{ fontSize: 14, color: "var(--status-error-text)", padding: 20 }}>Failed to load stats</div>
         )}
       </div>
 
       {/* Manage AI Models Section */}
       <div
         style={{
-          padding: 20,
-          background: "var(--background)",
+          padding: 24,
+          background: "var(--surface-primary)",
           borderRadius: 12,
           border: "1px solid var(--border-default)",
-          marginBottom: 24,
+          marginBottom: 32,
+          transition: "all 0.2s",
         }}
       >
         <div
@@ -327,24 +355,24 @@ export default function DataManagementPage() {
           }}
           onClick={() => setShowAIModels(!showAIModels)}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 24 }}>🤖</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <span style={{ fontSize: 28 }}>🤖</span>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
                 Manage AI Models
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
                 Add, edit, or disable AI models available for pipeline operations
               </div>
             </div>
           </div>
-          <span style={{ fontSize: 16, color: "var(--text-muted)" }}>
+          <span style={{ fontSize: 20, color: "var(--text-muted)" }}>
             {showAIModels ? "▼" : "▶"}
           </span>
         </div>
 
         {showAIModels && (
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border-subtle)" }}>
             <AIModelsManager showHeader={false} />
           </div>
         )}
@@ -353,21 +381,30 @@ export default function DataManagementPage() {
       {/* Recommended Order Notice */}
       <div
         style={{
-          padding: 16,
+          padding: 20,
           background: "var(--status-info-bg)",
-          borderRadius: 8,
+          borderRadius: 12,
           border: "1px solid var(--status-info-border)",
-          marginBottom: 24,
+          marginBottom: 32,
         }}
       >
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 6 }}>
-          💡 Recommended Execution Order
+        <div style={{
+          fontSize: 15,
+          fontWeight: 600,
+          color: "var(--status-info-text)",
+          marginBottom: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <span style={{ fontSize: 20 }}>💡</span>
+          Recommended Execution Order
         </div>
-        <ol style={{ fontSize: 13, color: "var(--status-info-text)", margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
-          <li>
+        <ol style={{ fontSize: 14, color: "var(--status-info-text)", margin: 0, paddingLeft: 24, lineHeight: 1.8 }}>
+          <li style={{ marginBottom: 8 }}>
             <strong>Sync All BDD Specs</strong> - Import all spec files from /bdd-specs directory (parameters, analysis specs, anchors)
           </li>
-          <li>
+          <li style={{ marginBottom: 8 }}>
             <strong>Create Domains & Playbooks</strong> - Select and create domains with playbooks and behavior targets (requires specs to exist)
           </li>
           <li>
@@ -377,7 +414,7 @@ export default function DataManagementPage() {
       </div>
 
       {/* Operation Cards */}
-      <div style={{ display: "grid", gap: 20 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {/* Sync All BDD Specs */}
         <SyncSpecsCard
           status={operationStatus["sync-specs"]}
@@ -385,6 +422,7 @@ export default function DataManagementPage() {
           syncStatus={syncStatus}
           loadingSyncStatus={loadingSyncStatus}
           onExecute={() => setShowModal("sync-specs")}
+          onViewDetails={() => setShowSpecSyncModal(true)}
         />
 
         {/* Create Domains & Playbooks */}
@@ -489,15 +527,74 @@ export default function DataManagementPage() {
           }}
         />
       )}
+
+      {/* Spec Sync Detail Modal */}
+      {showSpecSyncModal && (
+        <SpecSyncDetailModal
+          onClose={() => setShowSpecSyncModal(false)}
+          onSyncComplete={() => {
+            loadStats();
+            loadSyncStatus();
+          }}
+        />
+      )}
+
+      {/* Hover styles */}
+      <style>{`
+        .stat-card:hover {
+          border-color: var(--button-primary-bg) !important;
+          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+          transform: translateY(-2px);
+          cursor: pointer;
+        }
+        @media (max-width: 1024px) {
+          .stat-card {
+            grid-column: span 1;
+          }
+        }
+        @media (max-width: 768px) {
+          div[style*="gridTemplateColumns: repeat(5"] {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-function StatItem({ label, value }: { label: string; value: number }) {
+function StatItem({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
-    <div>
-      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px 16px",
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
+        borderRadius: 12,
+        transition: "all 0.2s",
+      }}
+      className="stat-card"
+    >
+      <div style={{ fontSize: 20, marginBottom: 8 }}>{icon}</div>
+      <div style={{
+        fontSize: 28,
+        fontWeight: 700,
+        color: "var(--button-primary-bg)",
+        lineHeight: 1,
+        marginBottom: 4,
+      }}>
+        {value}
+      </div>
+      <div style={{
+        fontSize: 12,
+        color: "var(--text-muted)",
+        fontWeight: 500,
+      }}>
+        {label}
+      </div>
     </div>
   );
 }
@@ -508,12 +605,14 @@ function SyncSpecsCard({
   syncStatus,
   loadingSyncStatus,
   onExecute,
+  onViewDetails,
 }: {
   status: OperationStatus;
   result?: OperationResult;
   syncStatus: { totalFiles: number; syncedFiles: number; unsyncedFiles: number } | null;
   loadingSyncStatus: boolean;
   onExecute: () => void;
+  onViewDetails: () => void;
 }) {
   const isRunning = status === "running";
   const isSuccess = status === "success";
@@ -525,13 +624,14 @@ function SyncSpecsCard({
         padding: 24,
         background: "var(--surface-primary)",
         borderRadius: 12,
-        border: `2px solid ${
-          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
+        border: `1px solid ${
+          isSuccess ? "var(--status-success-border)" : isError ? "var(--status-error-border)" : "var(--border-default)"
         }`,
+        transition: "all 0.2s",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        <div style={{ fontSize: 32, lineHeight: 1 }}>📦</div>
+        <div style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>📦</div>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>
@@ -624,23 +724,43 @@ function SyncSpecsCard({
             </div>
           )}
 
-          <button
-            onClick={onExecute}
-            disabled={isRunning}
-            style={{
-              padding: "10px 20px",
-              background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: isRunning ? "not-allowed" : "pointer",
-              opacity: isRunning ? 0.6 : 1,
-            }}
-          >
-            {isRunning ? "Syncing..." : "Sync All Specs"}
-          </button>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={onExecute}
+              disabled={isRunning}
+              style={{
+                padding: "10px 20px",
+                background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isRunning ? "not-allowed" : "pointer",
+                opacity: isRunning ? 0.6 : 1,
+              }}
+            >
+              {isRunning ? "Syncing..." : "Sync All Specs"}
+            </button>
+
+            <button
+              onClick={onViewDetails}
+              disabled={isRunning}
+              style={{
+                padding: "10px 20px",
+                background: "var(--surface-secondary)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-default)",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isRunning ? "not-allowed" : "pointer",
+                opacity: isRunning ? 0.6 : 1,
+              }}
+            >
+              View Details
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -674,13 +794,14 @@ function CreateDomainsCard({
         padding: 24,
         background: "var(--surface-primary)",
         borderRadius: 12,
-        border: `2px solid ${
-          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
+        border: `1px solid ${
+          isSuccess ? "var(--status-success-border)" : isError ? "var(--status-error-border)" : "var(--border-default)"
         }`,
+        transition: "all 0.2s",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        <div style={{ fontSize: 32, lineHeight: 1 }}>🎯</div>
+        <div style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>🎯</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
             Create Domains & Playbooks
@@ -869,13 +990,14 @@ function OperationCard({
         padding: 24,
         background: "var(--surface-primary)",
         borderRadius: 12,
-        border: `2px solid ${
-          isSuccess ? "var(--status-success-text)" : isError ? "var(--status-error-text)" : "var(--border-default)"
+        border: `1px solid ${
+          isSuccess ? "var(--status-success-border)" : isError ? "var(--status-error-border)" : "var(--border-default)"
         }`,
+        transition: "all 0.2s",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        <div style={{ fontSize: 32, lineHeight: 1 }}>{operation.icon}</div>
+        <div style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{operation.icon}</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
             {operation.title}

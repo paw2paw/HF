@@ -18,11 +18,13 @@ type Caller = {
   nextPrompt: string | null;
   nextPromptComposedAt: string | null;
   personality?: {
-    openness: number | null;
-    conscientiousness: number | null;
-    extraversion: number | null;
-    agreeableness: number | null;
-    neuroticism: number | null;
+    parameterValues?: Record<string, number>;
+    // LEGACY: Deprecated fields for backward compatibility
+    openness?: number | null;
+    conscientiousness?: number | null;
+    extraversion?: number | null;
+    agreeableness?: number | null;
+    neuroticism?: number | null;
     confidenceScore: number | null;
   } | null;
   _count?: {
@@ -529,28 +531,35 @@ export default function AnalyzePage() {
                     {caller.nextPrompt && <span style={{ color: "#10b981" }}>✨ Prompt ready</span>}
                   </div>
                   {/* Mini personality chart */}
-                  {caller.personality && caller.personality.confidenceScore !== null && (
-                    <div style={{ marginTop: 10, display: "flex", gap: 3 }}>
-                      {[
-                        { v: caller.personality.openness, c: "#3b82f6" },
-                        { v: caller.personality.conscientiousness, c: "#10b981" },
-                        { v: caller.personality.extraversion, c: "#f59e0b" },
-                        { v: caller.personality.agreeableness, c: "#ec4899" },
-                        { v: caller.personality.neuroticism, c: "#8b5cf6" },
-                      ].map((t, i) => (
-                        <div key={i} style={{ flex: 1, height: 3, background: "#e5e7eb", borderRadius: 2 }}>
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${(t.v || 0) * 100}%`,
-                              background: t.c,
-                              borderRadius: 2,
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {caller.personality && caller.personality.confidenceScore !== null && (() => {
+                    // Helper to get parameter value (checks parameterValues first, then legacy fields)
+                    const getParam = (paramId: string, legacyField?: number | null) => {
+                      return caller.personality?.parameterValues?.[paramId] ?? legacyField ?? null;
+                    };
+
+                    return (
+                      <div style={{ marginTop: 10, display: "flex", gap: 3 }}>
+                        {[
+                          { v: getParam("B5-O", caller.personality.openness), c: "#3b82f6" },
+                          { v: getParam("B5-C", caller.personality.conscientiousness), c: "#10b981" },
+                          { v: getParam("B5-E", caller.personality.extraversion), c: "#f59e0b" },
+                          { v: getParam("B5-A", caller.personality.agreeableness), c: "#ec4899" },
+                          { v: getParam("B5-N", caller.personality.neuroticism), c: "#8b5cf6" },
+                        ].map((t, i) => (
+                          <div key={i} style={{ flex: 1, height: 3, background: "#e5e7eb", borderRadius: 2 }}>
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${(t.v || 0) * 100}%`,
+                                background: t.c,
+                                borderRadius: 2,
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
