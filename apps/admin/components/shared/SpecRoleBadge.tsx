@@ -201,38 +201,29 @@ export function getSpecRoleConfig(role: string | null) {
 
 /**
  * Check if a spec role requires a special editor
+ * NOTE: Disabled for now until special editors are implemented
  */
 export function requiresSpecialEditor(role: string | null): boolean {
   if (!role) return false;
-  const specialRoles = ["ORCHESTRATE", "SYNTHESISE", "CONSTRAIN"];
-  return specialRoles.includes(role);
+  // TODO: Re-enable when special editors exist
+  // const specialRoles = ["ORCHESTRATE", "SYNTHESISE", "CONSTRAIN"];
+  // return specialRoles.includes(role);
+  return false; // Temporarily disabled
 }
 
 /**
  * Get the editor route for a spec based on its role
+ * NOTE: Returns path-based routes for now. Special editors (flow, formula, rules) are TODO.
  */
 export function getSpecEditorRoute(specSlug: string, role: string | null): string {
-  if (!role) return `/x/specs/${specSlug}`;
+  // Special routes that exist
+  if (specSlug === "PIPELINE-001") return "/x/supervisor";
 
-  switch (role) {
-    case "ORCHESTRATE":
-      // Special flow editor for orchestration specs
-      if (specSlug === "PIPELINE-001") return "/x/supervisor";
-      if (specSlug === "INIT-001") return "/x/onboarding";
-      if (specSlug === "SESSION-001") return `/x/specs/${specSlug}/flow`;
-      if (specSlug === "INJECT-001") return `/x/specs/${specSlug}/flow`;
-      return `/x/specs/${specSlug}/flow`;
+  // TODO: Implement special editors for these roles:
+  // - ORCHESTRATE: /x/specs/${specSlug}/flow (flow builder)
+  // - SYNTHESISE: /x/specs/${specSlug}/formula (formula builder)
+  // - CONSTRAIN: /x/specs/${specSlug}/rules (rule editor)
 
-    case "SYNTHESISE":
-      // Formula builder for synthesis specs
-      return `/x/specs/${specSlug}/formula`;
-
-    case "CONSTRAIN":
-      // Rule editor for constraint specs
-      return `/x/specs/${specSlug}/rules`;
-
-    default:
-      // Standard editor for all other roles
-      return `/x/specs/${specSlug}`;
-  }
+  // For now, all specs use the path-based route
+  return `/x/specs/${specSlug}`;
 }
