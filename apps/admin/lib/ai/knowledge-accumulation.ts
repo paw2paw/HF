@@ -28,6 +28,7 @@ export interface AIInteraction {
     action?: string;        // 'create', 'edit', 'suggest', etc.
     corrections?: string;   // What user corrected
     userFeedback?: string;  // Explicit feedback
+    fieldName?: string;     // Field that was corrected
     model?: string;         // AI model used (e.g., "claude-sonnet-4.5", "gpt-4", etc.)
     provider?: string;      // AI provider (e.g., "anthropic", "openai")
   };

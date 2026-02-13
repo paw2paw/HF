@@ -115,7 +115,6 @@ export async function POST(request: NextRequest) {
       aiResponse: "(streaming response)",
       outcome: "success",
       metadata: {
-        mode,
         entityType: entityInfo?.type,
         entityId: entityInfo?.id,
         action: "chat",

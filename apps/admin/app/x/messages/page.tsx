@@ -19,12 +19,12 @@ export default function MessagesPage() {
     messages: Message[];
     total: number;
   }>(`/api/messages?type=${tab}&unreadOnly=${unreadOnly}`, {
-    transform: (data) => data as { messages: Message[]; total: number },
+    transform: (data) => data as unknown as { messages: Message[]; total: number },
   });
 
   // Fetch unread count
   const { data: unreadData, refetch: refetchUnreadCount } = useApi<{ count: number }>("/api/messages/unread-count", {
-    transform: (data) => data as { count: number },
+    transform: (data) => data as unknown as { count: number },
   });
 
   const messages = messagesData?.messages || [];
@@ -349,7 +349,7 @@ function ComposeMessageModal({ onClose, onSuccess }: { onClose: () => void; onSu
 
   // Fetch users for recipient dropdown
   const { data: usersData } = useApi<{ users: Array<{ id: string; name: string | null; email: string }> }>("/api/users-list", {
-    transform: (data) => data as { users: Array<{ id: string; name: string | null; email: string }> },
+    transform: (data) => data as unknown as { users: Array<{ id: string; name: string | null; email: string }> },
   });
 
   const users = usersData?.users || [];
@@ -547,7 +547,7 @@ function MessageThreadModal({
   const [error, setError] = useState("");
 
   const { data: messageData, loading: messageLoading, refetch } = useApi<{ message: Message }>(`/api/messages/${messageId}`, {
-    transform: (data) => data as { message: Message },
+    transform: (data) => data as unknown as { message: Message },
   });
 
   const message = messageData?.message;

@@ -104,32 +104,32 @@ async function loadComposeConfig(): Promise<ComposeNextPromptConfig> {
     return DEFAULT_COMPOSE_CONFIG;
   }
 
-  const config = spec.config as any;
+  const specConfig = spec.config as any;
   cachedComposeConfig = {
     targetLevelThresholds: {
-      high: config.targetLevelThresholds?.high ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.high,
-      moderateHigh: config.targetLevelThresholds?.moderateHigh ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.moderateHigh,
-      balanced: config.targetLevelThresholds?.balanced ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.balanced,
-      moderateLow: config.targetLevelThresholds?.moderateLow ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.moderateLow,
+      high: specConfig.targetLevelThresholds?.high ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.high,
+      moderateHigh: specConfig.targetLevelThresholds?.moderateHigh ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.moderateHigh,
+      balanced: specConfig.targetLevelThresholds?.balanced ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.balanced,
+      moderateLow: specConfig.targetLevelThresholds?.moderateLow ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.moderateLow,
     },
     confidenceThresholds: {
-      stillLearning: config.confidenceThresholds?.stillLearning ?? DEFAULT_COMPOSE_CONFIG.confidenceThresholds.stillLearning,
-      wellEstablished: config.confidenceThresholds?.wellEstablished ?? DEFAULT_COMPOSE_CONFIG.confidenceThresholds.wellEstablished,
+      stillLearning: specConfig.confidenceThresholds?.stillLearning ?? DEFAULT_COMPOSE_CONFIG.confidenceThresholds.stillLearning,
+      wellEstablished: specConfig.confidenceThresholds?.wellEstablished ?? DEFAULT_COMPOSE_CONFIG.confidenceThresholds.wellEstablished,
     },
     parameterGroups: {
-      communicationStyle: config.parameterGroups?.communicationStyle ?? DEFAULT_COMPOSE_CONFIG.parameterGroups.communicationStyle,
-      engagementApproach: config.parameterGroups?.engagementApproach ?? DEFAULT_COMPOSE_CONFIG.parameterGroups.engagementApproach,
-      adaptability: config.parameterGroups?.adaptability ?? DEFAULT_COMPOSE_CONFIG.parameterGroups.adaptability,
+      communicationStyle: specConfig.parameterGroups?.communicationStyle ?? DEFAULT_COMPOSE_CONFIG.parameterGroups.communicationStyle,
+      engagementApproach: specConfig.parameterGroups?.engagementApproach ?? DEFAULT_COMPOSE_CONFIG.parameterGroups.engagementApproach,
+      adaptability: specConfig.parameterGroups?.adaptability ?? DEFAULT_COMPOSE_CONFIG.parameterGroups.adaptability,
     },
     personalityTraits: {
-      thresholdHigh: config.personalityTraits?.thresholdHigh ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.thresholdHigh,
-      thresholdLow: config.personalityTraits?.thresholdLow ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.thresholdLow,
-      traitIds: config.personalityTraits?.traitIds ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.traitIds,
-      traitNames: config.personalityTraits?.traitNames ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.traitNames,
+      thresholdHigh: specConfig.personalityTraits?.thresholdHigh ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.thresholdHigh,
+      thresholdLow: specConfig.personalityTraits?.thresholdLow ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.thresholdLow,
+      traitIds: specConfig.personalityTraits?.traitIds ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.traitIds,
+      traitNames: specConfig.personalityTraits?.traitNames ?? DEFAULT_COMPOSE_CONFIG.personalityTraits.traitNames,
     },
     timeWindows: {
-      maxAgeHours: config.timeWindows?.maxAgeHours ?? DEFAULT_COMPOSE_CONFIG.timeWindows.maxAgeHours,
-      recentActivityDays: config.timeWindows?.recentActivityDays ?? DEFAULT_COMPOSE_CONFIG.timeWindows.recentActivityDays,
+      maxAgeHours: specConfig.timeWindows?.maxAgeHours ?? DEFAULT_COMPOSE_CONFIG.timeWindows.maxAgeHours,
+      recentActivityDays: specConfig.timeWindows?.recentActivityDays ?? DEFAULT_COMPOSE_CONFIG.timeWindows.recentActivityDays,
     },
   };
 

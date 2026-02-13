@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
 
 const publicRoutes = ["/login", "/login/verify", "/login/error", "/invite"];
 // Routes that handle their own auth (webhooks, external APIs)
-const apiTokenRoutes = ["/api/auth", "/api/vapi", "/api/webhook", "/api/invite"];
+const apiTokenRoutes = ["/api/auth", "/api/vapi", "/api/webhook", "/api/invite", "/api/health", "/api/ready", "/api/system/readiness"];
 
 // Internal API secret for server-to-server calls (bypasses session check)
 const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret";

@@ -2019,8 +2019,8 @@ export default function SpecsPage() {
                         configText={configText}
                         onConfigChange={handleConfigChange}
                         disabled={spec.isLocked}
-                        specRole={spec.specRole}
-                        outputType={spec.outputType}
+                        specRole={spec.specRole ?? undefined}
+                        outputType={spec.outputType ?? undefined}
                       />
                     </div>
                   )}

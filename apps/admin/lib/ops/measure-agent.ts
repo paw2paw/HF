@@ -106,26 +106,26 @@ async function loadMeasureConfig(): Promise<{ config: MeasureAgentConfig; prompt
     return { config: DEFAULT_MEASURE_CONFIG, promptTemplate: null, llmConfig: {} };
   }
 
-  const config = spec.config as any;
+  const specConfig = spec.config as any;
   cachedMeasureConfig = {
     scoring: {
-      minScore: config.scoring?.minScore ?? DEFAULT_MEASURE_CONFIG.scoring.minScore,
-      maxScore: config.scoring?.maxScore ?? DEFAULT_MEASURE_CONFIG.scoring.maxScore,
-      defaultConfidence: config.scoring?.defaultConfidence ?? DEFAULT_MEASURE_CONFIG.scoring.defaultConfidence,
-      confidenceRange: config.scoring?.confidenceRange ?? DEFAULT_MEASURE_CONFIG.scoring.confidenceRange,
+      minScore: specConfig.scoring?.minScore ?? DEFAULT_MEASURE_CONFIG.scoring.minScore,
+      maxScore: specConfig.scoring?.maxScore ?? DEFAULT_MEASURE_CONFIG.scoring.maxScore,
+      defaultConfidence: specConfig.scoring?.defaultConfidence ?? DEFAULT_MEASURE_CONFIG.scoring.defaultConfidence,
+      confidenceRange: specConfig.scoring?.confidenceRange ?? DEFAULT_MEASURE_CONFIG.scoring.confidenceRange,
     },
-    evidenceMarkers: config.evidenceMarkers ?? DEFAULT_MEASURE_CONFIG.evidenceMarkers,
+    evidenceMarkers: specConfig.evidenceMarkers ?? DEFAULT_MEASURE_CONFIG.evidenceMarkers,
     mockScoring: {
-      baseScoreRange: config.mockScoring?.baseScoreRange ?? DEFAULT_MEASURE_CONFIG.mockScoring.baseScoreRange,
-      empathyDivisor: config.mockScoring?.empathyDivisor ?? DEFAULT_MEASURE_CONFIG.mockScoring.empathyDivisor,
-      responseLengthMax: config.mockScoring?.responseLengthMax ?? DEFAULT_MEASURE_CONFIG.mockScoring.responseLengthMax,
-      questionRateDivisor: config.mockScoring?.questionRateDivisor ?? DEFAULT_MEASURE_CONFIG.mockScoring.questionRateDivisor,
-      warmthDivisor: config.mockScoring?.warmthDivisor ?? DEFAULT_MEASURE_CONFIG.mockScoring.warmthDivisor,
-      confidenceRange: config.mockScoring?.confidenceRange ?? DEFAULT_MEASURE_CONFIG.mockScoring.confidenceRange,
+      baseScoreRange: specConfig.mockScoring?.baseScoreRange ?? DEFAULT_MEASURE_CONFIG.mockScoring.baseScoreRange,
+      empathyDivisor: specConfig.mockScoring?.empathyDivisor ?? DEFAULT_MEASURE_CONFIG.mockScoring.empathyDivisor,
+      responseLengthMax: specConfig.mockScoring?.responseLengthMax ?? DEFAULT_MEASURE_CONFIG.mockScoring.responseLengthMax,
+      questionRateDivisor: specConfig.mockScoring?.questionRateDivisor ?? DEFAULT_MEASURE_CONFIG.mockScoring.questionRateDivisor,
+      warmthDivisor: specConfig.mockScoring?.warmthDivisor ?? DEFAULT_MEASURE_CONFIG.mockScoring.warmthDivisor,
+      confidenceRange: specConfig.mockScoring?.confidenceRange ?? DEFAULT_MEASURE_CONFIG.mockScoring.confidenceRange,
     },
   };
   cachedPromptTemplate = spec.promptTemplate || null;
-  cachedLlmConfig = config.llmConfig || {};
+  cachedLlmConfig = specConfig.llmConfig || {};
 
   return { config: cachedMeasureConfig, promptTemplate: cachedPromptTemplate, llmConfig: cachedLlmConfig };
 }

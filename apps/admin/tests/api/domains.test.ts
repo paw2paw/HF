@@ -52,7 +52,7 @@ function createMockRequest(method: string): NextRequest {
   return new NextRequest(new URL('http://localhost:3000'), { method });
 }
 
-function makeParams(obj: Record<string, string>) {
+function makeParams<T extends Record<string, string>>(obj: T) {
   return { params: Promise.resolve(obj) };
 }
 

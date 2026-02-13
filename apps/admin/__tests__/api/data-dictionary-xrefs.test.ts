@@ -515,8 +515,9 @@ describe("/api/data-dictionary/xrefs", () => {
     });
   });
 
-  describe("Validation errors", () => {
-    it("should return 400 when type parameter is missing", async () => {
+  describe("Missing params fallback to dictionary listing", () => {
+    it("should return dictionary listing when type is missing", async () => {
+      mockPrisma.callerMemory.count.mockResolvedValue(0);
       const request = new NextRequest(
         "http://localhost:3000/api/data-dictionary/xrefs?pattern={{memories.facts}}"
       );
@@ -524,12 +525,13 @@ describe("/api/data-dictionary/xrefs", () => {
       const response = await GET(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.ok).toBe(false);
-      expect(data.error).toBe("type and pattern are required");
+      expect(response.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(data.xrefs).toBeDefined();
     });
 
-    it("should return 400 when pattern parameter is missing", async () => {
+    it("should return dictionary listing when pattern is missing", async () => {
+      mockPrisma.callerMemory.count.mockResolvedValue(0);
       const request = new NextRequest(
         "http://localhost:3000/api/data-dictionary/xrefs?type=variable"
       );
@@ -537,12 +539,13 @@ describe("/api/data-dictionary/xrefs", () => {
       const response = await GET(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.ok).toBe(false);
-      expect(data.error).toBe("type and pattern are required");
+      expect(response.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(data.xrefs).toBeDefined();
     });
 
-    it("should return 400 when both type and pattern are missing", async () => {
+    it("should return dictionary listing when both type and pattern are missing", async () => {
+      mockPrisma.callerMemory.count.mockResolvedValue(0);
       const request = new NextRequest(
         "http://localhost:3000/api/data-dictionary/xrefs"
       );
@@ -550,9 +553,9 @@ describe("/api/data-dictionary/xrefs", () => {
       const response = await GET(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.ok).toBe(false);
-      expect(data.error).toBe("type and pattern are required");
+      expect(response.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(data.xrefs).toBeDefined();
     });
   });
 

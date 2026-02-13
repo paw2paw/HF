@@ -201,8 +201,7 @@ function createEmptyMessages(): Record<ChatMode, ChatMessage[]> {
     CHAT: [],
     DATA: [],
     SPEC: [],
-    INBOX: [],    // Not used for AI chat, but needed for type consistency
-    TICKETS: [],  // Not used for AI chat, but needed for type consistency
+    // INBOX and TICKETS removed — ChatMode is "CHAT" | "DATA" | "SPEC"
   };
 }
 

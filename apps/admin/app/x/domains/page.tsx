@@ -2021,7 +2021,7 @@ export default function DomainsPage() {
                                           background: `linear-gradient(to top, var(--accent-primary) 0%, var(--accent-primary) ${target.value * 100}%, var(--surface-tertiary) ${target.value * 100}%, var(--surface-tertiary) 100%)`,
                                           outline: "none",
                                           cursor: "pointer",
-                                          writingMode: "bt-lr",
+                                          writingMode: "vertical-lr" as React.CSSProperties["writingMode"],
                                         }}
                                       />
                                     </div>
@@ -2070,7 +2070,7 @@ export default function DomainsPage() {
                                           background: `linear-gradient(to top, var(--accent-primary) 0%, var(--accent-primary) ${target.confidence * 100}%, var(--surface-tertiary) ${target.confidence * 100}%, var(--surface-tertiary) 100%)`,
                                           outline: "none",
                                           cursor: "pointer",
-                                          writingMode: "bt-lr",
+                                          writingMode: "vertical-lr" as React.CSSProperties["writingMode"],
                                         }}
                                       />
                                     </div>

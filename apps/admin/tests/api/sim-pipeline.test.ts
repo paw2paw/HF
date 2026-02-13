@@ -178,6 +178,13 @@ vi.mock("@/lib/system-settings", () => ({
     shortTranscriptThresholdWords: 50,
     shortTranscriptConfidenceCap: 0.3,
   }),
+  TRUST_DEFAULTS: { weightL5Regulatory: 1.0, weightL4Accredited: 0.95, weightL3Published: 0.80, weightL2Expert: 0.60, weightL1AiAssisted: 0.30, weightL0Unverified: 0.05, certificationMinWeight: 0.80, extractionMaxChunkChars: 8000 },
+  getTrustSettings: vi.fn().mockResolvedValue({ weightL5Regulatory: 1.0, weightL4Accredited: 0.95, weightL3Published: 0.80, weightL2Expert: 0.60, weightL1AiAssisted: 0.30, weightL0Unverified: 0.05, certificationMinWeight: 0.80, extractionMaxChunkChars: 8000 }),
+  PIPELINE_DEFAULTS: { minTranscriptWords: 20, shortTranscriptThresholdWords: 50, shortTranscriptConfidenceCap: 0.3, maxRetries: 2, mockMode: false, personalityDecayHalfLifeDays: 30, mockScoreBase: 0.3, mockScoreRange: 0.4 },
+  getPipelineSettings: vi.fn().mockResolvedValue({ minTranscriptWords: 20, shortTranscriptThresholdWords: 50, shortTranscriptConfidenceCap: 0.3, maxRetries: 2, mockMode: false, personalityDecayHalfLifeDays: 30, mockScoreBase: 0.3, mockScoreRange: 0.4 }),
+  clearSystemSettingsCache: vi.fn(),
+  getSystemSetting: vi.fn().mockResolvedValue(null),
+  SETTINGS_REGISTRY: [],
 }));
 
 const mockExecuteComposition = vi.fn().mockResolvedValue({
@@ -368,6 +375,22 @@ function setupSimMocks() {
   // AI config
   mockPrisma.aIConfig.findUnique.mockResolvedValue(null);
   mockPrisma.systemSetting.findUnique.mockResolvedValue(null);
+
+  // Re-configure AI completion mock (cleared by vi.clearAllMocks)
+  mockGetMeteredAICompletion.mockResolvedValue({
+    content: JSON.stringify({
+      scores: {
+        "B5-O": { s: 0.75, c: 0.8 },
+        "B5-C": { s: 0.65, c: 0.7 },
+      },
+      memories: [
+        { cat: "FACT", key: "location", val: "London", c: 0.9 },
+        { cat: "PREFERENCE", key: "learning_style", val: "visual", c: 0.85 },
+      ],
+    }),
+    model: "claude-sonnet-4-5-20250929",
+    usage: { input: 150, output: 80 },
+  });
 }
 
 // =====================================================

@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
       },
       secret,
+      salt: "authjs.session-token",
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
 

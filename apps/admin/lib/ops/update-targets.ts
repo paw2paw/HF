@@ -73,18 +73,18 @@ async function loadTargetLearnConfig(): Promise<TargetLearnConfig> {
     return DEFAULT_TARGET_LEARN_CONFIG;
   }
 
-  const config = spec.config as any;
+  const specConfig = spec.config as any;
   return {
-    tolerance: config.tolerance ?? DEFAULT_TARGET_LEARN_CONFIG.tolerance,
-    learningRate: config.learningRate ?? DEFAULT_TARGET_LEARN_CONFIG.learningRate,
-    minConfidence: config.minConfidence ?? DEFAULT_TARGET_LEARN_CONFIG.minConfidence,
-    maxConfidence: config.maxConfidence ?? DEFAULT_TARGET_LEARN_CONFIG.maxConfidence,
-    reinforceConfidenceBoost: config.reinforceConfidenceBoost ?? DEFAULT_TARGET_LEARN_CONFIG.reinforceConfidenceBoost,
-    goodMissedConfidenceBoost: config.goodMissedConfidenceBoost ?? DEFAULT_TARGET_LEARN_CONFIG.goodMissedConfidenceBoost,
-    badHitConfidencePenalty: config.badHitConfidencePenalty ?? DEFAULT_TARGET_LEARN_CONFIG.badHitConfidencePenalty,
-    badMissedConfidencePenalty: config.badMissedConfidencePenalty ?? DEFAULT_TARGET_LEARN_CONFIG.badMissedConfidencePenalty,
-    badHitTargetAdjust: config.badHitTargetAdjust ?? DEFAULT_TARGET_LEARN_CONFIG.badHitTargetAdjust,
-    badMissedTargetAdjust: config.badMissedTargetAdjust ?? DEFAULT_TARGET_LEARN_CONFIG.badMissedTargetAdjust,
+    tolerance: specConfig.tolerance ?? DEFAULT_TARGET_LEARN_CONFIG.tolerance,
+    learningRate: specConfig.learningRate ?? DEFAULT_TARGET_LEARN_CONFIG.learningRate,
+    minConfidence: specConfig.minConfidence ?? DEFAULT_TARGET_LEARN_CONFIG.minConfidence,
+    maxConfidence: specConfig.maxConfidence ?? DEFAULT_TARGET_LEARN_CONFIG.maxConfidence,
+    reinforceConfidenceBoost: specConfig.reinforceConfidenceBoost ?? DEFAULT_TARGET_LEARN_CONFIG.reinforceConfidenceBoost,
+    goodMissedConfidenceBoost: specConfig.goodMissedConfidenceBoost ?? DEFAULT_TARGET_LEARN_CONFIG.goodMissedConfidenceBoost,
+    badHitConfidencePenalty: specConfig.badHitConfidencePenalty ?? DEFAULT_TARGET_LEARN_CONFIG.badHitConfidencePenalty,
+    badMissedConfidencePenalty: specConfig.badMissedConfidencePenalty ?? DEFAULT_TARGET_LEARN_CONFIG.badMissedConfidencePenalty,
+    badHitTargetAdjust: specConfig.badHitTargetAdjust ?? DEFAULT_TARGET_LEARN_CONFIG.badHitTargetAdjust,
+    badMissedTargetAdjust: specConfig.badMissedTargetAdjust ?? DEFAULT_TARGET_LEARN_CONFIG.badMissedTargetAdjust,
   };
 }
 

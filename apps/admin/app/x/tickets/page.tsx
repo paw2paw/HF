@@ -28,12 +28,12 @@ export default function TicketsPage() {
     tickets: Ticket[];
     total: number;
   }>(`/api/tickets${queryParams.toString() ? `?${queryParams.toString()}` : ""}`, {
-    transform: (data) => data as { tickets: Ticket[]; total: number },
+    transform: (data) => data as unknown as { tickets: Ticket[]; total: number },
   });
 
   // Fetch stats
   const { data: statsData, refetch: refetchStats } = useApi<{ stats: TicketStats }>("/api/tickets/stats", {
-    transform: (data) => data as { stats: TicketStats },
+    transform: (data) => data as unknown as { stats: TicketStats },
   });
 
   const tickets = ticketsData?.tickets || [];
@@ -472,7 +472,7 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
 
   // Fetch users for assignee dropdown
   const { data: usersData, loading: usersLoading, error: usersError } = useApi<{ users: Array<{ id: string; name: string | null; email: string }> }>("/api/users-list", {
-    transform: (data) => data as { users: Array<{ id: string; name: string | null; email: string }> },
+    transform: (data) => data as unknown as { users: Array<{ id: string; name: string | null; email: string }> },
   });
 
   const users = usersData?.users || [];
@@ -741,7 +741,7 @@ function TicketDetailModal({
   const [error, setError] = useState("");
 
   const { data: ticketData, loading: ticketLoading, refetch } = useApi<{ ticket: Ticket }>(`/api/tickets/${ticketId}`, {
-    transform: (data) => data as { ticket: Ticket },
+    transform: (data) => data as unknown as { ticket: Ticket },
   });
 
   const ticket = ticketData?.ticket;
@@ -852,7 +852,7 @@ function TicketDetailModal({
 
   // Fetch users for assignee dropdown
   const { data: usersData } = useApi<{ users: Array<{ id: string; name: string | null; email: string }> }>("/api/users-list", {
-    transform: (data) => data as { users: Array<{ id: string; name: string | null; email: string }> },
+    transform: (data) => data as unknown as { users: Array<{ id: string; name: string | null; email: string }> },
   });
 
   const users = usersData?.users || [];

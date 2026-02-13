@@ -48,11 +48,11 @@ import { getTranscriptLimitsFallback } from "@/lib/fallback-settings";
  */
 async function getTranscriptLimit(callPoint: string): Promise<number> {
   try {
-    const config = await prisma.aIConfig.findUnique({
+    const aiCfg = await prisma.aIConfig.findUnique({
       where: { callPoint },
     });
     // Use type assertion since Prisma types may be stale after migration
-    const limit = (config as any)?.transcriptLimit;
+    const limit = (aiCfg as any)?.transcriptLimit;
     if (limit && typeof limit === "number") {
       return limit;
     }
@@ -101,8 +101,8 @@ async function getSystemSpecs(
     select: { config: true },
   });
 
-  const config = (playbook?.config as Record<string, any>) || {};
-  const toggles = config.systemSpecToggles || {};
+  const playbookConfig = (playbook?.config as Record<string, any>) || {};
+  const toggles = playbookConfig.systemSpecToggles || {};
 
   // If no toggles configured, return all system specs (default = enabled)
   if (Object.keys(toggles).length === 0) {
@@ -436,10 +436,10 @@ async function loadCurrentModuleContext(
     for (const item of playbook.items) {
       const spec = item.spec;
       if (!spec) continue;
-      const config = spec.config as Record<string, any> | null;
-      if (!config) continue;
+      const specConfig = spec.config as Record<string, any> | null;
+      if (!specConfig) continue;
 
-      const modules = config.modules || config.curriculum?.modules || [];
+      const modules = specConfig.modules || specConfig.curriculum?.modules || [];
       if (modules.length === 0) continue;
 
       const progress = await getCurriculumProgress(callerId, spec.slug);
@@ -452,7 +452,7 @@ async function loadCurrentModuleContext(
           moduleId: currentModule.id || currentModule.slug,
           moduleName: currentModule.name || currentModule.title || currentModule.id,
           learningOutcomes: currentModule.learningOutcomes || [],
-          masteryThreshold: config.metadata?.curriculum?.masteryThreshold ?? 0.7,
+          masteryThreshold: specConfig.metadata?.curriculum?.masteryThreshold ?? 0.7,
           allModuleIds: modules.map((m: any) => m.id || m.slug),
         };
       }
@@ -1127,17 +1127,17 @@ async function aggregatePersonality(
   });
 
   // Extract config with defaults
-  const config = (aggregateSpec?.config as any) || {};
-  const traitMapping: Record<string, string> = config.traitMapping || {
+  const specConfig = (aggregateSpec?.config as any) || {};
+  const traitMapping: Record<string, string> = specConfig.traitMapping || {
     [TRAITS.B5_O]: "openness",
     [TRAITS.B5_C]: "conscientiousness",
     [TRAITS.B5_E]: "extraversion",
     [TRAITS.B5_A]: "agreeableness",
     [TRAITS.B5_N]: "neuroticism",
   };
-  const halfLifeDays: number = config.halfLifeDays || 30;
-  const defaultConfidence: number = config.defaultConfidence || 0.7;
-  const defaultDecayFactor: number = config.defaultDecayFactor || 1.0;
+  const halfLifeDays: number = specConfig.halfLifeDays || 30;
+  const defaultConfidence: number = specConfig.defaultConfidence || 0.7;
+  const defaultDecayFactor: number = specConfig.defaultDecayFactor || 1.0;
 
   log.debug("AGGREGATE spec config", {
     specSlug: aggregateSpec?.slug || "(defaults)",
@@ -1426,8 +1426,8 @@ async function loadGuardrails(log: ReturnType<typeof createLogger>): Promise<Gua
     return DEFAULT_GUARDRAILS;
   }
 
-  const config = (superviseSpec.config as any) || {};
-  const parameters: Array<{ id: string; config?: any }> = config.parameters || [];
+  const specConfig = (superviseSpec.config as any) || {};
+  const parameters: Array<{ id: string; config?: any }> = specConfig.parameters || [];
 
   // Helper to get parameter config by ID
   const getParamConfig = (paramId: string): any => {
@@ -1899,11 +1899,11 @@ async function trackCurriculumAfterCall(
       const spec = item.spec;
       if (!spec) continue;
 
-      const config = spec.config as Record<string, any> | null;
-      if (!config) continue;
+      const specConfig = spec.config as Record<string, any> | null;
+      if (!specConfig) continue;
 
-      const modules = config.modules || config.curriculum?.modules || [];
-      if (modules.length === 0 && !config.metadata?.curriculum) continue;
+      const modules = specConfig.modules || specConfig.curriculum?.modules || [];
+      if (modules.length === 0 && !specConfig.metadata?.curriculum) continue;
 
       try {
         const progress = await getCurriculumProgress(callerId, spec.slug);

@@ -1,3 +1,4 @@
+// @ts-expect-error — no @types/nodemailer installed
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({

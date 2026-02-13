@@ -56,6 +56,7 @@ export interface ExtractionOptions {
  */
 export async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pages: number }> {
   // Dynamic import to avoid bundling issues
+  // @ts-expect-error — no @types/pdf-parse installed
   const pdfParse = (await import("pdf-parse")).default;
   const data = await pdfParse(buffer);
   return { text: data.text, pages: data.numpages };

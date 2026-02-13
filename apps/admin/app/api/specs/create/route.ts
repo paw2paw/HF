@@ -247,8 +247,8 @@ export async function POST(request: NextRequest) {
 
     // Get the created AnalysisSpec ID if activation succeeded
     let analysisSpecId = null;
-    if (activationResult?.specs?.measure?.id) {
-      analysisSpecId = activationResult.specs.measure.id;
+    if (activationResult?.spec?.id) {
+      analysisSpecId = activationResult.spec.id;
     } else {
       // Try to find the AnalysisSpec by looking up by sourceFeatureSetId
       const analysisSpec = await prisma.analysisSpec.findFirst({

@@ -159,7 +159,7 @@ await prisma.$transaction(async (tx) => {
 - **E2E**: Playwright. Global setup logs in as admin, saves session. 3 projects: Authenticated, Unauthenticated, Mobile.
 - **Auth scanner**: `tests/lib/route-auth-coverage.test.ts` — CI fails if any route lacks auth.
 - **Route coverage**: Every `app/api/**/route.ts` must have a corresponding test file.
-- **Honest tests**: Mock only at system boundaries. Never mock the unit under test, never stub internal library functions to force a code path, never fabricate request/response shapes that diverge from real API contracts.
+- **Honest tests**: Mock only at system boundaries. Allowed mocks: Prisma (DB), `fetch` (external APIs), `next/navigation`. Never mock the unit under test, never stub internal library functions to force a code path, never fabricate request/response shapes that diverge from real API contracts.
 - **No dead tests**: No `test.skip` or `test.todo` in committed code. If a test can't pass, fix it or delete it.
 
 ## Prompt Composition

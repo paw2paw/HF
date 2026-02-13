@@ -121,13 +121,14 @@ Generate a structured curriculum from these assertions.`;
   try {
     const response = await getConfiguredMeteredAICompletion({
       callPoint: "content-trust.curriculum",
-      systemPrompt: CURRICULUM_SYSTEM_PROMPT,
-      userPrompt,
-      responseFormat: "json",
+      messages: [
+        { role: "system", content: CURRICULUM_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
       temperature: 0.3,
     });
 
-    const content = response.content || response.text || "";
+    const content = response.content || "";
 
     // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);

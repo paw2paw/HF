@@ -197,8 +197,11 @@ export interface CallerData {
   externalId: string | null;
   domain: {
     id: string;
+    slug: string;
     name: string;
     description: string | null;
+    onboardingFlowPhases?: unknown;
+    onboardingDefaultTargets?: unknown;
   } | null;
   domainId?: string | null;
 }
