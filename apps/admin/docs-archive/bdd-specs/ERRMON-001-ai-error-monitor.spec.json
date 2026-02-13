@@ -1,0 +1,89 @@
+{
+  "id": "ERRMON-001",
+  "title": "AI Error Monitor",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-11",
+  "domain": "system",
+  "specType": "SYSTEM",
+  "specRole": "OBSERVE",
+  "isDeletable": false,
+  "agentScope": "SYSTEM",
+  "story": {
+    "asA": "system administrator monitoring pipeline health",
+    "iWant": "to see pipeline LLM failures in real-time with failure rates per call point",
+    "soThat": "I can detect degradation early and take corrective action before it affects callers"
+  },
+  "context": {
+    "applies": "Whenever a pipeline LLM call fails and falls back to mock scoring",
+    "dependsOn": [],
+    "assumptions": [
+      "Pipeline ops log failures via logAIInteraction(outcome: 'failure')",
+      "AIInteractionLog table has indexes on outcome and createdAt",
+      "Dashboard auto-refreshes every 30 seconds",
+      "Alert threshold is configurable (default: 20% failure rate with 5+ interactions)"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-ERRMON-1",
+      "title": "Pipeline Failure Logging",
+      "given": "A pipeline LLM call fails in personality-analyze, measure-agent, or memory-extract",
+      "when": "The op catches the error and falls back to mock scoring",
+      "then": "An AIInteractionLog record is created with outcome='failure', callPoint, error message, and metadata"
+    },
+    {
+      "id": "AC-ERRMON-2",
+      "title": "Failure Stats Computation",
+      "given": "AIInteractionLog contains failure records within a time window",
+      "when": "getFailureStats() is called with a time range",
+      "then": "Returns totalFailures, totalInteractions, failureRate, per-callPoint breakdown, and alertThresholdExceeded flag"
+    },
+    {
+      "id": "AC-ERRMON-3",
+      "title": "Alert Threshold Detection",
+      "given": "A pipeline call point has more than 20% failure rate AND at least 5 total interactions",
+      "when": "Failure stats are computed",
+      "then": "alertThresholdExceeded is set to true and the dashboard displays a red alert banner"
+    },
+    {
+      "id": "AC-ERRMON-4",
+      "title": "Error Dashboard Display",
+      "given": "Admin navigates to /x/ai-errors",
+      "when": "The page loads",
+      "then": "Stats cards show total failures, failure rate, and total interactions; failure rate table shows per-callPoint breakdown; recent failures list shows individual errors with expand-to-detail"
+    },
+    {
+      "id": "AC-ERRMON-5",
+      "title": "Auto-Refresh",
+      "given": "The error dashboard is open",
+      "when": "30 seconds elapse",
+      "then": "The dashboard automatically refreshes failure data without user interaction"
+    },
+    {
+      "id": "AC-ERRMON-6",
+      "title": "Time Range Filtering",
+      "given": "Admin is on the error dashboard",
+      "when": "They select a time range (1h, 6h, 24h, 7d)",
+      "then": "All stats and failure lists update to show only data within that time window"
+    },
+    {
+      "id": "AC-ERRMON-7",
+      "title": "Call Point Filtering",
+      "given": "Admin is on the error dashboard",
+      "when": "They select a specific call point from the dropdown",
+      "then": "Recent failures list shows only failures from that call point"
+    }
+  ],
+  "config": {
+    "alertThresholdRate": 0.2,
+    "alertMinInteractions": 5,
+    "autoRefreshIntervalMs": 30000,
+    "defaultTimeRangeHours": 24,
+    "callPoints": [
+      "pipeline.personality_score",
+      "pipeline.measure_agent",
+      "pipeline.memory_extract"
+    ]
+  }
+}

@@ -1,25 +1,26 @@
 import { NextResponse } from "next/server";
 import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/callers/[callerId]/aggregate
- *
- * Run AGGREGATE specs to compute derived attributes from measurements
- *
- * Flow:
- * 1. Finds all active AGGREGATE specs
- * 2. Reads aggregationRules from spec config
- * 3. Queries recent CallScores for source parameters
- * 4. Applies aggregation logic (thresholds, averages)
- * 5. Updates CallerAttribute (e.g., learner profile)
- *
- * Example: After measuring learning behaviors, run aggregate to update learner profile
+ * @api POST /api/callers/:callerId/aggregate
+ * @visibility public
+ * @scope pipeline:execute
+ * @auth session
+ * @tags callers, pipeline, aggregate
+ * @description Run all active AGGREGATE specs to compute derived attributes from measurements for a caller. Finds active AGGREGATE specs, reads aggregationRules from spec config, queries recent CallScores for source parameters, applies aggregation logic (thresholds, averages), and updates CallerAttribute (e.g., learner profile).
+ * @pathParam callerId string - The caller ID to run aggregation for
+ * @response 200 { ok: true, callerId: string, specsRun: number, profileUpdates: object[], errors: string[], timestamp: string }
+ * @response 500 { ok: false, error: "Failed to run aggregate specs" }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
 
     console.log(`[aggregate-api] Running AGGREGATE specs for caller ${callerId}`);
@@ -48,15 +49,24 @@ export async function POST(
 }
 
 /**
- * GET /api/callers/[callerId]/aggregate
- *
- * Get status of last aggregation run
+ * @api GET /api/callers/:callerId/aggregate
+ * @visibility public
+ * @scope callers:read
+ * @auth session
+ * @tags callers, pipeline, aggregate
+ * @description Get available AGGREGATE specs for a caller. Returns all active specs with outputType AGGREGATE that can be run.
+ * @pathParam callerId string - The caller ID to query aggregate specs for
+ * @response 200 { ok: true, callerId: string, availableSpecs: { slug: string, name: string, description: string }[] }
+ * @response 500 { ok: false, error: "Failed to get aggregate specs" }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
 
     // TODO: Track aggregation runs in a table if needed

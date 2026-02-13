@@ -1,7 +1,12 @@
-# 🚨 DATA-DRIVEN ARCHITECTURE - NO HARDCODING 🚨
+# DATA-DRIVEN ARCHITECTURE - NO HARDCODING
+
+<!-- @doc-source model:Parameter,CallerPersonalityProfile,AnalysisSpec -->
+<!-- @doc-source file:apps/admin/lib/prompt/composition/SectionDataLoader.ts -->
+<!-- @doc-source file:apps/admin/lib/prompt/PromptTemplateCompiler.ts -->
+<!-- @doc-source route:/api/parameters/display-config -->
 
 **Date:** February 9, 2026
-**Status:** ✅ ENFORCED
+**Status:** ENFORCED
 
 ## Core Principle
 
@@ -81,6 +86,61 @@ export function processPersonality(data: Record<string, number>) {
 
   return traits;
 }
+```
+
+---
+
+## Transform Layer (Composition Pipeline)
+
+The composition pipeline is also fully data-driven. Transforms are registered by name and resolved at runtime from COMP-001 spec sections.
+
+### ✅ Correct: Transform Chains from Spec
+```json
+// In COMP-001 spec — section defines transform as array
+{
+  "id": "memories",
+  "transform": ["deduplicateMemories", "scoreMemoryRelevance", "groupMemoriesByCategory"],
+  "config": { "memoriesPerCategory": 5 }
+}
+```
+
+The executor chains them sequentially — output of each feeds the next. Adding a new transform = add it to the spec array (zero code changes if already registered).
+
+### ✅ Correct: Spec-Driven Config
+```typescript
+// ✅ CORRECT - Config comes from spec, not code
+const alpha: number = memConfig.relevanceAlpha ?? context.specConfig.relevanceAlpha ?? 1.0;
+const categoryWeights: Record<string, number> = memConfig.categoryRelevanceWeights ?? {};
+const memoriesPerCategory = sectionDef.config?.memoriesPerCategory || 5;
+```
+
+### ✅ Correct: Dynamic Memory Categories
+```typescript
+// ✅ CORRECT - Render all categories from data
+const categories = Object.keys(mem.byCategory);
+for (const cat of categories) {
+  // render...
+}
+```
+
+### ✅ Correct: Narrative Templates from Spec
+```typescript
+// ✅ CORRECT - Templates from COMP-001 spec config
+const templates = specConfig.narrativeTemplates || {};
+const genericTemplate = specConfig.genericNarrativeTemplate || "Their {key} is {value}";
+```
+
+### ❌ FORBIDDEN: Hardcoded Memory Categories
+```typescript
+// ❌ WRONG - Hardcoded category list
+const categories = ["FACT", "PREFERENCE", "TOPIC", "RELATIONSHIP"];
+```
+
+### ❌ FORBIDDEN: Hardcoded Relevance Weights
+```typescript
+// ❌ WRONG - Weights belong in spec config
+const alpha = 0.6; // should come from spec
+const categoryBoost = { "CONTEXT": 0.15 }; // should come from spec
 ```
 
 ---
@@ -170,7 +230,7 @@ return {
 5. Deploy code changes
 
 ### After (✅ New Way - Zero Code Changes)
-1. Create BDD spec file: `bdd-specs/NEW-PARAM-001.spec.json`
+1. Create BDD spec file: `docs-archive/bdd-specs/NEW-PARAM-001.spec.json`
 2. Upload via `/x/import` UI
 3. Activate spec
 4. **Done!** Parameter appears everywhere automatically:

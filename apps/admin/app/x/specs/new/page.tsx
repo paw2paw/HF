@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronLeft, Upload, RefreshCw, X, ArrowRight, Plus } from "lucide-react";
 import { FancySelect, FancySelectOption } from "@/components/shared/FancySelect";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
 import { FlashSidebar } from "@/components/shared/FlashSidebar";
@@ -21,6 +22,16 @@ interface JsonParameter {
   targetRange?: { min: number; max: number };
   scoringAnchors?: { score: number; example: string; rationale?: string; isGold?: boolean }[];
   promptGuidance?: { whenHigh?: string; whenLow?: string };
+  learningOutcomes?: string[];
+}
+
+interface CurriculumMetadata {
+  type: string;
+  trackingMode: string;
+  moduleSelector: string;
+  moduleOrder: string;
+  progressKey: string;
+  masteryThreshold: number;
 }
 
 interface JsonAcceptanceCriterion {
@@ -59,6 +70,9 @@ interface SpecFormData {
     applies?: string;
     dependsOn?: string[];
     assumptions?: string[];
+  };
+  metadata?: {
+    curriculum?: CurriculumMetadata;
   };
 }
 
@@ -295,7 +309,7 @@ export default function CreateSpecPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
-  // Start task tracking on mount
+  // Start task tracking on mount (non-blocking - spec creation works without it)
   useEffect(() => {
     async function startTask() {
       try {
@@ -304,16 +318,16 @@ export default function CreateSpecPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             taskType: "create_spec",
-            userId: "default",
             context: { page: "spec_creation" },
           }),
         });
+        if (!res.ok) return; // Task tracking unavailable, continue without it
         const data = await res.json();
         if (data.ok && data.taskId) {
           setTaskId(data.taskId);
         }
-      } catch (error) {
-        console.error("Failed to start task tracking:", error);
+      } catch {
+        // Task tracking is optional - spec creation works without it
       }
     }
     startTask();
@@ -422,6 +436,25 @@ export default function CreateSpecPage() {
     }
     if (!formData.story.soThat.trim()) {
       errors["story.soThat"] = "So that... is required";
+    }
+
+    // CONTENT spec curriculum validation
+    if (formData.specRole === "CONTENT") {
+      const meta = formData.metadata?.curriculum;
+      if (!meta) {
+        errors.curriculum = "Curriculum configuration is required for CONTENT specs";
+      } else {
+        if (!meta.type) errors["curriculum.type"] = "Curriculum type is required";
+        if (meta.masteryThreshold < 0 || meta.masteryThreshold > 1) {
+          errors["curriculum.threshold"] = "Mastery threshold must be 0–1";
+        }
+      }
+      // Check at least one module parameter exists
+      const selectorValue = meta?.moduleSelector?.split("=")?.[1] || "content";
+      const moduleParams = formData.parameters.filter(p => p.section === selectorValue);
+      if (formData.parameters.length > 0 && moduleParams.length === 0) {
+        errors.modules = `No parameters have section="${selectorValue}" — they won't be recognized as modules`;
+      }
     }
 
     setValidationErrors(errors);
@@ -559,13 +592,16 @@ export default function CreateSpecPage() {
 
   // Parameter management
   const addParameter = useCallback(() => {
+    const isContent = formData.specRole === "CONTENT";
     const newParam: JsonParameter = {
-      id: `PARAM-${formData.parameters.length + 1}`,
+      id: isContent ? `MOD-${formData.parameters.length + 1}` : `PARAM-${formData.parameters.length + 1}`,
       name: "",
       description: "",
-      isAdjustable: true,
-      targetRange: { min: 0, max: 1 },
+      section: isContent ? "content" : undefined,
+      isAdjustable: !isContent,
+      targetRange: isContent ? undefined : { min: 0, max: 1 },
       scoringAnchors: [],
+      learningOutcomes: isContent ? [] : undefined,
     };
     setFormData((prev) => ({
       ...prev,
@@ -785,9 +821,7 @@ export default function CreateSpecPage() {
                 transition: "all 0.15s ease",
               }}
             >
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft size={20} />
             </Link>
             <div>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
@@ -826,9 +860,7 @@ export default function CreateSpecPage() {
                 transition: "all 0.15s ease",
               }}
             >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
+              <Upload size={16} />
               Import
             </Link>
             <Link
@@ -847,9 +879,7 @@ export default function CreateSpecPage() {
                 textDecoration: "none",
               }}
             >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <RefreshCw size={16} />
               Sync
             </Link>
           </div>
@@ -884,9 +914,7 @@ export default function CreateSpecPage() {
               padding: 4,
             }}
           >
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={20} />
           </button>
         </div>
       )}
@@ -943,25 +971,27 @@ export default function CreateSpecPage() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => setShowFlashSidebar(!showFlashSidebar)}
-              style={{
-                padding: "8px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: showFlashSidebar ? "var(--accent-primary)" : "var(--surface-secondary)",
-                color: showFlashSidebar ? "#fff" : "var(--text-primary)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 0.2s ease",
-              }}
-            >
-              ✨ {showFlashSidebar ? "Hide" : "Show"} Guidance
-            </button>
+            {taskId && (
+              <button
+                onClick={() => setShowFlashSidebar(!showFlashSidebar)}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  background: showFlashSidebar ? "var(--accent-primary)" : "var(--surface-secondary)",
+                  color: showFlashSidebar ? "#fff" : "var(--text-primary)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.2s ease",
+                }}
+              >
+                ✨ {showFlashSidebar ? "Hide" : "Show"} Guidance
+              </button>
+            )}
             <AIConfigButton callPoint="spec.assistant" label="Config" inline />
           </div>
         </div>
@@ -1043,9 +1073,7 @@ export default function CreateSpecPage() {
                 </>
               ) : (
                 <>
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
+                  <ArrowRight size={18} strokeWidth={2.5} />
                   Send
                 </>
               )}
@@ -1298,7 +1326,24 @@ export default function CreateSpecPage() {
                   <InputField label="Spec Role">
                     <FancySelect
                       value={formData.specRole}
-                      onChange={(v) => updateForm({ specRole: v as SpecFormData["specRole"] })}
+                      onChange={(v) => {
+                        const role = v as SpecFormData["specRole"];
+                        const updates: Partial<SpecFormData> = { specRole: role };
+                        if (role === "CONTENT" && !formData.metadata?.curriculum) {
+                          updates.metadata = {
+                            curriculum: {
+                              type: "sequential",
+                              trackingMode: "module-based",
+                              moduleSelector: "section=content",
+                              moduleOrder: "sortBySequence",
+                              progressKey: "current_module",
+                              masteryThreshold: 0.7,
+                            },
+                          };
+                          updates.outputType = "COMPOSE";
+                        }
+                        updateForm(updates);
+                      }}
                       options={SPEC_ROLE_OPTIONS}
                       searchable={false}
                     />
@@ -1380,17 +1425,129 @@ export default function CreateSpecPage() {
                 </div>
               </section>
 
-              {/* Step 4: Parameters */}
-              <section style={{ marginBottom: 32 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Step 3.5: Curriculum Configuration (CONTENT specs only) */}
+              {formData.specRole === "CONTENT" && formData.metadata?.curriculum && (
+                <section style={{ marginBottom: 32 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
                     <StepBadge number={4} />
                     <div>
                       <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                        Parameters
+                        Curriculum Configuration
                       </h2>
                       <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
-                        What does this spec measure or track?
+                        How the pipeline tracks learner progress through modules
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: "var(--surface-secondary)",
+                    borderRadius: 16,
+                    padding: 20,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 16,
+                  }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <InputField label="Curriculum Type" required>
+                        <FancySelect
+                          value={formData.metadata.curriculum.type}
+                          onChange={(v) => updateForm({
+                            metadata: { curriculum: { ...formData.metadata!.curriculum!, type: v } },
+                          })}
+                          options={[
+                            { value: "sequential", label: "Sequential", subtitle: "Modules completed in order" },
+                            { value: "branching", label: "Branching", subtitle: "Prerequisites determine path" },
+                            { value: "open-ended", label: "Open-ended", subtitle: "Learner chooses order" },
+                          ]}
+                          searchable={false}
+                        />
+                      </InputField>
+
+                      <InputField label="Tracking Mode">
+                        <FancySelect
+                          value={formData.metadata.curriculum.trackingMode}
+                          onChange={(v) => updateForm({
+                            metadata: { curriculum: { ...formData.metadata!.curriculum!, trackingMode: v } },
+                          })}
+                          options={[
+                            { value: "module-based", label: "Module-based", subtitle: "Track per-module mastery" },
+                            { value: "competency-based", label: "Competency-based", subtitle: "Track competency scores" },
+                          ]}
+                          searchable={false}
+                        />
+                      </InputField>
+
+                      <InputField label="Module Order">
+                        <FancySelect
+                          value={formData.metadata.curriculum.moduleOrder}
+                          onChange={(v) => updateForm({
+                            metadata: { curriculum: { ...formData.metadata!.curriculum!, moduleOrder: v } },
+                          })}
+                          options={[
+                            { value: "sortBySequence", label: "By Sequence", subtitle: "Parameter sequence field" },
+                            { value: "sortBySectionThenId", label: "By Section + ID", subtitle: "Alphabetical by ID" },
+                            { value: "explicit", label: "Explicit", subtitle: "As listed in spec" },
+                          ]}
+                          searchable={false}
+                        />
+                      </InputField>
+
+                      <InputField label="Mastery Threshold">
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={formData.metadata.curriculum.masteryThreshold}
+                            onChange={(e) => updateForm({
+                              metadata: { curriculum: { ...formData.metadata!.curriculum!, masteryThreshold: parseFloat(e.target.value) } },
+                            })}
+                            style={{ flex: 1 }}
+                          />
+                          <span style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "var(--text-primary)",
+                            minWidth: 44,
+                            textAlign: "right",
+                          }}>
+                            {Math.round(formData.metadata.curriculum.masteryThreshold * 100)}%
+                          </span>
+                        </div>
+                      </InputField>
+                    </div>
+
+                    <div style={{
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      background: "#eef2ff",
+                      border: "1px solid #c7d2fe",
+                      fontSize: 12,
+                      color: "#4338ca",
+                      lineHeight: 1.5,
+                    }}>
+                      Module selector: <strong>{formData.metadata.curriculum.moduleSelector}</strong> — parameters with <code>section=&quot;content&quot;</code> are treated as curriculum modules.
+                      A caller advances to the next module when mastery reaches {Math.round(formData.metadata.curriculum.masteryThreshold * 100)}%.
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Step 4: Parameters (renumbered to 5 when CONTENT) */}
+              <section style={{ marginBottom: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <StepBadge number={formData.specRole === "CONTENT" ? 5 : 4} />
+                    <div>
+                      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                        {formData.specRole === "CONTENT" ? "Modules" : "Parameters"}
+                      </h2>
+                      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                        {formData.specRole === "CONTENT"
+                          ? "What modules does this curriculum contain?"
+                          : "What does this spec measure or track?"}
                       </p>
                     </div>
                   </div>
@@ -1411,10 +1568,8 @@ export default function CreateSpecPage() {
                       boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)",
                     }}
                   >
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add Parameter
+                    <Plus size={16} />
+                    {formData.specRole === "CONTENT" ? "Add Module" : "Add Parameter"}
                   </button>
                 </div>
 
@@ -1506,7 +1661,7 @@ export default function CreateSpecPage() {
                               type="text"
                               value={param.id}
                               onChange={(e) => updateParameter(index, { id: e.target.value.toUpperCase() })}
-                              placeholder="e.g., OPENNESS"
+                              placeholder={formData.specRole === "CONTENT" ? "e.g., MOD-1" : "e.g., OPENNESS"}
                               style={{ ...inputStyle, fontSize: 13 }}
                             />
                           </InputField>
@@ -1515,7 +1670,7 @@ export default function CreateSpecPage() {
                               type="text"
                               value={param.name}
                               onChange={(e) => updateParameter(index, { name: e.target.value })}
-                              placeholder="e.g., Openness to Experience"
+                              placeholder={formData.specRole === "CONTENT" ? "e.g., Food Hygiene Legislation" : "e.g., Openness to Experience"}
                               style={{ ...inputStyle, fontSize: 13 }}
                             />
                           </InputField>
@@ -1524,42 +1679,112 @@ export default function CreateSpecPage() {
                               <textarea
                                 value={param.description}
                                 onChange={(e) => updateParameter(index, { description: e.target.value })}
-                                placeholder="What does this parameter measure?"
+                                placeholder={formData.specRole === "CONTENT" ? "What does this module cover?" : "What does this parameter measure?"}
                                 rows={2}
                                 style={{ ...inputStyle, fontSize: 13, resize: "vertical" }}
                               />
                             </InputField>
                           </div>
-                          <InputField label="Target Min">
-                            <input
-                              type="number"
-                              value={param.targetRange?.min ?? 0}
-                              onChange={(e) =>
-                                updateParameter(index, {
-                                  targetRange: { ...param.targetRange!, min: parseFloat(e.target.value) || 0 },
-                                })
-                              }
-                              step="0.1"
-                              min="0"
-                              max="1"
-                              style={{ ...inputStyle, fontSize: 13 }}
-                            />
-                          </InputField>
-                          <InputField label="Target Max">
-                            <input
-                              type="number"
-                              value={param.targetRange?.max ?? 1}
-                              onChange={(e) =>
-                                updateParameter(index, {
-                                  targetRange: { ...param.targetRange!, max: parseFloat(e.target.value) || 1 },
-                                })
-                              }
-                              step="0.1"
-                              min="0"
-                              max="1"
-                              style={{ ...inputStyle, fontSize: 13 }}
-                            />
-                          </InputField>
+
+                          {/* Target Range (non-CONTENT specs) */}
+                          {formData.specRole !== "CONTENT" && (
+                            <>
+                              <InputField label="Target Min">
+                                <input
+                                  type="number"
+                                  value={param.targetRange?.min ?? 0}
+                                  onChange={(e) =>
+                                    updateParameter(index, {
+                                      targetRange: { ...param.targetRange!, min: parseFloat(e.target.value) || 0 },
+                                    })
+                                  }
+                                  step="0.1"
+                                  min="0"
+                                  max="1"
+                                  style={{ ...inputStyle, fontSize: 13 }}
+                                />
+                              </InputField>
+                              <InputField label="Target Max">
+                                <input
+                                  type="number"
+                                  value={param.targetRange?.max ?? 1}
+                                  onChange={(e) =>
+                                    updateParameter(index, {
+                                      targetRange: { ...param.targetRange!, max: parseFloat(e.target.value) || 1 },
+                                    })
+                                  }
+                                  step="0.1"
+                                  min="0"
+                                  max="1"
+                                  style={{ ...inputStyle, fontSize: 13 }}
+                                />
+                              </InputField>
+                            </>
+                          )}
+
+                          {/* Learning Outcomes (CONTENT specs only) */}
+                          {formData.specRole === "CONTENT" && (
+                            <div style={{ gridColumn: "span 2" }}>
+                              <InputField label="Learning Outcomes">
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                  {(param.learningOutcomes || []).map((lo, loIdx) => (
+                                    <div key={loIdx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 28 }}>
+                                        LO{loIdx + 1}
+                                      </span>
+                                      <input
+                                        type="text"
+                                        value={lo}
+                                        onChange={(e) => {
+                                          const updated = [...(param.learningOutcomes || [])];
+                                          updated[loIdx] = e.target.value;
+                                          updateParameter(index, { learningOutcomes: updated });
+                                        }}
+                                        placeholder="e.g., Understand the role of local authorities in food safety enforcement"
+                                        style={{ ...inputStyle, fontSize: 12, padding: "6px 10px" }}
+                                      />
+                                      <button
+                                        onClick={() => {
+                                          const updated = (param.learningOutcomes || []).filter((_, i) => i !== loIdx);
+                                          updateParameter(index, { learningOutcomes: updated });
+                                        }}
+                                        style={{
+                                          background: "none",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          color: "var(--error-text)",
+                                          fontSize: 16,
+                                          padding: "2px 6px",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    onClick={() => {
+                                      const updated = [...(param.learningOutcomes || []), ""];
+                                      updateParameter(index, { learningOutcomes: updated });
+                                    }}
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      color: "var(--accent-primary)",
+                                      background: "none",
+                                      border: "1px dashed var(--border-default)",
+                                      borderRadius: 8,
+                                      padding: "6px 12px",
+                                      cursor: "pointer",
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    + Add Learning Outcome
+                                  </button>
+                                </div>
+                              </InputField>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1567,10 +1792,10 @@ export default function CreateSpecPage() {
                 )}
               </section>
 
-              {/* Step 5: Review */}
+              {/* Step 5/6: Review */}
               <section>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-                  <StepBadge number={5} />
+                  <StepBadge number={formData.specRole === "CONTENT" ? 6 : 5} />
                   <div>
                     <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
                       Review JSON

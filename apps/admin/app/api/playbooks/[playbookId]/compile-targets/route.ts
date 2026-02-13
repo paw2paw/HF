@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/playbooks/[playbookId]/compile-targets
- *
- * "Compiles" the playbook's targets by:
- * 1. Scanning all enabled specs in the playbook
- * 2. Finding all adjustable BEHAVIOR parameters from those specs
- * 3. Creating PLAYBOOK-scope BehaviorTarget rows for any that don't exist
- *    (initialized to the SYSTEM default value)
- *
- * This prepares the Targets tab for editing.
+ * @api POST /api/playbooks/:playbookId/compile-targets
+ * @visibility internal
+ * @scope playbooks:write
+ * @auth session
+ * @tags playbooks
+ * @description Compiles the playbook's behavior targets by scanning all enabled specs,
+ *   finding adjustable BEHAVIOR parameters, and creating PLAYBOOK-scope BehaviorTarget
+ *   rows initialized to SYSTEM defaults. Prepares the Targets tab for editing.
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, message: "...", compiled: number, skipped: number, total: number, parameters: [...] }
+ * @response 400 { ok: false, error: "Cannot compile targets for a published playbook" }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     // Get playbook with its specs

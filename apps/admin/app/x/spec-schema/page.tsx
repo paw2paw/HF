@@ -54,7 +54,7 @@ export default function SpecSchemaPage() {
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Link
-            href="/x/studio"
+            href="/x/playground"
             style={{
               padding: "8px 16px",
               background: "var(--button-primary-bg)",
@@ -126,7 +126,7 @@ export default function SpecSchemaPage() {
         >
           This schema defines the structure of BDD spec files. Download it, create a <code>.spec.json</code> file
           conforming to this schema, then upload it via{" "}
-          <Link href="/x/studio" style={{ fontWeight: 600, textDecoration: "underline" }}>
+          <Link href="/x/playground" style={{ fontWeight: 600, textDecoration: "underline" }}>
             Studio
           </Link>{" "}
           to activate it in the system.

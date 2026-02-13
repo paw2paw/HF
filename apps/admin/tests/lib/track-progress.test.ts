@@ -1,0 +1,268 @@
+/**
+ * Tests for track-progress.ts (contract-driven curriculum progress)
+ *
+ * Covers:
+ * - buildStorageKey uses ContractRegistry async getters
+ * - updateCurriculumProgress stores data with contract-defined keys
+ * - getCurriculumProgress reads data using contract-defined prefix
+ * - completeModule marks mastery to 1.0 and advances
+ * - resetCurriculumProgress deletes by contract-defined prefix
+ * - getActiveCurricula extracts unique spec slugs
+ * - Throws when contract not loaded
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock prisma
+const mockPrisma = {
+  callerAttribute: {
+    upsert: vi.fn(),
+    findMany: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+};
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: mockPrisma,
+}));
+
+// Mock ContractRegistry
+const mockGetKeyPattern = vi.fn();
+const mockGetStorageKeys = vi.fn();
+
+vi.mock('@/lib/contracts/registry', () => ({
+  ContractRegistry: {
+    getKeyPattern: (...args: any[]) => mockGetKeyPattern(...args),
+    getStorageKeys: (...args: any[]) => mockGetStorageKeys(...args),
+  },
+}));
+
+// Mock system-settings (used by trust-weighted progress)
+vi.mock('@/lib/system-settings', () => ({
+  getTrustSettings: vi.fn().mockResolvedValue({
+    weightL5Regulatory: 1.0,
+    weightL4Accredited: 0.9,
+    weightL3Published: 0.7,
+    weightL2Expert: 0.5,
+    weightL1AiAssisted: 0.2,
+    weightL0Unverified: 0.05,
+    certificationMinWeight: 0.7,
+  }),
+  TRUST_DEFAULTS: {
+    weightL5Regulatory: 1.0,
+    weightL4Accredited: 0.9,
+    weightL3Published: 0.7,
+    weightL2Expert: 0.5,
+    weightL1AiAssisted: 0.2,
+    weightL0Unverified: 0.05,
+    certificationMinWeight: 0.7,
+  },
+}));
+
+// Contract data matching CURRICULUM_PROGRESS_V1
+const CURRICULUM_KEY_PATTERN = 'curriculum:{specSlug}:{key}';
+const CURRICULUM_STORAGE_KEYS = {
+  currentModule: 'current_module',
+  mastery: 'mastery:{moduleId}',
+  lastAccessed: 'last_accessed',
+};
+
+function setupContractMocks() {
+  mockGetKeyPattern.mockResolvedValue(CURRICULUM_KEY_PATTERN);
+  mockGetStorageKeys.mockResolvedValue(CURRICULUM_STORAGE_KEYS);
+}
+
+describe('track-progress.ts', () => {
+  let updateCurriculumProgress: Function;
+  let getCurriculumProgress: Function;
+  let completeModule: Function;
+  let resetCurriculumProgress: Function;
+  let getActiveCurricula: Function;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+
+    setupContractMocks();
+    mockPrisma.callerAttribute.upsert.mockResolvedValue({});
+    mockPrisma.callerAttribute.findMany.mockResolvedValue([]);
+    mockPrisma.callerAttribute.deleteMany.mockResolvedValue({ count: 0 });
+
+    const mod = await import('@/lib/curriculum/track-progress');
+    updateCurriculumProgress = mod.updateCurriculumProgress;
+    getCurriculumProgress = mod.getCurriculumProgress;
+    completeModule = mod.completeModule;
+    resetCurriculumProgress = mod.resetCurriculumProgress;
+    getActiveCurricula = mod.getActiveCurricula;
+  });
+
+  describe('updateCurriculumProgress', () => {
+    it('uses contract-defined key pattern for currentModule', async () => {
+      await updateCurriculumProgress('caller-1', 'QM-CONTENT-001', {
+        currentModuleId: 'chapter1',
+      });
+
+      expect(mockGetKeyPattern).toHaveBeenCalledWith('CURRICULUM_PROGRESS_V1');
+      expect(mockGetStorageKeys).toHaveBeenCalledWith('CURRICULUM_PROGRESS_V1');
+
+      const upsertCall = mockPrisma.callerAttribute.upsert.mock.calls[0][0];
+      expect(upsertCall.where.callerId_key_scope.key).toBe('curriculum:QM-CONTENT-001:current_module');
+      expect(upsertCall.where.callerId_key_scope.scope).toBe('CURRICULUM');
+      expect(upsertCall.create.stringValue).toBe('chapter1');
+    });
+
+    it('uses contract-defined key pattern for mastery', async () => {
+      await updateCurriculumProgress('caller-1', 'QM-CONTENT-001', {
+        moduleMastery: { 'chapter1_blackbody': 0.75 },
+      });
+
+      const upsertCall = mockPrisma.callerAttribute.upsert.mock.calls[0][0];
+      expect(upsertCall.where.callerId_key_scope.key).toBe('curriculum:QM-CONTENT-001:mastery:chapter1_blackbody');
+      expect(upsertCall.create.numberValue).toBe(0.75);
+    });
+
+    it('uses contract-defined key pattern for lastAccessed', async () => {
+      const now = new Date('2026-02-12T10:00:00Z');
+      await updateCurriculumProgress('caller-1', 'QM-CONTENT-001', {
+        lastAccessedAt: now,
+      });
+
+      const upsertCall = mockPrisma.callerAttribute.upsert.mock.calls[0][0];
+      expect(upsertCall.where.callerId_key_scope.key).toBe('curriculum:QM-CONTENT-001:last_accessed');
+      expect(upsertCall.create.stringValue).toBe(now.toISOString());
+    });
+
+    it('throws when contract not loaded', async () => {
+      mockGetKeyPattern.mockResolvedValue(null);
+      mockGetStorageKeys.mockResolvedValue(null);
+
+      await expect(
+        updateCurriculumProgress('caller-1', 'QM', { currentModuleId: 'ch1' })
+      ).rejects.toThrow('CURRICULUM_PROGRESS_V1 contract not loaded');
+    });
+  });
+
+  describe('getCurriculumProgress', () => {
+    it('reads progress using contract-defined prefix', async () => {
+      mockPrisma.callerAttribute.findMany.mockResolvedValue([
+        { key: 'curriculum:QM-CONTENT-001:current_module', stringValue: 'chapter2', numberValue: null },
+        { key: 'curriculum:QM-CONTENT-001:mastery:chapter1', stringValue: null, numberValue: 0.9 },
+        { key: 'curriculum:QM-CONTENT-001:mastery:chapter2', stringValue: null, numberValue: 0.4 },
+        { key: 'curriculum:QM-CONTENT-001:last_accessed', stringValue: '2026-02-12T10:00:00Z', numberValue: null },
+      ]);
+
+      const progress = await getCurriculumProgress('caller-1', 'QM-CONTENT-001');
+
+      expect(progress.currentModuleId).toBe('chapter2');
+      expect(progress.modulesMastery).toEqual({ chapter1: 0.9, chapter2: 0.4 });
+      expect(progress.lastAccessedAt).toBe('2026-02-12T10:00:00Z');
+    });
+
+    it('returns empty progress when no attributes exist', async () => {
+      mockPrisma.callerAttribute.findMany.mockResolvedValue([]);
+
+      const progress = await getCurriculumProgress('caller-1', 'QM-CONTENT-001');
+
+      expect(progress.currentModuleId).toBeNull();
+      expect(progress.modulesMastery).toEqual({});
+      expect(progress.lastAccessedAt).toBeNull();
+    });
+
+    it('queries with correct prefix derived from contract pattern', async () => {
+      mockPrisma.callerAttribute.findMany.mockResolvedValue([]);
+
+      await getCurriculumProgress('caller-1', 'MY-SPEC');
+
+      expect(mockPrisma.callerAttribute.findMany).toHaveBeenCalledWith({
+        where: {
+          callerId: 'caller-1',
+          scope: 'CURRICULUM',
+          key: { startsWith: 'curriculum:MY-SPEC:' },
+        },
+      });
+    });
+
+    it('throws when contract not loaded', async () => {
+      mockGetKeyPattern.mockResolvedValue(null);
+
+      await expect(
+        getCurriculumProgress('caller-1', 'QM')
+      ).rejects.toThrow('CURRICULUM_PROGRESS_V1 contract not loaded');
+    });
+  });
+
+  describe('completeModule', () => {
+    it('sets mastery to 1.0 for completed module', async () => {
+      await completeModule('caller-1', 'QM-CONTENT-001', 'chapter1');
+
+      // Should have upserted mastery and lastAccessed
+      const masteryCalls = mockPrisma.callerAttribute.upsert.mock.calls.filter(
+        (c: any) => c[0].where.callerId_key_scope.key.includes('mastery:chapter1')
+      );
+      expect(masteryCalls).toHaveLength(1);
+      expect(masteryCalls[0][0].create.numberValue).toBe(1.0);
+    });
+
+    it('advances to next module when provided', async () => {
+      await completeModule('caller-1', 'QM-CONTENT-001', 'chapter1', 'chapter2');
+
+      const moduleCalls = mockPrisma.callerAttribute.upsert.mock.calls.filter(
+        (c: any) => c[0].where.callerId_key_scope.key.includes('current_module')
+      );
+      expect(moduleCalls).toHaveLength(1);
+      expect(moduleCalls[0][0].create.stringValue).toBe('chapter2');
+    });
+  });
+
+  describe('resetCurriculumProgress', () => {
+    it('deletes all attributes with contract-defined prefix', async () => {
+      await resetCurriculumProgress('caller-1', 'QM-CONTENT-001');
+
+      expect(mockPrisma.callerAttribute.deleteMany).toHaveBeenCalledWith({
+        where: {
+          callerId: 'caller-1',
+          scope: 'CURRICULUM',
+          key: { startsWith: 'curriculum:QM-CONTENT-001:' },
+        },
+      });
+    });
+
+    it('throws when contract not loaded', async () => {
+      mockGetKeyPattern.mockResolvedValue(null);
+
+      await expect(
+        resetCurriculumProgress('caller-1', 'QM')
+      ).rejects.toThrow('CURRICULUM_PROGRESS_V1 contract not loaded');
+    });
+  });
+
+  describe('getActiveCurricula', () => {
+    it('extracts unique spec slugs from curriculum keys', async () => {
+      mockPrisma.callerAttribute.findMany.mockResolvedValue([
+        { key: 'curriculum:QM-CONTENT-001:current_module' },
+        { key: 'curriculum:QM-CONTENT-001:mastery:ch1' },
+        { key: 'curriculum:FS-L2-001:current_module' },
+      ]);
+
+      const slugs = await getActiveCurricula('caller-1');
+
+      expect(slugs).toHaveLength(2);
+      expect(slugs).toContain('QM-CONTENT-001');
+      expect(slugs).toContain('FS-L2-001');
+    });
+
+    it('returns empty when no curriculum attributes', async () => {
+      mockPrisma.callerAttribute.findMany.mockResolvedValue([]);
+
+      const slugs = await getActiveCurricula('caller-1');
+
+      expect(slugs).toHaveLength(0);
+    });
+
+    it('throws when contract not loaded', async () => {
+      mockGetKeyPattern.mockResolvedValue(null);
+
+      await expect(getActiveCurricula('caller-1')).rejects.toThrow('CURRICULUM_PROGRESS_V1 contract not loaded');
+    });
+  });
+});

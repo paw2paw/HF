@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -211,19 +212,25 @@ async function evaluatePrerequisite(
 }
 
 /**
- * GET /api/agents/[agentId]/preflight
- *
- * Check if all prerequisites are met for running an agent.
- * Returns:
- * - canRun: true if all required prerequisites pass
- * - hasWarnings: true if optional prerequisites fail
- * - checks: detailed results for each prerequisite
+ * @api GET /api/agents/:agentId/preflight
+ * @visibility internal
+ * @scope agents:read
+ * @auth session
+ * @tags agents
+ * @description Check if all prerequisites are met for running an agent (DB table counts, file paths)
+ * @pathParam agentId string - The agent identifier
+ * @response 200 { ok: true, canRun: boolean, hasWarnings: boolean, checks: PrerequisiteResult[], summary: { passed, failed, warnings } }
+ * @response 404 { ok: false, error: "Agent not found: ..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { agentId } = await params;
 
     // Load manifest

@@ -29,10 +29,14 @@ interface SuggestedAction {
 }
 
 /**
- * GET /api/system/readiness
- *
- * Returns comprehensive system readiness status for the analyze workflow.
- * Checks prerequisites, data sources, and suggests next actions.
+ * @api GET /api/system/readiness
+ * @visibility public
+ * @scope system:readiness
+ * @auth none
+ * @tags system
+ * @description Returns comprehensive system readiness status for the analyze workflow. Checks prerequisites (specs, parameters, run configs), data sources (callers, calls, transcripts), and suggests next actions.
+ * @response 200 { ok: true, ready: boolean, checks: {...}, sources: {...}, suggestedActions: [...], stats: {...}, timestamp: "ISO8601" }
+ * @response 500 { ok: false, ready: false, error: "...", checks: { database: { ok: false, message: "..." } } }
  */
 export async function GET() {
   try {

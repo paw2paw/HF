@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { composeCurriculumSection } from "@/lib/prompt/compose-curriculum-section";
+import { composeContentSection } from "@/lib/prompt/compose-content-section";
 import { getLearnerProfile } from "@/lib/learner/profile";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/callers/[callerId]
- *
- * Get comprehensive caller data including:
- * - Basic profile
- * - Personality profile and observations
- * - Memories and summary
- * - Calls
+ * @api GET /api/callers/:callerId
+ * @visibility public
+ * @scope callers:read
+ * @auth session
+ * @tags callers
+ * @description Get comprehensive caller data including profile, personality, memories, calls, scores, goals, curriculum, and learner profile
+ * @pathParam callerId string - The caller ID
+ * @response 200 { ok: true, caller: object, personalityProfile: object, observations: Array, memories: Array, memorySummary: object, calls: Array, identities: Array, scores: Array, callerTargets: Array, curriculum: object, learnerProfile: object, goals: Array, counts: object }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
 
     // Fetch all caller data in parallel
@@ -234,7 +241,7 @@ export async function GET(
           });
 
           if (callerData?.domain?.name) {
-            return await composeCurriculumSection(callerId, callerData.domain.name);
+            return await composeContentSection(callerId, callerData.domain.name);
           }
           return null;
         } catch (error) {
@@ -477,15 +484,30 @@ export async function GET(
 }
 
 /**
- * PATCH /api/callers/[callerId]
- *
- * Update caller profile (name, email, phone, domainId)
+ * @api PATCH /api/callers/:callerId
+ * @visibility public
+ * @scope callers:write
+ * @auth session
+ * @tags callers
+ * @description Update caller profile fields. Domain changes trigger goal archival and new goal creation from playbook.
+ * @pathParam callerId string - The caller ID
+ * @body name string - Caller display name
+ * @body email string - Caller email
+ * @body phone string - Caller phone number
+ * @body domainId string - New domain ID (triggers domain switch if different)
+ * @response 200 { ok: true, caller: object, goalsCreated?: string[] }
+ * @response 400 { ok: false, error: "Domain not found" }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
     const body = await req.json();
 
@@ -669,16 +691,26 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/callers/[callerId]
- *
- * Delete a caller and all their data.
- * Optionally exclude their phone/externalId from future imports.
+ * @api DELETE /api/callers/:callerId
+ * @visibility public
+ * @scope callers:delete
+ * @auth session
+ * @tags callers
+ * @description Delete a caller and all associated data. Optionally exclude their identifiers from future imports.
+ * @pathParam callerId string - The caller ID to delete
+ * @body exclude boolean - Add phone/externalId to ExcludedCaller table (default: false)
+ * @response 200 { ok: true, message: string, excluded: boolean }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
     const body = await req.json().catch(() => ({}));
     const { exclude = false } = body;

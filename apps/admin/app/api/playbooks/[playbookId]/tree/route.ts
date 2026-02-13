@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/playbooks/[playbookId]/tree
- *
- * Returns a hierarchical tree structure of the playbook including:
- * - Domain
- * - Playbook metadata
- * - PlaybookItems (specs, templates)
- *   - For each spec:
- *     - Triggers and Actions
- *     - Linked Parameters (with scoring anchors, behavior targets)
- *     - Config details
- *   - For each template:
- *     - Blocks and structure
- *
- * This provides a complete visual picture of what the playbook contains.
+ * @api GET /api/playbooks/:playbookId/tree
+ * @visibility public
+ * @scope playbooks:read
+ * @auth session
+ * @tags playbooks
+ * @description Returns a hierarchical tree structure of the playbook including domain,
+ *   metadata, items (specs with triggers/actions/parameters/anchors, templates),
+ *   system specs, and behavior targets. Provides a complete visual picture of playbook contents.
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, tree: TreeNode, stats: { totalItems, specCount, templateCount, systemSpecCount, systemSpecEnabledCount, parameterCount, targetCount } }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     // Load playbook with all nested data

@@ -17,8 +17,8 @@ export interface CompositionSectionDef {
   dataSource: string | string[];
   activateWhen: ActivationCondition;
   fallback: FallbackAction;
-  /** Named transform from registry (null = pass through raw data) */
-  transform: string | null;
+  /** Named transform(s) from registry. Array = chained pipeline. Null = pass through. */
+  transform: string | string[] | null;
   /** Section-specific config (limits, thresholds, etc.) */
   config?: Record<string, any>;
   /** Key in the final llmPrompt output */
@@ -76,6 +76,27 @@ export interface LoadedDataContext {
   systemSpecs: SystemSpecData[];
   /** INIT-001 onboarding spec for first-call defaults (null if not found) */
   onboardingSpec: OnboardingSpecData | null;
+  /** Subject-based content sources for the caller's domain */
+  subjectSources?: SubjectSourcesData | null;
+  /** Onboarding session for caller's current domain */
+  onboardingSession?: any;
+  /** Curriculum assertions (approved teaching points) from ContentAssertion table */
+  curriculumAssertions?: CurriculumAssertionData[];
+}
+
+/** ContentAssertion data loaded for teaching content */
+export interface CurriculumAssertionData {
+  assertion: string;
+  category: string;
+  chapter: string | null;
+  section: string | null;
+  pageRef: string | null;
+  tags: string[];
+  trustLevel: string | null;
+  examRelevance: number | null;
+  learningOutcomeRef: string | null;
+  sourceName: string;
+  sourceTrustLevel: string;
 }
 
 /** INIT-001 onboarding spec shape */
@@ -143,6 +164,10 @@ export interface SharedComputedState {
   thresholds: { high: number; low: number };
   /** Curriculum metadata from CONTENT spec (if contract-compliant) */
   curriculumMetadata?: CurriculumMetadata | null;
+  /** Spec slug or curriculum slug used as progress storage key prefix */
+  curriculumSpecSlug?: string;
+  /** Whether first call in current domain (for domain-switch re-onboarding) */
+  isFirstCallInDomain?: boolean;
 }
 
 export interface ModuleData {
@@ -291,6 +316,39 @@ export interface PlaybookData {
   }>;
 }
 
+export interface SubjectSourcesData {
+  subjects: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    defaultTrustLevel: string;
+    qualificationRef: string | null;
+    sources: Array<{
+      slug: string;
+      name: string;
+      trustLevel: string;
+      tags: string[];
+      publisherOrg: string | null;
+      accreditingBody: string | null;
+      qualificationRef: string | null;
+      validUntil: Date | null;
+      isActive: boolean;
+    }>;
+    curriculum: {
+      id: string;
+      slug: string;
+      name: string;
+      description: string | null;
+      notableInfo: any;
+      deliveryConfig: any;
+      trustLevel: string;
+      qualificationBody: string | null;
+      qualificationNumber: string | null;
+      qualificationLevel: string | null;
+    } | null;
+  }>;
+}
+
 export interface SystemSpecData {
   id: string;
   slug: string;
@@ -325,6 +383,8 @@ export interface CompositionResult {
   metadata: {
     sectionsActivated: string[];
     sectionsSkipped: string[];
+    /** Human-readable reason for each section's activation or skip decision */
+    activationReasons: Record<string, string>;
     loadTimeMs: number;
     transformTimeMs: number;
     /** Merged behavior targets (for backward compat with template rendering) */

@@ -52,11 +52,18 @@ export function FlashSidebar({ taskId, visible = false, onClose }: FlashSidebarP
   }, [taskId, isVisible]);
 
   const loadGuidance = async () => {
-    if (!taskId) return;
+    if (!taskId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await fetch(`/api/tasks?taskId=${taskId}`);
+      if (!res.ok) {
+        console.error("Task guidance API returned", res.status);
+        return;
+      }
       const data = await res.json();
 
       if (data.ok && data.guidance) {
@@ -283,21 +290,25 @@ export function FlashSidebar({ taskId, visible = false, onClose }: FlashSidebarP
                           </span>
                           <div style={{ flex: 1 }}>
                             <p style={{ margin: 0 }}>{suggestion.message}</p>
+                            {/* TODO: Wire up action handlers (focusAIInput, openCommandPalette, showBlockerHelp) — actions are not yet functional */}
                             {suggestion.action && (
                               <button
+                                disabled
+                                title="Coming soon"
                                 style={{
                                   marginTop: 8,
                                   padding: "4px 12px",
                                   fontSize: 12,
                                   fontWeight: 600,
                                   borderRadius: 6,
-                                  border: "1px solid var(--accent-primary)",
+                                  border: "1px solid var(--border-default)",
                                   background: "transparent",
-                                  color: "var(--accent-primary)",
-                                  cursor: "pointer",
+                                  color: "var(--text-muted)",
+                                  cursor: "not-allowed",
+                                  opacity: 0.6,
                                 }}
                               >
-                                {suggestion.action.label}
+                                {suggestion.action.label} — coming soon
                               </button>
                             )}
                           </div>
@@ -386,7 +397,7 @@ export function FlashSidebar({ taskId, visible = false, onClose }: FlashSidebarP
             </>
           ) : (
             <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
-              <p>No task guidance available</p>
+              <p>{taskId ? "No task guidance available" : "Sign in to enable task guidance"}</p>
             </div>
           )}
         </div>

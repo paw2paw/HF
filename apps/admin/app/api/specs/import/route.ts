@@ -6,6 +6,9 @@ import {
   JsonFeatureSpec,
 } from "@/lib/bdd/ai-parser";
 import { compileSpecToTemplate } from "@/lib/bdd/compile-specs";
+import { activateFeatureSet } from "@/lib/lab/activate-feature";
+import { validateSourceAuthority, hasSourceAuthority } from "@/lib/content-trust/validate-source-authority";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
@@ -27,6 +30,22 @@ async function upsertAndActivateSpec(
   autoActivate: boolean
 ): Promise<ImportResult> {
   try {
+    // Validate sourceAuthority if spec has it (CONTENT specs)
+    const specConfig = (rawSpecJson as any)?.config || (spec as any)?.config;
+    let sourceWarnings: string[] = [];
+    if (specConfig && hasSourceAuthority(specConfig)) {
+      const validation = await validateSourceAuthority(specConfig.sourceAuthority);
+      if (!validation.valid) {
+        return {
+          specId: spec.id || filename,
+          name: spec.title || filename,
+          status: "error" as const,
+          error: `Source authority validation failed: ${validation.errors.map(e => e.message).join("; ")}`,
+        };
+      }
+      sourceWarnings = validation.warnings.map(w => w.message);
+    }
+
     const hybrid = convertJsonSpecToHybrid(spec);
     const parameters = hybrid.parameterData?.parameters || [];
     const storyData = hybrid.storyData;
@@ -82,29 +101,21 @@ async function upsertAndActivateSpec(
     // Compile the spec to generate promptTemplate
     const compileResult = compileSpecToTemplate(spec);
 
+    const allWarnings = [...compileResult.warnings, ...sourceWarnings];
     const result: ImportResult = {
       specId: spec.id,
       name: spec.title,
       status,
-      compileWarnings: compileResult.warnings.length > 0 ? compileResult.warnings : undefined,
+      compileWarnings: allWarnings.length > 0 ? allWarnings : undefined,
     };
 
     // If auto-activate, trigger the activation to create AnalysisSpec, Parameters, etc.
     if (autoActivate) {
-      // Call the lab activation API endpoint
-      const activateRes = await fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/lab/features/${featureSet.id}/activate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ activate: true }),
-        }
-      );
-
-      if (!activateRes.ok) {
+      const activationResult = await activateFeatureSet(featureSet.id);
+      if (!activationResult.ok) {
         result.compileWarnings = [
           ...(result.compileWarnings || []),
-          `Activation failed: ${await activateRes.text()}`,
+          `Activation failed: ${activationResult.error || "unknown error"}`,
         ];
       }
     }
@@ -121,15 +132,24 @@ async function upsertAndActivateSpec(
 }
 
 /**
- * POST /api/specs/import
- * Import BDD spec files into the database
- *
- * Accepts:
- * - FormData with files[] - browser uploads of .spec.json files
- * - autoActivate: boolean - whether to activate specs after import (default: true)
+ * @api POST /api/specs/import
+ * @visibility public
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description Import BDD spec files (.spec.json) via multipart form upload, upsert into database, and optionally activate
+ * @body files File[] - One or more .spec.json files (multipart/form-data)
+ * @body autoActivate boolean - Whether to activate specs after import (default: true)
+ * @response 200 { ok: true, created: number, updated: number, errors: number, total: number, results: ImportResult[] }
+ * @response 400 { ok: false, error: "Expected multipart/form-data" }
+ * @response 400 { ok: false, error: "No files uploaded" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const contentType = request.headers.get("content-type") || "";
 
     if (!contentType.includes("multipart/form-data")) {
@@ -228,11 +248,20 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/specs/import
- * List all specs stored in the database
+ * @api GET /api/specs/import
+ * @visibility public
+ * @scope specs:read
+ * @auth session
+ * @tags specs
+ * @description List all BDD feature sets stored in the database (used by import UI to show existing specs)
+ * @response 200 { ok: true, count: number, specs: BDDFeatureSet[] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const specs = await prisma.bDDFeatureSet.findMany({
       select: {
         id: true,

@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/goals
- *
- * Fetch all goals across all callers with filtering options
+ * @api GET /api/goals
+ * @visibility public
+ * @scope goals:read
+ * @auth session
+ * @tags goals
+ * @description Fetch all goals across all callers with filtering options. Includes related caller, playbook, and content spec data. Returns aggregate counts grouped by status and type.
+ * @query status string - Filter by goal status (optional, "all" for no filter)
+ * @query type string - Filter by goal type (optional, "all" for no filter)
+ * @query callerId string - Filter by caller ID (optional)
+ * @response 200 { ok: true, goals: [...], counts: { total, byStatus: {...}, byType: {...} } }
+ * @response 500 { ok: false, error: "Failed to fetch goals" }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const type = searchParams.get("type");

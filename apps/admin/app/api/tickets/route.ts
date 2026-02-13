@@ -1,18 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/tickets
- * List tickets with optional filters
- * Query params: status, priority, category, assigneeId, creatorId, limit, offset
+ * @api GET /api/tickets
+ * @visibility internal
+ * @scope tickets:list
+ * @auth session
+ * @tags tickets
+ * @description Lists tickets with optional filters, pagination, and sorting. Includes creator/assignee details and comment counts.
+ * @query status string - Filter by ticket status
+ * @query priority string - Filter by priority level
+ * @query category string - Filter by category
+ * @query assigneeId string - Filter by assignee (use "unassigned" for null)
+ * @query creatorId string - Filter by creator
+ * @query limit number - Max tickets to return (default 50, max 100)
+ * @query offset number - Pagination offset (default 0)
+ * @response 200 { ok: true, tickets: [...], total: number, limit: number, offset: number }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
 
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
@@ -69,16 +80,29 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/tickets
- * Create a new ticket
- * Body: { title, description, priority?, category?, assigneeId?, tags? }
+ * @api POST /api/tickets
+ * @visibility internal
+ * @scope tickets:create
+ * @auth session
+ * @tags tickets
+ * @description Creates a new ticket. Validates assignee existence if provided.
+ * @body title string - Ticket title (required)
+ * @body description string - Ticket description (required)
+ * @body priority string - Priority level (default: "MEDIUM")
+ * @body category string - Ticket category (default: "OTHER")
+ * @body assigneeId string - User ID to assign (optional)
+ * @body tags string[] - Tags array (optional)
+ * @response 201 { ok: true, ticket: {...} }
+ * @response 400 { ok: false, error: "Title is required" | "Description is required" }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 404 { ok: false, error: "Assignee not found or inactive" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const body = await req.json();
     const { title, description, priority, category, assigneeId, tags } = body;

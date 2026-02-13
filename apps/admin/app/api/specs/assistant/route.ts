@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAICompletion, AIMessage } from "@/lib/ai/client";
-import { getAIConfig } from "@/lib/ai/config-loader";
+import { AIMessage } from "@/lib/ai/client";
+import { getConfiguredMeteredAICompletion } from "@/lib/metering";
 import { getContextForCallPoint, injectSystemContext } from "@/lib/ai/system-context";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const SPEC_ASSISTANT_SYSTEM_PROMPT = `You are a SPEC CREATION ASSISTANT for HumanFirst, helping users create BDD-style Analysis Specifications.
 
@@ -103,25 +104,24 @@ IMPORTANT:
 - Keep the conversational part natural and helpful`;
 
 /**
- * POST /api/specs/assistant
- * AI assistant for spec creation
- *
- * Request body:
- * {
- *   message: string - the user's message
- *   currentSpec: object - the current spec form state
- *   history: Array<{role: 'user' | 'assistant', content: string}> - conversation history
- * }
- *
- * Response:
- * {
- *   ok: boolean
- *   response: string - the AI response
- *   suggestions?: object - structured suggestions that can be applied to form
- * }
+ * @api POST /api/specs/assistant
+ * @visibility internal
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description AI assistant for spec creation. Provides conversational help filling in spec fields, suggests values, and returns structured JSON field updates to auto-populate the form.
+ * @body message string - The user's message
+ * @body currentSpec object - The current spec form state
+ * @body history Array - Conversation history: [{role: 'user'|'assistant', content: string}]
+ * @response 200 { ok: true, response: string, fieldUpdates: object|null }
+ * @response 400 { ok: false, error: "message is required" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { message, currentSpec, history = [] } = body;
 
@@ -154,22 +154,18 @@ export async function POST(request: NextRequest) {
       { role: "user", content: message },
     ];
 
-    // Get AI configuration for this call point
-    const aiConfig = await getAIConfig("spec.assistant");
-
-    // Get AI completion
-    const result = await getAICompletion({
-      engine: aiConfig.provider,
-      model: aiConfig.model,
+    // @ai-call spec.assistant — Spec creation assistant | config: /x/ai-config
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "spec.assistant",
       messages,
-      maxTokens: aiConfig.maxTokens ?? 2048,
-      temperature: aiConfig.temperature ?? 0.7,
-    });
+      maxTokens: 2048,
+      temperature: 0.7,
+    }, { sourceOp: "spec.assistant" });
 
     // Store model info for logging
     const modelInfo = {
-      model: aiConfig.model,
-      provider: aiConfig.provider,
+      model: result.model,
+      provider: result.engine,
     };
 
     // Try to extract structured field updates from the response

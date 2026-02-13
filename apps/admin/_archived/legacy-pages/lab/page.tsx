@@ -276,7 +276,7 @@ export default function LabPage() {
             </div>
             <p style={{ fontSize: 14, margin: 0, opacity: 0.9, maxWidth: 500 }}>
               {dbSpecs.length} specs loaded in database.
-              {filesystemInfo?.available && ` (${filesystemInfo.fileCount} files in bdd-specs/ for re-seeding)`}
+              {filesystemInfo?.available && ` (${filesystemInfo.fileCount} files in docs-archive/bdd-specs/ for re-seeding)`}
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

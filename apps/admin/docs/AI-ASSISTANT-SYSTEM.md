@@ -1,5 +1,11 @@
 # AI Assistant System Documentation
 
+<!-- @doc-source file:apps/admin/lib/ai/system-context.ts,apps/admin/lib/ai/client.ts -->
+<!-- @doc-source file:apps/admin/lib/ai/knowledge-accumulation.ts,apps/admin/lib/ai/assistant-wrapper.ts -->
+<!-- @doc-source file:apps/admin/lib/ai/config-loader.ts -->
+<!-- @doc-source model:AIConfig,AIInteractionLog,AILearnedPattern -->
+<!-- @doc-source route:/api/ai/assistant,/api/chat -->
+
 ## Overview
 
 The HumanFirst admin application now has a fully integrated AI assistant system with knowledge accumulation, centralized context, and task guidance capabilities.

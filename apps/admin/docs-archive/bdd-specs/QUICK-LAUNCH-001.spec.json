@@ -1,0 +1,103 @@
+{
+  "id": "QUICK-LAUNCH-001",
+  "title": "Quick Launch Orchestrator",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-12",
+  "domain": "system",
+  "name": "Quick Launch Orchestrator",
+  "description": "Orchestrates the Quick Launch flow: upload content → create domain → scaffold tutor → ready to test. Steps are declarative and spec-driven — add, remove, reorder, or tune args without code changes.",
+  "specType": "SYSTEM",
+  "specRole": "ORCHESTRATE",
+  "outputType": "SUPERVISE",
+  "isDeletable": false,
+
+  "story": {
+    "asA": "course provider with training materials",
+    "iWant": "to upload a document and get a working tutor domain in one click",
+    "soThat": "I can quickly test how the AI teaches my content to callers"
+  },
+
+  "context": {
+    "applies": "When a user wants to quickly set up a domain from course material",
+    "dependsOn": ["PIPELINE-001", "INIT-001", "COMP-001"],
+    "assumptions": [
+      "AI extraction keys are configured",
+      "At least one persona exists in INIT-001"
+    ]
+  },
+
+  "parameters": [
+    {
+      "id": "launch_steps",
+      "name": "Launch Steps",
+      "description": "Ordered steps for the Quick Launch flow. Each step maps to an executor in the step registry.",
+      "config": {
+        "steps": [
+          {
+            "id": "create_domain",
+            "name": "Create Domain & Subject",
+            "operation": "create_domain",
+            "order": 1,
+            "onError": "abort",
+            "progressMessage": "Setting up domain..."
+          },
+          {
+            "id": "extract_content",
+            "name": "Extract Teaching Points",
+            "operation": "extract_content",
+            "order": 2,
+            "onError": "abort",
+            "progressMessage": "Extracting teaching points...",
+            "args": {
+              "maxAssertions": 500
+            }
+          },
+          {
+            "id": "save_assertions",
+            "name": "Save Teaching Points",
+            "operation": "save_assertions",
+            "order": 3,
+            "onError": "abort",
+            "progressMessage": "Saving to knowledge base..."
+          },
+          {
+            "id": "generate_identity",
+            "name": "Generate Expert Identity",
+            "operation": "generate_identity",
+            "order": 4,
+            "onError": "continue",
+            "progressMessage": "Creating expert identity...",
+            "args": {
+              "maxSampleSize": 60
+            }
+          },
+          {
+            "id": "scaffold_domain",
+            "name": "Scaffold Domain",
+            "operation": "scaffold_domain",
+            "order": 5,
+            "onError": "abort",
+            "progressMessage": "Building playbook & onboarding..."
+          },
+          {
+            "id": "generate_curriculum",
+            "name": "Structure Curriculum",
+            "operation": "generate_curriculum",
+            "order": 6,
+            "onError": "continue",
+            "progressMessage": "Structuring curriculum modules..."
+          },
+          {
+            "id": "create_caller",
+            "name": "Create Test Caller & Goals",
+            "operation": "create_caller",
+            "order": 7,
+            "onError": "abort",
+            "progressMessage": "Creating test caller..."
+          }
+        ]
+      }
+    }
+  ]
+}

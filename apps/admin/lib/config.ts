@@ -186,6 +186,33 @@ export const config = {
     get pipelineFallback(): string {
       return optional("PIPELINE_FALLBACK_SPEC_SLUG", "GUARD-001");
     },
+
+    /**
+     * Compose Spec slug (default: system-compose-next-prompt)
+     * The COMPOSE spec that drives prompt composition.
+     * Can be overridden via COMPOSE_SPEC_SLUG env var.
+     */
+    get compose(): string {
+      return optional("COMPOSE_SPEC_SLUG", "system-compose-next-prompt");
+    },
+
+    /**
+     * Voice Spec slug pattern (default: voice)
+     * Used to find the voice/identity spec by slug pattern match.
+     * Can be overridden via VOICE_SPEC_SLUG_PATTERN env var.
+     */
+    get voicePattern(): string {
+      return optional("VOICE_SPEC_SLUG_PATTERN", "voice");
+    },
+
+    /**
+     * Onboarding prompt slug prefix (default: init.)
+     * Used to generate welcome/phase slug names for personas.
+     * Can be overridden via ONBOARDING_SLUG_PREFIX env var.
+     */
+    get onboardingSlugPrefix(): string {
+      return optional("ONBOARDING_SLUG_PREFIX", "init.");
+    },
   },
 
   // ---------------------------------------------------------------------------

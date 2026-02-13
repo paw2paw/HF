@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -23,12 +24,20 @@ function getKbRoot(): string {
 }
 
 /**
- * GET /api/transcripts/raw-files
- * Lists raw transcript files from the sources/transcripts/raw directory
- * Supports both .json (VAPI exports) and .txt (session transcripts) formats
+ * @api GET /api/transcripts/raw-files
+ * @visibility internal
+ * @scope transcripts:raw-files
+ * @auth session
+ * @tags transcripts
+ * @description Lists raw transcript files from the sources/transcripts/raw directory. Recursively finds .json (VAPI exports) and .txt (session transcripts) files with metadata.
+ * @response 200 { ok: true, files: [{ name, path, relativePath, size, modifiedAt, format }], directory: "...", kbRoot: "...", count: number }
+ * @response 500 { ok: false, error: "...", files: [] }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const kbRoot = getKbRoot();
     const transcriptsDir = path.join(kbRoot, "sources", "transcripts", "raw");
 

@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/parameters/:id/prompts
- * Get all dynamic prompts linked to this parameter
+ * @api GET /api/parameters/:id/prompts
+ * @visibility public
+ * @scope parameters:read
+ * @auth session
+ * @tags parameters
+ * @description Get all dynamic prompt slugs linked to this parameter, plus available slugs that could be linked
+ * @pathParam id string - Parameter UUID
+ * @response 200 { ok: true, links: PromptSlugParameter[], availableSlugs: PromptSlug[] }
+ * @response 404 { ok: false, error: "Parameter not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
 
     // First find the parameter to get its parameterId
@@ -74,16 +86,31 @@ export async function GET(
 }
 
 /**
- * POST /api/parameters/:id/prompts
- * Attach a dynamic prompt to this parameter
- *
- * Body: { slugId: string, weight?: number, mode?: "ABSOLUTE" | "DELTA" }
+ * @api POST /api/parameters/:id/prompts
+ * @visibility public
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Attach a dynamic prompt slug to this parameter
+ * @pathParam id string - Parameter UUID
+ * @body slugId string - The prompt slug UUID to attach (required)
+ * @body weight number - Link weight (default: 1.0)
+ * @body mode string - "ABSOLUTE" or "DELTA" (default: "ABSOLUTE")
+ * @response 200 { ok: true, link: PromptSlugParameter }
+ * @response 400 { ok: false, error: "slugId is required" }
+ * @response 400 { ok: false, error: "This dynamic prompt is already attached..." }
+ * @response 404 { ok: false, error: "Parameter not found" }
+ * @response 404 { ok: false, error: "Dynamic prompt not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const body = await request.json();
     const { slugId, weight = 1.0, mode = "ABSOLUTE" } = body;
@@ -166,14 +193,28 @@ export async function POST(
 }
 
 /**
- * DELETE /api/parameters/:id/prompts?slugId=xxx
- * Detach a dynamic prompt from this parameter
+ * @api DELETE /api/parameters/:id/prompts
+ * @visibility public
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Detach a dynamic prompt slug from this parameter
+ * @pathParam id string - Parameter UUID
+ * @query slugId string - The prompt slug UUID to detach (required)
+ * @response 200 { ok: true, deleted: true }
+ * @response 400 { ok: false, error: "slugId query param is required" }
+ * @response 404 { ok: false, error: "Parameter not found" }
+ * @response 404 { ok: false, error: "Link not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const slugId = searchParams.get("slugId");
@@ -228,16 +269,30 @@ export async function DELETE(
 }
 
 /**
- * PATCH /api/parameters/:id/prompts
- * Update link settings (weight, mode)
- *
- * Body: { slugId: string, weight?: number, mode?: "ABSOLUTE" | "DELTA" }
+ * @api PATCH /api/parameters/:id/prompts
+ * @visibility public
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Update a prompt-parameter link's weight or mode
+ * @pathParam id string - Parameter UUID
+ * @body slugId string - The prompt slug UUID to update (required)
+ * @body weight number - Updated link weight
+ * @body mode string - "ABSOLUTE" or "DELTA"
+ * @response 200 { ok: true, link: PromptSlugParameter }
+ * @response 400 { ok: false, error: "slugId is required" }
+ * @response 404 { ok: false, error: "Parameter not found" }
+ * @response 404 { ok: false, error: "Link not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const body = await request.json();
     const { slugId, weight, mode } = body;

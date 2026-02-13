@@ -1,17 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateSourceAuthority, hasSourceAuthority } from "@/lib/content-trust/validate-source-authority";
+import { clearAIConfigCache } from "@/lib/ai/config-loader";
+import { clearSystemSettingsCache } from "@/lib/system-settings";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/analysis-specs/[specId]
- * Get a single analysis spec with full nested data
+ * @api GET /api/analysis-specs/:specId
+ * @visibility internal
+ * @scope analysis-specs:read
+ * @auth session
+ * @tags analysis-specs
+ * @description Get a single analysis spec with full nested data including triggers, actions, parameters with scoring anchors, behavior targets, and linked BDDFeatureSet
+ * @pathParam specId string - Spec UUID or slug
+ * @response 200 { ok: true, spec: AnalysisSpec, featureSet: BDDFeatureSet|null }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     const spec = await prisma.analysisSpec.findFirst({
@@ -153,14 +168,35 @@ export async function GET(
 }
 
 /**
- * PUT /api/analysis-specs/[specId]
- * Update an analysis spec (metadata only - use nested routes for triggers)
+ * @api PUT /api/analysis-specs/:specId
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description Update an analysis spec's metadata. Respects lock status. Marks spec as dirty if content changes. Allows toggling isActive on locked specs.
+ * @pathParam specId string - Spec UUID
+ * @body name string - Updated name
+ * @body description string - Updated description
+ * @body outputType string - Updated output type
+ * @body scope string - Updated scope
+ * @body domain string - Updated domain
+ * @body priority number - Updated priority
+ * @body isActive boolean - Enable or disable spec
+ * @body version string - Updated version
+ * @body forceUnlock boolean - Override lock protection
+ * @response 200 { ok: true, spec: AnalysisSpec, wasCompiled: boolean }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 423 { ok: false, error: "Spec is locked and cannot be modified", locked: true }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
     const body = await req.json();
     const { name, description, outputType, scope, domain, priority, isActive, version, forceUnlock } = body;
@@ -227,6 +263,10 @@ export async function PUT(
       },
     });
 
+    // Invalidate caches so changes take effect immediately
+    clearAIConfigCache();
+    clearSystemSettingsCache();
+
     return NextResponse.json({
       ok: true,
       spec,
@@ -252,17 +292,32 @@ export async function PUT(
 }
 
 /**
- * PATCH /api/analysis-specs/[specId]
- * Partial update - specifically for promptTemplate updates
+ * @api PATCH /api/analysis-specs/:specId
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description Partial update for promptTemplate, config, or specRole. Respects lock status. Marks spec as dirty.
+ * @pathParam specId string - Spec UUID
+ * @body promptTemplate string - Updated prompt template
+ * @body config object - Updated config JSON
+ * @body specRole string - Updated spec role
+ * @response 200 { ok: true, spec: AnalysisSpec }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 423 { ok: false, error: "Spec is locked and cannot be modified", locked: true }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
     const body = await req.json();
-    const { promptTemplate, config, specRole } = body;
+    const { promptTemplate, config, specRole, rawSpec } = body;
 
     // Check if spec exists and is not locked
     const existing = await prisma.analysisSpec.findUnique({
@@ -288,6 +343,27 @@ export async function PATCH(
       );
     }
 
+    // Validate sourceAuthority if config contains it
+    let sourceValidation = null;
+    if (config && hasSourceAuthority(config)) {
+      sourceValidation = await validateSourceAuthority(config.sourceAuthority);
+      if (!sourceValidation.valid) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Source authority validation failed",
+            sourceErrors: sourceValidation.errors,
+            sourceWarnings: sourceValidation.warnings,
+          },
+          { status: 422 }
+        );
+      }
+      // Enrich config with DB-sourced metadata
+      if (sourceValidation.enriched) {
+        config.sourceAuthority = sourceValidation.enriched;
+      }
+    }
+
     // Determine what changed for dirty reason
     const changes: string[] = [];
     if (promptTemplate !== undefined) changes.push("prompt_template");
@@ -308,7 +384,26 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ ok: true, spec });
+    // Update linked BDDFeatureSet rawSpec if provided
+    if (rawSpec !== undefined && existing.compiledSetId) {
+      await prisma.bDDFeatureSet.update({
+        where: { id: existing.compiledSetId },
+        data: { rawSpec },
+      });
+      if (!changes.includes("config")) changes.push("raw_spec");
+    }
+
+    // Invalidate caches so changes take effect immediately
+    clearAIConfigCache();
+    clearSystemSettingsCache();
+
+    return NextResponse.json({
+      ok: true,
+      spec,
+      ...(sourceValidation?.warnings?.length && {
+        sourceWarnings: sourceValidation.warnings,
+      }),
+    });
   } catch (error: any) {
     return NextResponse.json(
       { ok: false, error: error?.message || "Failed to update spec" },
@@ -318,19 +413,34 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/analysis-specs/[specId]
- * Delete an analysis spec and all nested data (cascades)
+ * @api DELETE /api/analysis-specs/:specId
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description Delete an analysis spec and all nested data (cascades triggers, actions, etc.)
+ * @pathParam specId string - Spec UUID
+ * @response 200 { ok: true, deleted: true }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     await prisma.analysisSpec.delete({
       where: { id: specId },
     });
+
+    // Invalidate caches so deletion takes effect immediately
+    clearAIConfigCache();
+    clearSystemSettingsCache();
 
     return NextResponse.json({ ok: true, deleted: true });
   } catch (error: any) {

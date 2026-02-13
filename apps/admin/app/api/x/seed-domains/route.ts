@@ -1,29 +1,26 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { seedCompanionDomain } from "../../../../prisma/_archived/seed-companion";
 import { seedFromSpecs } from "../../../../prisma/seed-from-specs";
 import { PARAMS } from "@/lib/registry";
 
 /**
- * POST /api/x/seed-domains
- *
- * Creates default domains (WNF TUTOR and COMPANION) with all required:
- * - Domains
- * - Playbooks
- * - AnalysisSpecs
- * - Parameters
- * - PromptTemplates
- * - BehaviorTargets
- * - PlaybookItems (links specs to playbooks)
- *
- * NOTE: This route now calls seedFromSpecs() FIRST to ensure all BDD specs
- * exist in the database before trying to link them to playbooks. This means
- * the order of "Sync BDD Specifications" vs "Initialize Default Domains"
- * button clicks doesn't matter.
+ * @api POST /api/x/seed-domains
+ * @visibility internal
+ * @scope dev:seed
+ * @auth bearer
+ * @tags dev-tools
+ * @description Creates default domains (WNF TUTOR and COMPANION) with all required infrastructure: domains, playbooks, analysis specs, parameters, prompt templates, behavior targets, and playbook items. Syncs BDD specs first to ensure all specs exist before linking to playbooks.
+ * @response 200 { ok: boolean, message: "...", details: { domainsCreated: [...], playbooksCreated: [...], specsCreated: number, specsSynced: number, parametersCreated: number, errors: [...] } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST() {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const results = {
       domainsCreated: [] as string[],
       playbooksCreated: [] as string[],
@@ -36,7 +33,7 @@ export async function POST() {
     // ============================================
     // PREREQUISITE: SYNC BDD SPECS
     // ============================================
-    // First ensure all BDD specs are synced from bdd-specs/ folder
+    // First ensure all BDD specs are synced from docs-archive/bdd-specs/ folder
     // This is critical because domain creation links specs to playbooks
     try {
       console.log("Syncing BDD specs first...");

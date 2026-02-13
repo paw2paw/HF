@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/playbooks/[playbookId]/slugs
- *
- * Returns a structured tree of all template variables/slugs available in this playbook.
- * This helps colleagues understand:
- * - What template variables are available at runtime
- * - Which spec provides each variable
- * - What values they resolve to (from config)
- * - What data MEASURE/LEARN/ADAPT specs produce
+ * @api GET /api/playbooks/:playbookId/slugs
+ * @visibility internal
+ * @scope playbooks:read
+ * @auth session
+ * @tags playbooks
+ * @description Returns a structured tree of all template variables/slugs available in this
+ *   playbook. Shows what variables are available at runtime, which spec provides each,
+ *   what values they resolve to, and what data MEASURE/LEARN/ADAPT specs produce.
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, playbook: { id, name, status }, tree: SlugNode[], counts: { identity, content, voice, measure, learn, adapt, reward, guardrail, compose, total } }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 
 type SlugNode = {
@@ -131,6 +136,9 @@ export async function GET(
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     // Load playbook with all specs

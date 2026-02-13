@@ -1,16 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/domains/[domainId]/onboarding
- *
- * Get domain onboarding configuration
+ * @api GET /api/domains/:domainId/onboarding
+ * @visibility internal
+ * @auth session
+ * @tags domains, onboarding
+ * @description Get domain onboarding configuration including welcome message, identity spec, flow phases, and default targets
+ * @pathParam domainId string - The domain ID
+ * @response 200 { ok: true, domain: object, identitySpecs: Array<{ id, slug, name, description }> }
+ * @response 404 { ok: false, error: "Domain not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { domainId } = await params;
 
     const domain = await prisma.domain.findUnique({
@@ -57,10 +67,15 @@ export async function GET(
       orderBy: { name: "asc" },
     });
 
+    // Extract examConfig from onboardingDefaultTargets for convenience
+    const targets = (domain.onboardingDefaultTargets as Record<string, any>) || {};
+    const examConfig = targets.examConfig || { enabled: false };
+
     return NextResponse.json({
       ok: true,
       domain,
       identitySpecs,
+      examConfig,
     });
   } catch (error: any) {
     console.error("Error fetching domain onboarding:", error);
@@ -72,15 +87,29 @@ export async function GET(
 }
 
 /**
- * PUT /api/domains/[domainId]/onboarding
- *
- * Update domain onboarding configuration
+ * @api PUT /api/domains/:domainId/onboarding
+ * @visibility internal
+ * @auth session
+ * @tags domains, onboarding
+ * @description Update domain onboarding configuration (welcome message, identity spec, flow phases, default targets)
+ * @pathParam domainId string - The domain ID
+ * @body onboardingWelcome string - Welcome message text
+ * @body onboardingIdentitySpecId string - Identity spec ID for onboarding
+ * @body onboardingFlowPhases object - Phase configuration for onboarding flow
+ * @body onboardingDefaultTargets object - Default behavior targets for new callers
+ * @response 200 { ok: true, domain: object }
+ * @response 400 { ok: false, error: "Identity spec not found" | "Spec must have specRole=IDENTITY" }
+ * @response 404 { ok: false, error: "Domain not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { domainId } = await params;
     const body = await req.json();
 

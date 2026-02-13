@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/supervisor
- *
- * Returns pipeline configuration and specs organized by stage for a domain.
- * Shows which specs will run at each pipeline stage.
- *
- * Query params:
- * - domainId: string (optional) - if provided, shows DOMAIN specs for that domain
- *
- * Pipeline stages are loaded from PIPELINE-001 spec (or GUARD-001 fallback).
- * Each stage shows:
- * - Stage metadata (name, order, description, outputTypes)
- * - SYSTEM specs that run in this stage (always enabled)
- * - DOMAIN specs for the selected domain (from published playbook)
+ * @api GET /api/supervisor
+ * @visibility internal
+ * @scope supervisor:read
+ * @auth session
+ * @tags visualizations
+ * @description Returns pipeline configuration and specs organized by stage for a domain. Shows which specs will run at each pipeline stage, including SYSTEM specs (always enabled) and DOMAIN specs (from published playbook). Pipeline stages are loaded from PIPELINE-001 spec (or GUARD-001 fallback).
+ * @query domainId string - If provided, shows DOMAIN specs for that domain
+ * @response 200 { ok: true, superviseSpec: {...}, domain: {...}, playbook: {...}, stages: [...], allDomains: [...], counts: {...} }
+ * @response 500 { ok: false, error: "..." }
  */
 
 type SpecInfo = {
@@ -38,6 +35,9 @@ type StageWithSpecs = PipelineStage & {
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const domainId = searchParams.get("domainId");
 

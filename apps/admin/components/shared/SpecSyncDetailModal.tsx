@@ -1,7 +1,7 @@
 /**
- * Spec Sync Detail Modal
- * Shows detailed sync status with two-column view: synced vs unseeded specs
- * Allows selective syncing of individual unsynced specs
+ * Spec Import Detail Modal
+ * Shows import status: which spec files have been loaded into the database
+ * DB is the source of truth after import — files are bootstrap material only
  */
 
 "use client";
@@ -225,7 +225,7 @@ export function SpecSyncDetailModal({
                 marginBottom: 4,
               }}
             >
-              Spec Sync Status
+              Import Specs from Files
             </div>
             <div
               style={{
@@ -233,7 +233,7 @@ export function SpecSyncDetailModal({
                 color: "var(--text-muted)",
               }}
             >
-              Compare{" "}
+              Load{" "}
               <code
                 style={{
                   background: "var(--surface-secondary)",
@@ -242,9 +242,9 @@ export function SpecSyncDetailModal({
                   fontSize: 12,
                 }}
               >
-                bdd-specs/*.spec.json
+                docs-archive/bdd-specs/*.spec.json
               </code>{" "}
-              files with database records
+              files into the database
             </div>
           </div>
           <button
@@ -315,13 +315,20 @@ export function SpecSyncDetailModal({
           >
             {syncResult.ok ? (
               <>
-                <strong>✅ Sync Complete!</strong>{" "}
-                {syncResult.summary?.specsProcessed || 0} specs processed,{" "}
+                <strong>Import Complete!</strong>{" "}
+                {syncResult.summary?.specsSucceeded || syncResult.summary?.specsProcessed || 0} specs imported,{" "}
                 {syncResult.summary?.parametersCreated || 0} params created,{" "}
                 {syncResult.summary?.specsCreated || 0} specs created
               </>
             ) : (
-              <>❌ Error: {syncResult.error}</>
+              <>
+                <strong>{syncResult.summary?.specsFailed > 0 ? "Partial Import" : "Error"}:</strong>{" "}
+                {syncResult.summary?.specsFailed > 0 ? (
+                  <>{syncResult.summary.specsSucceeded} succeeded, {syncResult.summary.specsFailed} failed</>
+                ) : (
+                  syncResult.error
+                )}
+              </>
             )}
           </div>
         )}
@@ -385,7 +392,7 @@ export function SpecSyncDetailModal({
                     marginTop: 4,
                   }}
                 >
-                  Synced
+                  Imported
                 </div>
               </div>
               <div
@@ -423,31 +430,23 @@ export function SpecSyncDetailModal({
                     marginTop: 4,
                   }}
                 >
-                  Unseeded
+                  Ready to Import
                 </div>
               </div>
               <div
                 style={{
                   padding: 16,
-                  background: status.summary.orphaned
-                    ? "var(--status-error-bg)"
-                    : "var(--surface-secondary)",
+                  background: "var(--surface-secondary)",
                   borderRadius: 8,
                   textAlign: "center",
-                  border: `1px solid ${
-                    status.summary.orphaned
-                      ? "var(--status-error-border)"
-                      : "var(--border-subtle)"
-                  }`,
+                  border: "1px solid var(--border-subtle)",
                 }}
               >
                 <div
                   style={{
                     fontSize: 28,
                     fontWeight: 600,
-                    color: status.summary.orphaned
-                      ? "var(--status-error-text)"
-                      : "var(--text-primary)",
+                    color: "var(--text-primary)",
                   }}
                 >
                   {status.summary.orphaned}
@@ -455,13 +454,11 @@ export function SpecSyncDetailModal({
                 <div
                   style={{
                     fontSize: 12,
-                    color: status.summary.orphaned
-                      ? "var(--status-error-text)"
-                      : "var(--text-secondary)",
+                    color: "var(--text-secondary)",
                     marginTop: 4,
                   }}
                 >
-                  Orphaned
+                  DB-Only
                 </div>
               </div>
             </div>
@@ -490,7 +487,7 @@ export function SpecSyncDetailModal({
                     <span style={badgeStyle("warning")}>
                       {status.unseeded.length}
                     </span>
-                    Unseeded Specs
+                    Ready to Import
                     <span
                       style={{
                         fontSize: 12,
@@ -498,7 +495,7 @@ export function SpecSyncDetailModal({
                         color: "var(--text-secondary)",
                       }}
                     >
-                      — in bdd-specs/ but not in database
+                      — spec files not yet loaded into database
                     </span>
                   </h2>
                   <button
@@ -523,10 +520,10 @@ export function SpecSyncDetailModal({
                     }}
                   >
                     {syncing
-                      ? "Syncing..."
+                      ? "Importing..."
                       : selectedSpecs.size > 0
-                      ? `Sync ${selectedSpecs.size} Selected`
-                      : `Sync All ${status.unseeded.length}`}
+                      ? `Import ${selectedSpecs.size} Selected`
+                      : `Import All ${status.unseeded.length}`}
                   </button>
                 </div>
                 <div
@@ -704,7 +701,7 @@ export function SpecSyncDetailModal({
                     color: "var(--status-success-text)",
                   }}
                 >
-                  All specs are synced!
+                  All spec files imported!
                 </div>
                 <div
                   style={{
@@ -713,7 +710,7 @@ export function SpecSyncDetailModal({
                     marginTop: 4,
                   }}
                 >
-                  No unseeded specs found in bdd-specs/ directory
+                  All spec files are imported into the database
                 </div>
               </div>
             )}
@@ -749,7 +746,7 @@ export function SpecSyncDetailModal({
                   <span style={badgeStyle("success")}>
                     {status.synced.length}
                   </span>
-                  Synced Specs
+                  Already Imported
                   <span
                     style={{
                       fontSize: 12,
@@ -757,7 +754,7 @@ export function SpecSyncDetailModal({
                       color: "var(--text-secondary)",
                     }}
                   >
-                    — in both bdd-specs/ and database
+                    — file has been loaded into database
                   </span>
                 </summary>
                 <div
@@ -915,10 +912,10 @@ export function SpecSyncDetailModal({
                     gap: 8,
                   }}
                 >
-                  <span style={badgeStyle("error")}>
+                  <span style={badgeStyle("info")}>
                     {status.orphaned.length}
                   </span>
-                  Orphaned Specs
+                  DB-Only Specs
                   <span
                     style={{
                       fontSize: 12,
@@ -926,7 +923,7 @@ export function SpecSyncDetailModal({
                       color: "var(--text-secondary)",
                     }}
                   >
-                    — in database but no matching file
+                    — created via UI or source file removed (this is normal)
                   </span>
                 </h2>
                 <div
@@ -940,8 +937,9 @@ export function SpecSyncDetailModal({
                     color: "var(--status-warning-text)",
                   }}
                 >
-                  ⚠️ These specs exist in the database but have no corresponding
-                  .spec.json file. They may need to be cleaned up.
+                  These specs exist in the database only. They were created via the
+                  UI import or their source file was removed. This is normal — the
+                  database is the source of truth.
                 </div>
                 <div
                   style={{

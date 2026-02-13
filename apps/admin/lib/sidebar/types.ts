@@ -21,7 +21,8 @@ export type SidebarLayout = {
   itemPlacements: Record<string, string>; // itemHref → sectionId
   itemOrder: Record<string, string[]>; // sectionId → [itemHrefs in order]
   sectionTitles?: Record<string, string>; // sectionId → custom title
-  hiddenSections?: string[]; // sectionIds to hide
+  hiddenSections?: string[]; // sectionIds to hide (appear in restore menu)
+  deletedSections?: string[]; // sectionIds fully removed (only recoverable via Reset)
 };
 
 // Drag state for UI binding
@@ -42,6 +43,8 @@ export type SidebarAction =
   | { type: "RENAME_SECTION"; sectionId: string; title: string }
   | { type: "HIDE_SECTION"; sectionId: string }
   | { type: "SHOW_SECTION"; sectionId: string }
+  | { type: "DELETE_SECTION"; sectionId: string }
+  | { type: "UNDO_DELETE_SECTION"; sectionId: string }
   | { type: "SET_DRAG_STATE"; dragState: Partial<SidebarDragState> }
   | { type: "CLEAR_DRAG_STATE" };
 
@@ -60,6 +63,7 @@ export const EMPTY_LAYOUT: SidebarLayout = {
   itemOrder: {},
   sectionTitles: {},
   hiddenSections: [],
+  deletedSections: [],
 };
 
 export const EMPTY_DRAG_STATE: SidebarDragState = {

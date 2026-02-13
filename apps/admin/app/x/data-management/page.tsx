@@ -402,7 +402,7 @@ export default function DataManagementPage() {
         </div>
         <ol style={{ fontSize: 14, color: "var(--status-info-text)", margin: 0, paddingLeft: 24, lineHeight: 1.8 }}>
           <li style={{ marginBottom: 8 }}>
-            <strong>Sync All BDD Specs</strong> - Import all spec files from /bdd-specs directory (parameters, analysis specs, anchors)
+            <strong>Sync All BDD Specs</strong> - Import all spec files from /docs-archive/bdd-specs directory (parameters, analysis specs, anchors)
           </li>
           <li style={{ marginBottom: 8 }}>
             <strong>Create Domains & Playbooks</strong> - Select and create domains with playbooks and behavior targets (requires specs to exist)
@@ -474,7 +474,7 @@ export default function DataManagementPage() {
         <ConfirmationModal
           title="Sync All BDD Specs"
           icon="📦"
-          warning="This will read all .spec.json files from /bdd-specs directory and create/update Parameters, AnalysisSpecs, Anchors, and PromptSlugs in the database. Existing specs will be updated with new definitions."
+          warning="This will read all .spec.json files from /docs-archive/bdd-specs directory and create/update Parameters, AnalysisSpecs, Anchors, and PromptSlugs in the database. Existing specs will be updated with new definitions."
           onConfirm={executeSyncSpecs}
           onCancel={() => setShowModal(null)}
         />
@@ -672,7 +672,7 @@ function SyncSpecsCard({
             )}
           </div>
           <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
-            Reads all .spec.json files from /bdd-specs directory and creates/updates Parameters, AnalysisSpecs,
+            Reads all .spec.json files from /docs-archive/bdd-specs directory and creates/updates Parameters, AnalysisSpecs,
             Anchors, and PromptSlugs. Run this first to establish the spec foundation.
           </div>
 

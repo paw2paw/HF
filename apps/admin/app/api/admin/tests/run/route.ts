@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 // Store for active test runs
 const activeRuns = new Map<string, {
@@ -13,11 +14,23 @@ const activeRuns = new Map<string, {
 }>();
 
 /**
- * POST /api/admin/tests/run
- * Start a Playwright test run
+ * @api POST /api/admin/tests/run
+ * @visibility internal
+ * @scope admin:write
+ * @auth bearer
+ * @tags admin
+ * @description Start a Playwright test run with optional file, project, and test name filters
+ * @body file string - Optional test file to run
+ * @body project string - Optional Playwright project name
+ * @body testName string - Optional test name filter (grep)
+ * @response 200 { ok: true, runId: string, message: "Test run started", command: string }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json().catch(() => ({}));
     const { file, project, testName } = body;
 
@@ -94,10 +107,20 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/admin/tests/run?runId=xxx
- * Get status of a test run
+ * @api GET /api/admin/tests/run
+ * @visibility internal
+ * @scope admin:read
+ * @auth bearer
+ * @tags admin
+ * @description Get status of a specific test run by ID, or list all runs if no runId provided
+ * @query runId string - Optional run ID to get status for
+ * @response 200 { ok: true, runId: string, status: string, output: string, ... }
+ * @response 404 { ok: false, error: "Run not found" }
  */
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth("ADMIN");
+  if (isAuthError(authResult)) return authResult.error;
+
   const runId = request.nextUrl.searchParams.get("runId");
 
   if (!runId) {

@@ -19,14 +19,12 @@
  * prompt-ready caller profiles with adaptive learning.
  */
 
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import { processTranscripts } from "./transcripts-process";
 import { analyzePersonality } from "./personality-analyze";
 import { extractMemories } from "./memory-extract";
 import { measureAgent } from "./measure-agent";
 import { computeReward } from "./compute-reward";
-
-const prisma = new PrismaClient();
 
 export interface PipelineOptions {
   verbose?: boolean;
@@ -99,7 +97,7 @@ export async function runPipeline(
   const {
     verbose = false,
     plan = false,
-    mock = true,
+    mock = false,
     filepath,
     callerId,
     callId,
@@ -409,8 +407,6 @@ export async function runPipeline(
     console.error("\n❌ Pipeline failed:", error.message);
     result.errors.push(`Pipeline error: ${error.message}`);
     return result;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -421,7 +417,7 @@ if (require.main === module) {
   const options: PipelineOptions = {
     verbose: args.includes("--verbose") || args.includes("-v"),
     plan: args.includes("--plan"),
-    mock: !args.includes("--no-mock"),
+    mock: args.includes("--mock"),
     filepath: args.find((a) => a.startsWith("--file="))?.split("=")[1],
     callerId: args.find((a) => a.startsWith("--user="))?.split("=")[1],
     limit: parseInt(args.find((a) => a.startsWith("--limit="))?.split("=")[1] || "100"),

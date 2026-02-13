@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
+/**
+ * @api GET /api/calls
+ * @visibility public
+ * @scope calls:read
+ * @auth session
+ * @tags calls
+ * @description List calls with optional filtering by caller. Returns calls with scores, memories, behavior measurements, triggered prompts, and pipeline status.
+ * @query limit number - Max number of calls to return (default: 100)
+ * @query callerId string - Filter calls by caller ID
+ * @response 200 { ok: true, calls: Call[], count: number }
+ * @response 500 { ok: false, error: "Failed to fetch calls" }
+ */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") || "100");
     const callerId = url.searchParams.get("callerId");

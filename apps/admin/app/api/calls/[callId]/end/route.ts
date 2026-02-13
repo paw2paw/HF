@@ -1,15 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/calls/:callId/end
- * End a call - run full pipeline and compose next prompt
+ * @api POST /api/calls/:callId/end
+ * @visibility public
+ * @scope calls:write
+ * @auth session
+ * @tags calls, pipeline
+ * @description End a call by running the full pipeline (mode="prompt") and composing the next prompt. Internally delegates to the pipeline endpoint.
+ * @pathParam callId string - The call ID to end and process
+ * @body engine string - AI engine to use: "mock" | "claude" | "openai" (default: "claude")
+ * @response 200 { ok: true, pipeline: { scoresCreated, memoriesCreated, measurementsCreated, callTargetsCreated, playbookUsed }, prompt: { composed: boolean, id?: string, length?: number, error?: string } }
+ * @response 404 { ok: false, error: "Call not found" }
+ * @response 500 { ok: false, error: "Failed to end call" }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ callId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callId } = await params;
     const body = await request.json();
     const { engine = "claude" } = body;

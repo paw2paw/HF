@@ -205,6 +205,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [specSearch, setSpecSearch] = useState("");
   const [expandedAddPanels, setExpandedAddPanels] = useState<Set<"agent" | "caller" | "content">>(new Set());
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [showSystemInColumns, setShowSystemInColumns] = useState<Record<string, boolean>>({ agent: true, caller: true, content: true });
+  const [systemColumnCollapsed, setSystemColumnCollapsed] = useState(false);
 
   const toggleAddPanel = (column: "agent" | "caller" | "content") => {
     setExpandedAddPanels(prev => {
@@ -2181,9 +2183,32 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, marginTop: 8, height: "calc(100vh - 270px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: systemColumnCollapsed ? "40px 1fr 1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 16, marginTop: 8, height: "calc(100vh - 270px)" }}>
         {/* Column 1: System Specs (always run) */}
-        <div style={{ height: "100%", overflowY: "auto" }}>
+        <div style={{ height: "100%", overflowY: "auto", ...(systemColumnCollapsed ? { display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 8 } : {}) }}>
+          {systemColumnCollapsed ? (
+            <button
+              onClick={() => setSystemColumnCollapsed(false)}
+              title="Expand System Specs"
+              style={{
+                writingMode: "vertical-rl",
+                textOrientation: "mixed",
+                padding: "12px 4px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--text-muted)",
+                background: "var(--surface-secondary)",
+                border: "1px solid var(--border-default)",
+                borderRadius: 8,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                letterSpacing: "0.05em",
+              }}
+            >
+              ⚙️ System
+            </button>
+          ) : (
+          <>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", paddingBottom: 8, zIndex: 1 }}>
             <div>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
@@ -2244,6 +2269,22 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   {publishing ? "Republishing..." : "Republish"}
                 </button>
               )}
+              <button
+                onClick={() => setSystemColumnCollapsed(true)}
+                title="Collapse System Specs column"
+                style={{
+                  padding: "4px 8px",
+                  fontSize: 14,
+                  background: "transparent",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                  lineHeight: 1,
+                }}
+              >
+                ‹
+              </button>
             </div>
           </div>
 
@@ -2466,6 +2507,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               <p style={{ color: "var(--text-muted)", fontSize: 12 }}>No system specs available</p>
             </div>
           )}
+          </>
+          )}
         </div>
 
         {/* Column 2: Agent Specs (WHO the AI is) */}
@@ -2484,29 +2527,49 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 Who the AI is & how it speaks
               </p>
             </div>
-            {isEditable && availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
-              <button
-                onClick={() => toggleAddPanel("agent")}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  border: "1px solid var(--status-info-border)",
-                  background: expandedAddPanels.has("agent") ? "var(--status-info-bg)" : "var(--surface-primary)",
-                  color: "var(--status-info-text)",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.15s",
-                }}
-                title="Add spec"
-              >
-                {expandedAddPanels.has("agent") ? "−" : "+"}
-              </button>
-            )}
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {filteredSystemAgentSpecs.length > 0 && (
+                <button
+                  onClick={() => setShowSystemInColumns(prev => ({ ...prev, agent: !prev.agent }))}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    borderRadius: 4,
+                    border: "1px solid var(--border-default)",
+                    background: showSystemInColumns.agent ? "var(--surface-secondary)" : "var(--surface-primary)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={showSystemInColumns.agent ? "Hide system specs" : "Show system specs"}
+                >
+                  ⚙️ {showSystemInColumns.agent ? "Hide" : "Show"}
+                </button>
+              )}
+              {isEditable && availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+                <button
+                  onClick={() => toggleAddPanel("agent")}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    border: "1px solid var(--status-info-border)",
+                    background: expandedAddPanels.has("agent") ? "var(--status-info-bg)" : "var(--surface-primary)",
+                    color: "var(--status-info-text)",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.15s",
+                  }}
+                  title="Add spec"
+                >
+                  {expandedAddPanels.has("agent") ? "−" : "+"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Collapsible add panel for Agent specs */}
@@ -2550,7 +2613,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System IDENTITY/VOICE specs shown as read-only references */}
-          {filteredSystemAgentSpecs.length > 0 && (
+          {showSystemInColumns.agent && filteredSystemAgentSpecs.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredAgentItems.length > 0 ? 8 : 0 }}>
               {filteredSystemAgentSpecs.map((spec) => (
                 <div
@@ -2578,7 +2641,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {filteredAgentItems.length === 0 && filteredSystemAgentSpecs.length === 0 ? (
+          {filteredAgentItems.length === 0 && (!showSystemInColumns.agent || filteredSystemAgentSpecs.length === 0) ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -3023,16 +3086,35 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 Understanding & adapting to the caller
               </p>
             </div>
-            {isEditable && availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
-              <button
-                onClick={() => toggleAddPanel("caller")}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  border: "1px solid var(--status-warning-border)",
-                  background: expandedAddPanels.has("caller") ? "var(--status-warning-bg)" : "var(--surface-primary)",
-                  color: "var(--status-warning-text)",
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {filteredSystemCallerSpecs.length > 0 && (
+                <button
+                  onClick={() => setShowSystemInColumns(prev => ({ ...prev, caller: !prev.caller }))}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    borderRadius: 4,
+                    border: "1px solid var(--border-default)",
+                    background: showSystemInColumns.caller ? "var(--surface-secondary)" : "var(--surface-primary)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={showSystemInColumns.caller ? "Hide system specs" : "Show system specs"}
+                >
+                  ⚙️ {showSystemInColumns.caller ? "Hide" : "Show"}
+                </button>
+              )}
+              {isEditable && availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+                <button
+                  onClick={() => toggleAddPanel("caller")}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    border: "1px solid var(--status-warning-border)",
+                    background: expandedAddPanels.has("caller") ? "var(--status-warning-bg)" : "var(--surface-primary)",
+                    color: "var(--status-warning-text)",
                   fontSize: 16,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -3046,6 +3128,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 {expandedAddPanels.has("caller") ? "−" : "+"}
               </button>
             )}
+            </div>
           </div>
 
           {/* Collapsible add panel for Caller specs */}
@@ -3089,7 +3172,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System CALLER specs shown as read-only references */}
-          {filteredSystemCallerSpecs.length > 0 && (
+          {showSystemInColumns.caller && filteredSystemCallerSpecs.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredCallerItems.length > 0 ? 8 : 0 }}>
               {filteredSystemCallerSpecs.map((spec) => (
                 <div
@@ -3105,7 +3188,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
                     {outputTypeBadge(spec.outputType)}
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>{spec.name}</span>
+                    <Link href={`${routePrefix}/specs?id=${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
                   </div>
                   {spec.description && (
                     <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0 0", lineHeight: 1.3 }}>
@@ -3117,7 +3200,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {filteredCallerItems.length === 0 && filteredSystemCallerSpecs.length === 0 ? (
+          {filteredCallerItems.length === 0 && (!showSystemInColumns.caller || filteredSystemCallerSpecs.length === 0) ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -3249,16 +3332,35 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 What the AI knows & teaches
               </p>
             </div>
-            {isEditable && availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
-              <button
-                onClick={() => toggleAddPanel("content")}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  border: "1px solid var(--status-success-border)",
-                  background: expandedAddPanels.has("content") ? "var(--status-success-bg)" : "var(--surface-primary)",
-                  color: "var(--status-success-text)",
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {filteredSystemContentSpecs.length > 0 && (
+                <button
+                  onClick={() => setShowSystemInColumns(prev => ({ ...prev, content: !prev.content }))}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    borderRadius: 4,
+                    border: "1px solid var(--border-default)",
+                    background: showSystemInColumns.content ? "var(--surface-secondary)" : "var(--surface-primary)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={showSystemInColumns.content ? "Hide system specs" : "Show system specs"}
+                >
+                  ⚙️ {showSystemInColumns.content ? "Hide" : "Show"}
+                </button>
+              )}
+              {isEditable && availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+                <button
+                  onClick={() => toggleAddPanel("content")}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    border: "1px solid var(--status-success-border)",
+                    background: expandedAddPanels.has("content") ? "var(--status-success-bg)" : "var(--surface-primary)",
+                    color: "var(--status-success-text)",
                   fontSize: 16,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -3272,6 +3374,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 {expandedAddPanels.has("content") ? "−" : "+"}
               </button>
             )}
+            </div>
           </div>
 
           {/* Collapsible add panel for Content specs */}
@@ -3315,7 +3418,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System CONTENT specs shown as read-only references */}
-          {filteredSystemContentSpecs.length > 0 && (
+          {showSystemInColumns.content && filteredSystemContentSpecs.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredContentItems.length > 0 ? 8 : 0 }}>
               {filteredSystemContentSpecs.map((spec) => (
                 <div
@@ -3343,7 +3446,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {filteredContentItems.length === 0 && filteredSystemContentSpecs.length === 0 ? (
+          {filteredContentItems.length === 0 && (!showSystemInColumns.content || filteredSystemContentSpecs.length === 0) ? (
             <div style={{
               padding: 32,
               textAlign: "center",

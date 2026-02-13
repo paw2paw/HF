@@ -2,9 +2,21 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { Maximize2 } from "lucide-react";
+
+const TaxonomyExplorerView = dynamic(
+  () => import("@/components/taxonomy/TaxonomyExplorerView"),
+  { ssr: false, loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+    </div>
+  )}
+);
 import { entityColors } from "@/src/components/shared/uiColors";
 import { useVisualizerSearch } from "@/hooks/useVisualizerSearch";
 import { VisualizerSearch } from "@/components/shared/VisualizerSearch";
+import { drawIconNode, renderIconToCanvas, spriteTextureCache, NodeIcon } from "@/components/shared/VisualizerIcons";
 
 type NodeType = "spec" | "parameter" | "playbook" | "domain" | "trigger" | "action" | "anchor" | "promptSlug" | "behaviorTarget" | "range";
 
@@ -53,20 +65,6 @@ const nodeColors: Record<NodeType, string> = {
   range: "#84cc16",                       // lime - value ranges
 };
 
-// Shape types: hexagon = container, rounded-rect = behavior, circle = data, diamond = target
-type ShapeType = "hexagon" | "rounded-rect" | "circle" | "diamond";
-const nodeShapes: Record<NodeType, ShapeType> = {
-  domain: "hexagon",
-  playbook: "hexagon",
-  spec: "rounded-rect",
-  trigger: "rounded-rect",
-  action: "rounded-rect",
-  parameter: "circle",
-  anchor: "circle",
-  promptSlug: "rounded-rect",
-  behaviorTarget: "diamond",
-  range: "circle",
-};
 
 // Node sizes by type
 const nodeSizes: Record<NodeType, number> = {
@@ -90,68 +88,6 @@ const edgeColors: Record<string, string> = {
   defines_target: "#f59e0b",    // playbook -> behaviorTarget
 };
 
-// 2D Canvas shape drawing functions
-function drawShape2D(
-  ctx: CanvasRenderingContext2D,
-  shape: ShapeType,
-  x: number,
-  y: number,
-  size: number,
-  color: string,
-  isOrphan: boolean
-) {
-  const fillColor = isOrphan ? "#ef4444" : color;
-  ctx.fillStyle = fillColor;
-  ctx.strokeStyle = isOrphan ? "#fca5a5" : color;
-  ctx.lineWidth = 1.5;
-
-  switch (shape) {
-    case "hexagon": {
-      const r = size;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i - Math.PI / 2;
-        const px = x + r * Math.cos(angle);
-        const py = y + r * Math.sin(angle);
-        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case "rounded-rect": {
-      const w = size * 1.6;
-      const h = size * 1.2;
-      const radius = size * 0.3;
-      ctx.beginPath();
-      ctx.roundRect(x - w / 2, y - h / 2, w, h, radius);
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case "diamond": {
-      const r = size * 0.9;
-      ctx.beginPath();
-      ctx.moveTo(x, y - r);       // top
-      ctx.lineTo(x + r, y);       // right
-      ctx.lineTo(x, y + r);       // bottom
-      ctx.lineTo(x - r, y);       // left
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case "circle":
-    default: {
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.7, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-  }
-}
 
 export default function TaxonomyGraphPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -164,6 +100,7 @@ export default function TaxonomyGraphPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "1";
+  const activeTab = searchParams.get("tab") || "graph";
   const focusParam = searchParams.get("focus");
   const depthParam = searchParams.get("depth");
 
@@ -174,7 +111,7 @@ export default function TaxonomyGraphPage() {
   const [visibleTypes, setVisibleTypes] = useState<Set<NodeType>>(
     () => new Set<NodeType>(["spec", "parameter", "playbook", "domain", "trigger", "action", "anchor", "promptSlug", "behaviorTarget", "range"])
   );
-  const [is3D, setIs3D] = useState(true);
+  const [is3D, setIs3D] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [minimal, setMinimal] = useState(true); // Default to minimal - exclude trigger/action implementation details
 
@@ -263,8 +200,9 @@ export default function TaxonomyGraphPage() {
     };
   }, []);
 
-  // Fetch graph data on mount and when minimal changes
+  // Fetch graph data on mount and when minimal changes (skip when explorer tab is active)
   useEffect(() => {
+    if (activeTab !== "graph") return;
     const fetchGraph = async () => {
       try {
         setLoading(true);
@@ -284,7 +222,7 @@ export default function TaxonomyGraphPage() {
       }
     };
     fetchGraph();
-  }, [focusParam, depthParam, minimal]);
+  }, [focusParam, depthParam, minimal, activeTab]);
 
   // Navigate to entity detail page
   const navigateToEntity = useCallback((node: GraphNode) => {
@@ -431,34 +369,24 @@ export default function TaxonomyGraphPage() {
           graph
             .nodeThreeObject((node: GraphNode) => {
               const size = nodeSizes[node.type] || 8;
-              const shape = nodeShapes[node.type] || "circle";
               const color = node.isOrphan ? "#ef4444" : (nodeColors[node.type] || "#888888");
+              const cacheKey = `${node.type}:${color}`;
 
-              let geometry: any;
-              switch (shape) {
-                case "hexagon":
-                  geometry = new THREE.CylinderGeometry(size, size, size * 0.25, 6);
-                  break;
-                case "rounded-rect":
-                  geometry = new THREE.CapsuleGeometry(size * 0.4, size * 0.8, 4, 8);
-                  break;
-                case "diamond":
-                  // Octahedron rotated to look like a diamond
-                  geometry = new THREE.OctahedronGeometry(size * 0.6);
-                  break;
-                case "circle":
-                default:
-                  geometry = new THREE.SphereGeometry(size * 0.5, 16, 16);
-                  break;
+              let texture = spriteTextureCache.get(cacheKey);
+              if (!texture) {
+                const canvas = renderIconToCanvas(node.type, color);
+                texture = new THREE.CanvasTexture(canvas);
+                spriteTextureCache.set(cacheKey, texture);
               }
 
-              const material = new THREE.MeshLambertMaterial({
-                color,
+              const material = new THREE.SpriteMaterial({
+                map: texture,
                 transparent: true,
                 opacity: 0.9,
               });
-
-              return new THREE.Mesh(geometry, material);
+              const sprite = new THREE.Sprite(material);
+              sprite.scale.set(size * 1.5, size * 1.5, 1);
+              return sprite;
             })
             .nodeOpacity(0.95)
             .linkOpacity(0.7)
@@ -484,9 +412,8 @@ export default function TaxonomyGraphPage() {
             ctx.globalAlpha = opacity;
 
             const size = nodeSizes[node.type] || 8;
-            const shape = nodeShapes[node.type] || "circle";
-            const color = nodeColors[node.type] || "#888888";
-            drawShape2D(ctx, shape, node.x!, node.y!, size, color, !!node.isOrphan);
+            const color = node.isOrphan ? "#ef4444" : (nodeColors[node.type] || "#888888");
+            drawIconNode(ctx, node.type, node.x!, node.y!, size, color);
 
             ctx.globalAlpha = 1; // Reset alpha
           })
@@ -605,37 +532,91 @@ export default function TaxonomyGraphPage() {
   }, [selectedNode, graphData]);
 
   return (
-    <div className="flex flex-col bg-neutral-100 dark:bg-neutral-900" style={{
-      minHeight: isEmbed ? "100%" : "calc(100vh - 120px)",
-      height: isEmbed ? "100vh" : undefined,
+    <div style={{
+      height: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      background: "var(--surface-secondary)",
     }}>
       {/* Header - hidden in embed mode */}
       {!isEmbed && (
-        <div className="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-6 py-3">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Taxonomy Graph</h1>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded ${is3D ? "text-indigo-400 bg-indigo-900/30" : "text-emerald-400 bg-emerald-900/30"}`}>
-              {is3D ? "3D" : "2D"}
-            </span>
-            {graphData && (
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                {graphData.counts.nodes} nodes, {graphData.counts.edges} edges
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.back()}
-              className="rounded-md bg-neutral-200 dark:bg-neutral-700 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600"
-            >
-              Back
-            </button>
+        <div
+          style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 8,
+            padding: "12px 16px",
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Taxonomy</h1>
+              {/* Tabs */}
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  onClick={() => router.push("/x/taxonomy-graph")}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 6,
+                    border: activeTab === "graph" ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                    background: activeTab === "graph" ? "var(--surface-selected)" : "var(--surface-primary)",
+                    color: activeTab === "graph" ? "var(--accent-primary)" : "var(--text-muted)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Graph
+                </button>
+                <button
+                  onClick={() => router.push("/x/taxonomy-graph?tab=explorer")}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 6,
+                    border: activeTab === "explorer" ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                    background: activeTab === "explorer" ? "var(--surface-selected)" : "var(--surface-primary)",
+                    color: activeTab === "explorer" ? "var(--accent-primary)" : "var(--text-muted)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Explorer
+                </button>
+              </div>
+              {activeTab === "graph" && (
+                <>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    background: is3D ? "rgba(99, 102, 241, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                    color: is3D ? "#6366f1" : "#10b981",
+                  }}>
+                    {is3D ? "3D" : "2D"}
+                  </span>
+                  {graphData && (
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {graphData.counts.nodes} nodes, {graphData.counts.edges} edges
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {/* Main */}
-      <div className="relative flex-1">
+      {activeTab === "explorer" ? (
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <TaxonomyExplorerView />
+        </div>
+      ) : (
+      <div className="relative" style={{ flex: 1, minHeight: 0 }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-neutral-900/80 z-10">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
@@ -703,7 +684,6 @@ export default function TaxonomyGraphPage() {
             {(["domain", "playbook", "spec", "parameter", ...(minimal ? [] : ["trigger", "action"] as NodeType[]), "anchor", "promptSlug", "behaviorTarget", "range"] as NodeType[]).map(type => {
               const isVisible = visibleTypes.has(type);
               const color = nodeColors[type];
-              const shape = nodeShapes[type];
               const displayName = type === "promptSlug" ? "Prompt Slugs"
                 : type === "behaviorTarget" ? "Targets"
                 : type === "range" ? "Ranges"
@@ -726,23 +706,7 @@ export default function TaxonomyGraphPage() {
                     opacity: isVisible ? 1 : 0.6,
                   }}
                 >
-                  {/* Shape indicator */}
-                  <svg width="14" height="14" viewBox="0 0 14 14" className="flex-shrink-0">
-                    {shape === "hexagon" ? (
-                      <polygon
-                        points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4"
-                        fill={color}
-                        stroke={isVisible ? color : "#a3a3a3"}
-                        strokeWidth="0.5"
-                      />
-                    ) : shape === "rounded-rect" ? (
-                      <rect x="1" y="3" width="12" height="8" rx="2" fill={color} stroke={isVisible ? color : "#a3a3a3"} strokeWidth="0.5" />
-                    ) : shape === "diamond" ? (
-                      <polygon points="7,1 13,7 7,13 1,7" fill={color} stroke={isVisible ? color : "#a3a3a3"} strokeWidth="0.5" />
-                    ) : (
-                      <circle cx="7" cy="7" r="5" fill={color} stroke={isVisible ? color : "#a3a3a3"} strokeWidth="0.5" />
-                    )}
-                  </svg>
+                  <NodeIcon type={type} color={isVisible ? color : "#a3a3a3"} size={14} />
                   <span className="text-xs font-semibold capitalize" style={{ color: textColor }}>
                     {displayName}
                   </span>
@@ -768,17 +732,7 @@ export default function TaxonomyGraphPage() {
           <div className="absolute bottom-4 left-4 rounded-lg border-2 border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 backdrop-blur-sm shadow-xl w-72 max-h-[50vh] flex flex-col overflow-hidden">
             <div className="p-4 border-b-2 border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
               <div className="flex items-center gap-2 mb-2">
-                <svg width="14" height="14" viewBox="0 0 14 14" className="flex-shrink-0">
-                  {nodeShapes[selectedNode.type] === "hexagon" ? (
-                    <polygon points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
-                  ) : nodeShapes[selectedNode.type] === "rounded-rect" ? (
-                    <rect x="1" y="3" width="12" height="8" rx="2" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
-                  ) : nodeShapes[selectedNode.type] === "diamond" ? (
-                    <polygon points="7,1 13,7 7,13 1,7" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
-                  ) : (
-                    <circle cx="7" cy="7" r="5" fill={nodeColors[selectedNode.type]} stroke={nodeColors[selectedNode.type]} strokeWidth="0.5" />
-                  )}
-                </svg>
+                <NodeIcon type={selectedNode.type} color={nodeColors[selectedNode.type]} size={14} />
                 <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: nodeColors[selectedNode.type] }}>
                   {selectedNode.type}
                 </span>
@@ -826,17 +780,7 @@ export default function TaxonomyGraphPage() {
                     }}
                     className="w-full px-3 py-2.5 text-left hover:bg-neutral-100 dark:hover:bg-neutral-700/60 flex items-center gap-2 transition-colors border-b border-neutral-100 dark:border-neutral-800 last:border-0"
                   >
-                    <svg width="10" height="10" viewBox="0 0 14 14" className="flex-shrink-0">
-                      {nodeShapes[node.type] === "hexagon" ? (
-                        <polygon points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4" fill={nodeColors[node.type]} />
-                      ) : nodeShapes[node.type] === "rounded-rect" ? (
-                        <rect x="1" y="3" width="12" height="8" rx="2" fill={nodeColors[node.type]} />
-                      ) : nodeShapes[node.type] === "diamond" ? (
-                        <polygon points="7,1 13,7 7,13 1,7" fill={nodeColors[node.type]} />
-                      ) : (
-                        <circle cx="7" cy="7" r="5" fill={nodeColors[node.type]} />
-                      )}
-                    </svg>
+                    <NodeIcon type={node.type} color={nodeColors[node.type]} size={10} />
                     <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100 truncate flex-1">{node.label}</span>
                     <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase">{node.type}</span>
                   </button>
@@ -860,12 +804,11 @@ export default function TaxonomyGraphPage() {
             className="h-8 w-8 flex items-center justify-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
             title="Reset view (0)"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
+            <Maximize2 className="h-4 w-4" />
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

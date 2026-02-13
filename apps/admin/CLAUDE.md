@@ -1,8 +1,10 @@
 # Claude Code Instructions - HF Project
 
+> **No Hardcoding | No Mocks | No Dead Ends | Everything Tested and Documented | Ensure System-wide Docs are Maintained | Maintain Gherkin**
+
 **Project**: HF (Human Factors) - Adaptive Conversational AI System
-**Last Updated**: 2026-02-05
-**Architecture Version**: 5.1
+**Last Updated**: 2026-02-12
+**Architecture Version**: 5.2
 
 ---
 
@@ -36,7 +38,7 @@ const params = await prisma.parameter.findMany({
 
 // Load from config file
 const manifest = JSON.parse(
-  fs.readFileSync("bdd-specs/playbooks-config.json", "utf-8")
+  fs.readFileSync("docs-archive/bdd-specs/playbooks-config.json", "utf-8")
 );
 ```
 
@@ -153,64 +155,41 @@ git commit -m "docs(arch): add learning style detection pipeline
 
 ---
 
-### 4. BDD Specifications
+### 4. BDD Specifications & Source of Truth
 
-**Keep BDD specs synchronized with implementation.**
+**The database is the runtime source of truth.** BDD spec files (`docs-archive/bdd-specs/*.spec.json`) are bootstrap/import material — like SQL migrations, you run them once to set up the database, then the database is authoritative. The `bdd-specs/` folder has been archived to `docs-archive/bdd-specs/` and is NOT needed at runtime.
 
-**BDD Spec Location:**
-- All specs: `bdd-specs/*.spec.json`
-- Playbook config: `bdd-specs/playbooks-config.json`
-- Contract definitions: `bdd-specs/contracts/`
+**Source of Truth Rules:**
+- After import, all spec edits happen in the database (via UI or API)
+- Specs created via the UI will never have a `.spec.json` file — that's normal
+- The `/x/admin/spec-sync` page is an **import tool**, not a sync monitor
+- "DB-Only" specs (no matching file) are expected and fine
+- Never treat file ↔ DB drift as an error — the DB wins
+- The `docs-archive/bdd-specs/` folder is fully optional after initial import
 
-**Spec-Driven Development Flow:**
+**BDD Spec Archive Location:**
+- All specs: `docs-archive/bdd-specs/*.spec.json`
+- Playbook config: `docs-archive/bdd-specs/playbooks-config.json`
+- Contract definitions: `docs-archive/bdd-specs/contracts/`
 
+**Import Flow (bootstrap only):**
 ```
-1. Write BDD spec      → bdd-specs/FEATURE-NNN-name.spec.json
-2. Run devZZZ          → npm run devZZZ (loads specs to DB)
-3. Implement feature   → lib/ with unit tests
-4. Update spec status  → mark scenarios as "IMPLEMENTED"
-5. Update architecture → ARCHITECTURE.md
-```
-
-**BDD Spec Structure:**
-```json
-{
-  "feature_id": "LEARN-STYLE-001",
-  "title": "Learning Style Detection",
-  "domain": "learning",
-  "status": "DRAFT",
-  "scenarios": [
-    {
-      "scenario": "Detect visual learner from spatial reasoning",
-      "given": "Caller shows high spatial reasoning (0.8+)",
-      "when": "Learning style detector runs",
-      "then": "Primary style is VISUAL with confidence > 0.7",
-      "status": "IMPLEMENTED"
-    }
-  ],
-  "contracts": {
-    "input": { "schema_ref": "contracts/caller-profile.json" },
-    "output": { "schema_ref": "contracts/learning-style.json" }
-  },
-  "parameters": [
-    { "parameter_id": "LEARN-VISUAL" },
-    { "parameter_id": "LEARN-KINESTHETIC" }
-  ]
-}
+1. Write/edit spec file  → docs-archive/bdd-specs/FEATURE-NNN-name.spec.json
+2. Import to database    → /x/admin/spec-sync → "Import All"
+                           OR: npm run db:seed
+                           OR: POST /api/admin/spec-sync
+3. DB is now authoritative → All runtime reads come from DB
+4. Edit via UI or API    → Changes stay in DB
 ```
 
-**When to update BDD specs:**
-- ✅ Adding new features → Create new spec file
-- ✅ Implementing scenarios → Update status to "IMPLEMENTED"
-- ✅ Changing behavior → Update Given/When/Then
-- ✅ Adding parameters → Add to parameters array
-- ✅ Modifying contracts → Update schema refs
+**When to create new spec files:**
+- Bootstrapping a fresh database (dev setup, new deployment)
+- Version-controlling a new spec before importing it
+- Sharing specs across environments
 
-**BDD spec validation:**
-```bash
-# After updating specs, always run:
-npm run devZZZ  # Reloads specs, validates structure
-```
+**When NOT to create spec files:**
+- Editing an existing spec (just edit in DB via UI)
+- Quick iteration on spec parameters (use the UI)
 
 ---
 
@@ -236,10 +215,10 @@ apps/admin/
 │   ├── pipeline/          # Pipeline orchestration
 │   └── prompt/            # Prompt composition
 │
-├── bdd-specs/             # BDD specifications (source of truth)
+├── docs-archive/bdd-specs/ # BDD specifications (archived — only for initial import)
 │   ├── *.spec.json        # Feature specs
 │   ├── playbooks-config.json  # Playbook metadata
-│   └── contracts/         # JSON schemas
+│   └── contracts/         # Contract JSON schemas
 │
 ├── prisma/                # Database
 │   ├── schema.prisma      # Database schema
@@ -280,7 +259,7 @@ npx prisma studio          # Open DB GUI
 
 1. **Write BDD Spec**
    ```bash
-   # Create: bdd-specs/LEARN-STYLE-001-learning-style-detection.spec.json
+   # Create: docs-archive/bdd-specs/LEARN-STYLE-001-learning-style-detection.spec.json
    ```
 
 2. **Create Implementation with Tests**
@@ -331,11 +310,26 @@ npx prisma studio          # Open DB GUI
 
 ### API Routes (Next.js)
 
+**IMPORTANT: Every route handler MUST have an `@api` JSDoc annotation** for the living documentation system. Missing annotations will fail CI.
+
 ```typescript
 // app/api/example/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * @api POST /api/example
+ * @visibility public
+ * @scope example:write
+ * @auth session
+ * @tags example
+ * @description Create a new example resource
+ * @body requiredField string - The required field (required)
+ * @body optionalField string - An optional field
+ * @response 200 { ok: true, message: string, data: object }
+ * @response 400 { ok: false, error: "requiredField is required" }
+ * @response 500 { ok: false, error: string }
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -364,6 +358,24 @@ export async function POST(request: Request) {
     );
   }
 }
+```
+
+**@api annotation tags** (see `scripts/api-docs/types.ts` for full spec):
+- `@api METHOD /api/path` - Required. Method + path (use `:param` for path params)
+- `@visibility public|internal` - Default: internal
+- `@scope` - API key scope (e.g., `callers:read`)
+- `@auth session|bearer|api-key|none` - Default: session
+- `@tags` - Comma-separated groups
+- `@description` - Human-readable explanation
+- `@pathParam name type - description` - URL path parameters
+- `@query name type - description` - Query string parameters
+- `@body name type - description` - Request body fields
+- `@response STATUS { shape }` - Response shapes by status code
+
+**After creating or modifying route files**, regenerate docs:
+```bash
+npm run docs:api           # Regenerate API-INTERNAL.md and API-PUBLIC.md
+npm run docs:api:validate  # Check coverage (fails if any route missing @api)
 ```
 
 ### Error Handling
@@ -560,11 +572,37 @@ FOR EACH ROW EXECUTE FUNCTION update_counts();
 |------|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Complete system architecture (READ THIS FIRST) |
 | [prisma/schema.prisma](prisma/schema.prisma) | Database schema (source of truth) |
-| [bdd-specs/playbooks-config.json](bdd-specs/playbooks-config.json) | Playbook metadata |
-| [bdd-specs/*.spec.json](bdd-specs/) | BDD feature specifications |
+| [docs-archive/bdd-specs/playbooks-config.json](docs-archive/bdd-specs/playbooks-config.json) | Playbook metadata (bootstrap only) |
+| [docs-archive/bdd-specs/*.spec.json](docs-archive/bdd-specs/) | BDD feature specifications (bootstrap only) |
 | [lib/pipeline/](lib/pipeline/) | Core pipeline orchestration |
 | [lib/prompt/](lib/prompt/) | Prompt composition logic |
+| [lib/permissions.ts](lib/permissions.ts) | RBAC: requireAuth() + isAuthError() |
+| [lib/auth.ts](lib/auth.ts) | NextAuth config (Credentials + Email) |
 | [scripts/dev-zzz.sh](scripts/dev-zzz.sh) | Nuclear dev reset script |
+
+---
+
+## Security (RBAC)
+
+**Every route handler MUST call `requireAuth()`** from `lib/permissions.ts`. The coverage test (`tests/lib/route-auth-coverage.test.ts`) scans all 184 route files and fails CI if any are missing auth.
+
+```typescript
+import { requireAuth, isAuthError } from "@/lib/permissions";
+
+export async function GET() {
+  const authResult = await requireAuth("VIEWER");   // VIEWER, OPERATOR, or ADMIN
+  if (isAuthError(authResult)) return authResult.error;
+  // ... handler logic
+}
+```
+
+**Role hierarchy**: ADMIN (3) > OPERATOR (2) > VIEWER (1). Higher roles inherit lower permissions.
+
+**Public routes** (no auth): `/api/auth/*`, `/api/health`, `/api/ready`, `/api/system/readiness`, `/api/invite/*`.
+
+**Sim access**: All sim routes use `requireAuth("VIEWER")`. Testers onboard via invite system (no access codes).
+
+See [docs/RBAC.md](docs/RBAC.md) for the full permission matrix.
 
 ---
 
@@ -663,7 +701,7 @@ git log --oneline -20
 - **Architecture questions**: See [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Setup issues**: Check environment variables (DATABASE_URL, HF_KB_PATH)
 - **Test failures**: Run `npm run test:coverage` to see gaps
-- **Spec sync issues**: Run `npm run devZZZ` to reload everything
+- **Spec import issues**: Visit `/x/admin/spec-sync` to see import status and errors
 
 ---
 

@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/lab/features/[id]
- *
- * Get a single feature set with all its data
+ * @api GET /api/lab/features/:id
+ * @visibility internal
+ * @scope lab:read
+ * @auth session
+ * @tags lab
+ * @description Get a single BDD feature set with all related data (specs, parameters, prompt slugs, anchors)
+ * @pathParam id string - Feature set ID
+ * @response 200 { ok: true, feature: BDDFeatureSet }
+ * @response 404 { ok: false, error: "Feature set not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
 
     const feature = await prisma.bDDFeatureSet.findUnique({
@@ -77,15 +88,24 @@ export async function GET(
 }
 
 /**
- * DELETE /api/lab/features/[id]
- *
- * Delete a feature set
+ * @api DELETE /api/lab/features/:id
+ * @visibility internal
+ * @scope lab:write
+ * @auth session
+ * @tags lab
+ * @description Delete a BDD feature set by ID
+ * @pathParam id string - Feature set ID
+ * @response 200 { ok: true }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
 
     // Delete the feature set

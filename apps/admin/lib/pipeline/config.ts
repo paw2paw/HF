@@ -58,7 +58,7 @@ export async function loadPipelineStages(log?: Logger): Promise<PipelineStage[]>
   if (!pipelineSpec) {
     throw new Error(
       `Pipeline spec not found: "${pipelineSlug}". ` +
-      `Run "Sync All BDD Specs" to seed PIPELINE-001 from bdd-specs/ directory.`
+      `Run "Import All" on /x/admin/spec-sync to import PIPELINE-001 from spec files.`
     );
   }
 

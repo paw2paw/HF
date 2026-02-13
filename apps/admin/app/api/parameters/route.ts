@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/parameters
- * React-Admin getList endpoint
- *
- * Query params:
- * - sort: JSON array [field, order] e.g. ["parameterId", "ASC"]
- * - range: JSON array [start, end] e.g. [0, 24]
- * - filter: JSON object e.g. {"q": "search term"}
+ * @api GET /api/parameters
+ * @visibility public
+ * @scope parameters:read
+ * @auth session
+ * @tags parameters
+ * @description List parameters with React-Admin compatible pagination, sorting, and filtering. Includes tags, prompt slug links, and source feature set.
+ * @query sort string - JSON array [field, order] e.g. ["parameterId", "ASC"]
+ * @query range string - JSON array [start, end] e.g. [0, 24]
+ * @query filter string - JSON object e.g. {"q": "search term", "isActive": true, "parameterType": "BEHAVIOR"}
+ * @response 200 Parameter[] (with Content-Range header for pagination)
+ * @response 500 { error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = request.url ? new URL(request.url) : { searchParams: new URLSearchParams() };
 
     // Parse React-Admin query params
@@ -103,11 +111,30 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/parameters
- * React-Admin create endpoint
+ * @api POST /api/parameters
+ * @visibility public
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Create a new parameter (React-Admin compatible)
+ * @body parameterId string - Unique semantic parameter ID (e.g. "B5-O", "VARK-V")
+ * @body name string - Display name
+ * @body domainGroup string - Domain group
+ * @body sectionId string - Section ID
+ * @body scaleType string - Scale type
+ * @body directionality string - Directionality
+ * @body computedBy string - Computed by
+ * @body definition string - Parameter definition
+ * @body interpretationLow string - Low-score interpretation
+ * @body interpretationHigh string - High-score interpretation
+ * @response 201 Parameter
+ * @response 500 { error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
 
     const parameter = await prisma.parameter.create({

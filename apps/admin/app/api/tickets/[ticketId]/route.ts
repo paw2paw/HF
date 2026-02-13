@@ -1,20 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/tickets/[ticketId]
- * Get a single ticket with comments
+ * @api GET /api/tickets/:ticketId
+ * @visibility internal
+ * @scope tickets:read
+ * @auth session
+ * @tags tickets
+ * @description Retrieves a single ticket by ID including all comments, creator, and assignee details.
+ * @pathParam ticketId string - The ticket ID
+ * @response 200 { ok: true, ticket: {...} }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 404 { ok: false, error: "Ticket not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
 
     const { ticketId } = await params;
 
@@ -53,18 +60,32 @@ export async function GET(
 }
 
 /**
- * PATCH /api/tickets/[ticketId]
- * Update ticket status, priority, assignee, etc.
+ * @api PATCH /api/tickets/:ticketId
+ * @visibility internal
+ * @scope tickets:update
+ * @auth session
+ * @tags tickets
+ * @description Updates ticket fields (status, priority, category, assignee, title, description, tags). Manages resolved/closed timestamps automatically.
+ * @pathParam ticketId string - The ticket ID
+ * @body status string - New status (OPEN, IN_PROGRESS, WAITING, RESOLVED, CLOSED)
+ * @body priority string - New priority
+ * @body category string - New category
+ * @body assigneeId string - New assignee user ID
+ * @body title string - Updated title
+ * @body description string - Updated description
+ * @body tags string[] - Updated tags
+ * @response 200 { ok: true, ticket: {...} }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 404 { ok: false, error: "Ticket not found" | "Assignee not found or inactive" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
 
     const { ticketId } = await params;
     const body = await req.json();
@@ -143,18 +164,27 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/tickets/[ticketId]
- * Delete a ticket (admin only or creator)
+ * @api DELETE /api/tickets/:ticketId
+ * @visibility internal
+ * @scope tickets:delete
+ * @auth session
+ * @tags tickets
+ * @description Deletes a ticket. Only the ticket creator or an admin can delete.
+ * @pathParam ticketId string - The ticket ID
+ * @response 200 { ok: true }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 403 { ok: false, error: "Forbidden" }
+ * @response 404 { ok: false, error: "Ticket not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { ticketId } = await params;
 

@@ -1,16 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/callers/[callerId]/switch-domain
- *
- * Switch caller to a new domain with optional re-onboarding
+ * @api POST /api/callers/:callerId/switch-domain
+ * @visibility internal
+ * @auth session
+ * @tags callers, domains
+ * @description Switch a caller to a new domain. Archives old goals, creates new goals from the new domain's playbook, and optionally triggers re-onboarding.
+ * @pathParam callerId string - The caller ID
+ * @body domainId string - The target domain ID (required)
+ * @body skipOnboarding boolean - Skip re-onboarding flow (default: false)
+ * @response 200 { ok: true, message: string, caller: object, previousDomain: object, newDomain: object, archivedGoalsCount: number, newGoals: string[], onboardingRequired: boolean, onboardingSession: object }
+ * @response 400 { ok: false, error: "domainId is required" | "Caller is already in this domain" }
+ * @response 404 { ok: false, error: "Caller not found" | "Domain not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
     const body = await req.json();
     const { domainId, skipOnboarding = false } = body;

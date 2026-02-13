@@ -1,13 +1,10 @@
-## Summary
-What changed and why? (2–5 lines)
+# Pull Request
 
-## Related artefacts / IDs
-- [ ] SYS-###
-- [ ] ARC-###
-- [ ] BDD-###
-- [ ] ADR-###
-- [ ] OPS-###
-(Include at least one)
+## Summary
+What changed and why? (2-5 lines)
+
+## Related Issues / PRs
+Link to related issues, PRs, or specs (if any).
 
 ## Files changed
 List key files (or link to them).
@@ -17,6 +14,6 @@ What should the reviewer look for?
 
 ## Checks
 - [ ] I worked on a branch (not `main`)
-- [ ] Commit messages reference an ID
-- [ ] Docs/behaviour remain consistent (no drift)
-- [ ] Notion updated (status + GitHub link)
+- [ ] Tests pass (`npm test`)
+- [ ] New API routes have `requireAuth()` + `@api` JSDoc annotation
+- [ ] Architecture docs updated if applicable

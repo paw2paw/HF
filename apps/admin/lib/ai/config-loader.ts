@@ -64,6 +64,20 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "bdd.parse": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "chat.stream": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "spec.assistant": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.view": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "chat.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.call": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.tasks": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "content-trust.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "workflow.classify": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "workflow.step": { provider: "claude", model: "claude-sonnet-4-20250514" },
 };
 
 // In-memory cache with TTL

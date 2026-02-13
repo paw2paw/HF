@@ -1,24 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/playbooks/[playbookId]/targets
- *
- * Returns ALL adjustable BEHAVIOR parameters with their cascade of targets:
- * - System targets (base layer)
- * - Playbook targets (overrides system)
- * - Caller targets not returned here (computed at runtime per caller)
- *
- * The UI shows behavior dimension cards with sliders.
- *
- * NEW ARCHITECTURE: Behavior dimensions exist globally (not tied to specs).
- * Every playbook can configure targets for any BEHAVIOR parameter.
+ * @api GET /api/playbooks/:playbookId/targets
+ * @visibility internal
+ * @scope playbooks:read
+ * @auth session
+ * @tags playbooks
+ * @description Returns all adjustable BEHAVIOR parameters with their cascade of targets
+ *   (system base layer, playbook overrides). Behavior dimensions exist globally and
+ *   every playbook can configure targets for any BEHAVIOR parameter.
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, playbookId, playbookName, playbookStatus, parameters: [...], counts: { total, withPlaybookOverride, withSystemDefault } }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     // Get playbook with its targets
@@ -121,18 +126,29 @@ export async function GET(
 }
 
 /**
- * PATCH /api/playbooks/[playbookId]/targets
- *
- * Update playbook-level behavior targets.
- * Body: { targets: [{ parameterId, targetValue }] }
- *
- * If targetValue is null, removes the playbook override (falls back to system).
+ * @api PATCH /api/playbooks/:playbookId/targets
+ * @visibility internal
+ * @scope playbooks:write
+ * @auth session
+ * @tags playbooks
+ * @description Update playbook-level behavior targets. Set targetValue to null to remove
+ *   the playbook override and fall back to system defaults.
+ * @pathParam playbookId string - Playbook UUID (must not be PUBLISHED)
+ * @body targets Array<{ parameterId: string, targetValue: number | null }> - Target updates
+ * @response 200 { ok: true, results: [...], message: "Updated N targets" }
+ * @response 400 { ok: false, error: "targets must be an array" }
+ * @response 400 { ok: false, error: "Cannot modify targets for a published playbook" }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
     const body = await request.json();
     const { targets } = body;

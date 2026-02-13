@@ -14,6 +14,8 @@ export interface VerticalSliderProps {
   targetValue?: number;
   /** Secondary value (0-1), shown as right bar */
   secondaryValue?: number;
+  /** Base/default value (0-1) before adjustments — shown as a dashed marker when value differs */
+  baseValue?: number;
   /** Color configuration */
   color?: {
     primary: string;
@@ -51,6 +53,7 @@ export function VerticalSlider({
   value,
   targetValue,
   secondaryValue,
+  baseValue,
   color = { primary: "#a78bfa", glow: "#8b5cf6" },
   editable = false,
   onChange,
@@ -227,22 +230,19 @@ export function VerticalSlider({
             touchAction: editable ? "none" : "auto",
           }}
         >
-          {/* Gauge lines inside track */}
-          {ticks.map((tick) => (
-            <div
-              key={tick}
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: `${tick}%`,
-                height: 1,
-                background: tick === 50 ? "var(--slider-gauge-line-mid)" : "var(--slider-gauge-line)",
-                zIndex: 1,
-                pointerEvents: "none",
-              }}
-            />
-          ))}
+          {/* 50% midpoint reference line */}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: "50%",
+              height: 1,
+              background: "var(--slider-gauge-line-mid)",
+              zIndex: 1,
+              pointerEvents: "none",
+            }}
+          />
 
           {/* Primary value bar */}
           <div
@@ -282,37 +282,20 @@ export function VerticalSlider({
             />
           )}
 
-          {/* LED segments overlay */}
-          {[...Array(10)].map((_, i) => (
-            <div
-              key={i}
-              style={{
-                position: "absolute",
-                left: 2,
-                right: 2,
-                bottom: `${i * 10 + 5}%`,
-                height: 1,
-                background: "var(--slider-led-separator)",
-                opacity: 0.5,
-                zIndex: 3,
-                pointerEvents: "none",
-              }}
-            />
-          ))}
-
-          {/* History measurement dashes */}
+          {/* History measurement notches (right-side only so they don't look like reference lines) */}
           {historyPoints.length > 1 && historyPoints.map((point, i) => (
             <div
               key={`history-${i}`}
               style={{
                 position: "absolute",
-                left: 4,
-                right: 4,
+                left: "auto",
+                right: 0,
+                width: 6,
                 bottom: `${Math.max(1, Math.min(99, point * 100))}%`,
                 height: 2,
                 background: color.primary,
-                borderRadius: 1,
-                opacity: 0.15 + (i / (historyPoints.length - 1)) * 0.65,
+                borderRadius: "1px 0 0 1px",
+                opacity: 0.2 + (i / (historyPoints.length - 1)) * 0.6,
                 zIndex: 3,
                 pointerEvents: "none",
               }}
@@ -333,6 +316,24 @@ export function VerticalSlider({
                 zIndex: 4,
                 pointerEvents: "none",
               }}
+            />
+          )}
+
+          {/* Base value marker — dashed line showing the original/system value before adjustments */}
+          {baseValue !== undefined && Math.abs(baseValue - value) > 0.01 && (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: `${baseValue * 100}%`,
+                height: 0,
+                borderTop: "2px dashed var(--text-placeholder)",
+                opacity: 0.6,
+                zIndex: 4,
+                pointerEvents: "none",
+              }}
+              title={`Base: ${(baseValue * 100).toFixed(0)}%`}
             />
           )}
 

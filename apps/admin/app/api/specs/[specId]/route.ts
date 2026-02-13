@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/specs/[specId]
- * Get a single spec by ID with all related data
+ * @api GET /api/specs/:specId
+ * @visibility public
+ * @scope specs:read
+ * @auth session
+ * @tags specs
+ * @description Get a single spec by ID with triggers, actions, parameters, and prompt slug data
+ * @pathParam specId string - Spec UUID
+ * @response 200 { ok: true, spec: AnalysisSpec }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     const spec = await prisma.analysisSpec.findUnique({
@@ -57,14 +69,31 @@ export async function GET(
 }
 
 /**
- * PATCH /api/specs/[specId]
- * Update a spec
+ * @api PATCH /api/specs/:specId
+ * @visibility public
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description Update a spec's metadata (name, description, isActive, isDirty, priority, config, promptTemplate)
+ * @pathParam specId string - Spec UUID
+ * @body name string - Updated display name
+ * @body description string - Updated description
+ * @body isActive boolean - Enable or disable spec
+ * @body isDirty boolean - Mark spec as dirty
+ * @body priority number - Spec priority
+ * @body config object - Spec configuration
+ * @body promptTemplate string - Prompt template text
+ * @response 200 { ok: true, spec: AnalysisSpec }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
     const body = await req.json();
 
@@ -92,14 +121,24 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/specs/[specId]
- * Delete a spec
+ * @api DELETE /api/specs/:specId
+ * @visibility public
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description Delete a spec permanently
+ * @pathParam specId string - Spec UUID
+ * @response 200 { ok: true }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     await prisma.analysisSpec.delete({

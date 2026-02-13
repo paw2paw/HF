@@ -1,10 +1,25 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
+/**
+ * @api GET /api/calls/scores
+ * @visibility public
+ * @scope calls:read
+ * @auth session
+ * @tags calls, scores
+ * @description List call scores across all calls, ordered by most recent. Includes parameter details, call source/transcript, and run status.
+ * @query limit number - Max number of scores to return (default: 100)
+ * @response 200 { ok: true, scores: CallScore[], count: number }
+ * @response 500 { ok: false, error: "Failed to fetch call scores" }
+ */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") || "100");
 

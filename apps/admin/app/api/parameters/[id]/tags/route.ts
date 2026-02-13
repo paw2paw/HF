@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/parameters/:id/tags
- * Add a tag to a parameter
+ * @api POST /api/parameters/:id/tags
+ * @visibility internal
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Add a tag to a parameter. Creates the tag if it does not exist. Idempotent (no error if link already exists).
+ * @pathParam id string - Parameter UUID
+ * @body tagName string - Tag name to add (required)
+ * @response 200 Parameter (with updated tags)
+ * @response 400 { error: "tagName is required" }
+ * @response 404 { error: "Parameter not found" }
+ * @response 500 { error: "..." }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const body = await request.json();
     const { tagName } = body;
@@ -93,14 +107,28 @@ export async function POST(
 }
 
 /**
- * DELETE /api/parameters/:id/tags
- * Remove a tag from a parameter
+ * @api DELETE /api/parameters/:id/tags
+ * @visibility internal
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Remove a tag from a parameter
+ * @pathParam id string - Parameter UUID
+ * @query tagName string - Tag name to remove (required)
+ * @response 200 Parameter (with updated tags)
+ * @response 400 { error: "tagName query parameter is required" }
+ * @response 404 { error: "Parameter not found" }
+ * @response 404 { error: "Tag not found" }
+ * @response 500 { error: "..." }
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const tagName = searchParams.get('tagName');

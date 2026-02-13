@@ -1,0 +1,316 @@
+{
+  "$schema": "./feature-spec-schema.json",
+  "id": "LEARN-ASSESS-001",
+  "title": "Curriculum Learning Assessment",
+  "version": "1.0",
+  "status": "Approved",
+  "date": "2026-02-12",
+  "domain": "curriculum",
+  "specType": "SYSTEM",
+  "outputType": "LEARN",
+  "config": {
+    "assessmentMode": "curriculum_mastery",
+    "masteryThreshold": 0.7,
+    "promptInstructions": "Score caller's demonstrated understanding of each learning outcome 0-1 (0=no evidence, 0.5=partial understanding, 1=full mastery). Only score outcomes that were actually discussed in the conversation. Base scores on what the caller said or demonstrated, not what the tutor said.",
+    "outputFormat": {
+      "moduleId": "Current module ID from curriculum",
+      "outcomes": "Record<string, number> mapping LO identifiers to 0-1 mastery scores",
+      "overallMastery": "Weighted average of individual outcome scores"
+    },
+    "advancementRule": "advance_on_threshold",
+    "fallbackBehavior": "all_assertions",
+    "description": "When active, the EXTRACT stage assesses caller mastery of learning outcomes from the current curriculum module. Uses the module's LOs from either CONTENT spec or Subject-based curriculum. Writes mastery to CallerAttribute and advances to next module when threshold is met."
+  },
+  "story": {
+    "asA": "Curriculum-driven tutoring system",
+    "iWant": "To assess whether the caller has mastered the current module's learning outcomes after each call",
+    "soThat": "The system can track progress, advance callers through the curriculum, and identify areas needing reinforcement"
+  },
+  "context": {
+    "applies": "Post-call analysis when a curriculum is active for the caller's domain",
+    "dependsOn": [],
+    "assumptions": [
+      "A curriculum exists with defined learning outcomes per module",
+      "The caller is assigned to a module via CallerAttribute progress tracking",
+      "Teaching content assertions are available for the module",
+      "CURRICULUM_PROGRESS_V1 contract is loaded for storage key patterns"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-LA-001",
+      "title": "Learning outcome identification",
+      "given": "A call transcript where curriculum content was discussed",
+      "when": "The EXTRACT stage runs with LEARN-ASSESS-001 active",
+      "then": "Each discussed learning outcome is scored 0-1 for caller mastery",
+      "rationale": "Per-LO scoring enables granular progress tracking and targeted reinforcement",
+      "measuredBy": [
+        "LA_COMPREHENSION"
+      ]
+    },
+    {
+      "id": "AC-LA-002",
+      "title": "Module mastery determination",
+      "given": "Individual LO scores from the current module",
+      "when": "Overall mastery is computed from individual scores",
+      "then": "Overall mastery >= threshold triggers module completion and advancement",
+      "rationale": "Sequential curriculum progression requires a clear mastery gate",
+      "measuredBy": [
+        "LA_MASTERY"
+      ]
+    },
+    {
+      "id": "AC-LA-003",
+      "title": "Progress persistence",
+      "given": "A mastery score is computed for a module",
+      "when": "The pipeline writes the score to CallerAttribute",
+      "then": "The score is stored using CURRICULUM_PROGRESS_V1 contract key pattern and is visible in the caller UI",
+      "rationale": "Persistent progress enables cross-session curriculum tracking",
+      "measuredBy": [
+        "LA_RETENTION"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "CON-LA-001",
+      "type": "accuracy",
+      "description": "Only score LOs that were actually discussed in the conversation. Do not infer mastery from silence or from what the tutor explained — only from what the caller demonstrated.",
+      "severity": "critical"
+    },
+    {
+      "id": "CON-LA-002",
+      "type": "fairness",
+      "description": "A single call may not cover all LOs. Unscored LOs should not reduce overall mastery — only scored LOs contribute to the average.",
+      "severity": "warning"
+    },
+    {
+      "id": "CON-LA-003",
+      "type": "progression",
+      "description": "Module advancement is one-directional. Once a module is completed (mastery >= threshold), it stays completed even if a later call shows lower recall.",
+      "severity": "warning"
+    }
+  ],
+  "failureConditions": [
+    {
+      "id": "FC-LA-001",
+      "trigger": "no_curriculum",
+      "threshold": {
+        "operator": "eq",
+        "value": 0
+      },
+      "implication": "No curriculum found for caller's domain — skip learning assessment entirely",
+      "severity": "info"
+    },
+    {
+      "id": "FC-LA-002",
+      "trigger": "no_los_discussed",
+      "threshold": {
+        "operator": "eq",
+        "value": 0
+      },
+      "implication": "Call did not discuss any module LOs — no mastery to score. This is normal for off-topic or social calls.",
+      "severity": "info"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "LA_COMPREHENSION",
+      "name": "learning_comprehension",
+      "description": "Depth of understanding demonstrated by the caller for discussed learning outcomes. Scored per-LO as 0-1, aggregated as weighted average.",
+      "section": "Learning Assessment",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "average(individual_lo_scores)",
+      "subMetrics": [
+        {
+          "id": "lo_recall",
+          "name": "Factual Recall",
+          "weight": 0.3,
+          "description": "Can the caller recall key facts, definitions, and thresholds?",
+          "definitions": {
+            "high": "Correctly states specific figures, definitions, or rules from the material",
+            "low": "Cannot recall basic facts or gives incorrect information"
+          }
+        },
+        {
+          "id": "lo_understanding",
+          "name": "Conceptual Understanding",
+          "weight": 0.4,
+          "description": "Does the caller understand WHY, not just WHAT?",
+          "definitions": {
+            "high": "Explains reasoning, gives correct examples, links concepts together",
+            "low": "Can repeat facts but cannot explain or apply them"
+          }
+        },
+        {
+          "id": "lo_application",
+          "name": "Practical Application",
+          "weight": 0.3,
+          "description": "Can the caller apply knowledge to scenarios?",
+          "definitions": {
+            "high": "Correctly handles scenario questions, identifies correct actions in practice",
+            "low": "Struggles with practical application even when theory is known"
+          }
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Minimal Understanding",
+          "implication": "Caller needs re-teaching of this learning outcome"
+        },
+        {
+          "min": 0.3,
+          "max": 0.5,
+          "label": "Partial Understanding",
+          "implication": "Some grasp but gaps remain — targeted reinforcement needed"
+        },
+        {
+          "min": 0.5,
+          "max": 0.7,
+          "label": "Good Understanding",
+          "implication": "Solid foundation but not yet at mastery — practice and application needed"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Mastery",
+          "implication": "Caller demonstrates confident, accurate understanding — ready to advance"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "scenario": "Caller correctly defines 'danger zone' temperature range and explains why bacteria multiply rapidly in that range",
+          "expectedScore": 0.85,
+          "isGold": true,
+          "rationale": "Demonstrates both recall (specific temperatures) and understanding (why it matters)"
+        },
+        {
+          "scenario": "Caller says 'I think it's something about keeping food hot' but cannot give specific temperatures",
+          "expectedScore": 0.3,
+          "isGold": true,
+          "rationale": "Vague awareness but no specific recall — partial understanding at best"
+        },
+        {
+          "scenario": "Caller correctly answers a scenario: 'I would check the delivery temperature and reject if above 8°C'",
+          "expectedScore": 0.9,
+          "isGold": true,
+          "rationale": "Demonstrates practical application with specific threshold knowledge"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Acknowledge mastery and move to next topic or advanced application",
+        "whenLow": "Re-teach core concepts with different approach, use simpler examples",
+        "whenMedium": "Reinforce with scenario practice, check specific gaps"
+      }
+    },
+    {
+      "id": "LA_MASTERY",
+      "name": "module_mastery",
+      "description": "Overall mastery level for the current curriculum module. Aggregates individual LO scores. Determines whether caller advances to next module.",
+      "section": "Learning Assessment",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "weighted_average(lo_scores) where weights are equal unless spec overrides",
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Early Learning",
+          "implication": "Caller is still absorbing material — continue teaching this module"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Developing",
+          "implication": "Progress being made but not yet ready to advance"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Module Complete",
+          "implication": "Mastery threshold met — advance to next module"
+        }
+      ]
+    },
+    {
+      "id": "LA_RETENTION",
+      "name": "learning_retention",
+      "description": "Recall of previously mastered material. Measured when a caller revisits earlier module content or when spaced repetition triggers a review.",
+      "section": "Learning Assessment",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "recall_accuracy * time_decay_factor",
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Significant Decay",
+          "implication": "Material forgotten — schedule review session"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Partial Retention",
+          "implication": "Some gaps — brief refresher recommended"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Strong Retention",
+          "implication": "Material well retained — no review needed"
+        }
+      ]
+    }
+  ],
+  "workedExamples": [
+    {
+      "title": "Module 3 mastery assessment after a call",
+      "input": {
+        "module": "MOD-3: Food Safety Hazards",
+        "learningOutcomes": [
+          "LO2: Identify biological, chemical, physical and allergenic hazards",
+          "LO2-AC2.1: List the main types of food safety hazards",
+          "LO2-AC2.2: Give examples of contamination"
+        ],
+        "transcript_excerpt": "Caller correctly lists bacteria, viruses, parasites as biological hazards. Gives salmonella and E.coli examples. Struggles to name chemical hazards beyond 'cleaning products'. Cannot explain cross-contamination prevention steps."
+      },
+      "calculation": {
+        "LO2_score": "0.7 — good grasp of biological hazards, weak on chemical",
+        "AC2.1_score": "0.8 — correctly lists most hazard types",
+        "AC2.2_score": "0.5 — some examples but gaps in cross-contamination",
+        "overallMastery": "(0.7 + 0.8 + 0.5) / 3 = 0.67"
+      },
+      "output": {
+        "moduleId": "MOD-3",
+        "outcomes": {
+          "LO2": 0.7,
+          "AC2.1": 0.8,
+          "AC2.2": 0.5
+        },
+        "overallMastery": 0.67
+      },
+      "decision": "0.67 < 0.7 threshold → stay on Module 3, focus on chemical hazards and cross-contamination"
+    }
+  ],
+  "related": [
+    {
+      "specId": "MEM-001",
+      "relationship": "complementary",
+      "description": "Memory extraction runs alongside learning assessment — extracted facts may overlap with LO evidence"
+    },
+    {
+      "specId": "CURR-FS-L2-001",
+      "relationship": "consumes",
+      "description": "Uses module definitions and learning outcomes from CONTENT specs to know what to assess"
+    }
+  ]
+}

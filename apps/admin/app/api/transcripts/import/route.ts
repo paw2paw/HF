@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -607,20 +608,27 @@ async function detectConflicts(groups: ParsedCallerGroup[]): Promise<ImportConfl
 }
 
 /**
- * POST /api/transcripts/import
- * Import transcript files into the database
- *
- * Supports multiple modes:
- * 1. JSON body with { filePaths: string[] } - specific server-side file paths
- * 2. JSON body with { fromKbPath: true } - auto-discover from HF_KB_PATH/sources/transcripts/raw
- * 3. FormData with files - browser uploads
- *
- * Special mode:
- * - preview=true: Don't import, just detect conflicts and return them
- * - conflictResolutions: Map of conflictKey -> resolution for user-resolved conflicts
+ * @api POST /api/transcripts/import
+ * @visibility public
+ * @scope transcripts:import
+ * @auth none
+ * @tags transcripts
+ * @description Imports transcript files into the database. Supports three modes: JSON body with filePaths, JSON body with fromKbPath auto-discovery, or FormData file uploads. Includes preview mode for conflict detection and user-controlled conflict resolution.
+ * @body filePaths string[] - Server-side file paths to import (JSON mode)
+ * @body fromKbPath boolean - Auto-discover from HF_KB_PATH/sources/transcripts/raw (JSON mode)
+ * @body domainSlug string - Domain slug for created callers (default: "mabel")
+ * @body duplicateHandling string - "skip" | "overwrite" | "create_new" (default: "skip")
+ * @body preview boolean - If true, only detect conflicts without importing
+ * @body conflictResolutions object - Map of conflictKey to "merge" | "create_new" | "skip"
+ * @response 200 { ok: true, created: number, merged: number, updated: number, skipped: number, callers: [...], filesProcessed: number, callsImported: number, errors: [...] }
+ * @response 400 { ok: false, error: "No files uploaded" | "No files specified..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const contentType = request.headers.get("content-type") || "";
 
     let filesToProcess: Array<{ content: string; filename: string }> = [];

@@ -7,3 +7,7 @@
 
 export { executeComposition, getDefaultSections } from "./CompositionExecutor";
 export type { CompositionResult, CompositionSectionDef, AssembledContext } from "./types";
+export { persistComposedPrompt } from "./persist";
+export type { PersistOptions, PersistedPrompt } from "./persist";
+export { loadComposeConfig } from "./loadComposeConfig";
+export type { ComposeConfig } from "./loadComposeConfig";

@@ -12,7 +12,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['lib/ops/**/*.ts', 'app/**/*.tsx', 'app/api/**/*.ts'],
+      include: [
+        'lib/ops/**/*.ts',
+        'lib/prompt/composition/**/*.ts',
+        'lib/pipeline/**/*.ts',
+        'lib/utils/**/*.ts',
+        'lib/lab/**/*.ts',
+        'app/**/*.tsx',
+        'app/api/**/*.ts',
+      ],
     },
     // Mock Prisma by default
     setupFiles: ['./tests/setup.ts'],

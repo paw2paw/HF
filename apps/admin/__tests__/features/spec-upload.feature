@@ -79,10 +79,11 @@ Feature: BDD Spec Upload
     And the AnalysisSpec should be updated
     And I should see "Spec updated and re-activated"
 
-  Scenario: Spec is saved to bdd-specs directory
+  Scenario: Spec is saved to database (source of truth)
     Given I have previewed a valid spec with ID "save-test"
     When I click "Confirm & Activate"
-    Then the spec JSON should be saved to "bdd-specs/save-test.spec.json"
+    Then the spec should be created in the database
+    And file save to "docs-archive/bdd-specs/" is optional (non-blocking if directory not writable)
 
   Scenario: Exactly one AnalysisSpec created per upload
     Given I upload a valid BDD spec
@@ -135,7 +136,7 @@ Feature: BDD Spec Upload
 
   Scenario: Handle file system error (non-blocking)
     Given I have previewed a valid spec
-    And the bdd-specs directory is not writable
+    And the docs-archive/bdd-specs directory is not writable
     When I click "Confirm & Activate"
     Then the spec should still be created in the database
     And I should see a success message

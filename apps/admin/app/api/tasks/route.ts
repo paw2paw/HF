@@ -5,19 +5,32 @@ import {
   completeTask,
   getTaskGuidance,
 } from "@/lib/ai/task-guidance";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/tasks - Start a new task
- * PUT /api/tasks - Update task progress
- * GET /api/tasks?taskId=xxx - Get task guidance
+ * @api POST /api/tasks
+ * @visibility internal
+ * @scope tasks:create
+ * @auth session
+ * @tags tasks
+ * @description Starts a new task tracking session with a given task type and optional context.
+ * @body taskType string - Type of task to track (required)
+ * @body userId string - User ID (default: "default")
+ * @body context object - Additional task context
+ * @response 200 { ok: true, taskId: "..." }
+ * @response 400 { ok: false, error: "taskType is required" }
+ * @response 500 { ok: false, error: "..." }
  */
-
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
+
     const body = await request.json();
-    const { taskType, userId = "default", context } = body;
+    const { taskType, context } = body;
 
     if (!taskType) {
       return NextResponse.json(
@@ -26,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const taskId = await startTaskTracking(userId, taskType, context);
+    const taskId = await startTaskTracking(session.user.id, taskType, context);
 
     return NextResponse.json({
       ok: true,
@@ -41,6 +54,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * @api PUT /api/tasks
+ * @visibility internal
+ * @scope tasks:update
+ * @auth session
+ * @tags tasks
+ * @description Updates progress on an existing task.
+ * @body taskId string - Task ID to update (required)
+ * @body updates object - Progress updates to apply
+ * @response 200 { ok: true }
+ * @response 400 { ok: false, error: "taskId is required" }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
@@ -67,24 +93,52 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+/**
+ * @api GET /api/tasks
+ * @visibility internal
+ * @scope tasks:read
+ * @auth session
+ * @tags tasks
+ * @description Retrieves task guidance for a specific task ID, or lists tasks by status.
+ * @query taskId string - Specific task ID to get guidance for
+ * @query status string - Filter tasks by status
+ * @response 200 { ok: true, guidance: {...} } | { ok: true, tasks: [...], count: number }
+ * @response 400 { ok: false, error: "taskId or status parameter is required" }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
+    const status = searchParams.get("status");
 
-    if (!taskId) {
-      return NextResponse.json(
-        { ok: false, error: "taskId is required" },
-        { status: 400 }
-      );
+    // If requesting a specific task
+    if (taskId) {
+      const guidance = await getTaskGuidance(taskId);
+      return NextResponse.json({
+        ok: true,
+        guidance,
+      });
     }
 
-    const guidance = await getTaskGuidance(taskId);
+    // If listing tasks by status
+    if (status) {
+      const { prisma } = await import("@/lib/prisma");
+      const tasks = await prisma.userTask.findMany({
+        where: { status: status as any },
+        orderBy: { startedAt: "desc" },
+        take: 50,
+      });
+      return NextResponse.json({ ok: true, tasks, count: tasks.length });
+    }
 
-    return NextResponse.json({
-      ok: true,
-      guidance,
-    });
+    return NextResponse.json(
+      { ok: false, error: "taskId or status parameter is required" },
+      { status: 400 }
+    );
   } catch (error) {
     console.error("Get task guidance error:", error);
     return NextResponse.json(
@@ -94,6 +148,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * @api DELETE /api/tasks
+ * @visibility internal
+ * @scope tasks:complete
+ * @auth session
+ * @tags tasks
+ * @description Marks a task as completed.
+ * @query taskId string - Task ID to complete (required)
+ * @response 200 { ok: true }
+ * @response 400 { ok: false, error: "taskId is required" }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

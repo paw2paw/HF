@@ -504,7 +504,7 @@ async function showInteractiveMenu() {
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
     log('');
     log('  1. Clear data          - Wipe database clean');
-    log('  2. Upload BDD specs    - Load specs from bdd-specs/ (compiles promptTemplate)');
+    log('  2. Upload BDD specs    - Load specs from docs-archive/bdd-specs/ (compiles promptTemplate)');
     log('  3. Upload transcripts  - Import VAPI call transcripts');
     log('  4. SEED ALL            - Full reset: clear + specs + transcripts', colors.green);
     log('');
@@ -552,7 +552,7 @@ async function showInteractiveMenu() {
 
       case '2':
         // Upload BDD specs (compile promptTemplate)
-        log('\n📋 Loading BDD specs from bdd-specs/\n', colors.bright);
+        log('\n📋 Loading BDD specs from docs-archive/bdd-specs/\n', colors.bright);
         log('   This will:', colors.yellow);
         log('   • Parse all .spec.json files');
         log('   • Create Parameters, ScoringAnchors, PromptSlugs');

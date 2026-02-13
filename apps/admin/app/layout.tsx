@@ -6,8 +6,12 @@ import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
 import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript } from '@/contexts';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
+import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
+import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { GuidanceBridge } from '@/src/components/shared/GuidanceBridge';
+import { useResponsive } from '@/hooks/useResponsive';
+import { Menu } from 'lucide-react';
 import './globals.css';
 
 const SIDEBAR_WIDTH_KEY = 'hf.sidebar.width';
@@ -23,14 +27,19 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(DEFAULT_SIDEBAR_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const { isOpen, chatLayout } = useChatContext();
+  const { isMobile, showDesktop } = useResponsive();
 
   // Embed mode - render without sidebar/chrome (for iframes)
   const isEmbed = searchParams.get('embed') === '1';
 
   // Auth pages (login, etc.) - render without sidebar
   const isAuthPage = pathname?.startsWith('/login');
+
+  // Sim pages - render without sidebar/chrome (standalone WhatsApp-style app)
+  const isSimPage = pathname?.startsWith('/x/sim');
 
   // persist sidebar state
   const storageKey = 'hf.sidebar.collapsed';
@@ -110,11 +119,72 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Sidebar width config
   const effectiveSidebarWidth = collapsed ? COLLAPSED_WIDTH : sidebarWidth;
 
-  // Auth pages and embed mode render without sidebar/chrome
-  if (isAuthPage || isEmbed) {
+  // Auth pages, embed mode, and sim pages render without sidebar/chrome
+  if (isAuthPage || isEmbed || isSimPage) {
     return <>{children}</>;
   }
 
+  // Mobile layout (< 768px, not forced desktop mode)
+  if (isMobile && !showDesktop) {
+    return (
+      <div className="h-screen flex flex-col">
+        {/* Mobile header with hamburger */}
+        <header
+          className="h-14 border-b flex items-center px-4 gap-3 flex-shrink-0"
+          style={{
+            borderColor: 'var(--border-default)',
+            background: 'var(--surface-primary)',
+          }}
+        >
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-2.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" style={{ color: 'var(--text-primary)' }} />
+          </button>
+          <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+            HumanFirst
+          </span>
+        </header>
+
+        {/* Mobile sidebar overlay */}
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/30 z-40"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            {/* Sidebar */}
+            <aside
+              className="fixed top-0 left-0 h-full w-64 z-50 shadow-xl"
+              style={{
+                background: 'var(--surface-primary)',
+                borderRight: '1px solid var(--border-default)',
+              }}
+            >
+              <div className="h-full px-2 py-4">
+                <SimpleSidebarNav
+                  collapsed={false}
+                  onNavigate={() => setMobileMenuOpen(false)}
+                />
+              </div>
+            </aside>
+          </>
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 overflow-auto">
+          <div className="px-4 py-6">
+            {children}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Desktop layout (current grid)
   return (
     <div
       className="grid h-screen"
@@ -124,7 +194,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       }}
     >
       {/* Sidebar */}
-      <aside className="relative h-screen overflow-hidden border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+      <aside className="relative h-screen overflow-hidden border-r bg-[var(--surface-primary)]" style={{ borderColor: "var(--border-subtle)" }}>
         <div className="h-full px-2 py-4">
           <SimpleSidebarNav
             collapsed={collapsed}
@@ -171,6 +241,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Prevent flash of wrong theme on initial load */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* PWA manifest and mobile meta tags */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#075E54" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased">
         <ThemeProvider>
@@ -179,12 +255,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <EntityProvider>
                 <GuidanceProvider>
                   <ChatProvider>
-                    <GuidanceBridge />
-                    <Suspense fallback={null}>
-                      <LayoutInner>{children}</LayoutInner>
-                    </Suspense>
-                    {/* AI Chat Panel */}
-                    <ChatPanel />
+                    <GlobalAssistantProvider>
+                      <GuidanceBridge />
+                      <Suspense fallback={null}>
+                        <LayoutInner>{children}</LayoutInner>
+                      </Suspense>
+                      {/* Old AI Chat Panel (Deprecated - use GlobalAssistant instead) */}
+                      {/* <ChatPanel /> */}
+                      {/* New Unified AI Assistant (Cmd+K) - includes search & all features */}
+                      <GlobalAssistant />
+                    </GlobalAssistantProvider>
                   </ChatProvider>
                 </GuidanceProvider>
               </EntityProvider>

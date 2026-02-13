@@ -1,5 +1,13 @@
 # HF Admin Architecture
 
+<!-- @doc-source model:Domain,Caller,Call,Playbook,AnalysisSpec,Parameter -->
+<!-- @doc-source model:CallScore,CallerMemory,CallerPersonalityProfile -->
+<!-- @doc-source file:apps/admin/lib/pipeline/config.ts,apps/admin/lib/ops/pipeline-run.ts -->
+<!-- @doc-source file:apps/admin/app/api/calls/[callId]/pipeline/route.ts -->
+<!-- @doc-source route:/api/calls/:callId/pipeline -->
+
+> **See also**: [HF System Architecture](../ARCHITECTURE.md) for the comprehensive system-wide architecture (pipeline stages, memory system, reward loop, database schema, API reference, UI pages).
+
 This document describes the core architecture of the HF Admin application, focusing on the analysis pipeline and how components connect.
 
 ## Table of Contents
@@ -310,6 +318,164 @@ model PlaybookItem {
 
 ---
 
+## Prompt Composition Pipeline
+
+The `CompositionExecutor` orchestrates prompt assembly for each call via a declarative, spec-driven pipeline defined in COMP-001.
+
+### How It Works
+
+```
+COMP-001 spec sections[]
+    ↓
+CompositionExecutor.executeComposition()
+    ↓
+1. Load all data in parallel (SectionDataLoader)
+2. Resolve identity/content/voice specs
+3. Compute shared state (modules, session flow)
+4. Topological sort sections by dependsOn
+5. For each section:
+   a. Check activation condition
+   b. Resolve data source
+   c. Apply transform(s) — single or chained
+   d. Store output in context
+6. Assemble final llmPrompt JSON
+```
+
+### Transform Chains
+
+Each section's `transform` field supports three forms:
+
+| Form | Example | Behavior |
+|------|---------|----------|
+| `null` | `"transform": null` | Pass raw data through |
+| `string` | `"transform": "mapPersonalityTraits"` | Single transform |
+| `string[]` | `"transform": ["deduplicateMemories", "scoreMemoryRelevance", "groupMemoriesByCategory"]` | Chained pipeline — output of each feeds the next |
+
+**Execution model**: Array transforms run sequentially. Each transform receives the previous transform's output as `rawData`. If any transform in the chain is unknown, the chain breaks with an error log.
+
+**Code**: `CompositionExecutor.ts:100-118`
+
+### Memory Processing Sub-Flow
+
+The `memories` section uses a 3-stage transform chain:
+
+```
+MemoryData[]
+    ↓
+[1] deduplicateMemories
+    Deduplicate by normalized key (category:key_name)
+    Keeps highest-confidence entry per key
+    Output: MemoryData[] (deduplicated)
+    ↓
+[2] scoreMemoryRelevance
+    Compute contextual relevance via keyword overlap
+    Blend with confidence: score = α·confidence + (1-α)·relevance
+    α (relevanceAlpha) comes from COMP-001 memory_section.config
+    Sort descending by combined score
+    Output: ScoredMemory[] (with relevance + combinedScore)
+    ↓
+[3] groupMemoriesByCategory
+    Group into byCategory (limited by memoriesPerCategory)
+    Build all[] (top 20) and _deduplicated (full list)
+    Output: { totalCount, byCategory, all, _deduplicated }
+```
+
+**Relevance scoring algorithm** (`computeMemoryRelevance`):
+1. Tokenize session context (current module, next module, upcoming topics, learner goals) into keywords (3+ chars, lowercased)
+2. Tokenize memory content (`key + value`) into keywords
+3. Overlap score = `min(1, matches / min(memoryTokens.length, 3))`
+4. Add per-category boost from `categoryRelevanceWeights` (e.g., CONTEXT: 0.15, TOPIC: 0.10)
+5. Cap at 1.0
+
+**Alpha blending** (`relevanceAlpha` from COMP-001):
+- `α = 1.0` → pure confidence ordering (legacy behavior)
+- `α = 0.0` → pure relevance ordering
+- `α = 0.6` (default) → 60% confidence + 40% relevance
+
+**Backward compatibility**: The legacy monolithic `deduplicateAndGroupMemories` transform is still registered. Specs using the single-string form still work.
+
+### Narrative Memory Framing
+
+Memories are rendered as natural-language sentences in the instructions section using spec-driven templates from COMP-001 `memory_section.config.narrativeTemplates`.
+
+**Template resolution**:
+1. Look up memory key (normalized to snake_case) in `narrativeTemplates`
+2. If found, use template with `{value}` substitution (e.g., `"location" → "They live in {value}"`)
+3. If not found, use `genericNarrativeTemplate` with `{key}` and `{value}` (default: `"Their {key} is {value}"`)
+
+**Example output**:
+```
+What you know about this caller: They live in London. They work as a teacher.
+Their hobby is gardening. Reference these details naturally in conversation.
+```
+
+**Code**: `transforms/instructions.ts:narrativeFrame()`
+
+### Registered Transforms
+
+| Transform | Input | Output | Used By |
+|-----------|-------|--------|---------|
+| `deduplicateMemories` | `MemoryData[]` | `MemoryData[]` | memories chain |
+| `scoreMemoryRelevance` | `MemoryData[]` | `ScoredMemory[]` | memories chain |
+| `groupMemoriesByCategory` | `MemoryData[]` | `{ totalCount, byCategory, all, _deduplicated }` | memories chain |
+| `deduplicateAndGroupMemories` | `MemoryData[]` | same as above (legacy) | backward compat |
+| `mapPersonalityTraits` | `PersonalityData` | `{ traits }` | personality |
+| `mergeAndGroupTargets` | `{ behaviorTargets, callerTargets }` | `{ totalCount, byDomain, all }` | behavior_targets |
+| `computeCallHistory` | `{ recentCalls, callCount }` | `{ totalCalls, mostRecent, recent }` | call_history |
+| `computeModuleProgress` | `AssembledContext` | curriculum progress | curriculum |
+| `computeInstructions` | `AssembledContext` | instructions object | instructions |
+| `computeSessionPedagogy` | `AssembledContext` | pedagogy object | instructions_pedagogy |
+| `computeVoiceGuidance` | `AssembledContext` | voice guidance | instructions_voice |
+| `computeQuickStart` | `AssembledContext` | quick start summary | _quickStart |
+| `computePreamble` | `AssembledContext` | preamble + rules | _preamble |
+| `extractIdentitySpec` | `AssembledContext` | identity config | identity |
+| `extractContentSpec` | `AssembledContext` | content config | content |
+| `computeTrustContext` | `AssembledContext` | trust context | contentTrust |
+| `narrativeFrame` | `memories[]` | narrative string | used within computeInstructions |
+
+---
+
+## Adaptation Pipeline (ADAPT Specs)
+
+ADAPT specs evaluate learner profiles and measured scores to compute personalized behavior targets.
+
+### Flex Condition Operators
+
+Conditions in adaptation rules support 7 operators:
+
+| Operator | Field | Example | Description |
+|----------|-------|---------|-------------|
+| `eq` | `value` | `{ "profileKey": "learningStyle", "value": "visual" }` | Exact match (default when `operator` is omitted) |
+| `gt` | `threshold` | `{ "profileKey": "engagement_score", "operator": "gt", "threshold": 0.7 }` | Greater than |
+| `gte` | `threshold` | `{ "profileKey": "confidence", "operator": "gte", "threshold": 0.6 }` | Greater than or equal |
+| `lt` | `threshold` | `{ "profileKey": "error_rate", "operator": "lt", "threshold": 0.3 }` | Less than |
+| `lte` | `threshold` | `{ "profileKey": "score", "operator": "lte", "threshold": 0.5 }` | Less than or equal |
+| `between` | `range` | `{ "profileKey": "score", "operator": "between", "range": { "min": 0.3, "max": 0.7 } }` | Inclusive range [min, max] |
+| `in` | `values` | `{ "profileKey": "style", "operator": "in", "values": ["visual", "kinesthetic"] }` | Value in set |
+
+### Data Sources
+
+Conditions can read from two data sources:
+
+| Source | Field | Description |
+|--------|-------|-------------|
+| `learnerProfile` (default) | `dataSource: "learnerProfile"` | Reads from `CallerLearnerProfile` (string values: `learningStyle`, `pacePreference`, etc.) |
+| `parameterValues` | `dataSource: "parameterValues"` | Reads from `CallerPersonalityProfile.parameterValues` (numeric scores from MEASURE specs) |
+
+### Adjustment Methods
+
+| Method | Field | Description |
+|--------|-------|-------------|
+| `set` | `value` | Set target to absolute value |
+| `increase` | `delta` | Add delta to current value (capped at 1.0) |
+| `decrease` | `delta` | Subtract delta from current value (floored at 0.0) |
+
+**Confidence**: Read from spec `config.defaultAdaptConfidence` (not hardcoded).
+
+**Code**: `lib/pipeline/adapt-runner.ts`
+
+---
+
 ## Configuration
 
 ### Memory Categories
@@ -373,7 +539,136 @@ The `system-personality-aggregate` spec configures how personality is computed:
 
 ---
 
+## Pipeline LLM Integration
+
+The pipeline ops (`personality-analyze.ts`, `measure-agent.ts`, `memory-extract.ts`) use real LLM calls with graceful fallback to mock scoring on failure.
+
+### Call Pattern
+
+```
+Pipeline Op → getConfiguredMeteredAICompletion() → LLM Provider
+                    ↓ (on failure)
+              mockScore() fallback + logAIInteraction(outcome: "failure")
+```
+
+- **LLM by default**: `mock = false` in all ops. Use `--mock` CLI flag to opt into mock scoring.
+- **Configurable engine**: Each spec's `config.llmConfig.engine` determines the model (e.g., `"claude"`, `"openai"`).
+- **Pipeline gates**: `getPipelineGates()` provides transcript length gating and confidence caps.
+- **JSON recovery**: `recoverBrokenJson()` handles malformed LLM output before parsing.
+- **Fire-and-forget failure logging**: All catch blocks log to `AIInteractionLog` via dynamic `import()` without breaking the fallback chain.
+
+### Pipeline Ops
+
+| Op | File | callPoint | What it does |
+|----|------|-----------|-------------|
+| Personality Analyze | `lib/ops/personality-analyze.ts` | `pipeline.personality_score` | Score caller parameters from transcript |
+| Measure Agent | `lib/ops/measure-agent.ts` | `pipeline.score_agent` | Score agent behavior quality |
+| Memory Extract | `lib/ops/memory-extract.ts` | `pipeline.memory_extract` | Extract key-value memories from transcript |
+| Pipeline Run | `lib/ops/pipeline-run.ts` | — | Orchestrates all ops in sequence |
+
+---
+
+## AI Error Monitor
+
+Tracks pipeline LLM failures and provides real-time visibility for sysadmins.
+
+### Data Flow
+
+```
+Pipeline catch block
+    ↓
+logAIInteraction(outcome: "failure") → AIInteractionLog table
+    ↓
+getRecentFailures() / getFailureStats() queries
+    ↓
+GET /api/ai/errors → AI Error Dashboard (/x/ai-errors)
+```
+
+### API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/ai/errors` | GET | Failure data + stats. Params: `hours`, `limit`, `callPoint` |
+
+### Dashboard (`/x/ai-errors`)
+
+- **Stats cards**: Total failures, failure rate, total interactions
+- **Alert banner**: Red warning when any pipeline call point exceeds 20% failure rate (min 5 interactions)
+- **Call point breakdown**: Per-call-point failure rate table
+- **Recent failures**: Scrollable list with expand-to-detail, auto-refresh every 30s
+- **Time range**: 1h / 6h / 24h / 7d selector
+
+### Key Functions (`lib/ai/knowledge-accumulation.ts`)
+
+| Function | Purpose |
+|----------|---------|
+| `getRecentFailures(options)` | Query recent failures by time window and call point |
+| `getFailureStats(hours)` | Compute failure rate per call point with alert threshold |
+
+---
+
+## AI Knowledge & Learning
+
+Logs all AI interactions, extracts patterns, and builds confidence scores for system-wide learning.
+
+### Data Flow
+
+```
+AI endpoint call → logAIInteraction() → AIInteractionLog
+                                           ↓
+                                    extractPatterns() → AILearnedPattern
+                                           ↓
+                                    AI Knowledge Dashboard (/x/ai-knowledge)
+```
+
+### Pattern Learning
+
+- Logs all AI interactions to `AIInteractionLog` table
+- After 3+ similar occurrences, extracts patterns with starting confidence 0.3
+- Confidence increases by 0.05 per additional occurrence
+- Stores in `AILearnedPattern` table with examples
+
+### Dashboard (`/x/ai-knowledge`)
+
+- Total AI interactions logged
+- Success rate across all call points
+- Top call points by interaction count
+- Learned patterns with confidence scores
+- Filtering by call point and minimum confidence
+
+---
+
+## Metering
+
+Tracks AI API usage, costs, and rate limiting across all LLM calls.
+
+### API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/metering/events` | GET | List metering events |
+| `/api/metering/rates` | GET | Current rate limits |
+| `/api/metering/summary` | GET | Usage summary and costs |
+
+### Dashboard (`/x/metering`)
+
+- Token usage tracking (input/output)
+- Cost breakdown by model and call point
+- Rate limit status
+
+### Integration
+
+All LLM calls go through `getConfiguredMeteredAICompletion()` which automatically:
+1. Checks rate limits
+2. Routes to configured engine
+3. Records token usage and costs
+4. Logs interaction for knowledge accumulation
+
+---
+
 ## Changelog
 
+- **2026-02-11**: Added AI Error Monitor, AI Knowledge/Learning, Metering, and Pipeline LLM Integration documentation. Removed 501 dead-end routes. Fixed pipeline-run.ts mock default (mock=false). Eliminated hardcoded onboarding fallbacks (now loads from spec file).
+- **2026-02-11**: Pipeline Hardening — Added transform chain support (array transforms), memory relevance scoring with alpha blending, narrative memory framing with spec-driven templates, LLM memory extraction, flex condition operators (7 ops) for ADAPT specs.
 - **2026-01-29**: Added SpecType enum (SYSTEM/DOMAIN/ADAPT/SUPERVISE) and dynamic target system (CallTarget, CallerTarget). BehaviorTarget deprecated in favor of spec-computed targets.
 - **2026-01-29**: Made pipeline playbook-aware. Specs are now selected based on caller's domain → published playbook.

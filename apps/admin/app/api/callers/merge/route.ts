@@ -1,18 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/callers/merge
- *
- * Merge multiple callers into a single target caller.
- * All data from source callers is moved to the target, then source callers are deleted.
- *
- * Request body:
- * - targetCallerId: string - The caller that will receive all merged data
- * - sourceCallerIds: string[] - Callers to merge from (will be deleted)
+ * @api POST /api/callers/merge
+ * @visibility public
+ * @scope callers:write
+ * @auth session
+ * @tags callers, merge
+ * @description Merge multiple source callers into a single target caller. Moves all data (calls, memories, observations, scores, identities, composed prompts, slug selections) from source callers to the target. Handles unique constraints by merging personality, personality profiles, memory summaries, caller targets, and caller attributes using weighted averages. Re-sequences calls chronologically. Deletes source callers after merge.
+ * @body targetCallerId string - The caller ID that will receive all merged data (required)
+ * @body sourceCallerIds string[] - Array of caller IDs to merge from; these callers will be deleted (required, at least one)
+ * @response 200 { ok: true, message: string, merged: { calls, memories, observations, scores, identities, composedPrompts, callerTargets, attributes, promptSlugSelections, personality, personalityProfile, memorySummary }, deletedCallers: number, targetCaller: { id, name, email } }
+ * @response 400 { ok: false, error: "Target caller ID required" }
+ * @response 400 { ok: false, error: "At least one source caller required" }
+ * @response 400 { ok: false, error: "Target caller cannot be in source list" }
+ * @response 404 { ok: false, error: "Callers not found: ..." }
+ * @response 500 { ok: false, error: "Failed to merge callers" }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { targetCallerId, sourceCallerIds } = await req.json();
 
     // Validation

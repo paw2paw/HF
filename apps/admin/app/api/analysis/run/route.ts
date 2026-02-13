@@ -2,33 +2,37 @@ import { NextResponse } from "next/server";
 import { PrismaClient, AnalysisOutputType, MemoryCategory } from "@prisma/client";
 import Anthropic from "@anthropic-ai/sdk";
 import { calculateAdaptScores, AdaptCalculationResult } from "@/lib/analysis/AdaptCalculator";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/analysis/run
- * Unified analysis endpoint that handles both MEASURE and LEARN specs
- *
- * Body: {
- *   transcript: string,           // The transcript text to analyze
- *   callId?: string,              // Optional call ID for storing results
- *   callerId?: string,            // Optional caller ID for storing memories
- *   specs?: string[],             // Optional: specific spec slugs to analyze
- *   domains?: string[],           // Optional: filter by domains (personality, memory, etc.)
- *   outputTypes?: ("MEASURE" | "LEARN")[],  // Optional: filter by output type
- *   model?: string,               // Optional: Claude model (default: claude-3-haiku-20240307)
- *   storeResults?: boolean,       // Whether to store results
- * }
- *
- * Returns:
- * - measures: Record<parameterId, score>
- * - learned: Array<{category, key, value, evidence}>
- * - stored: { callScores, callerMemories }
+ * @api POST /api/analysis/run
+ * @visibility internal
+ * @scope analysis:run
+ * @auth session
+ * @tags analysis
+ * @description Unified analysis endpoint that handles both MEASURE and LEARN specs. Analyzes a transcript using active analysis specs, scores behavioral parameters, extracts learned facts, and optionally stores results. Also calculates ADAPT scores (deltas/goal progress) when storing.
+ * @body transcript string - The transcript text to analyze (required)
+ * @body callId string - Call ID for storing results (optional)
+ * @body callerId string - Caller ID for storing memories (optional)
+ * @body specs string[] - Specific spec slugs to analyze (optional)
+ * @body domains string[] - Filter by domains like personality, memory (optional)
+ * @body outputTypes string[] - Filter by output type: "MEASURE" or "LEARN" (optional)
+ * @body model string - Claude model to use (default: claude-3-haiku-20240307)
+ * @body storeResults boolean - Whether to persist results to database (default: false)
+ * @response 200 { ok: true, callId, callerId, model, analysisTime, usage: {...}, measures: {...}, learned: [...], stored: {...}, adapt: {...}, summary: {...} }
+ * @response 400 { ok: false, error: "transcript is required" }
+ * @response 404 { ok: false, error: "No active analysis specs found matching criteria" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const {
       transcript,

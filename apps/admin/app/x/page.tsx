@@ -29,7 +29,7 @@ export default async function XDashboardPage() {
     { label: "Playbooks", value: playbooksCount, href: "/x/playbooks", icon: "📚" },
     { label: "Callers", value: callersCount, href: "/x/callers", icon: "👥" },
     { label: "Specs", value: specsCount, href: "/x/specs", icon: "📐" },
-    { label: "Parameters", value: parametersCount, href: "/x/taxonomy", icon: "🌳" },
+    { label: "Parameters", value: parametersCount, href: "/x/dictionary", icon: "🌳" },
   ];
 
   const workflowSections = [
@@ -112,7 +112,7 @@ export default async function XDashboardPage() {
         {
           title: "Taxonomy",
           description: "Parameters, variables, and patterns",
-          href: "/x/taxonomy",
+          href: "/x/dictionary",
           icon: "🌳",
         },
       ],

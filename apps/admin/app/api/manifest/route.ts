@@ -7,6 +7,7 @@ import {
   getManifestPath,
 } from "@/lib/manifest";
 import fs from "node:fs";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -20,12 +21,20 @@ function assertLocalOnly() {
 }
 
 /**
- * GET /api/manifest
- *
- * Returns the full manifest with validation status
+ * @api GET /api/manifest
+ * @visibility internal
+ * @scope manifest:read
+ * @auth session
+ * @tags manifest
+ * @description Returns the full manifest with validation status and file metadata
+ * @response 200 { ok: true, manifest, validation, meta: { path, lastModified, size } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const manifest = loadManifest(true);
@@ -52,16 +61,25 @@ export async function GET() {
 }
 
 /**
- * POST /api/manifest
- *
- * Actions:
- * - action: "validate" - Validate manifest structure
- * - action: "reload" - Force reload from disk (clear cache)
- * - action: "backup" - Create a timestamped backup
- * - action: "restore" - Restore from backup
+ * @api POST /api/manifest
+ * @visibility internal
+ * @scope manifest:write
+ * @auth session
+ * @tags manifest
+ * @description Perform manifest actions: validate, reload from disk, create backup, or restore from backup
+ * @body action string - Action to perform: "validate" | "reload" | "backup" | "restore"
+ * @body backupPath string - Required for "restore" action: path to backup file
+ * @response 200 { ok: true, validation?, message?, backupPath? }
+ * @response 400 { ok: false, error: "backupPath required for restore" }
+ * @response 400 { ok: false, error: "Unknown action: ..." }
+ * @response 404 { ok: false, error: "Backup not found: ..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const body = await req.json().catch(() => ({}));
@@ -155,12 +173,24 @@ export async function POST(req: Request) {
 }
 
 /**
- * PUT /api/manifest
- *
- * Replace the entire manifest (with validation)
+ * @api PUT /api/manifest
+ * @visibility internal
+ * @scope manifest:write
+ * @auth session
+ * @tags manifest
+ * @description Replace the entire manifest file (with optional validation skip)
+ * @body manifest object - The full manifest object to save
+ * @body skipValidation boolean - If true, skip validation before saving
+ * @response 200 { ok: true, message: "Manifest saved", validation }
+ * @response 400 { ok: false, error: "manifest object required" }
+ * @response 400 { ok: false, error: "Manifest validation failed", validation }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PUT(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const body = await req.json();

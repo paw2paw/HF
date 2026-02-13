@@ -52,7 +52,7 @@ async function main() {
   console.log("🚀 Starting persona-to-domain migration...\n");
 
   // 1. Load INIT-001 spec
-  const specPath = join(process.cwd(), "bdd-specs/INIT-001-caller-onboarding.spec.json");
+  const specPath = join(process.cwd(), "docs-archive/bdd-specs/INIT-001-caller-onboarding.spec.json");
   console.log(`📖 Reading INIT-001 spec from: ${specPath}`);
 
   const spec = JSON.parse(readFileSync(specPath, "utf-8")) as INIT001Spec;
@@ -63,7 +63,45 @@ async function main() {
   const defaultTargets = defaultTargetsParam?.config?.defaultTargets || {};
   console.log(`📊 Found ${Object.keys(defaultTargets).length} default behavior targets\n`);
 
-  // 3. Migrate each persona to matching Domain(s)
+  // 3. Create "default" domain for callers without specific assignment
+  console.log("\n🌐 Creating default domain...");
+
+  // Use tutor persona config for default domain
+  const tutorPersona = spec.personas.tutor;
+  const tutorSpecSlug = tutorPersona.identitySpec.toLowerCase().replace(/^([a-z]+)-/, 'spec-$1-');
+  const tutorSpec = await prisma.analysisSpec.findUnique({
+    where: { slug: tutorSpecSlug },
+  });
+
+  if (tutorSpec) {
+    const defaultDomain = await prisma.domain.upsert({
+      where: { slug: "default" },
+      create: {
+        slug: "default",
+        name: "Default (Unassigned)",
+        description: "Fallback domain for callers without a specific assignment",
+        isDefault: true,
+        isActive: true,
+        onboardingWelcome: tutorPersona.welcomeTemplate,
+        onboardingIdentitySpecId: tutorSpec.id,
+        onboardingFlowPhases: tutorPersona.firstCallFlow,
+        onboardingDefaultTargets: defaultTargets,
+      },
+      update: {
+        onboardingWelcome: tutorPersona.welcomeTemplate,
+        onboardingIdentitySpecId: tutorSpec.id,
+        onboardingFlowPhases: tutorPersona.firstCallFlow,
+        onboardingDefaultTargets: defaultTargets,
+      },
+    });
+    console.log(`✅ Created/updated default domain (${defaultDomain.id})`);
+    console.log(`   - Uses ${tutorSpec.name} identity`);
+    console.log(`   - ${Object.keys(defaultTargets).length} default behavior targets`);
+  } else {
+    console.warn("⚠️  Could not find tutor spec for default domain");
+  }
+
+  // 4. Migrate each persona to matching Domain(s)
   // Note: "tutor" persona applies to multiple domains (wnf, qm)
   const personaMapping: Record<string, string[]> = {
     tutor: ["wnf", "qm"], // Tutor persona applies to curriculum domains
@@ -125,7 +163,7 @@ async function main() {
 
   console.log("\n✨ Migration complete!\n");
 
-  // 4. Display summary
+  // 5. Display summary
   const updatedDomains = await prisma.domain.findMany({
     where: {
       onboardingWelcome: { not: null },

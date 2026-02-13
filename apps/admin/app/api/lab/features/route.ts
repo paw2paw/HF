@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/lab/features
- *
- * List compiled BDD feature sets
+ * @api GET /api/lab/features
+ * @visibility internal
+ * @scope lab:read
+ * @auth session
+ * @tags lab
+ * @description List compiled BDD feature sets with optional active filter and limit
+ * @query limit number - Max results (default: 50)
+ * @query active string - Filter by active status ("true" or "false")
+ * @response 200 { ok: true, features: BDDFeatureSet[] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") || "50");
     const active = url.searchParams.get("active");

@@ -1,22 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { PARAMS } from "@/lib/registry";
 import { config } from "@/lib/config";
 
 /**
- * GET /api/onboarding
- *
- * Fetch onboarding spec data for visualization (default: INIT-001, configurable via ONBOARDING_SPEC_SLUG).
- * Supports ?persona=tutor|companion|coach for persona-specific config.
- * Returns default targets, first-call flow, and welcome templates.
+ * @api GET /api/onboarding
+ * @visibility internal
+ * @auth session
+ * @tags onboarding
+ * @description Fetch onboarding spec data for visualization. Returns persona-specific config including default targets, first-call flow, and welcome templates.
+ * @query persona string - Persona slug to load config for (e.g., "tutor", "companion", "coach")
+ * @response 200 { ok: true, source: "database" | "hardcoded", spec: object, selectedPersona: string, availablePersonas: string[], personasList: Array, personaName: string, defaultTargets: object, firstCallFlow: object, welcomeTemplate: string }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const personaSlug = searchParams.get("persona");
 
-    // Get onboarding spec slug (default: spec-init-001)
-    const onboardingSlug = "spec-init-001";
+    // Get onboarding spec slug from config (env-configurable, default: INIT-001)
+    const onboardingSlug = config.specs.onboarding.toLowerCase();
 
     // Find onboarding spec
     const spec = await prisma.analysisSpec.findFirst({
@@ -39,64 +46,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!spec) {
-      // Return hardcoded defaults from INIT-001 spec file if not seeded
-      const defaultPersonasList = [
-        { slug: "tutor", name: "Tutor", description: "Educational and learning-focused conversations", icon: "📚", color: { bg: "#dbeafe", border: "#3b82f6", text: "#1e40af" } },
-        { slug: "companion", name: "Companion", description: "Thoughtful conversation partner for exploration and connection", icon: "💭", color: { bg: "#fce7f3", border: "#ec4899", text: "#9d174d" } },
-        { slug: "coach", name: "Coach", description: "Strategic thinking partner for challenges and goal achievement", icon: "🏆", color: { bg: "#d1fae5", border: "#10b981", text: "#065f46" } },
-      ];
-      const selectedHardcoded = personaSlug || "tutor";
-      const selectedPersonaData = defaultPersonasList.find(p => p.slug === selectedHardcoded) || defaultPersonasList[0];
-      return NextResponse.json({
-        ok: true,
-        source: "hardcoded",
-        spec: null,
-        selectedPersona: selectedHardcoded,
-        availablePersonas: ["tutor", "companion", "coach"],
-        personasList: defaultPersonasList,
-        personaName: selectedPersonaData.name,
-        personaDescription: selectedPersonaData.description,
-        personaIcon: selectedPersonaData.icon,
-        personaColor: selectedPersonaData.color,
-        defaultTargets: {
-          [PARAMS.BEH_FORMALITY]: { value: 0.5, confidence: 0.3, rationale: "Start neutral, adapt based on caller's style" },
-          [PARAMS.BEH_RESPONSE_LEN]: { value: 0.5, confidence: 0.3, rationale: "Medium responses until we learn preference" },
-          [PARAMS.BEH_WARMTH]: { value: 0.65, confidence: 0.4, rationale: "Slightly warm for welcoming first impression" },
-          [PARAMS.BEH_DIRECTNESS]: { value: 0.5, confidence: 0.3, rationale: "Balanced until we learn their style" },
-          [PARAMS.BEH_EMPATHY_RATE]: { value: 0.6, confidence: 0.4, rationale: "Higher empathy for new relationship" },
-          [PARAMS.BEH_QUESTION_RATE]: { value: 0.6, confidence: 0.4, rationale: "More questions to learn about them" },
-          [PARAMS.BEH_CONVERSATIONAL_DEPTH]: { value: 0.7, confidence: 0.5, rationale: "Moderate depth for first call discovery" },
-          [PARAMS.BEH_PROACTIVE]: { value: 0.4, confidence: 0.3, rationale: "Less proactive, more responsive initially" },
-          [PARAMS.BEH_CONVERSATIONAL_TONE]: { value: 0.6, confidence: 0.4, rationale: "Warm and inviting tone to build rapport" },
-          [PARAMS.BEH_PACE_MATCH]: { value: 0.6, confidence: 0.4, rationale: "Match their pace to feel natural" },
-          [PARAMS.BEH_MEMORY_REFERENCE]: { value: 0.3, confidence: 0.2, rationale: "Low - we don't know them yet" },
-        },
-        firstCallFlow: {
-          phases: [
-            { phase: "welcome", duration: "1-2 min", priority: "critical", goals: ["Warm greeting", "Acknowledge first time", "Create psychological safety"], avoid: ["Overwhelming", "Rushing", "Generic scripts"] },
-            { phase: "orient", duration: "1-2 min", priority: "high", goals: ["Explain what we offer", "Set expectations", "Invite questions"], avoid: ["Long monologues", "Feature lists", "Jargon"] },
-            { phase: "discover", duration: "3-5 min", priority: "critical", goals: ["Understand their goals", "Learn their context", "Identify motivations"], avoid: ["Interrogating", "Assuming", "Rushing to solutions"] },
-            { phase: "sample", duration: "5-10 min", priority: "high", goals: ["Give them a taste of value", "Demonstrate capability", "Build excitement"], avoid: ["Overdelivering", "Going too deep", "Losing them"] },
-            { phase: "close", duration: "1-2 min", priority: "high", goals: ["Summarize what we learned", "Preview next session", "End on high note"], avoid: ["Abrupt endings", "Forgetting to summarize", "Open loops without acknowledgment"] },
-          ],
-          successMetrics: [
-            "Caller expressed at least one goal",
-            "Caller experienced one 'aha' or value moment",
-            "Caller seemed comfortable by end of call",
-            "Agent learned at least 3 facts about caller",
-          ],
-        },
-        welcomeTemplate: "Welcome! I'm really glad you're here...",
-        welcomeTemplates: {
-          tutor: "Welcome! I'm really glad you're here. I'll be your tutor, and my goal is to make learning feel like a conversation, not a lecture. We'll go at your pace, and I'll adapt to how you learn best. What topic or subject brought you here today?",
-          companion: "Hello! It's wonderful to meet you. I'm here to be a thoughtful conversation partner - someone to explore ideas with, share stories, or just chat. What would you like to talk about today?",
-          coach: "Welcome aboard! I'm excited to work with you. My role is to help you think through challenges and develop strategies that work for you. What's on your mind today - what would be most helpful to focus on?",
-        },
-      });
+      return NextResponse.json(
+        { ok: false, error: "INIT-001 onboarding spec not found. Import it via /x/admin/spec-sync." },
+        { status: 404 }
+      );
     }
 
-    const config = spec.config as any || {};
-    const personas = config.personas || {};
+    const specConfig = spec.config as any || {};
+    const personas = specConfig.personas || {};
     const defaultPersona = personas.defaultPersona || "tutor";
 
     // Get available persona keys (excluding metadata keys)
@@ -117,10 +74,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Extract system defaults from parameters
-    const defaultTargetsParam = config.parameters?.find((p: any) => p.id === "default_targets_quality");
-    const welcomeParam = config.parameters?.find((p: any) => p.id === "welcome_quality");
-    const systemDefaultTargets = defaultTargetsParam?.config?.defaultTargets || config.defaultTargets || {};
-    const systemWelcomeTemplates = welcomeParam?.config?.welcomeTemplates || config.welcomeTemplates || {};
+    const defaultTargetsParam = specConfig.parameters?.find((p: any) => p.id === "default_targets_quality");
+    const welcomeParam = specConfig.parameters?.find((p: any) => p.id === "welcome_quality");
+    const systemDefaultTargets = defaultTargetsParam?.config?.defaultTargets || specConfig.defaultTargets || {};
+    const systemWelcomeTemplates = welcomeParam?.config?.welcomeTemplates || specConfig.welcomeTemplates || {};
 
     // Merge system defaults with persona-specific overrides
     const mergedTargets = {
@@ -129,7 +86,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Get persona-specific flow or fall back to system default
-    const personaFlow = personaConfig.firstCallFlow || config.firstCallFlow || {};
+    const personaFlow = personaConfig.firstCallFlow || specConfig.firstCallFlow || {};
 
     return NextResponse.json({
       ok: true,
@@ -159,7 +116,7 @@ export async function GET(request: NextRequest) {
       // Full persona config for editing
       personaConfig: personaConfig,
       // System-level parameters for detailed view
-      parameters: config.parameters || [],
+      parameters: specConfig.parameters || [],
     });
   } catch (error: any) {
     console.error("Error fetching onboarding spec:", error);

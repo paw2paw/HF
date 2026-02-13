@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -39,22 +40,23 @@ interface PlaybooksManifest {
 }
 
 /**
- * POST /api/x/create-domains
- *
- * Creates domains and playbooks from playbooks-config.json.
- * Supports selective creation via request body: { playbookIds: ["companion-v1", "coach-v1"] }
- * If no playbookIds provided, creates all playbooks.
- *
- * Steps:
- * 1. Ensure behavior parameters exist
- * 2. Create SYSTEM-level BehaviorTargets
- * 3. Create selected domains and playbooks
- * 4. Auto-link all required specs (identity, content, required, optional, system domains)
- *
- * All created playbooks are set to PUBLISHED status.
+ * @api POST /api/x/create-domains
+ * @visibility internal
+ * @scope dev:seed
+ * @auth bearer
+ * @tags dev-tools
+ * @note INFRASTRUCTURE TOOL — intentionally reads from disk. This is a bootstrap/seeding endpoint, not runtime code. playbooks-config.json is the version-controlled template; the database Playbook table is the runtime source of truth.
+ * @description Creates domains and playbooks from playbooks-config.json. Ensures behavior parameters exist, creates SYSTEM-level BehaviorTargets, then creates selected or all domains and playbooks with auto-linked specs. All created playbooks are set to PUBLISHED status.
+ * @body playbookIds string[] - Specific playbook IDs to create (optional, creates all if omitted)
+ * @response 200 { ok: boolean, message: "...", details: { domainsCreated: [...], playbooksCreated: [...], specsLinked: number, parametersCreated: number, systemTargetsCreated: number, errors: [...] } }
+ * @response 400 { ok: false, error: "No playbooks found to create" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json().catch(() => ({}));
     const selectedPlaybookIds: string[] | undefined = body.playbookIds;
 
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Load playbooks config
-    const configPath = path.join(process.cwd(), "bdd-specs", "playbooks-config.json");
+    const configPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "playbooks-config.json");
     if (!fs.existsSync(configPath)) {
       throw new Error(`Playbooks config not found at ${configPath}`);
     }
@@ -185,13 +187,22 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/x/create-domains
- *
- * Returns available playbooks from playbooks-config.json for selection UI.
+ * @api GET /api/x/create-domains
+ * @visibility internal
+ * @scope dev:read
+ * @auth bearer
+ * @tags dev-tools
+ * @note INFRASTRUCTURE TOOL — intentionally reads from disk. playbooks-config.json is bootstrap template data.
+ * @description Returns available playbooks from playbooks-config.json for selection UI, including spec counts and behavior target counts.
+ * @response 200 { ok: true, playbooks: [{ id, name, description, domain, status, specCount, behaviorTargetCount, identitySpecs, contentSpecs, requiredSpecs, optionalSpecs, systemDomains }] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
-    const configPath = path.join(process.cwd(), "bdd-specs", "playbooks-config.json");
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
+    const configPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "playbooks-config.json");
     if (!fs.existsSync(configPath)) {
       throw new Error(`Playbooks config not found at ${configPath}`);
     }
@@ -398,7 +409,7 @@ async function findSpecsForPlaybook(
  * Ensures all behavior parameters from the canonical registry exist.
  */
 async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
-  const registryPath = path.join(process.cwd(), "bdd-specs", "behavior-parameters.registry.json");
+  const registryPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "behavior-parameters.registry.json");
   if (!fs.existsSync(registryPath)) {
     console.warn("   ⚠️ behavior-parameters.registry.json not found — skipping");
     return 0;

@@ -4,6 +4,7 @@ import {
   addAgent,
   type AgentDefinition,
 } from "@/lib/manifest";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -17,12 +18,20 @@ function assertLocalOnly() {
 }
 
 /**
- * GET /api/manifest/agents
- *
- * List all agents in the manifest
+ * @api GET /api/manifest/agents
+ * @visibility internal
+ * @scope manifest:read
+ * @auth session
+ * @tags manifest
+ * @description List all agents in the manifest with summary info (settings, schema, prompts, I/O counts)
+ * @response 200 { ok: true, count: number, agents: AgentSummary[] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const manifest = loadManifest();
@@ -53,12 +62,25 @@ export async function GET() {
 }
 
 /**
- * POST /api/manifest/agents
- *
- * Add a new agent to the manifest
+ * @api POST /api/manifest/agents
+ * @visibility internal
+ * @scope manifest:write
+ * @auth session
+ * @tags manifest
+ * @description Add a new agent definition to the manifest
+ * @body agent object - Agent definition with required id, title, and opid fields
+ * @response 200 { ok: true, message: "Agent added to manifest", agent: AgentDefinition }
+ * @response 400 { ok: false, error: "agent object required" }
+ * @response 400 { ok: false, error: "agent.id is required" }
+ * @response 400 { ok: false, error: "agent.title is required" }
+ * @response 400 { ok: false, error: "agent.opid is required" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const body = await req.json();

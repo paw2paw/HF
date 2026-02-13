@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAICompletion, getDefaultEngine } from "@/lib/ai/client";
+import { getConfiguredMeteredAICompletion } from "@/lib/metering";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -33,8 +34,24 @@ Respond with ONLY valid JSON (no markdown, no explanation):
   "suggestedId": "ID-FORMAT-001"
 }`;
 
+/**
+ * @api POST /api/specs/parse-document
+ * @visibility internal
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description AI-powered document type detection. Analyzes an uploaded file to determine the best BDD spec type (CURRICULUM, MEASURE, IDENTITY, etc.) and suggests an ID.
+ * @body file File - The document to analyze (multipart/form-data)
+ * @response 200 { ok: true, fileName: string, suggestedType: string, confidence: number, reasoning: string, detectedElements: string[], suggestedId: string }
+ * @response 400 { ok: false, error: "No file provided" }
+ * @response 400 { ok: false, error: "File is empty" }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -54,18 +71,17 @@ export async function POST(request: NextRequest) {
       ? rawText.slice(0, 15000) + "\n...[truncated]..."
       : rawText;
 
-    // Call AI to detect spec type
-    const engine = getDefaultEngine();
+    // @ai-call spec.parse — Detect document type for BDD spec conversion | config: /x/ai-config
     const prompt = DETECTION_PROMPT.replace("{CONTENT}", contentForAnalysis);
 
-    const result = await getAICompletion({
-      engine,
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "spec.parse",
       messages: [
         { role: "user", content: prompt },
       ],
       maxTokens: 500,
       temperature: 0.3,
-    });
+    }, { sourceOp: "spec.parse" });
 
     // Parse the JSON response
     let parsed;

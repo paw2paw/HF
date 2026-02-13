@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/domains/[domainId]
- * Get domain details with callers and playbooks
+ * @api GET /api/domains/:domainId
+ * @visibility public
+ * @scope domains:read
+ * @auth session
+ * @tags domains
+ * @description Get domain details with callers and playbooks
+ * @pathParam domainId string - Domain UUID
+ * @response 200 { ok: true, domain: Domain }
+ * @response 404 { ok: false, error: "Domain not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { domainId } = await params;
 
     const domain = await prisma.domain.findUnique({
@@ -77,14 +89,29 @@ export async function GET(
 }
 
 /**
- * PATCH /api/domains/[domainId]
- * Update a domain
+ * @api PATCH /api/domains/:domainId
+ * @visibility public
+ * @scope domains:write
+ * @auth session
+ * @tags domains
+ * @description Update a domain's name, description, default status, or active status
+ * @pathParam domainId string - Domain UUID
+ * @body name string - Updated display name
+ * @body description string - Updated description
+ * @body isDefault boolean - Set as default domain
+ * @body isActive boolean - Enable or disable domain
+ * @response 200 { ok: true, domain: Domain }
+ * @response 404 { ok: false, error: "Domain not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { domainId } = await params;
     const body = await request.json();
     const { name, description, isDefault, isActive } = body;
@@ -132,14 +159,27 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/domains/[domainId]
- * Delete a domain (soft delete by setting isActive = false)
+ * @api DELETE /api/domains/:domainId
+ * @visibility public
+ * @scope domains:write
+ * @auth session
+ * @tags domains
+ * @description Soft-delete a domain by setting isActive = false. Blocks if domain is default or has callers.
+ * @pathParam domainId string - Domain UUID
+ * @response 200 { ok: true, message: "Domain deactivated" }
+ * @response 400 { ok: false, error: "Cannot delete the default domain" }
+ * @response 400 { ok: false, error: "Cannot delete domain with N callers assigned..." }
+ * @response 404 { ok: false, error: "Domain not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { domainId } = await params;
 
     const existing = await prisma.domain.findUnique({

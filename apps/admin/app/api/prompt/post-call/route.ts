@@ -6,32 +6,34 @@ import {
 } from "@/lib/prompt/PromptTemplateCompiler";
 
 const prisma = new PrismaClient();
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/prompt/post-call
- *
- * Post-call pipeline endpoint that orchestrates:
- * 1. Receives call data (transcript, callerId, metadata)
- * 2. Runs analysis specs to extract measures and learnings
- * 3. Stores analysis results (parameter values, memories)
- * 4. Composes the next prompt using updated values
- *
- * This is the main entry point for the call analysis pipeline.
- *
- * Request body:
- * - callerId: string (required) - The caller identifier
- * - transcript?: string - Raw transcript text
- * - transcriptId?: string - ID of existing transcript record
- * - analysisResults?: object - Pre-computed analysis results (if running externally)
- *   - parameterValues?: Record<string, number> - Measured parameter values
- *   - memories?: Array<{category, key, value, confidence}>
- * - runAnalysis?: boolean - Whether to trigger analysis (default: false, requires external runner)
- * - composePrompt?: boolean - Whether to compose next prompt (default: true)
+ * @api POST /api/prompt/post-call
+ * @visibility internal
+ * @scope pipeline:execute
+ * @auth session
+ * @tags prompts
+ * @description Post-call pipeline endpoint that orchestrates call analysis. Receives call
+ *   data, stores analysis results (parameter values, memories), and composes the next
+ *   prompt using updated values. Main entry point for the call analysis pipeline.
+ * @body callerId string - The caller identifier (required)
+ * @body transcript string - Raw transcript text
+ * @body transcriptId string - ID of existing transcript record
+ * @body analysisResults object - Pre-computed analysis results { parameterValues, memories }
+ * @body runAnalysis boolean - Whether to trigger analysis (default false)
+ * @body composePrompt boolean - Whether to compose next prompt (default true)
+ * @response 200 { ok: true/false, pipeline: PipelineResult, prompt: string | null, nextCall: { callerIdentityId, callerId, hasPrompt, promptLength } }
+ * @response 400 { ok: false, error: "callerId is required" }
+ * @response 500 { ok: false, error: "Pipeline failed" }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const {
       callerId,
@@ -332,13 +334,24 @@ interface PipelineResult {
 }
 
 /**
- * GET /api/prompt/post-call?callerId=...
- *
- * Get the current state and next prompt for a caller
- * Useful for checking what prompt would be generated without running the full pipeline
+ * @api GET /api/prompt/post-call
+ * @visibility internal
+ * @scope prompts:read
+ * @auth session
+ * @tags prompts
+ * @description Get the current state and next prompt for a caller. Useful for previewing
+ *   what prompt would be generated without running the full pipeline.
+ * @query callerId string - Caller identity ID (required)
+ * @response 200 { ok: true, callerIdentity: {...}, state: { hasProfile, parameterCount, memoryCount, parameterValues }, prompt: { text, length, specsUsed, totalActiveSpecs, specs } }
+ * @response 400 { ok: false, error: "callerId query parameter required" }
+ * @response 404 { ok: false, error: "Caller identity not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const callerId = searchParams.get("callerId");
 

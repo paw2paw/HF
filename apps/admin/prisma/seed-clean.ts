@@ -4,8 +4,8 @@
  * This seed script follows the principle: ALL DATA FROM FILES, NOTHING HARDCODED.
  *
  * Data sources:
- * 1. bdd-specs/*.spec.json  → Parameters, Specs, Anchors, Slugs
- * 2. transcripts/           → Real caller/call data from VAPI exports
+ * 1. docs-archive/bdd-specs/*.spec.json  → Parameters, Specs, Anchors, Slugs
+ * 2. transcripts/                        → Real caller/call data from VAPI exports
  *
  * Usage:
  *   npx tsx prisma/seed-clean.ts
@@ -26,7 +26,7 @@ const prisma = new PrismaClient();
 // =============================================================================
 
 const TRANSCRIPTS_DIR = path.join(__dirname, "../transcripts");
-const BDD_SPECS_DIR = path.join(__dirname, "../bdd-specs");
+const BDD_SPECS_DIR = path.join(__dirname, "../docs-archive/bdd-specs");
 
 // =============================================================================
 // CLEAR DATABASE (optional)
@@ -103,7 +103,7 @@ async function loadSpecs() {
   console.log(`   Found: ${specFiles.length} spec files\n`);
 
   if (specFiles.length === 0) {
-    console.log("   ⚠️  No spec files found. Add .spec.json files to bdd-specs/\n");
+    console.log("   ⚠️  No spec files found. Add .spec.json files to docs-archive/bdd-specs/\n");
     return;
   }
 
@@ -286,7 +286,7 @@ async function main() {
   console.log("  🌱 CLEAN SEED - Single Source of Truth");
   console.log("═".repeat(60));
   console.log("\n  Data Sources:");
-  console.log("  • bdd-specs/*.spec.json  → Specs, Parameters, Anchors");
+  console.log("  • docs-archive/bdd-specs/*.spec.json  → Specs, Parameters, Anchors");
   console.log("  • transcripts/           → Real caller/call data");
   console.log("\n  NO hardcoded data. NO mock callers. NO inline specs.\n");
 
@@ -316,7 +316,7 @@ async function main() {
   console.log(`  Parameters: ${paramCount}`);
   console.log(`  Callers:    ${callerCount}`);
   console.log(`  Calls:      ${callCount}`);
-  console.log("\n  Next: Go to /x/studio to configure playbooks and generate prompts\n");
+  console.log("\n  Next: Go to /x to configure playbooks and generate prompts\n");
 }
 
 main()

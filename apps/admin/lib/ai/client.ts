@@ -435,6 +435,7 @@ export interface ConfiguredAIOptions {
  * Get AI completion using configuration from the database.
  * This is the preferred method for production code.
  *
+ * @ai-call {options.callPoint} — Generic config-aware wrapper | config: /x/ai-config
  * @param options - Includes callPoint to load config for
  * @returns Completion result with model info
  */
@@ -466,6 +467,7 @@ export async function getConfiguredAICompletion(
 /**
  * Get AI completion stream using configuration from the database.
  *
+ * @ai-call {options.callPoint} — Generic config-aware stream wrapper | config: /x/ai-config
  * @param options - Includes callPoint to load config for
  * @returns Streaming response
  */

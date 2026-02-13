@@ -1,27 +1,32 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/analysis-specs/[specId]/enrich
- * Enrich a spec by pulling knowledge from artifacts to deepen action terms.
- * This will:
- * 1. Find all actions in the spec
- * 2. Extract key terms from action descriptions
- * 3. Search knowledge artifacts for relevant context
- * 4. Update action enrichment data (future: store in enrichedContext field)
- *
- * Currently a placeholder that returns success with mock data.
- * Future: integrate with knowledge retrieval system.
+ * @api POST /api/analysis-specs/:specId/enrich
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description Enrich a spec by extracting key terms from actions and searching knowledge artifacts. Currently a placeholder returning term previews. Future: full knowledge retrieval integration.
+ * @pathParam specId string - Spec UUID or slug
+ * @response 200 { ok: true, message: string, enriched: number, spec: { id, name, actionCount }, terms: string[], hint: string }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 423 { ok: false, error: "Spec is locked and cannot be enriched" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     // Load the spec with actions
@@ -110,14 +115,25 @@ export async function POST(
 }
 
 /**
- * GET /api/analysis-specs/[specId]/enrich
- * Get enrichment status for a spec
+ * @api GET /api/analysis-specs/:specId/enrich
+ * @visibility internal
+ * @scope analysis-specs:read
+ * @auth session
+ * @tags analysis-specs
+ * @description Get enrichment status for a spec (total parameters, enriched count, percentage)
+ * @pathParam specId string - Spec UUID or slug
+ * @response 200 { ok: true, status: { totalParameters, enrichedParameters, percentEnriched } }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     const spec = await prisma.analysisSpec.findFirst({

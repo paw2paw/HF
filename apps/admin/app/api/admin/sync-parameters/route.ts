@@ -11,9 +11,23 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
+/**
+ * @api POST /api/admin/sync-parameters
+ * @visibility internal
+ * @auth session
+ * @tags admin, parameters
+ * @description Detect and create missing parameters referenced by spec triggers/actions
+ * @body dryRun boolean - If true, only report without making changes (default: false)
+ * @response 200 { ok: true, specsScanned: number, parametersReferenced: number, parametersExist: number, parametersMissing: number, parametersCreated: number, errors: string[], missingParameters: Array }
+ * @response 500 { ok: false, error: string }
+ */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { dryRun = false } = await req.json();
 
     const results = {
@@ -200,9 +214,21 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ * @api GET /api/admin/sync-parameters
+ * @visibility internal
+ * @auth session
+ * @tags admin, parameters
+ * @description Dry-run check for missing parameters - reports what would be fixed without making changes
+ * @response 200 { ok: true, specsScanned: number, parametersReferenced: number, parametersExist: number, parametersMissing: number, missingParameters: Array }
+ * @response 500 { ok: false, error: string }
+ */
 export async function GET(req: Request) {
   // Dry run check - just report what would be fixed
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const results = {
       specsScanned: 0,
       parametersReferenced: 0,

@@ -1,17 +1,27 @@
-/**
- * GET /api/metering/summary
- *
- * Returns aggregated usage summary for the metering dashboard.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { UsageCategory } from "@prisma/client";
 
 export const runtime = "nodejs";
 
+/**
+ * @api GET /api/metering/summary
+ * @visibility internal
+ * @scope metering:read
+ * @auth session
+ * @tags metering
+ * @description Returns aggregated usage summary for the metering dashboard including category totals,
+ *   top operations, daily trends, AI breakdown by call point/engine, and today/month-to-date totals
+ * @query days number - Number of days to aggregate (default: 30)
+ * @response 200 { ok: true, period, totals, today, monthToDate, byCategory, topOperations, dailyTrend, aiByCallPoint, aiByEngine, aiSummary }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
 
     // Parse date range

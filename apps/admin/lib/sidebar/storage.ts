@@ -123,3 +123,52 @@ export async function saveGlobalDefault(
     return false;
   }
 }
+
+/**
+ * Load personal default layout from API (survives cache clears)
+ */
+export async function loadPersonalDefault(): Promise<SidebarLayout | null> {
+  try {
+    const res = await fetch("/api/sidebar-layout/personal");
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (!data.layout) return null;
+
+    return {
+      ...EMPTY_LAYOUT,
+      ...data.layout,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save layout as personal default (any authenticated user)
+ */
+export async function savePersonalDefault(
+  layout: SidebarLayout
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/sidebar-layout/personal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Clear personal default layout from API
+ */
+export async function clearPersonalDefault(): Promise<void> {
+  try {
+    await fetch("/api/sidebar-layout/personal", { method: "DELETE" });
+  } catch {
+    // Ignore errors — may not exist
+  }
+}

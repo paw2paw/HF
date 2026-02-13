@@ -20,9 +20,9 @@
  * Fallback: If no LEARN AnalysisSpecs exist, falls back to pattern matching.
  */
 
-import { PrismaClient, MemoryCategory, MemorySource } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { MemoryCategory, MemorySource } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { getMemorySettings } from "@/lib/system-settings";
 
 // Config loaded from MEMORY_TAXONOMY spec
 interface MemoryTaxonomyConfig {
@@ -96,7 +96,7 @@ const DEFAULT_TAXONOMY_CONFIG: MemoryTaxonomyConfig = {
     situation: "CONTEXT",
   },
   confidenceThresholds: {
-    default: 0.5,
+    default: 0.5,     // overridden at runtime by getMemorySettings()
     highConfidence: 0.8,
     lowConfidence: 0.3,
   },
@@ -233,14 +233,18 @@ export async function extractMemories(
   const {
     verbose = false,
     plan = false,
-    mock = true,  // Default to pattern matching
+    mock = false, // Use LLM extraction (falls back to patterns on failure)
     callId,
     callerId,
     limit = 100,
     aggregate = true,
-    confidenceThreshold = 0.5,
+    confidenceThreshold: confidenceThresholdOpt,
     specSlug,
   } = options;
+
+  // Load configurable defaults from system settings
+  const memSettings = await getMemorySettings();
+  const confidenceThreshold = confidenceThresholdOpt ?? memSettings.confidenceDefault;
 
   const result: ExtractionResult = {
     callsProcessed: 0,
@@ -563,17 +567,25 @@ export async function extractMemories(
     console.error("❌ Error during memory extraction:", error);
     result.errors.push(String(error));
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 /**
- * Extract memories using an AnalysisSpec
+ * Extract memories using an AnalysisSpec.
+ *
+ * When `mock=false`, calls the LLM with config from the spec's `config.llmConfig`.
+ * All configurable values (maxTokens, temperature, systemPrompt) come from the spec.
+ * Falls back to pattern extraction on LLM failure.
  */
 async function extractWithSpec(
   transcript: string,
-  spec: { slug: string; name: string; domain: string | null; promptTemplate: string | null },
+  spec: {
+    slug: string;
+    name: string;
+    domain: string | null;
+    promptTemplate: string | null;
+    config: any;
+  },
   mock: boolean,
   verbose: boolean
 ): Promise<ExtractedMemory[]> {
@@ -581,7 +593,7 @@ async function extractWithSpec(
   let promptTemplate = spec.promptTemplate;
 
   if (!promptTemplate) {
-    // Default extraction template
+    // Default extraction template (structural only — domain/spec come from data)
     promptTemplate = `Extract memories from this call transcript.
 
 Category: {{domain}}
@@ -611,8 +623,14 @@ Return JSON array:
 ]`;
   }
 
+  // ALL config from MEM-001 spec — zero hardcoding
+  const specConfig = (spec.config as any) || {};
+  const llmConfig = specConfig.llmConfig || {};
+  const memSettings = await getMemorySettings();
+  const transcriptTruncateLength = specConfig.transcriptTruncateLength || memSettings.transcriptLimitChars;
+
   const renderedPrompt = promptTemplate
-    .replace(/\{\{transcript\}\}/g, transcript.substring(0, 8000))
+    .replace(/\{\{transcript\}\}/g, transcript.substring(0, transcriptTruncateLength))
     .replace(/\{\{domain\}\}/g, spec.domain || "general")
     .replace(/\{\{spec\.name\}\}/g, spec.name);
 
@@ -621,11 +639,90 @@ Return JSON array:
     return extractMemoriesFromPatterns(transcript, verbose);
   }
 
-  // TODO: Real LLM call
-  // const response = await callLLM(renderedPrompt);
-  // return JSON.parse(response);
+  // LLM extraction — config from MEM-001 spec
+  try {
+    const { getConfiguredMeteredAICompletion } = await import("@/lib/metering/instrumented-ai");
+    const { recoverBrokenJson } = await import("@/lib/utils/json-recovery");
 
-  throw new Error("LLM extraction not yet implemented. Use --mock flag.");
+    const maxTokens = llmConfig.maxTokens || 2048;
+    const temperature = llmConfig.temperature || 0.3;
+    const systemPrompt = llmConfig.systemPrompt ||
+      "You are a memory extraction specialist. Extract structured memories from call transcripts. Be precise and conservative with confidence scores. Only extract information the caller explicitly states or strongly implies.";
+
+    let fullPrompt = renderedPrompt;
+
+    // Append spec-level guidance if available
+    if (specConfig.promptGuidance) {
+      fullPrompt += `\n\nGuidance: ${specConfig.promptGuidance}`;
+    }
+
+    fullPrompt += `\n\nRespond ONLY with a JSON array of memory objects. No markdown, no explanation.`;
+
+    if (verbose) {
+      console.log(`   [${spec.slug}] Calling LLM (maxTokens=${maxTokens}, temp=${temperature})`);
+    }
+
+    // @ai-call pipeline.learn — Extract memories/facts from transcript | config: /x/ai-config
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "pipeline.learn",
+      engineOverride: (llmConfig.engine as any) || undefined,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: fullPrompt },
+      ],
+      maxTokens,
+      temperature,
+    }, { sourceOp: "memory:extract" });
+
+    const { parsed, recovered } = recoverBrokenJson<any>(result.content, "memory:extract");
+    if (recovered && verbose) {
+      console.log(`   [${spec.slug}] JSON recovery was needed for LLM response`);
+    }
+
+    const memoriesArray = Array.isArray(parsed) ? parsed : (parsed.memories || []);
+    if (!Array.isArray(memoriesArray)) {
+      console.warn(`[memory-extract] LLM non-array response from ${spec.slug}, falling back to patterns`);
+      // Log failure for dashboard visibility
+      import("@/lib/ai/knowledge-accumulation").then(({ logAIInteraction }) => {
+        logAIInteraction({
+          callPoint: "pipeline.memory_extract",
+          userMessage: `Extract memories via ${spec.slug}`,
+          aiResponse: "LLM returned non-array response",
+          outcome: "failure",
+          metadata: { action: "extract", entityType: "spec", entityId: spec.slug },
+        });
+      }).catch(() => {});
+      return extractMemoriesFromPatterns(transcript, verbose);
+    }
+
+    // Map to ExtractedMemory format — config from spec
+    const confidenceThreshold = specConfig.confidenceThreshold || memSettings.confidenceDefault;
+    const defaultConfidence = specConfig.defaultExtractConfidence || llmConfig.defaultConfidence || 0.7;
+    const defaultCategory = specConfig.defaultCategory || "FACT";
+    return memoriesArray
+      .filter((m: any) => m && m.key && m.value && (m.confidence ?? 1) >= confidenceThreshold)
+      .map((m: any) => ({
+        category: m.category || defaultCategory,
+        key: String(m.key),
+        value: String(m.value),
+        evidence: m.evidence || null,
+        confidence: typeof m.confidence === "number" ? m.confidence : defaultConfidence,
+        expiresInDays: m.expiresInDays || null,
+      }));
+  } catch (err: any) {
+    console.warn(`[memory-extract] LLM extraction failed for ${spec.slug}: ${err.message}. Falling back to patterns.`);
+    // Log failure for dashboard visibility
+    import("@/lib/ai/knowledge-accumulation").then(({ logAIInteraction }) => {
+      logAIInteraction({
+        callPoint: "pipeline.memory_extract",
+        userMessage: `Extract memories via ${spec.slug}`,
+        aiResponse: err.message,
+        outcome: "failure",
+        metadata: { action: "extract", entityType: "spec", entityId: spec.slug },
+      });
+    }).catch(() => {});
+    return extractMemoriesFromPatterns(transcript, verbose);
+  }
 }
 
 /**
@@ -813,7 +910,7 @@ if (require.main === module) {
   const options: MemoryExtractorOptions = {
     verbose: args.includes("--verbose") || args.includes("-v"),
     plan: args.includes("--plan"),
-    mock: !args.includes("--no-mock"),
+    mock: args.includes("--mock"),
     callId: args.find((a) => a.startsWith("--call="))?.split("=")[1],
     callerId: args.find((a) => a.startsWith("--user="))?.split("=")[1],
     limit: parseInt(

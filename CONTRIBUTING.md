@@ -1,35 +1,3 @@
-## HF Execution Board – Card Template
-  ## Summary
-  <1–2 lines in plain English>
-
-  ## BDD Source
-  - File: bdd/features/<filename>.feature
-  - Status: Draft / Stable / Executable
-
-  ## Scenarios
-  - [ ] Scenario: <name>
-  - [ ] Scenario: <name>
-
-  ## Service Boundaries
-  - PromptComposer
-  - CallLifecycle
-  - PersonalityAnalysis
-  - MemorySynthesiser
-
-  ## Data Touchpoints
-  - Call
-  - Transcript
-  - AnalysisRun
-  - Memory
-
-  ## Notes
-  - Constraints
-  - Open questions
-
-
-
-
-
 # Contributing to HF (Browser-only workflow)
 
 HF uses GitHub as the source of truth. Contributors work directly in the GitHub web interface.
@@ -70,7 +38,7 @@ Examples:
 1. Open the file (e.g. `docs/01-system-description.md`).
 2. Click the pencil icon (Edit).
 3. Make your changes.
-4. Scroll to “Commit changes”.
+4. Scroll to "Commit changes".
 
 ### Create a new file
 1. Navigate to the target folder (e.g. `docs/adr/`).
@@ -106,7 +74,7 @@ Always commit to your branch (not `main`).
 ## 5) Open a Pull Request (PR)
 When ready for review (or feedback):
 
-1. Go to the repo homepage (GitHub often shows “Compare & pull request”).
+1. Go to the repo homepage (GitHub often shows "Compare & pull request").
 2. Create a PR:
    - Base: `main`
    - Compare: your branch
@@ -122,7 +90,7 @@ Include:
 ## 6) Review and merge
 - Reviewer checks that changes match the related artefacts/IDs and do not introduce drift.
 - When approved:
-  1. Merge the PR into `main` (prefer “Squash and merge”).
+  1. Merge the PR into `main` (prefer "Squash and merge").
   2. Delete the branch.
 
 ---
@@ -132,7 +100,7 @@ Update Notion:
 - Set status (Done / In progress).
 - Add the GitHub link to the merged file or PR.
 
-That is the “sync”: Notion indexes; GitHub is authoritative.
+That is the "sync": Notion indexes; GitHub is authoritative.
 
 ---
 
@@ -143,3 +111,35 @@ That is the “sync”: Notion indexes; GitHub is authoritative.
 - Do not work without a branch.
 
 If unsure, ask.
+
+---
+
+## Appendix: Execution Board Card Template
+
+```markdown
+## Summary
+<1-2 lines in plain English>
+
+## BDD Source
+- File: bdd/features/<filename>.feature
+- Status: Draft / Stable / Executable
+
+## Scenarios
+- [ ] Scenario: <name>
+
+## Service Boundaries
+- PromptComposer
+- CallLifecycle
+- PersonalityAnalysis
+- MemorySynthesiser
+
+## Data Touchpoints
+- Call
+- Transcript
+- AnalysisRun
+- Memory
+
+## Notes
+- Constraints
+- Open questions
+```

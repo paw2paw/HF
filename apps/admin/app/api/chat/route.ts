@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAICompletionStream, getDefaultEngine, AIEngine, AIMessage } from "@/lib/ai/client";
-import { createMeteredStream } from "@/lib/metering";
+import { AIEngine, AIMessage } from "@/lib/ai/client";
+import { getAIConfig } from "@/lib/ai/config-loader";
+import { getConfiguredMeteredAICompletionStream } from "@/lib/metering";
 import { buildSystemPrompt } from "./system-prompts";
 import { executeCommand, parseCommand } from "@/lib/chat/commands";
 import { logAI } from "@/lib/logger";
 import { logAIInteraction } from "@/lib/ai/knowledge-accumulation";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -26,8 +28,27 @@ interface ChatRequest {
   engine?: AIEngine;
 }
 
+/**
+ * @api POST /api/chat
+ * @visibility internal
+ * @scope chat:send
+ * @auth session
+ * @tags chat
+ * @description Sends a message to the AI chat assistant. Supports multiple modes (CHAT, DATA, SPEC, CALL) with mode-specific system prompts. Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
+ * @body message string - User message text (required)
+ * @body mode string - Chat mode: "CHAT" | "DATA" | "SPEC" | "CALL"
+ * @body entityContext EntityBreadcrumb[] - Current UI context breadcrumbs
+ * @body conversationHistory object[] - Previous conversation messages
+ * @body engine string - AI engine to use (optional, uses default if not specified)
+ * @response 200 text/plain (streaming response)
+ * @response 400 { ok: false, error: "Message is required" }
+ * @response 500 { ok: false, error: "...", errorCode: "BILLING" | "AUTH" | "RATE_LIMIT" | ... }
+ */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body: ChatRequest = await request.json();
     const { message, mode, entityContext, conversationHistory = [], engine } = body;
 
@@ -60,19 +81,21 @@ export async function POST(request: NextRequest) {
       ...(isUserMessageInHistory ? [] : [{ role: "user" as const, content: message.trim() }]),
     ];
 
-    // Get streaming response
-    const selectedEngine = engine || getDefaultEngine();
-    const stream = await getAICompletionStream({
-      engine: selectedEngine,
-      messages,
-      maxTokens: mode === "CALL" ? 300 : 2000,
-      temperature: mode === "CALL" ? 0.85 : 0.7,
-    });
+    // @ai-call chat.{chat|data|spec|call} — Streaming chat per mode | config: /x/ai-config
+    const callPoint = `chat.${mode.toLowerCase()}`;
+    const aiConfig = await getAIConfig(callPoint);
+    const selectedEngine = engine || aiConfig.provider;
 
-    // Wrap stream with metering to track estimated token usage
-    const meteredStream = createMeteredStream(stream, selectedEngine, messages, {
-      sourceOp: "chat",
-    });
+    const { stream: meteredStream, model } = await getConfiguredMeteredAICompletionStream(
+      {
+        callPoint,
+        engineOverride: engine,
+        messages,
+        maxTokens: mode === "CALL" ? 300 : 2000,
+        temperature: mode === "CALL" ? 0.85 : 0.7,
+      },
+      { sourceOp: callPoint }
+    );
 
     // Log the chat request (response is streamed so we log metadata only)
     const promptSummary = `[${mode}] ${message.slice(0, 200)}${message.length > 200 ? "..." : ""}`;

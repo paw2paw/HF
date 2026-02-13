@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
 import { execSync } from "child_process";
 import * as path from "path";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/admin/tests/list
- * List all Playwright E2E tests
+ * @api GET /api/admin/tests/list
+ * @visibility internal
+ * @scope admin:read
+ * @auth bearer
+ * @tags admin
+ * @description List all Playwright E2E tests grouped by file
+ * @response 200 { ok: true, totalTests: number, files: number, tests: Test[], grouped: Record<string, Test[]> }
+ * @response 500 { ok: false, error: "...", stderr: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const adminRoot = path.resolve(process.cwd());
 
     // Run playwright test --list to get all tests

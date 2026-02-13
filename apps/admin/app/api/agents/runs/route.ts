@@ -1,9 +1,26 @@
 import { PrismaClient, AgentRunStatus } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
+/**
+ * @api GET /api/agents/runs
+ * @visibility internal
+ * @scope agents:read
+ * @auth session
+ * @tags agents
+ * @description List agent runs with optional filters for agentId, status, and limit
+ * @query agentId string - Filter by agent ID
+ * @query status string - Comma-separated status filter (QUEUED, RUNNING, OK, ERROR)
+ * @query limit number - Max results (1-500, default: 50)
+ * @response 200 { ok: true, agentId, status, limit, count, runs: AgentRun[] }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const agentId = (url.searchParams.get("agentId") || "").trim();
     const statusParam = url.searchParams.get("status") || "";

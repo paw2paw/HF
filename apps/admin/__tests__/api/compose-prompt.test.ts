@@ -85,15 +85,15 @@ vi.mock("@/lib/ai/client", () => ({
 }));
 
 // Mock metering
+const mockAIResult = {
+  content: "Generated personalized prompt content for the caller...",
+  engine: "mock",
+  model: "mock-model",
+  usage: { promptTokens: 500, completionTokens: 200 },
+};
 vi.mock("@/lib/metering", () => ({
-  getMeteredAICompletion: vi.fn(() =>
-    Promise.resolve({
-      content: "Generated personalized prompt content for the caller...",
-      engine: "mock",
-      model: "mock-model",
-      usage: { promptTokens: 500, completionTokens: 200 },
-    })
-  ),
+  getConfiguredMeteredAICompletion: vi.fn(() => Promise.resolve(mockAIResult)),
+  getMeteredAICompletion: vi.fn(() => Promise.resolve(mockAIResult)),
 }));
 
 // Mock template renderer
@@ -338,8 +338,8 @@ describe("/api/callers/[callerId]/compose-prompt", () => {
     it("should handle AI completion errors", async () => {
       mockPrisma.analysisSpec.findFirst.mockResolvedValue(createMockComposeSpec());
 
-      const { getMeteredAICompletion } = await import("@/lib/metering");
-      (getMeteredAICompletion as any).mockRejectedValueOnce(
+      const { getConfiguredMeteredAICompletion } = await import("@/lib/metering");
+      (getConfiguredMeteredAICompletion as any).mockRejectedValueOnce(
         new Error("AI service unavailable")
       );
 

@@ -43,9 +43,9 @@ interface ProfileUpdate {
  * Build storage key using contract-defined pattern
  * NO HARDCODING - reads pattern from LEARNER_PROFILE_V1 contract
  */
-function buildStorageKey(category: string, key: string, subdomain?: string): string {
-  const keyPattern = ContractRegistry.getKeyPattern('LEARNER_PROFILE_V1');
-  const storageKeys = ContractRegistry.getStorageKeys('LEARNER_PROFILE_V1');
+async function buildStorageKey(category: string, key: string, subdomain?: string): Promise<string> {
+  const keyPattern = await ContractRegistry.getKeyPattern('LEARNER_PROFILE_V1');
+  const storageKeys = await ContractRegistry.getStorageKeys('LEARNER_PROFILE_V1');
 
   if (!keyPattern || !storageKeys) {
     throw new Error('LEARNER_PROFILE_V1 contract not loaded or invalid');
@@ -83,7 +83,7 @@ export async function updateLearnerProfile(
 
   // Update learning style
   if (updates.learningStyle !== undefined) {
-    const key = buildStorageKey('learning_style', 'learningStyle');
+    const key = await buildStorageKey('learning_style', 'learningStyle');
     writes.push(
       prisma.callerAttribute.upsert({
         where: {
@@ -111,7 +111,7 @@ export async function updateLearnerProfile(
 
   // Update pace preference
   if (updates.pacePreference !== undefined) {
-    const key = buildStorageKey('pace', 'pacePreference');
+    const key = await buildStorageKey('pace', 'pacePreference');
     writes.push(
       prisma.callerAttribute.upsert({
         where: {
@@ -139,7 +139,7 @@ export async function updateLearnerProfile(
 
   // Update interaction style
   if (updates.interactionStyle !== undefined) {
-    const key = buildStorageKey('interaction', 'interactionStyle');
+    const key = await buildStorageKey('interaction', 'interactionStyle');
     writes.push(
       prisma.callerAttribute.upsert({
         where: {
@@ -168,7 +168,7 @@ export async function updateLearnerProfile(
   // Update prior knowledge (domain-specific)
   if (updates.priorKnowledge) {
     for (const [domain, level] of Object.entries(updates.priorKnowledge)) {
-      const key = buildStorageKey('prior_knowledge', 'priorKnowledge', domain);
+      const key = await buildStorageKey('prior_knowledge', 'priorKnowledge', domain);
       writes.push(
         prisma.callerAttribute.upsert({
           where: {
@@ -206,7 +206,7 @@ export async function updateLearnerProfile(
   for (const { field, category } of simpleUpdates) {
     const value = updates[field];
     if (value !== undefined) {
-      const key = buildStorageKey(category, field);
+      const key = await buildStorageKey(category, field);
       writes.push(
         prisma.callerAttribute.upsert({
           where: {
@@ -234,7 +234,7 @@ export async function updateLearnerProfile(
   }
 
   // Update last updated timestamp
-  const lastUpdatedKey = buildStorageKey('metadata', 'lastUpdated');
+  const lastUpdatedKey = await buildStorageKey('metadata', 'lastUpdated');
   writes.push(
     prisma.callerAttribute.upsert({
       where: {
@@ -269,8 +269,8 @@ export async function getLearnerProfile(
   callerId: string
 ): Promise<LearnerProfile> {
   // Get contract keys
-  const storageKeys = ContractRegistry.getStorageKeys('LEARNER_PROFILE_V1');
-  const keyPattern = ContractRegistry.getKeyPattern('LEARNER_PROFILE_V1');
+  const storageKeys = await ContractRegistry.getStorageKeys('LEARNER_PROFILE_V1');
+  const keyPattern = await ContractRegistry.getKeyPattern('LEARNER_PROFILE_V1');
 
   if (!storageKeys || !keyPattern) {
     throw new Error('LEARNER_PROFILE_V1 contract not loaded');
@@ -336,7 +336,7 @@ export async function getLearnerProfile(
  * Useful for debugging or when learner preferences change dramatically
  */
 export async function resetLearnerProfile(callerId: string): Promise<void> {
-  const keyPattern = ContractRegistry.getKeyPattern('LEARNER_PROFILE_V1');
+  const keyPattern = await ContractRegistry.getKeyPattern('LEARNER_PROFILE_V1');
   if (!keyPattern) {
     throw new Error('LEARNER_PROFILE_V1 contract not loaded');
   }

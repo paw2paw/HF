@@ -6,8 +6,8 @@
  * More flexible than regex-based parsing - handles variations in format.
  */
 
-import { getDefaultEngine, AIEngine } from "../ai/client";
-import { getMeteredAICompletion } from "../metering";
+import { AIEngine } from "../ai/client";
+import { getConfiguredMeteredAICompletion } from "../metering";
 
 // ============================================================================
 // JSON Spec Types (matching feature-spec-schema.json)
@@ -41,6 +41,16 @@ export interface JsonFeatureSpec {
   parameters: JsonParameter[];
   workedExamples?: JsonWorkedExample[];
   related?: JsonRelation[];
+  metadata?: {
+    curriculum?: {
+      type: string;
+      trackingMode: string;
+      moduleSelector: string;
+      moduleOrder: string;
+      progressKey: string;
+      masteryThreshold: number;
+    };
+  };
 }
 
 export interface JsonAcceptanceCriterion {
@@ -84,6 +94,7 @@ export interface JsonParameter {
   scoringAnchors?: JsonScoringAnchor[];
   promptGuidance?: JsonPromptGuidance;
   usedBy?: string[];
+  learningOutcomes?: string[];
 }
 
 export interface JsonSubMetric {
@@ -460,13 +471,13 @@ export async function parseWithAI(
   fileType: "STORY" | "PARAMETER",
   engine?: AIEngine
 ): Promise<ParsedBDDResult> {
-  const selectedEngine = engine || getDefaultEngine();
-
   const systemPrompt = fileType === "PARAMETER" ? PARAMETER_PARSE_PROMPT : STORY_PARSE_PROMPT;
 
+  // @ai-call bdd.parse — Parse BDD story/parameter files into structured data | config: /x/ai-config
   try {
-    const result = await getMeteredAICompletion({
-      engine: selectedEngine,
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "bdd.parse",
+      engineOverride: engine,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Parse this ${fileType === "PARAMETER" ? "parameter measurement guide" : "BDD story"}:\n\n${content}` },
@@ -649,11 +660,11 @@ export async function parseHybridWithAI(
   content: string,
   engine?: AIEngine
 ): Promise<ParsedHybridResult> {
-  const selectedEngine = engine || getDefaultEngine();
-
+  // @ai-call bdd.parse — Parse hybrid BDD files (params + story) | config: /x/ai-config
   try {
-    const result = await getMeteredAICompletion({
-      engine: selectedEngine,
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "bdd.parse",
+      engineOverride: engine,
       messages: [
         { role: "system", content: HYBRID_PARSE_PROMPT },
         { role: "user", content: `Parse this hybrid BDD file containing both parameters and story:\n\n${content}` },

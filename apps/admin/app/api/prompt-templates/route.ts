@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/prompt-templates
- * List all prompt templates
+ * @api GET /api/prompt-templates
+ * @visibility internal
+ * @scope prompts:read
+ * @auth session
+ * @tags prompts
+ * @description List all prompt templates with optional inactive inclusion
+ * @query includeInactive string - Include inactive templates ("true")
+ * @response 200 { ok: true, templates: PromptTemplate[], count: number }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
 
@@ -35,11 +46,28 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/prompt-templates
- * Create a new prompt template
+ * @api POST /api/prompt-templates
+ * @visibility internal
+ * @scope prompts:write
+ * @auth session
+ * @tags prompts
+ * @description Create a new prompt template with system prompt and optional modifiers
+ * @body slug string - Unique slug identifier (required)
+ * @body name string - Display name (required)
+ * @body description string - Template description
+ * @body systemPrompt string - System prompt content (required)
+ * @body personalityModifiers string - Personality modifier template
+ * @body contextTemplate string - Context template
+ * @response 200 { ok: true, template: PromptTemplate }
+ * @response 400 { ok: false, error: "slug, name, and systemPrompt are required" }
+ * @response 409 { ok: false, error: "Template with slug \"...\" already exists" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { slug, name, description, systemPrompt, personalityModifiers, contextTemplate } = body;
 

@@ -1,6 +1,6 @@
 # HF Project TODO List
 
-**Last Updated**: 2026-02-08
+**Last Updated**: 2026-02-12
 
 ---
 
@@ -114,8 +114,8 @@ INGEST_RATE_LIMIT=100          # Max calls per minute
 - Version history / rollback capability
 
 **Current State:**
-- Voice rules defined in `bdd-specs/VOICE-001-voice-guidance.spec.json`
-- Behavior targets defined in `bdd-specs/playbooks-config.json`
+- Voice rules defined in `docs-archive/bdd-specs/VOICE-001-voice-guidance.spec.json`
+- Behavior targets defined in `docs-archive/bdd-specs/playbooks-config.json`
 - Must edit JSON files manually to tune agent behavior
 
 **What Admins Need:**
@@ -302,22 +302,23 @@ model PersonaConfig {
 ---
 
 ### 🔐 Authentication & Admin Users
-**Status**: IN PROGRESS (Basic auth implemented 2026-02-08)
+**Status**: ✅ COMPLETE (2026-02-12)
 **Priority**: High
-**Estimated Effort**: 1-2 days
 
 **What's Done:**
-- [x] NextAuth v5 with email magic link
+- [x] NextAuth v5 with Credentials + Email magic link
 - [x] User, Session, Account, Invite models in Prisma
 - [x] Login page with magic link flow
-- [x] Middleware protecting all routes
-- [x] Invite system for controlled signup
+- [x] Middleware protecting all routes (edge cookie check)
+- [x] Invite system for controlled signup (domain-locked)
 - [x] Team management page at `/x/users`
-
-**What's Left:**
-- [ ] Email provider configuration (need SMTP or Resend)
-- [ ] First user bootstrap (create initial admin)
-- [ ] Role-based page restrictions (currently all admins)
+- [x] `lib/permissions.ts`: `requireAuth(role)` + `isAuthError()` discriminated union
+- [x] 176/184 API routes call `requireAuth()`, 8 intentionally public
+- [x] Coverage test: `tests/lib/route-auth-coverage.test.ts` (fails CI if any route missing auth)
+- [x] 17 unit tests for permissions helper
+- [x] Sim auth integrated: access code system removed, invite → user → session flow
+- [x] OPERATOR sees only own callers in sim conversation list
+- [x] Default new user role: OPERATOR (changed from ADMIN)
 
 **Files Created:**
 - `lib/auth.ts` - NextAuth configuration
@@ -470,7 +471,7 @@ curl -X POST http://localhost:3000/api/callers/analyze-all
 - `app/api/admin/spec-sync/route.ts` - API to trigger sync (exists, enhance)
 
 **UI Features:**
-- [ ] Show list of `.spec.json` files in `bdd-specs/` folder
+- [ ] Show list of `.spec.json` files in `docs-archive/bdd-specs/` folder
 - [ ] Compare against `AnalysisSpec` table records
 - [ ] Status indicators: ✅ Synced, ⚠️ Modified, ❌ Not in DB
 - [ ] "Sync All" button to load missing specs

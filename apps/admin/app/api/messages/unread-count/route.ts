@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/messages/unread-count
- * Get count of unread messages for current user (for badge display)
+ * @api GET /api/messages/unread-count
+ * @visibility internal
+ * @auth session
+ * @tags messages
+ * @description Get count of unread messages for the current user (for badge display)
+ * @response 200 { ok: true, count: number }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const count = await prisma.message.count({
       where: {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { loadManifest, validateManifest } from "@/lib/manifest";
 import crypto from "crypto";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -22,12 +23,20 @@ function computeSettingsHash(settings: Record<string, unknown>): string {
 }
 
 /**
- * GET /api/manifest/sync
- *
- * Preview sync: compare manifest agents with DB AgentInstances
+ * @api GET /api/manifest/sync
+ * @visibility internal
+ * @scope manifest:read
+ * @auth session
+ * @tags manifest
+ * @description Preview sync: compare manifest agents with DB AgentInstances, showing what needs syncing
+ * @response 200 { ok: true, validation, comparison, summary: { total, needsSync, orphaned, outOfSync, synced } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const manifest = loadManifest(true);
@@ -134,17 +143,22 @@ export async function GET() {
 }
 
 /**
- * POST /api/manifest/sync
- *
- * Execute sync: create/update DB AgentInstances from manifest
- *
- * Actions:
- * - action: "bootstrap" - Create DRAFT instances for agents not in DB
- * - action: "reset" - Reset DB settings to match manifest defaults
- * - action: "cleanup" - Archive orphaned DB instances not in manifest
+ * @api POST /api/manifest/sync
+ * @visibility internal
+ * @scope manifest:write
+ * @auth session
+ * @tags manifest
+ * @description Execute sync between manifest and DB: bootstrap new agents, reset to defaults, or cleanup orphans
+ * @body action string - Sync action: "bootstrap" | "reset" | "cleanup" (default: "bootstrap")
+ * @body agentIds string[] - Optional filter to only sync specific agent IDs
+ * @response 200 { ok: true, action, results, summary: { total, created, reset, archived, skipped } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const body = await req.json().catch(() => ({}));

@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/messages/[messageId]
- * Get a single message with its thread (parent + replies)
+ * @api GET /api/messages/:messageId
+ * @visibility internal
+ * @auth session
+ * @tags messages
+ * @description Get a single message with its thread (parent + replies). Auto-marks as read if recipient is viewing.
+ * @pathParam messageId string - The message ID
+ * @response 200 { ok: true, message: object }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 403 { ok: false, error: "Forbidden" }
+ * @response 404 { ok: false, error: "Message not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { messageId } = await params;
     const userId = session.user.id;
@@ -75,18 +83,27 @@ export async function GET(
 }
 
 /**
- * PATCH /api/messages/[messageId]
- * Update message (mark as read)
+ * @api PATCH /api/messages/:messageId
+ * @visibility internal
+ * @auth session
+ * @tags messages
+ * @description Mark a message as read (recipient only)
+ * @pathParam messageId string - The message ID
+ * @body readAt string - ISO date to mark as read (default: now)
+ * @response 200 { ok: true, message: object }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 403 { ok: false, error: "Forbidden" }
+ * @response 404 { ok: false, error: "Message not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { messageId } = await params;
     const userId = session.user.id;
@@ -132,18 +149,26 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/messages/[messageId]
- * Delete a message (sender only)
+ * @api DELETE /api/messages/:messageId
+ * @visibility internal
+ * @auth session
+ * @tags messages
+ * @description Delete a message (sender only)
+ * @pathParam messageId string - The message ID
+ * @response 200 { ok: true }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 403 { ok: false, error: "Forbidden" }
+ * @response 404 { ok: false, error: "Message not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { messageId } = await params;
     const userId = session.user.id;

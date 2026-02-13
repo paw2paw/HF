@@ -112,7 +112,9 @@ interface LLMPrompt {
 }
 
 /**
- * Get level label for a score
+ * Get level label for a score.
+ * Structural defaults matching COMP-001 personality_section.config.thresholds.
+ * renderPromptSummary is display-only and doesn't receive spec config.
  */
 function getLevel(score: number): string {
   if (score >= 0.65) return "HIGH";
@@ -200,6 +202,21 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
     parts.push("");
   }
 
+  // Content Trust & Source Authority
+  const trust = (llmPrompt as any).contentTrust;
+  if (trust?.hasTrustData) {
+    if (trust.contentAuthority) {
+      parts.push(trust.contentAuthority);
+    }
+    if (trust.trustRules) {
+      parts.push("\n" + trust.trustRules);
+    }
+    if (trust.referenceCard) {
+      parts.push("\n" + trust.referenceCard);
+    }
+    parts.push("");
+  }
+
   // Identity (who the agent is)
   const id = llmPrompt.identity;
   if (id) {
@@ -257,7 +274,7 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
 
     // Show top memories by category
     if (mem.byCategory) {
-      const categories = ["FACT", "PREFERENCE", "TOPIC", "RELATIONSHIP"];
+      const categories = Object.keys(mem.byCategory);
       categories.forEach(cat => {
         const items = mem.byCategory?.[cat];
         if (items?.length) {

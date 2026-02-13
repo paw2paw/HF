@@ -1,28 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/callers/[callerId]/snapshot
- *
- * Download a complete snapshot of a caller's analysis state.
- * Useful for:
- * - Comparing analysis results across different playbook configurations
- * - Archiving analysis before reset
- * - Debugging/auditing
- *
- * The snapshot includes:
- * - Caller profile
- * - Personality data
- * - All memories
- * - All call scores
- * - Calls (transcripts)
- * - Metadata (timestamp, config used)
+ * @api GET /api/callers/:callerId/snapshot
+ * @visibility public
+ * @scope callers:read
+ * @auth session
+ * @tags callers, snapshot, export
+ * @description Download a complete snapshot of a caller's analysis state as a JSON file attachment. Includes caller profile, personality data (aggregate, profiles, observations), all memories, all call scores, calls with transcripts, caller identities, composed prompts, playbook info, and summary statistics. Useful for comparing analysis results across playbook configurations, archiving before reset, and debugging/auditing.
+ * @pathParam callerId string - The caller ID to snapshot
+ * @query includeTranscripts boolean - Whether to include call transcripts (default: true, set to "false" to exclude)
+ * @query label string - Optional label to include in the snapshot metadata and filename
+ * @response 200 application/json attachment: { _meta, summary, caller, personality, memory, calls, identities, composedPrompts }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: "Failed to create snapshot" }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
     const url = new URL(req.url);
     const includeTranscripts = url.searchParams.get("includeTranscripts") !== "false";

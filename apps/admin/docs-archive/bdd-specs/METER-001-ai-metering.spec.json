@@ -1,0 +1,79 @@
+{
+  "id": "METER-001",
+  "title": "AI Metering & Cost Tracking",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-11",
+  "domain": "system",
+  "specType": "SYSTEM",
+  "specRole": "OBSERVE",
+  "isDeletable": false,
+  "agentScope": "SYSTEM",
+  "story": {
+    "asA": "system administrator managing AI costs",
+    "iWant": "to track token usage, costs, and rate limits across all LLM calls",
+    "soThat": "I can monitor spending, set budgets, and ensure the system stays within rate limits"
+  },
+  "context": {
+    "applies": "Every LLM call made through getConfiguredMeteredAICompletion()",
+    "dependsOn": [],
+    "assumptions": [
+      "All LLM calls go through the metering layer",
+      "Token counts (input/output) are recorded per call",
+      "Costs are computed from token counts and model pricing",
+      "Rate limits are enforced before each call"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-METER-1",
+      "title": "Token Usage Recording",
+      "given": "An LLM call completes via getConfiguredMeteredAICompletion()",
+      "when": "The response is received",
+      "then": "Input tokens, output tokens, model, callPoint, and timestamp are recorded as a metering event"
+    },
+    {
+      "id": "AC-METER-2",
+      "title": "Cost Computation",
+      "given": "Metering events exist for a time period",
+      "when": "The metering summary is requested",
+      "then": "Costs are computed by multiplying token counts by model-specific pricing rates"
+    },
+    {
+      "id": "AC-METER-3",
+      "title": "Rate Limit Enforcement",
+      "given": "Rate limits are configured for a model or call point",
+      "when": "An LLM call is attempted",
+      "then": "The call is blocked if rate limits would be exceeded, with appropriate error messaging"
+    },
+    {
+      "id": "AC-METER-4",
+      "title": "Metering Dashboard",
+      "given": "Admin navigates to /x/metering",
+      "when": "The page loads",
+      "then": "Token usage, cost breakdown by model/callPoint, and rate limit status are displayed"
+    },
+    {
+      "id": "AC-METER-5",
+      "title": "Metering Events API",
+      "given": "Metering events exist",
+      "when": "GET /api/metering/events is called",
+      "then": "Returns paginated list of metering events with token counts, costs, and timestamps"
+    },
+    {
+      "id": "AC-METER-6",
+      "title": "Metering Summary API",
+      "given": "Metering events exist for a time period",
+      "when": "GET /api/metering/summary is called",
+      "then": "Returns aggregated usage summary including total tokens, total cost, and breakdown by model"
+    }
+  ],
+  "config": {
+    "endpoints": {
+      "events": "/api/metering/events",
+      "rates": "/api/metering/rates",
+      "summary": "/api/metering/summary"
+    },
+    "dashboard": "/x/metering"
+  }
+}

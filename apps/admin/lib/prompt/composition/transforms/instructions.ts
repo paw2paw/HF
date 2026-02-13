@@ -13,6 +13,47 @@ import { classifyValue, getAttributeValue } from "../types";
 import { computePersonalityAdaptation } from "./personality";
 import type { AssembledContext, CallerAttributeData } from "../types";
 
+/**
+ * Build narrative sentences from memories using spec-driven templates.
+ *
+ * Templates come from COMP-001 memory_section.config.narrativeTemplates.
+ * Unknown keys fall back to genericNarrativeTemplate (also from spec).
+ * If no spec config is provided, everything uses the structural default.
+ *
+ * @param memories - Array of { key, value, category? } objects
+ * @param specConfig - narrativeTemplates and genericNarrativeTemplate from COMP-001
+ * @returns A single narrative string, or empty string if no memories
+ */
+export function narrativeFrame(
+  memories: Array<{ key: string; value: string; category?: string }>,
+  specConfig: {
+    narrativeTemplates?: Record<string, string>;
+    genericNarrativeTemplate?: string;
+  },
+): string {
+  if (!memories || memories.length === 0) return "";
+
+  const templates = specConfig.narrativeTemplates || {};
+  const genericTemplate = specConfig.genericNarrativeTemplate || "Their {key} is {value}";
+
+  const sentences = memories.map((m) => {
+    const normalizedKey = m.key.toLowerCase().replace(/\s+/g, "_");
+    const template = templates[normalizedKey];
+
+    if (template) {
+      return template.replace(/\{value\}/g, m.value);
+    }
+
+    // Humanize the key: underscores → spaces
+    const humanKey = normalizedKey.replace(/_/g, " ");
+    return genericTemplate
+      .replace(/\{key\}/g, humanKey)
+      .replace(/\{value\}/g, m.value);
+  });
+
+  return sentences.join(". ") + ".";
+}
+
 registerTransform("computeInstructions", (
   _rawData: any,
   context: AssembledContext,
@@ -31,46 +72,59 @@ registerTransform("computeInstructions", (
   // Get merged targets from behavior_targets section
   const mergedTargets = sections.behaviorTargets?._merged || sections.behaviorTargets?.all || [];
 
-  return {
-    // Use memories (route.ts lines 1930-1956)
-    use_memories: (() => {
-      const allMemoryStrings: string[] = [];
-      const facts = memoryGroups["FACT"]?.slice(0, 3) || [];
-      const relationships = memoryGroups["RELATIONSHIP"]?.slice(0, 2) || [];
-      const contextMems = memoryGroups["CONTEXT"]?.slice(0, 2) || [];
-      [...facts, ...relationships, ...contextMems].forEach((m: any) => {
-        allMemoryStrings.push(`${m.key}="${m.value}"`);
-      });
+  // Memory instruction config from COMP-001 spec (zero hardcoding)
+  const memSectionConfig = (context.specConfig?.parameters as any[])?.find(
+    (p: any) => p.id === "memory_section"
+  )?.config || context.specConfig;
 
-      if (allMemoryStrings.length > 0) {
-        return `Reference naturally in conversation: ${allMemoryStrings.join(", ")}`;
+  // Category selection for instructions — from spec config or structural defaults
+  const instructionCategories: Record<string, number> = memSectionConfig.instructionCategoryLimits || {
+    FACT: 3, RELATIONSHIP: 2, CONTEXT: 2,
+  };
+  const preferencesLimit: number = memSectionConfig.preferencesLimit || 4;
+  const topicsLimit: number = memSectionConfig.topicsLimit || 3;
+
+  return {
+    // Use memories — narrative framing from COMP-001 spec templates
+    use_memories: (() => {
+      // Build relevant memories from spec-configured categories
+      const relevantMemories: Array<{ key: string; value: string; category?: string }> = [];
+      for (const [cat, limit] of Object.entries(instructionCategories)) {
+        const mems = memoryGroups[cat]?.slice(0, limit) || [];
+        relevantMemories.push(...mems);
       }
 
-      const hasPreferences = (memoryGroups["PREFERENCE"]?.length || 0) > 0;
-      const hasTopics = (memoryGroups["TOPIC"]?.length || 0) > 0;
+      if (relevantMemories.length > 0) {
+        const narrative = narrativeFrame(relevantMemories, memSectionConfig);
+        return `What you know about this caller: ${narrative} Reference these details naturally in conversation.`;
+      }
 
-      if (hasPreferences || hasTopics) {
-        const parts: string[] = [];
-        if (hasPreferences) parts.push("preferences");
-        if (hasTopics) parts.push("topics of interest");
-        return `No biographical facts recorded yet. See ${parts.join(" and ")} below. Build rapport naturally.`;
+      // Check if any other categories have data
+      const otherCategories = Object.keys(memoryGroups).filter(
+        (cat) => !instructionCategories[cat] && (memoryGroups[cat]?.length || 0) > 0
+      );
+
+      if (otherCategories.length > 0) {
+        return `No biographical facts recorded yet. See ${otherCategories.join(" and ").toLowerCase()} below. Build rapport naturally.`;
       }
 
       return "No specific memories recorded yet. Build rapport and learn about them.";
     })(),
 
-    // Use preferences (route.ts lines 1957-1963)
+    // Use preferences — narrative framing from COMP-001 spec templates
     use_preferences: (() => {
-      const prefs = memoryGroups["PREFERENCE"]?.slice(0, 4) || [];
+      // Pull preferences from all categories that exist (dynamic)
+      const prefs = (memoryGroups["PREFERENCE"] || []).slice(0, preferencesLimit);
       if (prefs.length === 0) {
         return "No preferences recorded yet. Observe their communication style.";
       }
-      return `Respect caller preferences: ${prefs.map((m: any) => `${m.key}="${m.value}"`).join(", ")}`;
+      const narrative = narrativeFrame(prefs, memSectionConfig);
+      return `Respect caller preferences: ${narrative}`;
     })(),
 
-    // Use topics (route.ts lines 1964-1975)
+    // Use topics
     use_topics: (() => {
-      const topics = memoryGroups["TOPIC"]?.slice(0, 3) || [];
+      const topics = (memoryGroups["TOPIC"] || []).slice(0, topicsLimit);
       const interestPrefs = (memoryGroups["PREFERENCE"] || [])
         .filter((m: any) => m.key.toLowerCase().includes("interest"))
         .slice(0, 2);
@@ -81,7 +135,7 @@ registerTransform("computeInstructions", (
       return `Topics of interest to explore: ${allTopics.join(", ")}`;
     })(),
 
-    // Interest handling (route.ts lines 1977-2015)
+    // Interest handling
     interest_handling: (() => {
       const interestPrefs = (memoryGroups["PREFERENCE"] || [])
         .filter((m: any) => m.key.toLowerCase().includes("interest"));
@@ -179,6 +233,13 @@ registerTransform("computeInstructions", (
         return "No specific session goals set - explore learner interests and set goals collaboratively.";
       }
       return `Session goals: ${goals.map(g => g.name).join("; ")}`;
+    })(),
+
+    // Teaching content — approved teaching points from verified sources
+    teaching_content: (() => {
+      const tc = sections.teachingContent;
+      if (!tc?.hasTeachingContent) return null;
+      return tc.teachingPoints;
     })(),
 
     // Session pedagogy — delegates to separate transform (already computed)

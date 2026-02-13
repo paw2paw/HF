@@ -268,13 +268,13 @@ async function loadCallersContext(limit = 20): Promise<CallerContext[]> {
         select: { calls: true },
       },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "desc" },
     take: limit,
   });
 
   return callers.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: c.name || "Unknown",
     lastCallAt: c.calls[0]?.createdAt,
     totalCalls: c._count.calls,
   }));
@@ -322,10 +322,11 @@ async function loadKnowledgeContext(limit = 20): Promise<KnowledgeContext[]> {
     select: {
       id: true,
       title: true,
-      artifactType: true,
-      domain: true,
-      _count: {
-        select: { chunks: true },
+      type: true,
+      tags: true,
+      sourceChunkIds: true,
+      parameter: {
+        select: { domainGroup: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -335,9 +336,9 @@ async function loadKnowledgeContext(limit = 20): Promise<KnowledgeContext[]> {
   return artifacts.map((a) => ({
     id: a.id,
     title: a.title,
-    type: a.artifactType,
-    domain: a.domain || undefined,
-    chunkCount: a._count.chunks,
+    type: a.type,
+    domain: a.parameter?.domainGroup || undefined,
+    chunkCount: a.sourceChunkIds.length,
   }));
 }
 
@@ -377,8 +378,8 @@ async function loadGoalsContext(limit = 20): Promise<GoalContext[]> {
           name: true,
         },
       },
-      goalType: true,
-      title: true,
+      type: true,
+      name: true,
       status: true,
       progress: true,
     },
@@ -388,9 +389,9 @@ async function loadGoalsContext(limit = 20): Promise<GoalContext[]> {
 
   return goals.map((g) => ({
     callerId: g.caller.id,
-    callerName: g.caller.name,
-    goalType: g.goalType,
-    title: g.title,
+    callerName: g.caller.name || "Unknown",
+    goalType: g.type,
+    title: g.name,
     status: g.status,
     progress: g.progress || undefined,
   }));
@@ -405,7 +406,7 @@ async function loadTargetsContext(limit = 30): Promise<TargetContext[]> {
           name: true,
         },
       },
-      level: true,
+      scope: true,
       targetValue: true,
     },
     orderBy: { createdAt: "desc" },
@@ -415,7 +416,7 @@ async function loadTargetsContext(limit = 30): Promise<TargetContext[]> {
   return targets.map((t) => ({
     parameterId: t.parameter.parameterId,
     parameterName: t.parameter.name,
-    level: t.level,
+    level: t.scope,
     targetValue: t.targetValue,
   }));
 }
@@ -425,7 +426,7 @@ async function loadPlaybooksContext(): Promise<PlaybookContext[]> {
     select: {
       id: true,
       name: true,
-      isActive: true,
+      status: true,
       _count: {
         select: { items: true },
       },
@@ -437,13 +438,13 @@ async function loadPlaybooksContext(): Promise<PlaybookContext[]> {
   return playbooks.map((p) => ({
     id: p.id,
     name: p.name,
-    isActive: p.isActive,
+    isActive: p.status === "PUBLISHED",
     itemCount: p._count.items,
   }));
 }
 
 async function loadAnchorsContext(limit = 30): Promise<AnchorContext[]> {
-  const anchors = await prisma.scoringAnchor.findMany({
+  const anchors = await prisma.parameterScoringAnchor.findMany({
     select: {
       parameter: {
         select: {
@@ -754,6 +755,10 @@ export const CONTEXT_PRESETS: Record<string, SystemContextOptions> = {
     modules: ["specs", "domains", "parameters", "anchors"],
     limit: 50,
   },
+  "spec.view": {
+    modules: ["specs", "parameters", "domains", "anchors", "pipeline"],
+    limit: 50,
+  },
   "pipeline.measure": {
     modules: ["specs", "parameters", "anchors"],
     limit: 30,
@@ -780,6 +785,14 @@ export const CONTEXT_PRESETS: Record<string, SystemContextOptions> = {
   },
   "goal.suggest": {
     modules: ["goals", "knowledge", "callers", "domains"],
+    limit: 30,
+  },
+  "workflow.classify": {
+    modules: ["specs", "domains", "parameters", "playbooks", "personas", "callers"],
+    limit: 50,
+  },
+  "workflow.step": {
+    modules: ["specs", "domains", "parameters", "playbooks"],
     limit: 30,
   },
   default: {

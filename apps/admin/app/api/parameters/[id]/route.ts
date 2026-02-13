@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/parameters/:id
- * React-Admin getOne endpoint
+ * @api GET /api/parameters/:id
+ * @visibility public
+ * @scope parameters:read
+ * @auth session
+ * @tags parameters
+ * @description Get a single parameter by UUID with tags and prompt slug links (React-Admin compatible)
+ * @pathParam id string - Parameter UUID
+ * @response 200 Parameter
+ * @response 404 { error: "Parameter not found" }
+ * @response 500 { error: "..." }
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const parameter = await prisma.parameter.findUnique({
       where: { id },
@@ -54,14 +66,33 @@ export async function GET(
 }
 
 /**
- * PUT /api/parameters/:id
- * React-Admin update endpoint
+ * @api PUT /api/parameters/:id
+ * @visibility public
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Update a parameter's fields (React-Admin compatible). parameterId is immutable.
+ * @pathParam id string - Parameter UUID
+ * @body name string - Display name
+ * @body domainGroup string - Domain group
+ * @body sectionId string - Section ID
+ * @body scaleType string - Scale type
+ * @body directionality string - Directionality
+ * @body computedBy string - Computed by
+ * @body definition string - Parameter definition
+ * @body interpretationLow string - Low-score interpretation
+ * @body interpretationHigh string - High-score interpretation
+ * @response 200 Parameter
+ * @response 500 { error: "..." }
  */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const body = await request.json();
 
@@ -103,14 +134,24 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/parameters/:id
- * React-Admin delete endpoint
+ * @api DELETE /api/parameters/:id
+ * @visibility public
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description Delete a parameter permanently (React-Admin compatible)
+ * @pathParam id string - Parameter UUID
+ * @response 200 Parameter (the deleted record)
+ * @response 500 { error: "..." }
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const parameter = await prisma.parameter.delete({
       where: { id },

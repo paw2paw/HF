@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DomainPill } from "@/src/components/shared/EntityPill";
+import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
+import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 
 type Caller = {
   id: string;
@@ -87,6 +89,16 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
   const [newCallerPhone, setNewCallerPhone] = useState("");
   const [newCallerDomainId, setNewCallerDomainId] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // AI Assistant
+  const assistant = useAssistant({
+    defaultTab: "chat",
+    layout: "popout",
+    enabledTabs: ["chat", "data"],
+  });
+
+  // Keyboard shortcut for assistant
+  useAssistantKeyboardShortcut(assistant.toggle);
 
   const fetchCallers = () => {
     fetch("/api/callers?withPersonality=true&withCounts=true")
@@ -496,6 +508,28 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         >
           {selectionMode ? "Cancel Selection" : "Select to Merge"}
         </button>
+
+        <button
+          onClick={() => {
+            assistant.open(undefined, { page: `${routePrefix}/callers` });
+          }}
+          style={{
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 500,
+            background: "rgba(139, 92, 246, 0.1)",
+            color: "#8b5cf6",
+            border: "1px solid rgba(139, 92, 246, 0.2)",
+            borderRadius: 6,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+          title="Ask AI Assistant (Cmd+Shift+K)"
+        >
+          ✨ Ask AI
+        </button>
       </div>
 
       {/* Error */}
@@ -616,6 +650,21 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   }}
                 >
                   📞
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); router.push(`/x/caller-graph/${caller.id}`); }}
+                  title="View caller graph"
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    background: "var(--surface-secondary)",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 5,
+                    cursor: "pointer",
+                  }}
+                >
+                  🌌
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setSnapshotModal(caller); }}
@@ -1382,6 +1431,15 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           </div>
         </div>
       )}
+
+      {/* AI Assistant */}
+      <UnifiedAssistantPanel
+        visible={assistant.isOpen}
+        onClose={assistant.close}
+        context={assistant.context}
+        location={assistant.location}
+        {...assistant.options}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import { getAgentPathInfo, resolveAgentPaths } from "@/lib/agent-paths";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -22,15 +23,24 @@ function computeSettingsHash(settings: Record<string, unknown>): string {
 }
 
 /**
- * GET /api/agents/[agentId]
- *
- * Get agent details including all versions
+ * @api GET /api/agents/:agentId
+ * @visibility internal
+ * @scope agents:read
+ * @auth session
+ * @tags agents
+ * @description Get agent details including published, draft, and history versions with path resolution info
+ * @pathParam agentId string - The agent identifier
+ * @response 200 { ok: true, agentId, published, draft, history, allVersions, paths }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 
@@ -80,15 +90,27 @@ export async function GET(
 }
 
 /**
- * PUT /api/agents/[agentId]
- *
- * Create or update a draft instance for the agent
+ * @api PUT /api/agents/:agentId
+ * @visibility internal
+ * @scope agents:write
+ * @auth session
+ * @tags agents
+ * @description Create or update a draft agent instance with name, description, and settings
+ * @pathParam agentId string - The agent identifier
+ * @body name string - Agent instance name
+ * @body description string - Agent instance description
+ * @body settings object - Agent settings configuration
+ * @response 200 { ok: true, action: "created"|"updated", instance: AgentInstance }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 
@@ -166,15 +188,28 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/agents/[agentId]
- *
- * Archive an agent instance (soft delete)
+ * @api DELETE /api/agents/:agentId
+ * @visibility internal
+ * @scope agents:write
+ * @auth session
+ * @tags agents
+ * @description Archive an agent instance by version (soft delete, cannot archive PUBLISHED instances)
+ * @pathParam agentId string - The agent identifier
+ * @query version string - The version to archive (required)
+ * @response 200 { ok: true, action: "archived", instance: AgentInstance }
+ * @response 400 { ok: false, error: "version query param required" }
+ * @response 400 { ok: false, error: "Cannot archive published instance - supersede it first" }
+ * @response 404 { ok: false, error: "Instance not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 

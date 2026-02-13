@@ -22,6 +22,17 @@ enum ParameterType {
   BEHAVIOR // Agent behavior targets - how the agent should communicate (role_switch, empathy_rate, etc.)
 }
 
+// Content trust levels - classifies source authority for teaching materials
+// L5=REGULATORY_STANDARD → L0=UNVERIFIED (see CONTENT_TRUST_V1 contract)
+enum ContentTrustLevel {
+  REGULATORY_STANDARD // L5: Exam board syllabus, regulatory handbook (e.g., CII R04 syllabus, FCA COBS)
+  ACCREDITED_MATERIAL // L4: Approved study text (e.g., BFT/ActEd texts accredited by CII)
+  PUBLISHED_REFERENCE // L3: Academic textbook, peer-reviewed journal
+  EXPERT_CURATED      // L2: Content by qualified professional/instructor
+  AI_ASSISTED         // L1: AI-generated, human-reviewed
+  UNVERIFIED          // L0: Unreviewed submissions, user notes (default)
+}
+
 // Goal types - different kinds of objectives for callers
 enum GoalType {
   LEARN // Knowledge/skill acquisition (curriculum-based)
@@ -335,6 +346,8 @@ model Domain {
   callers            Caller[] // Callers assigned to this domain
   playbooks          Playbook[] // Playbooks for this domain
   onboardingSessions OnboardingSession[] // Track onboarding per domain
+  invites            Invite[] // Field tester invites locked to this domain
+  subjects           SubjectDomain[] // Subjects taught in this domain
 
   @@index([slug])
   @@index([isDefault])
@@ -510,8 +523,9 @@ model User {
   email         String    @unique
   emailVerified DateTime? // For NextAuth
   passwordHash  String? // For password auth (optional)
-  role          UserRole  @default(ADMIN) // Default to ADMIN for initial team
+  role          UserRole  @default(OPERATOR) // Default to OPERATOR for new users
   name          String?
+  displayName   String? // What the system calls this user
   image         String? // For NextAuth (avatar)
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
@@ -532,6 +546,9 @@ model User {
 
   // AI Task Guidance
   tasks UserTask[] @relation("UserTasks")
+
+  // Field tester → Caller link
+  callers Caller[]
 
   @@index([email])
   @@index([role])
@@ -580,14 +597,22 @@ model Invite {
   id        String    @id @default(uuid())
   email     String    @unique
   token     String    @unique @default(uuid())
-  role      UserRole  @default(ADMIN) // Role to assign on signup
+  role      UserRole  @default(OPERATOR) // Role to assign on signup
   expiresAt DateTime
   usedAt    DateTime? // Null until used
   createdBy String? // User who created the invite
   createdAt DateTime  @default(now())
 
+  // Field tester invite fields
+  firstName String? // Pre-fill name on accept form
+  lastName  String? // Pre-fill name on accept form
+  domainId  String? // Lock tester to specific domain (null = domain chooser)
+  domain    Domain? @relation(fields: [domainId], references: [id])
+  sentAt    DateTime? // When invite email was sent
+
   @@index([token])
   @@index([email])
+  @@index([domainId])
 }
 
 model Caller {
@@ -596,6 +621,10 @@ model Caller {
   name       String?
   phone      String?
   externalId String? @unique
+
+  // User link - for field testers who accepted an invite
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
   // Domain assignment - each caller belongs to exactly one domain
   domainId          String?
@@ -637,6 +666,7 @@ model Caller {
 
   createdAt DateTime @default(now())
 
+  @@index([userId])
   @@index([externalId])
   @@index([domainId])
   @@index([previousDomainId])
@@ -1761,11 +1791,28 @@ model Curriculum {
   // Versioning
   version String @default("1.0")
 
+  // === Content Trust & Source Authority ===
+  trustLevel         ContentTrustLevel @default(UNVERIFIED)
+  primarySourceId    String?           // FK to ContentSource (main authority for this curriculum)
+  primarySource      ContentSource?    @relation("CurriculumPrimarySource", fields: [primarySourceId], references: [id], onDelete: SetNull)
+  qualificationBody  String?           // "CII", "Highfield", "Ofqual"
+  qualificationNumber String?          // "603/4937/2" or "R04"
+  qualificationLevel String?           // "Level 2", "Diploma", "Certificate"
+  validFrom          DateTime?         // When this curriculum version becomes active
+  validUntil         DateTime?         // When this curriculum version expires
+
+  // Subject linkage
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([slug])
   @@index([sourceSpecId])
+  @@index([trustLevel])
+  @@index([validUntil])
+  @@index([subjectId])
 }
 
 // Top-level spec: defines a category of analysis
@@ -3179,4 +3226,187 @@ model UserTask {
   @@index([status])
   @@index([taskType])
   @@index([startedAt])
+}
+
+// =========================
+// CONTENT TRUST & SOURCE AUTHORITY
+// =========================
+// Tracks authoritative sources for teaching content and traces
+// every teaching point back to its provenance. Critical for regulated
+// qualifications (CII, Highfield, etc.) where content fidelity matters.
+
+// A registered source of authority (a book, syllabus, handbook)
+model ContentSource {
+  id          String @id @default(uuid())
+
+  // Identification
+  slug        String @unique // e.g., "cii-r04-syllabus-2025", "sprenger-food-safety-37th"
+  name        String         // "CII R04 Syllabus 2025/26"
+  description String? @db.Text
+
+  // Trust classification
+  trustLevel  ContentTrustLevel @default(UNVERIFIED)
+
+  // Publisher / authority chain
+  publisherOrg    String?  // "Chartered Insurance Institute", "Highfield Publications"
+  accreditingBody String?  // "CII", "Ofqual" - body that accredits this source
+  accreditationRef String? // "CII/R04/2025" or qualification number
+
+  // Bibliographic metadata
+  authors         String[]
+  isbn            String?
+  doi             String?
+  edition         String?  // "37th Edition"
+  publicationYear Int?
+
+  // Validity window (critical for regulated content)
+  validFrom   DateTime?
+  validUntil  DateTime?
+
+  // Qualification coverage
+  qualificationRef String?  // "CII R04", "Highfield L2 Food Safety"
+  moduleCoverage   String[] // ["R04-LO1", "R04-LO2"] or ["all"]
+
+  // Verification
+  verifiedBy        String?   // User ID who verified trust level
+  verifiedAt        DateTime?
+  verificationNotes String? @db.Text
+
+  // Lifecycle
+  isActive       Boolean @default(true)
+  supersededById String? @unique // If a newer edition replaces this
+  supersededBy   ContentSource? @relation("SourceSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes     ContentSource? @relation("SourceSupersession")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assertions ContentAssertion[]
+  curricula  Curriculum[] @relation("CurriculumPrimarySource")
+  subjects   SubjectSource[] // Subjects this source belongs to
+
+  @@index([trustLevel])
+  @@index([qualificationRef])
+  @@index([validUntil])
+  @@index([isActive])
+}
+
+// An atomic trusted teaching point with full provenance
+model ContentAssertion {
+  id String @id @default(uuid())
+
+  // The actual content assertion
+  assertion String @db.Text // "The annual ISA allowance is £20,000 for 2025/26"
+
+  // Source provenance
+  sourceId String
+  source   ContentSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  // Location within source
+  chapter String? // "Chapter 3", "Learning Outcome 2"
+  section String? // "§3.2 ISA Allowances", "AC 2.3"
+  pageRef String? // "p.47"
+
+  // Trust (null = inherit from source)
+  trustLevel ContentTrustLevel?
+
+  // Content classification
+  category String   // "fact", "definition", "threshold", "rule", "process", "example"
+  tags     String[] // ["tax", "isa", "allowance", "annual_limit"]
+
+  // Validity (overrides source-level validity for time-bound facts)
+  validFrom  DateTime?
+  validUntil DateTime?
+  taxYear    String?   // "2024/25" - for tax-year-specific facts
+
+  // Exam relevance
+  examRelevance      Float?  // 0.0-1.0 how likely to appear in exam
+  learningOutcomeRef String? // "R04-LO2-AC2.3"
+
+  // Content hash for dedup/change detection
+  contentHash String?
+
+  // Review chain
+  createdBy  String? // User ID or "system:import"
+  reviewedBy String? // User who reviewed
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sourceId])
+  @@index([trustLevel])
+  @@index([category])
+  @@index([validUntil])
+  @@index([learningOutcomeRef])
+}
+
+// =========================
+// SUBJECTS (Content Grouping)
+// =========================
+
+// A Subject groups content sources under a teaching topic (e.g., "Food Safety Level 2")
+model Subject {
+  id          String  @id @default(uuid())
+  slug        String  @unique // "food-safety-l2"
+  name        String          // "Food Safety Level 2"
+  description String? @db.Text
+
+  // Default trust level for documents uploaded to this subject
+  defaultTrustLevel ContentTrustLevel @default(UNVERIFIED)
+
+  // Optional qualification metadata
+  qualificationBody  String?  // "Highfield", "CII"
+  qualificationRef   String?  // "Highfield L2 Food Safety"
+  qualificationLevel String?  // "Level 2"
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sources   SubjectSource[]
+  domains   SubjectDomain[]
+  curricula Curriculum[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// Many-to-many: which content sources belong to a subject
+model SubjectSource {
+  id        String @id @default(uuid())
+  subjectId String
+  sourceId  String
+  subject   Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  source    ContentSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  // Override trust level for this source within this subject (null = inherit subject default)
+  trustLevelOverride ContentTrustLevel?
+
+  // Tags: what this document is used for (can be both)
+  tags      String[] @default(["content"]) // "syllabus", "content"
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([subjectId, sourceId])
+  @@index([subjectId])
+  @@index([sourceId])
+}
+
+// Many-to-many: which domains teach which subjects
+model SubjectDomain {
+  id        String @id @default(uuid())
+  subjectId String
+  domainId  String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  domain    Domain  @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([subjectId, domainId])
+  @@index([subjectId])
+  @@index([domainId])
 }

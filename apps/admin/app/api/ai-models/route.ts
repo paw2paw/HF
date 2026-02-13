@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -33,14 +34,22 @@ export const PROVIDERS = [
 ];
 
 /**
- * GET /api/ai-models
- *
- * Query params:
- * - provider: Filter by provider (optional)
- * - includeInactive: Include inactive models (default: false)
+ * @api GET /api/ai-models
+ * @visibility internal
+ * @scope ai-models:read
+ * @auth session
+ * @tags ai
+ * @description List all available AI models, optionally filtered by provider. Seeds default models on first access if the table is empty. Returns models grouped by provider for UI consumption.
+ * @query provider string - Filter by provider (optional)
+ * @query includeInactive string - Include inactive models ("true" to include, default: false)
+ * @response 200 { ok: true, models: [...], byProvider: {...}, providers: [...] }
+ * @response 500 { ok: false, error: "Failed to fetch models" }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider");
     const includeInactive = searchParams.get("includeInactive") === "true";
@@ -90,12 +99,28 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/ai-models
- *
- * Create a new AI model
+ * @api POST /api/ai-models
+ * @visibility internal
+ * @scope ai-models:write
+ * @auth bearer
+ * @tags ai
+ * @description Create a new AI model record. Validates provider and tier, and checks for duplicate modelId before inserting.
+ * @body modelId string - Unique model identifier (e.g. "gpt-4o")
+ * @body provider string - Provider name ("claude" | "openai" | "mock")
+ * @body label string - Human-readable model label
+ * @body tier string - Model tier ("flagship" | "standard" | "fast" | "test"), default "standard"
+ * @body sortOrder number - Display sort order (default 99)
+ * @body isActive boolean - Whether the model is active (default true)
+ * @response 200 { ok: true, model: {...} }
+ * @response 400 { ok: false, error: "modelId, provider, and label are required" }
+ * @response 409 { ok: false, error: "Model with ID \"...\" already exists" }
+ * @response 500 { ok: false, error: "Failed to create model" }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { modelId, provider, label, tier, sortOrder, isActive } = body;
 

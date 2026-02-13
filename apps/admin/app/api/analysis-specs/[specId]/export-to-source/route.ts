@@ -1,29 +1,43 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { reseedSingleSpec } from "@/prisma/seed-from-specs";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import fs from "fs";
 import path from "path";
 
 export const runtime = "nodejs";
 
 function getSpecsFolder(): string {
-  const cwdPath = path.join(process.cwd(), "bdd-specs");
+  const cwdPath = path.join(process.cwd(), "docs-archive", "bdd-specs");
   if (fs.existsSync(cwdPath)) {
     return cwdPath;
   }
-  return path.join(__dirname, "../bdd-specs");
+  return path.join(__dirname, "../docs-archive/bdd-specs");
 }
 
 /**
- * POST /api/analysis-specs/[specId]/export-to-source
- * "Send to Source" — merges config.parameters back into the source .spec.json file on disk,
- * then re-seeds the spec through the full pipeline (BDDFeatureSet → Parameters → AnalysisSpec → etc.)
+ * @api POST /api/analysis-specs/:specId/export-to-source
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description "Send to Source" -- merges config.parameters back into the source .spec.json file on disk, then re-seeds the spec through the full pipeline (BDDFeatureSet -> Parameters -> AnalysisSpec -> etc.)
+ * @pathParam specId string - Spec UUID
+ * @response 200 { ok: true, filePath: string, message: string, seedResult: object }
+ * @response 400 { ok: false, error: "Spec has no linked BDDFeatureSet..." }
+ * @response 400 { ok: false, error: "Spec config is empty or has no parameters to export" }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 423 { ok: false, error: "Spec is locked and cannot be exported", locked: true }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     // 1. Fetch the AnalysisSpec
@@ -80,7 +94,7 @@ export async function POST(
 
     if (files.length === 0) {
       return NextResponse.json(
-        { ok: false, error: `No source file found for ${featureSet.featureId} in bdd-specs/` },
+        { ok: false, error: `No source file found for ${featureSet.featureId} in docs-archive/bdd-specs/` },
         { status: 404 }
       );
     }
@@ -109,7 +123,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      filePath: `bdd-specs/${filename}`,
+      filePath: `docs-archive/bdd-specs/${filename}`,
       message: `Exported to ${filename} and re-seeded`,
       seedResult,
     });

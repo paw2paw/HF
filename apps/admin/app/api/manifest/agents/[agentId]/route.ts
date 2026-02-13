@@ -4,6 +4,7 @@ import {
   updateAgent,
   removeAgent,
 } from "@/lib/manifest";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -17,15 +18,25 @@ function assertLocalOnly() {
 }
 
 /**
- * GET /api/manifest/agents/[agentId]
- *
- * Get a specific agent's full definition from manifest
+ * @api GET /api/manifest/agents/:agentId
+ * @visibility internal
+ * @scope manifest:read
+ * @auth session
+ * @tags manifest
+ * @description Get a specific agent's full definition from the manifest
+ * @pathParam agentId string - The agent identifier
+ * @response 200 { ok: true, agent: AgentDefinition }
+ * @response 404 { ok: false, error: "Agent not found: ..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 
@@ -51,15 +62,27 @@ export async function GET(
 }
 
 /**
- * PUT /api/manifest/agents/[agentId]
- *
- * Update an agent's definition in the manifest
+ * @api PUT /api/manifest/agents/:agentId
+ * @visibility internal
+ * @scope manifest:write
+ * @auth session
+ * @tags manifest
+ * @description Replace an agent's definition in the manifest (cannot change agent ID)
+ * @pathParam agentId string - The agent identifier
+ * @body updates object - The updated agent fields
+ * @response 200 { ok: true, message: "Agent updated in manifest", agent: AgentDefinition }
+ * @response 400 { ok: false, error: "updates object required" }
+ * @response 400 { ok: false, error: "Cannot change agent ID" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 
@@ -97,15 +120,34 @@ export async function PUT(
 }
 
 /**
- * PATCH /api/manifest/agents/[agentId]
- *
- * Partial update - merge specific fields
+ * @api PATCH /api/manifest/agents/:agentId
+ * @visibility internal
+ * @scope manifest:write
+ * @auth session
+ * @tags manifest
+ * @description Partial update - merge specific fields (settings, schema, prompts, inputs, outputs, etc.)
+ * @pathParam agentId string - The agent identifier
+ * @body settings object - Settings to merge
+ * @body settingsSchema object - Schema properties to merge
+ * @body prompts object - Prompts to merge
+ * @body inputs array - Input definitions (replaces)
+ * @body outputs array - Output definitions (replaces)
+ * @body title string - New title
+ * @body description string - New description
+ * @body enabled boolean - Enable/disable
+ * @body opid string - New operation ID
+ * @response 200 { ok: true, message: "Agent patched in manifest", agent: AgentDefinition }
+ * @response 404 { ok: false, error: "Agent not found: ..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 
@@ -169,15 +211,25 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/manifest/agents/[agentId]
- *
- * Remove an agent from the manifest
+ * @api DELETE /api/manifest/agents/:agentId
+ * @visibility internal
+ * @scope manifest:write
+ * @auth session
+ * @tags manifest
+ * @description Remove an agent from the manifest
+ * @pathParam agentId string - The agent identifier
+ * @response 200 { ok: true, message: "Agent removed from manifest", agentId: string }
+ * @response 404 { ok: false, error: "Agent not found: ..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 

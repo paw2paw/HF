@@ -5,9 +5,9 @@ import type { NextRequest } from "next/server";
 // For database sessions, we can only check cookie existence here
 // Full session validation happens in server components via auth()
 
-const publicRoutes = ["/login", "/login/verify", "/login/error"];
+const publicRoutes = ["/login", "/login/verify", "/login/error", "/invite"];
 // Routes that handle their own auth (webhooks, external APIs)
-const apiTokenRoutes = ["/api/auth", "/api/vapi", "/api/webhook"];
+const apiTokenRoutes = ["/api/auth", "/api/vapi", "/api/webhook", "/api/invite"];
 
 // Internal API secret for server-to-server calls (bypasses session check)
 const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret";
@@ -52,6 +52,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.json|icons/.*|sounds/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/parameters/display-config
- *
- * Returns parameter display configuration for UI rendering.
- * Fetches from Parameter table - fully dynamic, no hardcoding.
- *
- * Groups parameters by section for organized display:
- * - Big Five personality traits (B5-*)
- * - VARK learning modalities (VARK-*)
- * - Other parameters
+ * @api GET /api/parameters/display-config
+ * @visibility public
+ * @scope parameters:read
+ * @auth session
+ * @tags parameters
+ * @description Returns parameter display configuration for UI rendering. Dynamically groups canonical parameters (Big Five, VARK, Other) with labels, colors, and section metadata. No hardcoding.
+ * @response 200 { ok: true, grouped: { "Big Five": [], "VARK": [], "Other": [] }, params: Record<string, ParamDisplayInfo>, totalParameters: number }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     // Fetch all canonical parameters that should be displayed in personality profiles
     const parameters = await prisma.parameter.findMany({
       where: {

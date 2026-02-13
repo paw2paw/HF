@@ -2,80 +2,81 @@
  * registry.ts
  *
  * Contract Registry - loads and validates data contracts
- * Provides runtime access to contract definitions
+ * Provides runtime access to contract definitions.
+ *
+ * Source of truth: SystemSetting table (key pattern: "contract:{contractId}")
+ * Contracts are seeded from docs-archive/bdd-specs/contracts/*.contract.json during db:seed,
+ * then served from DB at runtime. No filesystem reads at runtime.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import { prisma } from "@/lib/prisma";
 import { DataContract, ContractValidationResult, ContractImplementation } from './types';
 
+const CACHE_TTL_MS = 30_000;
+
 /**
- * Global contract registry singleton
+ * Global contract registry singleton (DB-backed)
  */
 class ContractRegistryClass {
   private contracts: Map<string, DataContract> = new Map();
-  private loaded: boolean = false;
+  private loadPromise: Promise<void> | null = null;
+  private loadedAt: number = 0;
 
   /**
-   * Load all contracts from the contracts directory
+   * Load all contracts from SystemSettings (DB)
    */
-  load(): void {
-    if (this.loaded) return;
+  async load(): Promise<void> {
+    try {
+      const settings = await prisma.systemSetting.findMany({
+        where: { key: { startsWith: 'contract:' } },
+      });
 
-    const contractsDir = this.getContractsDir();
-    if (!fs.existsSync(contractsDir)) {
-      console.warn(`[contracts] Contracts directory not found: ${contractsDir}`);
-      this.loaded = true;
-      return;
-    }
-
-    const files = fs.readdirSync(contractsDir).filter(f => f.endsWith('.contract.json'));
-
-    for (const file of files) {
-      try {
-        const content = fs.readFileSync(path.join(contractsDir, file), 'utf-8');
-        const contract = JSON.parse(content) as DataContract;
-
-        // Validate contract structure
-        if (!contract.contractId || !contract.version) {
-          console.warn(`[contracts] Invalid contract in ${file}: missing contractId or version`);
-          continue;
+      this.contracts.clear();
+      for (const setting of settings) {
+        try {
+          const contract = JSON.parse(setting.value) as DataContract;
+          if (!contract.contractId || !contract.version) {
+            console.warn(`[contracts] Invalid contract in setting ${setting.key}: missing contractId or version`);
+            continue;
+          }
+          this.contracts.set(contract.contractId, contract);
+        } catch (error: any) {
+          console.error(`[contracts] Error parsing ${setting.key}:`, error.message);
         }
-
-        this.contracts.set(contract.contractId, contract);
-        console.log(`[contracts] Loaded: ${contract.contractId} v${contract.version}`);
-      } catch (error: any) {
-        console.error(`[contracts] Error loading ${file}:`, error.message);
       }
-    }
 
-    this.loaded = true;
-    console.log(`[contracts] Loaded ${this.contracts.size} contracts`);
+      this.loadedAt = Date.now();
+      console.log(`[contracts] Loaded ${this.contracts.size} contracts from DB`);
+    } catch (error: any) {
+      console.error('[contracts] Failed to load from DB:', error.message);
+    }
   }
 
   /**
-   * Get contracts directory path
+   * Ensure contracts are loaded (with dedup and TTL refresh)
    */
-  private getContractsDir(): string {
-    // Try process.cwd() first (works in Next.js API routes)
-    const cwdPath = path.join(process.cwd(), 'bdd-specs', 'contracts');
-    if (fs.existsSync(cwdPath)) {
-      return cwdPath;
+  private async ensureLoaded(): Promise<void> {
+    const now = Date.now();
+    if (this.contracts.size > 0 && (now - this.loadedAt) < CACHE_TTL_MS) {
+      return;
     }
-    // Fallback to relative path
-    return path.join(__dirname, '../../bdd-specs/contracts');
+    if (!this.loadPromise) {
+      this.loadPromise = this.load().finally(() => {
+        this.loadPromise = null;
+      });
+    }
+    await this.loadPromise;
   }
 
   /**
    * Get a specific contract by ID
    */
-  getContract(contractId: string, version?: string): DataContract | null {
-    if (!this.loaded) this.load();
+  async getContract(contractId: string, version?: string): Promise<DataContract | null> {
+    await this.ensureLoaded();
 
     const contract = this.contracts.get(contractId);
     if (!contract) return null;
 
-    // If version specified, validate it matches
     if (version && contract.version !== version) {
       console.warn(`[contracts] Version mismatch for ${contractId}: requested ${version}, have ${contract.version}`);
       return null;
@@ -87,19 +88,19 @@ class ContractRegistryClass {
   /**
    * List all available contracts
    */
-  listContracts(): DataContract[] {
-    if (!this.loaded) this.load();
+  async listContracts(): Promise<DataContract[]> {
+    await this.ensureLoaded();
     return Array.from(this.contracts.values());
   }
 
   /**
    * Validate that a spec correctly implements a contract
    */
-  validateSpec(
+  async validateSpec(
     specId: string,
     specConfig: any,
     implementation: ContractImplementation
-  ): ContractValidationResult {
+  ): Promise<ContractValidationResult> {
     const result: ContractValidationResult = {
       valid: true,
       contractId: implementation.contractId,
@@ -108,7 +109,7 @@ class ContractRegistryClass {
       warnings: [],
     };
 
-    const contract = this.getContract(implementation.contractId, implementation.version);
+    const contract = await this.getContract(implementation.contractId, implementation.version);
     if (!contract) {
       result.valid = false;
       result.errors.push(`Contract not found: ${implementation.contractId}`);
@@ -128,14 +129,12 @@ class ContractRegistryClass {
           continue;
         }
 
-        // Check each required field
         for (const [fieldName, fieldDef] of Object.entries(fields as any)) {
           if ((fieldDef as any).required && sectionMeta[fieldName] === undefined) {
             result.errors.push(`Missing required field: metadata.${section}.${fieldName}`);
             result.valid = false;
           }
 
-          // Validate enum values
           if ((fieldDef as any).enum && sectionMeta[fieldName]) {
             if (!(fieldDef as any).enum.includes(sectionMeta[fieldName])) {
               result.errors.push(
@@ -145,7 +144,6 @@ class ContractRegistryClass {
             }
           }
 
-          // Validate number ranges
           const fd = fieldDef as any;
           if (fd.type === 'number' && sectionMeta[fieldName] !== undefined) {
             const val = sectionMeta[fieldName];
@@ -181,24 +179,24 @@ class ContractRegistryClass {
   /**
    * Get storage keys for a contract
    */
-  getStorageKeys(contractId: string): Record<string, string> | null {
-    const contract = this.getContract(contractId);
+  async getStorageKeys(contractId: string): Promise<Record<string, string> | null> {
+    const contract = await this.getContract(contractId);
     return contract?.storage?.keys || null;
   }
 
   /**
    * Get key pattern for a contract
    */
-  getKeyPattern(contractId: string): string | null {
-    const contract = this.getContract(contractId);
+  async getKeyPattern(contractId: string): Promise<string | null> {
+    const contract = await this.getContract(contractId);
     return contract?.storage?.keyPattern || null;
   }
 
   /**
    * Get thresholds for a contract
    */
-  getThresholds(contractId: string): Record<string, number> | null {
-    const contract = this.getContract(contractId);
+  async getThresholds(contractId: string): Promise<Record<string, number> | null> {
+    const contract = await this.getContract(contractId);
     return contract?.thresholds || null;
   }
 }
@@ -207,8 +205,8 @@ class ContractRegistryClass {
 export const ContractRegistry = new ContractRegistryClass();
 
 // Convenience function to ensure contracts are loaded
-export function ensureContractsLoaded(): void {
-  ContractRegistry.load();
+export async function ensureContractsLoaded(): Promise<void> {
+  await ContractRegistry.load();
 }
 
 // Export type for consumers

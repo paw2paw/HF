@@ -201,29 +201,22 @@ export function getSpecRoleConfig(role: string | null) {
 
 /**
  * Check if a spec role requires a special editor
- * NOTE: Disabled for now until special editors are implemented
  */
 export function requiresSpecialEditor(role: string | null): boolean {
   if (!role) return false;
-  // TODO: Re-enable when special editors exist
-  // const specialRoles = ["ORCHESTRATE", "SYNTHESISE", "CONSTRAIN"];
-  // return specialRoles.includes(role);
-  return false; // Temporarily disabled
+  return role === "ORCHESTRATE";
 }
 
 /**
- * Get the editor route for a spec based on its role
- * NOTE: Returns path-based routes for now. Special editors (flow, formula, rules) are TODO.
+ * Get the editor route for a spec based on its role.
+ * ORCHESTRATE specs go to the Orchestrator Designer.
  */
-export function getSpecEditorRoute(specSlug: string, role: string | null): string {
-  // Special routes that exist
-  if (specSlug === "PIPELINE-001") return "/x/supervisor";
+export function getSpecEditorRoute(specId: string, role: string | null): string {
+  if (role === "ORCHESTRATE") return `/x/orchestrators?id=${specId}`;
 
   // TODO: Implement special editors for these roles:
-  // - ORCHESTRATE: /x/specs/${specSlug}/flow (flow builder)
-  // - SYNTHESISE: /x/specs/${specSlug}/formula (formula builder)
-  // - CONSTRAIN: /x/specs/${specSlug}/rules (rule editor)
+  // - SYNTHESISE: formula builder
+  // - CONSTRAIN: rule editor
 
-  // For now, all specs use the path-based route
-  return `/x/specs/${specSlug}`;
+  return `/x/specs/${specId}`;
 }

@@ -10,27 +10,30 @@ import {
 } from "@prisma/client";
 import { parseJsonSpec } from "@/lib/bdd/ai-parser";
 import { compileSpecToTemplate } from "@/lib/bdd/compile-specs";
+import { clearAIConfigCache } from "@/lib/ai/config-loader";
+import { clearSystemSettingsCache } from "@/lib/system-settings";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/lab/features/[id]/activate
- *
- * Activate a BDDFeatureSet by creating/updating all derived records.
- * This has FULL PARITY with seed-from-specs.ts so that UI import + activate
- * produces the exact same result as running the seed script.
- *
- * Creates:
- * 1. Parameter records (for MEASURE specs, auto-created for ADAPT specs)
- * 2. ParameterScoringAnchor records for calibration
- * 3. AnalysisSpec records with proper config based on specRole/outputType
- * 4. AnalysisTrigger and AnalysisAction records
- * 5. PromptSlug records (for personality prompts and BOOTSTRAP personas)
- * 6. Curriculum records (for CONTENT specs)
+ * @api POST /api/lab/features/:id/activate
+ * @visibility internal
+ * @auth session
+ * @tags lab, specs
+ * @description Activate or deactivate a BDDFeatureSet by creating/updating all derived records (Parameters, Anchors, AnalysisSpecs, Triggers, Actions, PromptSlugs, Curriculum). Full parity with seed-from-specs.ts.
+ * @pathParam id string - The BDDFeatureSet ID
+ * @body activate boolean - True to activate, false to deactivate
+ * @response 200 { ok: true, feature: object, spec: { id, slug, name, specRole, outputType }, results: { parametersCreated, parametersUpdated, anchorsCreated, specsCreated, triggersCreated, actionsCreated, promptSlugsCreated, curriculumCreated } }
+ * @response 404 { ok: false, error: "Feature set not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const body = await req.json();
     const { activate } = body;
@@ -51,6 +54,9 @@ export async function POST(
           activatedAt: true,
         },
       });
+      // Invalidate caches so deactivation takes effect immediately
+      clearAIConfigCache();
+      clearSystemSettingsCache();
       return NextResponse.json({ ok: true, feature, deactivated: true });
     }
 
@@ -932,6 +938,10 @@ export async function POST(
         activatedAt: true,
       },
     });
+
+    // Invalidate caches so activation takes effect immediately
+    clearAIConfigCache();
+    clearSystemSettingsCache();
 
     return NextResponse.json({
       ok: true,

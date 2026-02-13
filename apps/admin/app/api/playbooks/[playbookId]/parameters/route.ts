@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/playbooks/[playbookId]/parameters
- *
- * Returns all parameters used by specs in this playbook, organized by spec.
- * Includes scoring anchors for each parameter.
+ * @api GET /api/playbooks/:playbookId/parameters
+ * @visibility public
+ * @scope playbooks:read
+ * @auth session
+ * @tags playbooks
+ * @description Returns all parameters used by specs in this playbook, organized by category
+ *   (Personality, Cognitive, Behavior, Learning, Supervision, Session, Reward, Style, Other).
+ *   Includes scoring anchors for each parameter.
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, playbook: { id, name, status }, categories: ParametersByCategory[], counts: { parameters, anchors, categories } }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 
 type ScoringAnchorInfo = {
@@ -44,6 +53,9 @@ export async function GET(
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     // Load playbook with all specs and their triggers/actions

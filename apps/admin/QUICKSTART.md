@@ -2,29 +2,32 @@
 
 ## System Overview
 
-HF (Human Factors) is a personality-driven adaptive conversational system that:
-1. Processes call transcripts to extract personality insights
-2. Builds user personality profiles using Big Five traits
-3. Extracts structured memories from conversations
-4. Selects appropriate conversational approaches based on personality
-5. Continuously adapts as more calls are observed
+HF is an adaptive conversational AI system that:
+1. Processes call transcripts through a spec-driven pipeline
+2. Measures personality traits, learning styles, and conversation quality dynamically
+3. Extracts and scores memories from conversations
+4. Composes personalized prompts based on caller profiles
+5. Tracks curriculum progression with mastery-gated advancement
+6. Enforces content trust for regulated qualifications
 
 ---
 
 ## Prerequisites
 
-- Node.js 18+ installed
-- SQLite (default) or PostgreSQL
+- Node.js 20+
+- PostgreSQL 16+
 - Environment variables configured in `.env.local`
 
 ### Required Environment Variables
 
 ```bash
 # .env.local
-DATABASE_URL="file:./prisma/dev.db"  # SQLite
-HF_KB_PATH="/path/to/your/knowledge/base"
-HF_OPS_ENABLED="true"  # Enable ops API
+DATABASE_URL="postgresql://hf_user:YOUR_PASSWORD@localhost:5432/hf?schema=public"
+AUTH_SECRET="generate-with-openssl-rand-base64-32"
+NEXTAUTH_URL="http://localhost:3000"
 ```
+
+See [.env.example](.env.example) for all available options.
 
 ---
 
@@ -46,139 +49,97 @@ npx prisma migrate deploy
 # Generate Prisma client
 npx prisma generate
 
-# Seed all configuration data
-npm run db:seed:all
+# Seed specs, contracts, and domains
+npm run db:seed
+npx tsx prisma/seed-domains.ts
 ```
 
-### 3. Start the Server
+### 3. Create First Admin User
+
+```bash
+npx tsx scripts/add-test-user.ts --email admin@example.com --role ADMIN
+```
+
+### 4. Start the Server
 
 ```bash
 npm run dev
 ```
 
-Server runs at [http://localhost:3000](http://localhost:3000)
+Server runs at [http://localhost:3000](http://localhost:3000). Sign in at `/login`.
 
-### 4. Verify Setup
+### 5. Verify Setup
 
-- **Flow Graph**: [http://localhost:3000/flow](http://localhost:3000/flow) - Visual pipeline
-- **Ops Dashboard**: [http://localhost:3000/ops](http://localhost:3000/ops) - Run operations
-- **Cockpit**: [http://localhost:3000/cockpit](http://localhost:3000/cockpit) - System status
+- **Callers**: [/x/callers](http://localhost:3000/x/callers)
+- **Specs**: [/x/specs](http://localhost:3000/x/specs)
+- **Domains**: [/x/domains](http://localhost:3000/x/domains)
+- **Dictionary**: [/x/dictionary](http://localhost:3000/x/dictionary)
 
 ---
 
 ## Database Management
 
-### Reset & Reseed (Start Fresh)
+### Seed (from specs)
 
 ```bash
-# Clear all data (interactive confirmation)
-npm run db:reset
-
-# Or skip confirmation
-npm run db:reset -- --confirm
-
-# Then reseed everything
-npm run db:seed:all
+npm run db:seed              # Seed specs + contracts from docs-archive/bdd-specs/
+npx tsx prisma/seed-domains.ts  # Create domains
 ```
 
-### Individual Seeds
+### Reset & Reseed
 
 ```bash
-# Just de-duplicate parameters
-npm run prisma:seed
-
-# Run all seeds with verbose output
-npm run db:seed:all -- --verbose
-
-# Skip parameter de-duplication
-npm run db:seed:all -- --skip-dedupe
+npm run db:seed:reset        # Reset + reseed
 ```
 
 ### What Gets Seeded
 
 | Seed | Purpose |
 |------|---------|
-| `seed.ts` | De-duplicate existing parameters, ensure Active tags |
-| `seed-big-five.ts` | Big Five traits with scoring anchors |
-| `seed-memory-specs.ts` | Memory extraction specs |
-| `seed-prompts.ts` | Prompt slugs and templates |
-| `seed-run-configs.ts` | Agent run configurations |
-| `seed-adapt-system.ts` | Adaptive prompting system |
-| `seed-analysis.ts` | Create analysis profile from Active parameters |
+| `seed-clean.ts` | Clean seed: specs, parameters, anchors, slugs, contracts |
+| `seed-from-specs.ts` | Import BDD spec files into database |
+| `seed-domains.ts` | Create domains (Tutor, Companion, etc.) |
 
 ---
 
-## Running Operations
+## Key Concepts
 
-### Via API
+### Source of Truth
 
-```bash
-# Process transcripts
-curl -X POST http://localhost:3000/api/ops \
-  -H "Content-Type: application/json" \
-  -d '{"opid": "transcripts:process"}'
+**Database is the runtime source of truth.** BDD spec files in `docs-archive/bdd-specs/` are bootstrap material only. After import, all edits happen in the DB via UI or API. DB-only specs (no matching file) are normal.
 
-# Analyze personality (mock mode for testing)
-curl -X POST http://localhost:3000/api/ops \
-  -H "Content-Type: application/json" \
-  -d '{"opid": "personality:analyze", "settings": {"mock": true}}'
+### SpecRole Taxonomy
 
-# Extract memories (mock mode for testing)
-curl -X POST http://localhost:3000/api/ops \
-  -H "Content-Type: application/json" \
-  -d '{"opid": "memory:extract", "settings": {"mock": true}}'
+| Role | Purpose | Examples |
+|------|---------|---------|
+| `ORCHESTRATE` | Flow/sequence control | PIPELINE-001, INIT-001 |
+| `EXTRACT` | Measurement and learning | PERS-001, VARK-001, MEM-001 |
+| `SYNTHESISE` | Combine/transform data | COMP-001, REW-001, ADAPT-* |
+| `CONSTRAIN` | Bounds and guards | GUARD-001 |
+| `IDENTITY` | Agent personas | TUT-001, COACH-001 |
+| `CONTENT` | Curriculum material | WNF-CONTENT-001 |
+| `VOICE` | Voice guidance | VOICE-001 |
 
-# Ingest knowledge documents
-curl -X POST http://localhost:3000/api/ops \
-  -H "Content-Type: application/json" \
-  -d '{"opid": "knowledge:ingest"}'
-```
+### Dynamic Parameter System
 
-### Generate Prompts
+ALL parameter data flows dynamically: MEASURE specs → Pipeline → DB → UI. Adding new parameters = activate a spec (zero code changes).
 
-After processing, generate prompts for a user:
+### Prompt Composition
 
-```bash
-# Spec-based composition (primary method)
-curl -X POST http://localhost:3000/api/prompt/compose-from-specs \
-  -H "Content-Type: application/json" \
-  -d '{"userId": "<user-id>", "includeMemories": true}'
-```
-
-### Available Operations
-
-| opid | Status | Description |
-|------|--------|-------------|
-| `transcripts:process` | Implemented | Extract calls from transcript files |
-| `personality:analyze` | Implemented | Score personality traits from calls |
-| `memory:extract` | Implemented | Extract memories from calls |
-| `knowledge:ingest` | Implemented | Ingest knowledge documents |
-| `kb:links:extract` | Implemented | Extract links from knowledge base |
-| `knowledge:embed` | Not implemented | Generate vector embeddings |
-
-### Dry Run Mode
-
-Add `"dryRun": true` to see what would happen without making changes:
-
-```bash
-curl -X POST http://localhost:3000/api/ops \
-  -H "Content-Type: application/json" \
-  -d '{"opid": "personality:analyze", "dryRun": true}'
-```
+Primary method: `POST /api/callers/[callerId]/compose-prompt`
+- Uses spec-driven `CompositionExecutor` with transform chains
+- Loads `CallerPersonalityProfile.parameterValues` dynamically
+- Injects memories, curriculum content, and trust context
 
 ---
 
 ## Testing
 
 ```bash
-# Run all tests
-npm test
-
-# Watch mode
-npm run test:watch
-
-# With coverage
-npm run test:coverage
+npm test                 # Run all tests
+npm run test:watch       # Watch mode
+npm run test:coverage    # Coverage report
+npm run test:integration # Integration tests (requires Postgres)
 ```
 
 ---
@@ -186,47 +147,21 @@ npm run test:coverage
 ## Data Flow
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Raw Transcripts │────▶│ transcripts:process│────▶│  Call + User    │
-│  (JSON files)    │     │                    │     │  (database)     │
-└─────────────────┘     └──────────────────┘     └────────┬────────┘
+┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Call Transcript │────▶│  Pipeline        │────▶│  Caller Profile  │
+│                  │     │  EXTRACT stage   │     │  (parameterValues)│
+└─────────────────┘     └──────────────────┘     └────────┬─────────┘
                                                           │
                         ┌──────────────────┐              │
-                        │ personality:analyze│◀────────────┤
-                        │ (spec-driven)     │              │
-                        └────────┬─────────┘              │
-                                 │                        │
-                        ┌────────▼─────────┐     ┌────────▼────────┐
-                        │  CallScore +      │     │  memory:extract  │
-                        │  UserPersonality  │     │  (spec-driven)   │
-                        └──────────────────┘     └────────┬────────┘
-                                                          │
-                                                 ┌────────▼────────┐
-                                                 │  UserMemory +    │
-                                                 │  MemorySummary   │
-                                                 └─────────────────┘
+                        │  COMPOSE stage   │◀─────────────┤
+                        │  (spec-driven)   │              │
+                        └────────┬─────────┘     ┌────────▼─────────┐
+                                 │               │  Memory Extract  │
+                        ┌────────▼─────────┐     │  (spec-driven)   │
+                        │  Next Prompt     │     └──────────────────┘
+                        │  (personalized)  │
+                        └──────────────────┘
 ```
-
----
-
-## Key Concepts
-
-### AnalysisSpecs
-Define how to analyze transcripts:
-- **MEASURE specs**: Score personality traits (0-1 scale)
-- **LEARN specs**: Extract memories (key-value facts)
-
-### Prompt Composition
-The primary method is **spec-based composition** via `/api/prompt/compose-from-specs`:
-- Uses AnalysisSpec promptTemplate fields
-- Renders Mustache-style templates with parameter values
-- Injects memories based on user history
-
-### Time Decay
-Personality scores use exponential decay:
-- Recent calls weighted higher
-- 30-day half-life (configurable)
-- Ensures profile reflects current state
 
 ---
 
@@ -235,131 +170,45 @@ Personality scores use exponential decay:
 ```
 apps/admin/
 ├── prisma/
-│   ├── schema.prisma      # Database schema
-│   ├── seed.ts            # Parameter de-duplication
-│   ├── seed-all.ts        # Master seed runner
-│   ├── seed-*.ts          # Individual seeds
-│   └── reset.ts           # Database reset script
+│   ├── schema.prisma         # Database schema (source of truth)
+│   ├── seed-clean.ts         # Master seed
+│   ├── seed-from-specs.ts    # Import BDD specs → DB
+│   └── seed-domains.ts       # Create domains
 ├── lib/
-│   ├── data-paths.ts      # Unified path resolution
-│   ├── ops/               # Operation implementations
-│   └── prompt/
-│       └── PromptTemplateCompiler.ts  # Spec-based composition
-├── app/api/
-│   ├── ops/               # Ops API endpoint
-│   ├── prompt/
-│   │   ├── compose-from-specs/  # Primary composition endpoint
-│   │   └── post-call/           # Post-call prompt generation
-│   └── ...
-└── tests/
-    ├── setup.ts           # Test configuration
-    └── ops/               # Unit tests
+│   ├── permissions.ts        # RBAC: requireAuth() + isAuthError()
+│   ├── auth.ts               # NextAuth config (Credentials + Email)
+│   ├── contracts/registry.ts # DB-backed contract registry
+│   ├── pipeline/             # Pipeline orchestration
+│   ├── prompt/composition/   # Spec-driven prompt composition
+│   ├── content-trust/        # Content trust validation
+│   └── domain/               # Domain readiness checks
+├── app/api/                  # 184 API routes (176 protected, 8 public)
+├── app/x/                    # Admin UI pages
+├── tests/                    # Vitest tests
+├── docs-archive/bdd-specs/   # Archived specs (bootstrap only)
+└── docs/                     # Internal documentation
 ```
 
 ---
 
-## Team Collaboration
+## Security
 
-### Fresh Start for New Team Members
+### RBAC
 
-```bash
-# 1. Clone and install
-git clone <repo>
-cd apps/admin
-npm install
+All API routes use `requireAuth()` from `lib/permissions.ts`:
+- **VIEWER** — Read-only access
+- **OPERATOR** — Read + write operational data
+- **ADMIN** — Full system access
 
-# 2. Set up database
-npx prisma migrate deploy
-npx prisma generate
+Coverage test (`tests/lib/route-auth-coverage.test.ts`) fails CI if any route is missing auth.
 
-# 3. Seed configuration
-npm run db:seed:all
+### Authentication
 
-# 4. Start developing
-npm run dev
-```
+- **Admin users**: NextAuth with Credentials (email/password) or Email (magic link)
+- **Field testers**: Invite system (admin creates invite → tester accepts → auto sign-in → sim access)
+- **Session**: JWT cookie, 30-day expiry
 
-### Reset to Clean State
-
-```bash
-# Clear all data
-npm run db:reset -- --confirm
-
-# Reseed configuration
-npm run db:seed:all
-
-# Ready to process fresh data
-```
-
----
-
-## Development Scripts
-
-### Server Management Commands
-
-| Command | Database Reset | Server Restart | Cache Clear | Use When |
-|---------|---------------|----------------|-------------|----------|
-| `npm run dev` | ❌ | ❌ | ❌ | Normal development |
-| `npm run devX` | ❌ | ✅ | ✅ | Server stuck, cache issues |
-| `npm run devD` | ✅ | ❌ | ❌ | Need fresh data only |
-| `npm run devZZZ` | ✅ | ✅ | ✅ | Complete nuclear reset |
-
-### What Each Command Does
-
-**`npm run devX`** - Smart Hard Restart
-- Intelligently finds and kills Next.js processes
-- Clears `.next` build cache
-- Starts fresh dev server
-- Use when: Server is stuck or acting weird
-
-**`npm run devD`** - Data Reset Only
-1. ✅ Checks dev server is running
-2. 🗑️ Clears ALL database data
-3. 🔧 Reloads domains, playbooks, specs, parameters
-4. 📝 Imports all transcripts (callers + calls)
-5. ✨ Keeps server running (no restart)
-- Use when: You want fresh data but don't want to restart/rebuild
-
-**`npm run devZZZ`** - Nuclear Reset
-1. 🗑️ Clears database
-2. 🔪 Kills server + clears cache
-3. 🌐 Starts fresh server
-4. 🌱 Seeds data
-5. 📝 Imports transcripts
-6. 📊 Tails logs (stays running)
-- Use when: Complete fresh start needed
-
----
-
-## Troubleshooting
-
-### Ops Disabled Error
-```
-Operations are disabled. Set HF_OPS_ENABLED=true to enable.
-```
-Add `HF_OPS_ENABLED=true` to your `.env.local`
-
-### No Parameters Found
-```bash
-npm run db:seed:all
-```
-
-### Database Issues
-```bash
-# Check migration status
-npm run prisma:status
-
-# Reset and recreate
-npm run db:reset -- --confirm
-npx prisma migrate deploy
-npm run db:seed:all
-```
-
-### Test Failures
-```bash
-# Run tests with verbose output
-npm test -- --reporter=verbose
-```
+See [docs/RBAC.md](docs/RBAC.md) for the full permission matrix.
 
 ---
 
@@ -368,37 +217,32 @@ npm test -- --reporter=verbose
 ```bash
 # Development
 npm run dev                    # Start dev server
-npm run devX                   # Hard restart (kill server + clear cache)
-npm run devD                   # Data reset only (keep server running)
-npm run devZZZ                 # Nuclear reset (DB + server + data)
 npm test                       # Run tests
-npm run prisma:studio          # Database GUI
+npx prisma studio              # Database GUI
 
 # Database
-npm run db:reset               # Clear all data
-npm run db:seed:all            # Seed all config
-npm run prisma:seed            # De-dupe parameters only
+npm run db:seed                # Seed specs + contracts
+npx tsx prisma/seed-domains.ts # Create domains
+npm run registry:generate      # DB → lib/registry/index.ts
 
-# Ops (via curl)
-POST /api/ops { "opid": "transcripts:process" }
-POST /api/ops { "opid": "knowledge:ingest" }
-POST /api/ops { "opid": "personality:analyze", "settings": {"mock": true} }
-POST /api/ops { "opid": "memory:extract", "settings": {"mock": true} }
-
-# Prompt Composition
-POST /api/prompt/compose-from-specs { "userId": "...", "includeMemories": true }
+# API (examples)
+POST /api/callers/[id]/compose-prompt  # Generate personalized prompt
+POST /api/calls/[id]/pipeline         # Run pipeline on a call
+POST /api/x/seed-system               # Seed system via API
 ```
 
 ---
 
 ## Further Reading
 
-- [ADMIN_USER_GUIDE.md](ADMIN_USER_GUIDE.md) - Comprehensive admin documentation
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [ANALYSIS_SPECS.md](ANALYSIS_SPECS.md) - Behavior specifications
-- [DATA_FLOW_GUIDE.md](DATA_FLOW_GUIDE.md) - Data flow documentation
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System architecture
+- [docs/RBAC.md](docs/RBAC.md) — Role-based access control
+- [docs/CONTENT-TRUST.md](docs/CONTENT-TRUST.md) — Content trust system
+- [docs/DOMAIN-MANAGEMENT.md](docs/DOMAIN-MANAGEMENT.md) — Domain lifecycle
+- [docs/CURRICULUM-PROGRESSION.md](docs/CURRICULUM-PROGRESSION.md) — Teaching flow
+- [ANALYSIS_SPECS.md](ANALYSIS_SPECS.md) — Behavior specifications
 
 ---
 
-**Version**: 0.3
-**Last Updated**: 2026-01-22
+**Version**: 0.6
+**Last Updated**: 2026-02-12

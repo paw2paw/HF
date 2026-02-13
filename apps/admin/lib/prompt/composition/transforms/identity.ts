@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext, PlaybookData, SystemSpecData, ResolvedSpecs, ResolvedSpec } from "../types";
 
@@ -70,21 +71,20 @@ export function resolveSpecs(
 }
 
 /**
- * Load VOICE-001 directly if not found in playbook or system specs.
- * Extracted from route.ts lines 769-790.
+ * Load voice spec directly if not found in playbook or system specs.
+ * Uses config.specs.voicePattern for slug matching (default: "voice").
  */
 export async function resolveVoiceSpecFallback(
   current: ResolvedSpecs,
 ): Promise<ResolvedSpecs> {
   if (current.voiceSpec) return current;
 
+  const voicePattern = config.specs.voicePattern;
   const systemVoiceSpec = await prisma.analysisSpec.findFirst({
     where: {
-      OR: [
-        { slug: "VOICE-001" },
-        { slug: "voice-001" },
-        { slug: { contains: "voice" }, specRole: "IDENTITY", domain: "voice" },
-      ],
+      slug: { contains: voicePattern, mode: "insensitive" },
+      specRole: "IDENTITY",
+      domain: "voice",
       isActive: true,
     },
   });

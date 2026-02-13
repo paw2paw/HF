@@ -7,18 +7,35 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { UsageCategory, Prisma } from "@prisma/client";
 import { logUsageEvent } from "@/lib/metering/usage-logger";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/metering/events
- *
- * Query usage events with optional filters.
+ * @api GET /api/metering/events
+ * @visibility internal
+ * @scope metering:read
+ * @auth session
+ * @tags metering
+ * @description Query usage events with optional filters for category, operation, user, caller, and date range
+ * @query category string - Filter by UsageCategory (AI, DATABASE, COMPUTE, STORAGE, EXTERNAL)
+ * @query operation string - Filter by operation name (contains match)
+ * @query userId string - Filter by user ID
+ * @query callerId string - Filter by caller ID
+ * @query limit number - Max results (default: 100, max: 1000)
+ * @query offset number - Pagination offset (default: 0)
+ * @query since string - ISO date string for start of date range
+ * @query until string - ISO date string for end of date range
+ * @response 200 { ok: true, events: UsageEvent[], pagination: { total, limit, offset, hasMore } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
 
     // Parse filters
@@ -96,12 +113,33 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/metering/events
- *
- * Log a new usage event (primarily for internal use or testing).
+ * @api POST /api/metering/events
+ * @visibility internal
+ * @scope metering:read
+ * @auth session
+ * @tags metering
+ * @description Log a new usage event (primarily for internal use or testing)
+ * @body category string - Usage category (AI, DATABASE, COMPUTE, STORAGE, EXTERNAL)
+ * @body operation string - Operation name
+ * @body quantity number - Usage quantity
+ * @body unitType string - Unit type (e.g. "tokens", "bytes")
+ * @body userId string - Optional user ID
+ * @body callerId string - Optional caller ID
+ * @body callId string - Optional call ID
+ * @body engine string - Optional engine name
+ * @body model string - Optional model name
+ * @body sourceOp string - Optional source operation identifier
+ * @body metadata object - Optional metadata
+ * @response 200 { ok: true, eventId: string, costCents: number }
+ * @response 400 { ok: false, error: "category and operation are required" }
+ * @response 400 { ok: false, error: "Invalid category..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
 
     const {

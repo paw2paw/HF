@@ -6,6 +6,9 @@ import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { PlaybookPill, CallerPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
+import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
+import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
+import { ReadinessBadge } from "@/components/shared/ReadinessBadge";
 
 type DomainListItem = {
   id: string;
@@ -59,6 +62,14 @@ type DomainDetail = {
   updatedAt: string;
   callers: Caller[];
   playbooks: Playbook[];
+  onboardingWelcome?: string | null;
+  onboardingIdentitySpec?: {
+    id: string;
+    slug: string;
+    name: string;
+  } | null;
+  onboardingFlowPhases?: any;
+  onboardingDefaultTargets?: any;
   _count: {
     callers: number;
     playbooks: number;
@@ -99,7 +110,7 @@ export default function DomainsPage() {
   const [domain, setDomain] = useState<DomainDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"callers" | "playbooks">("playbooks");
+  const [activeTab, setActiveTab] = useState<"callers" | "playbooks" | "onboarding">("playbooks");
   const [showPlaybookModal, setShowPlaybookModal] = useState(false);
   const [creatingPlaybook, setCreatingPlaybook] = useState(false);
   const [newPlaybook, setNewPlaybook] = useState({ name: "", description: "" });
@@ -107,7 +118,47 @@ export default function DomainsPage() {
   const [loadingPlaybooks, setLoadingPlaybooks] = useState(false);
   const [modalTab, setModalTab] = useState<"create" | "existing">("existing");
   const [movingPlaybookId, setMovingPlaybookId] = useState<string | null>(null);
+
+  // Delete domain state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Remove playbook state
+  const [removingPlaybookId, setRemovingPlaybookId] = useState<string | null>(null);
+  const [showRemovePlaybookConfirm, setShowRemovePlaybookConfirm] = useState<string | null>(null);
+
+  // AI Assistant
+  const assistant = useAssistant({
+    defaultTab: "chat",
+    layout: "popout",
+    enabledTabs: ["chat", "data"],
+  });
+
+  // Keyboard shortcut for assistant
+  useAssistantKeyboardShortcut(assistant.toggle);
   const [reorderingId, setReorderingId] = useState<string | null>(null);
+
+  // Onboarding editing state
+  const [editingOnboarding, setEditingOnboarding] = useState(false);
+  const [onboardingForm, setOnboardingForm] = useState({
+    welcomeMessage: "",
+    identitySpecId: "",
+    flowPhases: "",
+    defaultTargets: "",
+  });
+  const [flowPhasesMode, setFlowPhasesMode] = useState<"visual" | "json">("visual");
+  const [defaultTargetsMode, setDefaultTargetsMode] = useState<"visual" | "json">("visual");
+  const [structuredPhases, setStructuredPhases] = useState<Array<{
+    phase: string;
+    duration: string;
+    goals: string[];
+  }>>([]);
+  const [structuredTargets, setStructuredTargets] = useState<Record<string, { value: number; confidence: number }>>({});
+  const [savingOnboarding, setSavingOnboarding] = useState(false);
+  const [onboardingSaveError, setOnboardingSaveError] = useState<string | null>(null);
+  const [onboardingSaveSuccess, setOnboardingSaveSuccess] = useState(false);
+  const [availableSpecs, setAvailableSpecs] = useState<Array<{ id: string; slug: string; name: string }>>([]);
 
   const fetchDomains = () => {
     fetch("/api/domains")
@@ -153,6 +204,86 @@ export default function DomainsPage() {
       });
   }, [selectedId]);
 
+  // Fetch onboarding data when Onboarding tab is selected
+  useEffect(() => {
+    if (activeTab === "onboarding" && domain) {
+      fetch(`/api/domains/${domain.id}/onboarding`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            // Merge onboarding-specific data into domain
+            setDomain((prev) => prev ? { ...prev, ...data.domain } : data.domain);
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching onboarding data:", err);
+        });
+    }
+  }, [activeTab, domain?.id]);
+
+  // Fetch available identity specs for onboarding tab
+  useEffect(() => {
+    if (activeTab === "onboarding" && availableSpecs.length === 0) {
+      fetch("/api/specs?role=IDENTITY")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            setAvailableSpecs(data.specs || []);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeTab, availableSpecs.length]);
+
+  // Populate form when entering edit mode - fetch onboarding data to get identity spec
+  useEffect(() => {
+    if (editingOnboarding && domain) {
+      // Fetch full onboarding config including identity spec relation
+      fetch(`/api/domains/${domain.id}/onboarding`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            const onboardingData = data.domain;
+            const flowPhasesJson = onboardingData.onboardingFlowPhases ? JSON.stringify(onboardingData.onboardingFlowPhases, null, 2) : "";
+            const defaultTargetsJson = onboardingData.onboardingDefaultTargets ? JSON.stringify(onboardingData.onboardingDefaultTargets, null, 2) : "";
+
+            setOnboardingForm({
+              welcomeMessage: onboardingData.onboardingWelcome || "",
+              identitySpecId: onboardingData.onboardingIdentitySpecId || "",
+              flowPhases: flowPhasesJson,
+              defaultTargets: defaultTargetsJson,
+            });
+
+            // Parse structured data
+            if (onboardingData.onboardingFlowPhases?.phases) {
+              setStructuredPhases(onboardingData.onboardingFlowPhases.phases);
+            } else {
+              setStructuredPhases([]);
+            }
+
+            if (onboardingData.onboardingDefaultTargets) {
+              setStructuredTargets(onboardingData.onboardingDefaultTargets);
+            } else {
+              setStructuredTargets({});
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching onboarding config:", err);
+          // Fallback to existing domain data if fetch fails
+          const flowPhasesJson = domain.onboardingFlowPhases ? JSON.stringify(domain.onboardingFlowPhases, null, 2) : "";
+          const defaultTargetsJson = domain.onboardingDefaultTargets ? JSON.stringify(domain.onboardingDefaultTargets, null, 2) : "";
+
+          setOnboardingForm({
+            welcomeMessage: domain.onboardingWelcome || "",
+            identitySpecId: "",
+            flowPhases: flowPhasesJson,
+            defaultTargets: defaultTargetsJson,
+          });
+        });
+    }
+  }, [editingOnboarding, domain?.id]);
+
   const handleCreate = async () => {
     if (!newDomain.slug || !newDomain.name) return;
     setCreating(true);
@@ -175,6 +306,132 @@ export default function DomainsPage() {
       setError(e.message);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleSaveOnboarding = async () => {
+    if (!domain) return;
+
+    setSavingOnboarding(true);
+    setOnboardingSaveError(null);
+    setOnboardingSaveSuccess(false);
+
+    try {
+      // Parse JSON fields or use structured data
+      let flowPhases = null;
+      let defaultTargets = null;
+
+      if (flowPhasesMode === "visual") {
+        // Use structured phases
+        if (structuredPhases.length > 0) {
+          flowPhases = { phases: structuredPhases };
+        }
+      } else {
+        // Parse JSON
+        if (onboardingForm.flowPhases.trim()) {
+          try {
+            flowPhases = JSON.parse(onboardingForm.flowPhases);
+          } catch (e) {
+            throw new Error("Invalid JSON in Flow Phases");
+          }
+        }
+      }
+
+      if (defaultTargetsMode === "visual") {
+        // Use structured targets
+        if (Object.keys(structuredTargets).length > 0) {
+          defaultTargets = structuredTargets;
+        }
+      } else {
+        // Parse JSON
+        if (onboardingForm.defaultTargets.trim()) {
+          try {
+            defaultTargets = JSON.parse(onboardingForm.defaultTargets);
+          } catch (e) {
+            throw new Error("Invalid JSON in Default Targets");
+          }
+        }
+      }
+
+      const res = await fetch(`/api/domains/${domain.id}/onboarding`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          onboardingWelcome: onboardingForm.welcomeMessage || null,
+          onboardingIdentitySpecId: onboardingForm.identitySpecId || null,
+          onboardingFlowPhases: flowPhases,
+          onboardingDefaultTargets: defaultTargets,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || "Failed to save onboarding configuration");
+      }
+
+      // Refresh domain data - use onboarding endpoint to get full data including identity spec
+      const refreshRes = await fetch(`/api/domains/${domain.id}/onboarding`);
+      const refreshData = await refreshRes.json();
+      if (refreshData.ok) {
+        // Update domain with onboarding data
+        setDomain((prev) => prev ? { ...prev, ...refreshData.domain } : refreshData.domain);
+      }
+
+      setOnboardingSaveSuccess(true);
+      setEditingOnboarding(false);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setOnboardingSaveSuccess(false), 3000);
+    } catch (e: any) {
+      setOnboardingSaveError(e.message || "Failed to save");
+    } finally {
+      setSavingOnboarding(false);
+    }
+  };
+
+  const handleDeleteDomain = async () => {
+    if (!domain) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/domains/${domain.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        setShowDeleteConfirm(false);
+        setDomain(null);
+        router.push("/x/domains", { scroll: false });
+        fetchDomains();
+      } else {
+        setDeleteError(data.error);
+      }
+    } catch (e: any) {
+      setDeleteError(e.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleRemovePlaybook = async (playbookId: string) => {
+    if (!domain) return;
+    setRemovingPlaybookId(playbookId);
+    try {
+      const res = await fetch(`/api/playbooks/${playbookId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        // Refresh domain detail
+        const refreshRes = await fetch(`/api/domains/${domain.id}`);
+        const refreshData = await refreshRes.json();
+        if (refreshData.ok) setDomain(refreshData.domain);
+        fetchDomains();
+      } else {
+        alert(data.error);
+      }
+    } catch (e: any) {
+      alert("Error removing playbook: " + e.message);
+    } finally {
+      setRemovingPlaybookId(null);
+      setShowRemovePlaybookConfirm(null);
     }
   };
 
@@ -371,7 +628,7 @@ export default function DomainsPage() {
   );
 
   return (
-    <div>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
       <div
         style={{
@@ -385,19 +642,6 @@ export default function DomainsPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Domains</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                padding: "6px 10px",
-                border: "1px solid var(--border-strong)",
-                borderRadius: 6,
-                width: 160,
-                fontSize: 12,
-              }}
-            />
             <button
               onClick={() => setShowCreate(true)}
               style={{
@@ -413,11 +657,49 @@ export default function DomainsPage() {
             >
               + New
             </button>
+            <button
+              onClick={() => {
+                if (domain) {
+                  assistant.openWithDomain(domain);
+                } else {
+                  assistant.open(undefined, { page: "/x/domains" });
+                }
+              }}
+              style={{
+                padding: "6px 12px",
+                background: "rgba(139, 92, 246, 0.1)",
+                color: "#8b5cf6",
+                border: "1px solid rgba(139, 92, 246, 0.2)",
+                borderRadius: 6,
+                fontWeight: 500,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+              title="Ask AI Assistant (Cmd+Shift+K)"
+            >
+              ✨ Ask AI
+            </button>
           </div>
         </div>
 
         {/* Filters */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--border-strong)",
+              borderRadius: 6,
+              width: 160,
+              fontSize: 12,
+            }}
+          />
+
+          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+
           {/* Status */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by domain status">Status</span>
@@ -466,7 +748,7 @@ export default function DomainsPage() {
       )}
 
       {/* Master-Detail Layout */}
-      <div style={{ display: "flex", gap: 16, minHeight: "calc(100vh - 220px)" }}>
+      <div style={{ display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
         {/* List Panel */}
         <div style={{ width: 320, flexShrink: 0, overflowY: "auto" }}>
           {loading ? (
@@ -500,9 +782,10 @@ export default function DomainsPage() {
                   <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
                     {d.description || <em>No description</em>}
                   </p>
-                  <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
+                  <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)", alignItems: "center" }}>
                     <span><strong>{d.callerCount || 0}</strong> callers</span>
                     <span><strong>{d.playbookCount || 0}</strong> playbooks</span>
+                    <ReadinessBadge domainId={d.id} size="compact" />
                   </div>
                   {d.publishedPlaybook && (
                     <div
@@ -572,12 +855,114 @@ export default function DomainsPage() {
                         Inactive
                       </span>
                     )}
+                    <ReadinessBadge domainId={domain.id} onScaffold={fetchDomains} />
                   </div>
                   {domain.description && (
                     <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>{domain.description}</p>
                   )}
                 </div>
+                {!domain.isDefault && (
+                  <button
+                    onClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      background: "transparent",
+                      color: "#dc2626",
+                      border: "1px solid #fca5a5",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Delete Domain
+                  </button>
+                )}
               </div>
+
+              {/* Delete Confirmation */}
+              {showDeleteConfirm && (
+                <div style={{
+                  padding: 16,
+                  background: "#fef2f2",
+                  border: "1px solid #fca5a5",
+                  borderRadius: 8,
+                  marginBottom: 16,
+                }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "#991b1b", marginBottom: 8 }}>
+                    Delete &ldquo;{domain.name}&rdquo;?
+                  </div>
+                  {domain._count.callers > 0 ? (
+                    <div>
+                      <p style={{ fontSize: 13, color: "#991b1b", margin: "0 0 8px 0" }}>
+                        Cannot delete this domain — it has {domain._count.callers} caller{domain._count.callers !== 1 ? "s" : ""} assigned.
+                        Reassign callers to another domain first.
+                      </p>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        style={{
+                          padding: "6px 14px",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          background: "var(--surface-primary)",
+                          color: "var(--text-primary)",
+                          border: "1px solid var(--border-strong)",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                        }}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p style={{ fontSize: 13, color: "#7f1d1d", margin: "0 0 12px 0" }}>
+                        This will deactivate the domain{domain._count.playbooks > 0 ? ` and its ${domain._count.playbooks} playbook${domain._count.playbooks !== 1 ? "s" : ""} will become orphaned` : ""}.
+                        This action cannot be easily undone.
+                      </p>
+                      {deleteError && (
+                        <p style={{ fontSize: 12, color: "#dc2626", margin: "0 0 8px 0" }}>{deleteError}</p>
+                      )}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={handleDeleteDomain}
+                          disabled={deleting}
+                          style={{
+                            padding: "6px 14px",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: "#dc2626",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 6,
+                            cursor: deleting ? "not-allowed" : "pointer",
+                            opacity: deleting ? 0.7 : 1,
+                          }}
+                        >
+                          {deleting ? "Deleting..." : "Yes, Delete"}
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          disabled={deleting}
+                          style={{
+                            padding: "6px 14px",
+                            fontSize: 12,
+                            fontWeight: 500,
+                            background: "var(--surface-primary)",
+                            color: "var(--text-primary)",
+                            border: "1px solid var(--border-strong)",
+                            borderRadius: 6,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Stats */}
               <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
@@ -603,9 +988,10 @@ export default function DomainsPage() {
                 tabs={[
                   { id: "playbooks", label: `Playbooks (${domain.playbooks.length})` },
                   { id: "callers", label: `Callers (${domain._count.callers})` },
+                  { id: "onboarding", label: "Onboarding" },
                 ]}
                 activeTab={activeTab}
-                onTabChange={(id) => setActiveTab(id as "callers" | "playbooks")}
+                onTabChange={(id) => setActiveTab(id as "callers" | "playbooks" | "onboarding")}
                 containerStyle={{ marginBottom: 24 }}
               />
 
@@ -778,10 +1164,84 @@ export default function DomainsPage() {
                               </div>
                             </Link>
 
-                            {/* Arrow */}
-                            <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none" }}>
-                              →
-                            </Link>
+                            {/* Remove + Arrow */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              {showRemovePlaybookConfirm === playbook.id ? (
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <span style={{ fontSize: 11, color: "#991b1b", whiteSpace: "nowrap" }}>
+                                    {isPublished ? "Archive first" : "Remove?"}
+                                  </span>
+                                  {!isPublished && (
+                                    <button
+                                      onClick={(e) => { e.preventDefault(); handleRemovePlaybook(playbook.id); }}
+                                      disabled={removingPlaybookId === playbook.id}
+                                      style={{
+                                        padding: "3px 8px",
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        background: "#dc2626",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: 4,
+                                        cursor: removingPlaybookId === playbook.id ? "not-allowed" : "pointer",
+                                        opacity: removingPlaybookId === playbook.id ? 0.7 : 1,
+                                      }}
+                                    >
+                                      {removingPlaybookId === playbook.id ? "..." : "Yes"}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(null); }}
+                                    style={{
+                                      padding: "3px 8px",
+                                      fontSize: 11,
+                                      fontWeight: 500,
+                                      background: "var(--surface-secondary)",
+                                      color: "var(--text-muted)",
+                                      border: "1px solid var(--border-default)",
+                                      borderRadius: 4,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(playbook.id); }}
+                                  title="Remove playbook from domain"
+                                  style={{
+                                    width: 24,
+                                    height: 24,
+                                    padding: 0,
+                                    background: "transparent",
+                                    color: "var(--text-placeholder)",
+                                    border: "1px solid transparent",
+                                    borderRadius: 4,
+                                    cursor: "pointer",
+                                    fontSize: 14,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = "#fef2f2";
+                                    e.currentTarget.style.color = "#dc2626";
+                                    e.currentTarget.style.borderColor = "#fca5a5";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "transparent";
+                                    e.currentTarget.style.color = "var(--text-placeholder)";
+                                    e.currentTarget.style.borderColor = "transparent";
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              )}
+                              <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none" }}>
+                                →
+                              </Link>
+                            </div>
                           </div>
                         );
                       })}
@@ -842,6 +1302,1085 @@ export default function DomainsPage() {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* Onboarding Tab */}
+              {activeTab === "onboarding" && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                        First-Call Onboarding Configuration
+                      </h3>
+                      <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>
+                        Customize the onboarding experience for new callers in this domain
+                      </p>
+                    </div>
+                    {!editingOnboarding && (
+                      <button
+                        onClick={() => setEditingOnboarding(true)}
+                        style={{
+                          padding: "8px 16px",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          background: "var(--accent-primary)",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Edit Configuration
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Success Message */}
+                  {onboardingSaveSuccess && (
+                    <div style={{
+                      padding: 12,
+                      marginBottom: 16,
+                      background: "#dcfce7",
+                      color: "#166534",
+                      borderRadius: 8,
+                      fontSize: 14,
+                    }}>
+                      ✅ Onboarding configuration saved successfully
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {onboardingSaveError && (
+                    <div style={{
+                      padding: 12,
+                      marginBottom: 16,
+                      background: "var(--status-error-bg)",
+                      color: "var(--status-error-text)",
+                      borderRadius: 8,
+                      fontSize: 14,
+                    }}>
+                      {onboardingSaveError}
+                    </div>
+                  )}
+
+                  {editingOnboarding ? (
+                    /* Edit Mode */
+                    <div style={{
+                      background: "var(--surface-primary)",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 8,
+                      padding: 20,
+                    }}>
+                      {/* Welcome Message */}
+                      <div style={{ marginBottom: 20 }}>
+                        <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                          Welcome Message
+                        </label>
+                        <textarea
+                          value={onboardingForm.welcomeMessage}
+                          onChange={(e) => setOnboardingForm({ ...onboardingForm, welcomeMessage: e.target.value })}
+                          placeholder="Enter the welcome message for first-time callers..."
+                          style={{
+                            width: "100%",
+                            minHeight: 120,
+                            padding: 12,
+                            fontSize: 14,
+                            border: "2px solid var(--border-default)",
+                            borderRadius: 6,
+                            fontFamily: "inherit",
+                            resize: "vertical",
+                          }}
+                        />
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                          This message is shown to new callers on their first call
+                        </div>
+                      </div>
+
+                      {/* Identity Spec */}
+                      <div style={{ marginBottom: 20 }}>
+                        <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                          Identity Spec
+                        </label>
+                        <select
+                          value={onboardingForm.identitySpecId}
+                          onChange={(e) => setOnboardingForm({ ...onboardingForm, identitySpecId: e.target.value })}
+                          style={{
+                            width: "100%",
+                            padding: 12,
+                            fontSize: 14,
+                            border: "2px solid var(--border-default)",
+                            borderRadius: 6,
+                            background: "var(--surface-primary)",
+                          }}
+                        >
+                          <option value="">Use default identity spec</option>
+                          {availableSpecs.map((spec) => (
+                            <option key={spec.id} value={spec.id}>
+                              {spec.name} ({spec.slug})
+                            </option>
+                          ))}
+                        </select>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                          Which identity/persona spec to use for onboarding
+                        </div>
+                      </div>
+
+                      {/* Flow Phases */}
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <label style={{ fontSize: 14, fontWeight: 600 }}>
+                            Flow Phases
+                          </label>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button
+                              onClick={() => setFlowPhasesMode("visual")}
+                              style={{
+                                padding: "4px 12px",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                background: flowPhasesMode === "visual" ? "var(--accent-primary)" : "var(--surface-secondary)",
+                                color: flowPhasesMode === "visual" ? "white" : "var(--text-secondary)",
+                                border: "1px solid var(--border-default)",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Visual
+                            </button>
+                            <button
+                              onClick={() => setFlowPhasesMode("json")}
+                              style={{
+                                padding: "4px 12px",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                background: flowPhasesMode === "json" ? "var(--accent-primary)" : "var(--surface-secondary)",
+                                color: flowPhasesMode === "json" ? "white" : "var(--text-secondary)",
+                                border: "1px solid var(--border-default)",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                              }}
+                            >
+                              JSON
+                            </button>
+                          </div>
+                        </div>
+
+                        {flowPhasesMode === "visual" ? (
+                          /* Visual Editor */
+                          <div>
+                            {structuredPhases.map((phase, index) => (
+                              <div
+                                key={index}
+                                style={{
+                                  display: "flex",
+                                  gap: 8,
+                                  marginBottom: 12,
+                                  padding: 16,
+                                  background: "var(--surface-primary)",
+                                  border: "2px solid var(--border-default)",
+                                  borderRadius: 8,
+                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                                }}
+                              >
+                                {/* Drag Handle & Reorder */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 4 }}>
+                                  <button
+                                    onClick={() => {
+                                      if (index === 0) return;
+                                      const newPhases = [...structuredPhases];
+                                      [newPhases[index - 1], newPhases[index]] = [newPhases[index], newPhases[index - 1]];
+                                      setStructuredPhases(newPhases);
+                                    }}
+                                    disabled={index === 0}
+                                    style={{
+                                      width: 24,
+                                      height: 24,
+                                      padding: 0,
+                                      fontSize: 14,
+                                      background: index === 0 ? "var(--surface-tertiary)" : "var(--surface-secondary)",
+                                      border: "1px solid var(--border-default)",
+                                      borderRadius: 4,
+                                      cursor: index === 0 ? "not-allowed" : "pointer",
+                                      opacity: index === 0 ? 0.3 : 1,
+                                    }}
+                                    title="Move up"
+                                  >
+                                    ↑
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (index === structuredPhases.length - 1) return;
+                                      const newPhases = [...structuredPhases];
+                                      [newPhases[index], newPhases[index + 1]] = [newPhases[index + 1], newPhases[index]];
+                                      setStructuredPhases(newPhases);
+                                    }}
+                                    disabled={index === structuredPhases.length - 1}
+                                    style={{
+                                      width: 24,
+                                      height: 24,
+                                      padding: 0,
+                                      fontSize: 14,
+                                      background: index === structuredPhases.length - 1 ? "var(--surface-tertiary)" : "var(--surface-secondary)",
+                                      border: "1px solid var(--border-default)",
+                                      borderRadius: 4,
+                                      cursor: index === structuredPhases.length - 1 ? "not-allowed" : "pointer",
+                                      opacity: index === structuredPhases.length - 1 ? 0.3 : 1,
+                                    }}
+                                    title="Move down"
+                                  >
+                                    ↓
+                                  </button>
+                                </div>
+
+                                {/* Phase Content */}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <div style={{
+                                        width: 28,
+                                        height: 28,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        background: "var(--accent-primary)",
+                                        color: "white",
+                                        borderRadius: "50%",
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                      }}>
+                                        {index + 1}
+                                      </div>
+                                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+                                        Phase {index + 1}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        const newPhases = structuredPhases.filter((_, i) => i !== index);
+                                        setStructuredPhases(newPhases);
+                                      }}
+                                      style={{
+                                        padding: "4px 12px",
+                                        fontSize: 11,
+                                        fontWeight: 500,
+                                        background: "var(--status-error-bg)",
+                                        color: "var(--status-error-text)",
+                                        border: "none",
+                                        borderRadius: 4,
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      × Remove
+                                    </button>
+                                  </div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 10, marginBottom: 10 }}>
+                                    <div>
+                                      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                        Phase Name
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={phase.phase}
+                                        onChange={(e) => {
+                                          const newPhases = [...structuredPhases];
+                                          newPhases[index].phase = e.target.value;
+                                          setStructuredPhases(newPhases);
+                                        }}
+                                        placeholder="e.g., welcome, orient, discover"
+                                        style={{
+                                          width: "100%",
+                                          padding: 10,
+                                          fontSize: 14,
+                                          border: "2px solid var(--border-default)",
+                                          borderRadius: 6,
+                                          background: "var(--surface-secondary)",
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                        Duration
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={phase.duration}
+                                        onChange={(e) => {
+                                          const newPhases = [...structuredPhases];
+                                          newPhases[index].duration = e.target.value;
+                                          setStructuredPhases(newPhases);
+                                        }}
+                                        placeholder="e.g., 2min"
+                                        style={{
+                                          width: "100%",
+                                          padding: 10,
+                                          fontSize: 14,
+                                          border: "2px solid var(--border-default)",
+                                          borderRadius: 6,
+                                          background: "var(--surface-secondary)",
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                      Goals (one per line)
+                                    </label>
+                                    <textarea
+                                      value={phase.goals.join("\n")}
+                                      onChange={(e) => {
+                                        const newPhases = [...structuredPhases];
+                                        newPhases[index].goals = e.target.value.split("\n").filter(g => g.trim());
+                                        setStructuredPhases(newPhases);
+                                      }}
+                                      placeholder="Enter goals for this phase..."
+                                      style={{
+                                        width: "100%",
+                                        minHeight: 80,
+                                        padding: 10,
+                                        fontSize: 13,
+                                        lineHeight: 1.6,
+                                        border: "2px solid var(--border-default)",
+                                        borderRadius: 6,
+                                        background: "var(--surface-secondary)",
+                                        resize: "vertical",
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => {
+                                setStructuredPhases([...structuredPhases, { phase: "", duration: "", goals: [] }]);
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: 10,
+                                fontSize: 14,
+                                fontWeight: 500,
+                                background: "var(--surface-secondary)",
+                                color: "var(--text-primary)",
+                                border: "1px dashed var(--border-default)",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                              }}
+                            >
+                              + Add Phase
+                            </button>
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
+                              Define the onboarding flow phases (leave empty to use defaults)
+                            </div>
+                          </div>
+                        ) : (
+                          /* JSON Editor */
+                          <div>
+                            <textarea
+                              value={onboardingForm.flowPhases}
+                              onChange={(e) => setOnboardingForm({ ...onboardingForm, flowPhases: e.target.value })}
+                              placeholder='{"phases": [{"phase": "welcome", "duration": "2min", "goals": ["..."]}]}'
+                              style={{
+                                width: "100%",
+                                minHeight: 200,
+                                padding: 12,
+                                fontSize: 13,
+                                fontFamily: "monospace",
+                                border: "2px solid var(--border-default)",
+                                borderRadius: 6,
+                                resize: "vertical",
+                              }}
+                            />
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                              Define the onboarding flow phases in JSON format
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Default Targets */}
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <label style={{ fontSize: 14, fontWeight: 600 }}>
+                            Default Behavior Targets
+                          </label>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button
+                              onClick={() => setDefaultTargetsMode("visual")}
+                              style={{
+                                padding: "4px 12px",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                background: defaultTargetsMode === "visual" ? "var(--accent-primary)" : "var(--surface-secondary)",
+                                color: defaultTargetsMode === "visual" ? "white" : "var(--text-secondary)",
+                                border: "1px solid var(--border-default)",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Visual
+                            </button>
+                            <button
+                              onClick={() => setDefaultTargetsMode("json")}
+                              style={{
+                                padding: "4px 12px",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                background: defaultTargetsMode === "json" ? "var(--accent-primary)" : "var(--surface-secondary)",
+                                color: defaultTargetsMode === "json" ? "white" : "var(--text-secondary)",
+                                border: "1px solid var(--border-default)",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                              }}
+                            >
+                              JSON
+                            </button>
+                          </div>
+                        </div>
+
+                        {defaultTargetsMode === "visual" ? (
+                          /* Visual Editor with Vertical Sliders */
+                          <div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                              {Object.entries(structuredTargets).map(([paramId, target]) => (
+                              <div
+                                key={paramId}
+                                style={{
+                                  padding: 16,
+                                  background: "var(--surface-primary)",
+                                  border: "2px solid var(--border-default)",
+                                  borderRadius: 8,
+                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                }}
+                              >
+                                {/* Header */}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.2 }}>
+                                    {paramId}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      const newTargets = { ...structuredTargets };
+                                      delete newTargets[paramId];
+                                      setStructuredTargets(newTargets);
+                                    }}
+                                    style={{
+                                      padding: "2px 8px",
+                                      fontSize: 10,
+                                      fontWeight: 500,
+                                      background: "var(--status-error-bg)",
+                                      color: "var(--status-error-text)",
+                                      border: "none",
+                                      borderRadius: 4,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+
+                                {/* Vertical Sliders Container */}
+                                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", gap: 20, flex: 1 }}>
+                                  {/* Value Slider */}
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                                    <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
+                                      Value
+                                    </label>
+                                    <span style={{
+                                      fontSize: 15,
+                                      fontWeight: 700,
+                                      color: "var(--accent-primary)",
+                                      fontFamily: "monospace",
+                                      marginBottom: 8,
+                                      minHeight: 20,
+                                    }}>
+                                      {target.value.toFixed(2)}
+                                    </span>
+
+                                    {/* Vertical Slider Wrapper */}
+                                    <div style={{ position: "relative", height: 180, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                      {/* Scale markers */}
+                                      <div style={{ position: "absolute", right: -24, top: -6, fontSize: 9, color: "var(--text-muted)" }}>1.0</div>
+                                      <div style={{ position: "absolute", right: -24, top: 84, fontSize: 9, color: "var(--text-muted)" }}>0.5</div>
+                                      <div style={{ position: "absolute", right: -24, bottom: -6, fontSize: 9, color: "var(--text-muted)" }}>0.0</div>
+
+                                      {/* Vertical range input */}
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        value={target.value}
+                                        onChange={(e) => {
+                                          const newTargets = { ...structuredTargets };
+                                          newTargets[paramId].value = parseFloat(e.target.value);
+                                          setStructuredTargets(newTargets);
+                                        }}
+                                        style={{
+                                          WebkitAppearance: "slider-vertical",
+                                          width: 6,
+                                          height: 180,
+                                          borderRadius: 3,
+                                          background: `linear-gradient(to top, var(--accent-primary) 0%, var(--accent-primary) ${target.value * 100}%, var(--surface-tertiary) ${target.value * 100}%, var(--surface-tertiary) 100%)`,
+                                          outline: "none",
+                                          cursor: "pointer",
+                                          writingMode: "bt-lr",
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Confidence Slider */}
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                                    <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
+                                      Confidence
+                                    </label>
+                                    <span style={{
+                                      fontSize: 15,
+                                      fontWeight: 700,
+                                      color: "var(--accent-primary)",
+                                      fontFamily: "monospace",
+                                      marginBottom: 8,
+                                      minHeight: 20,
+                                    }}>
+                                      {target.confidence.toFixed(2)}
+                                    </span>
+
+                                    {/* Vertical Slider Wrapper */}
+                                    <div style={{ position: "relative", height: 180, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                      {/* Scale markers */}
+                                      <div style={{ position: "absolute", left: -24, top: -6, fontSize: 9, color: "var(--text-muted)" }}>1.0</div>
+                                      <div style={{ position: "absolute", left: -24, top: 84, fontSize: 9, color: "var(--text-muted)" }}>0.5</div>
+                                      <div style={{ position: "absolute", left: -24, bottom: -6, fontSize: 9, color: "var(--text-muted)" }}>0.0</div>
+
+                                      {/* Vertical range input */}
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        value={target.confidence}
+                                        onChange={(e) => {
+                                          const newTargets = { ...structuredTargets };
+                                          newTargets[paramId].confidence = parseFloat(e.target.value);
+                                          setStructuredTargets(newTargets);
+                                        }}
+                                        style={{
+                                          WebkitAppearance: "slider-vertical",
+                                          width: 6,
+                                          height: 180,
+                                          borderRadius: 3,
+                                          background: `linear-gradient(to top, var(--accent-primary) 0%, var(--accent-primary) ${target.confidence * 100}%, var(--surface-tertiary) ${target.confidence * 100}%, var(--surface-tertiary) 100%)`,
+                                          outline: "none",
+                                          cursor: "pointer",
+                                          writingMode: "bt-lr",
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Add Parameter Section */}
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <input
+                                type="text"
+                                id="newParamId"
+                                placeholder="Parameter ID (e.g., warmth)"
+                                style={{
+                                  flex: 1,
+                                  padding: 10,
+                                  fontSize: 14,
+                                  border: "1px solid var(--border-default)",
+                                  borderRadius: 6,
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const input = document.getElementById("newParamId") as HTMLInputElement;
+                                  const paramId = input.value.trim();
+                                  if (paramId && !structuredTargets[paramId]) {
+                                    setStructuredTargets({
+                                      ...structuredTargets,
+                                      [paramId]: { value: 0.5, confidence: 0.3 },
+                                    });
+                                    input.value = "";
+                                  }
+                                }}
+                                style={{
+                                  padding: "10px 20px",
+                                  fontSize: 14,
+                                  fontWeight: 500,
+                                  background: "var(--accent-primary)",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: 6,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Add Parameter
+                              </button>
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
+                              Default behavior parameter values for first-time callers (leave empty to use defaults)
+                            </div>
+                          </div>
+                          </div>
+                        ) : (
+                          /* JSON Editor */
+                          <div>
+                            <textarea
+                              value={onboardingForm.defaultTargets}
+                              onChange={(e) => setOnboardingForm({ ...onboardingForm, defaultTargets: e.target.value })}
+                              placeholder='{"warmth": {"value": 0.7, "confidence": 0.3}, ...}'
+                              style={{
+                                width: "100%",
+                                minHeight: 200,
+                                padding: 12,
+                                fontSize: 13,
+                                fontFamily: "monospace",
+                                border: "2px solid var(--border-default)",
+                                borderRadius: 6,
+                                resize: "vertical",
+                              }}
+                            />
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                              Default behavior parameter values in JSON format
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                        <button
+                          onClick={() => {
+                            setEditingOnboarding(false);
+                            setOnboardingSaveError(null);
+                          }}
+                          disabled={savingOnboarding}
+                          style={{
+                            padding: "10px 20px",
+                            fontSize: 14,
+                            fontWeight: 500,
+                            background: "var(--surface-secondary)",
+                            color: "var(--text-secondary)",
+                            border: "1px solid var(--border-default)",
+                            borderRadius: 6,
+                            cursor: savingOnboarding ? "not-allowed" : "pointer",
+                            opacity: savingOnboarding ? 0.5 : 1,
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveOnboarding}
+                          disabled={savingOnboarding}
+                          style={{
+                            padding: "10px 24px",
+                            fontSize: 14,
+                            fontWeight: 600,
+                            background: savingOnboarding ? "#d1d5db" : "var(--accent-primary)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 6,
+                            cursor: savingOnboarding ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {savingOnboarding ? "Saving..." : "Save Changes"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* View Mode */
+                    <div>
+
+                  {/* Quick Stats - Dashboard Style */}
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, 1fr)",
+                    gap: 16,
+                    marginBottom: 24,
+                  }}>
+                    {/* Identity Spec Card */}
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "20px 16px",
+                      background: "var(--surface-primary)",
+                      border: `2px solid ${domain.onboardingIdentitySpec ? "#10b981" : "#ef4444"}`,
+                      borderRadius: 12,
+                      transition: "all 0.2s",
+                    }}>
+                      <div style={{ fontSize: 24, marginBottom: 8 }}>
+                        {domain.onboardingIdentitySpec ? "👤" : "⚠️"}
+                      </div>
+                      <div style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: domain.onboardingIdentitySpec ? "#10b981" : "#ef4444",
+                        textAlign: "center",
+                        marginBottom: 4,
+                      }}>
+                        {domain.onboardingIdentitySpec?.name || "Not Set"}
+                      </div>
+                      <div style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        fontWeight: 500,
+                      }}>
+                        Identity Spec
+                      </div>
+                    </div>
+
+                    {/* Welcome Message Card */}
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "20px 16px",
+                      background: "var(--surface-primary)",
+                      border: `2px solid ${domain.onboardingWelcome ? "#10b981" : "#d1d5db"}`,
+                      borderRadius: 12,
+                      transition: "all 0.2s",
+                    }}>
+                      <div style={{ fontSize: 24, marginBottom: 8 }}>
+                        {domain.onboardingWelcome ? "✅" : "💬"}
+                      </div>
+                      <div style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: domain.onboardingWelcome ? "#10b981" : "var(--text-muted)",
+                        textAlign: "center",
+                        marginBottom: 4,
+                      }}>
+                        {domain.onboardingWelcome ? "Configured" : "Default"}
+                      </div>
+                      <div style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        fontWeight: 500,
+                      }}>
+                        Welcome Message
+                      </div>
+                    </div>
+
+                    {/* Flow Phases Card */}
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "20px 16px",
+                      background: "var(--surface-primary)",
+                      border: `2px solid ${domain.onboardingFlowPhases ? "#10b981" : "#d1d5db"}`,
+                      borderRadius: 12,
+                      transition: "all 0.2s",
+                    }}>
+                      <div style={{ fontSize: 24, marginBottom: 8 }}>
+                        {domain.onboardingFlowPhases ? "🔄" : "⏭️"}
+                      </div>
+                      <div style={{
+                        fontSize: 20,
+                        fontWeight: 700,
+                        color: domain.onboardingFlowPhases ? "var(--button-primary-bg)" : "var(--text-muted)",
+                        lineHeight: 1,
+                        marginBottom: 4,
+                      }}>
+                        {domain.onboardingFlowPhases ?
+                          (domain.onboardingFlowPhases as any).phases?.length || 0 :
+                          "0"}
+                      </div>
+                      <div style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        fontWeight: 500,
+                      }}>
+                        Flow Phases
+                      </div>
+                    </div>
+
+                    {/* Default Targets Card */}
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "20px 16px",
+                      background: "var(--surface-primary)",
+                      border: `2px solid ${domain.onboardingDefaultTargets ? "#10b981" : "#d1d5db"}`,
+                      borderRadius: 12,
+                      transition: "all 0.2s",
+                    }}>
+                      <div style={{ fontSize: 24, marginBottom: 8 }}>
+                        {domain.onboardingDefaultTargets ? "🎯" : "⚙️"}
+                      </div>
+                      <div style={{
+                        fontSize: 20,
+                        fontWeight: 700,
+                        color: domain.onboardingDefaultTargets ? "var(--button-primary-bg)" : "var(--text-muted)",
+                        lineHeight: 1,
+                        marginBottom: 4,
+                      }}>
+                        {domain.onboardingDefaultTargets ?
+                          Object.keys(domain.onboardingDefaultTargets as object).length :
+                          "0"}
+                      </div>
+                      <div style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        fontWeight: 500,
+                      }}>
+                        Default Targets
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Welcome Message Preview */}
+                  {domain.onboardingWelcome && (
+                    <div style={{
+                      padding: 16,
+                      background: "var(--surface-primary)",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 8,
+                      marginBottom: 20,
+                    }}>
+                      <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600 }}>
+                        Welcome Message Preview
+                      </h4>
+                      <div style={{
+                        padding: 16,
+                        background: "var(--surface-tertiary)",
+                        borderRadius: 6,
+                        fontSize: 14,
+                        lineHeight: 1.6,
+                        fontStyle: "italic",
+                      }}>
+                        "{domain.onboardingWelcome}"
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Flow Phases Visual */}
+                  {domain.onboardingFlowPhases && (domain.onboardingFlowPhases as any).phases && (
+                    <div style={{
+                      padding: 20,
+                      background: "var(--surface-primary)",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 12,
+                      marginBottom: 20,
+                    }}>
+                      <h4 style={{
+                        margin: "0 0 16px 0",
+                        fontSize: 16,
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}>
+                        <span style={{ fontSize: 20 }}>🔄</span>
+                        Onboarding Flow Phases
+                      </h4>
+                      <div style={{
+                        display: "flex",
+                        gap: 16,
+                        overflowX: "auto",
+                        paddingBottom: 8,
+                      }}>
+                        {((domain.onboardingFlowPhases as any).phases || []).map((phase: any, idx: number) => (
+                          <div key={idx} style={{
+                            minWidth: 220,
+                            padding: 20,
+                            background: "var(--surface-primary)",
+                            border: "1px solid var(--border-default)",
+                            borderRadius: 12,
+                            position: "relative",
+                            transition: "all 0.2s",
+                          }}
+                          className="phase-card">
+                            <div style={{
+                              position: "absolute",
+                              top: 12,
+                              right: 12,
+                              background: "var(--button-primary-bg)",
+                              color: "white",
+                              padding: "4px 10px",
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                            }}>
+                              {idx + 1}
+                            </div>
+                            <div style={{
+                              fontSize: 16,
+                              fontWeight: 700,
+                              marginBottom: 12,
+                              marginTop: 8,
+                              color: "var(--button-primary-bg)",
+                              textTransform: "capitalize",
+                            }}>
+                              {phase.phase}
+                            </div>
+                            <div style={{
+                              fontSize: 13,
+                              color: "var(--text-muted)",
+                              marginBottom: 16,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              padding: "6px 10px",
+                              background: "var(--surface-secondary)",
+                              borderRadius: 6,
+                              fontWeight: 500,
+                            }}>
+                              <span>⏱️</span>
+                              <span>{phase.duration}</span>
+                            </div>
+                            {phase.goals && phase.goals.length > 0 && (
+                              <div>
+                                <div style={{
+                                  fontSize: 10,
+                                  color: "var(--text-muted)",
+                                  marginBottom: 8,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.5px",
+                                  textTransform: "uppercase",
+                                }}>
+                                  Goals
+                                </div>
+                                <ul style={{
+                                  margin: 0,
+                                  paddingLeft: 18,
+                                  fontSize: 13,
+                                  lineHeight: 1.6,
+                                  color: "var(--text-secondary)",
+                                }}>
+                                  {phase.goals.map((goal: string, gIdx: number) => (
+                                    <li key={gIdx} style={{ marginBottom: 4 }}>{goal}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Default Targets Visual */}
+                  {domain.onboardingDefaultTargets && Object.keys(domain.onboardingDefaultTargets as object).length > 0 && (
+                    <div style={{
+                      padding: 16,
+                      background: "var(--surface-primary)",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 8,
+                    }}>
+                      <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600 }}>
+                        Default Parameter Targets
+                      </h4>
+                      <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                        gap: 12,
+                      }}>
+                        {Object.entries(domain.onboardingDefaultTargets as object).map(([param, data]: [string, any]) => {
+                          const value = data.value ?? data;
+                          const confidence = data.confidence ?? null;
+                          const normalizedValue = typeof value === 'number' ? value : 0;
+                          const percentage = Math.round(normalizedValue * 100);
+
+                          return (
+                            <div key={param} style={{
+                              padding: 12,
+                              background: "var(--surface-secondary)",
+                              border: "1px solid var(--border-default)",
+                              borderRadius: 6,
+                            }}>
+                              <div style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                marginBottom: 8,
+                                color: "var(--text-primary)",
+                                textTransform: "capitalize",
+                              }}>
+                                {param.replace(/_/g, " ")}
+                              </div>
+                              <div style={{
+                                display: "flex",
+                                alignItems: "baseline",
+                                gap: 6,
+                                marginBottom: 8,
+                              }}>
+                                <div style={{
+                                  fontSize: 24,
+                                  fontWeight: 700,
+                                  color: "var(--accent-primary)",
+                                }}>
+                                  {percentage}%
+                                </div>
+                                <div style={{
+                                  fontSize: 11,
+                                  color: "var(--text-muted)",
+                                }}>
+                                  ({normalizedValue.toFixed(2)})
+                                </div>
+                              </div>
+                              {/* Progress bar */}
+                              <div style={{
+                                width: "100%",
+                                height: 4,
+                                background: "var(--surface-tertiary)",
+                                borderRadius: 2,
+                                overflow: "hidden",
+                                marginBottom: confidence !== null ? 8 : 0,
+                              }}>
+                                <div style={{
+                                  width: `${percentage}%`,
+                                  height: "100%",
+                                  background: "var(--accent-primary)",
+                                  transition: "width 0.3s ease",
+                                }} />
+                              </div>
+                              {confidence !== null && (
+                                <div style={{
+                                  fontSize: 11,
+                                  color: "var(--text-muted)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}>
+                                  <span>Confidence:</span>
+                                  <span style={{ fontWeight: 600 }}>
+                                    {Math.round(confidence * 100)}%
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hover Styles for Onboarding Cards */}
+                  <style>{`
+                    .phase-card:hover {
+                      border-color: var(--button-primary-bg) !important;
+                      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+                      transform: translateY(-2px);
+                    }
+                  `}</style>
+                </div>
                   )}
                 </div>
               )}
@@ -1171,6 +2710,15 @@ export default function DomainsPage() {
           </div>
         </div>
       )}
+
+      {/* AI Assistant */}
+      <UnifiedAssistantPanel
+        visible={assistant.isOpen}
+        onClose={assistant.close}
+        context={assistant.context}
+        location={assistant.location}
+        {...assistant.options}
+      />
     </div>
   );
 }

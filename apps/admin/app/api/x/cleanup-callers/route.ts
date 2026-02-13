@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/x/cleanup-callers
- * Deletes all callers that have 0 calls (orphaned records)
+ * @api POST /api/x/cleanup-callers
+ * @visibility internal
+ * @scope dev:cleanup
+ * @auth bearer
+ * @tags dev-tools
+ * @description Deletes all callers that have 0 calls (orphaned records). Removes related records (memories, attributes, targets, personality data) before deleting the caller.
+ * @response 200 { ok: true, message: "...", deleted: number, skipped: number, remaining: number, errors?: [...] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST() {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     // Find all callers with 0 calls
     const allCallers = await prisma.caller.findMany({
       include: {

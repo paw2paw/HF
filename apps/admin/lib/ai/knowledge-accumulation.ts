@@ -11,6 +11,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { getAILearningSettings } from "@/lib/system-settings";
 
 // ============================================================================
 // TYPES
@@ -90,6 +91,7 @@ export async function logAIInteraction(interaction: AIInteraction): Promise<void
 async function analyzeForPatterns(interaction: AIInteraction): Promise<void> {
   // Extract patterns from successful interactions
   const patterns = extractPatterns(interaction);
+  const aiSettings = await getAILearningSettings();
 
   for (const pattern of patterns) {
     // Check if we've seen this pattern before
@@ -106,7 +108,7 @@ async function analyzeForPatterns(interaction: AIInteraction): Promise<void> {
         where: { id: existing.id },
         data: {
           occurrences: existing.occurrences + 1,
-          confidence: Math.min(1, existing.confidence + 0.05), // Slowly increase confidence
+          confidence: Math.min(1, existing.confidence + aiSettings.confidenceIncrement),
           examples: {
             push: pattern.example.substring(0, 200),
           },
@@ -120,7 +122,7 @@ async function analyzeForPatterns(interaction: AIInteraction): Promise<void> {
           pattern: pattern.pattern,
           callPoint: interaction.callPoint,
           domain: pattern.domain,
-          confidence: 0.3, // Start with low confidence
+          confidence: aiSettings.initialConfidence,
           occurrences: 1,
           examples: [pattern.example.substring(0, 200)],
         },
@@ -199,12 +201,13 @@ export async function getLearnedKnowledge(
   callPoint: string,
   domain?: string
 ): Promise<LearnedPattern[]> {
+  const aiSettings = await getAILearningSettings();
   const patterns = await prisma.aILearnedPattern.findMany({
     where: {
       callPoint,
       ...(domain && { domain }),
-      confidence: { gte: 0.5 }, // Only use patterns we're confident about
-      occurrences: { gte: 3 }, // Must have seen it multiple times
+      confidence: { gte: 0.5 },
+      occurrences: { gte: aiSettings.minOccurrences },
     },
     orderBy: [
       { confidence: "desc" },
@@ -328,6 +331,106 @@ export async function logCorrection(
 }
 
 // ============================================================================
+// FAILURE QUERIES (for AI Error Monitor dashboard)
+// ============================================================================
+
+/**
+ * Get recent AI interaction failures within a time window.
+ */
+export async function getRecentFailures(options: {
+  hours?: number;
+  limit?: number;
+  callPoint?: string;
+} = {}): Promise<{
+  failures: Array<{
+    id: string;
+    callPoint: string;
+    userMessage: string;
+    aiResponse: string;
+    metadata: any;
+    createdAt: Date;
+  }>;
+  total: number;
+}> {
+  const { hours = 24, limit = 50, callPoint } = options;
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+  const where: any = {
+    outcome: "failure",
+    createdAt: { gte: since },
+    ...(callPoint ? { callPoint } : {}),
+  };
+
+  const [failures, total] = await Promise.all([
+    prisma.aIInteractionLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    }),
+    prisma.aIInteractionLog.count({ where }),
+  ]);
+
+  return {
+    failures: failures.map((f) => ({
+      id: f.id,
+      callPoint: f.callPoint,
+      userMessage: f.userMessage,
+      aiResponse: f.aiResponse,
+      metadata: f.metadata,
+      createdAt: f.createdAt,
+    })),
+    total,
+  };
+}
+
+/**
+ * Get failure statistics grouped by call point within a time window.
+ */
+export async function getFailureStats(hours: number = 24): Promise<{
+  totalFailures: number;
+  totalInteractions: number;
+  failureRate: number;
+  byCallPoint: Array<{ callPoint: string; failures: number; total: number; rate: number }>;
+  alertThresholdExceeded: boolean;
+}> {
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+  const interactions = await prisma.aIInteractionLog.findMany({
+    where: { createdAt: { gte: since } },
+    select: { callPoint: true, outcome: true },
+  });
+
+  const totalInteractions = interactions.length;
+  const totalFailures = interactions.filter((i) => i.outcome === "failure").length;
+  const failureRate = totalInteractions > 0 ? totalFailures / totalInteractions : 0;
+
+  // Group by call point
+  const grouped = new Map<string, { failures: number; total: number }>();
+  for (const i of interactions) {
+    const entry = grouped.get(i.callPoint) || { failures: 0, total: 0 };
+    entry.total++;
+    if (i.outcome === "failure") entry.failures++;
+    grouped.set(i.callPoint, entry);
+  }
+
+  const byCallPoint = Array.from(grouped.entries())
+    .map(([callPoint, { failures, total }]) => ({
+      callPoint,
+      failures,
+      total,
+      rate: total > 0 ? failures / total : 0,
+    }))
+    .sort((a, b) => b.failures - a.failures);
+
+  // Alert if any pipeline call point exceeds 20% failure rate with at least 5 interactions
+  const alertThresholdExceeded = byCallPoint.some(
+    (cp) => cp.callPoint.startsWith("pipeline.") && cp.rate > 0.2 && cp.total >= 5
+  );
+
+  return { totalFailures, totalInteractions, failureRate, byCallPoint, alertThresholdExceeded };
+}
+
+// ============================================================================
 // KNOWLEDGE EXPORT
 // ============================================================================
 
@@ -344,9 +447,10 @@ export async function exportKnowledge(): Promise<{
     modelsUsed?: string;
   };
 }> {
+  const aiSettings = await getAILearningSettings();
   const [patterns, interactions] = await Promise.all([
     prisma.aILearnedPattern.findMany({
-      where: { confidence: { gte: 0.3 } },
+      where: { confidence: { gte: aiSettings.initialConfidence } },
       orderBy: { confidence: "desc" },
     }),
     prisma.aIInteractionLog.findMany({

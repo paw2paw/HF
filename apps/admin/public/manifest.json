@@ -1,0 +1,22 @@
+{
+  "name": "HF Call Simulator",
+  "short_name": "HF Sim",
+  "description": "Practice call center conversations with AI",
+  "start_url": "/x/sim",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#075E54",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

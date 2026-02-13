@@ -1,0 +1,699 @@
+{
+  "id": "SUPV-001",
+  "title": "Agent Behavior Supervision",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-01-30",
+  "domain": "supervision",
+  "specType": "SYSTEM",
+  "outputType": "MEASURE_AGENT",
+  "story": {
+    "asA": "quality assurance supervisor",
+    "iWant": "to monitor agent behavior for quality issues and safety concerns",
+    "soThat": "problems are flagged early and human review is triggered when needed"
+  },
+  "context": {
+    "applies": "Every call - validates agent behavior after other analysis phases",
+    "dependsOn": [
+      "STYLE-001"
+    ],
+    "assumptions": [
+      "Agent responses can be evaluated for quality metrics",
+      "Safety guardrails must be enforced consistently",
+      "Learning progress should be monitored across sessions",
+      "Agent should maintain consistency with its adaptation targets"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-SUPV-1",
+      "title": "Response Quality Supervision",
+      "given": "Agent has responded to caller",
+      "when": "Quality supervision runs",
+      "then": "Response length, relevance, and empathy are validated",
+      "measuredBy": [
+        "response_length_score",
+        "response_empathy_score"
+      ]
+    },
+    {
+      "id": "AC-SUPV-5",
+      "title": "Tutoring Delivery Supervision",
+      "given": "Agent is in tutoring mode with curriculum",
+      "when": "Tutoring supervision runs",
+      "then": "Introduction, sequencing, content fidelity, and student application are validated",
+      "measuredBy": [
+        "tutor_intro_score",
+        "tutor_sequence_score",
+        "tutor_fidelity_score",
+        "source_citation_score",
+        "student_application_score"
+      ]
+    },
+    {
+      "id": "AC-SUPV-2",
+      "title": "Safety Guardrails Supervision",
+      "given": "Conversation transcript is available",
+      "when": "Safety supervision runs",
+      "then": "Sensitive topics and crisis indicators are detected and flagged",
+      "measuredBy": [
+        "safety_compliance_score",
+        "crisis_detection_score"
+      ]
+    },
+    {
+      "id": "AC-SUPV-3",
+      "title": "Learning Progress Supervision",
+      "given": "Caller has previous learning history",
+      "when": "Progress supervision runs",
+      "then": "Stagnation, regression, or disengagement is flagged",
+      "measuredBy": [
+        "learning_progress_score",
+        "engagement_trend_score"
+      ]
+    },
+    {
+      "id": "AC-SUPV-4",
+      "title": "Agent Consistency Supervision",
+      "given": "Agent has behavioral targets from ADAPT specs",
+      "when": "Consistency supervision runs",
+      "then": "Agent behavior is validated against computed targets",
+      "measuredBy": [
+        "target_alignment_score",
+        "style_consistency_score"
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "response_length_score",
+      "name": "Response Length Appropriateness",
+      "description": "Validates that agent responses are appropriately sized - not too long or too short for the context",
+      "section": "response_quality",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "minResponseLength": 20,
+        "maxResponseLength": 500
+      },
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Optimal Length",
+          "implication": "Response length matches context appropriately"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Acceptable Length",
+          "implication": "Length is reasonable but could be optimized"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Length Issue",
+          "implication": "Response too long or too short for context"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Response length is appropriate for the context.",
+        "whenLow": "Response length needs attention - consider if too verbose or too brief."
+      }
+    },
+    {
+      "id": "response_empathy_score",
+      "name": "Response Empathy Level",
+      "description": "Validates that agent appropriately acknowledges caller emotions when present",
+      "section": "response_quality",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "empathyThreshold": 0.3
+      },
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Empathic Response",
+          "implication": "Emotional content acknowledged appropriately"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Some Empathy",
+          "implication": "Basic emotional acknowledgment present"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Low Empathy",
+          "implication": "Emotional content may have been missed"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Agent showed appropriate emotional attunement.",
+        "whenLow": "Consider if caller emotions needed more acknowledgment."
+      }
+    },
+    {
+      "id": "safety_compliance_score",
+      "name": "Safety Compliance Score",
+      "description": "Validates that agent includes appropriate disclaimers for sensitive topics",
+      "section": "safety",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "sensitiveTopics": [
+          "medical",
+          "legal",
+          "financial"
+        ]
+      },
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Compliant",
+          "implication": "All safety protocols followed"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Partial Compliance",
+          "implication": "Some disclaimers may be missing"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Compliance Issue",
+          "implication": "Safety disclaimers needed but missing"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Safety protocols are being followed.",
+        "whenLow": "Ensure disclaimers are included for medical/legal/financial topics."
+      }
+    },
+    {
+      "id": "crisis_detection_score",
+      "name": "Crisis Detection Score",
+      "description": "Detects potential crisis indicators requiring immediate escalation",
+      "section": "safety",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "criticalKeywords": [
+          "suicide",
+          "harm",
+          "violence",
+          "abuse"
+        ],
+        "immediateEscalation": true
+      },
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "No Crisis Detected",
+          "implication": "Conversation appears safe"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Monitor Closely",
+          "implication": "Some concerning language detected"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Crisis Indicators",
+          "implication": "IMMEDIATE ESCALATION - Human intervention required"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Crisis detected - provide crisis resources and alert human supervisor immediately.",
+        "whenLow": "No crisis indicators detected."
+      }
+    },
+    {
+      "id": "learning_progress_score",
+      "name": "Learning Progress Score",
+      "description": "Monitors caller learning progress and flags stagnation or regression",
+      "section": "progress",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "stagnationThreshold": 3,
+        "regressionWindow": 5
+      },
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Good Progress",
+          "implication": "Caller is advancing appropriately"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Slow Progress",
+          "implication": "Progress slower than expected, may need adjustment"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Stagnation/Regression",
+          "implication": "Caller stuck or showing regression"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Learning progress is on track.",
+        "whenLow": "Consider changing approach - caller may be stuck or losing previously learned material."
+      }
+    },
+    {
+      "id": "engagement_trend_score",
+      "name": "Engagement Trend Score",
+      "description": "Monitors engagement trends across sessions to detect disengagement patterns",
+      "section": "progress",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "trendWindow": 5,
+        "declineThreshold": 0.2
+      },
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Stable/Rising",
+          "implication": "Engagement maintained or improving"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Slight Decline",
+          "implication": "Some decline worth monitoring"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Significant Decline",
+          "implication": "Engagement dropping - intervention needed"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Engagement trend is positive.",
+        "whenLow": "Engagement declining - consider proactive re-engagement strategies."
+      }
+    },
+    {
+      "id": "target_alignment_score",
+      "name": "Target Alignment Score",
+      "description": "Measures how well agent behavior matches computed adaptation targets",
+      "section": "consistency",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Aligned",
+          "implication": "Agent behavior matches targets well"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Partially Aligned",
+          "implication": "Some deviation from targets"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Misaligned",
+          "implication": "Significant deviation from computed targets"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Agent is following adaptation guidance appropriately.",
+        "whenLow": "Agent behavior deviating from computed personality adaptation targets."
+      }
+    },
+    {
+      "id": "style_consistency_score",
+      "name": "Style Consistency Score",
+      "description": "Measures consistency of agent communication style within a session",
+      "section": "consistency",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Consistent",
+          "implication": "Style maintained throughout session"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Minor Variations",
+          "implication": "Some style shifts detected"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Inconsistent",
+          "implication": "Jarring style changes within session"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Agent maintaining consistent communication style.",
+        "whenLow": "Style inconsistency detected - may confuse or unsettle caller."
+      }
+    },
+    {
+      "id": "tutor_intro_score",
+      "name": "Tutor Introduction Score",
+      "description": "Validates that tutor properly introduces source material (book, authors, context) before diving into content",
+      "section": "tutoring",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "appliesWhen": "caller has curriculum attached",
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Complete Introduction",
+          "implication": "All required elements mentioned before content"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Partial Introduction",
+          "implication": "Some elements missing or out of order"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Incomplete Introduction",
+          "implication": "Key elements missing from introduction"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Tutor introduces source material, authors, and context before starting content delivery",
+          "rationale": "All required elements in proper sequence",
+          "isGold": true
+        },
+        {
+          "score": 0.6,
+          "example": "Tutor mentions the material but skips author/context",
+          "rationale": "Partial introduction",
+          "isGold": true
+        },
+        {
+          "score": 0.2,
+          "example": "Tutor dives straight into content without introduction",
+          "rationale": "No proper introduction given",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Introduction complete - proceed to content.",
+        "whenLow": "Remember to introduce the source material and context before diving into content."
+      }
+    },
+    {
+      "id": "tutor_sequence_score",
+      "name": "Tutor Sequence Score",
+      "description": "Validates that tutor establishes core concepts/frameworks before introducing critiques or complications",
+      "section": "tutoring",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "appliesWhen": "caller has curriculum attached",
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Correct Sequence",
+          "implication": "Concepts established before critiques"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Partial Sequence",
+          "implication": "Concepts mentioned but not fully established before critiques"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Sequence Violation",
+          "implication": "Critiques introduced before concepts"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Tutor explains core framework, applies to examples, then discusses critiques",
+          "rationale": "Proper pedagogical sequence",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "Tutor mentions critiques before establishing the core framework",
+          "rationale": "Critiques before foundation",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Pedagogical sequence maintained - concepts before critiques.",
+        "whenLow": "Always establish core concepts/framework before discussing critiques or complications."
+      }
+    },
+    {
+      "id": "tutor_fidelity_score",
+      "name": "Tutor Content Fidelity Score",
+      "description": "Validates that tutor sticks to source material - no invented facts, examples, or statistics",
+      "section": "tutoring",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "appliesWhen": "caller has curriculum attached",
+      "interpretationScale": [
+        {
+          "min": 0.9,
+          "max": 1.0,
+          "label": "High Fidelity",
+          "implication": "All content from source materials"
+        },
+        {
+          "min": 0.7,
+          "max": 0.9,
+          "label": "Good Fidelity",
+          "implication": "Minor paraphrasing, core facts accurate"
+        },
+        {
+          "min": 0.0,
+          "max": 0.7,
+          "label": "Fidelity Issues",
+          "implication": "Some invented or inaccurate content"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "All examples, statistics, and claims come directly from curriculum content spec",
+          "rationale": "Perfect content fidelity",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "Tutor accurately conveys ideas but invents a specific detail not in materials",
+          "rationale": "Invented detail",
+          "isGold": true
+        },
+        {
+          "score": 0.3,
+          "example": "Tutor makes up examples not in the source material",
+          "rationale": "Invented content",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Content fidelity maintained - all from source materials.",
+        "whenLow": "Stick to facts and examples from the curriculum content spec only."
+      }
+    },
+    {
+      "id": "source_citation_score",
+      "name": "Source Citation Score",
+      "description": "Validates that tutor cites authoritative sources when stating specific facts, figures, or thresholds from certified materials",
+      "section": "tutoring",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "appliesWhen": "content spec has sourceAuthority configured",
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Strong Citation",
+          "implication": "Facts consistently cited with source references"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Partial Citation",
+          "implication": "Some facts cited, others presented without attribution"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Weak Citation",
+          "implication": "Facts presented without source attribution"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Tutor says: 'The danger zone is between 8°C and 63°C [Sprenger, Ch: Temperature Control]' and consistently attributes facts",
+          "rationale": "Explicit source citation with every key fact",
+          "isGold": true
+        },
+        {
+          "score": 0.6,
+          "example": "Tutor correctly states facts from the syllabus but does not cite specific sources",
+          "rationale": "Accurate content but no attribution",
+          "isGold": true
+        },
+        {
+          "score": 0.2,
+          "example": "Tutor states facts without citation and some facts appear to be general knowledge rather than from certified materials",
+          "rationale": "No attribution, uncertain provenance",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Source citations are strong - learner can trace facts to authoritative materials.",
+        "whenLow": "Cite the source when stating specific facts, especially figures and thresholds. Use format: [Source Name, Section]."
+      }
+    },
+    {
+      "id": "student_application_score",
+      "name": "Student Application Score",
+      "description": "Measures whether student can independently apply the taught framework/concepts to new situations",
+      "section": "tutoring",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "appliesWhen": "caller has curriculum attached",
+      "interpretationScale": [
+        {
+          "min": 0.8,
+          "max": 1.0,
+          "label": "Independent Application",
+          "implication": "Student applies concepts without guidance"
+        },
+        {
+          "min": 0.5,
+          "max": 0.8,
+          "label": "Guided Application",
+          "implication": "Student can apply with some prompting"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Cannot Apply",
+          "implication": "Student struggles to apply concepts"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Student independently applies framework to a new example and explains implications",
+          "rationale": "Full transfer of learning",
+          "isGold": true
+        },
+        {
+          "score": 0.6,
+          "example": "Student can apply when prompted but doesn't analyze implications",
+          "rationale": "Partial application",
+          "isGold": true
+        },
+        {
+          "score": 0.2,
+          "example": "Student confuses concepts or cannot apply to new examples",
+          "rationale": "Framework not internalized",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Student has internalized the concepts - can advance to more complex material.",
+        "whenLow": "More practice with concept application needed before moving forward."
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C-SUPV-1",
+      "type": "priority",
+      "description": "Safety violations take priority over all other concerns",
+      "severity": "critical"
+    },
+    {
+      "id": "C-SUPV-2",
+      "type": "escalation",
+      "description": "Crisis indicators require immediate human escalation",
+      "severity": "critical"
+    },
+    {
+      "id": "C-SUPV-3",
+      "type": "threshold",
+      "description": "Multiple flags in one session trigger review",
+      "severity": "warning"
+    }
+  ],
+  "related": [
+    {
+      "id": "STYLE-001",
+      "title": "Conversation Style Measurement",
+      "relationship": "provides actual style measurements"
+    },
+    {
+      "id": "ADAPT-PERS-001",
+      "title": "Personality Adaptation",
+      "relationship": "provides style targets to validate against"
+    },
+    {
+      "id": "REW-001",
+      "title": "Reward Computation",
+      "relationship": "supervision flags affect rewards"
+    }
+  ],
+  "specRole": "EXTRACT"
+}

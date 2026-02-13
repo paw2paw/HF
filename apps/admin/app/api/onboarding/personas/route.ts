@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { config } from "@/lib/config";
 
 /**
- * GET /api/onboarding/personas
- *
- * List all persona onboarding configurations from onboarding spec (default: INIT-001, configurable via ONBOARDING_SPEC_SLUG).
- * Returns summary of each persona's config for the persona selector UI.
+ * @api GET /api/onboarding/personas
+ * @visibility internal
+ * @auth session
+ * @tags onboarding
+ * @description List all persona onboarding configurations from INIT-001 spec. Returns summary of each persona for the selector UI.
+ * @response 200 { ok: true, source: "database" | "hardcoded", specId: string, defaultPersona: string, personas: Array<{ slug, name, description, targetCount, phaseCount, hasWelcomeSlug }> }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET() {
   try {
-    // Get onboarding spec slug from config (env-configurable)
-    const onboardingSlug = "spec-init-001";
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
+    // Get onboarding spec slug from config (env-configurable, default: INIT-001)
+    const onboardingSlug = config.specs.onboarding.toLowerCase();
 
     // Find onboarding spec
     const spec = await prisma.analysisSpec.findFirst({
@@ -32,43 +39,14 @@ export async function GET() {
     });
 
     if (!spec) {
-      // Return hardcoded persona list if spec not seeded
-      return NextResponse.json({
-        ok: true,
-        source: "hardcoded",
-        specId: null,
-        defaultPersona: "tutor",
-        personas: [
-          {
-            slug: "tutor",
-            name: "Tutor",
-            description: "Educational and learning-focused conversations",
-            targetCount: 5,
-            phaseCount: 5,
-            hasWelcomeSlug: false,
-          },
-          {
-            slug: "companion",
-            name: "Companion",
-            description: "Thoughtful conversation partner for exploration and connection",
-            targetCount: 5,
-            phaseCount: 5,
-            hasWelcomeSlug: false,
-          },
-          {
-            slug: "coach",
-            name: "Coach",
-            description: "Strategic thinking partner for challenges and goal achievement",
-            targetCount: 6,
-            phaseCount: 5,
-            hasWelcomeSlug: false,
-          },
-        ],
-      });
+      return NextResponse.json(
+        { ok: false, error: "INIT-001 onboarding spec not found. Import it via /x/admin/spec-sync." },
+        { status: 404 }
+      );
     }
 
-    const config = spec.config as any || {};
-    const personasConfig = config.personas || {};
+    const specConfig = spec.config as any || {};
+    const personasConfig = specConfig.personas || {};
     const defaultPersona = personasConfig.defaultPersona || "tutor";
 
     // Build persona summaries

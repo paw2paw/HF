@@ -12,6 +12,7 @@ import {
 } from "@/lib/settings/resolver";
 import { AgentInstanceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -379,8 +380,21 @@ function diffToOverrides(manifestAgents: AgentSpec[], effective: AgentConfig[]):
 // Handlers
 // -------------------------
 
+/**
+ * @api GET /api/agents
+ * @visibility internal
+ * @scope agents:read
+ * @auth session
+ * @tags agents
+ * @description List all agents from manifest with overrides, DB instances, and resolved settings
+ * @response 200 { ok: true, agents: AgentConfig[], resolved: { env, kbRoot, layout, ... } }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const kbRoot = kbRootFromEnv();
@@ -503,8 +517,22 @@ export async function GET() {
   }
 }
 
+/**
+ * @api POST /api/agents
+ * @visibility internal
+ * @scope agents:write
+ * @auth session
+ * @tags agents
+ * @description Save agent configuration overrides (enabled state and settings) to the KB store
+ * @body agents AgentConfig[] - Array of agent configurations to save
+ * @response 200 { ok: true, agents: AgentConfig[], resolved: { kbRoot, layout, storePath, ... } }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const kbRoot = kbRootFromEnv();
