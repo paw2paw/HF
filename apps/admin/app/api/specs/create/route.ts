@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, PrismaClient, SpecType } from "@prisma/client";
 import { convertJsonSpecToHybrid, JsonFeatureSpec } from "@/lib/bdd/ai-parser";
 import { compileSpecToTemplate } from "@/lib/bdd/compile-specs";
+import { activateFeatureSet } from "@/lib/lab/activate-feature";
+import { validateSourceAuthority, hasSourceAuthority } from "@/lib/content-trust/validate-source-authority";
 import * as fs from "fs";
 import * as path from "path";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
-// Directory where spec files are stored
-const BDD_SPECS_DIR = path.join(process.cwd(), "bdd-specs");
+// Directory where spec files are stored (archived — only for initial import)
+const BDD_SPECS_DIR = path.join(process.cwd(), "docs-archive", "bdd-specs");
 
 /**
  * Generate a filename from spec ID and title
@@ -24,14 +27,14 @@ function generateFilename(specId: string, title: string): string {
 }
 
 /**
- * Write spec to bdd-specs/ folder
+ * Write spec to docs-archive/bdd-specs/ folder
  * Returns the filename written, or null if failed
  */
 function writeSpecFile(jsonSpec: JsonFeatureSpec): { filename: string; filePath: string } | null {
   try {
     // Ensure directory exists
     if (!fs.existsSync(BDD_SPECS_DIR)) {
-      console.warn("bdd-specs directory does not exist, creating it");
+      console.warn("docs-archive/bdd-specs directory does not exist, creating it");
       fs.mkdirSync(BDD_SPECS_DIR, { recursive: true });
     }
 
@@ -73,28 +76,28 @@ interface FormParameter {
   targetRange?: { min: number; max: number };
   scoringAnchors?: Array<{ score: number; example: string; rationale?: string; isGold?: boolean }>;
   promptGuidance?: { whenHigh?: string; whenLow?: string };
+  learningOutcomes?: string[];
 }
 
 /**
- * POST /api/specs/create
- * Create a new BDD spec from JSON body (not FormData)
- *
- * Request body:
- * {
- *   spec: SpecFormData - the spec form data
- *   autoActivate: boolean - whether to activate after creation (default: true)
- * }
- *
- * Response:
- * {
- *   ok: boolean
- *   specId?: string - the ID of the created spec
- *   featureSetId?: string - the ID of the BDDFeatureSet
- *   error?: string
- * }
+ * @api POST /api/specs/create
+ * @visibility public
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description Create a new BDD spec from JSON body, write to docs-archive/bdd-specs/ file, and optionally auto-activate
+ * @body spec SpecFormData - The spec form data (id, title, version, domain, specType, specRole, outputType, story, parameters, etc.)
+ * @body autoActivate boolean - Whether to activate after creation (default: true)
+ * @response 200 { ok: true, specId: string, featureSetId: string, featureId: string, activated: boolean, fileWritten: string|null }
+ * @response 400 { ok: false, error: "ID is required" }
+ * @response 409 { ok: false, error: "A spec with ID ... already exists" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { spec, autoActivate = true } = body;
 
@@ -152,14 +155,36 @@ export async function POST(request: NextRequest) {
         targetRange: p.targetRange,
         scoringAnchors: p.scoringAnchors || [],
         promptGuidance: p.promptGuidance,
+        learningOutcomes: p.learningOutcomes || undefined,
       })),
       acceptanceCriteria: spec.acceptanceCriteria || [],
       constraints: spec.constraints || [],
       context: spec.context,
+      metadata: spec.metadata || undefined,
     };
 
     // =========================================================================
-    // STEP 1: Write spec to bdd-specs/ file (source of truth)
+    // STEP 0.5: Validate sourceAuthority if present (CONTENT specs)
+    // =========================================================================
+    let sourceValidation = null;
+    const specConfig = spec.config || (jsonSpec as any).config;
+    if (specConfig && hasSourceAuthority(specConfig)) {
+      sourceValidation = await validateSourceAuthority(specConfig.sourceAuthority);
+      if (!sourceValidation.valid) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Source authority validation failed",
+            sourceErrors: sourceValidation.errors,
+            sourceWarnings: sourceValidation.warnings,
+          },
+          { status: 422 }
+        );
+      }
+    }
+
+    // =========================================================================
+    // STEP 1: Write spec to docs-archive/bdd-specs/ file (for version control)
     // =========================================================================
     const fileResult = writeSpecFile(jsonSpec);
     if (!fileResult) {
@@ -211,20 +236,9 @@ export async function POST(request: NextRequest) {
     // If auto-activate, trigger the activation to create AnalysisSpec, Parameters, etc.
     if (autoActivate) {
       try {
-        const activateRes = await fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/lab/features/${featureSet.id}/activate`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ activate: true }),
-          }
-        );
-
-        if (activateRes.ok) {
-          activationResult = await activateRes.json();
-        } else {
-          const errorText = await activateRes.text();
-          console.error("Activation failed:", errorText);
+        activationResult = await activateFeatureSet(featureSet.id);
+        if (!activationResult.ok) {
+          console.error("Activation failed:", activationResult.error);
         }
       } catch (activateError) {
         console.error("Activation error:", activateError);
@@ -252,6 +266,9 @@ export async function POST(request: NextRequest) {
       activated: autoActivate,
       fileWritten: fileResult?.filename || null,
       compileWarnings: compileResult.warnings.length > 0 ? compileResult.warnings : undefined,
+      ...(sourceValidation?.warnings?.length && {
+        sourceWarnings: sourceValidation.warnings,
+      }),
     });
   } catch (error) {
     console.error("Error creating spec:", error);

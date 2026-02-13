@@ -1,18 +1,24 @@
 /**
- * POST /api/calls/[callId]/ops/[opId]
- *
- * Run a specific analysis op on a single call.
- * Returns result with detailed logs for debugging.
- *
- * Request body:
- * - callerId: string (required)
- * - engine: "mock" | "claude" | "openai" (optional, defaults to "mock")
+ * @api POST /api/calls/:callId/ops/:opId
+ * @visibility public
+ * @scope calls:write
+ * @auth session
+ * @tags calls, pipeline, ops
+ * @description Run a specific analysis op on a single call. Valid ops: measure, learn, measure-agent, reward, adapt. Returns result with detailed logs for debugging.
+ * @pathParam callId string - The call ID to run the op on
+ * @pathParam opId string - The op to run: "measure" | "learn" | "measure-agent" | "reward" | "adapt"
+ * @body callerId string - The caller ID (required)
+ * @body engine string - AI engine to use: "mock" | "claude" | "openai" (default: "claude")
+ * @response 200 { ok: true, message: string, data: object, logs: LogEntry[], duration: number }
+ * @response 400 { ok: false, error: "callerId is required" | "Unknown op: ...", logs: LogEntry[], duration: number }
+ * @response 500 { ok: false, error: string, logs: LogEntry[], duration: number }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { AIEngine, isEngineAvailable } from "@/lib/ai/client";
-import { getMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
+import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
@@ -115,9 +121,11 @@ Return your response as JSON with exactly these fields:
 TRANSCRIPT:
 ${transcript.slice(0, 4000)}`;
 
+  // @ai-call analysis.measure — Standalone parameter scoring | config: /x/ai-config
   try {
-    const result = await getMeteredAICompletion({
-      engine,
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "analysis.measure",
+      engineOverride: engine,
       messages: [
         { role: "system", content: "You are an expert call analyst. Always respond with valid JSON." },
         { role: "user", content: prompt },
@@ -249,9 +257,11 @@ async function extractWithAI(
 TRANSCRIPT:
 ${transcript.slice(0, 4000)}`;
 
+  // @ai-call analysis.learn — Standalone memory/fact extraction | config: /x/ai-config
   try {
-    const result = await getMeteredAICompletion({
-      engine,
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "analysis.learn",
+      engineOverride: engine,
       messages: [
         { role: "system", content: "You are an expert at extracting structured information from conversations. Always respond with valid JSON." },
         { role: "user", content: fullPrompt },
@@ -881,6 +891,9 @@ export async function POST(
   const log = createLogger();
 
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callId, opId } = await params;
     const body = await request.json().catch(() => ({}));
     const { callerId, engine: requestedEngine } = body;

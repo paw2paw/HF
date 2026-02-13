@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/lab/uploads
- *
- * List BDD uploads with optional filters
+ * @api GET /api/lab/uploads
+ * @visibility internal
+ * @scope lab:read
+ * @auth session
+ * @tags lab
+ * @description List BDD uploads with optional status filter and limit
+ * @query limit number - Max results (default: 50)
+ * @query status string - Filter by upload status
+ * @response 200 { ok: true, uploads: BDDUpload[] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") || "50");
     const status = url.searchParams.get("status");
@@ -41,12 +52,22 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/lab/uploads
- *
- * Upload one or more XML files
+ * @api POST /api/lab/uploads
+ * @visibility internal
+ * @scope lab:write
+ * @auth session
+ * @tags lab
+ * @description Upload one or more BDD files (XML, markdown, text, JSON) via multipart form data
+ * @body files File[] - Files to upload (multipart/form-data)
+ * @response 200 { ok: true, uploads: BDDUpload[], count: number }
+ * @response 400 { ok: false, error: "No files provided" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
 
@@ -123,12 +144,22 @@ export async function POST(req: Request) {
 }
 
 /**
- * DELETE /api/lab/uploads
- *
- * Delete uploads by IDs
+ * @api DELETE /api/lab/uploads
+ * @visibility internal
+ * @scope lab:write
+ * @auth session
+ * @tags lab
+ * @description Delete BDD uploads by their IDs
+ * @body ids string[] - Array of upload IDs to delete
+ * @response 200 { ok: true, deleted: number }
+ * @response 400 { ok: false, error: "No IDs provided" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const { ids } = body;
 

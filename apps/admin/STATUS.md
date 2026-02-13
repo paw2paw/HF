@@ -1,6 +1,6 @@
 # HF Admin System - Status & Roadmap
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-02-12
 
 ## System Vision
 
@@ -24,6 +24,15 @@ The system uses three core concepts:
 2. **AnalysisSpecs** - HOW to measure each parameter (MEASURE) or extract memories (LEARN)
 3. **PromptSlugs** - WHAT to say based on measurements (adaptive prompts)
 
+Specs are further classified by **SpecRole** (what they contribute architecturally):
+- `ORCHESTRATE` - Flow/sequence control (PIPELINE-001, INIT-001)
+- `EXTRACT` - Measurement and learning (PERS-001, VARK-001, MEM-001)
+- `SYNTHESISE` - Combine/transform data (COMP-001, REW-001, ADAPT-*)
+- `CONSTRAIN` - Bounds and guards (GUARD-001)
+- `IDENTITY` - Agent personas (TUT-001, COACH-001)
+- `CONTENT` - Curriculum material (WNF-CONTENT-001)
+- `VOICE` - Voice guidance (VOICE-001)
+
 **Primary Prompt Composition:** `/api/prompt/compose-from-specs`
 - Renders Mustache-style templates with user's parameter values
 - Injects memories based on conversation history
@@ -41,14 +50,14 @@ The system uses three core concepts:
 - Stored in: `Parameter`, `ParameterTag`, `AnalysisProfile` tables
 
 ### 2. **Analysis Specs System**
-- Location: [/analysis-specs](http://localhost:3000/analysis-specs)
+- Location: [/x/specs](http://localhost:3000/x/specs)
 - MEASURE specs: Score personality traits (0-1 scale)
 - LEARN specs: Extract memories (key-value facts)
 - Prompt templates with Mustache-style variables
 - Stored in: `AnalysisSpec` table
 
 ### 3. **Prompt Slugs System**
-- Location: [/prompt-slugs](http://localhost:3000/prompt-slugs)
+- Location: Managed via spec system
 - Adaptive prompts based on parameter thresholds
 - High/Medium/Low variants per parameter
 - Stored in: `PromptSlug` table
@@ -91,30 +100,79 @@ The system uses three core concepts:
 - Stored in: `KnowledgeDoc`, `KnowledgeChunk` tables
 
 ### 9. **Agents Management**
-- Location: [/agents](http://localhost:3000/agents)
+- Location: Managed via pipeline system
 - JSON-based agent manifest
 - Draft/Publish workflow
 - Settings configuration per agent
 - Run history tracking
 - Stored in: `AgentInstance`, `AgentRun` tables
 
-### 10. **Ops Cockpit**
-- Location: [/ops](http://localhost:3000/ops)
-- Execute operations with verbose/plan/mock modes
-- Real-time logs
-- Operation registry with effects tracking
+### 10. **Pipeline System**
+- Location: [/x/pipeline](http://localhost:3000/x/pipeline)
+- Pipeline execution and monitoring
+- Spec-driven analysis stages
+- Real-time run tracking
 
-### 11. **Flow Visualization**
-- Location: [/flow](http://localhost:3000/flow)
-- React Flow pipeline visualization
-- Source → Agent → Output node layout
-- Agent status integration (draft/published)
+### 11. **Taxonomy Visualization**
+- Location: [/x/taxonomy-graph](http://localhost:3000/x/taxonomy-graph)
+- Interactive taxonomy tree (Domain → Playbook → Spec → Parameter)
+- Orphan detection for unlinked specs and parameters
 
-### 12. **System Cockpit**
-- Location: [/cockpit](http://localhost:3000/cockpit)
-- System health overview
-- Path configuration status
-- Recent activity summary
+### 12. **Supervisor Dashboard**
+- Location: [/x/supervisor](http://localhost:3000/x/supervisor)
+- Agent behavior monitoring
+- Quality scoring and compliance
+
+### 14. **Pipeline Hardening (Feb 2026)**
+- Transform chain support: `CompositionExecutor` processes `string[]` transforms as sequential pipelines
+- Memory processing split into 3 chainable transforms: `deduplicateMemories` → `scoreMemoryRelevance` → `groupMemoriesByCategory`
+- Memory relevance scoring: keyword overlap + spec-driven category weights, alpha-blended with confidence (`relevanceAlpha`)
+- Narrative memory framing: spec-driven templates from COMP-001 produce natural-language sentences (not `key="value"` pairs)
+- LLM memory extraction: actual AI call via `getMeteredAICompletion` with fallback to pattern matching
+- Flex condition operators for ADAPT specs: 7 operators (`eq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`) with `dataSource` support (`learnerProfile` or `parameterValues`)
+- JSON recovery utility: `recoverBrokenJson()` for malformed LLM output
+- Dynamic memory categories: `renderPromptSummary` uses `Object.keys(byCategory)` instead of hardcoded list
+- 89 tests across 5 test files, all passing
+
+### 15. **RBAC & Authentication (Feb 2026)**
+- 176/184 API routes protected via `requireAuth()` from `lib/permissions.ts`
+- 8 routes intentionally public (auth, health, invite)
+- 3-role hierarchy: ADMIN > OPERATOR > VIEWER with inheritance
+- Discriminated union type guard: `isAuthError()` for type-safe route handlers
+- Coverage test (`tests/lib/route-auth-coverage.test.ts`) — scans all routes, fails CI if any missing auth
+- 17 unit tests for permissions helper
+
+### 16. **Sim Auth & Invite System (Feb 2026)**
+- Access code system removed (middleware bypass, `/x/sim/login`, `/api/sim/auth` deleted)
+- All sim access goes through invite → user → session flow
+- Sim routes use `requireAuth("VIEWER")`, OPERATOR sees only their own callers
+- Flow: Admin creates invite → tester accepts → User created → JWT session (30 days) → sim setup
+- Domain-locked invites: tester auto-assigned to specific domain
+
+### 17. **Domain System & Readiness (Feb 2026)**
+- Domain lifecycle: Create → Active → Deactivated
+- Spec-driven readiness checks (8 query types: playbook, content_sources, onboarding, etc.)
+- ReadinessBadge component on domain cards (ready/almost/incomplete)
+- Delete protections: can't delete default domain, can't delete with callers
+
+### 18. **Curriculum Progression (Feb 2026)**
+- Module-by-module teaching with mastery assessment and automatic advancement
+- Teaching content filtered by learning outcomes (LO refs)
+- Progress stored via CallerAttribute keys (CURRICULUM_PROGRESS_V1 contract)
+
+### 13. **Content Trust & Source Authority**
+- Location: [/x/content-sources](http://localhost:3000/x/content-sources)
+- 6-level trust taxonomy (L5 REGULATORY_STANDARD → L0 UNVERIFIED) with weights
+- Source authority registry (ContentSource model) with validity tracking
+- Atomic trusted facts with provenance (ContentAssertion model)
+- Prompt composition integration: trust context, reference cards, freshness warnings injected into LLM system prompt
+- Trust-weighted progress: dual-track bars on caller page (Certification Readiness vs General Understanding) with module breakdown
+- Freshness dashboard widget on `/x/specs` page (expired/expiring source alerts)
+- `source_citation_score` supervision parameter (SUPV-001)
+- TRUST-001 BDD spec with acceptance criteria
+- CONTENT_TRUST_V1 contract defining storage conventions and weights
+- Reference implementation: Food Safety L2 (CURR-FS-L2-001) with Highfield qualification spec + Sprenger handbook
+- Document import: PDF/text/markdown upload with AI-assisted assertion extraction, preview, and bulk import
 
 ---
 
@@ -139,12 +197,14 @@ FailedCall        - Failed extraction records
 CallScore         - Parameter scores per call
 ```
 
-### User Models
+### User & Auth Models
 ```
-User              - Caller records
-UserPersonality   - Aggregated personality profiles
-UserMemory        - Extracted memories
-UserMemorySummary - Memory aggregations
+User              - Admin/operator/viewer accounts (NextAuth)
+Caller            - End-user profiles (linked to User via userId)
+Invite            - Controlled signup tokens (email, role, domain)
+CallerPersonalityProfile - Dynamic parameter values (JSON)
+CallerMemory      - Extracted memories
+CallerMemorySummary - Memory aggregations
 ```
 
 ### Knowledge Models
@@ -159,6 +219,14 @@ KnowledgeArtifact - Scoring guides per parameter
 ```
 AgentInstance     - Agent configurations (draft/published)
 AgentRun          - Agent execution history
+```
+
+### Content Trust Models
+```
+ContentSource     - Authoritative source registry (books, syllabi, handbooks)
+ContentAssertion  - Atomic trusted facts with full provenance
+ContentTrustLevel - Enum: REGULATORY_STANDARD → UNVERIFIED (6 levels)
+Curriculum        - Extended with trustLevel, primarySourceId, qualification fields
 ```
 
 ---
@@ -198,39 +266,43 @@ AgentRun          - Agent execution history
 
 ## UI Pages
 
-### Primary
-- `/cockpit` - System status dashboard
-- `/flow` - Pipeline visualization
-- `/ops` - Operations execution
+All admin pages are served under the `/x/` prefix.
 
-### Setup
-- `/admin` - Parameters management
-- `/analysis-specs` - Analysis specifications
-- `/prompt-slugs` - Adaptive prompts
-- `/prompt-blocks` - Static prompt blocks
-- `/memories` - Memory configuration
+### Core
+- `/x/callers` - Caller profiles and personality data
+- `/x/domains` - Domain management
+- `/x/playbooks` - Playbook configuration
+- `/x/specs` - Spec browser and editor
+- `/x/pipeline` - Pipeline execution and monitoring
 
-### Sources
-- `/knowledge-docs` - Knowledge documents
-- `/transcripts` - Call transcripts
+### Data & Analysis
+- `/x/dictionary` - Data dictionary (all parameters)
+- `/x/taxonomy` - Taxonomy explorer
+- `/x/taxonomy-graph` - Visual taxonomy graph
+- `/x/caller-graph` - Caller relationship graph
 
-### Processing
-- `/chunks` - Knowledge chunks
-- `/vectors` - Vector embeddings
-- `/knowledge-artifacts` - Extracted artifacts
+### Tools
+- `/x/playground` - AI playground / testing
+- `/x/lab` - BDD lab (spec upload and compilation)
+- `/x/import` - Spec import wizard
+- `/x/studio` - Prompt studio
+- `/x/sim` - WhatsApp-style simulator
 
-### Analysis
-- `/callers` - Caller profiles
-- `/calls` - Call records
-- `/analysis-profiles` - Analysis profiles
-- `/analysis-runs` - Run history
-- `/analysis-test` - Test lab
+### Content Trust
+- `/x/content-sources` - Source authority registry (trust levels, freshness, provenance)
+- `/x/content-review` - Content verification queue (review, promote/demote trust with audit trail)
 
-### Config
-- `/agents` - Agent management
-- `/run-configs` - Run configurations
-- `/control-sets` - Control sets
-- `/settings-library` - Settings library
+### Admin
+- `/x/admin` - System administration
+- `/x/users` - User management
+- `/x/settings` - System settings
+- `/x/ai-config` - AI provider configuration
+- `/x/ai-knowledge` - AI knowledge dashboard
+- `/x/logs` - System logs
+- `/x/metering` - Usage metering
+- `/x/supervisor` - Supervisor dashboard
+- `/x/data-management` - Data management tools
+- `/x/tickets` - Support tickets
 
 ---
 
@@ -240,7 +312,7 @@ AgentRun          - Agent execution history
 - [QUICKSTART.md](QUICKSTART.md) - Getting started guide
 - [ANALYSIS_SPECS.md](ANALYSIS_SPECS.md) - Behavior specifications
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [DATA_FLOW_GUIDE.md](DATA_FLOW_GUIDE.md) - Data flow documentation
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Admin architecture details
 
 ---
 
@@ -258,5 +330,5 @@ AgentRun          - Agent execution history
 
 ---
 
-**Version**: 0.4
-**Last Updated**: 2026-01-22
+**Version**: 0.6
+**Last Updated**: 2026-02-12

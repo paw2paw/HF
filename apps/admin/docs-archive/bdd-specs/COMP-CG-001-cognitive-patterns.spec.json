@@ -1,0 +1,104 @@
+{
+  "id": "COMP-CG-001",
+  "title": "Cognitive Pattern Observation",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-02",
+  "domain": "companion",
+  "specType": "DOMAIN",
+  "outputType": "MEASURE",
+  "story": {
+    "asA": "companion assistant",
+    "iWant": "to observe cognitive patterns in conversation",
+    "soThat": "I can adapt my communication style appropriately"
+  },
+  "context": {
+    "applies": "During extended conversations",
+    "dependsOn": [],
+    "assumptions": [
+      "Reminiscence is a valuable mode of engagement for older adults",
+      "Drawing on past experiences enriches conversation",
+      "Cognitive patterns inform appropriate conversation approaches"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-COMP-CG-1",
+      "title": "Reminiscence Mode Assessment",
+      "given": "The person engages in extended conversation",
+      "when": "They draw on memories and past experiences",
+      "then": "Assess whether they are in reminiscence mode",
+      "measuredBy": [
+        "COMP-REMINISCENCE"
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "COMP-REMINISCENCE",
+      "name": "Reminiscence Mode",
+      "description": "Whether the person is in a mood to share memories and life experiences",
+      "section": "companion-state",
+      "isAdjustable": false,
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Present-Focused",
+          "implication": "Focused on present/future, not drawing on past experiences"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Balanced",
+          "implication": "Mix of present focus and past reflection"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Reminiscence Mode",
+          "implication": "Sharing stories, reflecting on past, connecting present to history"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Person is in reminiscence mode. Encourage story-sharing, ask about the past, enjoy their memories with them.",
+        "whenLow": "Person is present-focused. Discuss current events, practical matters, or future plans."
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "name": "Cognitive Assessment",
+      "given": "The person engages in extended conversation",
+      "when": "Cognitive patterns are observable",
+      "then": "Note patterns to inform communication adaptation",
+      "actions": [
+        {
+          "description": "Assess reminiscence mode: Is the person drawing on memories and past experiences?",
+          "parameterId": "COMP-REMINISCENCE",
+          "weight": 1.0
+        }
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C-COMP-CG-1",
+      "type": "sensitivity",
+      "description": "Observe patterns without making assumptions or judgments",
+      "severity": "warning"
+    }
+  ],
+  "related": [
+    {
+      "id": "COMP-MC-001",
+      "title": "Memory & Continuity",
+      "relationship": "reminiscence benefits from memory references"
+    }
+  ],
+  "specRole": "EXTRACT"
+}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 // Provider key mapping
 const PROVIDER_ENV_VARS: Record<string, string> = {
@@ -6,9 +7,25 @@ const PROVIDER_ENV_VARS: Record<string, string> = {
   openai: "OPENAI_API_KEY",
 };
 
-// Test an API key against the provider
+/**
+ * @api POST /api/ai-keys/test
+ * @visibility internal
+ * @scope ai-keys:read
+ * @auth session
+ * @tags ai
+ * @description Test an API key against a provider by making a lightweight validation call. If no key is provided, tests the currently configured runtime key.
+ * @body provider string - AI provider to test ("claude" | "openai" | "mock")
+ * @body key string - Optional API key to test; uses runtime env var if omitted
+ * @response 200 { ok: true, valid: true, message: "Key is valid", model?: "..." }
+ * @response 200 { ok: true, valid: false, message: "Invalid API key" }
+ * @response 400 { ok: false, error: "Provider is required" }
+ * @response 500 { ok: false, error: "Failed to test API key" }
+ */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { provider } = body;
     let { key } = body;

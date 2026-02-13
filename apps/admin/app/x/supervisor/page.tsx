@@ -1,5 +1,13 @@
-// Import and re-export the main supervisor page
-// This allows /x/supervisor to work the same as /supervisor
-import SupervisorPage from "../../supervisor/page";
+"use client";
 
-export default SupervisorPage;
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+/** Redirect /x/supervisor → /x/flows (Pipeline tab auto-selected) */
+export default function SupervisorRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/x/flows");
+  }, [router]);
+  return null;
+}

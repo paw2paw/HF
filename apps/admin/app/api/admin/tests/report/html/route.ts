@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/admin/tests/report/html
- * Serve the Playwright HTML report
+ * @api GET /api/admin/tests/report/html
+ * @visibility internal
+ * @scope admin:read
+ * @auth bearer
+ * @tags admin
+ * @description Serve Playwright HTML report files with appropriate content types
+ * @query file string - Relative file path within the report directory (default: "index.html")
+ * @response 200 File content with appropriate Content-Type header
+ * @response 400 { error: "Invalid file path" }
+ * @response 404 { error: "File not found" }
+ * @response 500 { error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const adminRoot = path.resolve(process.cwd());
     const reportDir = path.join(adminRoot, "playwright-report");
 

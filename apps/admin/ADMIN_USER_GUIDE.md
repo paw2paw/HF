@@ -1,7 +1,7 @@
 # HF Admin System - Comprehensive User Guide
 
-**Version:** 1.0
-**Last Updated:** 2026-01-22
+**Version:** 1.1
+**Last Updated:** 2026-02-11
 
 This guide provides exhaustive documentation for operating the HF Admin system, organized from most common tasks (generating prompts) to system configuration.
 
@@ -70,7 +70,7 @@ Raw Transcripts → Call Records → Analysis → User Profile → Prompt Compos
 
 ### Callers List Page
 
-**URL:** `http://localhost:3000/callers`
+**URL:** `http://localhost:3000/x/callers`
 
 This page shows all callers (people) in the system with:
 - Name / External ID
@@ -85,7 +85,7 @@ This page shows all callers (people) in the system with:
 
 ### Caller Detail Page
 
-**URL:** `http://localhost:3000/callers/[callerId]`
+**URL:** `http://localhost:3000/x/callers` (click a caller row)
 
 Shows comprehensive information about a single caller:
 
@@ -296,7 +296,7 @@ What we know about this caller:
 
 ### Analysis Runs Page
 
-**URL:** `http://localhost:3000/analysis-runs`
+**URL:** `http://localhost:3000/x/pipeline` (pipeline runs)
 
 Shows all analysis runs with:
 - Run ID and timestamp
@@ -312,7 +312,7 @@ Shows all analysis runs with:
 
 ### Call Scores Page
 
-**URL:** `http://localhost:3000/calls/scores`
+**URL:** Available via API (`/api/calls/scores`)
 
 Lists all CallScore records:
 - Call ID
@@ -373,7 +373,7 @@ Returns:
 
 ### Viewing Memories
 
-**URL:** `http://localhost:3000/memories`
+**URL:** Managed via API (`/api/memories`)
 
 Lists all UserMemory records with:
 - User
@@ -427,7 +427,7 @@ Parameters define WHAT you measure about callers.
 
 ### Parameters Page
 
-**URL:** `http://localhost:3000/admin`
+**URL:** `http://localhost:3000/x/admin`
 
 ### Understanding Parameters
 
@@ -458,7 +458,7 @@ Each parameter has:
 ### Creating Parameters
 
 **Via UI:**
-1. Navigate to `/admin`
+1. Navigate to `/x/admin`
 2. Click "Add Parameter"
 3. Fill in required fields
 4. Set parameter type
@@ -502,7 +502,7 @@ POST /api/parameters/[id]/tags
 
 Define calibration examples for consistent scoring:
 
-**URL:** `http://localhost:3000/admin` → Parameter → "Anchors" tab
+**URL:** `http://localhost:3000/x/admin` → Parameter → "Anchors" tab
 
 Each anchor includes:
 - Example transcript excerpt
@@ -529,7 +529,7 @@ Analysis Specs define HOW to measure parameters and WHAT prompts to generate.
 
 ### Analysis Specs Page
 
-**URL:** `http://localhost:3000/analysis-specs`
+**URL:** `http://localhost:3000/x/specs`
 
 ### Understanding Analysis Specs
 
@@ -556,7 +556,7 @@ Each spec has:
 ### Creating Analysis Specs
 
 **Via UI:**
-1. Navigate to `/analysis-specs`
+1. Navigate to `/x/specs`
 2. Click "New Spec"
 3. Set slug, name, output type
 4. Add triggers (Given/When/Then)
@@ -636,7 +636,7 @@ AnalysisSpec
 Before use, specs must be compiled into a CompiledAnalysisSet:
 
 **Via UI:**
-1. Go to `/compiled-sets`
+1. Go to `/x/specs`
 2. Click "New Compiled Set"
 3. Select source Analysis Profile
 4. Click "Compile"
@@ -654,7 +654,7 @@ Prompt Slugs define dynamic prompt fragments based on parameter values.
 
 ### Prompt Slugs Page
 
-**URL:** `http://localhost:3000/prompt-slugs`
+**URL:** Managed via spec system (see `/x/specs`)
 
 ### Understanding Prompt Slugs
 
@@ -724,7 +724,7 @@ For MEMORY-type slugs:
 ### Creating Prompt Slugs
 
 **Via UI:**
-1. Navigate to `/prompt-slugs`
+1. Navigate to `/x/specs` (prompt slugs are managed via specs)
 2. Click "New Slug"
 3. Set slug, name, source type
 4. Link to parameter(s)
@@ -754,7 +754,7 @@ Prompt Blocks are static prompt fragments (not driven by parameter values).
 
 ### Prompt Blocks Page
 
-**URL:** `http://localhost:3000/prompt-blocks`
+**URL:** Managed via API (`/api/prompt-blocks`)
 
 ### Understanding Prompt Blocks
 
@@ -782,7 +782,7 @@ Each block has:
 ### Creating Prompt Blocks
 
 **Via UI:**
-1. Navigate to `/prompt-blocks`
+1. Navigate to the prompt blocks API
 2. Click "New Block"
 3. Set slug, name, category
 4. Write content
@@ -806,7 +806,7 @@ Analysis Profiles bundle parameters and specs for analysis runs.
 
 ### Analysis Profiles Page
 
-**URL:** `http://localhost:3000/analysis-profiles`
+**URL:** Managed via API (`/api/analysis-specs`)
 
 ### Understanding Analysis Profiles
 
@@ -835,7 +835,7 @@ Each parameter in a profile can have:
 ### Creating Analysis Profiles
 
 **Via UI:**
-1. Navigate to `/analysis-profiles`
+1. Navigate to `/x/specs` (profiles are managed via the spec system)
 2. Click "New Profile"
 3. Name and describe the profile
 4. Select parameters to include
@@ -857,7 +857,7 @@ POST /api/analysis-profiles
 
 ### Configuring Profile Parameters
 
-**URL:** `http://localhost:3000/analysis-profiles/[id]/configure`
+**URL:** Managed via spec system
 
 Interactive "equalizer" UI for adjusting:
 - Parameter weights (sliders)
@@ -991,7 +991,7 @@ const transcriptsPath = resolveDataNodePath("data:transcripts");
 
 ### Agents Page
 
-**URL:** `http://localhost:3000/agents`
+**URL:** Managed via pipeline system
 
 ### Understanding Agents
 
@@ -1031,7 +1031,7 @@ agents.json (defaults)
 ### Creating Agent Instances
 
 **Via UI:**
-1. Go to `/agents`
+1. Go to the pipeline system
 2. Click an agent card
 3. Click "Create Draft"
 4. Modify settings
@@ -1059,7 +1059,7 @@ POST /api/agents/[agentId]/publish
 ### Running Agents
 
 **Via UI:**
-1. Go to `/agents`
+1. Go to the pipeline system
 2. Click "Run" on an agent card
 3. View real-time output
 
@@ -1074,7 +1074,7 @@ POST /api/agents/run
 
 ### Viewing Run History
 
-**URL:** `http://localhost:3000/agents` → Agent card → "Runs" tab
+**URL:** Managed via pipeline system → Agent card → "Runs" tab
 
 Or via API:
 ```bash
@@ -1085,7 +1085,7 @@ GET /api/agents/runs?agentId=transcript_processor
 
 ### Ops Page
 
-**URL:** `http://localhost:3000/ops`
+**URL:** `http://localhost:3000/x/pipeline`
 
 ### Available Operations
 
@@ -1102,7 +1102,7 @@ GET /api/agents/runs?agentId=transcript_processor
 ### Running Operations
 
 **Via UI:**
-1. Go to `/ops`
+1. Go to `/x/pipeline`
 2. Select operation
 3. Configure settings
 4. Click "Run" or "Dry Run"
@@ -1191,7 +1191,7 @@ Runs in order:
 
 ### Control Sets Page
 
-**URL:** `http://localhost:3000/control-sets`
+**URL:** Managed via API (`/api/playbooks`)
 
 ### Understanding Control Sets
 
@@ -1213,7 +1213,7 @@ Control Sets define parameter bundles for A/B testing:
 ### Creating Control Sets
 
 **Via UI:**
-1. Go to `/control-sets`
+1. Go to `/x/playbooks`
 2. Click "New Control Set"
 3. Set name and version
 4. Define expected personality targets
@@ -1247,7 +1247,7 @@ PUT /api/control-sets/[id]
 
 ### Settings Library Page
 
-**URL:** `http://localhost:3000/settings-library`
+**URL:** `http://localhost:3000/x/settings`
 
 ### Understanding Settings Library
 

@@ -1,35 +1,60 @@
 import { NextResponse } from "next/server";
 import { seedFromSpecs } from "../../../../prisma/seed-from-specs";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
+import { clearAIConfigCache } from "@/lib/ai/config-loader";
+import { clearSystemSettingsCache } from "@/lib/system-settings";
 import * as fs from "fs";
 import * as path from "path";
 
 /**
- * GET /api/x/sync-specs
- *
- * Returns sync status: which spec files are synced vs unsynced.
- * Compares filesystem files to BDDFeatureSet records (the source of truth for file imports).
+ * @api GET /api/x/sync-specs
+ * @visibility internal
+ * @scope dev:read
+ * @auth bearer
+ * @tags dev-tools
+ * @deprecated Use GET /api/admin/spec-sync instead — it checks AnalysisSpec records (not just BDDFeatureSet) and provides more accurate import status.
+ * @description Returns sync status comparing filesystem .spec.json files to BDDFeatureSet database records. Shows which specs are synced vs unsynced.
+ * @response 200 { ok: true, totalFiles: number, syncedFiles: number, unsyncedFiles: number, unsyncedList: [...] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
-    const specsDir = path.join(process.cwd(), "bdd-specs");
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
+    const specsDir = path.join(process.cwd(), "docs-archive", "bdd-specs");
     const files = fs.readdirSync(specsDir).filter(f => f.endsWith(".spec.json"));
     const totalFiles = files.length;
 
     // Get all BDDFeatureSet records (one per file imported)
     const featureSets = await prisma.bDDFeatureSet.findMany({
-      select: { filename: true },
+      select: { featureId: true },
     });
 
-    const syncedFiles = new Set(featureSets.map(fs => fs.filename));
+    const syncedFeatureIds = new Set(featureSets.map(fs => fs.featureId));
 
-    // Check which files are unsynced
-    const unsyncedFiles = files.filter(f => !syncedFiles.has(f));
+    // Extract featureId from JSON content (most reliable method)
+    const fileFeatureIds = files.map(f => {
+      try {
+        const filePath = path.join(specsDir, f);
+        const content = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        return content.id || null;
+      } catch {
+        return null;
+      }
+    });
+
+    // Check which files are unsynced (no matching BDDFeatureSet record)
+    const unsyncedFiles = files.filter((f, i) => {
+      const featureId = fileFeatureIds[i];
+      return featureId && !syncedFeatureIds.has(featureId);
+    });
 
     return NextResponse.json({
       ok: true,
       totalFiles,
-      syncedFiles: syncedFiles.size,
+      syncedFiles: totalFiles - unsyncedFiles.length, // Fixed: count of synced files, not DB records
       unsyncedFiles: unsyncedFiles.length,
       unsyncedList: unsyncedFiles,
     });
@@ -46,16 +71,22 @@ export async function GET() {
 }
 
 /**
- * POST /api/x/sync-specs
- *
- * Syncs all BDD specs from /bdd-specs/*.spec.json directory.
- * Creates/updates: Parameters, AnalysisSpecs, Anchors, PromptSlugs
- *
- * This is STEP 1 extracted from the old seed-system endpoint.
+ * @api POST /api/x/sync-specs
+ * @visibility internal
+ * @scope dev:seed
+ * @auth bearer
+ * @tags dev-tools
+ * @deprecated Use POST /api/admin/spec-sync instead — it surfaces seeding errors and supports selective spec import.
+ * @description Syncs all BDD specs from docs-archive/bdd-specs/*.spec.json directory into the database. Creates/updates Parameters, AnalysisSpecs, Anchors, and PromptSlugs. Extracted as STEP 1 from the seed-system endpoint.
+ * @response 200 { ok: true, message: "...", details: { specsProcessed: number, parametersCreated: number, parametersUpdated: number, results: [...] } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST() {
   try {
-    console.log("Syncing all BDD specs from /bdd-specs directory...");
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
+    console.log("Syncing all BDD specs from docs-archive/bdd-specs/ directory...");
 
     const specResults = await seedFromSpecs();
 
@@ -67,6 +98,10 @@ export async function POST() {
     const totalSpecs = specResults.length;
 
     console.log(`✓ Synced ${totalSpecs} specs (${totalParams} parameters)`);
+
+    // Invalidate all caches after sync
+    clearAIConfigCache();
+    clearSystemSettingsCache();
 
     return NextResponse.json({
       ok: true,

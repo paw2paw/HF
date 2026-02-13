@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PROVIDERS } from "../route";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -17,10 +18,22 @@ interface RouteParams {
 }
 
 /**
- * GET /api/ai-models/[modelId]
+ * @api GET /api/ai-models/:modelId
+ * @visibility internal
+ * @scope ai-models:read
+ * @auth session
+ * @tags ai
+ * @description Fetch a single AI model by its modelId.
+ * @pathParam modelId string - The unique model identifier
+ * @response 200 { ok: true, model: {...} }
+ * @response 404 { ok: false, error: "Model \"...\" not found" }
+ * @response 500 { ok: false, error: "Failed to fetch model" }
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { modelId } = await params;
 
     const model = await prisma.aIModel.findUnique({
@@ -45,12 +58,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 /**
- * PUT /api/ai-models/[modelId]
- *
- * Update a model's properties
+ * @api PUT /api/ai-models/:modelId
+ * @visibility internal
+ * @scope ai-models:write
+ * @auth bearer
+ * @tags ai
+ * @description Update an existing AI model's properties (label, tier, sortOrder, isActive). Only provided fields are updated.
+ * @pathParam modelId string - The unique model identifier
+ * @body label string - Updated display label (optional)
+ * @body tier string - Updated tier ("flagship" | "standard" | "fast" | "test") (optional)
+ * @body sortOrder number - Updated sort order (optional)
+ * @body isActive boolean - Updated active state (optional)
+ * @response 200 { ok: true, model: {...} }
+ * @response 400 { ok: false, error: "Invalid tier. Must be one of: ..." }
+ * @response 404 { ok: false, error: "Model \"...\" not found" }
+ * @response 500 { ok: false, error: "Failed to update model" }
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { modelId } = await params;
     const body = await request.json();
     const { label, tier, sortOrder, isActive } = body;
@@ -99,12 +127,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 /**
- * DELETE /api/ai-models/[modelId]
- *
- * Delete a model. Will fail if the model is currently in use by any AIConfig.
+ * @api DELETE /api/ai-models/:modelId
+ * @visibility internal
+ * @scope ai-models:write
+ * @auth bearer
+ * @tags ai
+ * @description Delete an AI model. Fails with 409 if the model is currently referenced by any AIConfig call point.
+ * @pathParam modelId string - The unique model identifier
+ * @response 200 { ok: true, message: "Model \"...\" deleted" }
+ * @response 404 { ok: false, error: "Model \"...\" not found" }
+ * @response 409 { ok: false, error: "Cannot delete model \"...\" - it is in use by call point \"...\"" }
+ * @response 500 { ok: false, error: "Failed to delete model" }
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { modelId } = await params;
 
     // Check model exists

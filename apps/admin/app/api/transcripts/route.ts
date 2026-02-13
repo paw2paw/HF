@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -14,17 +15,24 @@ const TRANSCRIPT_PATHS = [
 ].filter(Boolean) as string[];
 
 /**
- * GET /api/transcripts
- * React-Admin getList endpoint for transcript files
- * Lists transcript files from configured sources.transcripts path (supports JSON and TXT)
- *
- * Query params:
- * - sort: JSON array [field, order] e.g. ["modifiedAt", "DESC"]
- * - range: JSON array [start, end] e.g. [0, 24]
- * - filter: JSON object e.g. {"q": "search term"}
+ * @api GET /api/transcripts
+ * @visibility public
+ * @scope transcripts:list
+ * @auth none
+ * @tags transcripts
+ * @description React-Admin compatible endpoint for listing transcript files from configured sources directory. Supports JSON and TXT formats, pagination via Content-Range header, sorting, and search filtering.
+ * @query sort string - JSON array [field, order] e.g. ["modifiedAt", "DESC"]
+ * @query range string - JSON array [start, end] e.g. [0, 24]
+ * @query filter string - JSON object e.g. {"q": "search term"}
+ * @response 200 [{ id, filename, relativePath, path, sizeBytes, sizeMB, modifiedAt, callCount, date, type, status, fileHash, fileExt }]
+ * @response 400 { error: "Path is not a directory: ..." }
+ * @response 500 { error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = request.url ? new URL(request.url) : { searchParams: new URLSearchParams() };
 
     // Parse React-Admin query params

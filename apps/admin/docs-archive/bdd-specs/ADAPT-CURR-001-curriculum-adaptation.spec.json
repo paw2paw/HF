@@ -1,0 +1,634 @@
+{
+  "id": "ADAPT-CURR-001",
+  "title": "Curriculum Progress Adaptation",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-09",
+  "domain": "curriculum-adaptation",
+  "specType": "ADAPT",
+  "outputType": "ADAPT",
+  "story": {
+    "asA": "adaptive teaching system",
+    "iWant": "to adjust teaching behavior based on learner's curriculum progress",
+    "soThat": "instruction is appropriately paced, scaffolded, and responsive to mastery levels"
+  },
+  "context": {
+    "applies": "Every teaching interaction - uses curriculum measurements to compute teaching targets",
+    "dependsOn": [
+      "CURR-001"
+    ],
+    "assumptions": [
+      "Curriculum progress measurements exist from CURR-001",
+      "Mastery levels affect appropriate pacing and challenge",
+      "Review status affects content prioritization",
+      "Prerequisites gate advancement to new material"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-ADAPT-CURR-1",
+      "title": "Mastery-Based Pacing",
+      "given": "Learner's module mastery level is measured",
+      "when": "Computing teaching targets",
+      "then": "Pacing and challenge targets are set based on mastery",
+      "measuredBy": [
+        "mastery_adaptation"
+      ]
+    },
+    {
+      "id": "AC-ADAPT-CURR-2",
+      "title": "Comprehension-Based Scaffolding",
+      "given": "Learner's comprehension score is measured",
+      "when": "Computing explanation targets",
+      "then": "Scaffolding and example density targets are adjusted",
+      "measuredBy": [
+        "comprehension_adaptation"
+      ]
+    },
+    {
+      "id": "AC-ADAPT-CURR-3",
+      "title": "Review Status Response",
+      "given": "Content review status indicates overdue or declining",
+      "when": "Planning session content",
+      "then": "Review priority targets are elevated",
+      "measuredBy": [
+        "review_adaptation"
+      ]
+    },
+    {
+      "id": "AC-ADAPT-CURR-4",
+      "title": "Prerequisite Gating",
+      "given": "Prerequisite check score is below threshold",
+      "when": "Considering advancement to new content",
+      "then": "Foundation reinforcement targets are prioritized",
+      "measuredBy": [
+        "prerequisite_adaptation"
+      ]
+    },
+    {
+      "id": "AC-ADAPT-CURR-5",
+      "title": "Application Readiness",
+      "given": "Learner's application score is measured",
+      "when": "Computing activity type targets",
+      "then": "Practice vs explanation balance is adjusted",
+      "measuredBy": [
+        "application_adaptation"
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "mastery_adaptation",
+      "name": "Mastery-Based Teaching Target",
+      "description": "Teaching approach based on current module mastery: high mastery = challenge/advance, low mastery = reinforce/scaffold",
+      "section": "curriculum_adaptation",
+      "isAdjustable": true,
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "sourceParameterId": "module_mastery",
+        "thresholdHigh": 0.7,
+        "thresholdLow": 0.4,
+        "adaptationRules": [
+          {
+            "condition": {
+              "profileKey": "module_mastery",
+              "operator": "gte",
+              "threshold": 0.7,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-SCAFFOLDING",
+                "adjustment": "set",
+                "value": 0.3,
+                "rationale": "High mastery needs minimal scaffolding"
+              },
+              {
+                "targetParameter": "BEH-CHALLENGE-LEVEL",
+                "adjustment": "set",
+                "value": 0.8,
+                "rationale": "Ready for harder problems"
+              },
+              {
+                "targetParameter": "BEH-CONCEPT-DENSITY",
+                "adjustment": "set",
+                "value": 0.7,
+                "rationale": "Can handle more concepts at once"
+              },
+              {
+                "targetParameter": "BEH-ADVANCE-READINESS",
+                "adjustment": "set",
+                "value": 0.9,
+                "rationale": "Ready to move to next module"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "module_mastery",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-SCAFFOLDING",
+                "adjustment": "set",
+                "value": 0.85,
+                "rationale": "Low mastery needs heavy scaffolding"
+              },
+              {
+                "targetParameter": "BEH-CHALLENGE-LEVEL",
+                "adjustment": "set",
+                "value": 0.3,
+                "rationale": "Keep challenge manageable"
+              },
+              {
+                "targetParameter": "BEH-CONCEPT-DENSITY",
+                "adjustment": "set",
+                "value": 0.25,
+                "rationale": "One concept at a time"
+              },
+              {
+                "targetParameter": "BEH-ADVANCE-READINESS",
+                "adjustment": "set",
+                "value": 0.1,
+                "rationale": "Do not advance yet"
+              },
+              {
+                "targetParameter": "BEH-REPETITION-FREQUENCY",
+                "adjustment": "set",
+                "value": 0.8,
+                "rationale": "Repeat key concepts"
+              }
+            ]
+          }
+        ]
+      },
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "High Mastery",
+          "implication": "Ready for challenge, can advance to next module"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Developing",
+          "implication": "Continue current module with moderate support"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Low Mastery",
+          "implication": "Needs reinforcement before advancement"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "This learner has mastered the current material. Challenge them with edge cases, ask them to teach it back, or introduce the next module. Don't over-explain things they already know.",
+        "whenLow": "This learner is still building understanding. Slow down, provide more examples, check for misconceptions. Don't advance until foundation is solid."
+      }
+    },
+    {
+      "id": "comprehension_adaptation",
+      "name": "Comprehension-Based Scaffolding Target",
+      "description": "Scaffolding intensity based on comprehension: low comprehension = heavy scaffolding, high = minimal",
+      "section": "curriculum_adaptation",
+      "isAdjustable": true,
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "sourceParameterId": "comprehension_score",
+        "thresholdHigh": 0.7,
+        "thresholdLow": 0.4,
+        "adaptationRules": [
+          {
+            "condition": {
+              "profileKey": "comprehension_score",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-EXPLANATION-VARIETY",
+                "adjustment": "set",
+                "value": 0.9,
+                "rationale": "Try different explanation approaches"
+              },
+              {
+                "targetParameter": "BEH-EXAMPLE-RICHNESS",
+                "adjustment": "set",
+                "value": 0.9,
+                "rationale": "More concrete examples needed"
+              },
+              {
+                "targetParameter": "BEH-CHECK-FOR-UNDERSTANDING",
+                "adjustment": "set",
+                "value": 0.85,
+                "rationale": "Frequently verify comprehension"
+              },
+              {
+                "targetParameter": "BEH-ANALOGY-USAGE",
+                "adjustment": "set",
+                "value": 0.8,
+                "rationale": "Analogies can unlock understanding"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "comprehension_score",
+              "operator": "gte",
+              "threshold": 0.7,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-PROBING-QUESTIONS",
+                "adjustment": "set",
+                "value": 0.8,
+                "rationale": "Deepen with probing questions"
+              },
+              {
+                "targetParameter": "BEH-NUANCE-EXPLORATION",
+                "adjustment": "set",
+                "value": 0.75,
+                "rationale": "Explore edge cases and nuances"
+              },
+              {
+                "targetParameter": "BEH-CHECK-FOR-UNDERSTANDING",
+                "adjustment": "set",
+                "value": 0.4,
+                "rationale": "Less frequent comprehension checks needed"
+              }
+            ]
+          }
+        ]
+      },
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Strong Comprehension",
+          "implication": "Minimal scaffolding needed"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Partial Comprehension",
+          "implication": "Moderate scaffolding helpful"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Weak Comprehension",
+          "implication": "Heavy scaffolding required"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Comprehension is strong. Move to application activities. Ask probing questions to deepen understanding rather than re-explaining.",
+        "whenLow": "Comprehension is weak. Try a different explanation approach. Use analogies, break into smaller pieces, check for specific misconceptions."
+      }
+    },
+    {
+      "id": "review_adaptation",
+      "name": "Review Priority Target",
+      "description": "Review urgency based on review status: overdue/declining = high priority",
+      "section": "curriculum_adaptation",
+      "isAdjustable": true,
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "sourceParameterId": "review_status",
+        "thresholdHigh": 0.6,
+        "thresholdLow": 0.3,
+        "adaptationRules": [
+          {
+            "condition": {
+              "profileKey": "review_status",
+              "operator": "lt",
+              "threshold": 0.3,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-SPACED-RETRIEVAL-PRIORITY",
+                "adjustment": "set",
+                "value": 0.9,
+                "rationale": "Must address declining mastery"
+              },
+              {
+                "targetParameter": "BEH-NEW-CONTENT-RATE",
+                "adjustment": "set",
+                "value": 0.2,
+                "rationale": "Limit new content until review complete"
+              },
+              {
+                "targetParameter": "BEH-INTERLEAVING",
+                "adjustment": "set",
+                "value": 0.7,
+                "rationale": "Mix review with current topic"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "review_status",
+              "operator": "gte",
+              "threshold": 0.6,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-SPACED-RETRIEVAL-PRIORITY",
+                "adjustment": "set",
+                "value": 0.3,
+                "rationale": "Reviews are on schedule"
+              },
+              {
+                "targetParameter": "BEH-NEW-CONTENT-RATE",
+                "adjustment": "set",
+                "value": 0.7,
+                "rationale": "Can introduce new material"
+              }
+            ]
+          }
+        ]
+      },
+      "interpretationScale": [
+        {
+          "min": 0.6,
+          "max": 1.0,
+          "label": "Review Current",
+          "implication": "No urgent review needed"
+        },
+        {
+          "min": 0.3,
+          "max": 0.6,
+          "label": "Review Due",
+          "implication": "Should incorporate review"
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Review Urgent",
+          "implication": "Prioritize spaced retrieval"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Reviews are current. Focus on new material or application activities.",
+        "whenLow": "Review is overdue or mastery is declining. Weave in spaced retrieval of previously learned concepts before introducing new material."
+      }
+    },
+    {
+      "id": "prerequisite_adaptation",
+      "name": "Foundation Reinforcement Target",
+      "description": "Foundation focus based on prerequisite readiness: not ready = reinforce foundations",
+      "section": "curriculum_adaptation",
+      "isAdjustable": true,
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "sourceParameterId": "prerequisite_check",
+        "thresholdHigh": 0.7,
+        "thresholdLow": 0.4,
+        "adaptationRules": [
+          {
+            "condition": {
+              "profileKey": "prerequisite_check",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-ADVANCE-READINESS",
+                "adjustment": "set",
+                "value": 0.0,
+                "rationale": "Cannot advance without prerequisites"
+              },
+              {
+                "targetParameter": "BEH-FOUNDATION-FOCUS",
+                "adjustment": "set",
+                "value": 0.9,
+                "rationale": "Must fill foundational gaps"
+              },
+              {
+                "targetParameter": "BEH-PREREQUISITE-CALLBACK",
+                "adjustment": "set",
+                "value": 0.85,
+                "rationale": "Reference back to prerequisite concepts"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "prerequisite_check",
+              "operator": "gte",
+              "threshold": 0.7,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-FOUNDATION-FOCUS",
+                "adjustment": "set",
+                "value": 0.3,
+                "rationale": "Foundations are solid"
+              },
+              {
+                "targetParameter": "BEH-PREREQUISITE-CALLBACK",
+                "adjustment": "set",
+                "value": 0.4,
+                "rationale": "Occasional reference is sufficient"
+              }
+            ]
+          }
+        ]
+      },
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Prerequisites Met",
+          "implication": "Safe to advance"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Gaps Present",
+          "implication": "Address gaps before full advancement"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Prerequisites Missing",
+          "implication": "Must reinforce foundations first"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Prerequisites are solid. Can confidently introduce dependent content.",
+        "whenLow": "Prerequisites not met. Do not advance to new module. Identify and fill foundational gaps first."
+      }
+    },
+    {
+      "id": "application_adaptation",
+      "name": "Practice vs Explanation Target",
+      "description": "Activity balance based on application ability: high = more practice, low = more explanation",
+      "section": "curriculum_adaptation",
+      "isAdjustable": true,
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "config": {
+        "sourceParameterId": "application_score",
+        "thresholdHigh": 0.7,
+        "thresholdLow": 0.4,
+        "adaptationRules": [
+          {
+            "condition": {
+              "profileKey": "application_score",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-PRACTICE-RATIO",
+                "adjustment": "set",
+                "value": 0.3,
+                "rationale": "Not ready for heavy practice"
+              },
+              {
+                "targetParameter": "BEH-GUIDED-PRACTICE",
+                "adjustment": "set",
+                "value": 0.85,
+                "rationale": "Practice needs heavy guidance"
+              },
+              {
+                "targetParameter": "BEH-WORKED-EXAMPLES",
+                "adjustment": "set",
+                "value": 0.8,
+                "rationale": "Show worked examples first"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "application_score",
+              "operator": "gte",
+              "threshold": 0.7,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-PRACTICE-RATIO",
+                "adjustment": "set",
+                "value": 0.8,
+                "rationale": "Ready for practice-heavy approach"
+              },
+              {
+                "targetParameter": "BEH-GUIDED-PRACTICE",
+                "adjustment": "set",
+                "value": 0.3,
+                "rationale": "Can practice with minimal guidance"
+              },
+              {
+                "targetParameter": "BEH-PRODUCTIVE-STRUGGLE",
+                "adjustment": "set",
+                "value": 0.75,
+                "rationale": "Let them work through challenges"
+              }
+            ]
+          }
+        ]
+      },
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Strong Application",
+          "implication": "Ready for complex practice"
+        },
+        {
+          "min": 0.4,
+          "max": 0.7,
+          "label": "Emerging Application",
+          "implication": "Guided practice with feedback"
+        },
+        {
+          "min": 0.0,
+          "max": 0.4,
+          "label": "Weak Application",
+          "implication": "More explanation before practice"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Application is strong. Give challenging problems with minimal guidance. Let them struggle productively.",
+        "whenLow": "Application is weak. Don't jump to practice yet. Ensure understanding through explanation, then scaffold initial practice attempts."
+      }
+    }
+  ],
+  "config": {
+    "defaultAdaptConfidence": 0.7
+  },
+  "constraints": [
+    {
+      "id": "C-ADAPT-CURR-1",
+      "type": "dependency",
+      "description": "Requires curriculum measurements from CURR-001 before computing adaptations",
+      "severity": "critical"
+    },
+    {
+      "id": "C-ADAPT-CURR-2",
+      "type": "priority",
+      "description": "Prerequisite gating takes precedence over mastery-based advancement",
+      "severity": "warning"
+    },
+    {
+      "id": "C-ADAPT-CURR-3",
+      "type": "balance",
+      "description": "Curriculum adaptations should complement (not override) personality/modality adaptations",
+      "severity": "info"
+    }
+  ],
+  "related": [
+    {
+      "id": "CURR-001",
+      "title": "Curriculum Progress Tracking",
+      "relationship": "provides input measurements"
+    },
+    {
+      "id": "ADAPT-ENG-001",
+      "title": "Engagement Adaptation",
+      "relationship": "complementary - engagement affects pacing too"
+    },
+    {
+      "id": "ADAPT-LEARN-001",
+      "title": "Learner Profile Adaptation",
+      "relationship": "complementary - pace preference interacts with mastery"
+    },
+    {
+      "id": "SESSION-001",
+      "title": "Session Arc Planning",
+      "relationship": "curriculum targets inform session structure"
+    },
+    {
+      "id": "COMP-001",
+      "title": "Prompt Composition",
+      "relationship": "targets consumed by prompt system"
+    }
+  ],
+  "specRole": "SYNTHESISE"
+}

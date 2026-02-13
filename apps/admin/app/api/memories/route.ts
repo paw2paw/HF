@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
 import { MemoryCategory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/memories
- *
- * List user memories with filtering and pagination
+ * @api GET /api/memories
+ * @visibility public
+ * @scope memories:read
+ * @auth session
+ * @tags memories
+ * @description List caller memories with filtering and pagination. By default excludes superseded and expired memories. Supports search across key, value, and evidence fields.
+ * @query callerId string - Filter by caller ID (optional)
+ * @query category string - Filter by MemoryCategory (FACT | PREFERENCE | EVENT | TOPIC | RELATIONSHIP | CONTEXT) (optional)
+ * @query search string - Full-text search across key, value, evidence (optional)
+ * @query includeSuperseded string - Include superseded memories ("true" to include, default false)
+ * @query limit number - Max results to return (default 100, max 500)
+ * @query offset number - Pagination offset (default 0)
+ * @response 200 { ok: true, memories: [...], total: number, limit: number, offset: number }
+ * @response 500 { ok: false, error: "Failed to fetch memories" }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const callerId = url.searchParams.get("callerId");
     const category = url.searchParams.get("category");
@@ -87,12 +102,30 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/memories
- *
- * Create a new memory manually (for corrections or additions)
+ * @api POST /api/memories
+ * @visibility public
+ * @scope memories:write
+ * @auth session
+ * @tags memories
+ * @description Create a new memory manually for a caller. Handles deduplication: if a memory with the same normalized key exists, it either supersedes the old value or updates confidence if the value matches.
+ * @body callerId string - The caller this memory belongs to (required)
+ * @body category string - MemoryCategory enum value (required)
+ * @body key string - Memory key/label (required)
+ * @body value string - Memory value (required)
+ * @body evidence string - Supporting evidence text (optional)
+ * @body context string - Context in which the memory was captured (optional)
+ * @body confidence number - Confidence score 0-1 (default 0.95 for manual entries)
+ * @body expiresInDays number - Auto-expire after N days (optional, null = never)
+ * @response 200 { ok: true, memory: {...}, supersededId: string|null }
+ * @response 400 { ok: false, error: "callerId is required" }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: "Failed to create memory" }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const { callerId, category, key, value, evidence, context, confidence, expiresInDays } = body;
 

@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/admin/tests/report
- * Get the latest Playwright test report data
+ * @api GET /api/admin/tests/report
+ * @visibility internal
+ * @scope admin:read
+ * @auth bearer
+ * @tags admin
+ * @description Get the latest Playwright test report data including summary stats
+ * @response 200 { ok: true, hasReport: true, hasHtmlReport: boolean, summary: { total, passed, failed, skipped, duration } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const adminRoot = path.resolve(process.cwd());
     const reportDir = path.join(adminRoot, "playwright-report");
 

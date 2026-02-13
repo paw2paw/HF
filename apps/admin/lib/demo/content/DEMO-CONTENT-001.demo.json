@@ -1,0 +1,210 @@
+{
+  "id": "DEMO-CONTENT-001",
+  "title": "Add Trusted Teaching Content",
+  "subtitle": "Upload curriculum documents with trust levels and see how assertions are extracted",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["operator"],
+  "estimatedMinutes": 5,
+  "icon": "📚",
+  "story": {
+    "asA": "operator managing regulated training",
+    "iWant": "to upload content with proper trust levels",
+    "soThat": "the AI teaches accurately from authoritative sources"
+  },
+  "objectives": [
+    "Upload curriculum documents",
+    "Understand trust levels L0-L5",
+    "See how assertions are extracted",
+    "Track content freshness"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "This demo explains how to add teaching content with the right trust levels — essential for regulated training where accuracy is non-negotiable.",
+      "content": {
+        "type": "markdown",
+        "body": "# Add Trusted Teaching Content\n\nWhen you're training people on regulated subjects — food safety, compliance, medical protocols — the AI **must** teach from authoritative sources. Trust levels control how strictly the AI uses your content.\n\n## What you'll learn\n\n- **Upload documents** — PDFs, DOCX, TXT files\n- **Assign trust levels** — L0 (Unverified) through L5 (Verified Fact)\n- **See assertion extraction** — how the system pulls out teaching points\n- **Track freshness** — when content expires and needs updating\n\n## Why this matters\n\nFor regulated training, incorrect content isn't just unhelpful — it can be dangerous. Trust levels are your guardrail.\n\n## Time: ~5 minutes\n\nUse **← →** arrow keys or the buttons below to navigate."
+      },
+      "reason": "Content trust is a core differentiator for HumanFirst. Understanding trust levels is essential before uploading any training material.",
+      "goal": "Orient the viewer on content trust and why it matters",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Add Trusted Teaching Content demo",
+        "relatedConcepts": ["content trust", "trust levels", "regulated training", "content sources", "assertion extraction"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "open-content-sources",
+      "title": "Open Content Sources",
+      "description": "Navigate to the Content Sources page from the sidebar. This is where all teaching material is managed — documents, links, and their trust classifications.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CONTENT-001/02-open-content-sources.png",
+        "alt": "Sidebar with Content Sources highlighted",
+        "annotations": [
+          { "x": "8%", "y": "48%", "label": "Content Sources", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "The Content Sources page is the central hub for all teaching material. Every document, link, and assertion lives here.",
+      "sidebarHighlight": { "href": "/x/content-sources", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Sidebar navigation",
+        "action": "Navigating to the Content Sources page",
+        "relatedConcepts": ["content sources", "sidebar navigation", "content management"],
+        "assistantLocation": { "page": "/x/content-sources", "action": "navigate" }
+      }
+    },
+    {
+      "id": "upload-document",
+      "title": "Upload a Document",
+      "description": "Click 'Add Source' or drag a file into the upload area. The system accepts PDF, DOCX, and TXT files. Larger documents are processed in the background.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CONTENT-001/03-upload-document.png",
+        "alt": "Document upload area with drag-and-drop zone",
+        "annotations": [
+          { "x": "50%", "y": "40%", "label": "Drop file here", "direction": "down", "highlight": true },
+          { "x": "50%", "y": "70%", "label": "PDF, DOCX, TXT supported", "direction": "up" },
+          { "x": "85%", "y": "12%", "label": "Add Source", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Uploading is the first step. The system needs raw content before it can extract assertions and assign trust levels.",
+      "tips": [
+        { "type": "tip", "message": "Well-structured documents with headings and numbered sections produce the best assertion extraction" }
+      ],
+      "sidebarHighlight": { "href": "/x/content-sources", "type": "glow" },
+      "aiContext": {
+        "currentView": "Content Sources page with upload dialog",
+        "action": "Uploading a curriculum document",
+        "relatedConcepts": ["document upload", "file formats", "content processing", "background processing"]
+      }
+    },
+    {
+      "id": "trust-level-selection",
+      "title": "Trust Level Selection",
+      "description": "Assign a trust level to the uploaded content. This controls how strictly the AI uses the material — from casual reference to verbatim quoting.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-CONTENT-001/04-trust-levels.png",
+          "alt": "Trust level selection dropdown"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## Trust Levels Explained\n\n| Level | Name | How the AI Uses It |\n|-------|------|--------------------|\n| **L0** | Unverified | Background context only |\n| **L1** | Community | Can discuss freely, note uncertainty |\n| **L2** | Editorial | Teach as generally accepted |\n| **L3** | Professional | Teach as authoritative |\n| **L4** | Certified | Must cite source, high accuracy |\n| **L5** | Verified Fact | Must quote exactly, zero deviation |\n\n## When to Use Each Level\n\n- **L0-L1**: Blog posts, forum discussions, general references\n- **L2-L3**: Textbooks, professional guides, industry standards\n- **L4-L5**: Legal requirements, safety regulations, certified curricula\n\nFor regulated training (food safety, compliance), **always use L4 or L5**."
+        }
+      },
+      "reason": "Trust levels are the core safety mechanism. Getting this right means the AI teaches accurately for your specific domain — especially critical for regulated subjects.",
+      "tips": [
+        { "type": "warning", "message": "For regulated subjects, use L4+ to ensure the AI teaches with appropriate accuracy and citation" }
+      ],
+      "aiContext": {
+        "currentView": "Trust level selection — split view with selector and explanation",
+        "action": "Choosing the appropriate trust level for uploaded content",
+        "relatedConcepts": ["trust levels L0-L5", "content accuracy", "regulated training", "citation requirements", "content safety"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/content-sources", "delay": 500 }
+    },
+    {
+      "id": "assertion-extraction",
+      "title": "Assertion Extraction",
+      "description": "After upload, the system automatically extracts teaching points (assertions) from your document. Each assertion is a discrete fact or concept the tutor can teach.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CONTENT-001/05-assertion-extraction.png",
+        "alt": "System extracting assertions from uploaded document",
+        "annotations": [
+          { "x": "50%", "y": "20%", "label": "Source document", "direction": "down" },
+          { "x": "50%", "y": "50%", "label": "Extracted assertions", "direction": "down", "highlight": true },
+          { "x": "80%", "y": "50%", "label": "Confidence score", "direction": "left" }
+        ]
+      },
+      "reason": "Assertion extraction turns unstructured documents into structured teaching material. Each assertion becomes something the tutor can teach, quiz on, and track mastery of.",
+      "aiContext": {
+        "currentView": "Assertion extraction results from uploaded document",
+        "action": "Viewing how the system extracts teaching points from content",
+        "relatedConcepts": ["assertion extraction", "teaching points", "content processing", "structured content", "AI analysis"]
+      },
+      "capture": { "url": "/x/content-sources", "delay": 500 }
+    },
+    {
+      "id": "review-assertions",
+      "title": "Review Assertions",
+      "description": "Review the extracted assertions before they go live. You can edit, delete, or add new ones. Each assertion shows its source text and confidence score.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CONTENT-001/06-review-assertions.png",
+        "alt": "Assertion review panel with edit controls",
+        "annotations": [
+          { "x": "30%", "y": "30%", "label": "Assertion text", "direction": "right" },
+          { "x": "70%", "y": "30%", "label": "Source reference", "direction": "left" },
+          { "x": "85%", "y": "30%", "label": "Edit / Delete", "direction": "left", "highlight": true },
+          { "x": "50%", "y": "85%", "label": "Approve all", "direction": "up", "highlight": true }
+        ]
+      },
+      "reason": "Human review is essential — especially for regulated content. The AI extraction is good but not perfect. Always verify key assertions before approving.",
+      "tips": [
+        { "type": "best-practice", "message": "Pay special attention to numerical values, dates, and regulatory references — these need exact accuracy" }
+      ],
+      "aiContext": {
+        "currentView": "Assertion review panel with edit and approval controls",
+        "action": "Reviewing and approving extracted teaching assertions",
+        "relatedConcepts": ["assertion review", "content approval", "quality assurance", "human oversight", "content editing"]
+      },
+      "capture": { "url": "/x/content-sources", "delay": 500 }
+    },
+    {
+      "id": "link-to-subject",
+      "title": "Link to Subject",
+      "description": "Connect the content source to specific curriculum subjects. This tells the tutor which topics this material covers, enabling targeted teaching.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CONTENT-001/07-link-to-subject.png",
+        "alt": "Subject linking interface with curriculum tree",
+        "annotations": [
+          { "x": "30%", "y": "35%", "label": "Curriculum subjects", "direction": "right" },
+          { "x": "70%", "y": "35%", "label": "Linked content", "direction": "left", "highlight": true },
+          { "x": "50%", "y": "80%", "label": "Save links", "direction": "up", "highlight": true }
+        ]
+      },
+      "reason": "Linking content to subjects creates the teaching map. The tutor uses these links to decide which material to draw from for each topic in a conversation.",
+      "sidebarHighlight": { "href": "/x/content-sources", "type": "glow" },
+      "aiContext": {
+        "currentView": "Subject linking interface with curriculum structure",
+        "action": "Connecting content source to curriculum subjects",
+        "relatedConcepts": ["subject linking", "curriculum structure", "content mapping", "topic coverage", "teaching map"]
+      }
+    },
+    {
+      "id": "content-freshness",
+      "title": "Content Freshness",
+      "description": "Content doesn't last forever — regulations change, facts update. The freshness system tracks when content was last verified and alerts you when it needs review.",
+      "content": {
+        "type": "markdown",
+        "body": "# Content Freshness & Expiry\n\nTeaching material has a shelf life. The system tracks freshness so you're never teaching from stale content.\n\n## How It Works\n\n- **Upload date** — when the content was added\n- **Last verified** — when someone confirmed it's still accurate\n- **Expiry date** — when it needs re-verification (configurable)\n- **Freshness badge** — green (fresh), amber (aging), red (expired)\n\n## For Regulated Training\n\nRegulatory content often has specific update cycles:\n- Food safety certifications: typically annual\n- Compliance documents: varies by jurisdiction\n- Safety protocols: review after any incident\n\nSet expiry dates that match your regulatory requirements.\n\n## Summary\n\nYou've learned how to:\n- Upload curriculum documents\n- Assign appropriate trust levels (L0-L5)\n- Review extracted assertions\n- Link content to subjects\n- Track content freshness\n\n## Related Demos\n\n- *Create a Tutor Domain from Scratch* (DEMO-TUTOR-001)\n- *Track a Caller's Learning Journey* (DEMO-CALLER-001)\n- *Test Your Tutor Before Going Live* (DEMO-SIM-001)"
+      },
+      "reason": "Content freshness is the final piece of the trust puzzle. Trust levels control how content is used; freshness controls whether it should still be used at all.",
+      "goal": "Understand content expiry and wrap up the demo",
+      "aiContext": {
+        "currentView": "Content freshness summary and demo completion",
+        "action": "Completed the Add Trusted Teaching Content demo",
+        "relatedConcepts": ["content freshness", "expiry tracking", "content verification", "regulatory compliance", "content lifecycle"]
+      },
+      "durationOverrideSec": 20
+    }
+  ]
+}

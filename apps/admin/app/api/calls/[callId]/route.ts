@@ -1,23 +1,28 @@
 /**
- * GET /api/calls/[callId]
- *
- * Get detailed call data including:
- * - Basic call info
- * - Scores with parameter details
- * - Memories extracted from this call
- * - Behavior measurements
- * - Reward score
- * - Effective behavior targets (layered: SYSTEM → PLAYBOOK → SEGMENT → CALLER)
+ * @api GET /api/calls/:callId
+ * @visibility public
+ * @scope calls:read
+ * @auth session
+ * @tags calls
+ * @description Get detailed call data including basic call info, scores with parameter details, extracted memories, behavior measurements, reward score, triggered prompts, personality observation, and effective behavior targets (layered: SYSTEM -> PLAYBOOK -> SEGMENT -> CALLER).
+ * @pathParam callId string - The call ID to retrieve
+ * @response 200 { ok: true, call: Call, scores: CallScore[], memories: CallerMemory[], measurements: BehaviorMeasurement[], rewardScore: RewardScore | null, triggeredPrompts: ComposedPrompt[], personalityObservation: PersonalityObservation | null, effectiveTargets: EffectiveTarget[], counts: { scores, memories, measurements, prompts, targets } }
+ * @response 404 { ok: false, error: "Call not found" }
+ * @response 500 { ok: false, error: "Failed to fetch call" }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ callId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callId } = await params;
 
     const [call, scores, memories, measurements, rewardScore, triggeredPrompts, personalityObservation] = await Promise.all([
@@ -421,15 +426,27 @@ export async function GET(
 }
 
 /**
- * PATCH /api/calls/[callId]
- *
- * Update call data (e.g., transcript after AI simulation)
+ * @api PATCH /api/calls/:callId
+ * @visibility public
+ * @scope calls:write
+ * @auth session
+ * @tags calls
+ * @description Update call data (e.g., transcript or summary after AI simulation). Only provided fields are updated.
+ * @pathParam callId string - The call ID to update
+ * @body transcript string - Updated call transcript (optional)
+ * @body summary string - Updated call summary (optional)
+ * @response 200 { ok: true, call: Call }
+ * @response 404 { ok: false, error: "Call not found" }
+ * @response 500 { ok: false, error: "Failed to update call" }
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ callId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callId } = await params;
     const body = await request.json();
     const { transcript, summary } = body;

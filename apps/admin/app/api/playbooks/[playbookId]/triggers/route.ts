@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/playbooks/[playbookId]/triggers
- *
- * Returns all triggers and actions across all specs in this playbook.
- * Organized by spec and trigger, showing the full Given/When/Then structure.
+ * @api GET /api/playbooks/:playbookId/triggers
+ * @visibility internal
+ * @scope playbooks:read
+ * @auth session
+ * @tags playbooks
+ * @description Returns all triggers and actions across all specs in this playbook,
+ *   organized by output type and spec. Shows the full Given/When/Then BDD structure
+ *   with action weights and parameter references.
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, playbook: { id, name, status }, categories: TriggersByOutputType[], counts: { specs, triggers, actions, outputTypes } }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 
 type ActionInfo = {
@@ -49,6 +58,9 @@ export async function GET(
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     // Load playbook with all specs and their triggers/actions

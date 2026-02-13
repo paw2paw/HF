@@ -11,8 +11,9 @@
 import { prisma } from "@/lib/prisma";
 import { GoalType, GoalStatus, Goal } from "@prisma/client";
 import { AIEngine } from "@/lib/ai/client";
-import { getMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
+import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 import { logAI } from "@/lib/logger";
+import { getGoalSettings, type GoalSettings } from "@/lib/system-settings";
 
 // =====================================================
 // TYPES
@@ -58,9 +59,19 @@ type Logger = {
 // CONSTANTS
 // =====================================================
 
-const TRANSCRIPT_LIMIT = 4000;
-const MIN_TRANSCRIPT_LENGTH = 100;
-const CONFIDENCE_THRESHOLD = 0.5;
+// Defaults — overridden at runtime by getGoalSettings()
+let TRANSCRIPT_LIMIT = 4000;
+let MIN_TRANSCRIPT_LENGTH = 100;
+let CONFIDENCE_THRESHOLD = 0.5;
+let SIMILARITY_THRESHOLD = 0.8;
+
+async function loadGoalConstants() {
+  const s = await getGoalSettings();
+  TRANSCRIPT_LIMIT = s.transcriptLimitChars;
+  MIN_TRANSCRIPT_LENGTH = s.transcriptMinChars;
+  CONFIDENCE_THRESHOLD = s.confidenceThreshold;
+  SIMILARITY_THRESHOLD = s.similarityThreshold;
+}
 
 // =====================================================
 // MAIN EXPORT
@@ -76,6 +87,8 @@ export async function extractGoals(
   engine: AIEngine,
   log: Logger
 ): Promise<GoalExtractionResult> {
+  await loadGoalConstants();
+
   const result: GoalExtractionResult = {
     goalsCreated: 0,
     goalsUpdated: 0,
@@ -116,10 +129,11 @@ export async function extractGoals(
       return result;
     }
 
-    // 5. Call AI
-    const aiResult = await getMeteredAICompletion(
+    // @ai-call pipeline.learn — Extract learner goals from transcript | config: /x/ai-config
+    const aiResult = await getConfiguredMeteredAICompletion(
       {
-        engine,
+        callPoint: "pipeline.learn",
+        engineOverride: engine,
         messages: [
           {
             role: "system",
@@ -379,7 +393,7 @@ function deduplicateGoal(
   const similarMatch = existingGoals.find(
     (g) =>
       g.type === extracted.type &&
-      calculateSimilarity(g.name.toLowerCase(), extracted.name.toLowerCase()) > 0.8
+      calculateSimilarity(g.name.toLowerCase(), extracted.name.toLowerCase()) > SIMILARITY_THRESHOLD
   );
   if (similarMatch) {
     return { action: "update", existingGoalId: similarMatch.id };

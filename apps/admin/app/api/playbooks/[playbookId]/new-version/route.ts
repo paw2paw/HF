@@ -1,23 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/playbooks/[playbookId]/new-version
- *
- * Clones a published playbook as a new DRAFT.
- * - Copies all items from the source playbook
- * - Copies all PLAYBOOK-scope behavior targets
- * - Sets status to DRAFT with incremented version
- * - Links to parent version for provenance
- * - Inherits the source domain (can be reassigned later via PATCH)
- *
- * The original PUBLISHED playbook remains unchanged.
+ * @api POST /api/playbooks/:playbookId/new-version
+ * @visibility internal
+ * @scope playbooks:write
+ * @auth session
+ * @tags playbooks
+ * @description Clones a published playbook as a new DRAFT version. Copies all items and
+ *   PLAYBOOK-scope behavior targets, increments the version, and links to parent for
+ *   provenance. The original PUBLISHED playbook remains unchanged.
+ * @pathParam playbookId string - Source playbook UUID (must be PUBLISHED)
+ * @response 200 { ok: true, playbook: Playbook, message: "...", copiedItems: number, copiedTargets: number }
+ * @response 400 { ok: false, error: "Can only create new version from a PUBLISHED playbook" }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     // Get the source playbook with all related data

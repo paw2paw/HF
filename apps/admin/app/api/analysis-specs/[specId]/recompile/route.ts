@@ -2,18 +2,32 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseJsonSpec } from "@/lib/bdd/ai-parser";
 import { compileSpecToTemplate } from "@/lib/bdd/compile-specs";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/analysis-specs/[specId]/recompile
- * Recompile the spec from its source BDDFeatureSet.rawSpec
+ * @api POST /api/analysis-specs/:specId/recompile
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description Recompile a spec from its linked BDDFeatureSet.rawSpec. Regenerates promptTemplate, updates config for IDENTITY/CONTENT specs, and clears dirty state.
+ * @pathParam specId string - Spec UUID
+ * @response 200 { ok: true, spec: AnalysisSpec, recompiled: true, compiledAt: string }
+ * @response 400 { ok: false, error: "Spec has no linked BDDFeatureSet - cannot recompile" }
+ * @response 400 { ok: false, error: "BDDFeatureSet has no rawSpec - cannot recompile" }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     // Find the spec and its linked BDDFeatureSet

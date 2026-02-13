@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
  * Extract systemSpecs toggle state and configSettings from playbook.config.
@@ -19,14 +20,25 @@ function withSystemSpecs(playbook: any) {
 }
 
 /**
- * GET /api/playbooks/[playbookId]
- * Get playbook details with all items
+ * @api GET /api/playbooks/:playbookId
+ * @visibility public
+ * @scope playbooks:read
+ * @auth session
+ * @tags playbooks
+ * @description Get playbook details with all items, domain, system specs, and parent version
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, playbook: Playbook }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     const playbook = await prisma.playbook.findUnique({
@@ -109,14 +121,36 @@ export async function GET(
 }
 
 /**
- * PATCH /api/playbooks/[playbookId]
- * Update playbook metadata or items
+ * @api PATCH /api/playbooks/:playbookId
+ * @visibility public
+ * @scope playbooks:write
+ * @auth session
+ * @tags playbooks
+ * @description Update playbook metadata, items, system spec toggles, status, or config settings
+ * @pathParam playbookId string - Playbook UUID
+ * @body name string - Updated playbook name
+ * @body description string - Updated description
+ * @body items Array - Replacement items array (for DRAFT playbooks)
+ * @body specs Array - System spec toggles array
+ * @body toggleSpec object - Single spec toggle { specId, enabled }
+ * @body agentId string - Agent ID reference
+ * @body sortOrder number - Domain-level sort order
+ * @body domainId string - Reassign to another domain
+ * @body status string - Status transition (DRAFT, ARCHIVED)
+ * @body configSettings object - Config settings (memory, learning, AI, thresholds)
+ * @response 200 { ok: true, playbook: Playbook }
+ * @response 400 { ok: false, error: "..." }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
     const body = await request.json();
     const { name, description, items, specs, agentId, toggleSpec, sortOrder, domainId, status, configSettings } = body;
@@ -402,14 +436,26 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/playbooks/[playbookId]
- * Delete a draft playbook
+ * @api DELETE /api/playbooks/:playbookId
+ * @visibility public
+ * @scope playbooks:write
+ * @auth session
+ * @tags playbooks
+ * @description Delete a draft playbook and its items. Published playbooks cannot be deleted.
+ * @pathParam playbookId string - Playbook UUID
+ * @response 200 { ok: true, message: "Playbook deleted" }
+ * @response 400 { ok: false, error: "Cannot delete a published playbook. Archive it instead." }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     const existing = await prisma.playbook.findUnique({

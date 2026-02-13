@@ -2,15 +2,29 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/prompt-slugs
- * List all prompt slugs (dynamic prompts) with optional filtering
+ * @api GET /api/prompt-slugs
+ * @visibility internal
+ * @scope prompts:read
+ * @auth session
+ * @tags prompts
+ * @description List all prompt slugs (dynamic prompts) with optional filtering by source type,
+ *   parameter, and active status. Includes parameters, ranges, and usage counts.
+ * @query sourceType string - Filter by source type (PARAMETER, COMPOSITE, MEMORY, etc.)
+ * @query parameterId string - Filter slugs linked to a specific parameter
+ * @query isActive string - Filter by active status ("true" or "false")
+ * @response 200 { ok: true, slugs: PromptSlug[], parameters: Parameter[] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(req.url);
     const sourceType = searchParams.get("sourceType");
     const parameterId = searchParams.get("parameterId");
@@ -85,11 +99,36 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/prompt-slugs
- * Create a new prompt slug (dynamic prompt) with parameters and ranges
+ * @api POST /api/prompt-slugs
+ * @visibility internal
+ * @scope prompts:write
+ * @auth session
+ * @tags prompts
+ * @description Create a new prompt slug (dynamic prompt) with parameters and value ranges.
+ *   Supports both multi-parameter array format and legacy single parameter format.
+ * @body slug string - Unique slug identifier (required)
+ * @body name string - Display name (required)
+ * @body description string - Slug description
+ * @body sourceType string - Source type: PARAMETER, COMPOSITE, MEMORY, etc. (required)
+ * @body parameters Array<{ parameterId, weight, mode, sortOrder }> - Parameter bindings
+ * @body parameterId string - Legacy single parameter ID
+ * @body mode string - Legacy parameter mode
+ * @body memoryCategory string - Memory category (required for MEMORY source type)
+ * @body memoryMode string - Memory retrieval mode (default "latest")
+ * @body fallbackPrompt string - Fallback prompt text
+ * @body priority number - Priority ordering (default 0)
+ * @body isActive boolean - Active status (default true)
+ * @body ranges Array<{ minValue, maxValue, condition, prompt, label, metadata }> - Value ranges
+ * @response 201 { ok: true, slug: PromptSlug }
+ * @response 400 { ok: false, error: "..." }
+ * @response 409 { ok: false, error: "Slug '...' already exists" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const {
       slug,

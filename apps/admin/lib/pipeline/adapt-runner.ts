@@ -5,16 +5,33 @@
  * Reads learner profile from CallerAttribute and writes adjusted targets to CallerTarget.
  *
  * Contract-based - NO HARDCODING of profile keys or parameters.
+ * Supports flexible condition operators: eq, gt, gte, lt, lte, between, in.
+ * Confidence and data source are spec-configurable.
  */
 
 import { prisma } from "@/lib/prisma";
 import { getLearnerProfile } from "@/lib/learner/profile";
 
-interface AdaptationRule {
-  condition: {
-    profileKey: string;
-    value: string | number;
-  };
+// === Condition Interface (backward-compatible) ===
+
+export interface AdaptCondition {
+  profileKey: string;
+  /** Comparison operator. Defaults to "eq" when omitted (backward compat). */
+  operator?: "eq" | "gt" | "gte" | "lt" | "lte" | "between" | "in";
+  /** Exact match value (for "eq" — the legacy format). */
+  value?: string | number;
+  /** Numeric threshold (for gt/gte/lt/lte). */
+  threshold?: number;
+  /** Range bounds (for "between"). */
+  range?: { min: number; max: number };
+  /** Allowed values (for "in"). */
+  values?: (string | number)[];
+  /** Data source for the profile value. Defaults to "learnerProfile". */
+  dataSource?: "learnerProfile" | "parameterValues";
+}
+
+export interface AdaptationRule {
+  condition: AdaptCondition;
   actions: AdaptationAction[];
 }
 
@@ -34,19 +51,68 @@ interface AdaptParameter {
 }
 
 /**
- * Run all ADAPT specs for a caller
- * Reads learner profile and applies adaptation rules to behavior targets
+ * Evaluate a condition against a profile value.
+ * Exported for testability.
+ */
+export function evaluateCondition(
+  condition: AdaptCondition,
+  profileValue: string | number | null,
+): boolean {
+  if (profileValue === null || profileValue === undefined) return false;
+
+  const op = condition.operator || "eq";
+
+  switch (op) {
+    case "eq":
+      return profileValue === (condition.value ?? condition.threshold);
+
+    case "gt":
+      return typeof profileValue === "number" && profileValue > (condition.threshold ?? 0);
+
+    case "gte":
+      return typeof profileValue === "number" && profileValue >= (condition.threshold ?? 0);
+
+    case "lt":
+      return typeof profileValue === "number" && profileValue < (condition.threshold ?? 0);
+
+    case "lte":
+      return typeof profileValue === "number" && profileValue <= (condition.threshold ?? 0);
+
+    case "between": {
+      if (!condition.range) return false;
+      return (
+        typeof profileValue === "number" &&
+        profileValue >= condition.range.min &&
+        profileValue <= condition.range.max
+      );
+    }
+
+    case "in":
+      return (condition.values || []).includes(profileValue);
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Run all ADAPT specs for a caller.
+ * Reads learner profile and applies adaptation rules to behavior targets.
  */
 export async function runAdaptSpecs(callerId: string): Promise<{
   specsRun: number;
   targetsCreated: number;
   targetsUpdated: number;
+  rulesEvaluated: number;
+  rulesFired: number;
   errors: string[];
 }> {
   const errors: string[] = [];
   let specsRun = 0;
   let targetsCreated = 0;
   let targetsUpdated = 0;
+  let rulesEvaluated = 0;
+  let rulesFired = 0;
 
   try {
     // Get all active ADAPT specs
@@ -58,17 +124,39 @@ export async function runAdaptSpecs(callerId: string): Promise<{
     });
 
     if (adaptSpecs.length === 0) {
-      return { specsRun: 0, targetsCreated: 0, targetsUpdated: 0, errors: [] };
+      return { specsRun: 0, targetsCreated: 0, targetsUpdated: 0, rulesEvaluated: 0, rulesFired: 0, errors: [] };
     }
 
     // Get learner profile
     const learnerProfile = await getLearnerProfile(callerId);
 
+    // Pre-load parameterValues for conditions that use that data source
+    let parameterValues: Record<string, number> = {};
+    const needsParamValues = adaptSpecs.some((spec) => {
+      const config = spec.config as any;
+      const parameters: AdaptParameter[] = config?.parameters || [];
+      return parameters.some((p) =>
+        p.config?.adaptationRules?.some(
+          (r: AdaptationRule) => r.condition.dataSource === "parameterValues",
+        ),
+      );
+    });
+
+    if (needsParamValues) {
+      const profile = await prisma.callerPersonalityProfile.findUnique({
+        where: { callerId },
+        select: { parameterValues: true },
+      });
+      parameterValues = (profile?.parameterValues as Record<string, number>) || {};
+    }
+
     // Run each ADAPT spec
     for (const spec of adaptSpecs) {
       try {
         const config = spec.config as any;
-        const parameters: AdaptParameter[] = config.parameters || [];
+        const parameters: AdaptParameter[] = config?.parameters || [];
+        // Read confidence from spec config (not hardcoded)
+        const defaultConfidence = config?.defaultAdaptConfidence ?? 0.8;
 
         // Find parameters with adaptationRules
         for (const param of parameters) {
@@ -77,11 +165,15 @@ export async function runAdaptSpecs(callerId: string): Promise<{
               callerId,
               spec.slug,
               learnerProfile,
-              param.config.adaptationRules
+              parameterValues,
+              param.config.adaptationRules,
+              defaultConfidence,
             );
 
             targetsCreated += result.created;
             targetsUpdated += result.updated;
+            rulesEvaluated += result.evaluated;
+            rulesFired += result.fired;
           }
         }
 
@@ -91,38 +183,54 @@ export async function runAdaptSpecs(callerId: string): Promise<{
       }
     }
 
-    return { specsRun, targetsCreated, targetsUpdated, errors };
+    return { specsRun, targetsCreated, targetsUpdated, rulesEvaluated, rulesFired, errors };
   } catch (error: any) {
     errors.push(`Error in runAdaptSpecs: ${error.message}`);
-    return { specsRun, targetsCreated, targetsUpdated, errors };
+    return { specsRun, targetsCreated, targetsUpdated, rulesEvaluated, rulesFired, errors };
   }
 }
 
 /**
- * Apply adaptation rules from a spec parameter
+ * Apply adaptation rules from a spec parameter.
  */
 async function applyAdaptationRules(
   callerId: string,
   specSlug: string,
   learnerProfile: any,
-  rules: AdaptationRule[]
-): Promise<{ created: number; updated: number }> {
+  parameterValues: Record<string, number>,
+  rules: AdaptationRule[],
+  defaultConfidence: number,
+): Promise<{ created: number; updated: number; evaluated: number; fired: number }> {
   let created = 0;
   let updated = 0;
+  let evaluated = 0;
+  let fired = 0;
 
-  // Group rules by condition to process efficiently
   for (const rule of rules) {
-    // Check if condition matches profile
-    const profileValue = getProfileValue(learnerProfile, rule.condition.profileKey);
+    evaluated++;
 
-    if (profileValue === null || profileValue !== rule.condition.value) {
+    // Resolve profile value from the appropriate data source
+    let profileValue: string | number | null;
+    if (rule.condition.dataSource === "parameterValues") {
+      profileValue = parameterValues[rule.condition.profileKey] ?? null;
+    } else {
+      profileValue = getProfileValue(learnerProfile, rule.condition.profileKey);
+    }
+
+    // Evaluate using the flexible condition system
+    if (!evaluateCondition(rule.condition, profileValue)) {
       continue; // Condition not met
     }
+
+    fired++;
+    console.log(
+      `[adapt-runner] ${specSlug}: rule fired — ${rule.condition.profileKey} ${rule.condition.operator || "eq"} (value: ${profileValue}) → ${rule.actions.length} actions`,
+    );
 
     // Condition met - apply all actions
     for (const action of rule.actions) {
       try {
-        // Get or create the parameter
+        // Validate parameter exists
         const parameter = await prisma.parameter.findUnique({
           where: { parameterId: action.targetParameter },
         });
@@ -153,14 +261,14 @@ async function applyAdaptationRules(
           const currentValue = existingTarget?.targetValue ?? 0.5;
           targetValue = Math.max(0.0, currentValue - (action.delta ?? 0.1));
         } else {
-          targetValue = 0.5; // fallback
+          targetValue = 0.5;
         }
 
         // Clamp to [0, 1]
         targetValue = Math.max(0.0, Math.min(1.0, targetValue));
 
-        // Write to CallerTarget
-        const result = await prisma.callerTarget.upsert({
+        // Write to CallerTarget (confidence from spec config)
+        await prisma.callerTarget.upsert({
           where: {
             callerId_parameterId: {
               callerId,
@@ -171,11 +279,11 @@ async function applyAdaptationRules(
             callerId,
             parameterId: action.targetParameter,
             targetValue,
-            confidence: 0.8, // Adaptation confidence
+            confidence: defaultConfidence,
           },
           update: {
             targetValue,
-            confidence: 0.8,
+            confidence: defaultConfidence,
           },
         });
 
@@ -190,12 +298,12 @@ async function applyAdaptationRules(
     }
   }
 
-  return { created, updated };
+  return { created, updated, evaluated, fired };
 }
 
 /**
- * Get profile value by key (camelCase or snake_case)
- * Maps between profile object keys and contract keys
+ * Get profile value by key (camelCase or snake_case).
+ * Maps between profile object keys and contract keys.
  */
 function getProfileValue(profile: any, key: string): string | number | null {
   if (!profile) return null;

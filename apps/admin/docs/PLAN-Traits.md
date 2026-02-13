@@ -89,7 +89,7 @@ COMPOSE stage
 
 #### 1.1 Extend Spec Schema for Trait System Metadata
 
-**Modify** `bdd-specs/feature-spec-schema.json` - Add trait system fields:
+**Modify** `docs-archive/bdd-specs/feature-spec-schema.json` - Add trait system fields:
 ```json
 {
   "traitSystem": {
@@ -304,7 +304,7 @@ model Playbook {
 }
 ```
 
-**Modify** `bdd-specs/playbooks-config.json` (or wherever playbook config lives):
+**Modify** `docs-archive/bdd-specs/playbooks-config.json` (or wherever playbook config lives):
 ```json
 {
   "playbookId": "wwii-tutor",
@@ -418,9 +418,9 @@ async function runComposeStage(call: Call, playbook: Playbook) {
 | File | Action | Notes |
 |------|--------|-------|
 | `prisma/schema.prisma` | MODIFY | Add TraitSystem model, traitSystems to Playbook, color to Parameter |
-| `bdd-specs/feature-spec-schema.json` | MODIFY | Add traitSystem metadata fields |
-| `bdd-specs/PERS-001-*.spec.json` | MODIFY | Add traitSystem block with id, name, color |
-| `bdd-specs/VARK-001-*.spec.json` | MODIFY | Add traitSystem block |
+| `docs-archive/bdd-specs/feature-spec-schema.json` | MODIFY | Add traitSystem metadata fields |
+| `docs-archive/bdd-specs/PERS-001-*.spec.json` | MODIFY | Add traitSystem block with id, name, color |
+| `docs-archive/bdd-specs/VARK-001-*.spec.json` | MODIFY | Add traitSystem block |
 | `prisma/seed-from-specs.ts` | MODIFY | Extract traitSystem, create TraitSystem records |
 | `lib/trait-system/types.ts` | CREATE | Core type definitions |
 | `lib/trait-system/loader.ts` | CREATE | Load from DB (data-driven, no hardcoded registry) |

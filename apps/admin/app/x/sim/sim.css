@@ -1,0 +1,675 @@
+/* WhatsApp-style simulator theme */
+
+/* ===== Light mode (default) ===== */
+:root {
+  --wa-green-primary: #25D366;
+  --wa-green-dark: #075E54;
+  --wa-green-darker: #054C44;
+  --wa-green-light: #DCF8C6;
+  --wa-bg: #ECE5DD;
+  --wa-bubble-in: #FFFFFF;
+  --wa-bubble-out: #DCF8C6;
+  --wa-input-bg: #F0F0F0;
+  --wa-text-primary: #111B21;
+  --wa-text-secondary: #667781;
+  --wa-text-muted: #8696A0;
+  --wa-border: #D1D7DB;
+  --wa-divider: #E9EDEF;
+  --wa-header-bg: #075E54;
+  --wa-header-text: #FFFFFF;
+  --wa-status-online: #25D366;
+  --wa-surface: #FFFFFF;
+  --wa-surface-secondary: #F0F2F5;
+  --wa-surface-hover: #F5F6F6;
+  --wa-surface-active: #F0F2F5;
+  --wa-shadow: rgba(0, 0, 0, 0.18);
+  --wa-pattern-fill: %23c8c3bb;
+  --wa-pattern-opacity: 0.15;
+}
+
+/* ===== Dark mode ===== */
+.dark {
+  --wa-green-primary: #00A884;
+  --wa-green-dark: #00A884;
+  --wa-green-darker: #075E54;
+  --wa-green-light: #005C4B;
+  --wa-bg: #0B141A;
+  --wa-bubble-in: #202C33;
+  --wa-bubble-out: #005C4B;
+  --wa-input-bg: #2A3942;
+  --wa-text-primary: #E9EDEF;
+  --wa-text-secondary: #8696A0;
+  --wa-text-muted: #667781;
+  --wa-border: #2A3942;
+  --wa-divider: #222D34;
+  --wa-header-bg: #1F2C33;
+  --wa-header-text: #E9EDEF;
+  --wa-status-online: #00A884;
+  --wa-surface: #111B21;
+  --wa-surface-secondary: #1F2C33;
+  --wa-surface-hover: #2A3942;
+  --wa-surface-active: #2A3942;
+  --wa-shadow: rgba(0, 0, 0, 0.4);
+  --wa-pattern-fill: %23182520;
+  --wa-pattern-opacity: 0.3;
+}
+
+/* Chat background with subtle pattern */
+.wa-chat-bg {
+  background-color: var(--wa-bg);
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8c3bb' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Message bubbles */
+.wa-bubble {
+  max-width: 75%;
+  padding: 6px 8px 4px;
+  border-radius: 8px;
+  position: relative;
+  word-wrap: break-word;
+  line-height: 1.35;
+  font-size: 14.5px;
+  color: var(--wa-text-primary);
+}
+
+.wa-bubble-out {
+  background: var(--wa-bubble-out);
+  align-self: flex-end;
+  border-top-right-radius: 2px;
+  margin-left: 48px;
+}
+
+.wa-bubble-in {
+  background: var(--wa-bubble-in);
+  align-self: flex-start;
+  border-top-left-radius: 2px;
+  margin-right: 48px;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+}
+
+.wa-bubble-time {
+  font-size: 11px;
+  color: var(--wa-text-muted);
+  float: right;
+  margin: 4px 0 -4px 12px;
+  line-height: 1;
+}
+
+/* Typing indicator */
+.wa-typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--wa-bubble-in);
+  border-radius: 8px;
+  border-top-left-radius: 2px;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+}
+
+.wa-typing-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--wa-text-muted);
+  border-radius: 50%;
+  animation: wa-typing-bounce 1.4s infinite ease-in-out;
+}
+
+.wa-typing-dot:nth-child(1) { animation-delay: 0s; }
+.wa-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.wa-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes wa-typing-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Input bar — sticky within flex column, not fixed to viewport */
+.wa-input-bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--wa-surface-secondary);
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.wa-input-field {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 24px;
+  background: var(--wa-surface);
+  border: none;
+  font-size: 16px; /* prevents iOS zoom */
+  line-height: 1.35;
+  outline: none;
+  resize: none;
+  max-height: 120px;
+  color: var(--wa-text-primary);
+}
+
+.wa-input-field::placeholder {
+  color: var(--wa-text-muted);
+}
+
+.wa-send-btn {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 50%;
+  background: var(--wa-green-primary);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.wa-send-btn:active {
+  background: var(--wa-green-darker);
+}
+
+.wa-send-btn:disabled {
+  background: var(--wa-text-muted);
+  cursor: not-allowed;
+}
+
+/* Header */
+.wa-header {
+  background: var(--wa-header-bg);
+  color: var(--wa-header-text);
+  padding: 0 16px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.wa-header-title {
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-header-subtitle {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.wa-back-btn {
+  background: none;
+  border: none;
+  color: var(--wa-header-text);
+  cursor: pointer;
+  padding: 8px;
+  margin: -8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Avatar */
+.wa-avatar {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  background: #DFE5E7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.wa-avatar-sm {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  font-size: 18px;
+}
+
+/* Conversation list item */
+.wa-convo-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--wa-divider);
+}
+
+.wa-convo-item:active {
+  background: var(--wa-surface-active);
+}
+
+.wa-convo-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.wa-convo-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--wa-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-convo-preview {
+  font-size: 13.5px;
+  color: var(--wa-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.wa-convo-time {
+  font-size: 12px;
+  color: var(--wa-text-muted);
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+/* Domain badge */
+.wa-domain-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--wa-green-primary) 15%, transparent);
+  color: var(--wa-green-dark);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-left: 6px;
+}
+
+/* FAB (floating action button) */
+.wa-fab {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--wa-green-primary);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px var(--wa-shadow);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.wa-fab:active {
+  transform: scale(0.95);
+  background: var(--wa-green-darker);
+}
+
+/* Search bar */
+.wa-search {
+  padding: 8px 12px;
+  background: var(--wa-surface-secondary);
+}
+
+.wa-search input {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--wa-surface);
+  font-size: 15px;
+  outline: none;
+  color: var(--wa-text-primary);
+}
+
+.wa-search input::placeholder {
+  color: var(--wa-text-muted);
+}
+
+/* End call sheet */
+.wa-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  animation: wa-fade-in 0.2s ease;
+}
+
+.wa-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--wa-surface);
+  border-radius: 16px 16px 0 0;
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 101;
+  animation: wa-slide-up 0.3s ease;
+  color: var(--wa-text-primary);
+}
+
+@keyframes wa-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes wa-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Toggle switch */
+.wa-toggle {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  background: var(--wa-border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  padding: 0;
+}
+
+.wa-toggle.active {
+  background: var(--wa-green-primary);
+}
+
+.wa-toggle::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: var(--wa-surface);
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.wa-toggle.active::after {
+  transform: translateX(20px);
+}
+
+/* Toast */
+.wa-toast {
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323232;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 200;
+  animation: wa-fade-in 0.2s ease, wa-fade-out 0.3s ease 2.5s forwards;
+}
+
+@keyframes wa-fade-out {
+  to { opacity: 0; }
+}
+
+/* Login page */
+.wa-login {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--wa-bg);
+  padding: 24px;
+}
+
+.wa-login-card {
+  background: var(--wa-surface);
+  border-radius: 12px;
+  padding: 32px 24px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 2px 8px var(--wa-shadow);
+  text-align: center;
+  color: var(--wa-text-primary);
+}
+
+.wa-login-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--wa-border);
+  border-radius: 8px;
+  font-size: 18px;
+  text-align: center;
+  letter-spacing: 4px;
+  outline: none;
+  margin: 16px 0;
+  background: var(--wa-surface);
+  color: var(--wa-text-primary);
+}
+
+.wa-login-input:focus {
+  border-color: var(--wa-green-primary);
+}
+
+.wa-login-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--wa-green-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wa-login-btn:active {
+  background: var(--wa-green-darker);
+}
+
+.wa-login-btn:disabled {
+  background: var(--wa-text-muted);
+  cursor: not-allowed;
+}
+
+/* ===== Responsive Layouts ===== */
+
+/* Mobile/Tablet container */
+.wa-mobile-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--wa-surface);
+  z-index: 50;
+}
+
+/* Desktop: WhatsApp Web split view */
+.wa-desktop-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: var(--wa-border);
+  z-index: 50;
+}
+
+.wa-desktop-sidebar {
+  width: 35%;
+  min-width: 300px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  background: var(--wa-surface);
+  border-right: 1px solid var(--wa-divider);
+  overflow: hidden;
+}
+
+.wa-desktop-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Desktop empty state (no conversation selected) */
+.wa-desktop-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--wa-surface-secondary);
+  text-align: center;
+  padding: 24px;
+  color: var(--wa-text-secondary);
+}
+
+/* Active conversation highlight in sidebar */
+.wa-convo-active {
+  background: var(--wa-surface-active);
+}
+
+/* Desktop hover & active states */
+@media (min-width: 1024px) {
+  .wa-convo-item:hover {
+    background: var(--wa-surface-hover);
+  }
+
+  .wa-convo-active,
+  .wa-convo-active:hover {
+    background: var(--wa-surface-active);
+  }
+
+  /* Narrower bubbles for readability on wide screens */
+  .wa-bubble {
+    max-width: 55%;
+  }
+
+  /* Desktop sheet: centered modal instead of bottom sheet */
+  .wa-sheet {
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    max-width: 420px;
+    width: 90%;
+    border-radius: 12px;
+    animation: wa-fade-in 0.2s ease;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .wa-bubble {
+    max-width: 70%;
+  }
+}
+
+/* ===== Filter & Sort (search row dropdowns) ===== */
+
+/* Dropdown wrapper */
+.wa-filter-dropdown-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Compact filter/sort button */
+.wa-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--wa-divider);
+  background: var(--wa-surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--wa-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.wa-filter-btn:hover {
+  border-color: var(--wa-border);
+  background: var(--wa-surface-hover);
+}
+
+.wa-filter-btn:active {
+  background: var(--wa-surface-active);
+}
+
+.wa-filter-btn-active {
+  color: var(--wa-green-dark);
+  border-color: var(--wa-green-primary);
+  background: color-mix(in srgb, var(--wa-green-primary) 10%, var(--wa-surface));
+}
+
+/* Dropdown menu (shared by domain + sort) */
+.wa-sort-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--wa-surface);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px var(--wa-shadow);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.wa-sort-option {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--wa-divider);
+  cursor: pointer;
+  color: var(--wa-text-primary);
+}
+
+.wa-sort-option:last-child {
+  border-bottom: none;
+}
+
+.wa-sort-option:hover {
+  background: var(--wa-surface-hover);
+}
+
+.wa-sort-option:active {
+  background: var(--wa-surface-active);
+}
+
+.wa-sort-option-active {
+  color: var(--wa-green-dark);
+  font-weight: 600;
+}

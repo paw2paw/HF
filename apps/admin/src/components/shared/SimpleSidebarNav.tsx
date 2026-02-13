@@ -4,80 +4,132 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useChatContext } from "@/contexts/ChatContext";
+import { useGlobalAssistant } from "@/contexts/AssistantContext";
 import { useGuidance } from "@/contexts/GuidanceContext";
 import { useSidebarLayout } from "@/hooks/useSidebarLayout";
+import { ICON_MAP } from "@/lib/sidebar/icons";
 import type { NavSection } from "@/lib/sidebar/types";
+import sidebarManifest from "@/lib/sidebar/sidebar-manifest.json";
+import {
+  MoreVertical,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  RotateCcw,
+  Save,
+  Eye,
+  EyeOff,
+  Trash2,
+  PenLine,
+  Bot,
+  Home,
+} from "lucide-react";
 
 // ============================================================================
-// Base Section Definitions
+// Icon Helper
 // ============================================================================
 
-const BASE_SECTIONS: NavSection[] = [
-  {
-    id: "home",
-    items: [{ href: "/x", label: "Home", icon: "🏠" }],
-    dividerAfter: true,
-  },
-  {
-    id: "work",
-    title: "Work",
-    items: [
-      { href: "/x/playground", label: "Playground", icon: "✏️" },
-    ],
-    dividerAfter: true,
-  },
-  {
-    id: "data",
-    title: "Data",
-    items: [
-      { href: "/x/callers", label: "Callers", icon: "👤" },
-      { href: "/x/onboarding", label: "Onboard", icon: "🚀" },
-      { href: "/x/goals", label: "Goals", icon: "🎯" },
-      { href: "/x/import", label: "Import", icon: "📥" },
-    ],
-    dividerAfter: true,
-  },
-  {
-    id: "config",
-    title: "Configure",
-    items: [
-      { href: "/x/domains", label: "Domains", icon: "🌐" },
-      { href: "/x/personas", label: "Personas", icon: "🎭" },
-      { href: "/x/playbooks", label: "Playbooks", icon: "📒" },
-      { href: "/x/specs", label: "Specs", icon: "📋" },
-      { href: "/x/taxonomy", label: "Taxonomy", icon: "🌳" },
-      { href: "/x/taxonomy-graph", label: "Visualizer", icon: "🌌" },
-    ],
-    dividerAfter: true,
-  },
-  {
-    id: "system",
-    title: "System",
-    items: [
-      { href: "/x/metering", label: "Metering", icon: "📈" },
-      { href: "/x/ai-config", label: "AI Config", icon: "🤖" },
-      { href: "/x/users", label: "Team", icon: "👥" },
-      { href: "/x/settings", label: "Appearance", icon: "🎨" },
-    ],
-    dividerAfter: true,
-  },
-  {
-    id: "supervisor",
-    items: [{ href: "/x/supervisor", label: "Pipeline", icon: "⚡", highlighted: true }],
-  },
-  {
-    id: "devtools",
-    title: "Dev Tools",
-    collapsedByDefault: true,
-    items: [
-      { href: "/x/debug", label: "Debug", icon: "🐛" },
-      { href: "/x/logs", label: "Logs", icon: "📝" },
-      { href: "/x/admin/tests", label: "E2E Tests", icon: "🎭" },
-      { href: "/x/data-management", label: "Seed Data", icon: "🌱" },
-    ],
-  },
-];
+function NavIcon({ name, className }: { name: string; className?: string }) {
+  const Icon = ICON_MAP[name];
+  if (!Icon) return null;
+  return <Icon className={className} />;
+}
+
+// ============================================================================
+// Kebab Menu (appears on section header hover)
+// ============================================================================
+
+function SectionKebabMenu({
+  sectionId,
+  sectionTitle,
+  visible,
+  onRename,
+  onHide,
+  onDelete,
+}: {
+  sectionId: string;
+  sectionTitle: string;
+  visible: boolean;
+  onRename: (id: string, title: string) => void;
+  onHide: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const showButton = visible || open;
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        className="p-2 rounded hover:bg-[var(--hover-bg)] transition-opacity"
+        style={{ opacity: showButton ? 1 : 0 }}
+        aria-label={`Options for ${sectionTitle}`}
+      >
+        <MoreVertical className="w-4 h-4 text-[var(--text-muted)]" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] shadow-lg py-1">
+          <button
+            type="button"
+            onClick={() => {
+              onRename(sectionId, sectionTitle);
+              setOpen(false);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
+          >
+            <PenLine className="w-3.5 h-3.5" /> Rename
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onHide(sectionId);
+              setOpen(false);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
+          >
+            <EyeOff className="w-3.5 h-3.5" /> Hide
+          </button>
+          <div className="my-1 border-t border-[var(--border-subtle)]" />
+          <button
+            type="button"
+            onClick={() => {
+              onDelete(sectionId);
+              setOpen(false);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Base Section Definitions (manifest is structural fallback; DB rules override visibility)
+// ============================================================================
+
+const MANIFEST_SECTIONS: NavSection[] = sidebarManifest as NavSection[];
 
 // ============================================================================
 // Component
@@ -86,17 +138,78 @@ const BASE_SECTIONS: NavSection[] = [
 export default function SimpleSidebarNav({
   collapsed: externalCollapsed,
   onToggle: externalOnToggle,
+  onNavigate,
 }: {
   collapsed?: boolean;
   onToggle?: () => void;
+  onNavigate?: () => void;
 } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  const isAdmin = session?.user?.role === "ADMIN";
-  const { togglePanel, isOpen: chatOpen } = useChatContext();
+  const userRole = session?.user?.role as string | undefined;
+  const isAdmin = userRole === "ADMIN" || userRole === "SUPERADMIN";
+
+  // ── DB-backed visibility rules (overrides manifest requiredRole/defaultHiddenFor) ──
+  const [visibilityRules, setVisibilityRules] = useState<Record<
+    string,
+    { requiredRole: string | null; defaultHiddenFor: string[] }
+  > | null>(null);
+
+  useEffect(() => {
+    // Only admins have access to this endpoint; for others, manifest defaults are fine
+    if (!isAdmin) return;
+    fetch("/api/admin/access-control/sidebar-visibility")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.rules?.sections) {
+          setVisibilityRules(data.rules.sections);
+        }
+      })
+      .catch(() => {}); // Fall back to manifest defaults silently
+  }, [isAdmin]);
+
+  const BASE_SECTIONS = useMemo(() => {
+    if (!visibilityRules) return MANIFEST_SECTIONS;
+    return MANIFEST_SECTIONS.map((section) => {
+      const dbRule = visibilityRules[section.id];
+      if (!dbRule) return section;
+      return {
+        ...section,
+        requiredRole: dbRule.requiredRole ?? section.requiredRole,
+        defaultHiddenFor: dbRule.defaultHiddenFor ?? section.defaultHiddenFor,
+      };
+    });
+  }, [visibilityRules]);
+  const assistant = useGlobalAssistant();
   const guidance = useGuidance();
+
+  // Unread message count
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread count
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await fetch("/api/messages/unread-count");
+        const data = await res.json();
+        if (data.ok) {
+          setUnreadCount(data.count || 0);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Refetch every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [userId]);
 
   // Collapse state
   const [internalCollapsed, setInternalCollapsed] = useState(false);
@@ -108,24 +221,34 @@ export default function SimpleSidebarNav({
     visibleSections,
     hiddenSectionIds,
     hasCustomLayout,
+    hasPersonalDefault,
     isLoaded,
     dragState,
     renameSection,
     hideSection,
     showSection,
+    deleteSection,
+    undoDeleteSection,
     resetLayout,
     setAsDefault,
+    setAsPersonalDefault,
     sectionDragHandlers,
     itemDragHandlers,
-  } = useSidebarLayout({ userId, baseSections: BASE_SECTIONS, isAdmin });
+  } = useSidebarLayout({ userId, userRole, baseSections: BASE_SECTIONS, isAdmin });
 
   // UI state
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
+  const [savingPersonal, setSavingPersonal] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sectionId: string } | null>(null);
+  const [deleteToast, setDeleteToast] = useState<{
+    sectionId: string;
+    sectionTitle: string;
+    timeoutId: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
 
   // Collapsed sections state (persisted to localStorage)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -173,17 +296,13 @@ export default function SimpleSidebarNav({
 
   const navRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  // Close menus on outside click
+  // Close layout menu on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowLayoutMenu(false);
-      }
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -255,21 +374,16 @@ export default function SimpleSidebarNav({
         e.preventDefault();
         router.replace(href);
       }
+      // Call onNavigate for mobile overlay close
+      onNavigate?.();
     },
-    [pathname, router]
+    [pathname, router, onNavigate]
   );
-
-  // Section context menu
-  const handleSectionContextMenu = useCallback((e: React.MouseEvent, sectionId: string) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, sectionId });
-  }, []);
 
   // Handle rename
   const handleStartRename = useCallback((sectionId: string, currentTitle: string) => {
     setEditingSectionId(sectionId);
     setEditingTitle(currentTitle || "");
-    setContextMenu(null);
   }, []);
 
   const handleFinishRename = useCallback(() => {
@@ -280,13 +394,45 @@ export default function SimpleSidebarNav({
     }
   }, [editingSectionId, editingTitle, renameSection]);
 
-  // Handle set as default
+  // Handle delete with undo toast
+  const handleDeleteSection = useCallback((sectionId: string) => {
+    const section = visibleSections.find((s) => s.id === sectionId);
+    const title = section?.title || sectionId;
+
+    deleteSection(sectionId);
+
+    // Clear any existing toast timeout
+    if (deleteToast?.timeoutId) clearTimeout(deleteToast.timeoutId);
+
+    const timeoutId = setTimeout(() => {
+      setDeleteToast(null);
+    }, 5000);
+
+    setDeleteToast({ sectionId, sectionTitle: title, timeoutId });
+  }, [visibleSections, deleteSection, deleteToast]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (!deleteToast) return;
+    clearTimeout(deleteToast.timeoutId);
+    undoDeleteSection(deleteToast.sectionId);
+    setDeleteToast(null);
+  }, [deleteToast, undoDeleteSection]);
+
+  // Handle set as default for all
   const handleSetAsDefault = useCallback(async () => {
     setSavingDefault(true);
     await setAsDefault();
     setSavingDefault(false);
     setShowLayoutMenu(false);
   }, [setAsDefault]);
+
+  // Handle set as personal default
+  const handleSavePersonalDefault = useCallback(async () => {
+    setSavingPersonal(true);
+    await setAsPersonalDefault();
+    setSavingPersonal(false);
+    setShowLayoutMenu(false);
+  }, [setAsPersonalDefault]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -295,108 +441,135 @@ export default function SimpleSidebarNav({
   }, [resetLayout]);
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-neutral-900 p-3 text-neutral-900 dark:text-neutral-100 overflow-hidden">
+    <div className="relative flex h-full flex-col p-2 overflow-hidden" style={{ color: "var(--text-primary)" }}>
       {/* Header */}
       {collapsed ? (
-        // Collapsed: tiny expand arrow at top, icons below in same positions
-        <div className="mb-3 flex flex-col items-center">
-          {/* Tiny expand arrow - minimal footprint */}
+        <div className="mb-2 flex flex-col items-center gap-1">
           <button
             type="button"
             onClick={onToggle}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="w-full h-4 flex items-center justify-center text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors mb-1"
+            className="w-full h-5 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] transition-colors mb-0.5"
           >
-            »
+            <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
           </button>
-          {/* Icons - same vertical spacing as expanded */}
-          <div className="flex flex-col items-center gap-1">
-            <Link href="/x" className="w-7 h-7 flex items-center justify-center text-base hover:scale-110 transition-transform rounded hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Home">
-              🏠
-            </Link>
-            <button
-              type="button"
-              onClick={togglePanel}
-              title={chatOpen ? "Hide AI Chat (⌘K)" : "Show AI Chat (⌘K)"}
-              className={
-                "inline-flex items-center justify-center rounded-md w-7 h-7 transition-colors " +
-                (chatOpen
-                  ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400"
-                  : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800")
-              }
-            >
-              🤖
-            </button>
-          </div>
+          <Link
+            href="/x"
+            className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+            title="Home"
+          >
+            <Home className="w-4 h-4 text-[var(--text-secondary)]" />
+          </Link>
+          <button
+            type="button"
+            onClick={assistant.toggle}
+            title={assistant.isOpen ? "Hide AI Assistant" : "Show AI Assistant"}
+            className={
+              "w-8 h-8 flex items-center justify-center rounded-md transition-colors " +
+              (assistant.isOpen
+                ? "bg-[var(--surface-selected)] text-[var(--accent-primary)]"
+                : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]")
+            }
+          >
+            <Bot className="w-4 h-4" />
+          </button>
         </div>
       ) : (
-        // Expanded: horizontal layout
         <div className="mb-3 flex items-center justify-between gap-2">
           <Link
             href="/x"
-            className="text-sm font-extrabold tracking-tight text-neutral-900 dark:text-neutral-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="text-[13px] font-bold tracking-tight hover:text-[var(--accent-primary)] transition-colors"
           >
             HumanFirst
           </Link>
 
-          <div className="flex items-center gap-1">
-            {/* Chat toggle */}
+          <div className="flex items-center gap-0.5">
+            {/* AI assistant toggle */}
             <button
               type="button"
-              onClick={togglePanel}
-              title={chatOpen ? "Hide AI Chat (⌘K)" : "Show AI Chat (⌘K)"}
+              onClick={assistant.toggle}
+              title={assistant.isOpen ? "Hide AI Assistant" : "Show AI Assistant"}
               className={
-                "inline-flex items-center justify-center rounded-md w-7 h-7 transition-colors " +
-                (chatOpen
-                  ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400"
-                  : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800")
+                "w-9 h-9 flex items-center justify-center rounded-md transition-colors " +
+                (assistant.isOpen
+                  ? "bg-[var(--surface-selected)] text-[var(--accent-primary)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]")
               }
             >
-              🤖
+              <Bot className="w-4.5 h-4.5" />
             </button>
 
-            {/* Layout menu - only render after hydration to avoid mismatch */}
-            {isLoaded && (hasCustomLayout || isAdmin || hiddenSectionIds.length > 0) && (
+            {/* Layout menu */}
+            {isLoaded && (
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
                   onClick={() => setShowLayoutMenu((prev) => !prev)}
                   title="Layout options"
                   className={
-                    "inline-flex items-center justify-center rounded-md w-7 h-7 transition-colors " +
+                    "relative w-9 h-9 flex items-center justify-center rounded-md transition-colors " +
                     (showLayoutMenu
-                      ? "bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200"
-                      : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800")
+                      ? "bg-[var(--surface-tertiary)] text-[var(--text-primary)]"
+                      : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]")
                   }
                 >
-                  ⚙
+                  <Settings className="w-4 h-4" />
+                  {hasCustomLayout && !hasPersonalDefault && (
+                    <span
+                      className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full"
+                      style={{ background: "var(--accent-primary)" }}
+                    />
+                  )}
                 </button>
                 {showLayoutMenu && (
-                  <div className="absolute right-0 top-8 z-50 min-w-[180px] rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg py-1">
-                    {hasCustomLayout && (
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                      >
-                        ↻ Reset to Default
-                      </button>
-                    )}
+                  <div className="absolute left-0 top-8 z-50 w-52 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] shadow-lg py-1">
+                    {/* Save as personal default */}
+                    <button
+                      type="button"
+                      onClick={handleSavePersonalDefault}
+                      disabled={savingPersonal}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] disabled:opacity-50 transition-colors"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      {savingPersonal ? "Saving..." : "Set as Default for Me"}
+                    </button>
+
+                    {/* Set as default for all (admin only) */}
                     {isAdmin && (
                       <button
                         type="button"
                         onClick={handleSetAsDefault}
                         disabled={savingDefault}
-                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-medium text-[var(--accent-primary)] hover:bg-[var(--hover-bg)] disabled:opacity-50 transition-colors"
                       >
-                        {savingDefault ? "Saving..." : "💾 Set as Default for All"}
+                        <Save className="w-3.5 h-3.5" />
+                        {savingDefault ? "Saving..." : "Set as Default for All"}
                       </button>
                     )}
+
+                    {/* Reset */}
+                    {hasCustomLayout && (
+                      <>
+                        <div className="my-1 border-t border-[var(--border-subtle)]" />
+                        <button
+                          type="button"
+                          onClick={handleReset}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Reset to Default
+                        </button>
+                      </>
+                    )}
+
+                    {/* Show hidden sections (NOT deleted) */}
                     {hiddenSectionIds.length > 0 && (
                       <>
-                        <div className="my-1 border-t border-neutral-200 dark:border-neutral-700" />
-                        <div className="px-3 py-1 text-xs font-medium text-neutral-500 uppercase">Hidden Sections</div>
+                        <div className="my-1 border-t border-[var(--border-subtle)]" />
+                        <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                          Hidden
+                        </div>
                         {hiddenSectionIds.map((id) => {
                           const section = BASE_SECTIONS.find((s) => s.id === id);
                           return (
@@ -407,9 +580,10 @@ export default function SimpleSidebarNav({
                                 showSection(id);
                                 setShowLayoutMenu(false);
                               }}
-                              className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
                             >
-                              👁 Show {section?.title || id}
+                              <Eye className="w-3.5 h-3.5" />
+                              Show {section?.title || id}
                             </button>
                           );
                         })}
@@ -425,16 +599,16 @@ export default function SimpleSidebarNav({
               type="button"
               onClick={onToggle}
               aria-label="Collapse sidebar"
-              className="inline-flex items-center justify-center rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1 text-sm text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
             >
-              ←
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       )}
 
       {/* Scrollable nav area */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sidebar-scroll">
         <nav ref={navRef} className="flex flex-col gap-3" onKeyDown={handleKeyDown} role="navigation" aria-label="Main navigation">
           {visibleSections.map((section) => {
             const isDraggingSection = dragState.draggedSection === section.id;
@@ -458,18 +632,26 @@ export default function SimpleSidebarNav({
                     : sectionDragHandlers.onDrop(e, section.id)
                 }
                 onDragEnd={sectionDragHandlers.onDragEnd}
-                onContextMenu={(e) => !collapsed && handleSectionContextMenu(e, section.id)}
                 className={
                   "flex flex-col transition-all rounded-md " +
                   (isDraggingSection ? "opacity-50 " : "") +
-                  (isDragOverForSection ? "border-t-2 border-indigo-500 " : "") +
-                  (isDragOverForItem ? "bg-indigo-50 dark:bg-indigo-950/50 ring-2 ring-indigo-400 ring-inset " : "")
+                  (isDragOverForSection ? "border-t-2 border-[var(--accent-primary)] " : "") +
+                  (isDragOverForItem ? "bg-[var(--surface-selected)] ring-2 ring-[var(--accent-primary)] ring-inset " : "")
                 }
                 style={{ cursor: collapsed ? "default" : dragState.draggedItem ? "default" : "grab" }}
               >
-                {/* Section title (editable, clickable to collapse) */}
+                {/* Section divider */}
                 {section.title && !collapsed && (
-                  <div className="px-2 pb-1">
+                  <div className="mx-2 border-t border-[var(--border-subtle)]" />
+                )}
+
+                {/* Section title with kebab menu */}
+                {section.title && !collapsed && (
+                  <div
+                    className="flex items-center justify-between px-2 pb-0.5 pt-1"
+                    onMouseEnter={() => setHoveredSectionId(section.id)}
+                    onMouseLeave={() => setHoveredSectionId(null)}
+                  >
                     {editingSectionId === section.id ? (
                       <input
                         ref={editInputRef}
@@ -484,19 +666,58 @@ export default function SimpleSidebarNav({
                             setEditingTitle("");
                           }
                         }}
-                        className="w-full text-[11px] font-semibold uppercase tracking-wide bg-transparent border-b border-indigo-400 outline-none text-neutral-700 dark:text-neutral-200"
+                        className="w-full text-[11px] font-medium tracking-wide bg-transparent border-b border-[var(--accent-primary)] outline-none"
+                        style={{ color: "var(--text-secondary)" }}
                       />
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggleSectionCollapse(section.id)}
-                        className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
-                      >
-                        <span>{section.title}</span>
-                        <span className="text-[10px] opacity-60 transition-transform" style={{ transform: collapsedSections.has(section.id) ? "rotate(-90deg)" : "rotate(0deg)" }}>
-                          ▼
-                        </span>
-                      </button>
+                      <div className="flex-1 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionCollapse(section.id)}
+                          className="flex-shrink-0 p-0 transition-colors"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          <ChevronDown
+                            className="w-3 h-3 transition-transform"
+                            style={{
+                              transform: collapsedSections.has(section.id) ? "rotate(-90deg)" : "rotate(0deg)",
+                            }}
+                          />
+                        </button>
+                        {section.href ? (
+                          <Link
+                            href={section.href}
+                            className="group flex items-center text-[11px] font-medium tracking-wide transition-colors"
+                            style={{
+                              color: isActive(section.href) ? "var(--accent-primary)" : "var(--text-muted)",
+                              textDecoration: "none",
+                            }}
+                          >
+                            <span>{section.title}</span>
+                            <span className="opacity-0 group-hover:opacity-60 transition-opacity text-[9px] ml-0.5">{"\u2192"}</span>
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleSectionCollapse(section.id)}
+                            className="text-[11px] font-medium tracking-wide transition-colors"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {section.title}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {editingSectionId !== section.id && (
+                      <SectionKebabMenu
+                        sectionId={section.id}
+                        sectionTitle={section.title || section.id}
+                        visible={hoveredSectionId === section.id}
+                        onRename={handleStartRename}
+                        onHide={hideSection}
+                        onDelete={handleDeleteSection}
+                      />
                     )}
                   </div>
                 )}
@@ -515,7 +736,11 @@ export default function SimpleSidebarNav({
                     const isFocused = itemIndex === focusedIndex;
                     const isDraggingItem = dragState.draggedItem === item.href;
                     const isDragOverThisItem = dragState.dragOverItem === item.href;
-                    const baseClass = item.highlighted && !active ? "bg-indigo-50/70 dark:bg-indigo-950/70 " : "";
+
+                    // Highlighted items (e.g. Pipeline)
+                    const baseClass = item.highlighted && !active
+                      ? "bg-[var(--surface-selected)] "
+                      : "";
 
                     // Dynamic highlight from GuidanceContext
                     const highlight = guidance?.getHighlight(item.href);
@@ -540,68 +765,88 @@ export default function SimpleSidebarNav({
                         className={
                           baseClass +
                           highlightClass +
-                          "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 " +
+                          "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 " +
                           (isDraggingItem ? "opacity-50 " : "") +
-                          (isDragOverThisItem ? "border-t-2 border-indigo-500 " : "") +
+                          (isDragOverThisItem ? "border-t-2 border-[var(--accent-primary)] " : "") +
                           (active
-                            ? "bg-indigo-600 text-white font-semibold"
+                            ? "bg-[var(--accent-primary)]/8 font-semibold"
                             : isFocused
-                              ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-medium"
-                              : "text-neutral-900 dark:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800")
+                              ? "bg-[var(--hover-bg)] font-medium"
+                              : "font-medium hover:bg-[var(--hover-bg)] hover:shadow-[inset_2px_0_0_var(--accent-primary)]")
                         }
-                        style={{ cursor: collapsed ? "default" : "grab" }}
+                        style={{
+                          cursor: collapsed ? "default" : "grab",
+                          color: active ? "var(--accent-primary)" : "var(--text-primary)",
+                        }}
                       >
                         {item.icon && (
-                          <span className={"text-base " + (active ? "opacity-100" : "opacity-80")} aria-hidden>
-                            {item.icon}
+                          <span className={
+                            "flex items-center justify-center w-6 h-6 flex-shrink-0 rounded-md transition-colors " +
+                            (active ? "bg-[var(--accent-primary)]/10" : "")
+                          }>
+                            <NavIcon
+                              name={item.icon}
+                              className={
+                                "w-4 h-4 " +
+                                (active ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]")
+                              }
+                            />
                           </span>
                         )}
                         {!collapsed && <span className="truncate">{item.label}</span>}
+                        {!collapsed && item.href === "/x/messages" && unreadCount > 0 && (
+                          <span
+                            className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
+                            style={{
+                              background: active ? "var(--accent-primary)" : "var(--accent-primary)",
+                              opacity: active ? 0.8 : 1,
+                            }}
+                          >
+                            {unreadCount}
+                          </span>
+                        )}
                       </Link>
                     );
                   })}
                 </div>
-
-                {section.dividerAfter && <div className="my-3 border-t border-neutral-300 dark:border-neutral-700" />}
               </div>
             );
           })}
         </nav>
 
-        <div className="mt-auto pt-3 border-t border-neutral-200 dark:border-neutral-800">
-          <div className="text-center text-[10px] text-neutral-400 dark:text-neutral-500">HumanFirst Studio</div>
+        <div className="mt-auto pt-2">
+          <div className="text-center text-[10px]" style={{ color: "var(--text-muted)" }}>
+            HumanFirst Studio
+          </div>
         </div>
       </div>
 
-      {/* Context menu */}
-      {contextMenu && (
+      {/* Undo delete toast */}
+      {deleteToast && (
         <div
-          ref={contextMenuRef}
-          className="fixed z-50 min-w-[140px] rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg py-1"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="absolute bottom-3 left-2 right-2 z-50 flex items-center justify-between gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] px-3 py-2 shadow-lg"
+          style={{ color: "var(--text-secondary)" }}
         >
+          <span className="text-xs">
+            Deleted <strong>{deleteToast.sectionTitle}</strong>
+          </span>
           <button
             type="button"
-            onClick={() => {
-              const section = visibleSections.find((s) => s.id === contextMenu.sectionId);
-              handleStartRename(contextMenu.sectionId, section?.title || "");
-            }}
-            className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            onClick={handleUndoDelete}
+            className="text-xs font-semibold transition-colors"
+            style={{ color: "var(--accent-primary)" }}
           >
-            ✏️ Rename Section
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              hideSection(contextMenu.sectionId);
-              setContextMenu(null);
-            }}
-            className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
-          >
-            👁️‍🗨️ Hide Section
+            Undo
           </button>
         </div>
       )}
+
+      <style>{`
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 30%, transparent); border-radius: 4px; }
+        .sidebar-scroll:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 50%, transparent); }
+      `}</style>
     </div>
   );
 }

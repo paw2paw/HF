@@ -5,6 +5,7 @@ import os from 'node:os';
 import { AgentRunStatus as DbAgentRunStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { resolveAgentPaths } from '@/lib/agent-paths';
+import { requireAuth, isAuthError } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 
@@ -381,8 +382,21 @@ async function persistRunToDb(run: AgentRun, instanceId: string | null) {
   }
 }
 
+/**
+ * @api GET /api/agents/run
+ * @visibility internal
+ * @scope agents:read
+ * @auth session
+ * @tags agents
+ * @description Get agent run API info and metadata (kbRoot, runsFile path)
+ * @response 200 { ok: true, note: string, meta: { kbRoot, runsFile } }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     return NextResponse.json({
       ok: true,
@@ -397,6 +411,21 @@ export async function GET() {
   }
 }
 
+/**
+ * @api POST /api/agents/run
+ * @visibility internal
+ * @scope agents:execute
+ * @auth session
+ * @tags agents
+ * @description Execute an agent by resolving its agentId to an Ops opid, running the op, and persisting the run record
+ * @body agentId string - Agent identifier to run
+ * @body dryRun boolean - If true, do not actually execute (default: false)
+ * @body settings object - Optional settings overrides
+ * @response 200 { ok: true, run: AgentRun, ops: OpsResult, meta: { runsFile, usedPublishedInstance, ... } }
+ * @response 400 { ok: false, error: "Unknown agentId: ..." }
+ * @response 400 { ok: false, error: "Invalid JSON body" }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function POST(req: Request) {
   const startedAt = new Date().toISOString();
   const id = newRunId();
@@ -411,6 +440,9 @@ export async function POST(req: Request) {
   }
 
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     if (!parsedBody) {

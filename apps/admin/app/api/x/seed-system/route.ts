@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { seedFromSpecs } from "../../../../prisma/seed-from-specs";
+import { clearAIConfigCache } from "@/lib/ai/config-loader";
+import { clearSystemSettingsCache } from "@/lib/system-settings";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -42,16 +45,21 @@ interface PlaybooksManifest {
 }
 
 /**
- * POST /api/x/seed-system
- *
- * Metadata-driven system initialization:
- * 1. Syncs all BDD specs from /bdd-specs directory
- * 2. Reads playbooks-config.json for domain/playbook definitions
- * 3. Creates domains and playbooks based on config
- * 4. Auto-links specs based on metadata
+ * @api POST /api/x/seed-system
+ * @visibility internal
+ * @scope dev:seed
+ * @auth bearer
+ * @tags dev-tools
+ * @note INFRASTRUCTURE TOOL — intentionally reads from disk. This is the full system bootstrap endpoint. Config files (playbooks-config.json, behavior-parameters.registry.json, *.spec.json) are version-controlled templates; the database is the runtime source of truth after seeding.
+ * @description Full metadata-driven system initialization. Steps: 1) Syncs all BDD specs from docs-archive/bdd-specs/ directory, 2) Ensures behavior parameters from canonical registry, 3) Creates SYSTEM-level BehaviorTargets, 4) Creates domains and playbooks from playbooks-config.json, 5) Validates cross-references against registry.
+ * @response 200 { ok: boolean, message: "...", validationWarnings?: [...], details: { domainsCreated: [...], playbooksCreated: [...], specsCreated: number, specsSynced: number, parametersCreated: number, errors: [...] } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST() {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const results = {
       domainsCreated: [] as string[],
       playbooksCreated: [] as string[],
@@ -65,7 +73,7 @@ export async function POST() {
     // STEP 1: SYNC BDD SPECS
     // ============================================
     try {
-      console.log("STEP 1/4: Syncing BDD specs from /bdd-specs directory...");
+      console.log("STEP 1/4: Syncing BDD specs from docs-archive/bdd-specs/ directory...");
       const specResults = await seedFromSpecs();
       results.specsSynced = specResults.length;
       const totalParams = specResults.reduce(
@@ -135,7 +143,7 @@ export async function POST() {
       console.log("STEP 4/4: Creating domains and playbooks from config...");
 
       // Load playbooks config
-      const configPath = path.join(process.cwd(), "bdd-specs", "playbooks-config.json");
+      const configPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "playbooks-config.json");
       if (!fs.existsSync(configPath)) {
         throw new Error(`Playbooks config not found at ${configPath}`);
       }
@@ -168,7 +176,7 @@ export async function POST() {
     try {
       console.log("STEP 5: Validating cross-references against registry...");
 
-      const registryPath = path.join(process.cwd(), "bdd-specs", "behavior-parameters.registry.json");
+      const registryPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "behavior-parameters.registry.json");
       if (fs.existsSync(registryPath)) {
         const registry = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
         const canonicalIds = new Set<string>(registry.parameters.map((p: any) => p.parameterId));
@@ -178,7 +186,7 @@ export async function POST() {
         }
 
         // Check playbook config references
-        const configPath = path.join(process.cwd(), "bdd-specs", "playbooks-config.json");
+        const configPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "playbooks-config.json");
         if (fs.existsSync(configPath)) {
           const manifest = JSON.parse(fs.readFileSync(configPath, "utf-8"));
           for (const pb of manifest.playbooks) {
@@ -196,7 +204,7 @@ export async function POST() {
         }
 
         // Check spec files for parameterId references against registry
-        const specsFolder = path.join(process.cwd(), "bdd-specs");
+        const specsFolder = path.join(process.cwd(), "docs-archive", "bdd-specs");
         const specFiles = fs.readdirSync(specsFolder).filter(f => f.endsWith(".spec.json"));
         for (const file of specFiles) {
           const content = fs.readFileSync(path.join(specsFolder, file), "utf-8");
@@ -231,6 +239,10 @@ export async function POST() {
       results.errors.length === 0
         ? `System initialized: ${results.specsSynced} specs synced, ${results.domainsCreated.length} domains created with ${results.playbooksCreated.length} playbooks, ${results.specsCreated} linked specs, ${results.parametersCreated} parameters`
         : `System initialization completed with ${results.errors.length} errors: ${results.specsSynced} specs synced, ${results.domainsCreated.length} domains created`;
+
+    // Invalidate all caches after seeding
+    clearAIConfigCache();
+    clearSystemSettingsCache();
 
     return NextResponse.json({
       ok: results.errors.length === 0,
@@ -406,11 +418,11 @@ async function findSpecsForPlaybook(
 
 /**
  * Ensures all behavior parameters from the canonical registry exist.
- * Reads from bdd-specs/behavior-parameters.registry.json — the SINGLE SOURCE OF TRUTH.
+ * Reads from docs-archive/bdd-specs/behavior-parameters.registry.json — the canonical registry.
  */
 async function ensureBehaviorParameters(prisma: PrismaClient): Promise<number> {
   // Load canonical registry
-  const registryPath = path.join(process.cwd(), "bdd-specs", "behavior-parameters.registry.json");
+  const registryPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "behavior-parameters.registry.json");
   if (!fs.existsSync(registryPath)) {
     console.warn("   ⚠️ behavior-parameters.registry.json not found — skipping");
     return 0;

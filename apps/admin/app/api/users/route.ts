@@ -1,19 +1,28 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/callers
- *
- * Query params:
- * - withPersonality: Include personality profile
- * - limit: Max callers to return (default 50)
+ * @api GET /api/users
+ * @visibility internal
+ * @scope users:list
+ * @auth session
+ * @tags users
+ * @description Lists callers with optional personality profile inclusion. Supports pagination via limit.
+ * @query withPersonality boolean - Include personality profile data
+ * @query limit number - Max callers to return (default 50)
+ * @response 200 { ok: true, callers: [...], count: number }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const withPersonality = url.searchParams.get("withPersonality") === "true";
     const limit = parseInt(url.searchParams.get("limit") || "50");

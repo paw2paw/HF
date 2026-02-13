@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:share": "./scripts/dev-share.sh",
     "devX": "pkill -9 -f 'next dev' || true && pkill -9 -f 'next-server' || true && lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true && rm -rf .next && npm run dev",
+    "devT": "vitest run",
     "devD": "./scripts/dev-d.sh",
     "devS": "./scripts/dev-s.sh",
     "devZZZ": "./scripts/dev-zzz.sh",
@@ -15,7 +16,7 @@
     "dev:start:docker": "./scripts/dev-start.sh docker",
     "dev:stop": "./scripts/dev-start.sh stop",
     "dev:status": "./scripts/dev-start.sh status",
-    "prebuild": "npm run registry:generate && npm run registry:validate",
+    "prebuild": "sh -c 'if [ -n \"$DATABASE_URL\" ]; then npm run registry:generate && npm run registry:validate; else echo \"SKIP registry\"; fi'",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -42,7 +43,15 @@
     "db:seed:reset": "tsx prisma/seed-clean.ts --reset",
     "bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "ctl": "tsx cli/control.ts",
-    "control": "tsx cli/control.ts menu"
+    "control": "tsx cli/control.ts menu",
+    "docs:api": "tsx scripts/api-docs/generator.ts",
+    "docs:api:validate": "tsx scripts/api-docs/generator.ts --validate",
+    "docs:api:check": "tsx scripts/api-docs/generator.ts --check",
+    "docs:health": "tsx scripts/doc-health.ts",
+    "docs:health:ci": "tsx scripts/doc-health.ts --ci",
+    "docs:health:json": "tsx scripts/doc-health.ts --json",
+    "snap": "tsx scripts/capture-demo-screenshots.ts",
+    "seed:demo": "tsx prisma/seed-demo-fixtures.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -59,6 +68,7 @@
     "3d-force-graph": "^1.79.1",
     "bcryptjs": "^3.0.3",
     "force-graph": "^1.51.1",
+    "lucide-react": "^0.563.0",
     "next": "16.1.0",
     "next-auth": "^5.0.0-beta.30",
     "nodemailer": "^7.0.13",

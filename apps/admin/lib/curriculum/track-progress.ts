@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { ContractRegistry } from "@/lib/contracts/registry";
+import { getTrustSettings, TRUST_DEFAULTS } from "@/lib/system-settings";
 
 interface ProgressUpdate {
   currentModuleId?: string;
@@ -26,9 +27,9 @@ interface ProgressUpdate {
  * Build storage key using contract-defined pattern
  * NO HARDCODING - reads pattern from CURRICULUM_PROGRESS_V1 contract
  */
-function buildStorageKey(specSlug: string, keyName: string, moduleId?: string): string {
-  const keyPattern = ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
-  const storageKeys = ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
+async function buildStorageKey(specSlug: string, keyName: string, moduleId?: string): Promise<string> {
+  const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
+  const storageKeys = await ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
 
   if (!keyPattern || !storageKeys) {
     throw new Error('CURRICULUM_PROGRESS_V1 contract not loaded or invalid');
@@ -67,7 +68,7 @@ export async function updateCurriculumProgress(
 
   // Update current module
   if (updates.currentModuleId !== undefined) {
-    const key = buildStorageKey(specSlug, 'currentModule');
+    const key = await buildStorageKey(specSlug, 'currentModule');
     writes.push(
       prisma.callerAttribute.upsert({
         where: {
@@ -94,7 +95,7 @@ export async function updateCurriculumProgress(
   // Update module mastery scores
   if (updates.moduleMastery) {
     for (const [moduleId, mastery] of Object.entries(updates.moduleMastery)) {
-      const key = buildStorageKey(specSlug, 'mastery', moduleId);
+      const key = await buildStorageKey(specSlug, 'mastery', moduleId);
       writes.push(
         prisma.callerAttribute.upsert({
           where: {
@@ -121,7 +122,7 @@ export async function updateCurriculumProgress(
 
   // Update last accessed timestamp
   if (updates.lastAccessedAt !== undefined) {
-    const key = buildStorageKey(specSlug, 'lastAccessed');
+    const key = await buildStorageKey(specSlug, 'lastAccessed');
     writes.push(
       prisma.callerAttribute.upsert({
         where: {
@@ -161,8 +162,8 @@ export async function getCurriculumProgress(
   lastAccessedAt: string | null;
 }> {
   // Get contract keys
-  const storageKeys = ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
-  const keyPattern = ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
+  const storageKeys = await ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
+  const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
 
   if (!storageKeys || !keyPattern) {
     throw new Error('CURRICULUM_PROGRESS_V1 contract not loaded');
@@ -237,7 +238,7 @@ export async function resetCurriculumProgress(
   callerId: string,
   specSlug: string
 ): Promise<void> {
-  const keyPattern = ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
+  const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
   if (!keyPattern) {
     throw new Error('CURRICULUM_PROGRESS_V1 contract not loaded');
   }
@@ -264,7 +265,7 @@ export async function resetCurriculumProgress(
 export async function getActiveCurricula(
   callerId: string
 ): Promise<string[]> {
-  const keyPattern = ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
+  const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
   if (!keyPattern) {
     throw new Error('CURRICULUM_PROGRESS_V1 contract not loaded');
   }
@@ -299,4 +300,171 @@ export async function getActiveCurricula(
   }
 
   return Array.from(specSlugs);
+}
+
+// =============================================================================
+// TRUST-WEIGHTED PROGRESS (CONTENT_TRUST_V1 contract)
+// =============================================================================
+
+// Trust level weights — loaded from system settings, fallback to TRUST_DEFAULTS
+let TRUST_WEIGHTS: Record<string, number> = {
+  REGULATORY_STANDARD: TRUST_DEFAULTS.weightL5Regulatory,
+  ACCREDITED_MATERIAL: TRUST_DEFAULTS.weightL4Accredited,
+  PUBLISHED_REFERENCE: TRUST_DEFAULTS.weightL3Published,
+  EXPERT_CURATED: TRUST_DEFAULTS.weightL2Expert,
+  AI_ASSISTED: TRUST_DEFAULTS.weightL1AiAssisted,
+  UNVERIFIED: TRUST_DEFAULTS.weightL0Unverified,
+};
+
+// Minimum trust weight for certification readiness (L3+)
+let CERTIFICATION_MIN_WEIGHT = TRUST_DEFAULTS.certificationMinWeight;
+
+async function loadTrustConstants() {
+  const s = await getTrustSettings();
+  TRUST_WEIGHTS = {
+    REGULATORY_STANDARD: s.weightL5Regulatory,
+    ACCREDITED_MATERIAL: s.weightL4Accredited,
+    PUBLISHED_REFERENCE: s.weightL3Published,
+    EXPERT_CURATED: s.weightL2Expert,
+    AI_ASSISTED: s.weightL1AiAssisted,
+    UNVERIFIED: s.weightL0Unverified,
+  };
+  CERTIFICATION_MIN_WEIGHT = s.certificationMinWeight;
+}
+
+interface TrustWeightedProgress {
+  certifiedMastery: number;    // 0-1, only L4+ content
+  supplementaryMastery: number; // 0-1, all content
+  certificationReadiness: number; // 0-1, weighted composite
+  moduleBreakdown: Record<string, {
+    mastery: number;
+    trustLevel: string;
+    trustWeight: number;
+    countsToCertification: boolean;
+  }>;
+}
+
+/**
+ * Compute trust-weighted progress for a caller's curriculum.
+ *
+ * Dual-track:
+ * - certifiedMastery: only modules with L4+ trust
+ * - supplementaryMastery: all modules
+ * - certificationReadiness: weighted average of certified modules
+ *
+ * Module trust levels come from the CONTENT spec's sourceRefs.
+ */
+export async function computeTrustWeightedProgress(
+  moduleMastery: Record<string, number>,
+  moduleTrustLevels: Record<string, string>,
+): Promise<TrustWeightedProgress> {
+  await loadTrustConstants();
+  const moduleBreakdown: TrustWeightedProgress['moduleBreakdown'] = {};
+
+  let certifiedWeightedSum = 0;
+  let certifiedTotalWeight = 0;
+  let allWeightedSum = 0;
+  let allTotalWeight = 0;
+
+  for (const [moduleId, mastery] of Object.entries(moduleMastery)) {
+    const trustLevel = moduleTrustLevels[moduleId] || 'UNVERIFIED';
+    const weight = TRUST_WEIGHTS[trustLevel] ?? 0.05;
+    const countsToCertification = weight >= CERTIFICATION_MIN_WEIGHT;
+
+    moduleBreakdown[moduleId] = {
+      mastery,
+      trustLevel,
+      trustWeight: weight,
+      countsToCertification,
+    };
+
+    // All content counts toward general understanding
+    allWeightedSum += mastery * weight;
+    allTotalWeight += weight;
+
+    // Only L4+ counts toward certification
+    if (countsToCertification) {
+      certifiedWeightedSum += mastery * weight;
+      certifiedTotalWeight += weight;
+    }
+  }
+
+  const certifiedMastery = certifiedTotalWeight > 0
+    ? certifiedWeightedSum / certifiedTotalWeight
+    : 0;
+
+  const supplementaryMastery = allTotalWeight > 0
+    ? allWeightedSum / allTotalWeight
+    : 0;
+
+  return {
+    certifiedMastery,
+    supplementaryMastery,
+    certificationReadiness: certifiedMastery,
+    moduleBreakdown,
+  };
+}
+
+/**
+ * Extract module trust levels from a CONTENT spec's modules.
+ * Reads sourceRefs from each module and picks the highest trust level.
+ */
+export async function extractModuleTrustLevels(
+  modules: Array<{ id: string; sourceRefs?: Array<{ trustLevel: string }> }>,
+): Promise<Record<string, string>> {
+  await loadTrustConstants();
+  const result: Record<string, string> = {};
+
+  for (const mod of modules) {
+    if (!mod.sourceRefs || mod.sourceRefs.length === 0) {
+      result[mod.id] = 'UNVERIFIED';
+      continue;
+    }
+
+    // Pick highest trust level from sourceRefs
+    let highestWeight = 0;
+    let highestLevel = 'UNVERIFIED';
+
+    for (const ref of mod.sourceRefs) {
+      const weight = TRUST_WEIGHTS[ref.trustLevel] ?? 0;
+      if (weight > highestWeight) {
+        highestWeight = weight;
+        highestLevel = ref.trustLevel;
+      }
+    }
+
+    result[mod.id] = highestLevel;
+  }
+
+  return result;
+}
+
+/**
+ * Store trust-weighted progress in CallerAttributes.
+ * Uses CONTENT_TRUST_V1 contract key pattern: trust_progress:{specSlug}:{key}
+ */
+export async function storeTrustWeightedProgress(
+  callerId: string,
+  specSlug: string,
+  progress: TrustWeightedProgress,
+): Promise<void> {
+  const prefix = `trust_progress:${specSlug}`;
+
+  await Promise.all([
+    prisma.callerAttribute.upsert({
+      where: { callerId_key_scope: { callerId, key: `${prefix}:certified_mastery`, scope: 'TRUST_PROGRESS' } },
+      create: { callerId, key: `${prefix}:certified_mastery`, scope: 'TRUST_PROGRESS', valueType: 'NUMBER', numberValue: progress.certifiedMastery },
+      update: { numberValue: progress.certifiedMastery },
+    }),
+    prisma.callerAttribute.upsert({
+      where: { callerId_key_scope: { callerId, key: `${prefix}:supplementary_mastery`, scope: 'TRUST_PROGRESS' } },
+      create: { callerId, key: `${prefix}:supplementary_mastery`, scope: 'TRUST_PROGRESS', valueType: 'NUMBER', numberValue: progress.supplementaryMastery },
+      update: { numberValue: progress.supplementaryMastery },
+    }),
+    prisma.callerAttribute.upsert({
+      where: { callerId_key_scope: { callerId, key: `${prefix}:certification_readiness`, scope: 'TRUST_PROGRESS' } },
+      create: { callerId, key: `${prefix}:certification_readiness`, scope: 'TRUST_PROGRESS', valueType: 'NUMBER', numberValue: progress.certificationReadiness },
+      update: { numberValue: progress.certificationReadiness },
+    }),
+  ]);
 }

@@ -1,0 +1,130 @@
+{
+  "contractId": "CONTENT_TRUST_V1",
+  "version": "1.0",
+  "status": "active",
+  "description": "Defines content trust levels, trust weights, verification rules, and storage conventions for the Content Trust & Source Authority system. Ensures learners study certified materials, not AI hallucinations.",
+
+  "appliesTo": {
+    "specRoles": ["CONTENT", "EXTRACT", "CONSTRAIN"],
+    "domains": ["curriculum", "content", "trust", "supervision"]
+  },
+
+  "trustLevels": {
+    "REGULATORY_STANDARD": {
+      "level": 5,
+      "weight": 1.00,
+      "label": "Regulatory Standard",
+      "description": "Exam board syllabus, regulatory handbook, legislation",
+      "examples": ["CII R04 syllabus", "FCA Handbook COBS", "Ofqual qualification spec"],
+      "minVerifierRole": "ADMIN",
+      "requiresAccreditation": true
+    },
+    "ACCREDITED_MATERIAL": {
+      "level": 4,
+      "weight": 0.95,
+      "label": "Accredited Material",
+      "description": "Study texts approved by awarding/accrediting body",
+      "examples": ["CII-approved BFT study text", "Sprenger Food Safety Handbook"],
+      "minVerifierRole": "ADMIN",
+      "requiresAccreditation": true
+    },
+    "PUBLISHED_REFERENCE": {
+      "level": 3,
+      "weight": 0.80,
+      "label": "Published Reference",
+      "description": "Academic textbook, peer-reviewed journal, authoritative publication",
+      "examples": ["Why Nations Fail (Acemoglu & Robinson)", "peer-reviewed journal article"],
+      "minVerifierRole": "OPERATOR",
+      "requiresAccreditation": false
+    },
+    "EXPERT_CURATED": {
+      "level": 2,
+      "weight": 0.60,
+      "label": "Expert Curated",
+      "description": "Content created or reviewed by qualified professional",
+      "examples": ["IFA-written case studies", "instructor-prepared practice questions"],
+      "minVerifierRole": "OPERATOR",
+      "requiresAccreditation": false
+    },
+    "AI_ASSISTED": {
+      "level": 1,
+      "weight": 0.30,
+      "label": "AI Assisted",
+      "description": "AI-generated content that has been human-reviewed",
+      "examples": ["AI-generated practice questions reviewed by instructor"],
+      "minVerifierRole": "OPERATOR",
+      "requiresAccreditation": false
+    },
+    "UNVERIFIED": {
+      "level": 0,
+      "weight": 0.05,
+      "label": "Unverified",
+      "description": "Unreviewed submissions, user notes, unchecked content",
+      "examples": ["Student-submitted notes", "imported content pending review"],
+      "minVerifierRole": null,
+      "requiresAccreditation": false
+    }
+  },
+
+  "progressWeighting": {
+    "certificationReadiness": {
+      "description": "Only counts mastery of content at L4+ trust level. Answers: is this learner ready for the exam?",
+      "minTrustLevel": "ACCREDITED_MATERIAL",
+      "formula": "weightedAverage(mastery * trustWeight) for trustLevel >= ACCREDITED_MATERIAL"
+    },
+    "generalUnderstanding": {
+      "description": "Counts all mastery regardless of trust level. Answers: how well does the learner understand the topic?",
+      "minTrustLevel": "UNVERIFIED",
+      "formula": "weightedAverage(mastery * trustWeight) for all content"
+    }
+  },
+
+  "storage": {
+    "keyPattern": "trust_progress:{specSlug}:{key}",
+    "description": "CallerAttribute storage pattern for trust-weighted progress",
+    "scope": "TRUST_PROGRESS",
+    "keys": {
+      "certifiedMastery": "certified_mastery",
+      "supplementaryMastery": "supplementary_mastery",
+      "certificationReadiness": "certification_readiness"
+    }
+  },
+
+  "freshnessRules": {
+    "warningThresholdDays": 60,
+    "description": "Sources within this many days of validUntil get flagged as expiring",
+    "taxYearHandling": "Content with taxYear field is flagged if current date > April 5 of the tax year's end",
+    "actions": {
+      "expiring": "Amber warning in admin UI, note injected into prompt",
+      "expired": "Red warning in admin UI, warning injected into AI prompt to flag outdated content"
+    }
+  },
+
+  "promptComposition": {
+    "description": "How trust metadata is injected into the AI's system prompt",
+    "sections": {
+      "contentAuthority": "Header declaring primary/secondary sources and their trust levels",
+      "trustRules": "Instructions to only teach from certified sources and cite them",
+      "referenceCard": "Extracted facts for current module with source references",
+      "freshnessWarnings": "Warnings about expired or expiring content"
+    }
+  },
+
+  "rules": [
+    "Content enters at UNVERIFIED (L0) by default. AI system never auto-promotes.",
+    "Trust level can only move UP through human verification. Moving DOWN requires admin action with reason.",
+    "ContentAssertions with null trustLevel inherit from their parent ContentSource.",
+    "Bulk import: assertions with sourceRef to a registered ContentSource inherit its trust level.",
+    "Annual review: sources approaching validUntil generate review tasks."
+  ],
+
+  "config": {
+    "notes": [
+      "CONTENT specs MAY include sourceAuthority section referencing ContentSource slugs",
+      "Content points MAY include sourceRef field (format: sourceSlug:chapter:section)",
+      "Progress stored in CallerAttribute with keys following storage.keyPattern",
+      "Learners see single 'Certification Readiness' score (progressive disclosure)",
+      "Admins see full trust breakdown per module"
+    ]
+  }
+}

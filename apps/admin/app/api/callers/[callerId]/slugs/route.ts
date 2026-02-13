@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/callers/[callerId]/slugs
- *
- * Returns all resolved template variables/slugs for a specific caller.
- * Shows what values are currently available for prompt composition:
- * - Identity/Content/Voice from playbook specs
- * - Memories from LEARN specs
- * - Scores from MEASURE specs
- * - Personalized targets from ADAPT specs
+ * @api GET /api/callers/:callerId/slugs
+ * @visibility public
+ * @scope callers:read
+ * @auth session
+ * @tags callers, slugs, composition
+ * @description Returns all resolved template variables/slugs for a specific caller as a hierarchical tree. Shows values currently available for prompt composition including Identity/Content/Voice from playbook specs, Memories from LEARN specs, Scores from MEASURE specs, and Personalized targets from ADAPT specs. Also identifies template variables that are defined but not yet populated.
+ * @pathParam callerId string - The caller ID to fetch slugs for
+ * @response 200 { ok: true, caller: { id, name, domain }, playbook: { id, name, status } | null, tree: SlugNode[], counts: { memories, scores, targets, available, total } }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: "Failed to fetch caller slugs" }
  */
 
 type SlugNode = {
@@ -29,6 +32,9 @@ export async function GET(
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
 
     // Load caller with domain

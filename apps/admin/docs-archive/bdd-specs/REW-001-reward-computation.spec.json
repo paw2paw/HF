@@ -1,0 +1,452 @@
+{
+  "id": "REW-001",
+  "title": "Reward Signal Computation",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-01-30",
+  "domain": "reinforcement",
+  "specType": "SYSTEM",
+  "outputType": "REWARD",
+  "story": {
+    "asA": "learning system",
+    "iWant": "to compute reward signals from caller behavior and engagement",
+    "soThat": "agents can optimize for meaningful outcomes over time"
+  },
+  "context": {
+    "applies": "After MEASURE specs have scored caller engagement and behavior",
+    "dependsOn": [
+      "PERS-001",
+      "CA-001",
+      "MEM-001"
+    ],
+    "assumptions": [
+      "Engagement scores are available from CA-001",
+      "Personality baseline is established from PERS-001",
+      "Memory extraction provides context for reward weighting"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-REW-1",
+      "title": "Engagement Reward",
+      "given": "A call has been scored for cognitive activation",
+      "when": "The reward computation runs",
+      "then": "An engagement reward is computed based on activation delta from baseline",
+      "measuredBy": [
+        "engagement_reward"
+      ],
+      "thresholds": {
+        "positive_reward": {
+          "value": 0.1,
+          "operator": "gte",
+          "basis": "activation increase from baseline"
+        }
+      }
+    },
+    {
+      "id": "AC-REW-2",
+      "title": "Learning Reward",
+      "given": "New memories have been extracted from the call",
+      "when": "The reward computation runs",
+      "then": "A learning reward reflects quality and depth of new information shared",
+      "measuredBy": [
+        "learning_reward"
+      ]
+    },
+    {
+      "id": "AC-REW-3",
+      "title": "Rapport Reward",
+      "given": "Personality-adapted communication occurred",
+      "when": "The reward computation runs",
+      "then": "A rapport reward reflects alignment between agent style and caller preferences",
+      "measuredBy": [
+        "rapport_reward"
+      ]
+    },
+    {
+      "id": "AC-REW-4",
+      "title": "Goal Progress Reward",
+      "given": "Caller has defined learning goals",
+      "when": "The call demonstrates progress toward those goals",
+      "then": "A goal reward is computed proportional to progress made",
+      "measuredBy": [
+        "goal_progress_reward"
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "engagement_reward",
+      "name": "Engagement Reward",
+      "description": "Reward signal based on caller engagement improvement relative to their baseline",
+      "section": "rewards",
+      "targetRange": {
+        "min": -1.0,
+        "max": 1.0
+      },
+      "formula": "(current_engagement - baseline_engagement) * engagement_weight",
+      "interpretationScale": [
+        {
+          "min": 0.5,
+          "max": 1.0,
+          "label": "Strong Positive",
+          "implication": "Significantly increased engagement"
+        },
+        {
+          "min": 0.1,
+          "max": 0.5,
+          "label": "Positive",
+          "implication": "Moderate engagement improvement"
+        },
+        {
+          "min": -0.1,
+          "max": 0.1,
+          "label": "Neutral",
+          "implication": "Engagement maintained"
+        },
+        {
+          "min": -0.5,
+          "max": -0.1,
+          "label": "Negative",
+          "implication": "Engagement declined"
+        },
+        {
+          "min": -1.0,
+          "max": -0.5,
+          "label": "Strong Negative",
+          "implication": "Significant disengagement"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Caller who was previously disengaged becomes highly participatory, asks follow-up questions, shares personal experiences",
+          "rationale": "Maximum positive engagement shift"
+        },
+        {
+          "score": 0.5,
+          "example": "Caller provides more detailed responses than usual, shows curiosity about new topics",
+          "rationale": "Noticeable improvement in participation"
+        },
+        {
+          "score": 0.0,
+          "example": "Caller engagement level consistent with their historical pattern",
+          "rationale": "Baseline maintained, no reward or penalty"
+        },
+        {
+          "score": -0.5,
+          "example": "Caller gives shorter responses, seems distracted or rushed",
+          "rationale": "Engagement below their typical level"
+        },
+        {
+          "score": -1.0,
+          "example": "Caller ends call early, expresses frustration, disengages completely",
+          "rationale": "Significant negative outcome"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Engagement reward is positive - the interaction style is working well for this caller. Continue current approach.",
+        "whenLow": "Engagement reward is negative - consider adjusting approach. Review personality adaptations and try different engagement strategies."
+      }
+    },
+    {
+      "id": "learning_reward",
+      "name": "Learning Reward",
+      "description": "Reward signal based on quality and depth of information learned about the caller",
+      "section": "rewards",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "(new_facts_count * fact_quality_avg + new_preferences_count * preference_weight) / normalization_factor",
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "High Learning",
+          "implication": "Rich new information extracted"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Moderate Learning",
+          "implication": "Some new information gained"
+        },
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Low Learning",
+          "implication": "Minimal new information"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Caller shares multiple new personal facts, preferences, and life events with clear context",
+          "rationale": "Maximum information density"
+        },
+        {
+          "score": 0.7,
+          "example": "Caller reveals a significant preference or important fact about their life",
+          "rationale": "High-value single extraction"
+        },
+        {
+          "score": 0.4,
+          "example": "Caller mentions a few minor details that add to their profile",
+          "rationale": "Incremental learning"
+        },
+        {
+          "score": 0.1,
+          "example": "Caller confirms previously known information without adding new detail",
+          "rationale": "Validation but no new learning"
+        },
+        {
+          "score": 0.0,
+          "example": "No new information about caller extracted from conversation",
+          "rationale": "No learning occurred"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Learning reward is strong - the conversation is generating valuable insights about this caller.",
+        "whenLow": "Learning reward is low - consider asking more open-ended questions or exploring new topics to learn more about this caller."
+      }
+    },
+    {
+      "id": "rapport_reward",
+      "name": "Rapport Reward",
+      "description": "Reward signal based on alignment between communication style and caller personality",
+      "section": "rewards",
+      "targetRange": {
+        "min": -1.0,
+        "max": 1.0
+      },
+      "formula": "personality_alignment_score * rapport_weight",
+      "interpretationScale": [
+        {
+          "min": 0.5,
+          "max": 1.0,
+          "label": "Strong Rapport",
+          "implication": "Communication style well-matched to personality"
+        },
+        {
+          "min": 0.0,
+          "max": 0.5,
+          "label": "Building Rapport",
+          "implication": "Acceptable style alignment"
+        },
+        {
+          "min": -0.5,
+          "max": 0.0,
+          "label": "Rapport Mismatch",
+          "implication": "Style not well-suited to caller"
+        },
+        {
+          "min": -1.0,
+          "max": -0.5,
+          "label": "Rapport Failure",
+          "implication": "Significant style mismatch causing friction"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "High-openness caller receives exploratory, creative conversation; responds enthusiastically",
+          "rationale": "Perfect personality-style match"
+        },
+        {
+          "score": 0.5,
+          "example": "Agent adapts formality to match caller's preference; caller seems comfortable",
+          "rationale": "Good but not perfect alignment"
+        },
+        {
+          "score": 0.0,
+          "example": "Neutral interaction without clear personality-based adaptation",
+          "rationale": "Baseline rapport"
+        },
+        {
+          "score": -0.5,
+          "example": "High-conscientiousness caller receives unstructured, tangential responses; seems frustrated",
+          "rationale": "Style mismatch causing friction"
+        },
+        {
+          "score": -1.0,
+          "example": "High-neuroticism caller receives dismissive, unsupportive responses; expresses distress",
+          "rationale": "Serious personality mismatch"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Rapport is strong - personality adaptations are working well. Maintain current communication style.",
+        "whenLow": "Rapport is weak - review caller's personality profile and adjust communication style accordingly."
+      }
+    },
+    {
+      "id": "goal_progress_reward",
+      "name": "Goal Progress Reward",
+      "description": "Reward signal based on progress toward caller's defined learning or engagement goals",
+      "section": "rewards",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "sum(goal_progress_delta * goal_priority) / total_goal_weight",
+      "interpretationScale": [
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Significant Progress",
+          "implication": "Major advancement toward goals"
+        },
+        {
+          "min": 0.3,
+          "max": 0.7,
+          "label": "Steady Progress",
+          "implication": "Meaningful goal advancement"
+        },
+        {
+          "min": 0.1,
+          "max": 0.3,
+          "label": "Minor Progress",
+          "implication": "Small steps forward"
+        },
+        {
+          "min": 0.0,
+          "max": 0.1,
+          "label": "No Progress",
+          "implication": "Goals not addressed this call"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Caller completes a learning objective they had set as a goal",
+          "rationale": "Goal achieved"
+        },
+        {
+          "score": 0.6,
+          "example": "Caller demonstrates understanding of a concept they were working toward",
+          "rationale": "Substantial progress"
+        },
+        {
+          "score": 0.3,
+          "example": "Caller engages with goal-related content but doesn't show mastery",
+          "rationale": "Engagement without completion"
+        },
+        {
+          "score": 0.0,
+          "example": "Call focused on topics unrelated to caller's goals",
+          "rationale": "No goal relevance"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Goal progress is strong - continue focusing on the caller's defined objectives.",
+        "whenLow": "Goal progress is minimal - consider steering conversation toward caller's stated goals."
+      }
+    },
+    {
+      "id": "composite_reward",
+      "name": "Composite Reward Signal",
+      "description": "Weighted combination of all reward signals for overall optimization",
+      "section": "rewards",
+      "targetRange": {
+        "min": -1.0,
+        "max": 1.0
+      },
+      "formula": "0.3 * engagement_reward + 0.25 * learning_reward + 0.25 * rapport_reward + 0.2 * goal_progress_reward",
+      "interpretationScale": [
+        {
+          "min": 0.5,
+          "max": 1.0,
+          "label": "Excellent Outcome",
+          "implication": "Highly successful interaction"
+        },
+        {
+          "min": 0.2,
+          "max": 0.5,
+          "label": "Good Outcome",
+          "implication": "Positive interaction overall"
+        },
+        {
+          "min": -0.2,
+          "max": 0.2,
+          "label": "Neutral Outcome",
+          "implication": "Acceptable but unremarkable"
+        },
+        {
+          "min": -0.5,
+          "max": -0.2,
+          "label": "Poor Outcome",
+          "implication": "Interaction needs improvement"
+        },
+        {
+          "min": -1.0,
+          "max": -0.5,
+          "label": "Failed Outcome",
+          "implication": "Significant intervention needed"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 1.0,
+          "example": "Caller highly engaged, shared new information, felt understood, made progress on goals",
+          "rationale": "All reward components positive"
+        },
+        {
+          "score": 0.5,
+          "example": "Caller moderately engaged, some new learning, decent rapport",
+          "rationale": "Most components positive"
+        },
+        {
+          "score": 0.0,
+          "example": "Mixed signals - some positive, some negative components",
+          "rationale": "Balanced outcome"
+        },
+        {
+          "score": -0.5,
+          "example": "Caller disengaged, no new learning, rapport issues",
+          "rationale": "Multiple negative signals"
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Composite reward is positive - overall interaction quality is good. Note which components contributed most.",
+        "whenLow": "Composite reward is low - identify which specific reward components are negative and prioritize improving those."
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C-REW-1",
+      "type": "temporal",
+      "description": "Rewards must be computed after all MEASURE specs have completed",
+      "severity": "critical"
+    },
+    {
+      "id": "C-REW-2",
+      "type": "baseline",
+      "description": "Engagement reward requires baseline to be established (minimum 3 prior calls)",
+      "severity": "warning"
+    }
+  ],
+  "related": [
+    {
+      "id": "PERS-001",
+      "title": "Personality Measurement",
+      "relationship": "provides personality baseline for rapport reward"
+    },
+    {
+      "id": "CA-001",
+      "title": "Cognitive Activation",
+      "relationship": "provides engagement scores for engagement reward"
+    },
+    {
+      "id": "MEM-001",
+      "title": "Memory Extraction",
+      "relationship": "provides learning metrics for learning reward"
+    },
+    {
+      "id": "GOAL-001",
+      "title": "Learner Goals",
+      "relationship": "provides goal definitions for goal progress reward"
+    }
+  ],
+  "specRole": "SYNTHESISE"
+}

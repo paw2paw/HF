@@ -1,56 +1,47 @@
 /**
- * POST /api/calls/[callId]/pipeline
- *
- * SPEC-DRIVEN pipeline endpoint that runs analysis in configurable stages.
- *
- * Pipeline stages are loaded from the SUPERVISE spec (GUARD-001), not hardcoded.
- * Each stage has:
- *   - name: Executor function name (e.g., "EXTRACT", "ADAPT")
- *   - order: Execution order (10, 20, 30...)
- *   - outputTypes: Which spec outputTypes are processed in this stage
- *   - requiresMode: Optional - skip stage unless mode matches
- *
- * Default stages (configurable in GUARD-001 spec):
- *   10. EXTRACT    - Learn + Measure caller data (batched)
- *   20. SCORE_AGENT - Measure behaviour (batched)
- *   30. AGGREGATE  - Aggregate personality profiles
- *   40. REWARD     - Compute reward scores
- *   50. ADAPT      - Compute personalized targets
- *   60. SUPERVISE  - Validate and clamp targets
- *  100. COMPOSE    - Build final prompt (mode="prompt" only)
- *
- * Request body:
- * - callerId: string (required)
- * - mode: "prep" | "prompt" (required)
- *   - prep: Run all stages except COMPOSE
- *   - prompt: Run all stages including COMPOSE
- * - engine: "mock" | "claude" | "openai" (optional, defaults to "claude")
+ * @api POST /api/calls/:callId/pipeline
+ * @visibility public
+ * @scope pipeline:execute
+ * @auth session
+ * @tags calls, pipeline
+ * @description SPEC-DRIVEN pipeline endpoint that runs analysis in configurable stages. Pipeline stages are loaded from the PIPELINE-001 spec (or GUARD-001 fallback), not hardcoded. Each stage has a name, order, outputTypes, and optional requiresMode. Default stages: EXTRACT (10), SCORE_AGENT (20), AGGREGATE (30), REWARD (40), ADAPT (50), SUPERVISE (60), COMPOSE (100, prompt mode only).
+ * @pathParam callId string - The call ID to run the pipeline on
+ * @body callerId string - The caller ID (required)
+ * @body mode string - Pipeline mode: "prep" (all stages except COMPOSE) or "prompt" (all stages including COMPOSE) (required)
+ * @body engine string - AI engine to use: "mock" | "claude" | "openai" (default: "claude")
+ * @response 200 { ok: true, mode: "prep" | "prompt", message: string, data: { scoresCreated, memoriesCreated, callTargetsCreated, agentMeasurements, ... }, prompt?: object, logs: LogEntry[], duration: number }
+ * @response 400 { ok: false, error: "callerId is required" | "mode must be 'prep' or 'prompt'", logs: LogEntry[] }
+ * @response 404 { ok: false, error: "Call not found", logs: LogEntry[] }
+ * @response 500 { ok: false, error: string, logs: LogEntry[], duration: number }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { MemoryCategory } from "@prisma/client";
 import { AIEngine, isEngineAvailable } from "@/lib/ai/client";
-import { getMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
+import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
+import { validateSpecDependencies } from "@/lib/pipeline/validate-dependencies";
 import { trackGoalProgress } from "@/lib/goals/track-progress";
 import { extractGoals } from "@/lib/goals/extract-goals";
+import { updateCurriculumProgress, getCurriculumProgress, completeModule } from "@/lib/curriculum/track-progress";
+import { ContractRegistry } from "@/lib/contracts/registry";
 import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
 import { logAI } from "@/lib/logger";
 import { TRAITS } from "@/lib/registry";
+import { recoverBrokenJson } from "@/lib/utils/json-recovery";
+import { executeComposition, persistComposedPrompt, loadComposeConfig } from "@/lib/prompt/composition";
+import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
+import { getPipelineGates, getPipelineSettings } from "@/lib/system-settings";
+import { getTranscriptLimitsFallback } from "@/lib/fallback-settings";
 
 // =====================================================
 // TRANSCRIPT LIMITS (from AIConfig)
 // =====================================================
 
-// Default transcript limits (in characters) per stage
-const DEFAULT_TRANSCRIPT_LIMITS: Record<string, number> = {
-  "pipeline.measure": 4000,
-  "pipeline.learn": 4000,
-  "pipeline.score_agent": 4000,
-  "pipeline.adapt": 2500,
-};
+// Loaded from SystemSettings at runtime (see fallback-settings.ts for hardcoded last-resort)
 
 /**
  * Get transcript limit for a call point from AIConfig, with fallback to defaults
@@ -68,7 +59,8 @@ async function getTranscriptLimit(callPoint: string): Promise<number> {
   } catch {
     // Fallback to default on error
   }
-  return DEFAULT_TRANSCRIPT_LIMITS[callPoint] ?? 4000;
+  const limits = await getTranscriptLimitsFallback();
+  return limits[callPoint] ?? 4000;
 }
 
 // =====================================================
@@ -103,14 +95,37 @@ async function getSystemSpecs(
     return allSystemSpecs;
   }
 
-  // TODO: System spec toggles not yet implemented - PlaybookSpec model doesn't exist
-  // For now, include all system specs
-  log.info(`Loaded ${allSystemSpecs.length} SYSTEM specs (system spec toggles not yet implemented)`, {
+  // Filter system specs based on playbook's systemSpecToggles config
+  const playbook = await prisma.playbook.findUnique({
+    where: { id: playbookId },
+    select: { config: true },
+  });
+
+  const config = (playbook?.config as Record<string, any>) || {};
+  const toggles = config.systemSpecToggles || {};
+
+  // If no toggles configured, return all system specs (default = enabled)
+  if (Object.keys(toggles).length === 0) {
+    log.info(`Loaded ${allSystemSpecs.length} SYSTEM specs (no toggles configured)`, { outputTypes, playbookId });
+    return allSystemSpecs;
+  }
+
+  // Filter: exclude specs that are explicitly disabled
+  const filtered = allSystemSpecs.filter(spec => {
+    const toggle = toggles[spec.id] || toggles[spec.slug];
+    if (toggle && toggle.isEnabled === false) {
+      log.info(`SYSTEM spec "${spec.slug}" disabled by playbook toggle`);
+      return false;
+    }
+    return true;
+  });
+
+  log.info(`Loaded ${filtered.length}/${allSystemSpecs.length} SYSTEM specs (${allSystemSpecs.length - filtered.length} disabled by playbook)`, {
     outputTypes,
     playbookId,
   });
 
-  return allSystemSpecs;
+  return filtered;
 }
 
 /**
@@ -379,14 +394,141 @@ function createLogger() {
  * Build a BATCHED prompt for all MEASURE + LEARN specs
  * This scores all caller parameters AND extracts memories in ONE AI call
  */
+/**
+ * Load current module context for learning assessment.
+ * Tries CONTENT spec path first, then falls back to Subject curriculum.
+ */
+async function loadCurrentModuleContext(
+  callerId: string,
+  log: ReturnType<typeof createLogger>
+): Promise<{
+  specSlug: string;
+  moduleId: string;
+  moduleName: string;
+  learningOutcomes: string[];
+  masteryThreshold: number;
+  allModuleIds: string[];
+} | null> {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return null;
+
+  // Path 1: CONTENT spec via published playbook
+  const playbook = await prisma.playbook.findFirst({
+    where: { domainId: caller.domainId, status: "PUBLISHED" },
+    select: {
+      items: {
+        where: {
+          itemType: "SPEC",
+          isEnabled: true,
+          spec: { specRole: "CONTENT", isActive: true },
+        },
+        select: {
+          spec: { select: { slug: true, config: true } },
+        },
+      },
+    },
+  });
+
+  if (playbook?.items?.length) {
+    for (const item of playbook.items) {
+      const spec = item.spec;
+      if (!spec) continue;
+      const config = spec.config as Record<string, any> | null;
+      if (!config) continue;
+
+      const modules = config.modules || config.curriculum?.modules || [];
+      if (modules.length === 0) continue;
+
+      const progress = await getCurriculumProgress(callerId, spec.slug);
+      const currentModuleId = progress.currentModuleId || modules[0]?.id || modules[0]?.slug;
+      const currentModule = modules.find((m: any) => (m.id || m.slug) === currentModuleId) || modules[0];
+
+      if (currentModule) {
+        return {
+          specSlug: spec.slug,
+          moduleId: currentModule.id || currentModule.slug,
+          moduleName: currentModule.name || currentModule.title || currentModule.id,
+          learningOutcomes: currentModule.learningOutcomes || [],
+          masteryThreshold: config.metadata?.curriculum?.masteryThreshold ?? 0.7,
+          allModuleIds: modules.map((m: any) => m.id || m.slug),
+        };
+      }
+    }
+  }
+
+  // Path 2: Subject curriculum fallback
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    include: {
+      subject: {
+        include: {
+          curricula: {
+            orderBy: { updatedAt: "desc" },
+            take: 1,
+            select: {
+              slug: true,
+              notableInfo: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  for (const sd of subjectDomains) {
+    const curriculum = sd.subject.curricula[0];
+    if (!curriculum?.notableInfo) continue;
+
+    const rawModules = (curriculum.notableInfo as any)?.modules;
+    if (!Array.isArray(rawModules) || rawModules.length === 0) continue;
+
+    const progress = await getCurriculumProgress(callerId, curriculum.slug);
+    const currentModuleId = progress.currentModuleId || rawModules[0]?.id;
+    const currentModule = rawModules.find((m: any) => m.id === currentModuleId) || rawModules[0];
+
+    if (currentModule) {
+      log.info(`Module context from Subject curriculum`, {
+        specSlug: curriculum.slug,
+        moduleId: currentModule.id,
+        loCount: (currentModule.learningOutcomes || []).length,
+      });
+      return {
+        specSlug: curriculum.slug,
+        moduleId: currentModule.id,
+        moduleName: currentModule.title || currentModule.name || currentModule.id,
+        learningOutcomes: currentModule.learningOutcomes || [],
+        masteryThreshold: (await ContractRegistry.getThresholds('CURRICULUM_PROGRESS_V1'))?.masteryComplete ?? 0.7,
+        allModuleIds: rawModules.map((m: any) => m.id),
+      };
+    }
+  }
+
+  return null;
+}
+
 function buildBatchedCallerPrompt(
   transcript: string,
   measureParams: Array<{ parameterId: string; name: string; definition: string | null }>,
   learnActions: Array<{ category: string; keyPrefix: string; keyHint: string; description: string }>,
-  transcriptLimit: number = 4000
+  transcriptLimit: number = 4000,
+  moduleContext?: { moduleId: string; moduleName: string; learningOutcomes: string[] } | null,
+  assessmentPromptInstructions?: string | null,
 ): string {
   const paramList = measureParams.map(p => `${p.parameterId}:${p.name}`).join("|");
   const learnList = learnActions.map(a => `${a.category}:${a.description}`).join("|");
+
+  let learningSection = "";
+  let learningJsonHint = "";
+  if (moduleContext?.learningOutcomes?.length) {
+    const loList = moduleContext.learningOutcomes.map((lo, i) => `LO${i + 1}:${lo}`).join("|");
+    const instructions = assessmentPromptInstructions
+      || "Score caller's demonstrated understanding of each outcome 0-1 (0=no evidence, 0.5=partial, 1=full mastery).";
+    learningSection = `\n\nLEARNING OUTCOMES TO ASSESS (module "${moduleContext.moduleName}"):\n${loList}\n${instructions}`;
+    learningJsonHint = `,"learning":{"moduleId":"${moduleContext.moduleId}","outcomes":{"LO1":0.6},"overallMastery":0.7}`;
+  }
 
   return `Analyze transcript. Score caller 0-1 on params, extract facts.
 
@@ -395,10 +537,10 @@ ${transcript.slice(0, transcriptLimit)}
 
 PARAMS TO SCORE: ${paramList}
 
-FACTS TO FIND: ${learnList}
+FACTS TO FIND: ${learnList}${learningSection}
 
 Return compact JSON:
-{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...},"memories":[{"cat":"FACT","key":"k","val":"v","c":0.9},...]}`;
+{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...},"memories":[{"cat":"FACT","key":"k","val":"v","c":0.9},...]${learningJsonHint}}`;
 }
 
 /**
@@ -435,6 +577,14 @@ async function runBatchedCallerAnalysis(
   scoresCreated: number;
   memoriesCreated: number;
   playbookUsed: string | null;
+  learningAssessment: {
+    specSlug: string;
+    moduleId: string;
+    overallMastery: number;
+    outcomes: Record<string, number>;
+    masteryThreshold: number;
+    allModuleIds: string[];
+  } | null;
 }> {
   const transcript = call.transcript || "";
 
@@ -510,15 +660,54 @@ async function runBatchedCallerAnalysis(
   }
 
   const measureParams = Array.from(paramMap.values());
-  log.info(`Batched caller analysis`, { params: measureParams.length, learnActions: learnActions.length });
 
-  if (measureParams.length === 0 && learnActions.length === 0) {
-    log.warn("No MEASURE or LEARN specs found");
-    return { scoresCreated: 0, memoriesCreated: 0, playbookUsed: playbookName };
+  // Check if LEARN-ASSESS-001 (or any spec with assessmentMode) is active
+  const assessmentSpec = learnSpecs.find(
+    (s) => (s.config as any)?.assessmentMode === "curriculum_mastery"
+  );
+  let moduleContext: Awaited<ReturnType<typeof loadCurrentModuleContext>> = null;
+
+  if (assessmentSpec) {
+    const assessConfig = assessmentSpec.config as Record<string, any>;
+    try {
+      moduleContext = await loadCurrentModuleContext(callerId, log);
+      if (moduleContext) {
+        // Use mastery threshold from spec config (overrides default)
+        moduleContext.masteryThreshold = assessConfig.masteryThreshold ?? moduleContext.masteryThreshold;
+        log.info(`LEARN-ASSESS spec active (${assessmentSpec.slug}): module context loaded`, {
+          specSlug: moduleContext.specSlug,
+          moduleId: moduleContext.moduleId,
+          loCount: moduleContext.learningOutcomes.length,
+          threshold: moduleContext.masteryThreshold,
+        });
+      }
+    } catch (err: any) {
+      log.warn(`Failed to load module context (non-blocking): ${err.message}`);
+    }
+  }
+
+  log.info(`Batched caller analysis`, {
+    params: measureParams.length,
+    learnActions: learnActions.length,
+    assessmentSpec: assessmentSpec?.slug || null,
+    hasModuleContext: !!moduleContext,
+  });
+
+  if (measureParams.length === 0 && learnActions.length === 0 && !moduleContext) {
+    log.warn("No MEASURE or LEARN specs found and no assessment spec active");
+    return { scoresCreated: 0, memoriesCreated: 0, playbookUsed: playbookName, learningAssessment: null };
   }
 
   let scoresCreated = 0;
   let memoriesCreated = 0;
+  let learningAssessment: {
+    specSlug: string;
+    moduleId: string;
+    overallMastery: number;
+    outcomes: Record<string, number>;
+    masteryThreshold: number;
+    allModuleIds: string[];
+  } | null = null;
 
   if (engine === "mock") {
     // Mock: generate random scores and no memories
@@ -564,13 +753,15 @@ async function runBatchedCallerAnalysis(
     }).catch((e) => log.warn("Failed to log mock usage", { error: e.message }));
     log.info(`Mock caller analysis complete`, { scoresCreated });
   } else {
-    // Real AI: single batched call
+    // @ai-call pipeline.measure — Score caller parameters from transcript | config: /x/ai-config
     const transcriptLimit = await getTranscriptLimit("pipeline.measure");
-    const prompt = buildBatchedCallerPrompt(transcript, measureParams, learnActions, transcriptLimit);
+    const assessPromptInstructions = assessmentSpec ? (assessmentSpec.config as any)?.promptInstructions : null;
+    const prompt = buildBatchedCallerPrompt(transcript, measureParams, learnActions, transcriptLimit, moduleContext, assessPromptInstructions);
 
     try {
-      const result = await getMeteredAICompletion({
-        engine,
+      const result = await getConfiguredMeteredAICompletion({
+        callPoint: "pipeline.measure",
+        engineOverride: engine,
         messages: [
           { role: "system", content: "You are an expert behavioral analyst. Always respond with valid JSON." },
           { role: "user", content: prompt },
@@ -582,12 +773,11 @@ async function runBatchedCallerAnalysis(
       logAI("pipeline:extract", prompt, result.content, { usage: result.usage, callId: call.id, callerId });
       log.debug("AI caller analysis response", { model: result.model, tokens: result.usage });
 
-      // Parse response
-      let jsonContent = result.content.trim();
-      if (jsonContent.startsWith("```")) {
-        jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+      // Parse response with recovery for truncated LLM output
+      const { parsed, recovered, fixesApplied } = recoverBrokenJson(result.content, "pipeline:extract");
+      if (recovered) {
+        log.info("EXTRACT JSON recovery applied", { fixesApplied });
       }
-      const parsed = JSON.parse(jsonContent);
 
       // Store scores (handle both full and compact keys: score/s, confidence/c)
       if (parsed.scores) {
@@ -655,14 +845,39 @@ async function runBatchedCallerAnalysis(
         }
       }
 
-      log.info(`AI caller analysis complete`, { scoresCreated, memoriesCreated });
+      // Parse learning assessment from AI response
+      if (parsed.learning && moduleContext) {
+        const learning = parsed.learning;
+        const overallMastery = Math.max(0, Math.min(1, learning.overallMastery ?? 0));
+        const outcomes: Record<string, number> = {};
+        if (learning.outcomes) {
+          for (const [key, value] of Object.entries(learning.outcomes)) {
+            outcomes[key] = Math.max(0, Math.min(1, Number(value) || 0));
+          }
+        }
+        learningAssessment = {
+          specSlug: moduleContext.specSlug,
+          moduleId: learning.moduleId || moduleContext.moduleId,
+          overallMastery,
+          outcomes,
+          masteryThreshold: moduleContext.masteryThreshold,
+          allModuleIds: moduleContext.allModuleIds,
+        };
+        log.info(`Learning assessment parsed`, {
+          moduleId: learningAssessment.moduleId,
+          mastery: learningAssessment.overallMastery,
+          outcomesScored: Object.keys(outcomes).length,
+        });
+      }
+
+      log.info(`AI caller analysis complete`, { scoresCreated, memoriesCreated, hasLearning: !!learningAssessment });
     } catch (error: any) {
       log.error("AI caller analysis failed", { error: error.message });
       throw error;
     }
   }
 
-  return { scoresCreated, memoriesCreated, playbookUsed: playbookName };
+  return { scoresCreated, memoriesCreated, playbookUsed: playbookName, learningAssessment };
 }
 
 /**
@@ -675,6 +890,24 @@ async function runBatchedAgentAnalysis(
   log: ReturnType<typeof createLogger>
 ): Promise<{ measurementsCreated: number }> {
   const transcript = call.transcript || "";
+
+  // Transcript length gate — skip or cap confidence for short transcripts
+  const gates = await getPipelineGates();
+  const wordCount = transcript.trim().split(/\s+/).filter(Boolean).length;
+
+  if (wordCount < gates.minTranscriptWords) {
+    log.info("Skipping agent scoring - transcript too short", {
+      wordCount,
+      min: gates.minTranscriptWords,
+    });
+    return { measurementsCreated: 0 };
+  }
+
+  const isShortTranscript = wordCount < gates.shortTranscriptThresholdWords;
+  const confidenceCap = isShortTranscript ? gates.shortTranscriptConfidenceCap : 1.0;
+  if (isShortTranscript) {
+    log.info("Short transcript - capping confidence", { wordCount, cap: confidenceCap });
+  }
 
   // Get DOMAIN MEASURE specs from caller's domain playbook (or fallback)
   // Need playbookId first to filter system specs
@@ -742,11 +975,11 @@ async function runBatchedAgentAnalysis(
       if (existing) {
         await prisma.behaviorMeasurement.update({
           where: { id: existing.id },
-          data: { actualValue, confidence: 0.75, evidence: ["Mock batched"] },
+          data: { actualValue, confidence: Math.min(0.75, confidenceCap), evidence: ["Mock batched"] },
         });
       } else {
         await prisma.behaviorMeasurement.create({
-          data: { callId: call.id, parameterId: param.parameterId, actualValue, confidence: 0.75, evidence: ["Mock batched"] },
+          data: { callId: call.id, parameterId: param.parameterId, actualValue, confidence: Math.min(0.75, confidenceCap), evidence: ["Mock batched"] },
         });
       }
       measurementsCreated++;
@@ -760,17 +993,19 @@ async function runBatchedAgentAnalysis(
       metadata: { measurementsCreated, paramsProcessed: agentParams.length },
     }).catch((e) => log.warn("Failed to log mock usage", { error: e.message }));
   } else {
-    // Real AI: single batched call
+    // @ai-call pipeline.score_agent — Evaluate agent behavior against targets | config: /x/ai-config
     const transcriptLimit = await getTranscriptLimit("pipeline.score_agent");
     const prompt = buildBatchedAgentPrompt(transcript, agentParams, transcriptLimit);
 
     try {
       // More tokens for agent analysis with many parameters
       // ~100 tokens per param (score + confidence + evidence array)
-      const estimatedTokens = Math.max(2048, agentParams.length * 120);
+      // Add 25% buffer to prevent truncation
+      const estimatedTokens = Math.max(2048, Math.ceil(agentParams.length * 150));
 
-      const result = await getMeteredAICompletion({
-        engine,
+      const result = await getConfiguredMeteredAICompletion({
+        callPoint: "pipeline.score_agent",
+        engineOverride: engine,
         messages: [
           { role: "system", content: "You are an expert at evaluating conversational AI behavior. Always respond with valid JSON. Keep evidence arrays brief (1-2 short quotes max per parameter)." },
           { role: "user", content: prompt },
@@ -782,43 +1017,17 @@ async function runBatchedAgentAnalysis(
       logAI("pipeline:score_agent", prompt, result.content, { usage: result.usage, callId: call.id, callerId });
       log.debug("AI agent analysis response", { model: result.model, contentLength: result.content.length });
 
-      let jsonContent = result.content.trim();
-      if (jsonContent.startsWith("```")) {
-        jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-      }
-
-      // Try to recover truncated JSON by adding closing braces if needed
-      let parsed;
-      try {
-        parsed = JSON.parse(jsonContent);
-      } catch (parseError) {
-        log.warn("JSON parse failed, attempting recovery", { contentLength: jsonContent.length });
-        // Try to fix truncated JSON - add closing braces
-        let fixed = jsonContent;
-        // Count open vs close braces
-        const openBraces = (fixed.match(/\{/g) || []).length;
-        const closeBraces = (fixed.match(/\}/g) || []).length;
-        const openBrackets = (fixed.match(/\[/g) || []).length;
-        const closeBrackets = (fixed.match(/\]/g) || []).length;
-
-        // Add missing closing characters
-        for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += "]";
-        for (let i = 0; i < openBraces - closeBraces; i++) fixed += "}";
-
-        try {
-          parsed = JSON.parse(fixed);
-          log.info("JSON recovery successful");
-        } catch {
-          // Still failed - throw original error
-          throw parseError;
-        }
+      // Parse response with recovery for truncated LLM output
+      const { parsed, recovered: scoreRecovered, fixesApplied: scoreFixes } = recoverBrokenJson(result.content, "pipeline:score_agent");
+      if (scoreRecovered) {
+        log.info("SCORE_AGENT JSON recovery applied", { fixesApplied: scoreFixes });
       }
 
       if (parsed.scores) {
         for (const [parameterId, scoreData] of Object.entries(parsed.scores as Record<string, any>)) {
           // Handle both full and compact keys: score/s, confidence/c, evidence/e
           const actualValue = Math.max(0, Math.min(1, scoreData.score ?? scoreData.s ?? 0.5));
-          const confidence = Math.max(0, Math.min(1, scoreData.confidence ?? scoreData.c ?? 0.7));
+          const confidence = Math.max(0, Math.min(confidenceCap, scoreData.confidence ?? scoreData.c ?? 0.7));
           const rawEvidence = scoreData.evidence ?? scoreData.e;
           const evidence = Array.isArray(rawEvidence) ? rawEvidence : [rawEvidence || "AI analysis"];
 
@@ -1200,6 +1409,9 @@ const DEFAULT_GUARDRAILS: GuardrailsConfig = {
  * Falls back to defaults if no spec found
  */
 async function loadGuardrails(log: ReturnType<typeof createLogger>): Promise<GuardrailsConfig> {
+  // Load system settings for fallback defaults
+  const ps = await getPipelineSettings();
+
   const superviseSpec = await prisma.analysisSpec.findFirst({
     where: {
       outputType: "SUPERVISE",
@@ -1246,10 +1458,10 @@ async function loadGuardrails(log: ReturnType<typeof createLogger>): Promise<Gua
     },
     aiSettings: {
       temperature: aiConfig.temperature ?? DEFAULT_GUARDRAILS.aiSettings.temperature,
-      maxRetries: aiConfig.maxRetries ?? DEFAULT_GUARDRAILS.aiSettings.maxRetries,
+      maxRetries: aiConfig.maxRetries ?? ps.maxRetries,
     },
     aggregation: {
-      decayHalfLifeDays: aggConfig.decayHalfLifeDays ?? DEFAULT_GUARDRAILS.aggregation.decayHalfLifeDays,
+      decayHalfLifeDays: aggConfig.decayHalfLifeDays ?? ps.personalityDecayHalfLifeDays,
       confidenceGrowthBase: aggConfig.confidenceGrowthBase ?? DEFAULT_GUARDRAILS.aggregation.confidenceGrowthBase,
       confidenceGrowthPerCall: aggConfig.confidenceGrowthPerCall ?? DEFAULT_GUARDRAILS.aggregation.confidenceGrowthPerCall,
       maxAggregatedConfidence: aggConfig.maxAggregatedConfidence ?? DEFAULT_GUARDRAILS.aggregation.maxAggregatedConfidence,
@@ -1392,7 +1604,7 @@ async function runAdaptSpecs(
       metadata: { targetsCreated, paramsProcessed: targetParams.length },
     }).catch((e) => console.warn("[pipeline] Failed to log mock usage:", e.message));
   } else {
-    // Real AI: compute targets
+    // @ai-call pipeline.adapt — Compute personalized behavior targets | config: /x/ai-config
     const transcriptLimit = await getTranscriptLimit("pipeline.adapt");
     const prompt = buildAdaptPrompt(
       call?.transcript || "",
@@ -1403,8 +1615,9 @@ async function runAdaptSpecs(
     );
 
     try {
-      const result = await getMeteredAICompletion({
-        engine,
+      const result = await getConfiguredMeteredAICompletion({
+        callPoint: "pipeline.adapt",
+        engineOverride: engine,
         messages: [
           { role: "system", content: "You are an expert at personalizing AI behaviour based on caller profiles. Always respond with valid JSON." },
           { role: "user", content: prompt },
@@ -1414,11 +1627,12 @@ async function runAdaptSpecs(
       }, { callId, callerId, sourceOp: "pipeline:adapt" });
 
       logAI("pipeline:adapt", prompt, result.content, { usage: result.usage, callId, callerId });
-      let jsonContent = result.content.trim();
-      if (jsonContent.startsWith("```")) {
-        jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+
+      // Parse response with recovery for truncated LLM output
+      const { parsed, recovered: adaptRecovered, fixesApplied: adaptFixes } = recoverBrokenJson(result.content, "pipeline:adapt");
+      if (adaptRecovered) {
+        log.info("ADAPT JSON recovery applied", { fixesApplied: adaptFixes });
       }
-      const parsed = JSON.parse(jsonContent);
 
       if (parsed.targets) {
         for (const [parameterId, targetData] of Object.entries(parsed.targets as Record<string, any>)) {
@@ -1602,6 +1816,167 @@ async function aggregateCallerTargets(
 }
 
 // =====================================================
+// CURRICULUM PROGRESS TRACKING
+// =====================================================
+
+/**
+ * Update curriculum progress after a call completes.
+ * Finds CONTENT specs with curriculum modules via the caller's published playbook,
+ * updates lastAccessedAt, and assigns Module 1 if this is the first curriculum call.
+ */
+async function trackCurriculumAfterCall(
+  callerId: string,
+  log: ReturnType<typeof createLogger>,
+  learningAssessment?: {
+    specSlug: string;
+    moduleId: string;
+    overallMastery: number;
+    outcomes: Record<string, number>;
+    masteryThreshold: number;
+    allModuleIds: string[];
+  } | null,
+): Promise<boolean> {
+  // If we have a learning assessment, write mastery and potentially advance
+  if (learningAssessment) {
+    const { specSlug, moduleId, overallMastery, masteryThreshold, allModuleIds } = learningAssessment;
+
+    try {
+      // Write mastery score for this module
+      await updateCurriculumProgress(callerId, specSlug, {
+        moduleMastery: { [moduleId]: overallMastery },
+        lastAccessedAt: new Date(),
+      });
+      log.info(`Mastery written for ${specSlug}:${moduleId}`, { mastery: overallMastery, threshold: masteryThreshold });
+
+      // Check if mastery meets threshold → advance to next module
+      if (overallMastery >= masteryThreshold) {
+        const currentIdx = allModuleIds.indexOf(moduleId);
+        const nextModuleId = currentIdx >= 0 && currentIdx + 1 < allModuleIds.length
+          ? allModuleIds[currentIdx + 1]
+          : undefined;
+
+        await completeModule(callerId, specSlug, moduleId, nextModuleId);
+        log.info(`Module completed: ${moduleId}`, {
+          nextModule: nextModuleId || "(curriculum complete)",
+          mastery: overallMastery,
+        });
+      }
+
+      return true;
+    } catch (err: any) {
+      log.warn(`Learning assessment write failed for ${specSlug}: ${err.message}`);
+    }
+  }
+
+  // Fallback: no learning assessment — still assign first module if needed
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return false;
+
+  // Try CONTENT spec path
+  const playbook = await prisma.playbook.findFirst({
+    where: { domainId: caller.domainId, status: "PUBLISHED" },
+    select: {
+      items: {
+        where: {
+          itemType: "SPEC",
+          isEnabled: true,
+          spec: { specRole: "CONTENT", isActive: true },
+        },
+        select: {
+          spec: { select: { slug: true, config: true } },
+        },
+      },
+    },
+  });
+
+  let updated = false;
+
+  if (playbook?.items?.length) {
+    for (const item of playbook.items) {
+      const spec = item.spec;
+      if (!spec) continue;
+
+      const config = spec.config as Record<string, any> | null;
+      if (!config) continue;
+
+      const modules = config.modules || config.curriculum?.modules || [];
+      if (modules.length === 0 && !config.metadata?.curriculum) continue;
+
+      try {
+        const progress = await getCurriculumProgress(callerId, spec.slug);
+        if (!progress.currentModuleId && modules.length > 0) {
+          const firstModule = modules[0];
+          await updateCurriculumProgress(callerId, spec.slug, {
+            currentModuleId: firstModule.id || firstModule.slug,
+            lastAccessedAt: new Date(),
+          });
+          log.info(`Assigned caller to first module of ${spec.slug}`, {
+            moduleId: firstModule.id || firstModule.slug,
+          });
+          updated = true;
+        } else {
+          await updateCurriculumProgress(callerId, spec.slug, { lastAccessedAt: new Date() });
+          updated = true;
+        }
+      } catch (err: any) {
+        log.warn(`Curriculum progress update failed for ${spec.slug}: ${err.message}`);
+      }
+    }
+  }
+
+  // Subject curriculum fallback — assign first module if no CONTENT spec found
+  if (!updated) {
+    try {
+      const subjectDomains = await prisma.subjectDomain.findMany({
+        where: { domainId: caller.domainId },
+        include: {
+          subject: {
+            include: {
+              curricula: {
+                orderBy: { updatedAt: "desc" },
+                take: 1,
+                select: { slug: true, notableInfo: true },
+              },
+            },
+          },
+        },
+      });
+
+      for (const sd of subjectDomains) {
+        const curriculum = sd.subject.curricula[0];
+        if (!curriculum?.notableInfo) continue;
+
+        const rawModules = (curriculum.notableInfo as any)?.modules;
+        if (!Array.isArray(rawModules) || rawModules.length === 0) continue;
+
+        const progress = await getCurriculumProgress(callerId, curriculum.slug);
+        if (!progress.currentModuleId) {
+          await updateCurriculumProgress(callerId, curriculum.slug, {
+            currentModuleId: rawModules[0].id,
+            lastAccessedAt: new Date(),
+          });
+          log.info(`Assigned caller to first module of Subject curriculum ${curriculum.slug}`, {
+            moduleId: rawModules[0].id,
+          });
+          updated = true;
+        } else {
+          await updateCurriculumProgress(callerId, curriculum.slug, { lastAccessedAt: new Date() });
+          updated = true;
+        }
+        break; // Only process first curriculum
+      }
+    } catch (err: any) {
+      log.warn(`Subject curriculum fallback failed: ${err.message}`);
+    }
+  }
+
+  return updated;
+}
+
+// =====================================================
 // SPEC-DRIVEN PIPELINE EXECUTION
 // =====================================================
 
@@ -1637,11 +2012,26 @@ const stageExecutors: Record<string, StageExecutor> = {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
     const callerResult = await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
     const deltaResult = await computeAdapt(ctx.callId, ctx.callerId, ctx.log);
+
+    // Update curriculum progress (non-blocking — errors logged but don't fail the stage)
+    let curriculumUpdated = false;
+    try {
+      curriculumUpdated = await trackCurriculumAfterCall(ctx.callerId, ctx.log, callerResult.learningAssessment);
+    } catch (err: any) {
+      ctx.log.warn(`Curriculum progress tracking failed (non-blocking): ${err.message}`);
+    }
+
     return {
       playbookUsed: callerResult.playbookUsed,
       scoresCreated: callerResult.scoresCreated,
       memoriesCreated: callerResult.memoriesCreated,
       deltasComputed: deltaResult.deltasComputed,
+      curriculumUpdated,
+      learningAssessment: callerResult.learningAssessment ? {
+        moduleId: callerResult.learningAssessment.moduleId,
+        mastery: callerResult.learningAssessment.overallMastery,
+        advanced: curriculumUpdated && callerResult.learningAssessment.overallMastery >= callerResult.learningAssessment.masteryThreshold,
+      } : null,
     };
   },
 
@@ -1745,30 +2135,26 @@ const stageExecutors: Record<string, StageExecutor> = {
   // COMPOSE stage: Build final prompt
   COMPOSE: async (ctx, stage) => {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
-    // Build base URL from request headers
-    const host = ctx.request.headers.get("host") || "localhost:3000";
-    const protocol = host.includes("localhost") ? "http" : "https";
-    const baseUrl = `${protocol}://${host}`;
-    const internalSecret = process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret";
 
-    const composeResult = await fetch(`${baseUrl}/api/callers/${ctx.callerId}/compose-prompt`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-secret": internalSecret,
-      },
-      body: JSON.stringify({ triggerCallId: ctx.callId }),
+    // Direct function call — no HTTP self-call
+    const { fullSpecConfig, sections, specSlug } = await loadComposeConfig();
+    const composition = await executeComposition(ctx.callerId, sections, fullSpecConfig);
+    const promptSummary = renderPromptSummary(composition.llmPrompt);
+
+    const persisted = await persistComposedPrompt(composition, promptSummary, {
+      callerId: ctx.callerId,
+      triggerType: "pipeline",
+      triggerCallId: ctx.callId,
+      composeSpecSlug: specSlug,
+      specConfig: fullSpecConfig,
     });
-    const composeData = await composeResult.json();
 
-    if (!composeData.ok) {
-      throw new Error(`Prompt composition failed: ${composeData.error}`);
-    }
+    ctx.log.info(`COMPOSE complete: ${persisted.prompt.length} chars, id=${persisted.id}`);
 
     return {
-      promptId: composeData.id,
-      promptLength: composeData.prompt?.length || 0,
-      prompt: composeData.prompt,
+      promptId: persisted.id,
+      promptLength: persisted.prompt.length,
+      prompt: persisted.prompt,
     };
   },
 };
@@ -1787,10 +2173,29 @@ async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
     mode,
   });
 
+  // Validate spec dependencies before executing any stages
+  // Load all active spec slugs that will be used in this pipeline run
+  const allActiveSpecs = await prisma.analysisSpec.findMany({
+    where: { isActive: true, isDirty: false },
+    select: { slug: true },
+  });
+  const depValidation = await validateSpecDependencies(allActiveSpecs.map(s => s.slug));
+  if (!depValidation.valid) {
+    for (const warning of depValidation.warnings) {
+      log.warn(`[dependency] ${warning}`);
+    }
+    if (depValidation.skipped.length > 0) {
+      log.warn(`[dependency] ${depValidation.skipped.length} spec(s) have unsatisfied dependencies — they may produce incomplete results`);
+    }
+  }
+
   // Stages that can run in parallel (no dependencies between them)
   const parallelStages = new Set(["EXTRACT", "SCORE_AGENT"]);
+  const stageErrors: string[] = [];
 
   // Execute stages - parallelize where possible
+  // Stages are RESILIENT: failures are logged but don't stop the pipeline.
+  // This ensures COMPOSE always runs even if earlier stages fail.
   let i = 0;
   while (i < stages.length) {
     const stage = stages[i];
@@ -1818,34 +2223,36 @@ async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
     }
 
     if (parallelBatch.length > 1) {
-      // Run stages in parallel
+      // Run stages in parallel using allSettled so one failure doesn't block others
       log.info(`Running ${parallelBatch.length} stages in parallel: ${parallelBatch.map(s => s.name).join(", ")}`);
       const startTime = Date.now();
 
-      try {
-        const results = await Promise.all(
-          parallelBatch.map(async (s) => {
-            const executor = stageExecutors[s.name];
-            if (!executor) {
-              log.warn(`No executor for stage ${s.name} - skipping`);
-              return {};
-            }
-            return executor(ctx, s);
-          })
-        );
+      const settled = await Promise.allSettled(
+        parallelBatch.map(async (s) => {
+          const executor = stageExecutors[s.name];
+          if (!executor) {
+            log.warn(`No executor for stage ${s.name} - skipping`);
+            return {};
+          }
+          return executor(ctx, s);
+        })
+      );
 
-        // Merge all results
-        for (const result of results) {
-          Object.assign(ctx.results, result);
+      // Merge results from fulfilled stages, log rejected ones
+      for (let j = 0; j < settled.length; j++) {
+        const outcome = settled[j];
+        if (outcome.status === "fulfilled") {
+          Object.assign(ctx.results, outcome.value);
+        } else {
+          const stageName = parallelBatch[j].name;
+          log.error(`Stage ${stageName} failed (non-blocking)`, { error: outcome.reason?.message || String(outcome.reason) });
+          stageErrors.push(`${stageName}: ${outcome.reason?.message || "unknown error"}`);
         }
-
-        log.info(`Parallel stages completed in ${Date.now() - startTime}ms`);
-      } catch (error: any) {
-        log.error(`Parallel stages failed`, { error: error.message });
-        throw error;
       }
+
+      log.info(`Parallel stages completed in ${Date.now() - startTime}ms`);
     } else {
-      // Run single stage
+      // Run single stage — catch errors and continue
       const executor = stageExecutors[stage.name];
       if (!executor) {
         log.warn(`No executor for stage ${stage.name} - skipping`);
@@ -1857,11 +2264,16 @@ async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
         const stageResults = await executor(ctx, stage);
         Object.assign(ctx.results, stageResults);
       } catch (error: any) {
-        log.error(`Stage ${stage.name} failed`, { error: error.message });
-        throw error;
+        log.error(`Stage ${stage.name} failed (non-blocking)`, { error: error.message });
+        stageErrors.push(`${stage.name}: ${error.message}`);
       }
       i++;
     }
+  }
+
+  if (stageErrors.length > 0) {
+    ctx.results.stageErrors = stageErrors;
+    log.warn(`Pipeline completed with ${stageErrors.length} stage error(s)`, { stageErrors });
   }
 
   return {
@@ -1877,6 +2289,9 @@ export async function POST(
   const log = createLogger();
 
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callId } = await params;
     const body = await request.json().catch(() => ({}));
     const { callerId, mode, engine: requestedEngine } = body;

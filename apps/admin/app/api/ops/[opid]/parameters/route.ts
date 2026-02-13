@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -82,7 +83,23 @@ function normalizeSort(raw: unknown): Array<[string, "ASC" | "DESC"]> {
   return fallback;
 }
 
+/**
+ * @api GET /api/ops/:opid/parameters
+ * @visibility internal
+ * @scope ops:read
+ * @auth session
+ * @tags ops
+ * @description List parameters with pagination, sorting, filtering, and tag support (React Admin compatible).
+ *   Supports sort, range, filter query params in React Admin simple-rest format.
+ * @query sort string - JSON sort spec: ["field","ASC"] or [["field","ASC"],["field2","DESC"]]
+ * @query range string - JSON range: [start, end] (default: [0, 24])
+ * @query filter string - JSON filter: { q?, sectionId?, tags?, tag? }
+ * @response 200 Parameter[] (with Content-Range header)
+ */
 export async function GET(req: Request) {
+  const authResult = await requireAuth("VIEWER");
+  if (isAuthError(authResult)) return authResult.error;
+
   const url = new URL(req.url);
   const sp = url.searchParams;
 
@@ -163,7 +180,27 @@ export async function GET(req: Request) {
   return res;
 }
 
+/**
+ * @api POST /api/ops/:opid/parameters
+ * @visibility internal
+ * @scope ops:write
+ * @auth session
+ * @tags ops
+ * @description Create a new parameter with optional tag associations
+ * @body parameterId string - Unique parameter identifier
+ * @body name string - Parameter display name
+ * @body sectionId string - Section identifier
+ * @body domainGroup string - Domain group
+ * @body scaleType string - Scale type
+ * @body directionality string - Directionality
+ * @body computedBy string - Computed by method
+ * @body tags string[] - Optional tag names to associate
+ * @response 200 Parameter (with flattened tags)
+ */
 export async function POST(req: Request) {
+  const authResult = await requireAuth("OPERATOR");
+  if (isAuthError(authResult)) return authResult.error;
+
   const body = await req.json();
 
   // Allow optional tags: string[]
@@ -209,14 +246,38 @@ export async function POST(req: Request) {
 // NOTE: Updates and deletes are handled in /api/parameters/[id]/route.ts.
 // Keeping this route limited to collection operations avoids ambiguous path parsing.
 
+/**
+ * @api PATCH /api/ops/:opid/parameters
+ * @visibility internal
+ * @scope ops:write
+ * @auth session
+ * @tags ops
+ * @description Not supported on collection route - use /api/ops/:opid/parameters/:id instead
+ * @response 405 { error: "PATCH not supported on collection route..." }
+ */
 export async function PATCH() {
+  const authResult = await requireAuth("OPERATOR");
+  if (isAuthError(authResult)) return authResult.error;
+
   return NextResponse.json(
     { error: "PATCH not supported on collection route. Use /api/parameters/:id" },
     { status: 405 }
   );
 }
 
+/**
+ * @api DELETE /api/ops/:opid/parameters
+ * @visibility internal
+ * @scope ops:write
+ * @auth session
+ * @tags ops
+ * @description Not supported on collection route - use /api/ops/:opid/parameters/:id instead
+ * @response 405 { error: "DELETE not supported on collection route..." }
+ */
 export async function DELETE() {
+  const authResult = await requireAuth("OPERATOR");
+  if (isAuthError(authResult)) return authResult.error;
+
   return NextResponse.json(
     { error: "DELETE not supported on collection route. Use /api/parameters/:id" },
     { status: 405 }

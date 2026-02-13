@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/data-dictionary/xrefs
- *
- * Find cross-references for template variables and key prefixes.
- *
- * Query params (optional):
- * - type: "variable" | "prefix"
- * - pattern: the variable name (e.g., "{{memories.facts}}") or prefix (e.g., "location_")
- *
- * If no params provided, returns all dictionary entries (parameters as xrefs).
+ * @api GET /api/data-dictionary/xrefs
+ * @visibility internal
+ * @scope data-dictionary:read
+ * @auth session
+ * @tags data-dictionary
+ * @description Find cross-references for template variables and key prefixes across the system. Searches analysis specs (promptTemplate, trigger fields, action descriptions), prompt templates, prompt slugs, and playbooks. Without query params, returns all parameters as dictionary entries.
+ * @query type string - Reference type to search: "variable" (mustache vars) or "prefix" (key prefixes) (optional)
+ * @query pattern string - The variable name (e.g. "{{memories.facts}}") or prefix (e.g. "location_") (optional)
+ * @response 200 { ok: true, xrefs: [...] } (when no type/pattern)
+ * @response 200 { ok: true, pattern: "...", type: "...", xrefs: { analysisSpecs, promptTemplates, promptSlugs, playbooks }, counts: {...} }
+ * @response 500 { ok: false, error: "Failed to fetch cross-references" }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type"); // "variable" or "prefix"
     const pattern = searchParams.get("pattern");

@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/data-dictionary/dependencies
- *
- * Reverse index: List all specs/playbooks with what taxonomy items each one uses.
- * This is the "flip" of the xrefs endpoint.
+ * @api GET /api/data-dictionary/dependencies
+ * @visibility internal
+ * @scope data-dictionary:read
+ * @auth session
+ * @tags data-dictionary
+ * @description Reverse dependency index: lists all active specs and published playbooks with the template variables and key prefixes each one uses. Extracts mustache variables from promptTemplates, trigger fields, and action descriptions. This is the "flip" of the xrefs endpoint.
+ * @response 200 { ok: true, specs: [...], playbooks: [...], summary: { totalSpecs, totalPlaybooks, specsWithVariables, specsWithPrefixes } }
+ * @response 500 { ok: false, error: "Failed to fetch dependencies" }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     // Fetch all analysis specs with their relationships
     const specs = await prisma.analysisSpec.findMany({
       where: { isActive: true },

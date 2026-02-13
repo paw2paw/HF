@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { AIEngine } from "./client";
+import { getAIModelConfigsFallback } from "@/lib/fallback-settings";
 
 // =====================================================
 // ENGINE AVAILABILITY (inlined to avoid circular imports)
@@ -64,6 +65,20 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "bdd.parse": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "chat.stream": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "spec.assistant": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.view": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "chat.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.call": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.tasks": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "content-trust.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "workflow.classify": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "workflow.step": { provider: "claude", model: "claude-sonnet-4-20250514" },
 };
 
 // In-memory cache with TTL
@@ -154,12 +169,13 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
     console.warn(`[ai-config] Failed to load config for ${callPoint}:`, error);
   }
 
-  // Fall back to defaults
-  const defaultConfig = DEFAULT_CONFIGS[callPoint];
+  // Fall back to defaults (SystemSettings → hardcoded constant)
+  const fallbackConfigs = await getAIModelConfigsFallback();
+  const defaultConfig = fallbackConfigs[callPoint] || DEFAULT_CONFIGS[callPoint];
   if (defaultConfig) {
     // Ensure the default provider is actually available
     const { provider, model } = ensureAvailableProvider(
-      defaultConfig.provider,
+      defaultConfig.provider as AIEngine,
       defaultConfig.model
     );
 

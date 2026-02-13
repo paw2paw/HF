@@ -1,6 +1,9 @@
 /**
- * Personality Transforms
+ * Personality Transforms - FULLY DYNAMIC
+ * NO HARDCODING - All personality/trait data comes from database
+ *
  * Extracted from route.ts lines 1671-1725, 2017-2075
+ * Rewritten Feb 2026 to be data-driven
  */
 
 import { registerTransform } from "../TransformRegistry";
@@ -10,6 +13,8 @@ import type { AssembledContext, PersonalityData } from "../types";
 /**
  * Map personality data into structured traits with scores, levels, descriptions.
  * Returns the personality section for llmPrompt.
+ *
+ * FULLY DYNAMIC - works with ANY personality parameters from database
  */
 registerTransform("mapPersonalityTraits", (
   rawData: PersonalityData | null,
@@ -20,66 +25,46 @@ registerTransform("mapPersonalityTraits", (
   const personality = rawData;
   const { thresholds } = context.sharedState;
 
+  // Build dynamic traits object from all parameterValues
+  const traits: Record<string, {
+    score: number | null;
+    level: string | null;
+    parameterId?: string;
+  }> = {};
+
+  // Process ALL parameters dynamically (not just Big Five!)
+  for (const [key, value] of Object.entries(personality)) {
+    // Skip non-parameter fields
+    if (['preferredTone', 'preferredLength', 'technicalLevel', 'confidenceScore', 'lastUpdatedAt'].includes(key)) {
+      continue;
+    }
+
+    if (typeof value === 'number' || value === null) {
+      traits[key] = {
+        score: value,
+        level: value !== null ? classifyValue(value, thresholds) : null,
+        parameterId: key,
+      };
+    }
+  }
+
   return {
-    traits: {
-      openness: {
-        score: personality.openness,
-        level: classifyValue(personality.openness, thresholds),
-        description: personality.openness !== null && personality.openness >= thresholds.high
-          ? "Open to new experiences, curious, creative"
-          : personality.openness !== null && personality.openness <= thresholds.low
-            ? "Prefers routine, practical, conventional"
-            : "Balanced between tradition and novelty",
-      },
-      conscientiousness: {
-        score: personality.conscientiousness,
-        level: classifyValue(personality.conscientiousness, thresholds),
-        description: personality.conscientiousness !== null && personality.conscientiousness >= thresholds.high
-          ? "Organized, reliable, goal-oriented"
-          : personality.conscientiousness !== null && personality.conscientiousness <= thresholds.low
-            ? "Flexible, spontaneous, adaptable"
-            : "Balances planning with flexibility",
-      },
-      extraversion: {
-        score: personality.extraversion,
-        level: classifyValue(personality.extraversion, thresholds),
-        description: personality.extraversion !== null && personality.extraversion >= thresholds.high
-          ? "Outgoing, energetic, talkative"
-          : personality.extraversion !== null && personality.extraversion <= thresholds.low
-            ? "Reserved, reflective, quiet"
-            : "Comfortable in both social and solitary settings",
-      },
-      agreeableness: {
-        score: personality.agreeableness,
-        level: classifyValue(personality.agreeableness, thresholds),
-        description: personality.agreeableness !== null && personality.agreeableness >= thresholds.high
-          ? "Cooperative, trusting, helpful"
-          : personality.agreeableness !== null && personality.agreeableness <= thresholds.low
-            ? "Direct, skeptical, competitive"
-            : "Balanced between cooperation and assertiveness",
-      },
-      neuroticism: {
-        score: personality.neuroticism,
-        level: classifyValue(personality.neuroticism, thresholds),
-        description: personality.neuroticism !== null && personality.neuroticism >= thresholds.high
-          ? "Emotionally sensitive, may need reassurance"
-          : personality.neuroticism !== null && personality.neuroticism <= thresholds.low
-            ? "Emotionally stable, calm under pressure"
-            : "Generally stable with normal emotional range",
-      },
-    },
+    traits,
     preferences: {
       tone: personality.preferredTone,
       responseLength: personality.preferredLength,
       technicalLevel: personality.technicalLevel,
     },
     confidence: personality.confidenceScore,
+    parameterCount: Object.keys(traits).length,
   };
 });
 
 /**
  * Compute personality-based adaptation instructions.
  * Used by the instructions transform.
+ *
+ * FULLY DYNAMIC - adapts to ANY personality parameters from database
  */
 export function computePersonalityAdaptation(
   personality: PersonalityData | null,
@@ -91,53 +76,27 @@ export function computePersonalityAdaptation(
 
   const adaptations: string[] = [];
 
-  if (personality.extraversion !== null) {
-    if (personality.extraversion >= thresholds.high) {
-      adaptations.push("HIGH extraversion: Match their energy - be engaging and conversational");
-    } else if (personality.extraversion <= thresholds.low) {
-      adaptations.push("LOW extraversion: Give them space - be concise, allow pauses");
-    } else {
-      adaptations.push("MODERATE extraversion: Balanced engagement - read their energy level each turn");
+  // Process ALL personality parameters dynamically
+  for (const [key, value] of Object.entries(personality)) {
+    // Skip non-parameter fields
+    if (['preferredTone', 'preferredLength', 'technicalLevel', 'confidenceScore', 'lastUpdatedAt'].includes(key)) {
+      continue;
     }
+
+    if (typeof value !== 'number' || value === null) continue;
+
+    // Generate adaptation based on parameter value relative to thresholds
+    const paramLabel = key.replace(/_/g, ' ').replace(/^b5-/i, '').replace(/^pers-/i, '').toUpperCase();
+
+    if (value >= thresholds.high) {
+      adaptations.push(`HIGH ${paramLabel}: Lean into this trait - value is ${(value * 100).toFixed(0)}%`);
+    } else if (value <= thresholds.low) {
+      adaptations.push(`LOW ${paramLabel}: Accommodate this trait - value is ${(value * 100).toFixed(0)}%`);
+    }
+    // Skip moderate values to keep adaptations concise
   }
 
-  if (personality.openness !== null) {
-    if (personality.openness >= thresholds.high) {
-      adaptations.push("HIGH openness: Explore ideas - they enjoy intellectual discussion and tangents");
-    } else if (personality.openness <= thresholds.low) {
-      adaptations.push("LOW openness: Stay practical - focus on concrete topics and proven approaches");
-    } else {
-      adaptations.push("MODERATE openness: Mix practical examples with some conceptual exploration");
-    }
-  }
-
-  if (personality.conscientiousness !== null) {
-    if (personality.conscientiousness >= thresholds.high) {
-      adaptations.push("HIGH conscientiousness: Provide structured approach - they appreciate organization");
-    } else if (personality.conscientiousness <= thresholds.low) {
-      adaptations.push("LOW conscientiousness: Be flexible - allow spontaneous direction changes");
-    } else {
-      adaptations.push("MODERATE conscientiousness: Balance structure with flexibility");
-    }
-  }
-
-  if (personality.agreeableness !== null) {
-    if (personality.agreeableness >= thresholds.high) {
-      adaptations.push("HIGH agreeableness: They're cooperative - gentle guidance works well");
-    } else if (personality.agreeableness <= thresholds.low) {
-      adaptations.push("LOW agreeableness: Be direct - they appreciate straightforward communication and may push back");
-    } else {
-      adaptations.push("MODERATE agreeableness: Direct but warm - they'll engage in healthy debate");
-    }
-  }
-
-  if (personality.neuroticism !== null) {
-    if (personality.neuroticism >= thresholds.high) {
-      adaptations.push("HIGH neuroticism: Extra reassurance - acknowledge their concerns, slower pace");
-    } else if (personality.neuroticism <= thresholds.low) {
-      adaptations.push("LOW neuroticism: Emotionally stable - can handle challenge and critique well");
-    }
-  }
-
-  return adaptations.length > 0 ? adaptations : ["No specific personality adaptations - use balanced approach"];
+  return adaptations.length > 0
+    ? adaptations
+    : ["No strong personality traits detected - use balanced approach"];
 }

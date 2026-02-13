@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/specs/tree
- *
- * Returns a hierarchical tree structure of ALL specs grouped by:
- * - Domain (personality, memory, engagement, etc.)
- *   - Scope (SYSTEM, DOMAIN, CALLER)
- *     - OutputType (MEASURE, LEARN, ADAPT, COMPOSE, AGGREGATE, REWARD)
- *       - Individual specs with triggers, actions, parameters
- *
- * Query params:
- * - active: "true" | "false" | "all" (default "all")
+ * @api GET /api/specs/tree
+ * @visibility public
+ * @scope specs:read
+ * @auth session
+ * @tags specs
+ * @description Returns a hierarchical tree structure of ALL specs grouped by Domain > Scope > OutputType, with full trigger/action/parameter nesting
+ * @query active string - Filter by active status: "true", "false", or "all" (default "all")
+ * @response 200 { ok: true, tree: TreeNode, stats: { total, byDomain, byScope, byOutputType } }
+ * @response 500 { ok: false, error: "..." }
  */
 
 interface TreeNode {
@@ -43,6 +43,9 @@ const scopeLabels: Record<string, string> = {
 
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const activeFilter = url.searchParams.get("active") || "all";
 

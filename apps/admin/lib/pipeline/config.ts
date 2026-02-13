@@ -2,7 +2,8 @@
  * Pipeline Stage Configuration Loader
  *
  * Single source of truth for loading pipeline stages from specs.
- * Tries PIPELINE-001 first, falls back to GUARD-001, then defaults.
+ * FULLY SPEC-DRIVEN - no hardcoded fallbacks.
+ * PIPELINE-001 spec MUST exist in database or pipeline will error.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -28,82 +29,23 @@ type Logger = {
 };
 
 // =====================================================
-// DEFAULT FALLBACK
-// =====================================================
-
-/**
- * Default pipeline stages - used when no spec is found in database.
- * Matches the structure in PIPELINE-001 spec.
- */
-export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
-  {
-    name: "EXTRACT",
-    order: 10,
-    outputTypes: ["LEARN", "MEASURE"],
-    description: "Extract caller data: memories and personality scores",
-    batched: true,
-  },
-  {
-    name: "SCORE_AGENT",
-    order: 20,
-    outputTypes: ["MEASURE_AGENT"],
-    description: "Score agent behavior in the call",
-    batched: true,
-  },
-  {
-    name: "AGGREGATE",
-    order: 30,
-    outputTypes: ["AGGREGATE"],
-    description: "Aggregate scores into personality profiles",
-  },
-  {
-    name: "REWARD",
-    order: 40,
-    outputTypes: ["REWARD"],
-    description: "Compute reward scores from measurements",
-  },
-  {
-    name: "ADAPT",
-    order: 50,
-    outputTypes: ["ADAPT"],
-    description: "Compute personalized targets for next call",
-  },
-  {
-    name: "SUPERVISE",
-    order: 60,
-    outputTypes: ["SUPERVISE"],
-    description: "Validate and clamp targets to safe ranges",
-  },
-  {
-    name: "COMPOSE",
-    order: 100,
-    outputTypes: ["COMPOSE"],
-    description: "Build the final prompt from gathered context",
-    requiresMode: "prompt",
-  },
-];
-
-// =====================================================
 // LOADER
 // =====================================================
 
 /**
- * Load pipeline stages from specs.
+ * Load pipeline stages from PIPELINE-001 spec (env-configurable via PIPELINE_SPEC_SLUG).
  *
- * Priority:
- * 1. PIPELINE-001 spec (or env-configured spec via PIPELINE_SPEC_SLUG)
- * 2. GUARD-001 spec (backward compatibility, or env-configured via PIPELINE_FALLBACK_SPEC_SLUG)
- * 3. DEFAULT_PIPELINE_STAGES (hardcoded fallback)
+ * NO FALLBACKS - spec MUST exist in database or this throws an error.
+ * This prevents silent fallbacks that can diverge from the source of truth.
  */
 export async function loadPipelineStages(log?: Logger): Promise<PipelineStage[]> {
   const logInfo = log?.info ?? console.log;
-  const logDebug = log?.debug ?? (() => {});
+  const logWarn = log?.warn ?? console.warn;
 
-  // Get spec slugs from config (env-configurable)
+  // Get spec slug from config (env-configurable, default: PIPELINE-001)
   const pipelineSlug = config.specs.pipeline;
-  const fallbackSlug = config.specs.pipelineFallback;
 
-  // 1. Try configured pipeline spec first (default: PIPELINE-001)
+  // Load pipeline spec from database
   const pipelineSpec = await prisma.analysisSpec.findFirst({
     where: {
       slug: { contains: pipelineSlug.toLowerCase(), mode: "insensitive" },
@@ -113,35 +55,23 @@ export async function loadPipelineStages(log?: Logger): Promise<PipelineStage[]>
     select: { slug: true, config: true },
   });
 
-  if (pipelineSpec) {
-    const stages = extractStagesFromConfig(pipelineSpec.config);
-    if (stages) {
-      logInfo(`Pipeline stages loaded from "${pipelineSpec.slug}"`, { stageCount: stages.length });
-      return stages;
-    }
+  if (!pipelineSpec) {
+    throw new Error(
+      `Pipeline spec not found: "${pipelineSlug}". ` +
+      `Run "Import All" on /x/admin/spec-sync to import PIPELINE-001 from spec files.`
+    );
   }
 
-  // 2. Fall back to configured fallback spec (default: GUARD-001)
-  const guardSpec = await prisma.analysisSpec.findFirst({
-    where: {
-      slug: { contains: fallbackSlug.toLowerCase(), mode: "insensitive" },
-      isActive: true,
-      isDirty: false,
-    },
-    select: { slug: true, config: true },
-  });
-
-  if (guardSpec) {
-    const stages = extractStagesFromConfig(guardSpec.config);
-    if (stages) {
-      logInfo(`Pipeline stages loaded from "${guardSpec.slug}" (fallback)`, { stageCount: stages.length });
-      return stages;
-    }
+  const stages = extractStagesFromConfig(pipelineSpec.config);
+  if (!stages || stages.length === 0) {
+    throw new Error(
+      `Pipeline spec "${pipelineSpec.slug}" exists but has no valid stage configuration. ` +
+      `Check spec.config.parameters[].config.stages array.`
+    );
   }
 
-  // 3. Fall back to defaults
-  logInfo("No pipeline spec found - using default stages", { stageCount: DEFAULT_PIPELINE_STAGES.length });
-  return DEFAULT_PIPELINE_STAGES;
+  logInfo(`Pipeline stages loaded from "${pipelineSpec.slug}"`, { stageCount: stages.length });
+  return stages;
 }
 
 /**

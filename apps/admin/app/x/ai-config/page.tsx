@@ -89,6 +89,7 @@ export default function AIConfigPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   // Models management state
   const [showModelsManager, setShowModelsManager] = useState(false);
@@ -104,6 +105,22 @@ export default function AIConfigPage() {
   const [newKeyValue, setNewKeyValue] = useState("");
   const [testingKey, setTestingKey] = useState<string | null>(null);
   const [keyTestResult, setKeyTestResult] = useState<{ provider: string; valid: boolean; message: string } | null>(null);
+
+  // Filter configs by search term
+  const filteredConfigs = configs.filter((c) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const models = availableModels?.[c.provider as keyof AvailableModels] || [];
+    const modelLabel = models.find((m) => m.id === c.model)?.label || "";
+    return (
+      c.label.toLowerCase().includes(q) ||
+      c.description.toLowerCase().includes(q) ||
+      c.callPoint.toLowerCase().includes(q) ||
+      c.provider.toLowerCase().includes(q) ||
+      c.model.toLowerCase().includes(q) ||
+      modelLabel.toLowerCase().includes(q)
+    );
+  });
 
   // Fetch configurations
   const fetchConfigs = useCallback(async () => {
@@ -416,25 +433,46 @@ export default function AIConfigPage() {
             immediately at runtime.
           </p>
         </div>
-        <button
-          onClick={openModelsManager}
-          style={{
-            padding: "8px 16px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span>Manage Models</span>
-          <span style={{ fontSize: 16 }}>{showModelsManager ? "▼" : "▶"}</span>
-        </button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <a
+            href="/x/ai-knowledge"
+            style={{
+              padding: "8px 16px",
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
+              color: "var(--text-primary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              textDecoration: "none",
+            }}
+          >
+            🧠 AI Knowledge
+          </a>
+          <button
+            onClick={openModelsManager}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
+              color: "var(--text-primary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span>Manage Models</span>
+            <span style={{ fontSize: 16 }}>{showModelsManager ? "▼" : "▶"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Models Manager Section */}
@@ -1046,9 +1084,69 @@ export default function AIConfigPage() {
         ))}
       </div>
 
+      {/* Search */}
+      <div style={{ marginBottom: 16, position: "relative" }}>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search configs by name, description, provider, model..."
+          style={{
+            width: "100%",
+            padding: "10px 14px 10px 36px",
+            borderRadius: 8,
+            border: "1px solid var(--border-default)",
+            background: "var(--surface-primary)",
+            color: "var(--text-primary)",
+            fontSize: 14,
+            outline: "none",
+            boxSizing: "border-box",
+          }}
+        />
+        <span
+          style={{
+            position: "absolute",
+            left: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "var(--text-muted)",
+            fontSize: 15,
+            pointerEvents: "none",
+          }}
+        >
+          &#x2315;
+        </span>
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            style={{
+              position: "absolute",
+              right: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 16,
+              color: "var(--text-muted)",
+              lineHeight: 1,
+            }}
+          >
+            &times;
+          </button>
+        )}
+      </div>
+
+      {/* Result count when filtering */}
+      {search.trim() && (
+        <div style={{ marginBottom: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+          {filteredConfigs.length} of {configs.length} configurations match &ldquo;{search.trim()}&rdquo;
+        </div>
+      )}
+
       {/* Configuration Cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {configs.map((config) => {
+        {filteredConfigs.map((config) => {
           const providerStyle = PROVIDER_STYLES[config.provider] || PROVIDER_STYLES.mock;
           const models = availableModels?.[config.provider as keyof AvailableModels] || [];
           const currentModel = models.find((m) => m.id === config.model);

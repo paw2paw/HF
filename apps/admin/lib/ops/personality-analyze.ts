@@ -19,10 +19,10 @@
  * Fallback: If no AnalysisSpecs exist, falls back to legacy Parameter-name matching.
  */
 
-import { PrismaClient, AnalysisOutputType } from "@prisma/client";
+import { AnalysisOutputType } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { TRAITS } from "@/lib/registry";
-
-const prisma = new PrismaClient();
+import { getPipelineSettings } from "@/lib/system-settings";
 
 interface PersonalityAnalyzerOptions {
   verbose?: boolean;
@@ -43,6 +43,7 @@ interface AnalysisSpecWithRelations {
   description: string | null;
   domain: string | null;
   promptTemplate: string | null;
+  config: any;
   outputType: AnalysisOutputType;
   promptSlug: {
     id: string;
@@ -84,8 +85,10 @@ interface AnalysisResult {
   }>;
 }
 
-// Default trait mapping (loaded from AGGREGATE spec when available)
-// Maps parameterId -> CallerPersonality field name
+// LEGACY: Default trait mapping for CallerPersonality + PersonalityObservation models
+// These models have hardcoded OCEAN fields (will be migrated to dynamic parameterValues)
+// Maps parameterId -> legacy field name
+// NOTE: CallerPersonalityProfile already uses dynamic parameterValues - this is only for backward compat
 const DEFAULT_TRAIT_MAPPING: Record<string, string> = {
   // New PERS-* parameter IDs
   "PERS-OPENNESS": "openness",
@@ -148,15 +151,16 @@ function getReverseTraitMapping(mapping: Record<string, string>): Record<string,
 export async function analyzePersonality(
   options: PersonalityAnalyzerOptions = {}
 ): Promise<AnalysisResult> {
+  const pipelineSettings = await getPipelineSettings();
   const {
     verbose = false,
     plan = false,
-    mock = true,  // Default to mock until LLM integration
+    mock = false, // Use LLM scoring (falls back to mock on failure)
     callId,
     callerId,
     limit = 50,
     aggregate = true,
-    halfLifeDays = 30,
+    halfLifeDays = pipelineSettings.personalityDecayHalfLifeDays,
     specSlug,
   } = options;
 
@@ -382,6 +386,7 @@ export async function analyzePersonality(
             spec as AnalysisSpecWithRelations,
             parameter,
             anchors,
+            (spec as any).config,
             mock,
             verbose
           );
@@ -461,13 +466,15 @@ export async function analyzePersonality(
     console.error("❌ Error during personality analysis:", error);
     result.errors.push(String(error));
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 /**
- * Score a call using an AnalysisSpec
+ * Score a call using an AnalysisSpec.
+ *
+ * When `mock=false`, calls the LLM with config from the spec's `config.llmConfig`.
+ * All configurable values (maxTokens, temperature, systemPrompt) come from the spec.
+ * Falls back to mock scoring on LLM failure.
  */
 async function scoreWithSpec(
   transcript: string,
@@ -478,6 +485,7 @@ async function scoreWithSpec(
     definition: string | null;
   },
   anchors: Array<{ example: string; score: number; rationale: string | null }>,
+  specConfig: any,
   mock: boolean,
   verbose: boolean
 ): Promise<ScoringResult> {
@@ -517,12 +525,16 @@ Return JSON:
 }`;
   }
 
+  // ALL config from spec — zero hardcoding
+  const cfg = (specConfig as any) || {};
+  const transcriptTruncateLength = cfg.transcriptTruncateLength || 4000;
+
   // Render template
   const renderedPrompt = promptTemplate
     .replace(/\{\{parameter\.name\}\}/g, parameter.name)
     .replace(/\{\{parameter\.definition\}\}/g, parameter.definition || "")
     .replace(/\{\{anchors\}\}/g, anchorExamples)
-    .replace(/\{\{transcript\}\}/g, transcript.substring(0, 4000))
+    .replace(/\{\{transcript\}\}/g, transcript.substring(0, transcriptTruncateLength))
     .replace(/\{\{spec\.name\}\}/g, spec.name)
     .replace(/\{\{spec\.description\}\}/g, spec.description || "");
 
@@ -531,51 +543,98 @@ Return JSON:
   }
 
   if (mock) {
-    // Mock scoring based on transcript length and content
-    let baseScore = 0.5;
-
-    // Simple heuristics for mock scoring
-    const transcriptLower = transcript.toLowerCase();
-
-    // Openness indicators
-    if (parameter.parameterId.includes("O") || parameter.name.toLowerCase().includes("open")) {
-      if (transcriptLower.includes("curious") || transcriptLower.includes("interesting")) {
-        baseScore += 0.15;
-      }
-      if (transcriptLower.includes("always done it") || transcriptLower.includes("traditional")) {
-        baseScore -= 0.1;
-      }
-    }
-
-    // Extraversion indicators
-    if (parameter.parameterId.includes("E") || parameter.name.toLowerCase().includes("extrav")) {
-      if (transcriptLower.includes("excited") || transcriptLower.includes("love talking")) {
-        baseScore += 0.15;
-      }
-      if (transcriptLower.includes("quiet") || transcriptLower.includes("prefer email")) {
-        baseScore -= 0.1;
-      }
-    }
-
-    // Add some randomness
-    baseScore += (Math.random() - 0.5) * 0.2;
-
-    // Clamp to 0-1
-    const score = Math.max(0, Math.min(1, baseScore));
-
-    return {
-      score,
-      confidence: 0.6 + Math.random() * 0.2,
-      evidence: ["[Mock scoring - enable LLM for real analysis]"],
-      reasoning: `Mock score based on keyword heuristics for ${parameter.name}`,
-    };
+    return mockScoreParameter(transcript, parameter);
   }
 
-  // TODO: Real LLM call
-  // const response = await callLLM(renderedPrompt);
-  // return JSON.parse(response);
+  // LLM scoring — config from spec
+  try {
+    const { getConfiguredMeteredAICompletion } = await import("@/lib/metering/instrumented-ai");
+    const { recoverBrokenJson } = await import("@/lib/utils/json-recovery");
 
-  throw new Error("LLM scoring not yet implemented. Use --mock flag.");
+    const cfg = (specConfig as any) || {};
+    const llmConfig = cfg.llmConfig || {};
+    const maxTokens = llmConfig.maxTokens || 512;
+    const temperature = llmConfig.temperature || 0.2;
+    const systemPrompt = llmConfig.systemPrompt ||
+      "You are a personality scoring expert. Analyze call transcripts and score traits precisely. Be conservative with confidence scores. Only score what the transcript clearly supports.";
+
+    let fullPrompt = renderedPrompt;
+    if (cfg.promptGuidance) {
+      fullPrompt += `\n\nGuidance: ${cfg.promptGuidance}`;
+    }
+    fullPrompt += `\n\nRespond ONLY with a JSON object. No markdown, no explanation.`;
+
+    if (verbose) {
+      console.log(`   [LLM] Scoring ${parameter.name} (maxTokens=${maxTokens}, temp=${temperature})`);
+    }
+
+    // @ai-call pipeline.measure — Score personality trait from transcript | config: /x/ai-config
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "pipeline.measure",
+      engineOverride: (llmConfig.engine as any) || undefined,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: fullPrompt },
+      ],
+      maxTokens,
+      temperature,
+    }, { sourceOp: "personality:score" });
+
+    const { parsed, recovered } = recoverBrokenJson<ScoringResult>(result.content, "personality:score");
+    if (recovered && verbose) {
+      console.log(`   JSON recovery was needed for ${parameter.name}`);
+    }
+
+    return {
+      score: Math.max(0, Math.min(1, parsed.score ?? 0.5)),
+      confidence: Math.max(0, Math.min(1, parsed.confidence ?? 0.7)),
+      evidence: Array.isArray(parsed.evidence) ? parsed.evidence : [],
+      reasoning: parsed.reasoning || "",
+    };
+  } catch (err: any) {
+    console.warn(`[personality-analyze] LLM scoring failed for ${parameter.name}: ${err.message}. Falling back to mock.`);
+    // Log failure for dashboard visibility
+    import("@/lib/ai/knowledge-accumulation").then(({ logAIInteraction }) => {
+      logAIInteraction({
+        callPoint: "pipeline.personality_score",
+        userMessage: `Score ${parameter.name} (${parameter.parameterId})`,
+        aiResponse: err.message,
+        outcome: "failure",
+        metadata: { action: "score", entityType: "parameter", entityId: parameter.parameterId },
+      });
+    }).catch(() => {});
+    return mockScoreParameter(transcript, parameter);
+  }
+}
+
+/**
+ * Mock scoring based on transcript keywords (used in mock mode and as LLM fallback)
+ */
+function mockScoreParameter(
+  transcript: string,
+  parameter: { parameterId: string; name: string }
+): ScoringResult {
+  let baseScore = 0.5;
+  const transcriptLower = transcript.toLowerCase();
+
+  if (parameter.parameterId.includes("O") || parameter.name.toLowerCase().includes("open")) {
+    if (transcriptLower.includes("curious") || transcriptLower.includes("interesting")) baseScore += 0.15;
+    if (transcriptLower.includes("always done it") || transcriptLower.includes("traditional")) baseScore -= 0.1;
+  }
+  if (parameter.parameterId.includes("E") || parameter.name.toLowerCase().includes("extrav")) {
+    if (transcriptLower.includes("excited") || transcriptLower.includes("love talking")) baseScore += 0.15;
+    if (transcriptLower.includes("quiet") || transcriptLower.includes("prefer email")) baseScore -= 0.1;
+  }
+
+  baseScore += (Math.random() - 0.5) * 0.2;
+  const score = Math.max(0, Math.min(1, baseScore));
+
+  return {
+    score,
+    confidence: 0.6 + Math.random() * 0.2,
+    evidence: ["[Mock scoring - enable LLM for real analysis]"],
+    reasoning: `Mock score based on keyword heuristics for ${parameter.name}`,
+  };
 }
 
 /**
@@ -815,16 +874,16 @@ if (require.main === module) {
   const options: PersonalityAnalyzerOptions = {
     verbose: args.includes("--verbose") || args.includes("-v"),
     plan: args.includes("--plan"),
-    mock: !args.includes("--no-mock"),
+    mock: args.includes("--mock"),
     callId: args.find((a) => a.startsWith("--call="))?.split("=")[1],
     callerId: args.find((a) => a.startsWith("--user="))?.split("=")[1],
     limit: parseInt(
       args.find((a) => a.startsWith("--limit="))?.split("=")[1] || "50"
     ),
     aggregate: !args.includes("--no-aggregate"),
-    halfLifeDays: parseInt(
-      args.find((a) => a.startsWith("--half-life="))?.split("=")[1] || "30"
-    ),
+    halfLifeDays: args.find((a) => a.startsWith("--half-life="))
+      ? parseInt(args.find((a) => a.startsWith("--half-life="))!.split("=")[1])
+      : undefined, // Falls back to system setting
     specSlug: args.find((a) => a.startsWith("--spec="))?.split("=")[1],
   };
 

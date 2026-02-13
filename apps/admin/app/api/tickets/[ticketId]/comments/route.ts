@@ -1,20 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/tickets/[ticketId]/comments
- * List comments for a ticket
+ * @api GET /api/tickets/:ticketId/comments
+ * @visibility internal
+ * @scope tickets:comments-list
+ * @auth session
+ * @tags tickets
+ * @description Lists comments for a ticket with pagination. Includes author details.
+ * @pathParam ticketId string - The ticket ID
+ * @query limit number - Max comments to return (default 50, max 100)
+ * @query offset number - Pagination offset (default 0)
+ * @response 200 { ok: true, comments: [...], total: number, limit: number, offset: number }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 404 { ok: false, error: "Ticket not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
 
     const { ticketId } = await params;
     const url = new URL(req.url);
@@ -63,19 +72,29 @@ export async function GET(
 }
 
 /**
- * POST /api/tickets/[ticketId]/comments
- * Add a comment to a ticket
- * Body: { content, isInternal? }
+ * @api POST /api/tickets/:ticketId/comments
+ * @visibility internal
+ * @scope tickets:comments-create
+ * @auth session
+ * @tags tickets
+ * @description Adds a comment to a ticket and updates the ticket's updatedAt timestamp.
+ * @pathParam ticketId string - The ticket ID
+ * @body content string - Comment text (required)
+ * @body isInternal boolean - Whether comment is internal-only (default: false)
+ * @response 201 { ok: true, comment: {...} }
+ * @response 400 { ok: false, error: "Comment content is required" }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 404 { ok: false, error: "Ticket not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { ticketId } = await params;
     const body = await req.json();

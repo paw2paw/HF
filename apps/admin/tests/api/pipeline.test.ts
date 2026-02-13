@@ -94,7 +94,7 @@ vi.mock('@/lib/ai/client', () => ({
 
 // Mock metering
 vi.mock('@/lib/metering', () => ({
-  getMeteredAICompletion: vi.fn().mockResolvedValue({
+  getConfiguredMeteredAICompletion: vi.fn().mockResolvedValue({
     content: JSON.stringify({
       scores: { 'B5-O': { score: 0.75, confidence: 0.8, reasoning: 'Test scoring' } },
       memories: [{ category: 'FACT', key: 'location', value: 'London', evidence: 'mentioned city', confidence: 0.9 }],

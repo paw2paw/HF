@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { isAuditEnabled, setAuditEnabled, getRecentAuditLogs, auditLog, AuditAction } from "@/lib/audit";
 
-// GET /api/admin/audit - Get audit status and recent logs
+/**
+ * @api GET /api/admin/audit
+ * @visibility internal
+ * @scope admin:read
+ * @auth bearer
+ * @tags admin
+ * @description Get audit logging status and recent audit log entries
+ * @response 200 { enabled: boolean, logs: AuditLog[] }
+ * @response 401 { error: "Unauthorized" }
+ * @response 500 { error: "Failed to get audit status" }
+ */
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
 
     const [enabled, logs] = await Promise.all([
       isAuditEnabled(),
@@ -22,18 +30,25 @@ export async function GET() {
   }
 }
 
-// POST /api/admin/audit - Toggle audit logging
+/**
+ * @api POST /api/admin/audit
+ * @visibility internal
+ * @scope admin:write
+ * @auth bearer
+ * @tags admin
+ * @description Toggle audit logging on or off (ADMIN role required)
+ * @body enabled boolean - Whether audit logging should be enabled
+ * @response 200 { enabled: boolean }
+ * @response 400 { error: "enabled must be a boolean" }
+ * @response 401 { error: "Unauthorized" }
+ * @response 403 { error: "Forbidden - Admin only" }
+ * @response 500 { error: "Failed to update audit setting" }
+ */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only ADMIN role can toggle audit logging
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden - Admin only" }, { status: 403 });
-    }
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const body = await request.json();
     const { enabled } = body;

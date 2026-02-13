@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 type ValidationError = {
   itemId?: string;
@@ -8,14 +9,28 @@ type ValidationError = {
 };
 
 /**
- * POST /api/playbooks/[playbookId]/publish
- * Validate and publish a playbook
+ * @api POST /api/playbooks/:playbookId/publish
+ * @visibility public
+ * @scope playbooks:write
+ * @auth session
+ * @tags playbooks
+ * @description Validates and publishes a playbook. Runs validation checks (items exist,
+ *   specs are active, no duplicate parameters, correct ordering). Archives any previously
+ *   published playbook for the same domain.
+ * @pathParam playbookId string - Playbook UUID (must be DRAFT)
+ * @response 200 { ok: true, playbook: Playbook, validationErrors: [...], validationPassed: true, stats: {...} }
+ * @response 400 { ok: false, error: "Playbook is already published" }
+ * @response 404 { ok: false, error: "Playbook not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ playbookId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { playbookId } = await params;
 
     const playbook = await prisma.playbook.findUnique({

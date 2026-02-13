@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext, PlaybookData, SystemSpecData, ResolvedSpecs, ResolvedSpec } from "../types";
 
@@ -70,21 +71,20 @@ export function resolveSpecs(
 }
 
 /**
- * Load VOICE-001 directly if not found in playbook or system specs.
- * Extracted from route.ts lines 769-790.
+ * Load voice spec directly if not found in playbook or system specs.
+ * Uses config.specs.voicePattern for slug matching (default: "voice").
  */
 export async function resolveVoiceSpecFallback(
   current: ResolvedSpecs,
 ): Promise<ResolvedSpecs> {
   if (current.voiceSpec) return current;
 
+  const voicePattern = config.specs.voicePattern;
   const systemVoiceSpec = await prisma.analysisSpec.findFirst({
     where: {
-      OR: [
-        { slug: "VOICE-001" },
-        { slug: "voice-001" },
-        { slug: { contains: "voice" }, specRole: "IDENTITY", domain: "voice" },
-      ],
+      slug: { contains: voicePattern, mode: "insensitive" },
+      specRole: "IDENTITY",
+      domain: "voice",
       isActive: true,
     },
   });
@@ -116,7 +116,7 @@ registerTransform("extractIdentitySpec", (
 
   if (!identitySpec) return null;
 
-  const config = identitySpec.config as any;
+  const specConfig = identitySpec.config as any;
 
   return {
     specName: (() => {
@@ -128,29 +128,29 @@ registerTransform("extractIdentitySpec", (
     })(),
     domain: callerDomain?.name || null,
     description: identitySpec.description,
-    role: config?.roleStatement || config?.tutor_role?.roleStatement || null,
-    primaryGoal: config?.primaryGoal || null,
-    secondaryGoals: config?.secondaryGoals || [],
-    techniques: (config?.techniques || []).map((t: any) => ({
+    role: specConfig?.roleStatement || specConfig?.tutor_role?.roleStatement || null,
+    primaryGoal: specConfig?.primaryGoal || null,
+    secondaryGoals: specConfig?.secondaryGoals || [],
+    techniques: (specConfig?.techniques || []).map((t: any) => ({
       name: t.name,
       description: t.description,
       when: t.when,
     })),
-    styleDefaults: config?.defaults || null,
-    styleGuidelines: config?.styleGuidelines || [],
-    responsePatterns: config?.patterns || null,
+    styleDefaults: specConfig?.defaults || null,
+    styleGuidelines: specConfig?.styleGuidelines || [],
+    responsePatterns: specConfig?.patterns || null,
     boundaries: {
-      does: config?.does || [],
-      doesNot: config?.doesNot || [],
+      does: specConfig?.does || [],
+      doesNot: specConfig?.doesNot || [],
     },
-    sessionStructure: config?.opening || config?.main || config?.closing ? {
-      opening: config?.opening,
-      main: config?.main,
-      closing: config?.closing,
+    sessionStructure: specConfig?.opening || specConfig?.main || specConfig?.closing ? {
+      opening: specConfig?.opening,
+      main: specConfig?.main,
+      closing: specConfig?.closing,
     } : null,
-    assessmentApproach: config?.principles || config?.methods ? {
-      principles: config?.principles || [],
-      methods: config?.methods || [],
+    assessmentApproach: specConfig?.principles || specConfig?.methods ? {
+      principles: specConfig?.principles || [],
+      methods: specConfig?.methods || [],
     } : null,
   };
 });

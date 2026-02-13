@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import type { SidebarLayout } from "@/lib/sidebar/types";
 
 const SETTING_KEY = "sidebar.default_layout";
 
-// GET /api/admin/sidebar-layout - Get the global default sidebar layout
+/**
+ * @api GET /api/admin/sidebar-layout
+ * @visibility internal
+ * @scope admin:read
+ * @auth bearer
+ * @tags admin
+ * @description Get the global default sidebar layout from system settings
+ * @response 200 { layout: SidebarLayout | null }
+ */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const setting = await prisma.systemSetting.findUnique({
       where: { key: SETTING_KEY },
     });
@@ -24,16 +35,23 @@ export async function GET() {
   }
 }
 
-// POST /api/admin/sidebar-layout - Set the global default sidebar layout (admin only)
+/**
+ * @api POST /api/admin/sidebar-layout
+ * @visibility internal
+ * @scope admin:write
+ * @auth bearer
+ * @tags admin
+ * @description Set the global default sidebar layout (ADMIN role required)
+ * @body layout SidebarLayout - The sidebar layout configuration with sectionOrder array
+ * @response 200 { success: true }
+ * @response 400 { error: "Invalid layout format" }
+ * @response 401 { error: "Unauthorized" }
+ * @response 403 { error: "Forbidden" }
+ * @response 500 { error: "Failed to save layout" }
+ */
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const authResult = await requireAuth("ADMIN");
+  if (isAuthError(authResult)) return authResult.error;
 
   try {
     const body = await req.json();
@@ -62,16 +80,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/admin/sidebar-layout - Clear the global default (admin only)
+/**
+ * @api DELETE /api/admin/sidebar-layout
+ * @visibility internal
+ * @scope admin:write
+ * @auth bearer
+ * @tags admin
+ * @description Clear the global default sidebar layout (ADMIN role required)
+ * @response 200 { success: true }
+ * @response 401 { error: "Unauthorized" }
+ * @response 403 { error: "Forbidden" }
+ */
 export async function DELETE() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const authResult = await requireAuth("ADMIN");
+  if (isAuthError(authResult)) return authResult.error;
 
   try {
     await prisma.systemSetting.delete({

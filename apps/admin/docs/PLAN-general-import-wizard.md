@@ -176,7 +176,7 @@ interface SpecMetadata {
 **Actions**:
 1. **Download JSON** - Save `.spec.json` to disk
 2. **Import Now** - Send to existing import flow
-3. **Save to bdd-specs/** - Write directly to repo (requires server action)
+3. **Save to docs-archive/bdd-specs/** - Write directly to repo (requires server action)
 4. **Copy to Clipboard** - Copy JSON for manual paste
 
 ---

@@ -10,13 +10,24 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/admin/registry
- * View canonical parameters and coverage stats
+ * @api GET /api/admin/registry
+ * @visibility internal
+ * @auth session
+ * @tags admin, parameters
+ * @description View all canonical parameters with coverage stats
+ * @query deprecated boolean - Show deprecated parameters (default: false)
+ * @query orphaned boolean - Show only orphaned parameters with no spec actions (default: false)
+ * @response 200 { ok: true, parameters: Array<{ id, parameterId, name, definition, domainGroup, defaultTarget, isCanonical, deprecatedAt, replacedBy, aliases, usage: { inActions, inTargets, inScores, total } }>, summary: { total, active, deprecated, inUse, orphaned, byDomain } }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const searchParams = new URL(request.url).searchParams;
     const deprecated = searchParams.get("deprecated") === "true";
     const orphanedOnly = searchParams.get("orphaned") === "true";
@@ -106,11 +117,28 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * PUT /api/admin/registry
- * Update a parameter's registry fields
+ * @api PUT /api/admin/registry
+ * @visibility internal
+ * @auth session
+ * @tags admin, parameters
+ * @description Update a parameter's registry fields (name, definition, deprecated, etc.)
+ * @body parameterId string - The parameter ID to update (required)
+ * @body name string - New display name
+ * @body definition string - New definition text
+ * @body defaultTarget number - New default target value
+ * @body deprecatedAt string - ISO date to mark as deprecated, or null to unmark
+ * @body replacedBy string - Replacement parameter ID if deprecated
+ * @body aliases string[] - Alternative names for the parameter
+ * @body isCanonical boolean - Whether this is the canonical version
+ * @response 200 { ok: true, parameter: Parameter, message: string }
+ * @response 400 { ok: false, error: "parameterId is required" }
+ * @response 500 { ok: false, error: string }
  */
 export async function PUT(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const {
       parameterId,

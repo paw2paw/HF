@@ -153,10 +153,12 @@ Result: Back to v3 state, but nothing lost!
 
 ## Files Created
 
-1. **[history.ts](file:///Users/paulwander/projects/HF/apps/admin/lib/settings/history.ts)** - Version history logic
-2. **Updated [route.ts](file:///Users/paulwander/projects/HF/apps/admin/app/api/settings-library/route.ts)** - API endpoints
-3. **Updated [page.tsx](file:///Users/paulwander/projects/HF/apps/admin/app/settings-library/page.tsx)** - UI with history tab
-4. **Updated [SETTINGS_LIBRARY.md](file:///Users/paulwander/projects/HF/apps/admin/SETTINGS_LIBRARY.md)** - Documentation
+> **Note**: These files were part of the Settings Library feature which has since been archived. Links are preserved for historical reference.
+
+1. **`lib/settings/history.ts`** - Version history logic
+2. **`app/api/settings-library/route.ts`** - API endpoints
+3. **`app/settings-library/page.tsx`** - UI with history tab
+4. **`SETTINGS_LIBRARY.md`** - Documentation (see [archived copy](SETTINGS_LIBRARY.md))
 
 ## What Happens Next
 

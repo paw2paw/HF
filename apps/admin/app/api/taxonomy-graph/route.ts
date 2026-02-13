@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 // TODO: Add proper tagging system - we may want ubiquitous tagging across all entities
 // Currently Tag/ParameterTag tables exist in schema but are unpopulated
@@ -28,17 +29,23 @@ interface GraphEdge {
 }
 
 /**
- * GET /api/taxonomy-graph
- *
- * Returns nodes and edges for the taxonomy graph visualization.
- * Optional query params:
- * - focus: node ID to center on (returns only connected nodes)
- * - depth: how many hops from focus (default 2)
- * - minimal: if "1", excludes pipeline-only implementation details (triggers, actions)
- *            These are redundant with spec→parameter edges and clutter the graph.
+ * @api GET /api/taxonomy-graph
+ * @visibility internal
+ * @scope visualizations:taxonomy
+ * @auth session
+ * @tags visualizations
+ * @description Returns nodes and edges for the taxonomy graph visualization. Includes specs, parameters, playbooks, domains, triggers, actions, anchors, prompt slugs, behavior targets, and ranges. Supports focused subgraph queries and minimal mode.
+ * @query focus string - Node ID to center on (returns only connected nodes within depth)
+ * @query depth number - How many hops from focus node (default 2)
+ * @query minimal string - If "1", excludes pipeline-only implementation details (triggers, actions)
+ * @response 200 { ok: true, nodes: [...], edges: [...], counts: { nodes, edges, byType: {...} }, orphans: { total, byType: {...} } }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     let focusId = searchParams.get("focus");
     const depth = parseInt(searchParams.get("depth") || "2", 10);

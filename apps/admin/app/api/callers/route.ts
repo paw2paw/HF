@@ -1,21 +1,38 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
+import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/access-control";
 
 /**
- * GET /api/callers
- *
- * List all callers with optional counts
- * Note: The Caller model is minimal - most data lives on related User model
+ * @api GET /api/callers
+ * @visibility public
+ * @scope callers:read
+ * @auth session
+ * @tags callers
+ * @description List all callers with optional memory/call counts. Returns paginated results ordered by creation date descending, with flattened domain and personality data.
+ * @query withCounts boolean - When "true", fetches active memory and call counts per caller
+ * @query limit number - Maximum callers to return (default 100, max 500)
+ * @query offset number - Number of callers to skip for pagination (default 0)
+ * @response 200 { ok: true, callers: Caller[], total: number, limit: number, offset: number }
+ * @response 500 { ok: false, error: "Failed to fetch callers" }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireEntityAccess("callers", "R");
+    if (isEntityAuthError(authResult)) return authResult.error;
+    const { scope, session } = authResult;
+
     const url = new URL(req.url);
     const withCounts = url.searchParams.get("withCounts") === "true";
     const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
+    // Apply scope filter (ALL=no filter, DOMAIN=user's domain, OWN=user's callers)
+    const scopeFilter = buildScopeFilter(scope, session, "userId", "domainId");
+
     // Fetch callers with available relations
     const callers = await prisma.caller.findMany({
+      where: scopeFilter,
       take: limit,
       skip: offset,
       include: {
@@ -111,7 +128,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const total = await prisma.caller.count();
+    const total = await prisma.caller.count({ where: scopeFilter });
 
     return NextResponse.json({
       ok: true,
@@ -130,20 +147,44 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/callers
- *
- * Create a new caller
+ * @api POST /api/callers
+ * @visibility public
+ * @scope callers:write
+ * @auth session
+ * @tags callers
+ * @description Create a new caller. Auto-assigns the default domain if none specified. Generates a playground externalId.
+ * @body name string - Caller name (required)
+ * @body email string - Caller email (optional)
+ * @body phone string - Caller phone number (optional)
+ * @body domainId string - Domain ID to assign (optional, defaults to system default domain)
+ * @response 200 { ok: true, caller: { id, name, email, phone, domain } }
+ * @response 400 { ok: false, error: "Name is required" }
+ * @response 500 { ok: false, error: "Failed to create caller" }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireEntityAccess("callers", "C");
+    if (isEntityAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
-    const { name, email, phone, domainId } = body;
+    let { name, email, phone, domainId } = body;
 
     if (!name) {
       return NextResponse.json(
         { ok: false, error: "Name is required" },
         { status: 400 }
       );
+    }
+
+    // Auto-assign default domain if no domain specified
+    if (!domainId) {
+      const defaultDomain = await prisma.domain.findFirst({
+        where: { isDefault: true },
+      });
+      if (defaultDomain) {
+        domainId = defaultDomain.id;
+        console.log(`[caller-create] No domain specified, using default domain: ${defaultDomain.slug}`);
+      }
     }
 
     const caller = await prisma.caller.create({

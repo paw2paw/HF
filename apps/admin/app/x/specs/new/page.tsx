@@ -3,8 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronLeft, Upload, RefreshCw, X, ArrowRight, Plus } from "lucide-react";
 import { FancySelect, FancySelectOption } from "@/components/shared/FancySelect";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
+import { FlashSidebar } from "@/components/shared/FlashSidebar";
+import { AIModelBadge } from "@/components/shared/AIModelBadge";
 
 // ============================================================================
 // Types (matching JsonFeatureSpec from ai-parser.ts)
@@ -19,6 +22,16 @@ interface JsonParameter {
   targetRange?: { min: number; max: number };
   scoringAnchors?: { score: number; example: string; rationale?: string; isGold?: boolean }[];
   promptGuidance?: { whenHigh?: string; whenLow?: string };
+  learningOutcomes?: string[];
+}
+
+interface CurriculumMetadata {
+  type: string;
+  trackingMode: string;
+  moduleSelector: string;
+  moduleOrder: string;
+  progressKey: string;
+  masteryThreshold: number;
 }
 
 interface JsonAcceptanceCriterion {
@@ -57,6 +70,9 @@ interface SpecFormData {
     applies?: string;
     dependsOn?: string[];
     assumptions?: string[];
+  };
+  metadata?: {
+    curriculum?: CurriculumMetadata;
   };
 }
 
@@ -234,6 +250,15 @@ export default function CreateSpecPage() {
   // Active step tracking
   const [activeStep, setActiveStep] = useState(1);
 
+  // Track AI-updated fields for visual feedback
+  const [aiUpdatedFields, setAiUpdatedFields] = useState<Set<string>>(new Set());
+  const aiUpdateTimeoutRef = useRef<NodeJS.Timeout>();
+  const [showAiUpdateNotification, setShowAiUpdateNotification] = useState(false);
+
+  // Task tracking & flash sidebar
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [showFlashSidebar, setShowFlashSidebar] = useState(false);
+
   // Load existing specs for copy dropdown
   useEffect(() => {
     setLoadingSpecs(true);
@@ -283,6 +308,51 @@ export default function CreateSpecPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
+
+  // Start task tracking on mount (non-blocking - spec creation works without it)
+  useEffect(() => {
+    async function startTask() {
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskType: "create_spec",
+            context: { page: "spec_creation" },
+          }),
+        });
+        if (!res.ok) return; // Task tracking unavailable, continue without it
+        const data = await res.json();
+        if (data.ok && data.taskId) {
+          setTaskId(data.taskId);
+        }
+      } catch {
+        // Task tracking is optional - spec creation works without it
+      }
+    }
+    startTask();
+  }, []);
+
+  // Update task progress when activeStep changes
+  useEffect(() => {
+    if (!taskId) return;
+
+    async function updateTask() {
+      try {
+        await fetch("/api/tasks", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskId,
+            updates: { currentStep: activeStep },
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to update task progress:", error);
+      }
+    }
+    updateTask();
+  }, [activeStep, taskId]);
 
   // Form update helper
   const updateForm = useCallback((updates: Partial<SpecFormData>) => {
@@ -368,6 +438,25 @@ export default function CreateSpecPage() {
       errors["story.soThat"] = "So that... is required";
     }
 
+    // CONTENT spec curriculum validation
+    if (formData.specRole === "CONTENT") {
+      const meta = formData.metadata?.curriculum;
+      if (!meta) {
+        errors.curriculum = "Curriculum configuration is required for CONTENT specs";
+      } else {
+        if (!meta.type) errors["curriculum.type"] = "Curriculum type is required";
+        if (meta.masteryThreshold < 0 || meta.masteryThreshold > 1) {
+          errors["curriculum.threshold"] = "Mastery threshold must be 0–1";
+        }
+      }
+      // Check at least one module parameter exists
+      const selectorValue = meta?.moduleSelector?.split("=")?.[1] || "content";
+      const moduleParams = formData.parameters.filter(p => p.section === selectorValue);
+      if (formData.parameters.length > 0 && moduleParams.length === 0) {
+        errors.modules = `No parameters have section="${selectorValue}" — they won't be recognized as modules`;
+      }
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   }, [formData]);
@@ -396,6 +485,16 @@ export default function CreateSpecPage() {
 
       if (data.ok) {
         localStorage.removeItem(DRAFT_KEY);
+
+        // Mark task as complete
+        if (taskId) {
+          try {
+            await fetch(`/api/tasks?taskId=${taskId}`, { method: "DELETE" });
+          } catch (error) {
+            console.error("Failed to complete task:", error);
+          }
+        }
+
         router.push(`/x/specs?id=${data.specId}`);
       } else {
         setError(data.error || "Failed to create spec");
@@ -405,7 +504,7 @@ export default function CreateSpecPage() {
     } finally {
       setCreating(false);
     }
-  }, [formData, validate, router]);
+  }, [formData, validate, router, taskId]);
 
   // AI Chat
   const handleSendChat = useCallback(async () => {
@@ -431,6 +530,50 @@ export default function CreateSpecPage() {
 
       if (data.ok) {
         setChatMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
+
+        // Auto-apply field updates if present
+        if (data.fieldUpdates) {
+          const updatedFieldsList = new Set<string>();
+
+          setFormData((prev) => {
+            const updated = { ...prev };
+
+            // Apply top-level fields
+            Object.keys(data.fieldUpdates).forEach((key) => {
+              updatedFieldsList.add(key);
+              if (key === "story" && typeof data.fieldUpdates.story === "object") {
+                updated.story = { ...prev.story, ...data.fieldUpdates.story };
+                Object.keys(data.fieldUpdates.story).forEach(k => updatedFieldsList.add(`story.${k}`));
+              } else if (key === "parameters" && Array.isArray(data.fieldUpdates.parameters)) {
+                updated.parameters = data.fieldUpdates.parameters;
+              } else if (key === "acceptanceCriteria" && Array.isArray(data.fieldUpdates.acceptanceCriteria)) {
+                updated.acceptanceCriteria = data.fieldUpdates.acceptanceCriteria;
+              } else if (key === "constraints" && Array.isArray(data.fieldUpdates.constraints)) {
+                updated.constraints = data.fieldUpdates.constraints;
+              } else if (key === "context" && typeof data.fieldUpdates.context === "object") {
+                updated.context = { ...prev.context, ...data.fieldUpdates.context };
+              } else if (key !== "story" && key !== "parameters" && key !== "acceptanceCriteria" && key !== "constraints" && key !== "context") {
+                (updated as any)[key] = data.fieldUpdates[key];
+              }
+            });
+
+            return updated;
+          });
+          setIsDirty(true);
+
+          // Show visual feedback for updated fields
+          setAiUpdatedFields(updatedFieldsList);
+          setShowAiUpdateNotification(true);
+
+          // Clear the highlight after 3 seconds
+          if (aiUpdateTimeoutRef.current) {
+            clearTimeout(aiUpdateTimeoutRef.current);
+          }
+          aiUpdateTimeoutRef.current = setTimeout(() => {
+            setAiUpdatedFields(new Set());
+            setShowAiUpdateNotification(false);
+          }, 3000);
+        }
       } else {
         setChatMessages((prev) => [
           ...prev,
@@ -449,13 +592,16 @@ export default function CreateSpecPage() {
 
   // Parameter management
   const addParameter = useCallback(() => {
+    const isContent = formData.specRole === "CONTENT";
     const newParam: JsonParameter = {
-      id: `PARAM-${formData.parameters.length + 1}`,
+      id: isContent ? `MOD-${formData.parameters.length + 1}` : `PARAM-${formData.parameters.length + 1}`,
       name: "",
       description: "",
-      isAdjustable: true,
-      targetRange: { min: 0, max: 1 },
+      section: isContent ? "content" : undefined,
+      isAdjustable: !isContent,
+      targetRange: isContent ? undefined : { min: 0, max: 1 },
       scoringAnchors: [],
+      learningOutcomes: isContent ? [] : undefined,
     };
     setFormData((prev) => ({
       ...prev,
@@ -510,12 +656,58 @@ export default function CreateSpecPage() {
     boxShadow: "0 0 0 3px var(--error-bg)",
   };
 
+  const getInputStyle = (fieldName: string, hasError?: boolean): React.CSSProperties => {
+    if (hasError) return inputErrorStyle;
+    if (aiUpdatedFields.has(fieldName)) {
+      return {
+        ...inputStyle,
+        borderColor: "var(--accent-primary)",
+        boxShadow: "0 0 0 3px rgba(99, 102, 241, 0.15)",
+        animation: "aiGlow 0.5s ease-in-out",
+      };
+    }
+    return inputStyle;
+  };
+
   // ============================================================================
   // Render
   // ============================================================================
 
   return (
     <div style={{ minHeight: "100vh" }}>
+      {/* Flash Sidebar for Task Guidance */}
+      <FlashSidebar
+        taskId={taskId || undefined}
+        visible={showFlashSidebar}
+        onClose={() => setShowFlashSidebar(false)}
+      />
+
+      {/* AI Update Notification */}
+      {showAiUpdateNotification && (
+        <div
+          style={{
+            position: "fixed",
+            top: 24,
+            right: 24,
+            zIndex: 1000,
+            background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+            color: "#fff",
+            padding: "16px 20px",
+            borderRadius: 12,
+            boxShadow: "0 8px 24px rgba(139, 92, 246, 0.4)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            animation: "slideInRight 0.3s ease-out",
+            fontWeight: 600,
+            fontSize: 14,
+          }}
+        >
+          <span style={{ fontSize: 20 }}>✨</span>
+          <span>AI filled in {aiUpdatedFields.size} field{aiUpdatedFields.size !== 1 ? "s" : ""}</span>
+        </div>
+      )}
+
       {/* Draft Restore Modal */}
       {showDraftPrompt && (
         <div
@@ -629,9 +821,7 @@ export default function CreateSpecPage() {
                 transition: "all 0.15s ease",
               }}
             >
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft size={20} />
             </Link>
             <div>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
@@ -670,9 +860,7 @@ export default function CreateSpecPage() {
                 transition: "all 0.15s ease",
               }}
             >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
+              <Upload size={16} />
               Import
             </Link>
             <Link
@@ -691,9 +879,7 @@ export default function CreateSpecPage() {
                 textDecoration: "none",
               }}
             >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <RefreshCw size={16} />
               Sync
             </Link>
           </div>
@@ -728,17 +914,241 @@ export default function CreateSpecPage() {
               padding: 4,
             }}
           >
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={20} />
           </button>
         </div>
       )}
 
-      {/* Two-Panel Layout */}
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
-        {/* Form Panel */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+      {/* AI Assistant - Large Top Section */}
+      <div
+        style={{
+          background: "linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%)",
+          border: "2px solid",
+          borderColor: chatMessages.length > 0 ? "var(--accent-primary)" : "var(--border-default)",
+          borderRadius: 20,
+          overflow: "hidden",
+          marginBottom: 32,
+          transition: "all 0.3s ease",
+        }}
+      >
+        {/* AI Header */}
+        <div
+          style={{
+            background: "var(--surface-primary)",
+            borderBottom: "1px solid var(--border-default)",
+            padding: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 16,
+                background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 28,
+                boxShadow: "0 4px 16px rgba(139, 92, 246, 0.3)",
+              }}
+            >
+              🤖
+            </div>
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+                AI Spec Builder
+              </h2>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "4px 0 0" }}>
+                Describe what you want to measure, and I'll build the spec for you
+              </p>
+              <div style={{ marginTop: 8 }}>
+                <AIModelBadge callPoint="spec.assistant" variant="text" size="sm" />
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {taskId && (
+              <button
+                onClick={() => setShowFlashSidebar(!showFlashSidebar)}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  background: showFlashSidebar ? "var(--accent-primary)" : "var(--surface-secondary)",
+                  color: showFlashSidebar ? "#fff" : "var(--text-primary)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.2s ease",
+                }}
+              >
+                ✨ {showFlashSidebar ? "Hide" : "Show"} Guidance
+              </button>
+            )}
+            <AIConfigButton callPoint="spec.assistant" label="Config" inline />
+          </div>
+        </div>
+
+        {/* Chat Input - ALWAYS VISIBLE AT TOP */}
+        <div style={{ padding: 24, background: "var(--surface-primary)" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleSendChat();
+                }
+              }}
+              placeholder="Tell me what you want to measure... (e.g., 'I want to track how curious someone is during conversations')"
+              rows={4}
+              style={{
+                flex: 1,
+                padding: 16,
+                fontSize: 15,
+                borderRadius: 12,
+                border: "2px solid var(--border-default)",
+                background: "var(--surface-secondary)",
+                color: "var(--text-primary)",
+                outline: "none",
+                resize: "vertical",
+                fontFamily: "inherit",
+                lineHeight: 1.6,
+                transition: "all 0.2s ease",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "var(--accent-primary)";
+                e.target.style.boxShadow = "0 0 0 3px rgba(99, 102, 241, 0.1)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--border-default)";
+                e.target.style.boxShadow = "none";
+              }}
+            />
+            <button
+              onClick={handleSendChat}
+              disabled={chatLoading || !chatInput.trim()}
+              style={{
+                padding: "16px 28px",
+                fontSize: 15,
+                fontWeight: 700,
+                borderRadius: 12,
+                border: "none",
+                background:
+                  chatLoading || !chatInput.trim()
+                    ? "var(--surface-tertiary)"
+                    : "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
+                color: chatLoading || !chatInput.trim() ? "var(--text-muted)" : "#fff",
+                cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                boxShadow: chatLoading || !chatInput.trim() ? "none" : "0 4px 12px rgba(99, 102, 241, 0.3)",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                minHeight: 56,
+              }}
+            >
+              {chatLoading ? (
+                <>
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderTopColor: "#fff",
+                      borderRadius: "50%",
+                      animation: "spin 1s linear infinite",
+                    }}
+                  />
+                  Thinking...
+                </>
+              ) : (
+                <>
+                  <ArrowRight size={18} strokeWidth={2.5} />
+                  Send
+                </>
+              )}
+            </button>
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8, marginBottom: 0 }}>
+            💡 Tip: Press <kbd style={{ padding: "2px 6px", background: "var(--surface-tertiary)", borderRadius: 4, fontSize: 11 }}>⌘ Enter</kbd> to send
+          </p>
+        </div>
+
+        {/* Conversation History */}
+        {chatMessages.length > 0 && (
+          <div
+            style={{
+              maxHeight: 400,
+              overflow: "auto",
+              padding: "0 24px 24px",
+              background: "var(--surface-primary)",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {chatMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    ...(msg.role === "user" && { flexDirection: "row-reverse" }),
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: msg.role === "user"
+                        ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                        : "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 18,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {msg.role === "user" ? "👤" : "🤖"}
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: "12px 16px",
+                      borderRadius: 12,
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                      whiteSpace: "pre-wrap",
+                      background: msg.role === "user"
+                        ? "var(--surface-secondary)"
+                        : "var(--surface-tertiary)",
+                      color: "var(--text-primary)",
+                      border: "1px solid var(--border-default)",
+                    }}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Form Panel */}
+      <div>
           <div
             style={{
               background: "var(--surface-primary)",
@@ -842,7 +1252,7 @@ export default function CreateSpecPage() {
                       value={formData.id}
                       onChange={(e) => updateForm({ id: e.target.value.toUpperCase() })}
                       placeholder="e.g., PERS-001"
-                      style={validationErrors.id ? inputErrorStyle : inputStyle}
+                      style={getInputStyle("id", !!validationErrors.id)}
                     />
                   </InputField>
 
@@ -852,7 +1262,7 @@ export default function CreateSpecPage() {
                       value={formData.title}
                       onChange={(e) => updateForm({ title: e.target.value })}
                       placeholder="e.g., Personality Measurement"
-                      style={validationErrors.title ? inputErrorStyle : inputStyle}
+                      style={getInputStyle("title", !!validationErrors.title)}
                     />
                   </InputField>
 
@@ -882,7 +1292,7 @@ export default function CreateSpecPage() {
                         value={formData.domain}
                         onChange={(e) => updateForm({ domain: e.target.value })}
                         placeholder="e.g., personality, memory, engagement"
-                        style={inputStyle}
+                        style={getInputStyle("domain")}
                       />
                     </InputField>
                   </div>
@@ -916,7 +1326,24 @@ export default function CreateSpecPage() {
                   <InputField label="Spec Role">
                     <FancySelect
                       value={formData.specRole}
-                      onChange={(v) => updateForm({ specRole: v as SpecFormData["specRole"] })}
+                      onChange={(v) => {
+                        const role = v as SpecFormData["specRole"];
+                        const updates: Partial<SpecFormData> = { specRole: role };
+                        if (role === "CONTENT" && !formData.metadata?.curriculum) {
+                          updates.metadata = {
+                            curriculum: {
+                              type: "sequential",
+                              trackingMode: "module-based",
+                              moduleSelector: "section=content",
+                              moduleOrder: "sortBySequence",
+                              progressKey: "current_module",
+                              masteryThreshold: 0.7,
+                            },
+                          };
+                          updates.outputType = "COMPOSE";
+                        }
+                        updateForm(updates);
+                      }}
                       options={SPEC_ROLE_OPTIONS}
                       searchable={false}
                     />
@@ -964,9 +1391,8 @@ export default function CreateSpecPage() {
                       placeholder="e.g., conversational AI system"
                       rows={2}
                       style={{
-                        ...inputStyle,
+                        ...getInputStyle("story.asA", !!validationErrors["story.asA"]),
                         resize: "vertical",
-                        ...(validationErrors["story.asA"] ? { borderColor: "var(--error-text)" } : {}),
                       }}
                     />
                   </InputField>
@@ -978,9 +1404,8 @@ export default function CreateSpecPage() {
                       placeholder="e.g., to measure and adapt to the caller's personality traits"
                       rows={2}
                       style={{
-                        ...inputStyle,
+                        ...getInputStyle("story.iWant", !!validationErrors["story.iWant"]),
                         resize: "vertical",
-                        ...(validationErrors["story.iWant"] ? { borderColor: "var(--error-text)" } : {}),
                       }}
                     />
                   </InputField>
@@ -992,26 +1417,137 @@ export default function CreateSpecPage() {
                       placeholder="e.g., I can provide a more personalized and engaging experience"
                       rows={2}
                       style={{
-                        ...inputStyle,
+                        ...getInputStyle("story.soThat", !!validationErrors["story.soThat"]),
                         resize: "vertical",
-                        ...(validationErrors["story.soThat"] ? { borderColor: "var(--error-text)" } : {}),
                       }}
                     />
                   </InputField>
                 </div>
               </section>
 
-              {/* Step 4: Parameters */}
-              <section style={{ marginBottom: 32 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Step 3.5: Curriculum Configuration (CONTENT specs only) */}
+              {formData.specRole === "CONTENT" && formData.metadata?.curriculum && (
+                <section style={{ marginBottom: 32 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
                     <StepBadge number={4} />
                     <div>
                       <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                        Parameters
+                        Curriculum Configuration
                       </h2>
                       <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
-                        What does this spec measure or track?
+                        How the pipeline tracks learner progress through modules
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: "var(--surface-secondary)",
+                    borderRadius: 16,
+                    padding: 20,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 16,
+                  }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <InputField label="Curriculum Type" required>
+                        <FancySelect
+                          value={formData.metadata.curriculum.type}
+                          onChange={(v) => updateForm({
+                            metadata: { curriculum: { ...formData.metadata!.curriculum!, type: v } },
+                          })}
+                          options={[
+                            { value: "sequential", label: "Sequential", subtitle: "Modules completed in order" },
+                            { value: "branching", label: "Branching", subtitle: "Prerequisites determine path" },
+                            { value: "open-ended", label: "Open-ended", subtitle: "Learner chooses order" },
+                          ]}
+                          searchable={false}
+                        />
+                      </InputField>
+
+                      <InputField label="Tracking Mode">
+                        <FancySelect
+                          value={formData.metadata.curriculum.trackingMode}
+                          onChange={(v) => updateForm({
+                            metadata: { curriculum: { ...formData.metadata!.curriculum!, trackingMode: v } },
+                          })}
+                          options={[
+                            { value: "module-based", label: "Module-based", subtitle: "Track per-module mastery" },
+                            { value: "competency-based", label: "Competency-based", subtitle: "Track competency scores" },
+                          ]}
+                          searchable={false}
+                        />
+                      </InputField>
+
+                      <InputField label="Module Order">
+                        <FancySelect
+                          value={formData.metadata.curriculum.moduleOrder}
+                          onChange={(v) => updateForm({
+                            metadata: { curriculum: { ...formData.metadata!.curriculum!, moduleOrder: v } },
+                          })}
+                          options={[
+                            { value: "sortBySequence", label: "By Sequence", subtitle: "Parameter sequence field" },
+                            { value: "sortBySectionThenId", label: "By Section + ID", subtitle: "Alphabetical by ID" },
+                            { value: "explicit", label: "Explicit", subtitle: "As listed in spec" },
+                          ]}
+                          searchable={false}
+                        />
+                      </InputField>
+
+                      <InputField label="Mastery Threshold">
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={formData.metadata.curriculum.masteryThreshold}
+                            onChange={(e) => updateForm({
+                              metadata: { curriculum: { ...formData.metadata!.curriculum!, masteryThreshold: parseFloat(e.target.value) } },
+                            })}
+                            style={{ flex: 1 }}
+                          />
+                          <span style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "var(--text-primary)",
+                            minWidth: 44,
+                            textAlign: "right",
+                          }}>
+                            {Math.round(formData.metadata.curriculum.masteryThreshold * 100)}%
+                          </span>
+                        </div>
+                      </InputField>
+                    </div>
+
+                    <div style={{
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      background: "#eef2ff",
+                      border: "1px solid #c7d2fe",
+                      fontSize: 12,
+                      color: "#4338ca",
+                      lineHeight: 1.5,
+                    }}>
+                      Module selector: <strong>{formData.metadata.curriculum.moduleSelector}</strong> — parameters with <code>section=&quot;content&quot;</code> are treated as curriculum modules.
+                      A caller advances to the next module when mastery reaches {Math.round(formData.metadata.curriculum.masteryThreshold * 100)}%.
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Step 4: Parameters (renumbered to 5 when CONTENT) */}
+              <section style={{ marginBottom: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <StepBadge number={formData.specRole === "CONTENT" ? 5 : 4} />
+                    <div>
+                      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                        {formData.specRole === "CONTENT" ? "Modules" : "Parameters"}
+                      </h2>
+                      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                        {formData.specRole === "CONTENT"
+                          ? "What modules does this curriculum contain?"
+                          : "What does this spec measure or track?"}
                       </p>
                     </div>
                   </div>
@@ -1032,10 +1568,8 @@ export default function CreateSpecPage() {
                       boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)",
                     }}
                   >
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add Parameter
+                    <Plus size={16} />
+                    {formData.specRole === "CONTENT" ? "Add Module" : "Add Parameter"}
                   </button>
                 </div>
 
@@ -1127,7 +1661,7 @@ export default function CreateSpecPage() {
                               type="text"
                               value={param.id}
                               onChange={(e) => updateParameter(index, { id: e.target.value.toUpperCase() })}
-                              placeholder="e.g., OPENNESS"
+                              placeholder={formData.specRole === "CONTENT" ? "e.g., MOD-1" : "e.g., OPENNESS"}
                               style={{ ...inputStyle, fontSize: 13 }}
                             />
                           </InputField>
@@ -1136,7 +1670,7 @@ export default function CreateSpecPage() {
                               type="text"
                               value={param.name}
                               onChange={(e) => updateParameter(index, { name: e.target.value })}
-                              placeholder="e.g., Openness to Experience"
+                              placeholder={formData.specRole === "CONTENT" ? "e.g., Food Hygiene Legislation" : "e.g., Openness to Experience"}
                               style={{ ...inputStyle, fontSize: 13 }}
                             />
                           </InputField>
@@ -1145,42 +1679,112 @@ export default function CreateSpecPage() {
                               <textarea
                                 value={param.description}
                                 onChange={(e) => updateParameter(index, { description: e.target.value })}
-                                placeholder="What does this parameter measure?"
+                                placeholder={formData.specRole === "CONTENT" ? "What does this module cover?" : "What does this parameter measure?"}
                                 rows={2}
                                 style={{ ...inputStyle, fontSize: 13, resize: "vertical" }}
                               />
                             </InputField>
                           </div>
-                          <InputField label="Target Min">
-                            <input
-                              type="number"
-                              value={param.targetRange?.min ?? 0}
-                              onChange={(e) =>
-                                updateParameter(index, {
-                                  targetRange: { ...param.targetRange!, min: parseFloat(e.target.value) || 0 },
-                                })
-                              }
-                              step="0.1"
-                              min="0"
-                              max="1"
-                              style={{ ...inputStyle, fontSize: 13 }}
-                            />
-                          </InputField>
-                          <InputField label="Target Max">
-                            <input
-                              type="number"
-                              value={param.targetRange?.max ?? 1}
-                              onChange={(e) =>
-                                updateParameter(index, {
-                                  targetRange: { ...param.targetRange!, max: parseFloat(e.target.value) || 1 },
-                                })
-                              }
-                              step="0.1"
-                              min="0"
-                              max="1"
-                              style={{ ...inputStyle, fontSize: 13 }}
-                            />
-                          </InputField>
+
+                          {/* Target Range (non-CONTENT specs) */}
+                          {formData.specRole !== "CONTENT" && (
+                            <>
+                              <InputField label="Target Min">
+                                <input
+                                  type="number"
+                                  value={param.targetRange?.min ?? 0}
+                                  onChange={(e) =>
+                                    updateParameter(index, {
+                                      targetRange: { ...param.targetRange!, min: parseFloat(e.target.value) || 0 },
+                                    })
+                                  }
+                                  step="0.1"
+                                  min="0"
+                                  max="1"
+                                  style={{ ...inputStyle, fontSize: 13 }}
+                                />
+                              </InputField>
+                              <InputField label="Target Max">
+                                <input
+                                  type="number"
+                                  value={param.targetRange?.max ?? 1}
+                                  onChange={(e) =>
+                                    updateParameter(index, {
+                                      targetRange: { ...param.targetRange!, max: parseFloat(e.target.value) || 1 },
+                                    })
+                                  }
+                                  step="0.1"
+                                  min="0"
+                                  max="1"
+                                  style={{ ...inputStyle, fontSize: 13 }}
+                                />
+                              </InputField>
+                            </>
+                          )}
+
+                          {/* Learning Outcomes (CONTENT specs only) */}
+                          {formData.specRole === "CONTENT" && (
+                            <div style={{ gridColumn: "span 2" }}>
+                              <InputField label="Learning Outcomes">
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                  {(param.learningOutcomes || []).map((lo, loIdx) => (
+                                    <div key={loIdx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 28 }}>
+                                        LO{loIdx + 1}
+                                      </span>
+                                      <input
+                                        type="text"
+                                        value={lo}
+                                        onChange={(e) => {
+                                          const updated = [...(param.learningOutcomes || [])];
+                                          updated[loIdx] = e.target.value;
+                                          updateParameter(index, { learningOutcomes: updated });
+                                        }}
+                                        placeholder="e.g., Understand the role of local authorities in food safety enforcement"
+                                        style={{ ...inputStyle, fontSize: 12, padding: "6px 10px" }}
+                                      />
+                                      <button
+                                        onClick={() => {
+                                          const updated = (param.learningOutcomes || []).filter((_, i) => i !== loIdx);
+                                          updateParameter(index, { learningOutcomes: updated });
+                                        }}
+                                        style={{
+                                          background: "none",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          color: "var(--error-text)",
+                                          fontSize: 16,
+                                          padding: "2px 6px",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    onClick={() => {
+                                      const updated = [...(param.learningOutcomes || []), ""];
+                                      updateParameter(index, { learningOutcomes: updated });
+                                    }}
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      color: "var(--accent-primary)",
+                                      background: "none",
+                                      border: "1px dashed var(--border-default)",
+                                      borderRadius: 8,
+                                      padding: "6px 12px",
+                                      cursor: "pointer",
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    + Add Learning Outcome
+                                  </button>
+                                </div>
+                              </InputField>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1188,10 +1792,10 @@ export default function CreateSpecPage() {
                 )}
               </section>
 
-              {/* Step 5: Review */}
+              {/* Step 5/6: Review */}
               <section>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-                  <StepBadge number={5} />
+                  <StepBadge number={formData.specRole === "CONTENT" ? 6 : 5} />
                   <div>
                     <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
                       Review JSON
@@ -1316,200 +1920,6 @@ export default function CreateSpecPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* AI Assistant Panel */}
-        <div
-          style={{
-            width: 380,
-            flexShrink: 0,
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 20,
-            display: "flex",
-            flexDirection: "column",
-            position: "sticky",
-            top: 16,
-            maxHeight: "calc(100vh - 140px)",
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              padding: 20,
-              borderBottom: "1px solid var(--border-default)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14,
-                  background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)",
-                }}
-              >
-                🤖
-              </div>
-              <div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
-                  AI Assistant
-                </span>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "2px 0 0" }}>
-                  Help building your spec
-                </p>
-              </div>
-            </div>
-            <AIConfigButton callPoint="spec.assistant" label="Config" inline />
-          </div>
-
-          {/* Messages */}
-          <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
-            {chatMessages.length === 0 ? (
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  textAlign: "center",
-                  padding: 20,
-                }}
-              >
-                <div
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 20,
-                    background: "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 16,
-                    fontSize: 32,
-                  }}
-                >
-                  💬
-                </div>
-                <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-secondary)", margin: "0 0 6px" }}>
-                  Describe your spec
-                </p>
-                <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                  Tell me what behavior you want to measure or track, and I&apos;ll help you fill in the fields.
-                </p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {chatMessages.map((msg, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      maxWidth: "85%",
-                      padding: "12px 16px",
-                      borderRadius: 16,
-                      fontSize: 14,
-                      lineHeight: 1.5,
-                      whiteSpace: "pre-wrap",
-                      ...(msg.role === "user"
-                        ? {
-                            marginLeft: "auto",
-                            background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                            color: "#fff",
-                            borderBottomRightRadius: 4,
-                          }
-                        : {
-                            background: "var(--surface-secondary)",
-                            color: "var(--text-primary)",
-                            borderBottomLeftRadius: 4,
-                          }),
-                    }}
-                  >
-                    {msg.content}
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div
-                    style={{
-                      maxWidth: "85%",
-                      padding: "12px 16px",
-                      borderRadius: 16,
-                      background: "var(--surface-secondary)",
-                      color: "var(--text-muted)",
-                      fontSize: 14,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 16,
-                        height: 16,
-                        border: "2px solid var(--border-default)",
-                        borderTopColor: "var(--accent-primary)",
-                        borderRadius: "50%",
-                        animation: "spin 1s linear infinite",
-                      }}
-                    />
-                    Thinking...
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-            )}
-          </div>
-
-          {/* Input */}
-          <div style={{ padding: 16, borderTop: "1px solid var(--border-default)" }}>
-            <div style={{ display: "flex", gap: 10 }}>
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
-                placeholder="Ask for help..."
-                style={{
-                  flex: 1,
-                  padding: "12px 16px",
-                  fontSize: 14,
-                  borderRadius: 12,
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                  outline: "none",
-                }}
-              />
-              <button
-                onClick={handleSendChat}
-                disabled={chatLoading || !chatInput.trim()}
-                style={{
-                  padding: "12px 20px",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  borderRadius: 12,
-                  border: "none",
-                  background:
-                    chatLoading || !chatInput.trim()
-                      ? "var(--surface-tertiary)"
-                      : "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                  color: chatLoading || !chatInput.trim() ? "var(--text-muted)" : "#fff",
-                  cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer",
-                }}
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <style jsx>{`
@@ -1525,6 +1935,27 @@ export default function CreateSpecPage() {
           }
           50% {
             opacity: 0.5;
+          }
+        }
+        @keyframes aiGlow {
+          0% {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0);
+          }
+          50% {
+            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.25);
+          }
+          100% {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+          }
+        }
+        @keyframes slideInRight {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
           }
         }
       `}</style>

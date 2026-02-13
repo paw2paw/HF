@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import * as fs from "fs";
 import * as path from "path";
 
-const SPECS_DIR = path.join(process.cwd(), "bdd-specs");
+const SPECS_DIR = path.join(process.cwd(), "docs-archive", "bdd-specs");
 const SCHEMA_PATH = path.join(SPECS_DIR, "feature-spec-schema.json");
 
 /**
- * GET /api/x/spec-schema
- * Returns the BDD feature spec schema JSON
+ * @api GET /api/x/spec-schema
+ * @visibility internal
+ * @scope dev:read
+ * @auth bearer
+ * @tags dev-tools
+ * @note INFRASTRUCTURE TOOL — intentionally reads from disk. Serves the spec validation schema for the upload/import workflow.
+ * @description Returns the BDD feature spec JSON schema from docs-archive/bdd-specs/feature-spec-schema.json.
+ * @response 200 { ok: true, schema: {...} }
+ * @response 404 { ok: false, error: "Schema file not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     if (!fs.existsSync(SCHEMA_PATH)) {
       return NextResponse.json(
         { ok: false, error: "Schema file not found" },
@@ -100,11 +112,23 @@ function validateSpec(spec: any): string[] {
 }
 
 /**
- * POST /api/x/spec-schema
- * Upload a .spec.json file, validate it, and save to bdd-specs/ directory
+ * @api POST /api/x/spec-schema
+ * @visibility internal
+ * @scope dev:upload
+ * @auth bearer
+ * @tags dev-tools
+ * @note INFRASTRUCTURE TOOL — intentionally writes to disk. Saves uploaded spec files to docs-archive/bdd-specs/ for version control. After upload, use /api/admin/spec-sync to import into the database.
+ * @description Uploads a .spec.json file, validates its structure (id, title, version, story, parameters), and saves it to the docs-archive/bdd-specs/ directory. Supports overwrite of existing specs.
+ * @body file File - Multipart form-data file upload (.spec.json extension required)
+ * @response 200 { ok: true, message: "...", spec: { id, title, version, domain, specType, parameterCount }, filename: "...", isOverwrite: boolean }
+ * @response 400 { ok: false, error: "Expected multipart/form-data" | "No file uploaded" | "File must have .spec.json extension" | "Invalid JSON..." | "Validation failed", validationErrors?: [...] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const contentType = request.headers.get("content-type") || "";
 
     if (!contentType.includes("multipart/form-data")) {
@@ -162,7 +186,7 @@ export async function POST(request: NextRequest) {
     // Check if file already exists
     const isOverwrite = fs.existsSync(destPath);
 
-    // Write to bdd-specs/ directory (pretty-printed)
+    // Write to docs-archive/bdd-specs/ directory (pretty-printed)
     const prettyJson = JSON.stringify(spec, null, 2);
     fs.writeFileSync(destPath, prettyJson, "utf-8");
 

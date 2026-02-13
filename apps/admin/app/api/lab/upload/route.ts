@@ -1,20 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseJsonSpec, convertJsonSpecToHybrid } from "@/lib/bdd/ai-parser";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { SpecType, SpecificationScope, AnalysisOutputType, SpecRole } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 
-const SPECS_DIR = path.join(process.cwd(), "bdd-specs");
+const SPECS_DIR = path.join(process.cwd(), "docs-archive", "bdd-specs");
 
 /**
- * POST /api/lab/upload
- *
- * One-step upload: accepts a JSON spec, creates BDDFeatureSet, activates to create AnalysisSpec
- * This is the simplified endpoint for the Playbook Studio.
+ * @api POST /api/lab/upload
+ * @visibility internal
+ * @scope lab:write
+ * @auth session
+ * @tags lab
+ * @description One-step upload: accepts a JSON spec, creates BDDFeatureSet, activates to create AnalysisSpec.
+ *   Saves spec to docs-archive/bdd-specs/ directory and upserts feature set and analysis spec in DB.
+ * @body spec object - The JSON spec definition to upload
+ * @response 200 { ok: true, featureSet: { id, featureId, name, version }, spec: { id, slug, name, scope, outputType }, message: string }
+ * @response 400 { ok: false, error: "No spec provided..." }
+ * @response 400 { ok: false, error: "Invalid spec: ..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const { spec } = body;
 
@@ -36,7 +48,7 @@ export async function POST(req: Request) {
 
     const parsedSpec = parseResult.data;
 
-    // Save to bdd-specs/ directory for version control
+    // Save to docs-archive/bdd-specs/ directory for version control
     try {
       if (!fs.existsSync(SPECS_DIR)) {
         fs.mkdirSync(SPECS_DIR, { recursive: true });
@@ -45,7 +57,7 @@ export async function POST(req: Request) {
       const filePath = path.join(SPECS_DIR, filename);
       fs.writeFileSync(filePath, JSON.stringify(spec, null, 2), "utf-8");
     } catch (fileError) {
-      console.warn("Could not save spec to bdd-specs/:", fileError);
+      console.warn("Could not save spec to docs-archive/bdd-specs/:", fileError);
       // Continue anyway - DB is primary, file is backup
     }
 

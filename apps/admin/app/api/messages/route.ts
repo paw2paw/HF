@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/messages
- * List messages (inbox or sent)
- * Query params: type=inbox|sent, limit, offset, unreadOnly
+ * @api GET /api/messages
+ * @visibility internal
+ * @auth session
+ * @tags messages
+ * @description List messages for the current user (inbox or sent)
+ * @query type string - Message view: "inbox" or "sent" (default: "inbox")
+ * @query limit number - Max results (default: 50, max: 100)
+ * @query offset number - Pagination offset (default: 0)
+ * @query unreadOnly boolean - Only show unread messages (default: false)
+ * @response 200 { ok: true, messages: Array, total: number, limit: number, offset: number }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const url = new URL(req.url);
     const type = url.searchParams.get("type") || "inbox"; // inbox | sent
@@ -69,16 +77,26 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/messages
- * Send a new message
- * Body: { recipientId, subject?, content, parentId? }
+ * @api POST /api/messages
+ * @visibility internal
+ * @auth session
+ * @tags messages
+ * @description Send a new message to another user
+ * @body recipientId string - Recipient user ID (required)
+ * @body subject string - Message subject (optional)
+ * @body content string - Message body (required)
+ * @body parentId string - Parent message ID for threading (optional)
+ * @response 201 { ok: true, message: object }
+ * @response 400 { ok: false, error: "Recipient is required" | "Message content is required" }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 404 { ok: false, error: "Recipient not found or inactive" | "Parent message not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const body = await req.json();
     const { recipientId, subject, content, parentId } = body;

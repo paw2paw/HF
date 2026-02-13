@@ -1,0 +1,95 @@
+{
+  "id": "TRUST-001",
+  "title": "Content Trust & Source Authority",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-11",
+  "domain": "trust",
+  "specType": "SYSTEM",
+  "outputType": "SUPERVISE",
+  "specRole": "CONSTRAIN",
+  "story": {
+    "asA": "regulated training platform",
+    "iWant": "to ensure learners study real, certified materials rather than AI hallucinations",
+    "soThat": "learners are truly prepared for certification exams and can be trusted with regulated professional duties"
+  },
+  "context": {
+    "applies": "When a CONTENT spec has sourceAuthority configured",
+    "dependsOn": ["SUPV-001"],
+    "assumptions": [
+      "Content sources have been registered with appropriate trust levels",
+      "CONTENT spec modules have sourceRefs linking to registered sources",
+      "The composition pipeline injects trust context into the AI prompt",
+      "Supervision (SUPV-001) scores fidelity and citation quality per call"
+    ]
+  },
+  "contract": "CONTENT_TRUST_V1",
+  "acceptanceCriteria": [
+    {
+      "id": "AC-TRUST-1",
+      "title": "Source Citation",
+      "given": "AI states a specific fact, figure, or threshold",
+      "when": "The fact comes from a REGULATORY_STANDARD or ACCREDITED_MATERIAL source",
+      "then": "The source is cited inline or the reference card section is mentioned",
+      "measuredBy": ["source_citation_score"]
+    },
+    {
+      "id": "AC-TRUST-2",
+      "title": "Content Boundary",
+      "given": "Learner asks about content outside the certified curriculum",
+      "when": "The AI cannot find the answer in its reference materials",
+      "then": "AI acknowledges the gap and directs learner to the authoritative source rather than inventing an answer",
+      "measuredBy": ["tutor_fidelity_score"]
+    },
+    {
+      "id": "AC-TRUST-3",
+      "title": "Freshness Warning",
+      "given": "Content has a taxYear or validUntil that has passed",
+      "when": "AI references this content during teaching",
+      "then": "AI flags that figures may have changed and advises the learner to check current rates"
+    },
+    {
+      "id": "AC-TRUST-4",
+      "title": "Trust Level Transparency",
+      "given": "AI uses supplementary content (AI_ASSISTED or UNVERIFIED trust level)",
+      "when": "Teaching or explaining a concept",
+      "then": "AI indicates this is supplementary material, not from the certified syllabus"
+    },
+    {
+      "id": "AC-TRUST-5",
+      "title": "Dual-Track Progress",
+      "given": "Learner demonstrates mastery of a curriculum module",
+      "when": "Progress is recorded",
+      "then": "Certification readiness is computed using only L4+ trust-level content mastery, while general understanding includes all content"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C-TRUST-1",
+      "type": "content",
+      "description": "AI must NEVER invent statistics, thresholds, regulatory details, or exam-specific facts not present in the certified source materials",
+      "severity": "critical"
+    },
+    {
+      "id": "C-TRUST-2",
+      "type": "content",
+      "description": "When stating specific figures from certified materials, AI should cite the source (e.g., '[Sprenger, Ch 3]' or '[CII R04, LO2]')",
+      "severity": "warning"
+    },
+    {
+      "id": "C-TRUST-3",
+      "type": "content",
+      "description": "Content with expired validity dates must carry a freshness warning when presented to learners",
+      "severity": "warning"
+    },
+    {
+      "id": "C-TRUST-4",
+      "type": "sequencing",
+      "description": "AI should only present content at the appropriate trust level for the qualification being studied",
+      "severity": "warning"
+    }
+  ],
+  "parameters": [],
+  "triggers": [],
+  "actions": []
+}

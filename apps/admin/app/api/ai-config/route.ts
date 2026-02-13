@@ -11,6 +11,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { clearAIConfigCache } from "@/lib/ai/config-loader";
+import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 
 // =====================================================
 // CALL POINT DEFINITIONS
@@ -102,6 +104,104 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: "claude-sonnet-4-20250514",
   },
+  {
+    callPoint: "spec.view",
+    label: "Spec View Assistant",
+    description: "AI assistant for viewing and understanding BDD specifications",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "spec.extract",
+    label: "Spec Structure Extraction",
+    description: "Converts raw documents into structured BDD specification JSON",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "spec.parse",
+    label: "Spec Document Parser",
+    description: "Detects document type for BDD spec conversion (CURRICULUM, MEASURE, etc.)",
+    defaultProvider: "claude",
+    defaultModel: "claude-3-haiku-20240307",
+  },
+  {
+    callPoint: "chat.chat",
+    label: "Chat - General",
+    description: "General conversation mode in the chat panel",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "chat.data",
+    label: "Chat - Data",
+    description: "Data exploration mode in the chat panel",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "chat.spec",
+    label: "Chat - Spec",
+    description: "Spec assistance mode in the chat panel",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "chat.call",
+    label: "Chat - Call Analysis",
+    description: "Call analysis mode in the chat panel",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "assistant.chat",
+    label: "AI Assistant - General",
+    description: "General-purpose AI assistant with system context awareness",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "assistant.tasks",
+    label: "AI Assistant - Tasks",
+    description: "Task-focused AI assistant for workflow completion",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "assistant.data",
+    label: "AI Assistant - Data",
+    description: "Data exploration AI assistant for querying and understanding system data",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "assistant.spec",
+    label: "AI Assistant - Spec",
+    description: "Spec-focused AI assistant for spec creation and troubleshooting",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "content-trust.extract",
+    label: "Content Trust - Extraction",
+    description: "Extracts assertions from training materials for content trust verification",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "workflow.classify",
+    label: "Workflow - Discovery & Planning",
+    description: "Multi-turn discovery conversation that understands user intent and generates guided workflow plans",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "workflow.step",
+    label: "Workflow - Step Guidance",
+    description: "Per-step AI guidance during workflow execution (field suggestions, validation help, context)",
+    defaultProvider: "claude",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
 ] as const;
 
 // Hardcoded fallback models (used if DB is empty)
@@ -164,8 +264,21 @@ export type CallPointId = typeof AI_CALL_POINTS[number]["callPoint"];
 // GET - List all configurations
 // =====================================================
 
+/**
+ * @api GET /api/ai-config
+ * @visibility internal
+ * @scope ai-config:read
+ * @auth session
+ * @tags ai
+ * @description List all AI call-point configurations, merged with defaults for unconfigured points. Returns available models and API key status per provider.
+ * @response 200 { ok: true, configs: [...], availableModels: {...}, callPoints: [...], keyStatus: {...} }
+ * @response 500 { ok: false, error: "Failed to fetch AI configurations" }
+ */
 export async function GET() {
   try {
+    const authResult = await requireEntityAccess("ai_config", "R");
+    if (isEntityAuthError(authResult)) return authResult.error;
+
     // Fetch all saved configurations and available models in parallel
     const [savedConfigs, availableModels] = await Promise.all([
       prisma.aIConfig.findMany({
@@ -242,8 +355,29 @@ interface UpdateConfigBody {
   isActive?: boolean;
 }
 
+/**
+ * @api POST /api/ai-config
+ * @visibility internal
+ * @scope ai-config:write
+ * @auth session
+ * @tags ai
+ * @description Create or update an AI configuration for a specific call point. Validates provider, model, and call point before upserting.
+ * @body callPoint string - The call point identifier (e.g. "pipeline.measure")
+ * @body provider string - AI provider ("claude" | "openai" | "mock")
+ * @body model string - Model identifier (must exist for the chosen provider)
+ * @body maxTokens number|null - Optional max token limit
+ * @body temperature number|null - Optional temperature setting
+ * @body transcriptLimit number|null - Optional transcript character limit
+ * @body isActive boolean - Whether this config is active (default true)
+ * @response 200 { ok: true, config: {...}, message: "Updated AI config for ..." }
+ * @response 400 { ok: false, error: "Invalid callPoint: ..." }
+ * @response 500 { ok: false, error: "Failed to update AI configuration" }
+ */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireEntityAccess("ai_config", "U");
+    if (isEntityAuthError(authResult)) return authResult.error;
+
     const body: UpdateConfigBody = await request.json();
 
     // Validate callPoint
@@ -297,6 +431,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Invalidate AI config cache so new settings take effect immediately
+    clearAIConfigCache();
+
     return NextResponse.json({
       ok: true,
       config,
@@ -315,8 +452,24 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove configuration (revert to default)
 // =====================================================
 
+/**
+ * @api DELETE /api/ai-config
+ * @visibility internal
+ * @scope ai-config:write
+ * @auth session
+ * @tags ai
+ * @description Remove a custom AI configuration for a call point, reverting it to default settings.
+ * @query callPoint string - The call point to revert (required)
+ * @response 200 { ok: true, message: "Reverted ... to default settings" }
+ * @response 400 { ok: false, error: "callPoint query parameter is required" }
+ * @response 404 { ok: false, error: "No custom config found for ..." }
+ * @response 500 { ok: false, error: "Failed to delete AI configuration" }
+ */
 export async function DELETE(request: NextRequest) {
   try {
+    const authResult = await requireEntityAccess("ai_config", "D");
+    if (isEntityAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const callPoint = searchParams.get("callPoint");
 
@@ -342,6 +495,9 @@ export async function DELETE(request: NextRequest) {
     await prisma.aIConfig.delete({
       where: { callPoint },
     });
+
+    // Invalidate AI config cache so revert takes effect immediately
+    clearAIConfigCache();
 
     return NextResponse.json({
       ok: true,

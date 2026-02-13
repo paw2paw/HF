@@ -10,9 +10,14 @@ export type NavItem = {
 export type NavSection = {
   id: string;
   title?: string;
+  href?: string;
   items: NavItem[];
   dividerAfter?: boolean;
   collapsedByDefault?: boolean;
+  /** Minimum role required to see this section (hard gate — can't override) */
+  requiredRole?: string;
+  /** Roles for which this section is hidden by default (soft — user can unhide) */
+  defaultHiddenFor?: string[];
 };
 
 // Persisted layout configuration
@@ -21,7 +26,8 @@ export type SidebarLayout = {
   itemPlacements: Record<string, string>; // itemHref → sectionId
   itemOrder: Record<string, string[]>; // sectionId → [itemHrefs in order]
   sectionTitles?: Record<string, string>; // sectionId → custom title
-  hiddenSections?: string[]; // sectionIds to hide
+  hiddenSections?: string[]; // sectionIds to hide (appear in restore menu)
+  deletedSections?: string[]; // sectionIds fully removed (only recoverable via Reset)
 };
 
 // Drag state for UI binding
@@ -42,6 +48,8 @@ export type SidebarAction =
   | { type: "RENAME_SECTION"; sectionId: string; title: string }
   | { type: "HIDE_SECTION"; sectionId: string }
   | { type: "SHOW_SECTION"; sectionId: string }
+  | { type: "DELETE_SECTION"; sectionId: string }
+  | { type: "UNDO_DELETE_SECTION"; sectionId: string }
   | { type: "SET_DRAG_STATE"; dragState: Partial<SidebarDragState> }
   | { type: "CLEAR_DRAG_STATE" };
 
@@ -60,6 +68,7 @@ export const EMPTY_LAYOUT: SidebarLayout = {
   itemOrder: {},
   sectionTitles: {},
   hiddenSections: [],
+  deletedSections: [],
 };
 
 export const EMPTY_DRAG_STATE: SidebarDragState = {

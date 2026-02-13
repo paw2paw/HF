@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAICompletion, AIMessage } from "@/lib/ai/client";
-import { getAIConfig } from "@/lib/ai/config-loader";
+import { AIMessage } from "@/lib/ai/client";
+import { getConfiguredMeteredAICompletion } from "@/lib/metering";
+import { getContextForCallPoint, injectSystemContext } from "@/lib/ai/system-context";
+import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const SPEC_ASSISTANT_SYSTEM_PROMPT = `You are a SPEC CREATION ASSISTANT for HumanFirst, helping users create BDD-style Analysis Specifications.
 
@@ -22,9 +25,9 @@ A spec has these main sections:
    - domain: Category like "personality", "memory", "engagement"
 
 2. **Classification**
-   - specType: SYSTEM (global), DOMAIN (domain-specific), ADAPT (adaptive), SUPERVISE (oversight)
-   - specRole: IDENTITY (who agent is), CONTENT (domain knowledge), VOICE (how agent speaks), MEASURE (scores behavior), ADAPT (adjusts targets), REWARD (computes rewards), GUARDRAIL (safety constraints)
-   - outputType: MEASURE (scores parameters), LEARN (extracts info), ADAPT (adjusts behavior), COMPOSE (builds prompts), AGGREGATE (combines data), REWARD (computes rewards)
+   - specType: SYSTEM (global), DOMAIN (domain-specific)
+   - specRole: ORCHESTRATE (flow control), EXTRACT (measurement/learning), SYNTHESISE (transform data), CONSTRAIN (guardrails), IDENTITY (agent personas), CONTENT (curriculum), VOICE (voice guidance)
+   - outputType: MEASURE (scores parameters), LEARN (extracts info), ADAPT (adjusts behavior), COMPOSE (builds prompts), AGGREGATE (combines data), REWARD (computes rewards), SUPERVISE (oversight)
 
 3. **User Story**
    - asA: The role/persona (e.g., "conversational AI system")
@@ -41,7 +44,13 @@ A spec has these main sections:
 ## Current Spec Being Created
 {currentSpec}
 
+## System Knowledge
+{systemContext}
+
 ## Guidelines
+- **FIRST**: Check if an existing spec already does what the user needs
+- **IF FOUND**: Recommend using/copying the existing spec instead of creating a new one
+- **IF NOT FOUND**: Help create a new spec with appropriate fields
 - Provide concrete, actionable suggestions
 - When suggesting field values, be specific
 - For parameters, include clear descriptions and example scoring anchors
@@ -49,33 +58,70 @@ A spec has these main sections:
 - Match the spec's outputType to its purpose (MEASURE for scoring, LEARN for extraction, etc.)
 
 ## Response Format
-When making suggestions, format them clearly. For example:
+You MUST respond with two parts:
 
-**Suggested ID:** PERS-002
-**Suggested Title:** Emotional Intelligence Assessment
+1. **Conversational Response** - Talk naturally to the user, explaining what you understand
+2. **Structured Updates** - Provide a JSON code block with field updates to auto-populate the form (OR recommend an existing spec)
 
-If you're suggesting form field values, be explicit about which field you're suggesting for.`;
+### If an Existing Spec Matches:
+"I found an existing spec that does exactly this! The spec **{name}** (ID: {slug}) already measures {what it does}.
+
+Would you like to:
+1. Use that spec as-is
+2. Copy and modify it for your needs
+3. Create a completely new spec anyway
+
+The existing spec can be found at: /x/specs?id={id}"
+
+(No JSON code block needed when recommending existing spec)
+
+### If Creating New Spec:
+"Got it! I'll create a spec for measuring emotional intelligence in conversations. Let me set up the basic structure for you.
+
+\`\`\`json
+{
+  "id": "PERS-EI-001",
+  "title": "Emotional Intelligence Assessment",
+  "domain": "personality",
+  "specType": "DOMAIN",
+  "specRole": "EXTRACT",
+  "outputType": "MEASURE",
+  "story": {
+    "asA": "conversational AI coach",
+    "iWant": "to assess the caller's emotional intelligence traits",
+    "soThat": "I can tailor my coaching approach to their emotional awareness level"
+  }
+}
+\`\`\`
+
+I've set this as a MEASURE spec in the personality domain. Would you like me to add some parameters to measure specific EI traits?"
+
+IMPORTANT:
+- **ALWAYS check existing specs first** - don't create duplicates!
+- ALWAYS include the JSON code block with field updates (unless recommending existing spec)
+- Only include fields you want to update (partial updates are fine)
+- The JSON will be automatically applied to the form
+- Keep the conversational part natural and helpful`;
 
 /**
- * POST /api/specs/assistant
- * AI assistant for spec creation
- *
- * Request body:
- * {
- *   message: string - the user's message
- *   currentSpec: object - the current spec form state
- *   history: Array<{role: 'user' | 'assistant', content: string}> - conversation history
- * }
- *
- * Response:
- * {
- *   ok: boolean
- *   response: string - the AI response
- *   suggestions?: object - structured suggestions that can be applied to form
- * }
+ * @api POST /api/specs/assistant
+ * @visibility internal
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description AI assistant for spec creation. Provides conversational help filling in spec fields, suggests values, and returns structured JSON field updates to auto-populate the form.
+ * @body message string - The user's message
+ * @body currentSpec object - The current spec form state
+ * @body history Array - Conversation history: [{role: 'user'|'assistant', content: string}]
+ * @response 200 { ok: true, response: string, fieldUpdates: object|null }
+ * @response 400 { ok: false, error: "message is required" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { message, currentSpec, history = [] } = body;
 
@@ -86,11 +132,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build the system prompt with current spec context
-    const systemPrompt = SPEC_ASSISTANT_SYSTEM_PROMPT.replace(
+    // Load system context (specs, parameters, domains)
+    const systemContext = await getContextForCallPoint("spec.assistant");
+
+    // Build the system prompt with current spec context and system knowledge
+    let systemPrompt = SPEC_ASSISTANT_SYSTEM_PROMPT.replace(
       "{currentSpec}",
       JSON.stringify(currentSpec || {}, null, 2)
     );
+    systemPrompt = injectSystemContext(systemPrompt, systemContext);
 
     // Build messages array
     const messages: AIMessage[] = [
@@ -104,21 +154,56 @@ export async function POST(request: NextRequest) {
       { role: "user", content: message },
     ];
 
-    // Get AI configuration for this call point
-    const aiConfig = await getAIConfig("spec.assistant");
-
-    // Get AI completion
-    const result = await getAICompletion({
-      engine: aiConfig.provider,
-      model: aiConfig.model,
+    // @ai-call spec.assistant — Spec creation assistant | config: /x/ai-config
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "spec.assistant",
       messages,
-      maxTokens: aiConfig.maxTokens ?? 2048,
-      temperature: aiConfig.temperature ?? 0.7,
-    });
+      maxTokens: 2048,
+      temperature: 0.7,
+    }, { sourceOp: "spec.assistant" });
+
+    // Store model info for logging
+    const modelInfo = {
+      model: result.model,
+      provider: result.engine,
+    };
+
+    // Try to extract structured field updates from the response
+    let fieldUpdates = null;
+    try {
+      // Look for JSON in the response
+      const jsonMatch = result.content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        fieldUpdates = JSON.parse(jsonMatch[1]);
+      }
+    } catch (e) {
+      // No structured updates found
+    }
+
+    // Log interaction for AI learning (don't await - run in background)
+    logAssistantCall(
+      {
+        callPoint: "spec.assistant",
+        userMessage: message,
+        metadata: {
+          entityType: "spec",
+          action: "create",
+          specId: currentSpec?.id,
+          model: modelInfo.model,
+          provider: modelInfo.provider,
+        },
+      },
+      {
+        response: result.content,
+        success: true,
+        fieldUpdates,
+      }
+    );
 
     return NextResponse.json({
       ok: true,
       response: result.content,
+      fieldUpdates, // Will be null if no structured updates found
     });
   } catch (error) {
     console.error("Spec assistant error:", error);

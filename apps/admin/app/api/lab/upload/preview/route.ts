@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseJsonSpec } from "@/lib/bdd/ai-parser";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/lab/upload/preview
- *
- * Parse a BDD spec and return a preview of what artifacts would be created/updated.
- * Does NOT actually create anything - just shows what WOULD happen.
+ * @api POST /api/lab/upload/preview
+ * @visibility internal
+ * @scope lab:read
+ * @auth session
+ * @tags lab
+ * @description Preview what artifacts would be created/updated by uploading a spec (dry-run, no changes made)
+ * @body spec object - The JSON spec definition to preview
+ * @response 200 { ok: true, preview: { spec, story, artifacts: { featureSet, analysisSpec, parameters }, warnings } }
+ * @response 400 { ok: false, error: "No spec provided..." }
+ * @response 400 { ok: false, error: "Validation failed", validationErrors: string[] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const { spec } = body;
 

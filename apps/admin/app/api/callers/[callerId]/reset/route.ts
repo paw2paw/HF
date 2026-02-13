@@ -1,38 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/callers/[callerId]/reset
- *
- * Reset all analysis data for a caller while preserving source calls/transcripts.
- *
- * Deletes:
- * - CallScores (for all calls belonging to this caller)
- * - BehaviorMeasurement (for all calls belonging to this caller)
- * - RewardScore (for all calls belonging to this caller)
- * - PromptSlugSelection (for caller)
- * - CallerMemory
- * - CallerMemorySummary
- * - PersonalityObservation
- * - CallerPersonality
- * - CallerPersonalityProfile
- * - ComposedPrompt
- * - CallTarget (per-call computed targets)
- * - CallerTarget (aggregated caller-level targets)
- * - BehaviorTarget (CALLER-scoped, via CallerIdentity) [DEPRECATED]
- * - Clears CallerIdentity fields (promptStackId, nextPrompt, callerPrompt, snapshots, stats)
- *
- * Preserves:
- * - Caller record
- * - Call records (transcripts only - all analysis artifacts removed)
- * - CallerIdentity records (structure preserved, data cleared)
+ * @api POST /api/callers/:callerId/reset
+ * @visibility public
+ * @scope callers:write
+ * @auth session
+ * @tags callers, reset
+ * @description Reset all analysis data for a caller while preserving source calls/transcripts. Deletes CallScores, BehaviorMeasurements, RewardScores, PromptSlugSelections, CallerMemory, CallerMemorySummary, PersonalityObservations, CallerPersonality, CallerPersonalityProfile, ComposedPrompts, CallTargets, CallerTargets, and CALLER-scoped BehaviorTargets. Clears CallerIdentity fields and resets call sequence numbers. Preserves Caller record, Call records (transcripts), and CallerIdentity structure.
+ * @pathParam callerId string - The caller ID to reset analysis data for
+ * @response 200 { ok: true, message: string, deleted: { scores, behaviorMeasurements, rewardScores, callTargets, slugSelections, memories, memorySummary, observations, personalityProfiles, personality, prompts, callerTargets, behaviorTargets, identitiesCleared, callSequencesReset, callsPreserved } }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: "Failed to reset caller" }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
 
     // Verify caller exists

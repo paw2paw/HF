@@ -1,0 +1,84 @@
+{
+  "contractId": "EXAM_READINESS_V1",
+  "version": "1.0",
+  "status": "active",
+  "description": "Contract for exam readiness tracking. Defines how readiness scores, formative assessment data, and exam gate information are stored in CallerAttribute records.",
+
+  "appliesTo": {
+    "specRoles": ["CONTENT", "ORCHESTRATE"],
+    "domains": ["curriculum", "assessment"]
+  },
+
+  "storage": {
+    "keyPattern": "exam_readiness:{specSlug}:{key}",
+    "description": "CallerAttribute storage pattern for exam readiness data",
+    "keys": {
+      "readinessScore": "readiness_score",
+      "formativeScore": "formative_score",
+      "weakModules": "weak_modules",
+      "lastAssessedAt": "last_assessed_at",
+      "attemptCount": "attempt_count",
+      "lastAttemptPassed": "last_attempt_passed",
+      "bestScore": "best_score"
+    }
+  },
+
+  "dataSchema": {
+    "readinessScore": {
+      "type": "number",
+      "description": "Overall exam readiness score (0.0-1.0)",
+      "required": false
+    },
+    "formativeScore": {
+      "type": "number",
+      "description": "Latest formative assessment average score (0.0-1.0)",
+      "required": false
+    },
+    "weakModules": {
+      "type": "string",
+      "description": "JSON-encoded array of module IDs below formative threshold",
+      "required": false
+    },
+    "lastAssessedAt": {
+      "type": "string",
+      "description": "ISO8601 timestamp of last readiness computation",
+      "required": false,
+      "pattern": "ISO8601"
+    },
+    "attemptCount": {
+      "type": "number",
+      "description": "Number of exam attempts made",
+      "required": false
+    },
+    "lastAttemptPassed": {
+      "type": "string",
+      "description": "Whether the last exam attempt passed (true/false string)",
+      "required": false
+    },
+    "bestScore": {
+      "type": "number",
+      "description": "Best exam score achieved (0.0-1.0)",
+      "required": false
+    }
+  },
+
+  "thresholds": {
+    "notReadyMax": 0.50,
+    "borderlineMax": 0.66,
+    "readyMax": 0.80,
+    "passMarkDefault": 0.66,
+    "formativePassThreshold": 0.66,
+    "masteryWeight": 0.6,
+    "formativeWeight": 0.4
+  },
+
+  "config": {
+    "notes": [
+      "Readiness is computed as: (avgModuleMastery * masteryWeight) + (formativeScore * formativeWeight)",
+      "Module mastery comes from CURRICULUM_PROGRESS_V1 contract data",
+      "Formative scores are stored per-curriculum in CallerAttribute with EXAM_READINESS scope",
+      "Exam gate blocks attempts when readiness < notReadyMax",
+      "Pass/fail stored in CallerAttribute; Goal.status updated to COMPLETED on pass"
+    ]
+  }
+}

@@ -8,6 +8,7 @@ import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider"
 import { DraggableTabs, TabDefinition } from "@/components/shared/DraggableTabs";
 import { useEntityContext } from "@/contexts/EntityContext";
 import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
+import { SpecRoleBadge } from "@/components/shared/SpecRoleBadge";
 
 type ScoringAnchor = {
   id: string;
@@ -57,7 +58,7 @@ type SpecDetail = {
   scope: "CALLER" | "DOMAIN" | "SYSTEM";
   specType: "SYSTEM" | "DOMAIN";
   outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
-  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
+  specRole: "ORCHESTRATE" | "EXTRACT" | "SYNTHESISE" | "CONSTRAIN" | "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL" | "BOOTSTRAP";
   domain: string | null;
   priority: number;
   isActive: boolean;
@@ -75,7 +76,7 @@ type Spec = {
   scope: "CALLER" | "DOMAIN" | "SYSTEM";
   specType: "SYSTEM" | "DOMAIN";
   outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
-  specRole: "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL";
+  specRole: "ORCHESTRATE" | "EXTRACT" | "SYNTHESISE" | "CONSTRAIN" | "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL" | "BOOTSTRAP";
   domain: string | null;
   priority: number;
   isActive?: boolean;
@@ -204,6 +205,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [specSearch, setSpecSearch] = useState("");
   const [expandedAddPanels, setExpandedAddPanels] = useState<Set<"agent" | "caller" | "content">>(new Set());
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [showSystemInColumns, setShowSystemInColumns] = useState<Record<string, boolean>>({ agent: true, caller: true, content: true });
+  const [systemColumnCollapsed, setSystemColumnCollapsed] = useState(false);
 
   const toggleAddPanel = (column: "agent" | "caller" | "content") => {
     setExpandedAddPanels(prev => {
@@ -299,7 +302,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [expandedSlugNodes, setExpandedSlugNodes] = useState<Set<string>>(new Set());
 
   // Global filter for stats across tabs
-  // Filter by specRole/category: IDENTITY, CONTENT, VOICE, MEASURE, LEARN, ADAPT
+  // Filter by specRole/category: ORCHESTRATE, EXTRACT, SYNTHESISE, CONSTRAIN, IDENTITY, CONTENT, VOICE
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [parameterSearch, setParameterSearch] = useState("");
 
@@ -1413,26 +1416,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     );
   };
 
-  const specRoleBadge = (specRole?: string) => {
-    if (!specRole) return null;
-    const styles: Record<string, { bg: string; color: string; label: string }> = {
-      // COMPOSE spec roles (for prompt assembly)
-      IDENTITY: { bg: "var(--badge-blue-bg)", color: "var(--status-info-text)", label: "WHO" },
-      CONTENT: { bg: "var(--status-success-bg)", color: "var(--status-success-text)", label: "WHAT" },
-      VOICE: { bg: "var(--status-warning-bg)", color: "var(--status-warning-text)", label: "VOICE" },
-      MEASURE: { bg: "var(--status-success-bg)", color: "var(--status-success-text)", label: "MEASURE" },
-      ADAPT: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", label: "ADAPT" },
-      REWARD: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", label: "REWARD" },
-      GUARDRAIL: { bg: "var(--status-error-bg)", color: "var(--status-error-text)", label: "GUARD" },
-    };
-    const fallback = { bg: "var(--surface-secondary)", color: "var(--text-muted)", label: specRole };
-    const s = styles[specRole] || fallback;
-    return (
-      <span style={{ fontSize: 8, padding: "1px 4px", background: s.bg, color: s.color, borderRadius: 3, fontWeight: 600 }}>
-        {s.label}
-      </span>
-    );
-  };
+  // Removed old specRoleBadge - now using SpecRoleBadge component from @/components/shared/SpecRoleBadge
 
   const scopeBadge = (scope: string) => {
     const styles: Record<string, { bg: string; color: string }> = {
@@ -1496,17 +1480,20 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   // CONTENT: What the AI knows/teaches
   const contentItems = domainItems.filter(item => item.spec?.specRole === "CONTENT");
 
-  // CALLER: Understanding the caller (everything else - MEASURE, ADAPT, REWARD, LEARN specs)
+  // CALLER: Understanding the caller (EXTRACT, SYNTHESISE, CONSTRAIN specs + old deprecated roles)
   // Exclude items already in AGENT or CONTENT to ensure no duplicates
   const agentItemIds = new Set(agentItems.map(i => i.id));
   const contentItemIds = new Set(contentItems.map(i => i.id));
   const callerItems = domainItems.filter(item =>
     !agentItemIds.has(item.id) &&
     !contentItemIds.has(item.id) &&
-    (item.spec?.specRole === "MEASURE" ||
-     item.spec?.specRole === "ADAPT" ||
-     item.spec?.specRole === "REWARD" ||
-     item.spec?.specRole === "GUARDRAIL" ||
+    (item.spec?.specRole === "EXTRACT" ||
+     item.spec?.specRole === "SYNTHESISE" ||
+     item.spec?.specRole === "CONSTRAIN" ||
+     item.spec?.specRole === "MEASURE" ||  // deprecated
+     item.spec?.specRole === "ADAPT" ||     // deprecated
+     item.spec?.specRole === "REWARD" ||    // deprecated
+     item.spec?.specRole === "GUARDRAIL" || // deprecated
      item.spec?.outputType === "LEARN" ||
      item.spec?.outputType === "MEASURE" ||
      item.spec?.outputType === "MEASURE_AGENT" ||
@@ -1532,10 +1519,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     s.specRole === "IDENTITY" || s.specRole === "VOICE"
   ) || [];
   const availableCallerSpecs = availableItems?.domainSpecs.filter(s =>
-    s.specRole === "MEASURE" ||
-    s.specRole === "ADAPT" ||
-    s.specRole === "REWARD" ||
-    s.specRole === "GUARDRAIL" ||
+    s.specRole === "EXTRACT" ||
+    s.specRole === "SYNTHESISE" ||
+    s.specRole === "CONSTRAIN" ||
+    s.specRole === "MEASURE" ||      // deprecated
+    s.specRole === "ADAPT" ||        // deprecated
+    s.specRole === "REWARD" ||       // deprecated
+    s.specRole === "GUARDRAIL" ||    // deprecated
     s.outputType === "LEARN" ||
     s.outputType === "MEASURE" ||
     s.outputType === "MEASURE_AGENT" ||
@@ -1551,7 +1541,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     (s.specRole === "IDENTITY" || s.specRole === "VOICE") && systemSpecToggles.get(s.id) !== false
   );
   const systemCallerSpecs = (availableItems?.systemSpecs || []).filter(s =>
-    (s.specRole === "MEASURE" || s.specRole === "ADAPT" || s.specRole === "REWARD" || s.specRole === "GUARDRAIL" ||
+    (s.specRole === "EXTRACT" || s.specRole === "SYNTHESISE" || s.specRole === "CONSTRAIN" ||
+     s.specRole === "MEASURE" || s.specRole === "ADAPT" || s.specRole === "REWARD" || s.specRole === "GUARDRAIL" ||  // deprecated
      s.outputType === "LEARN" || s.outputType === "MEASURE" || s.outputType === "MEASURE_AGENT" || s.outputType === "AGGREGATE" ||
      s.outputType === "REWARD" || s.outputType === "SUPERVISE") && systemSpecToggles.get(s.id) !== false
   );
@@ -2192,9 +2183,32 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, marginTop: 8, height: "calc(100vh - 270px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: systemColumnCollapsed ? "40px 1fr 1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 16, marginTop: 8, height: "calc(100vh - 270px)" }}>
         {/* Column 1: System Specs (always run) */}
-        <div style={{ height: "100%", overflowY: "auto" }}>
+        <div style={{ height: "100%", overflowY: "auto", ...(systemColumnCollapsed ? { display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 8 } : {}) }}>
+          {systemColumnCollapsed ? (
+            <button
+              onClick={() => setSystemColumnCollapsed(false)}
+              title="Expand System Specs"
+              style={{
+                writingMode: "vertical-rl",
+                textOrientation: "mixed",
+                padding: "12px 4px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--text-muted)",
+                background: "var(--surface-secondary)",
+                border: "1px solid var(--border-default)",
+                borderRadius: 8,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                letterSpacing: "0.05em",
+              }}
+            >
+              ⚙️ System
+            </button>
+          ) : (
+          <>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", paddingBottom: 8, zIndex: 1 }}>
             <div>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
@@ -2255,6 +2269,22 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   {publishing ? "Republishing..." : "Republish"}
                 </button>
               )}
+              <button
+                onClick={() => setSystemColumnCollapsed(true)}
+                title="Collapse System Specs column"
+                style={{
+                  padding: "4px 8px",
+                  fontSize: 14,
+                  background: "transparent",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                  lineHeight: 1,
+                }}
+              >
+                ‹
+              </button>
             </div>
           </div>
 
@@ -2275,16 +2305,23 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   grouped.get(group)!.push(spec);
                 }
 
-                // Category order and labels
-                const specRoleOrder = ["IDENTITY", "CONTENT", "VOICE", "MEASURE", "ADAPT", "GUARDRAIL", "REWARD"];
+                // Category order and labels (new + deprecated roles)
+                const specRoleOrder = ["ORCHESTRATE", "IDENTITY", "CONTENT", "VOICE", "EXTRACT", "SYNTHESISE", "CONSTRAIN", "MEASURE", "ADAPT", "GUARDRAIL", "REWARD", "BOOTSTRAP"];
                 const specRoleLabels: Record<string, string> = {
-                  IDENTITY: "🎭 WHO (Identity)",
-                  CONTENT: "📚 WHAT (Content)",
-                  VOICE: "🗣️ SPEECH (Voice)",
-                  MEASURE: "📊 OBSERVE (Measure)",
-                  ADAPT: "🎯 ADJUST (Adapt)",
-                  GUARDRAIL: "🛡️ GUARD (Guardrail)",
-                  REWARD: "⭐ EVALUATE (Reward)",
+                  // New taxonomy
+                  ORCHESTRATE: "🎯 ORCHESTRATE (Flow Control)",
+                  EXTRACT: "🔍 EXTRACT (Measurement)",
+                  SYNTHESISE: "🧮 SYNTHESISE (Transform)",
+                  CONSTRAIN: "📏 CONSTRAIN (Guardrails)",
+                  IDENTITY: "👤 IDENTITY (Who)",
+                  CONTENT: "📚 CONTENT (Curriculum)",
+                  VOICE: "🎙️ VOICE (Speech)",
+                  // Deprecated (backward compatibility)
+                  MEASURE: "📊 MEASURE (deprecated → EXTRACT)",
+                  ADAPT: "🎯 ADAPT (deprecated → SYNTHESISE)",
+                  REWARD: "⭐ REWARD (deprecated → SYNTHESISE)",
+                  GUARDRAIL: "🛡️ GUARDRAIL (deprecated → CONSTRAIN)",
+                  BOOTSTRAP: "🔄 BOOTSTRAP (deprecated → ORCHESTRATE)",
                 };
                 const sortedGroups = Array.from(grouped.entries()).sort(
                   (a, b) => specRoleOrder.indexOf(a[0]) - specRoleOrder.indexOf(b[0])
@@ -2345,7 +2382,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 2, flexWrap: "wrap" }}>
-                                  {specRoleBadge(spec.specRole)}
+                                  <SpecRoleBadge role={spec.specRole} size="sm" showIcon={false} />
                                   {!isGloballyActive && (
                                     <span style={{
                                       fontSize: 9,
@@ -2470,6 +2507,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               <p style={{ color: "var(--text-muted)", fontSize: 12 }}>No system specs available</p>
             </div>
           )}
+          </>
+          )}
         </div>
 
         {/* Column 2: Agent Specs (WHO the AI is) */}
@@ -2488,29 +2527,49 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 Who the AI is & how it speaks
               </p>
             </div>
-            {isEditable && availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
-              <button
-                onClick={() => toggleAddPanel("agent")}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  border: "1px solid var(--status-info-border)",
-                  background: expandedAddPanels.has("agent") ? "var(--status-info-bg)" : "var(--surface-primary)",
-                  color: "var(--status-info-text)",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.15s",
-                }}
-                title="Add spec"
-              >
-                {expandedAddPanels.has("agent") ? "−" : "+"}
-              </button>
-            )}
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {filteredSystemAgentSpecs.length > 0 && (
+                <button
+                  onClick={() => setShowSystemInColumns(prev => ({ ...prev, agent: !prev.agent }))}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    borderRadius: 4,
+                    border: "1px solid var(--border-default)",
+                    background: showSystemInColumns.agent ? "var(--surface-secondary)" : "var(--surface-primary)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={showSystemInColumns.agent ? "Hide system specs" : "Show system specs"}
+                >
+                  ⚙️ {showSystemInColumns.agent ? "Hide" : "Show"}
+                </button>
+              )}
+              {isEditable && availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+                <button
+                  onClick={() => toggleAddPanel("agent")}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    border: "1px solid var(--status-info-border)",
+                    background: expandedAddPanels.has("agent") ? "var(--status-info-bg)" : "var(--surface-primary)",
+                    color: "var(--status-info-text)",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.15s",
+                  }}
+                  title="Add spec"
+                >
+                  {expandedAddPanels.has("agent") ? "−" : "+"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Collapsible add panel for Agent specs */}
@@ -2554,7 +2613,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System IDENTITY/VOICE specs shown as read-only references */}
-          {filteredSystemAgentSpecs.length > 0 && (
+          {showSystemInColumns.agent && filteredSystemAgentSpecs.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredAgentItems.length > 0 ? 8 : 0 }}>
               {filteredSystemAgentSpecs.map((spec) => (
                 <div
@@ -2569,7 +2628,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
-                    {specRoleBadge(spec.specRole)}
+                    <SpecRoleBadge role={spec.specRole} size="sm" showIcon={false} />
                     <Link href={`${routePrefix}/specs/${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
                   </div>
                   {spec.description && (
@@ -2582,7 +2641,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {filteredAgentItems.length === 0 && filteredSystemAgentSpecs.length === 0 ? (
+          {filteredAgentItems.length === 0 && (!showSystemInColumns.agent || filteredSystemAgentSpecs.length === 0) ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -2675,7 +2734,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 2, flexWrap: "wrap" }}>
                           {item.spec && (
                             <>
-                              {specRoleBadge(item.spec.specRole)}
+                              <SpecRoleBadge role={item.spec.specRole} size="sm" showIcon={false} />
                               {item.spec.scope === "SYSTEM" && (
                                 <span style={{ fontSize: 8, padding: "1px 4px", background: "var(--surface-secondary)", color: "var(--text-muted)", borderRadius: 3, fontWeight: 600 }}>
                                   ⚙️
@@ -3027,16 +3086,35 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 Understanding & adapting to the caller
               </p>
             </div>
-            {isEditable && availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
-              <button
-                onClick={() => toggleAddPanel("caller")}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  border: "1px solid var(--status-warning-border)",
-                  background: expandedAddPanels.has("caller") ? "var(--status-warning-bg)" : "var(--surface-primary)",
-                  color: "var(--status-warning-text)",
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {filteredSystemCallerSpecs.length > 0 && (
+                <button
+                  onClick={() => setShowSystemInColumns(prev => ({ ...prev, caller: !prev.caller }))}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    borderRadius: 4,
+                    border: "1px solid var(--border-default)",
+                    background: showSystemInColumns.caller ? "var(--surface-secondary)" : "var(--surface-primary)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={showSystemInColumns.caller ? "Hide system specs" : "Show system specs"}
+                >
+                  ⚙️ {showSystemInColumns.caller ? "Hide" : "Show"}
+                </button>
+              )}
+              {isEditable && availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+                <button
+                  onClick={() => toggleAddPanel("caller")}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    border: "1px solid var(--status-warning-border)",
+                    background: expandedAddPanels.has("caller") ? "var(--status-warning-bg)" : "var(--surface-primary)",
+                    color: "var(--status-warning-text)",
                   fontSize: 16,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -3050,6 +3128,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 {expandedAddPanels.has("caller") ? "−" : "+"}
               </button>
             )}
+            </div>
           </div>
 
           {/* Collapsible add panel for Caller specs */}
@@ -3093,7 +3172,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System CALLER specs shown as read-only references */}
-          {filteredSystemCallerSpecs.length > 0 && (
+          {showSystemInColumns.caller && filteredSystemCallerSpecs.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredCallerItems.length > 0 ? 8 : 0 }}>
               {filteredSystemCallerSpecs.map((spec) => (
                 <div
@@ -3109,7 +3188,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
                     {outputTypeBadge(spec.outputType)}
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>{spec.name}</span>
+                    <Link href={`${routePrefix}/specs?id=${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
                   </div>
                   {spec.description && (
                     <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0 0", lineHeight: 1.3 }}>
@@ -3121,7 +3200,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {filteredCallerItems.length === 0 && filteredSystemCallerSpecs.length === 0 ? (
+          {filteredCallerItems.length === 0 && (!showSystemInColumns.caller || filteredSystemCallerSpecs.length === 0) ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -3253,16 +3332,35 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 What the AI knows & teaches
               </p>
             </div>
-            {isEditable && availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
-              <button
-                onClick={() => toggleAddPanel("content")}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  border: "1px solid var(--status-success-border)",
-                  background: expandedAddPanels.has("content") ? "var(--status-success-bg)" : "var(--surface-primary)",
-                  color: "var(--status-success-text)",
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {filteredSystemContentSpecs.length > 0 && (
+                <button
+                  onClick={() => setShowSystemInColumns(prev => ({ ...prev, content: !prev.content }))}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    borderRadius: 4,
+                    border: "1px solid var(--border-default)",
+                    background: showSystemInColumns.content ? "var(--surface-secondary)" : "var(--surface-primary)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={showSystemInColumns.content ? "Hide system specs" : "Show system specs"}
+                >
+                  ⚙️ {showSystemInColumns.content ? "Hide" : "Show"}
+                </button>
+              )}
+              {isEditable && availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
+                <button
+                  onClick={() => toggleAddPanel("content")}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    border: "1px solid var(--status-success-border)",
+                    background: expandedAddPanels.has("content") ? "var(--status-success-bg)" : "var(--surface-primary)",
+                    color: "var(--status-success-text)",
                   fontSize: 16,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -3276,6 +3374,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 {expandedAddPanels.has("content") ? "−" : "+"}
               </button>
             )}
+            </div>
           </div>
 
           {/* Collapsible add panel for Content specs */}
@@ -3319,7 +3418,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           )}
 
           {/* System CONTENT specs shown as read-only references */}
-          {filteredSystemContentSpecs.length > 0 && (
+          {showSystemInColumns.content && filteredSystemContentSpecs.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: filteredContentItems.length > 0 ? 8 : 0 }}>
               {filteredSystemContentSpecs.map((spec) => (
                 <div
@@ -3334,7 +3433,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12 }} title="System spec">⚙️</span>
-                    {specRoleBadge(spec.specRole)}
+                    <SpecRoleBadge role={spec.specRole} size="sm" showIcon={false} />
                     <Link href={`${routePrefix}/specs/${spec.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}>{spec.name}</Link>
                   </div>
                   {spec.description && (
@@ -3347,7 +3446,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
             </div>
           )}
 
-          {filteredContentItems.length === 0 && filteredSystemContentSpecs.length === 0 ? (
+          {filteredContentItems.length === 0 && (!showSystemInColumns.content || filteredSystemContentSpecs.length === 0) ? (
             <div style={{
               padding: 32,
               textAlign: "center",
@@ -4424,7 +4523,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                               <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                                                {specRoleBadge(specNode.meta?.specRole || spec?.specRole)}
+                                                <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
                                                 {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
                                                 {!isGloballyActive && (
                                                   <span style={{
@@ -4559,7 +4658,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                           <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                                            {specRoleBadge(specNode.meta?.specRole || spec?.specRole)}
+                                            <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
                                             {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
                                           </div>
                                           <Link

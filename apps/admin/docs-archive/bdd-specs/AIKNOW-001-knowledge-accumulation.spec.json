@@ -1,0 +1,100 @@
+{
+  "id": "AIKNOW-001",
+  "title": "AI Knowledge Accumulation",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-11",
+  "domain": "system",
+  "specType": "SYSTEM",
+  "specRole": "OBSERVE",
+  "isDeletable": false,
+  "agentScope": "SYSTEM",
+  "story": {
+    "asA": "system learning from its own AI interactions",
+    "iWant": "to log all AI calls, extract recurring patterns, and build confidence scores",
+    "soThat": "the system improves over time and operators can see what patterns the AI has learned"
+  },
+  "context": {
+    "applies": "Every AI interaction logged via logAIInteraction() or logAssistantCall()",
+    "dependsOn": [],
+    "assumptions": [
+      "All AI endpoints log interactions via the knowledge accumulation layer",
+      "Patterns emerge after 3+ similar occurrences",
+      "Confidence starts at 0.3 and increases by 0.05 per additional occurrence",
+      "Both success and failure outcomes are tracked for learning"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-AIKNOW-1",
+      "title": "Interaction Logging",
+      "given": "An AI endpoint processes a request",
+      "when": "The response is generated (success or failure)",
+      "then": "An AIInteractionLog record is created with callPoint, userMessage, aiResponse, outcome, and metadata"
+    },
+    {
+      "id": "AC-AIKNOW-2",
+      "title": "Pattern Extraction",
+      "given": "3 or more similar interactions exist for a call point",
+      "when": "Pattern extraction runs",
+      "then": "An AILearnedPattern is created with initial confidence 0.3 and example interactions"
+    },
+    {
+      "id": "AC-AIKNOW-3",
+      "title": "Confidence Growth",
+      "given": "A learned pattern exists with N occurrences",
+      "when": "An additional matching interaction is logged",
+      "then": "The pattern confidence increases by 0.05 (capped at 1.0)"
+    },
+    {
+      "id": "AC-AIKNOW-4",
+      "title": "Success Rate Tracking",
+      "given": "AIInteractionLog contains both success and failure outcomes",
+      "when": "Success rate is computed",
+      "then": "Overall and per-callPoint success rates are calculated correctly"
+    },
+    {
+      "id": "AC-AIKNOW-5",
+      "title": "Knowledge Dashboard",
+      "given": "Admin navigates to /x/ai-knowledge",
+      "when": "The page loads",
+      "then": "Shows total interactions, success rate, top call points, and learned patterns with confidence scores"
+    },
+    {
+      "id": "AC-AIKNOW-6",
+      "title": "Call Point Filtering",
+      "given": "Admin is on the knowledge dashboard",
+      "when": "They filter by a specific call point",
+      "then": "Only interactions and patterns for that call point are shown"
+    },
+    {
+      "id": "AC-AIKNOW-7",
+      "title": "Confidence Threshold Filtering",
+      "given": "Admin is on the knowledge dashboard",
+      "when": "They set a minimum confidence threshold",
+      "then": "Only patterns meeting or exceeding that threshold are displayed"
+    },
+    {
+      "id": "AC-AIKNOW-8",
+      "title": "Streaming Response Handling",
+      "given": "An AI endpoint returns a streaming response",
+      "when": "The interaction is logged",
+      "then": "The aiResponse is recorded as '(streaming response)' placeholder"
+    }
+  ],
+  "config": {
+    "patternMinOccurrences": 3,
+    "initialConfidence": 0.3,
+    "confidenceIncrement": 0.05,
+    "maxConfidence": 1.0,
+    "callPoints": [
+      "spec.assistant",
+      "chat.data",
+      "spec.extract",
+      "pipeline.personality_score",
+      "pipeline.measure_agent",
+      "pipeline.memory_extract"
+    ],
+    "dashboard": "/x/ai-knowledge"
+  }
+}

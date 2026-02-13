@@ -14,7 +14,7 @@ const prisma = new PrismaClient();
 
 // Load default targets from the canonical registry (single source of truth)
 function loadDefaultTargets(): Record<string, { value: number; description: string }> {
-  const registryPath = path.join(process.cwd(), "bdd-specs", "behavior-parameters.registry.json");
+  const registryPath = path.join(process.cwd(), "docs-archive", "bdd-specs", "behavior-parameters.registry.json");
   if (!fs.existsSync(registryPath)) {
     console.warn("⚠️ Registry not found, using fallback defaults");
     return {};

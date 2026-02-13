@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/data-dictionary/parameters
- *
- * Returns all parameters with their cross-references:
- * - Which AnalysisSpecs use this parameter (via AnalysisAction)
- * - Which Playbooks include specs that use this parameter
- * - Which BehaviorTargets reference this parameter
- * - Which PromptSlugs reference this parameter
- * - Scoring anchors for this parameter
+ * @api GET /api/data-dictionary/parameters
+ * @visibility internal
+ * @scope data-dictionary:read
+ * @auth session
+ * @tags data-dictionary
+ * @description Returns all parameters enriched with cross-references: specs (via AnalysisAction), playbooks, behavior targets, prompt slugs, and scoring anchors. Supports filtering by domain group and orphan detection. Derives isActive from "active"/"mvp" tags.
+ * @query domainGroup string - Filter by domain group (optional)
+ * @query orphans string - Show only orphaned parameters with no relationships ("true" to filter)
+ * @response 200 { ok: true, parameters: [...], summary: { total, active, withSpecs, withPlaybooks, withTargets, withAnchors, orphaned, byDomainGroup } }
+ * @response 500 { ok: false, error: "Failed to fetch parameters" }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const domainGroup = searchParams.get("domainGroup");
     const withOrphans = searchParams.get("orphans") === "true";

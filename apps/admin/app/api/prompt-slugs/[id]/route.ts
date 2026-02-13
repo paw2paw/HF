@@ -2,18 +2,30 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/prompt-slugs/[id]
- * Get a single dynamic prompt with all parameters and ranges
+ * @api GET /api/prompt-slugs/:id
+ * @visibility internal
+ * @scope prompts:read
+ * @auth session
+ * @tags prompts
+ * @description Get a single dynamic prompt by ID or slug with all parameters, ranges, and stack usage
+ * @pathParam id string - Prompt slug UUID or slug string
+ * @response 200 { ok: true, slug: PromptSlug }
+ * @response 404 { ok: false, error: "Dynamic prompt not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
 
     const promptSlug = await prisma.promptSlug.findFirst({
@@ -77,14 +89,38 @@ export async function GET(
 }
 
 /**
- * PATCH /api/prompt-slugs/[id]
- * Update a dynamic prompt, its parameters, and ranges
+ * @api PATCH /api/prompt-slugs/:id
+ * @visibility internal
+ * @scope prompts:write
+ * @auth session
+ * @tags prompts
+ * @description Update a dynamic prompt, its parameters, and ranges. Replaces parameter
+ *   links and ranges entirely when provided.
+ * @pathParam id string - Prompt slug UUID or slug string
+ * @body name string - Updated name
+ * @body description string - Updated description
+ * @body sourceType string - Updated source type
+ * @body parameters Array<{ parameterId, weight, mode, sortOrder }> - Replacement parameter bindings
+ * @body parameterId string - Legacy single parameter ID
+ * @body mode string - Legacy parameter mode
+ * @body memoryCategory string - Updated memory category
+ * @body memoryMode string - Updated memory mode
+ * @body fallbackPrompt string - Updated fallback prompt
+ * @body priority number - Updated priority
+ * @body isActive boolean - Updated active status
+ * @body ranges Array<{ minValue, maxValue, condition, prompt, label, metadata }> - Replacement ranges
+ * @response 200 { ok: true, slug: PromptSlug }
+ * @response 404 { ok: false, error: "Dynamic prompt not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const body = await req.json();
     const {
@@ -216,14 +252,26 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/prompt-slugs/[id]
- * Delete a dynamic prompt (only if not used in any stacks)
+ * @api DELETE /api/prompt-slugs/:id
+ * @visibility internal
+ * @scope prompts:write
+ * @auth session
+ * @tags prompts
+ * @description Delete a dynamic prompt and its parameter links/ranges. Fails if used in any stacks.
+ * @pathParam id string - Prompt slug UUID or slug string
+ * @response 200 { ok: true, deleted: true }
+ * @response 400 { ok: false, error: "Cannot delete dynamic prompt used in N stack(s)..." }
+ * @response 404 { ok: false, error: "Dynamic prompt not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
 
     const existing = await prisma.promptSlug.findFirst({

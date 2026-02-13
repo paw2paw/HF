@@ -106,17 +106,7 @@ export const PAGE_DOCS: PageDoc[] = [
       "View parameter details and anchors",
       "See cross-references: which specs and templates use each parameter",
     ],
-    relatedPages: ["/x/specs", "/x/taxonomy"],
-  },
-  {
-    path: "/x/taxonomy",
-    title: "Taxonomy",
-    description: "Hierarchical view of all parameters organized by domain group. Helps understand the parameter structure.",
-    features: [
-      "Tree view of parameters by domain group",
-      "Click to view parameter details",
-      "See relationships between parameters",
-    ],
+    relatedPages: ["/x/specs", "/x/taxonomy-graph"],
   },
   {
     path: "/x/taxonomy-graph",
@@ -148,16 +138,6 @@ export const PAGE_DOCS: PageDoc[] = [
       "Preview how the agent would respond",
     ],
     relatedPages: ["/x/callers/[callerId]"],
-  },
-  {
-    path: "/x/lab",
-    title: "Lab",
-    description: "Experimental features and spec development. Upload and test new spec files.",
-    features: [
-      "Upload .spec.json files",
-      "Preview and validate specs before activating",
-      "Manage experimental features",
-    ],
   },
   {
     path: "/x/import",
@@ -314,8 +294,8 @@ export function getPageDocsSummary(): string {
   // Group by category
   const categories: Record<string, PageDoc[]> = {
     "Core": PAGE_DOCS.filter((p) => ["/x", "/x/callers", "/x/playbooks", "/x/specs", "/x/domains"].includes(p.path)),
-    "Data": PAGE_DOCS.filter((p) => ["/x/dictionary", "/x/taxonomy", "/x/taxonomy-graph"].includes(p.path)),
-    "Tools": PAGE_DOCS.filter((p) => ["/x/pipeline", "/x/playground", "/x/lab", "/x/import"].includes(p.path)),
+    "Data": PAGE_DOCS.filter((p) => ["/x/dictionary", "/x/taxonomy-graph"].includes(p.path)),
+    "Tools": PAGE_DOCS.filter((p) => ["/x/pipeline", "/x/playground", "/x/import"].includes(p.path)),
     "Admin": PAGE_DOCS.filter((p) => ["/x/ai-config", "/x/settings", "/x/users", "/x/logs", "/x/debug", "/x/metering"].includes(p.path)),
   };
 

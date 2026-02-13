@@ -68,7 +68,6 @@ When helping users navigate, you can highlight sidebar items to guide them. Incl
 
 **Available targets:**
 - /x/callers - Manage callers
-- /x/onboarding - Persona onboarding setup
 - /x/playground - Prompt composition & testing
 - /x/playbooks - Configure playbooks
 - /x/specs - Analysis specifications

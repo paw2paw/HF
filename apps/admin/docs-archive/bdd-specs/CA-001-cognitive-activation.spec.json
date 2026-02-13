@@ -1,0 +1,611 @@
+{
+  "$schema": "./feature-spec-schema.json",
+  "id": "CA-001",
+  "title": "Cognitive Activation Level Assessment",
+  "version": "1.0",
+  "status": "Approved",
+  "date": "2026-01-29",
+  "domain": "engagement",
+  "specType": "SYSTEM",
+  "outputType": "MEASURE",
+  "story": {
+    "asA": "Conversational AI System",
+    "iWant": "To measure cognitive activation and engagement patterns in real-time",
+    "soThat": "I can adapt response complexity and pacing to match caller mental state"
+  },
+  "context": {
+    "applies": "All voice conversations after initial greeting phase",
+    "dependsOn": [
+      "PERS-001"
+    ],
+    "assumptions": [
+      "Caller has been in conversation for at least 60 seconds",
+      "Audio quality is sufficient for prosodic analysis",
+      "Baseline personality traits have been established"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-CA-001",
+      "title": "Cognitive engagement detection",
+      "given": "A caller in active conversation with measured speech patterns",
+      "when": "The system analyzes the caller's linguistic and prosodic features",
+      "then": "A cognitive activation score between 0-1 is produced within 500ms",
+      "rationale": "Real-time engagement metrics enable dynamic conversation adaptation",
+      "measuredBy": [
+        "CP-004"
+      ],
+      "thresholds": {
+        "latency": {
+          "value": 500,
+          "operator": "lte",
+          "basis": "Real-time requirements for conversational flow"
+        }
+      },
+      "gherkin": "Feature: Cognitive Activation Measurement\n  Scenario: Real-time engagement scoring\n    Given a caller has been speaking for at least 60 seconds\n    And audio quality metrics exceed minimum threshold\n    When the system processes the latest speech segment\n    Then a cognitive activation score is computed\n    And the score is available within 500ms"
+    },
+    {
+      "id": "AC-CA-002",
+      "title": "Conversation dominance tracking",
+      "given": "An ongoing conversation with turn-taking patterns",
+      "when": "Turn durations and interruption patterns are analyzed",
+      "then": "Conversation dominance ratio is calculated accurately",
+      "rationale": "Understanding who controls the conversation helps calibrate agent behavior",
+      "measuredBy": [
+        "CONV_DOM"
+      ],
+      "thresholds": {
+        "accuracy": {
+          "value": 0.85,
+          "operator": "gte",
+          "basis": "Statistical validation against human annotation"
+        }
+      }
+    },
+    {
+      "id": "AC-CA-003",
+      "title": "Assertiveness measurement",
+      "given": "Speech samples with identifiable tonal patterns",
+      "when": "Tone and linguistic markers are analyzed",
+      "then": "Assertiveness level is measured on 0-1 scale",
+      "rationale": "Assertiveness affects how the agent should phrase recommendations",
+      "measuredBy": [
+        "TONE_ASSERT"
+      ]
+    },
+    {
+      "id": "AC-CA-004",
+      "title": "Conversation pacing adaptation",
+      "given": "Measured speech rate and pause patterns",
+      "when": "Conversation pace score is computed",
+      "then": "Agent response timing adapts to match caller pace",
+      "rationale": "Matching pace creates rapport and improves engagement",
+      "measuredBy": [
+        "CONV_PACE"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "CON-CA-001",
+      "type": "performance",
+      "description": "All cognitive metrics must be computed within 500ms to support real-time adaptation",
+      "severity": "critical"
+    },
+    {
+      "id": "CON-CA-002",
+      "type": "privacy",
+      "description": "Raw audio data must not be retained after metric computation",
+      "severity": "critical"
+    },
+    {
+      "id": "CON-CA-003",
+      "type": "accuracy",
+      "description": "Metric scores must maintain inter-rater reliability of 0.80+ against human annotators",
+      "severity": "warning"
+    }
+  ],
+  "failureConditions": [
+    {
+      "id": "FC-CA-001",
+      "trigger": "cognitive_activation_score",
+      "threshold": {
+        "operator": "lt",
+        "value": 0.2
+      },
+      "implication": "Caller is disengaged - switch to re-engagement strategy",
+      "severity": "warning"
+    },
+    {
+      "id": "FC-CA-002",
+      "trigger": "latency_ms",
+      "threshold": {
+        "operator": "gt",
+        "value": 1000
+      },
+      "implication": "Real-time constraint violated - degrade gracefully to cached values",
+      "severity": "critical"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "CP-004",
+      "name": "cognitive_activation",
+      "description": "Composite measure of caller's mental engagement and cognitive load during conversation",
+      "section": "Engagement Metrics",
+      "targetRange": {
+        "min": 0.4,
+        "max": 0.8
+      },
+      "formula": "0.35 * linguistic_complexity + 0.25 * response_elaboration + 0.25 * question_engagement + 0.15 * topic_initiative",
+      "subMetrics": [
+        {
+          "id": "linguistic_complexity",
+          "name": "Linguistic Complexity",
+          "weight": 0.35,
+          "description": "Sophistication of vocabulary and sentence structure",
+          "formula": "(unique_words / total_words) * avg_sentence_length_normalized",
+          "definitions": {
+            "high": "Uses varied vocabulary, complex sentences, technical terms appropriately",
+            "low": "Simple vocabulary, short sentences, repetitive word choices"
+          }
+        },
+        {
+          "id": "response_elaboration",
+          "name": "Response Elaboration",
+          "weight": 0.25,
+          "description": "Depth and detail in responses beyond minimal answers",
+          "formula": "avg_response_length / expected_response_length",
+          "definitions": {
+            "high": "Provides context, examples, and unprompted detail",
+            "low": "Minimal responses, yes/no answers, single phrases"
+          }
+        },
+        {
+          "id": "question_engagement",
+          "name": "Question Engagement",
+          "weight": 0.25,
+          "description": "Caller's propensity to ask clarifying or follow-up questions",
+          "formula": "caller_questions / agent_statements",
+          "definitions": {
+            "high": "Asks follow-up questions, seeks clarification, explores topics",
+            "low": "Passive acceptance, no questions, waits for direction"
+          }
+        },
+        {
+          "id": "topic_initiative",
+          "name": "Topic Initiative",
+          "weight": 0.15,
+          "description": "Frequency of caller introducing new topics or redirecting conversation",
+          "formula": "caller_topic_changes / total_topic_changes",
+          "definitions": {
+            "high": "Actively steers conversation, introduces relevant tangents",
+            "low": "Follows agent's lead exclusively, never redirects"
+          }
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.25,
+          "label": "Disengaged",
+          "implication": "Caller showing minimal cognitive investment - simplify and re-engage"
+        },
+        {
+          "min": 0.25,
+          "max": 0.5,
+          "label": "Passive",
+          "implication": "Caller following along but not actively participating - invite engagement"
+        },
+        {
+          "min": 0.5,
+          "max": 0.75,
+          "label": "Engaged",
+          "implication": "Optimal engagement level - maintain current approach"
+        },
+        {
+          "min": 0.75,
+          "max": 1.0,
+          "label": "Highly Activated",
+          "implication": "Strong cognitive engagement - can introduce complexity"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.1,
+          "example": "Yeah. Okay. Sure. [long pause] I don't know.",
+          "rationale": "Minimal responses, no elaboration, passive agreement, signals cognitive disengagement",
+          "isGold": true
+        },
+        {
+          "score": 0.3,
+          "example": "I guess that makes sense. What else do you need from me?",
+          "rationale": "Brief acknowledgment with basic question, limited investment in conversation",
+          "isGold": true
+        },
+        {
+          "score": 0.5,
+          "example": "Right, so if I understand correctly, you're saying the policy covers that? I just want to make sure because last time...",
+          "rationale": "Moderate engagement - seeks clarification, references past experience, showing active listening",
+          "isGold": true
+        },
+        {
+          "score": 0.7,
+          "example": "That's interesting - I hadn't thought about it that way. So would that also apply to the situation where my daughter uses the car? She's been driving more lately and I want to make sure we're covered properly.",
+          "rationale": "Active engagement - processes information, makes connections, introduces relevant context unprompted",
+          "isGold": true
+        },
+        {
+          "score": 0.9,
+          "example": "Let me think about this... So the deductible reduction program - if I'm understanding the tradeoffs correctly - would save me about $200 annually but increases my out-of-pocket risk by $500 per incident. Given my driving history and the fact that I only had one claim in 15 years, the expected value calculation actually favors the lower premium option, right?",
+          "rationale": "High cognitive activation - complex reasoning, quantitative analysis, hypothesis testing, demonstrates deep engagement",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Caller is highly engaged cognitively. You may use technical terminology, present complex options with tradeoffs, and assume they will follow multi-step reasoning. Invite their analysis.",
+        "whenLow": "Caller shows low cognitive engagement. Use simple language, break information into small chunks, ask confirming questions frequently, and avoid overwhelming with options.",
+        "whenMedium": "Caller is moderately engaged. Use clear explanations with occasional technical terms when helpful. Offer to elaborate on complex points if they want more detail.",
+        "promptTemplate": "{{#if (gte cognitive_activation 0.7)}}The caller is highly engaged and processing information deeply. Feel free to present nuanced options and invite their analysis.{{else if (lte cognitive_activation 0.3)}}The caller seems to have low engagement right now. Keep responses simple and check for understanding frequently.{{else}}The caller is moderately engaged. Balance clarity with appropriate detail.{{/if}}"
+      },
+      "usedBy": [
+        "AC-CA-001"
+      ]
+    },
+    {
+      "id": "CONV_DOM",
+      "name": "conversation_dominance",
+      "description": "Ratio indicating who controls the conversation flow - caller vs agent",
+      "section": "Interaction Dynamics",
+      "targetRange": {
+        "min": 0.4,
+        "max": 0.6
+      },
+      "formula": "caller_speaking_time / (caller_speaking_time + agent_speaking_time)",
+      "subMetrics": [
+        {
+          "id": "speaking_ratio",
+          "name": "Speaking Time Ratio",
+          "weight": 0.5,
+          "description": "Proportion of conversation time held by caller",
+          "formula": "caller_duration / total_duration",
+          "definitions": {
+            "high": "Caller speaks significantly more than agent",
+            "low": "Agent dominates speaking time"
+          }
+        },
+        {
+          "id": "interruption_pattern",
+          "name": "Interruption Pattern",
+          "weight": 0.3,
+          "description": "Who initiates interruptions and overlapping speech",
+          "formula": "caller_interrupts / total_interrupts",
+          "definitions": {
+            "high": "Caller frequently interrupts or overlaps",
+            "low": "Caller rarely interrupts, waits for agent to finish"
+          }
+        },
+        {
+          "id": "turn_initiation",
+          "name": "Turn Initiation",
+          "weight": 0.2,
+          "description": "Who starts new conversational turns vs responding",
+          "formula": "caller_initiated_turns / total_turns",
+          "definitions": {
+            "high": "Caller proactively starts new topics/questions",
+            "low": "Caller only responds when prompted"
+          }
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Agent Dominant",
+          "implication": "Agent controlling conversation - create space for caller input"
+        },
+        {
+          "min": 0.3,
+          "max": 0.5,
+          "label": "Balanced-Agent",
+          "implication": "Slightly agent-led but balanced - appropriate for information delivery"
+        },
+        {
+          "min": 0.5,
+          "max": 0.7,
+          "label": "Balanced-Caller",
+          "implication": "Caller slightly more active - good for needs discovery"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Caller Dominant",
+          "implication": "Caller controlling flow - ensure agent provides needed guidance"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.2,
+          "example": "[Agent speaks for 45 seconds explaining options, caller responds with 'Okay' after 1-2 seconds, pattern repeats]",
+          "rationale": "Agent dominates speaking time, caller provides minimal responses",
+          "isGold": true
+        },
+        {
+          "score": 0.5,
+          "example": "[Agent explains for 20 seconds, caller asks clarifying question for 10 seconds, agent answers for 15 seconds, caller summarizes understanding for 15 seconds]",
+          "rationale": "Balanced turn-taking with roughly equal contribution from both parties",
+          "isGold": true
+        },
+        {
+          "score": 0.8,
+          "example": "[Caller speaks for extended period explaining situation in detail, occasionally interrupted by agent's brief clarifying questions]",
+          "rationale": "Caller driving conversation with agent in supportive/clarifying role",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Caller is dominating the conversation. Listen actively, allow them to express themselves fully, but ensure you provide needed guidance and don't let important information go unaddressed.",
+        "whenLow": "You've been dominating the conversation. Create more space for caller input. Ask open-ended questions, pause after key points, and explicitly invite their thoughts.",
+        "whenMedium": "Conversation balance is healthy. Continue current approach while monitoring for shifts.",
+        "promptTemplate": "{{#if (gte conversation_dominance 0.7)}}Let the caller lead - they have a lot to share. Focus on active listening and targeted clarifications.{{else if (lte conversation_dominance 0.3)}}Create more space for the caller to participate. Ask what questions they have and pause for their input.{{/if}}"
+      },
+      "usedBy": [
+        "AC-CA-002"
+      ]
+    },
+    {
+      "id": "TONE_ASSERT",
+      "name": "assertiveness_level",
+      "description": "Degree of confidence and directness in caller's communication style",
+      "section": "Communication Style",
+      "targetRange": {
+        "min": 0.3,
+        "max": 0.7
+      },
+      "formula": "0.4 * linguistic_directness + 0.3 * hedging_inverse + 0.3 * prosodic_confidence",
+      "subMetrics": [
+        {
+          "id": "linguistic_directness",
+          "name": "Linguistic Directness",
+          "weight": 0.4,
+          "description": "Use of direct statements vs hedged/tentative language",
+          "formula": "direct_statements / total_statements",
+          "definitions": {
+            "high": "States opinions directly: 'I want...', 'This needs to be...'",
+            "low": "Hedged language: 'Maybe...', 'I'm not sure but...', 'If it's not too much trouble...'"
+          }
+        },
+        {
+          "id": "hedging_inverse",
+          "name": "Hedging Inverse",
+          "weight": 0.3,
+          "description": "Absence of uncertainty markers and qualifiers",
+          "formula": "1 - (hedge_words / total_words)",
+          "definitions": {
+            "high": "Minimal use of 'maybe', 'perhaps', 'I think', 'sort of'",
+            "low": "Frequent hedging and uncertainty markers"
+          }
+        },
+        {
+          "id": "prosodic_confidence",
+          "name": "Prosodic Confidence",
+          "weight": 0.3,
+          "description": "Voice patterns indicating confidence (pitch, volume, pace)",
+          "formula": "normalized_pitch_stability * volume_consistency",
+          "definitions": {
+            "high": "Stable pitch, consistent volume, even pacing",
+            "low": "Rising intonation on statements, trailing off, hesitations"
+          }
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Deferential",
+          "implication": "Caller is very passive - may need encouragement to express preferences"
+        },
+        {
+          "min": 0.3,
+          "max": 0.5,
+          "label": "Moderate",
+          "implication": "Balanced assertiveness - standard interaction approach"
+        },
+        {
+          "min": 0.5,
+          "max": 0.7,
+          "label": "Confident",
+          "implication": "Caller knows what they want - be direct and efficient"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Assertive",
+          "implication": "Very direct caller - match their energy, don't over-explain"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "Um, I was maybe wondering if, you know, it might be possible to... I mean, only if it's not too much trouble... maybe look at my account?",
+          "rationale": "Heavy hedging, multiple uncertainty markers, apologetic framing, rising intonation pattern",
+          "isGold": true
+        },
+        {
+          "score": 0.4,
+          "example": "I think I'd like to change my coverage. Could you help me understand the options?",
+          "rationale": "Some hedging ('I think') but clear request, polite but not overly deferential",
+          "isGold": true
+        },
+        {
+          "score": 0.6,
+          "example": "I want to increase my liability coverage to $500,000. What will that cost?",
+          "rationale": "Direct statement of desire, specific request, no hedging, efficient communication",
+          "isGold": true
+        },
+        {
+          "score": 0.85,
+          "example": "Look, I've been a customer for 20 years and I need this resolved today. Transfer me to someone who can actually help or give me the cancellation number.",
+          "rationale": "Very direct, demands action, sets timeline, stakes position firmly",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Caller is assertive and direct. Match their communication style - be concise, efficient, and don't over-explain. Respect their time and stated preferences.",
+        "whenLow": "Caller is deferential and may have trouble expressing preferences. Gently encourage them to share what they want, validate their opinions, and reassure them their requests are reasonable.",
+        "whenMedium": "Standard assertiveness level. Use balanced communication that's neither overly formal nor too casual.",
+        "promptTemplate": "{{#if (gte assertiveness_level 0.7)}}Be direct and efficient with this caller. They know what they want - don't over-explain or add unnecessary pleasantries.{{else if (lte assertiveness_level 0.3)}}This caller may need encouragement to express preferences. Ask open questions and validate their input.{{/if}}"
+      },
+      "usedBy": [
+        "AC-CA-003"
+      ]
+    },
+    {
+      "id": "CONV_PACE",
+      "name": "conversation_pace",
+      "description": "Speed and rhythm of caller's speech patterns for response timing adaptation",
+      "section": "Temporal Dynamics",
+      "targetRange": {
+        "min": 0.3,
+        "max": 0.7
+      },
+      "formula": "0.5 * speech_rate_normalized + 0.3 * pause_pattern + 0.2 * response_latency_inverse",
+      "subMetrics": [
+        {
+          "id": "speech_rate_normalized",
+          "name": "Normalized Speech Rate",
+          "weight": 0.5,
+          "description": "Words per minute normalized to population baseline",
+          "formula": "(wpm - 100) / 100",
+          "definitions": {
+            "high": "Fast speaker (>160 wpm)",
+            "low": "Slow, deliberate speaker (<120 wpm)"
+          }
+        },
+        {
+          "id": "pause_pattern",
+          "name": "Pause Pattern",
+          "weight": 0.3,
+          "description": "Frequency and duration of pauses in speech",
+          "formula": "1 - (pause_duration / speaking_duration)",
+          "definitions": {
+            "high": "Minimal pausing, continuous flow",
+            "low": "Frequent, longer pauses - thoughtful/deliberate style"
+          }
+        },
+        {
+          "id": "response_latency_inverse",
+          "name": "Response Latency",
+          "weight": 0.2,
+          "description": "How quickly caller responds after agent finishes",
+          "formula": "1 - (avg_response_delay / max_expected_delay)",
+          "definitions": {
+            "high": "Quick responses, sometimes overlapping",
+            "low": "Takes time before responding, processes before speaking"
+          }
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.3,
+          "label": "Deliberate",
+          "implication": "Slow, thoughtful pace - allow processing time, don't rush"
+        },
+        {
+          "min": 0.3,
+          "max": 0.5,
+          "label": "Measured",
+          "implication": "Moderate pace - standard response timing"
+        },
+        {
+          "min": 0.5,
+          "max": 0.7,
+          "label": "Brisk",
+          "implication": "Faster pace - keep responses concise, match energy"
+        },
+        {
+          "min": 0.7,
+          "max": 1.0,
+          "label": "Rapid",
+          "implication": "Very fast pace - minimize pauses, quick turnarounds"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.2,
+          "example": "[Speaks at ~100 wpm, 2-3 second pauses between sentences, 4-5 second delay before responding to agent]",
+          "rationale": "Slow deliberate pace, significant pausing, needs processing time",
+          "isGold": true
+        },
+        {
+          "score": 0.5,
+          "example": "[Speaks at ~140 wpm, brief pauses at natural points, responds within 1-2 seconds]",
+          "rationale": "Average conversational pace, neither rushed nor slow",
+          "isGold": true
+        },
+        {
+          "score": 0.8,
+          "example": "[Speaks at ~180 wpm, minimal pausing, often starts responding before agent fully finishes, continuous flow]",
+          "rationale": "Fast-paced speaker, expects quick exchanges, may interrupt",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Caller has a fast conversation pace. Keep your responses concise and deliver information efficiently. Match their quick rhythm but ensure clarity.",
+        "whenLow": "Caller has a deliberate pace. Allow silence after your responses - don't fill pauses. Give them time to process and formulate thoughts.",
+        "whenMedium": "Standard conversation pace. Use normal response timing and pacing.",
+        "promptTemplate": "{{#if (gte conversation_pace 0.7)}}This caller speaks quickly - match their pace with concise responses.{{else if (lte conversation_pace 0.3)}}This caller is deliberate - don't rush them, allow pauses for processing.{{/if}}"
+      },
+      "usedBy": [
+        "AC-CA-004"
+      ]
+    }
+  ],
+  "workedExamples": [
+    {
+      "paramId": "CP-004",
+      "description": "Calculating cognitive activation for a moderately engaged caller",
+      "input": "Caller discussing insurance options, asking some clarifying questions, moderate vocabulary",
+      "calculations": [
+        {
+          "subMetric": "linguistic_complexity",
+          "formula": "(unique_words=45 / total_words=120) * normalized_length=0.8",
+          "result": 0.3
+        },
+        {
+          "subMetric": "response_elaboration",
+          "formula": "avg_response=25 words / expected=20 words",
+          "result": 1.25
+        },
+        {
+          "subMetric": "question_engagement",
+          "formula": "caller_questions=3 / agent_statements=8",
+          "result": 0.375
+        },
+        {
+          "subMetric": "topic_initiative",
+          "formula": "caller_topics=1 / total_topics=4",
+          "result": 0.25
+        }
+      ],
+      "finalResult": {
+        "value": 0.53,
+        "interpretation": "Engaged - Optimal engagement level, maintain current approach"
+      }
+    }
+  ],
+  "related": [
+    {
+      "id": "PERS-001",
+      "title": "Big Five Personality Assessment",
+      "relationship": "dependsOn - cognitive activation adjusts based on personality baseline"
+    },
+    {
+      "id": "MEM-001",
+      "title": "Caller Memory Extraction",
+      "relationship": "feeds - engagement patterns inform memory importance weighting"
+    }
+  ],
+  "specRole": "EXTRACT"
+}

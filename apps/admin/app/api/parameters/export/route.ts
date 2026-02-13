@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/parameters/export
- * Export all parameters as flat CSV with tags and slug links
- *
- * Format:
- * - tags: pipe-delimited tag names (e.g., "Active|MVP")
- * - slugLinks: pipe-delimited in format "slugSlug:weight:mode" (e.g., "openness-comm:1.0:ABSOLUTE")
+ * @api GET /api/parameters/export
+ * @visibility public
+ * @scope parameters:read
+ * @auth session
+ * @tags parameters
+ * @description Export all parameters as a downloadable CSV file with tags (pipe-delimited) and slug links (pipe-delimited slugSlug:weight:mode)
+ * @response 200 text/csv (Content-Disposition: attachment; filename="parameters-export-YYYY-MM-DD.csv")
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const parameters = await prisma.parameter.findMany({
       orderBy: { parameterId: "asc" },
       include: {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The parameter registry is being migrated from a JSON file (`bdd-specs/behavior-parameters.registry.json`) to the database (`Parameter` table) as the single source of truth.
+The parameter registry is being migrated from a JSON file (`docs-archive/bdd-specs/behavior-parameters.registry.json`) to the database (`Parameter` table) as the single source of truth.
 
 **Benefits:**
 - ✅ No more sync scripts
@@ -26,7 +26,7 @@ npx prisma migrate dev
 ```bash
 npm run registry:migrate-from-json
 # This script:
-# 1. Reads bdd-specs/behavior-parameters.registry.json
+# 1. Reads docs-archive/bdd-specs/behavior-parameters.registry.json
 # 2. Updates existing parameters in database with registry values
 # 3. Marks all as canonical (isCanonical=true)
 # 4. Backs up old JSON file as registry.json.bak
@@ -65,7 +65,7 @@ npm run build
 ### Adding a New Parameter
 
 **Before:**
-1. Manually edit `bdd-specs/behavior-parameters.registry.json`
+1. Manually edit `docs-archive/bdd-specs/behavior-parameters.registry.json`
 2. Run spec activation
 3. Run `npm run registry:sync`
 
@@ -113,7 +113,7 @@ curl http://localhost:3000/api/admin/registry?orphaned=true
 ### npm run registry:generate
 - Reads all canonical parameters from database
 - Generates `lib/registry/index.ts` with type-safe constants
-- Generates `bdd-specs/behavior-parameters.registry.json` (for reference only)
+- Generates `docs-archive/bdd-specs/behavior-parameters.registry.json` (for reference only)
 - Run after activating specs or modifying parameters
 
 ### npm run registry:validate
@@ -123,7 +123,7 @@ curl http://localhost:3000/api/admin/registry?orphaned=true
 - Fails build if errors found
 
 ### npm run registry:migrate-from-json (One-time)
-- Reads old `bdd-specs/behavior-parameters.registry.json`
+- Reads old `docs-archive/bdd-specs/behavior-parameters.registry.json`
 - Updates existing Parameter records with registry values
 - Backs up old file
 - Can only be run once per database
@@ -139,7 +139,7 @@ If you need to revert to JSON-based registry:
 
 ```bash
 # Restore backed up JSON file
-cp bdd-specs/behavior-parameters.registry.json.bak bdd-specs/behavior-parameters.registry.json
+cp docs-archive/bdd-specs/behavior-parameters.registry.json.bak docs-archive/bdd-specs/behavior-parameters.registry.json
 
 # Revert schema changes
 npx prisma migrate resolve --rolled-back <migration-name>

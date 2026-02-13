@@ -1,0 +1,384 @@
+{
+  "id": "DEMO-TUTOR-001",
+  "title": "Create a Tutor Domain from Scratch",
+  "subtitle": "Complete walkthrough: domain setup, specs, playbook, and first test call",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-12",
+  "audience": ["operator", "team_member", "evaluator"],
+  "estimatedMinutes": 8,
+  "icon": "🎓",
+  "story": {
+    "asA": "new operator or evaluator",
+    "iWant": "to see how to create a tutor domain end-to-end",
+    "soThat": "I can set up learning experiences for callers"
+  },
+  "objectives": [
+    "Create and configure a domain",
+    "Set up identity and content specs",
+    "Build and publish a playbook",
+    "Configure onboarding for new callers",
+    "Run a test call through the pipeline"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "This demo walks through creating a complete Tutor Domain — from an empty system to a working AI tutor that adapts to each learner.",
+      "content": {
+        "type": "markdown",
+        "body": "# Create a Tutor Domain\n\nIn this walkthrough, you'll see how to set up a complete AI tutoring experience from scratch.\n\n## What you'll build\n\n- **A Domain** — the top-level container for your tutor\n- **An Identity Spec** — defines WHO the tutor is\n- **Content Sources** — WHAT the tutor teaches\n- **A Playbook** — ties identity + content + measurement together\n- **Onboarding** — how new callers are greeted\n\n## Time: ~8 minutes\n\nUse **← →** arrow keys or the buttons below to navigate. Press **?** to ask the AI assistant a question at any point."
+      },
+      "reason": "Understanding the full setup flow helps you create effective learning domains.",
+      "goal": "Orient the viewer on what this demo covers",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Create a Tutor Domain demo",
+        "relatedConcepts": ["domains", "specs", "playbooks", "pipeline", "onboarding"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "navigate-domains",
+      "title": "Find Domains",
+      "description": "Navigate to the Domains page using the sidebar. Domains are the top-level organizational unit — everything in HumanFirst belongs to a domain.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/02-navigate-domains.png",
+        "alt": "Sidebar with Domains highlighted",
+        "annotations": [
+          { "x": "8%", "y": "52%", "label": "Click Domains", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "Domains group all related specs, callers, and content together. Each domain represents a distinct learning experience.",
+      "sidebarHighlight": { "href": "/x/domains", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Admin sidebar navigation",
+        "action": "Navigating to the Domains page",
+        "relatedConcepts": ["domains", "sidebar navigation", "organizational structure"],
+        "assistantLocation": { "page": "/x/domains", "action": "navigate" }
+      }
+    },
+    {
+      "id": "create-domain",
+      "title": "Create Domain",
+      "description": "Click 'New Domain' to start creating a new tutoring domain. You'll give it a name, slug, and description.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/03-create-domain.png",
+        "alt": "Domains page with New Domain button highlighted",
+        "annotations": [
+          { "x": "85%", "y": "12%", "label": "New Domain", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "The domain name appears in the UI and reports. The slug is used in URLs and API calls — choose something short and descriptive.",
+      "tips": [
+        { "type": "tip", "message": "Domain slugs must be unique, URL-safe, and lowercase (e.g., 'qm-tutor')" }
+      ],
+      "sidebarHighlight": { "href": "/x/domains", "type": "glow" },
+      "aiContext": {
+        "currentView": "Domains listing page with New Domain button",
+        "action": "Creating a new domain",
+        "relatedConcepts": ["domain creation", "slug conventions", "domain configuration"],
+        "assistantLocation": { "page": "/x/domains", "action": "create" }
+      }
+    },
+    {
+      "id": "domain-details",
+      "title": "Domain Details",
+      "description": "Fill in the domain details: name ('Quantum Mechanics Tutor'), description, and any initial configuration.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/04-domain-details.png",
+        "alt": "Domain creation form filled out",
+        "annotations": [
+          { "x": "50%", "y": "25%", "label": "Domain name", "direction": "down" },
+          { "x": "50%", "y": "45%", "label": "Description", "direction": "down" },
+          { "x": "50%", "y": "80%", "label": "Save", "direction": "up", "highlight": true }
+        ]
+      },
+      "reason": "The description helps operators and team members understand what this domain is for. It's also used by the AI assistant for context.",
+      "aiContext": {
+        "currentView": "Domain creation form",
+        "action": "Filling in domain name, description, and configuration",
+        "relatedConcepts": ["domain model", "domain fields", "domain configuration"]
+      },
+      "capture": { "url": "/x/domains/{domainId}", "delay": 500 }
+    },
+    {
+      "id": "add-identity-spec",
+      "title": "Identity Spec",
+      "description": "Navigate to Specs and create (or select) an IDENTITY spec. This defines WHO the tutor is — personality, teaching style, and boundaries.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/05-identity-spec.png",
+        "alt": "Specs page filtered to IDENTITY role",
+        "annotations": [
+          { "x": "25%", "y": "15%", "label": "Filter: IDENTITY", "direction": "down" },
+          { "x": "50%", "y": "50%", "label": "TUT-001 Tutor Identity", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "Identity specs define WHO the agent is. Every tutor domain needs one. Without an identity spec, the AI has no personality or teaching guidelines.",
+      "goal": "Set up the tutor's identity and personality",
+      "tips": [
+        { "type": "best-practice", "message": "Start with the Generic Tutor Identity (TUT-001) and customize from there" }
+      ],
+      "sidebarHighlight": { "href": "/x/specs", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Specs page filtered to IDENTITY role",
+        "action": "Selecting an identity spec for the tutor domain",
+        "relatedConcepts": ["specRole IDENTITY", "TUT-001", "tutor personality", "teaching style"],
+        "assistantLocation": { "page": "/x/specs", "entityType": "spec", "action": "select" }
+      }
+    },
+    {
+      "id": "configure-identity",
+      "title": "Configure Identity",
+      "description": "The identity spec has parameters that control the tutor's behavior — warmth, formality, pacing, and more. These are measured and adapted per-caller.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-TUTOR-001/06-identity-params.png",
+          "alt": "Identity spec parameters"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## Key Parameters\n\n- **Warmth**: How friendly vs. professional\n- **Formality**: Casual vs. formal tone\n- **Pacing**: Fast-moving vs. thorough\n- **Exploration**: Open-ended vs. structured\n\nThese aren't fixed — the pipeline **measures** each caller's preferences and **adapts** the tutor's style over time.\n\nAll parameters are fully dynamic. Adding new ones = activating a spec. Zero code changes."
+        }
+      },
+      "reason": "The adaptive parameter system is core to HumanFirst. The tutor doesn't use one style for everyone — it learns and adjusts per caller.",
+      "aiContext": {
+        "currentView": "Identity spec parameter configuration — split view with JSON and explanation",
+        "action": "Reviewing identity spec parameters (warmth, formality, pacing, exploration)",
+        "relatedConcepts": ["dynamic parameters", "personality measurement", "VARK", "Big Five", "adaptive pipeline"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/specs", "delay": 500 }
+    },
+    {
+      "id": "content-sources",
+      "title": "Content Sources",
+      "description": "Navigate to Content Sources to define WHAT the tutor teaches. Each source has a trust level (L0-L5) that controls how the AI uses it.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/07-content-sources.png",
+        "alt": "Content Sources page with trust level badges",
+        "annotations": [
+          { "x": "80%", "y": "30%", "label": "Trust: L3", "direction": "left" },
+          { "x": "85%", "y": "12%", "label": "Add Source", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Trust levels control accuracy requirements. L5 (Verified Fact) content must be quoted exactly. L1 (Community) content can be discussed freely. This matters for regulated training domains like food safety.",
+      "goal": "Add authoritative content for the tutor to teach",
+      "tips": [
+        { "type": "warning", "message": "For regulated subjects, use trust level L4+ to ensure accurate teaching" }
+      ],
+      "sidebarHighlight": { "href": "/x/content-sources", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Content Sources page with trust level badges",
+        "action": "Adding content sources with trust levels",
+        "relatedConcepts": ["content trust", "trust levels L0-L5", "content assertions", "regulated training"],
+        "assistantLocation": { "page": "/x/content-sources", "action": "create" }
+      }
+    },
+    {
+      "id": "upload-curriculum",
+      "title": "Upload Curriculum",
+      "description": "Upload a curriculum document (PDF, DOCX, or TXT). The system extracts teaching points and learning objectives automatically.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/08-upload-curriculum.png",
+        "alt": "Upload dialog with a sample PDF",
+        "annotations": [
+          { "x": "50%", "y": "40%", "label": "Drop file here", "direction": "down", "highlight": true },
+          { "x": "50%", "y": "70%", "label": "Teaching points extracted automatically", "direction": "up" }
+        ]
+      },
+      "reason": "The upload flow extracts structured assertions from documents. These become the foundation for what the tutor teaches — and what it assesses learners on.",
+      "tips": [
+        { "type": "tip", "message": "Supported formats: PDF, DOCX, TXT. The system extracts teaching points and learning objectives automatically." }
+      ],
+      "aiContext": {
+        "currentView": "Document upload dialog",
+        "action": "Uploading a curriculum document for assertion extraction",
+        "relatedConcepts": ["document processing", "assertion extraction", "learning objectives", "content pipeline"]
+      },
+      "capture": { "url": "/x/content-sources", "delay": 500 }
+    },
+    {
+      "id": "create-playbook",
+      "title": "Create Playbook",
+      "description": "Navigate to Playbooks and create one. A playbook ties identity + content + measurement specs together into a complete tutor configuration.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/09-create-playbook.png",
+        "alt": "Playbooks page",
+        "annotations": [
+          { "x": "85%", "y": "12%", "label": "New Playbook", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Playbooks are the execution plan. They define which specs run in which order, for which domain. Publishing a playbook makes it 'live' for callers.",
+      "goal": "Create the execution plan for the tutor",
+      "sidebarHighlight": { "href": "/x/playbooks", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Playbooks listing page",
+        "action": "Creating a new playbook for the tutor domain",
+        "relatedConcepts": ["playbook architecture", "spec composition", "publish workflow"],
+        "assistantLocation": { "page": "/x/playbooks", "action": "create" }
+      }
+    },
+    {
+      "id": "playbook-items",
+      "title": "Playbook Items",
+      "description": "Add specs to the playbook using the PlaybookBuilder. Drag to reorder. Each item links to a spec and defines whether it's required or optional.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/10-playbook-items.png",
+        "alt": "PlaybookBuilder with items being added",
+        "annotations": [
+          { "x": "30%", "y": "30%", "label": "IDENTITY spec", "direction": "right" },
+          { "x": "30%", "y": "50%", "label": "CONTENT spec", "direction": "right" },
+          { "x": "30%", "y": "70%", "label": "MEASURE specs", "direction": "right" },
+          { "x": "75%", "y": "15%", "label": "Add Item", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "The playbook defines execution order and which specs are required vs. optional. Required specs block activation if missing.",
+      "tips": [
+        { "type": "best-practice", "message": "At minimum: 1 IDENTITY + 1 CONTENT + personality measurement (PERS-001)" }
+      ],
+      "aiContext": {
+        "currentView": "PlaybookBuilder with spec items being configured",
+        "action": "Adding and ordering specs in the playbook",
+        "relatedConcepts": ["PlaybookBuilder", "spec ordering", "required vs optional items", "system spec toggles"]
+      },
+      "durationOverrideSec": 15,
+      "capture": { "url": "/x/playbooks", "delay": 500 }
+    },
+    {
+      "id": "measurement-specs",
+      "title": "Measurement Specs",
+      "description": "Enable measurement specs to track learner personality and learning style. PERS-001 measures Big Five traits; VARK-001 detects learning modality.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/11-measurement-specs.png",
+        "alt": "Specs page showing EXTRACT role specs",
+        "annotations": [
+          { "x": "50%", "y": "35%", "label": "PERS-001: Personality", "direction": "right", "highlight": true },
+          { "x": "50%", "y": "55%", "label": "VARK-001: Learning Style", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "Measurement specs make the tutor adaptive. Without them, every caller gets the same experience. With them, the tutor learns each person's style.",
+      "goal": "Enable adaptive learning by measuring each caller",
+      "tips": [
+        { "type": "best-practice", "message": "Activate PERS-001 (personality) and VARK-001 (learning modality) for adaptive tutoring" }
+      ],
+      "sidebarHighlight": { "href": "/x/specs", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Specs page showing EXTRACT/MEASURE specs",
+        "action": "Enabling personality and learning style measurement specs",
+        "relatedConcepts": ["PERS-001", "VARK-001", "personality measurement", "learning modality", "EXTRACT pipeline stage"],
+        "assistantLocation": { "page": "/x/specs", "entityType": "spec" }
+      }
+    },
+    {
+      "id": "configure-onboarding",
+      "title": "Onboarding",
+      "description": "Configure how new callers are greeted in their first interaction. Set the identity spec for onboarding and define the flow phases.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/12-onboarding.png",
+        "alt": "Domain onboarding configuration",
+        "annotations": [
+          { "x": "50%", "y": "30%", "label": "Identity Spec", "direction": "down" },
+          { "x": "50%", "y": "60%", "label": "Flow Phases", "direction": "down" }
+        ]
+      },
+      "reason": "First impressions matter. Onboarding defines how the tutor introduces itself, what it asks about the learner, and how it sets expectations.",
+      "sidebarHighlight": { "href": "/x/domains", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Domain onboarding configuration panel",
+        "action": "Configuring the onboarding flow for new callers",
+        "relatedConcepts": ["INIT-001", "onboarding flow", "caller creation", "first-call experience"],
+        "assistantLocation": { "page": "/x/domains", "section": "onboarding" }
+      }
+    },
+    {
+      "id": "review-readiness",
+      "title": "Review & Activate",
+      "description": "Before going live, review the domain readiness dashboard. It validates that all required components are present and correctly configured.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/13-readiness.png",
+        "alt": "Domain readiness dashboard showing checks",
+        "annotations": [
+          { "x": "60%", "y": "25%", "label": "Published Playbook ✓", "direction": "left" },
+          { "x": "60%", "y": "40%", "label": "Identity Spec ✓", "direction": "left" },
+          { "x": "60%", "y": "55%", "label": "AI Keys ✓", "direction": "left" },
+          { "x": "60%", "y": "70%", "label": "Curriculum Structure ✓", "direction": "left" }
+        ]
+      },
+      "reason": "The readiness checker catches configuration issues before they affect real callers. Critical checks must pass; recommended checks are advisory.",
+      "goal": "Validate the domain is ready for callers",
+      "tips": [
+        { "type": "warning", "message": "Critical checks must pass before the domain can accept callers" }
+      ],
+      "aiContext": {
+        "currentView": "Domain readiness dashboard with check results",
+        "action": "Reviewing domain readiness checks before activation",
+        "relatedConcepts": ["domain readiness", "readiness checks", "critical vs recommended", "activation requirements"]
+      },
+      "capture": { "url": "/x/domains/{domainId}", "delay": 500 }
+    },
+    {
+      "id": "test-simulator",
+      "title": "Test in Simulator",
+      "description": "Open the Simulator to test the tutor with a real call. The Sim sends calls through the full pipeline — everything is live except the phone connection.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-TUTOR-001/14-simulator.png",
+        "alt": "Sim page with a test conversation",
+        "annotations": [
+          { "x": "50%", "y": "80%", "label": "Type a message to test", "direction": "up", "highlight": true }
+        ]
+      },
+      "reason": "The Simulator is the safest way to verify your tutor works. It runs the full pipeline (measure → adapt → compose) so you see exactly what callers will experience.",
+      "goal": "Verify the tutor works end-to-end",
+      "tips": [
+        { "type": "shortcut", "message": "The Sim runs the full pipeline — personality measurement, adaptation, and prompt composition all happen live" }
+      ],
+      "sidebarHighlight": { "href": "/x/sim", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Simulator page with test conversation",
+        "action": "Testing the tutor with a simulated call",
+        "relatedConcepts": ["simulator", "pipeline testing", "measure stage", "compose stage", "end-to-end validation"],
+        "assistantLocation": { "page": "/x/sim", "action": "test" }
+      }
+    },
+    {
+      "id": "summary",
+      "title": "Done!",
+      "description": "Your tutor domain is now live and ready for callers. Here's what to do next.",
+      "content": {
+        "type": "markdown",
+        "body": "# Tutor Domain Created\n\nYou've built a complete AI tutoring experience:\n\n- ✅ **Domain** created and configured\n- ✅ **Identity Spec** defines the tutor's personality\n- ✅ **Content Sources** provide teaching material\n- ✅ **Playbook** ties everything together\n- ✅ **Measurement Specs** enable adaptive learning\n- ✅ **Onboarding** welcomes new callers\n- ✅ **Readiness** checks all passed\n- ✅ **Tested** in the Simulator\n\n## Next Steps\n\n1. **Invite callers** — use the invite system to bring in real learners\n2. **Monitor the pipeline** — watch how the tutor adapts to each person\n3. **Iterate on specs** — refine based on what you observe\n4. **Add more content** — upload additional curriculum documents\n\n## Related Demos\n\n- *Managing Callers & Progress* (coming soon)\n- *Understanding the Analysis Pipeline* (coming soon)\n- *Creating Custom Specs* (coming soon)"
+      },
+      "reason": "A well-configured domain is just the start. The real value comes from monitoring, iterating, and expanding.",
+      "goal": "Summarize what was built and guide next steps",
+      "aiContext": {
+        "currentView": "Demo summary and next steps",
+        "action": "Completed the Create a Tutor Domain demo",
+        "relatedConcepts": ["invite system", "pipeline monitoring", "spec iteration", "caller management"]
+      },
+      "durationOverrideSec": 20
+    }
+  ]
+}

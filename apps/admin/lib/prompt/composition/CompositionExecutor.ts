@@ -33,6 +33,8 @@ import "./transforms/preamble";
 import "./transforms/instructions";
 import "./transforms/identity";
 import "./transforms/simple";
+import "./transforms/trust";
+import "./transforms/teaching-content";
 
 /**
  * Execute the full composition pipeline.
@@ -83,28 +85,38 @@ export async function executeComposition(
   const transformStart = Date.now();
   const sectionsActivated: string[] = [];
   const sectionsSkipped: string[] = [];
+  const activationReasons: Record<string, string> = {};
 
   // 6. Process each section
   for (const sectionDef of sortedSections) {
     // Check activation condition
-    if (!checkActivation(sectionDef, context)) {
+    const activationResult = checkActivationWithReason(sectionDef, context);
+    if (!activationResult.activated) {
       applyFallback(sectionDef, context);
       sectionsSkipped.push(sectionDef.id);
+      activationReasons[sectionDef.id] = `SKIPPED: ${activationResult.reason}`;
       continue;
     }
+    activationReasons[sectionDef.id] = activationResult.reason;
 
     // Resolve raw data for this section
     const rawData = resolveDataSource(sectionDef.dataSource, context);
 
-    // Apply transform (or pass through)
+    // Apply transform(s) — supports single string or chained array
     let result: any;
     if (sectionDef.transform) {
-      const transformFn = getTransform(sectionDef.transform);
-      if (!transformFn) {
-        console.error(`[CompositionExecutor] Unknown transform: ${sectionDef.transform}`);
-        result = rawData;
-      } else {
-        result = transformFn(rawData, context, sectionDef);
+      const transforms = Array.isArray(sectionDef.transform)
+        ? sectionDef.transform
+        : [sectionDef.transform];
+
+      result = rawData;
+      for (const tName of transforms) {
+        const transformFn = getTransform(tName);
+        if (!transformFn) {
+          console.error(`[CompositionExecutor] Unknown transform: ${tName}`);
+          break;
+        }
+        result = transformFn(result, context, sectionDef);
       }
     } else {
       result = rawData;
@@ -154,6 +166,7 @@ export async function executeComposition(
     metadata: {
       sectionsActivated,
       sectionsSkipped,
+      activationReasons,
       loadTimeMs,
       transformTimeMs,
       mergedTargetCount: context.sections.behaviorTargets?.all?.length || 0,
@@ -165,40 +178,60 @@ export async function executeComposition(
 // ACTIVATION & FALLBACK
 // =============================================================
 
-function checkActivation(
+function checkActivationWithReason(
   sectionDef: CompositionSectionDef,
   context: AssembledContext,
-): boolean {
+): { activated: boolean; reason: string } {
   const { condition } = sectionDef.activateWhen;
 
   switch (condition) {
     case "always":
-      return true;
+      return { activated: true, reason: "Always active" };
 
     case "dataExists": {
       const sources = Array.isArray(sectionDef.dataSource)
         ? sectionDef.dataSource
         : [sectionDef.dataSource];
-      return sources.some(s => {
+      const found = sources.filter(s => {
         if (s === "_assembled") return true;
         const data = (context.loadedData as any)[s];
         if (data === null || data === undefined) return false;
         if (Array.isArray(data)) return data.length > 0;
         return true;
       });
+      if (found.length > 0) {
+        return { activated: true, reason: `Data found: ${found.join(", ")}` };
+      }
+      const missing = sources.filter(s => !found.includes(s));
+      return { activated: false, reason: `No data for: ${missing.join(", ")}` };
     }
 
     case "contentSpecExists":
-      return context.resolvedSpecs.contentSpec !== null;
+      if (context.resolvedSpecs.contentSpec) {
+        return { activated: true, reason: `Content spec resolved: ${context.resolvedSpecs.contentSpec.name}` };
+      }
+      return { activated: false, reason: "No content spec in playbook" };
 
     case "callerHasDomain":
-      return context.loadedData.caller?.domain !== null;
+      if (context.loadedData.caller?.domain) {
+        return { activated: true, reason: `Domain: ${context.loadedData.caller.domain.name}` };
+      }
+      return { activated: false, reason: "Caller has no domain assigned" };
 
     case "callCount == 0":
-      return context.sharedState.isFirstCall;
+      if (context.sharedState.isFirstCall) {
+        return { activated: true, reason: "First call for this caller" };
+      }
+      return { activated: false, reason: "Not first call" };
+
+    case "firstCallInDomain":
+      if (context.sharedState.isFirstCallInDomain) {
+        return { activated: true, reason: "First call in current domain" };
+      }
+      return { activated: false, reason: "Not first call in domain" };
 
     default:
-      return true;
+      return { activated: true, reason: `Custom condition: ${condition}` };
   }
 }
 
@@ -368,6 +401,16 @@ function buildCallerContext(context: AssembledContext): string {
     if (sections.content.curriculumName) parts.push(`- Curriculum: ${sections.content.curriculumName}`);
   }
 
+  // Teaching content
+  if (sections.teachingContent?.hasTeachingContent) {
+    parts.push("\n## Teaching Content");
+    parts.push(`- ${sections.teachingContent.totalAssertions} approved teaching points`);
+    parts.push(`- Sources: ${(sections.teachingContent.sources || []).join(", ")}`);
+    if (sections.teachingContent.highExamRelevanceCount > 0) {
+      parts.push(`- ${sections.teachingContent.highExamRelevanceCount} high exam-relevance assertions`);
+    }
+  }
+
   return parts.join("\n");
 }
 
@@ -520,6 +563,28 @@ export function getDefaultSections(): CompositionSectionDef[] {
       transform: "extractContentSpec",
       outputKey: "content",
     },
+    {
+      id: "content_trust",
+      name: "Content Trust & Source Authority",
+      priority: 12.5,
+      dataSource: "_assembled",
+      activateWhen: { condition: "contentSpecExists" },
+      fallback: { action: "null" },
+      transform: "computeTrustContext",
+      outputKey: "contentTrust",
+      dependsOn: ["curriculum"],
+    },
+    {
+      id: "teaching_content",
+      name: "Approved Teaching Content",
+      priority: 12.6,
+      dataSource: "curriculumAssertions",
+      activateWhen: { condition: "dataExists" },
+      fallback: { action: "null" },
+      transform: "renderTeachingContent",
+      outputKey: "teachingContent",
+      dependsOn: ["content_trust"],
+    },
     // Pedagogy and voice are computed first, then assembled into instructions
     {
       id: "instructions_pedagogy",
@@ -551,7 +616,7 @@ export function getDefaultSections(): CompositionSectionDef[] {
       fallback: { action: "emptyObject" },
       transform: "computeInstructions",
       outputKey: "instructions",
-      dependsOn: ["memories", "personality", "behavior_targets", "curriculum", "learner_goals", "identity", "content", "instructions_pedagogy", "instructions_voice"],
+      dependsOn: ["memories", "personality", "behavior_targets", "curriculum", "learner_goals", "identity", "content", "content_trust", "teaching_content", "instructions_pedagogy", "instructions_voice"],
     },
     {
       id: "quick_start",

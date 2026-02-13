@@ -8,18 +8,25 @@ import {
   setEnabledTypes,
   LogType,
 } from "@/lib/logger";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const LOG_FILE = join(process.cwd(), "logs", "app.jsonl");
 
 /**
- * GET /api/logs/ai-calls
- * Returns logs from the log file with optional type filtering
- *
- * Query params:
- *   - type: Filter by log type (ai, api, system, user). Can be comma-separated.
+ * @api GET /api/logs/ai-calls
+ * @visibility internal
+ * @scope logs:read
+ * @auth session
+ * @tags logs
+ * @description Returns parsed log entries from the JSONL log file, newest first (max 100). Includes current logging status and enabled log types. Supports filtering by log type.
+ * @query type string - Filter by log type(s), comma-separated: "ai", "api", "system", "user" (optional)
+ * @response 200 { logs: [...], loggingEnabled: boolean, enabledTypes: [...] }
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const loggingEnabled = isLoggingEnabled();
     const enabledTypes = getEnabledTypes();
 
@@ -65,15 +72,22 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * PATCH /api/logs/ai-calls
- * Toggle logging on/off and/or set enabled types
- *
- * Body:
- *   - enabled: boolean (optional)
- *   - enabledTypes: string[] (optional)
+ * @api PATCH /api/logs/ai-calls
+ * @visibility internal
+ * @scope logs:write
+ * @auth session
+ * @tags logs
+ * @description Toggle logging on/off and/or set which log types are enabled. Both fields are optional and can be set independently.
+ * @body enabled boolean - Enable or disable logging (optional)
+ * @body enabledTypes string[] - Array of log types to enable: "ai", "api", "system", "user" (optional)
+ * @response 200 { ok: true, loggingEnabled: boolean, enabledTypes: [...] }
+ * @response 400 { ok: false, error: "..." }
  */
 export async function PATCH(request: NextRequest) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
 
     if (typeof body.enabled === "boolean") {
@@ -95,11 +109,19 @@ export async function PATCH(request: NextRequest) {
 }
 
 /**
- * DELETE /api/logs/ai-calls
- * Clears the log file
+ * @api DELETE /api/logs/ai-calls
+ * @visibility internal
+ * @scope logs:write
+ * @auth session
+ * @tags logs
+ * @description Clears the entire log file by deleting it from disk.
+ * @response 200 { ok: true }
  */
 export async function DELETE() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     if (existsSync(LOG_FILE)) {
       unlinkSync(LOG_FILE);
     }

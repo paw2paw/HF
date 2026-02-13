@@ -4,6 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -100,12 +101,23 @@ type AgentManifest = {
 };
 
 /**
- * GET /api/agents/by-data-node?dataNode=data:knowledge
- *
- * Returns agents that have the specified data node as input or output
+ * @api GET /api/agents/by-data-node
+ * @visibility internal
+ * @scope agents:read
+ * @auth session
+ * @tags agents
+ * @description Find agents connected to a specific data node (as consumer, producer, or both) with recent run status
+ * @query dataNode string - The data node identifier (e.g. "data:knowledge")
+ * @response 200 { ok: true, dataNode: string, agents: AgentInfo[] }
+ * @response 400 { ok: false, error: "dataNode query parameter is required" }
+ * @response 404 { ok: false, error: "Agents manifest not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const dataNode = url.searchParams.get("dataNode");
 

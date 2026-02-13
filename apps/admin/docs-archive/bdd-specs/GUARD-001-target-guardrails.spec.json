@@ -1,0 +1,103 @@
+{
+  "id": "GUARD-001",
+  "title": "Target Value Guardrails",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-04",
+  "domain": "guardrails",
+  "specType": "SYSTEM",
+  "outputType": "SUPERVISE",
+  "specRole": "CONSTRAIN",
+  "story": {
+    "asA": "pipeline supervisor",
+    "iWant": "to enforce safe bounds on computed values",
+    "soThat": "the agent never exhibits extreme or erratic behavior"
+  },
+  "context": {
+    "applies": "After ADAPT specs compute targets, before targets are stored",
+    "dependsOn": [],
+    "assumptions": [
+      "Target values are normalized to 0.0-1.0 scale",
+      "Extreme values (near 0 or 1) can cause unnatural agent behavior",
+      "Confidence scores should be bounded to prevent overconfidence"
+    ]
+  },
+  "parameters": [
+    {
+      "id": "target_clamp",
+      "name": "Target Value Clamp Range",
+      "description": "Prevents extreme target values that could cause erratic agent behavior",
+      "config": {
+        "minValue": 0.2,
+        "maxValue": 0.8,
+        "description": "Clamps all behavior target values to this range"
+      }
+    },
+    {
+      "id": "confidence_bounds",
+      "name": "Confidence Score Bounds",
+      "description": "Limits on confidence values to prevent over/under-confidence",
+      "config": {
+        "minConfidence": 0.3,
+        "maxConfidence": 0.95,
+        "defaultConfidence": 0.7
+      }
+    },
+    {
+      "id": "mock_behavior",
+      "name": "Mock Engine Behavior",
+      "description": "Configuration for mock/test mode scoring",
+      "config": {
+        "scoreRangeMin": 0.4,
+        "scoreRangeMax": 0.8,
+        "nudgeFactor": 0.2,
+        "description": "Mock mode generates scores in this range and nudges targets toward center by this factor"
+      }
+    },
+    {
+      "id": "ai_settings",
+      "name": "AI Engine Settings",
+      "description": "Temperature and other AI call settings",
+      "config": {
+        "temperature": 0.3,
+        "maxRetries": 2,
+        "description": "Low temperature for consistent, deterministic scoring"
+      }
+    },
+    {
+      "id": "aggregation",
+      "name": "Aggregation Settings",
+      "description": "Settings for time-weighted averaging of targets",
+      "config": {
+        "decayHalfLifeDays": 30,
+        "confidenceGrowthBase": 0.5,
+        "confidenceGrowthPerCall": 0.1,
+        "maxAggregatedConfidence": 0.95
+      }
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-GUARD-1",
+      "title": "Target Clamping",
+      "given": "A computed target value outside safe range",
+      "when": "Guardrails are applied",
+      "then": "Value is clamped to min/max bounds"
+    },
+    {
+      "id": "AC-GUARD-2",
+      "title": "Confidence Bounds",
+      "given": "A confidence score outside bounds",
+      "when": "Guardrails are applied",
+      "then": "Confidence is clamped to configured bounds"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C-GUARD-1",
+      "type": "safety",
+      "description": "Must never allow target values of exactly 0.0 or 1.0",
+      "severity": "critical"
+    }
+  ]
+}

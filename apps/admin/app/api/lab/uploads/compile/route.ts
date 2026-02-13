@@ -1,14 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { compileBDDToFeatureSet } from "@/lib/bdd/compiler";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/lab/uploads/compile
- *
- * Compile validated uploads into a Feature Set
+ * @api POST /api/lab/uploads/compile
+ * @visibility internal
+ * @scope lab:write
+ * @auth session
+ * @tags lab
+ * @description Compile validated BDD uploads into a Feature Set (creates or updates BDDFeatureSet)
+ * @body ids string[] - Array of upload IDs to compile (must be VALIDATED or COMPILED)
+ * @response 200 { ok: true, featureSet: { id, featureId, name, version, parameterCount, constraintCount, definitionCount } }
+ * @response 400 { ok: false, error: "No IDs provided" }
+ * @response 400 { ok: false, error: "No validated uploads found to compile..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const { ids } = body;
 

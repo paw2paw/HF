@@ -1,32 +1,36 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/parameters/[id]/enrich
- * Enriches a parameter's high/low interpretations by searching the KB
- * and using Claude to expand the definitions with deeper context.
- *
- * Body: {
- *   searchTerms?: string[],  // Optional additional terms to search
- *   model?: string,          // Claude model (default: claude-3-haiku-20240307)
- *   dryRun?: boolean,        // If true, returns enrichment without saving
- * }
- *
- * Returns:
- * - enrichedHigh: Expanded definition of high scores
- * - enrichedLow: Expanded definition of low scores
- * - chunksUsed: Array of chunk IDs used for enrichment
+ * @api POST /api/parameters/:id/enrich
+ * @visibility internal
+ * @scope parameters:write
+ * @auth session
+ * @tags parameters
+ * @description AI-powered enrichment of a parameter's high/low interpretations. Searches knowledge base chunks and uses Claude to expand definitions with deeper behavioral context.
+ * @pathParam id string - Parameter UUID or parameterId
+ * @body searchTerms string[] - Optional additional search terms
+ * @body model string - Claude model (default: claude-3-haiku-20240307)
+ * @body dryRun boolean - If true, returns enrichment without saving (default: false)
+ * @response 200 { ok: true, parameterId, name, original: { interpretationHigh, interpretationLow }, enriched: { enrichedHigh, enrichedLow }, chunksUsed: [], usage: { inputTokens, outputTokens }, saved: boolean }
+ * @response 404 { ok: false, error: "Parameter not found" }
+ * @response 500 { ok: false, error: "ANTHROPIC_API_KEY not configured" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
     const body = await req.json();
     const {
@@ -147,14 +151,25 @@ export async function POST(
 }
 
 /**
- * GET /api/parameters/[id]/enrich
- * Get current enrichment status for a parameter
+ * @api GET /api/parameters/:id/enrich
+ * @visibility internal
+ * @scope parameters:read
+ * @auth session
+ * @tags parameters
+ * @description Get current enrichment status for a parameter (enriched high/low, enrichment date, chunk IDs)
+ * @pathParam id string - Parameter UUID or parameterId
+ * @response 200 { ok: true, parameter: Parameter, isEnriched: boolean }
+ * @response 404 { ok: false, error: "Parameter not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { id } = await params;
 
     const parameter = await prisma.parameter.findFirst({

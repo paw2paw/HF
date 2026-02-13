@@ -133,12 +133,12 @@ export default function SpecSyncPage() {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", padding: 24, maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Spec Sync Status</h1>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Import Specs from Files</h1>
           <p style={{ margin: "4px 0 0", color: "var(--text-secondary)", fontSize: 14 }}>
-            Compare <code>bdd-specs/*.spec.json</code> files with database records
+            Load <code>docs-archive/bdd-specs/*.spec.json</code> files into the database (DB is the source of truth after import)
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -171,14 +171,15 @@ export default function SpecSyncPage() {
             }}
           >
             {syncing
-              ? "Syncing..."
+              ? "Importing..."
               : selectedSpecs.size > 0
-                ? `Seed ${selectedSpecs.size} Selected`
-                : `Seed All ${status?.unseeded.length || 0}`}
+                ? `Import ${selectedSpecs.size} Selected`
+                : `Import All ${status?.unseeded.length || 0}`}
           </button>
         </div>
       </div>
 
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
       {error && (
         <div style={{ padding: 12, background: "var(--status-error-bg)", border: "1px solid var(--status-error-border)", borderRadius: 8, marginBottom: 16, color: "var(--status-error-text)" }}>
           {error}
@@ -196,11 +197,18 @@ export default function SpecSyncPage() {
         }}>
           {syncResult.ok ? (
             <>
-              <strong>Sync Complete!</strong> {syncResult.summary?.specsProcessed} specs processed,{" "}
+              <strong>Import Complete!</strong> {syncResult.summary?.specsSucceeded || syncResult.summary?.specsProcessed} specs imported,{" "}
               {syncResult.summary?.parametersCreated} params created, {syncResult.summary?.specsCreated} specs created
             </>
           ) : (
-            <>Error: {syncResult.error}</>
+            <>
+              <strong>{syncResult.summary?.specsFailed > 0 ? "Partial Import" : "Error"}:</strong>{" "}
+              {syncResult.summary?.specsFailed > 0 ? (
+                <>{syncResult.summary.specsSucceeded} succeeded, {syncResult.summary.specsFailed} failed — check results below</>
+              ) : (
+                syncResult.error
+              )}
+            </>
           )}
         </div>
       )}
@@ -215,15 +223,15 @@ export default function SpecSyncPage() {
             </div>
             <div style={{ padding: 16, background: "var(--status-success-bg)", borderRadius: 8, textAlign: "center" }}>
               <div style={{ fontSize: 28, fontWeight: 600, color: "var(--status-success-text)" }}>{status.summary.synced}</div>
-              <div style={{ fontSize: 12, color: "var(--status-success-text)" }}>Synced</div>
+              <div style={{ fontSize: 12, color: "var(--status-success-text)" }}>Imported</div>
             </div>
             <div style={{ padding: 16, background: status.summary.unseeded ? "var(--status-warning-bg)" : "var(--surface-secondary)", borderRadius: 8, textAlign: "center" }}>
               <div style={{ fontSize: 28, fontWeight: 600, color: status.summary.unseeded ? "var(--status-warning-text)" : "var(--text-primary)" }}>{status.summary.unseeded}</div>
-              <div style={{ fontSize: 12, color: status.summary.unseeded ? "var(--status-warning-text)" : "var(--text-secondary)" }}>Unseeded</div>
+              <div style={{ fontSize: 12, color: status.summary.unseeded ? "var(--status-warning-text)" : "var(--text-secondary)" }}>Ready to Import</div>
             </div>
-            <div style={{ padding: 16, background: status.summary.orphaned ? "var(--status-error-bg)" : "var(--surface-secondary)", borderRadius: 8, textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 600, color: status.summary.orphaned ? "var(--status-error-text)" : "var(--text-primary)" }}>{status.summary.orphaned}</div>
-              <div style={{ fontSize: 12, color: status.summary.orphaned ? "var(--status-error-text)" : "var(--text-secondary)" }}>Orphaned</div>
+            <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 600, color: "var(--text-primary)" }}>{status.summary.orphaned}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>DB-Only</div>
             </div>
           </div>
 
@@ -232,8 +240,8 @@ export default function SpecSyncPage() {
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={badgeStyle("warning")}>{status.unseeded.length}</span>
-                Unseeded Specs
-                <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— in bdd-specs/ but not in database</span>
+                Ready to Import
+                <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— spec files not yet loaded into database</span>
               </h2>
               <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-primary)", borderRadius: 8, overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -291,13 +299,13 @@ export default function SpecSyncPage() {
             </div>
           )}
 
-          {/* Orphaned Specs */}
+          {/* DB-Only Specs */}
           {status.orphaned.length > 0 && (
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={badgeStyle("error")}>{status.orphaned.length}</span>
-                Orphaned Specs
-                <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— in database but no matching file</span>
+                <span style={badgeStyle("info")}>{status.orphaned.length}</span>
+                DB-Only Specs
+                <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— created via UI or source file removed (this is normal)</span>
               </h2>
               <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-primary)", borderRadius: 8, overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -330,12 +338,12 @@ export default function SpecSyncPage() {
             </div>
           )}
 
-          {/* Synced Specs (collapsed by default) */}
+          {/* Already Imported (collapsed by default) */}
           <details style={{ marginBottom: 24 }}>
             <summary style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
               <span style={badgeStyle("success")}>{status.synced.length}</span>
-              Synced Specs
-              <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— file matches database record</span>
+              Already Imported
+              <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— file has been loaded into database</span>
             </summary>
             <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-primary)", borderRadius: 8, overflow: "hidden", marginTop: 12 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -372,6 +380,7 @@ export default function SpecSyncPage() {
           </details>
         </>
       )}
+      </div>
     </div>
   );
 }

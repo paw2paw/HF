@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { config } from "@/lib/config";
 
 interface RouteContext {
@@ -7,12 +8,21 @@ interface RouteContext {
 }
 
 /**
- * GET /api/onboarding/personas/[slug]
- *
- * Get detailed onboarding configuration for a specific persona.
+ * @api GET /api/onboarding/personas/:slug
+ * @visibility internal
+ * @auth session
+ * @tags onboarding
+ * @description Get detailed onboarding configuration for a specific persona including welcome template, default targets, and first-call flow phases
+ * @pathParam slug string - The persona slug (e.g., "tutor", "companion", "coach")
+ * @response 200 { ok: true, specId: string, specSlug: string, persona: { slug, name, description, welcomeTemplate, defaultTargets, firstCallFlow, phaseSlugs } }
+ * @response 404 { ok: false, error: "INIT-001 spec not found" | "Persona not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { slug: personaSlug } = await context.params;
 
     // Get onboarding spec slug (default: spec-init-001)
@@ -43,8 +53,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const config = spec.config as any || {};
-    const personasConfig = config.personas || {};
+    const specConfig = spec.config as any || {};
+    const personasConfig = specConfig.personas || {};
     const personaConfig = personasConfig[personaSlug];
 
     if (!personaConfig) {
@@ -55,8 +65,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Get system defaults for merging
-    const defaultTargetsParam = config.parameters?.find((p: any) => p.id === "default_targets_quality");
-    const systemDefaultTargets = defaultTargetsParam?.config?.defaultTargets || config.defaultTargets || {};
+    const defaultTargetsParam = specConfig.parameters?.find((p: any) => p.id === "default_targets_quality");
+    const systemDefaultTargets = defaultTargetsParam?.config?.defaultTargets || specConfig.defaultTargets || {};
 
     // Get associated prompt slugs
     const welcomeSlugRecord = personaConfig.welcomeSlug
@@ -110,12 +120,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
 }
 
 /**
- * PUT /api/onboarding/personas/[slug]
- *
- * Update onboarding configuration for a specific persona.
+ * @api PUT /api/onboarding/personas/:slug
+ * @visibility internal
+ * @auth session
+ * @tags onboarding
+ * @description Update onboarding configuration for a specific persona (welcome, targets, flow phases). Also updates associated PromptSlugs.
+ * @pathParam slug string - The persona slug
+ * @body name string - Updated persona name
+ * @body description string - Updated description
+ * @body welcomeTemplate string - Updated welcome message template
+ * @body defaultTargets object - Updated default behavior targets
+ * @body firstCallFlow object - Updated first-call flow configuration
+ * @response 200 { ok: true, message: string, persona: object }
+ * @response 404 { ok: false, error: "INIT-001 spec not found" | "Persona not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { slug: personaSlug } = await context.params;
     const body = await request.json();
 
@@ -146,8 +170,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const config = spec.config as any || {};
-    const personasConfig = config.personas || {};
+    const specConfig = spec.config as any || {};
+    const personasConfig = specConfig.personas || {};
 
     if (!personasConfig[personaSlug]) {
       return NextResponse.json(
@@ -170,7 +194,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     // Update the spec config
     const newConfig = {
-      ...config,
+      ...specConfig,
       personas: {
         ...personasConfig,
         [personaSlug]: updatedPersonaConfig,

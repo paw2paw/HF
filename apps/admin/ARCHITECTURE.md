@@ -1,7 +1,9 @@
 # HF System Architecture
 
-**Version**: 5.1
-**Last Updated**: 2026-01-24
+**Version**: 5.2
+**Last Updated**: 2026-02-11
+
+> **See also**: [Admin Architecture](docs/ARCHITECTURE.md) for a focused overview of the admin app pipeline, playbooks, and key models.
 
 Complete architecture documentation for the HF (Human Factors) adaptive conversational AI system.
 
@@ -94,6 +96,20 @@ Parameter (e.g., "Openness")
 | `LEARN` | Extract memories (key-value facts) | `CallerMemory` |
 | `ADAPT` | Compute deltas and goal progress | `CallScore` for ADAPT params |
 | `MEASURE_AGENT` | Score agent communication behaviors | `BehaviorMeasurement` |
+
+### SpecRole Taxonomy
+
+Each `AnalysisSpec` also has a `specRole` that classifies its architectural purpose (separate from `outputType` which defines what data it produces):
+
+| SpecRole | Category | Purpose | Example Specs |
+|----------|----------|---------|---------------|
+| `ORCHESTRATE` | Meta-System | Flow and sequence control | PIPELINE-001, INIT-001, SESSION-001, INJECT-001 |
+| `EXTRACT` | Data Processing | Measurement and learning | PERS-001, VARK-001, MEM-001, STYLE-001, SUPV-001 |
+| `SYNTHESISE` | Data Processing | Combine and transform data | COMP-001, LEARN-PROF-001, REW-001, ADAPT-* |
+| `CONSTRAIN` | Validation | Bounds and guard rules | GUARD-001, GUARD-VOICEMAIL-001 |
+| `IDENTITY` | Content | Agent personas | TUT-001, COACH-001, COMPANION-001 |
+| `CONTENT` | Content | Curriculum and material | WNF-CONTENT-001, QM-CONTENT-001 |
+| `VOICE` | Content | Voice guidance | VOICE-001 |
 
 ---
 
@@ -860,8 +876,8 @@ RewardScore           Computed reward signals
 | `/api/system/readiness` | GET | **System readiness check** - DB, specs, parameters, run configs |
 | `/api/paths` | GET | Get path configuration |
 | `/api/paths` | POST | Validate/initialize paths |
-| `/api/flow/graph` | GET | Get flow graph nodes/edges |
-| `/api/flow/status` | GET | Get node status |
+| `/api/taxonomy-tree` | GET | Get taxonomy tree (Domain > Playbook > Spec > Parameter) |
+| `/api/supervisor/flow-graph` | GET | Get supervisor flow graph |
 | `/api/health` | GET | System health check |
 
 ### Prompts
@@ -881,64 +897,51 @@ RewardScore           Computed reward signals
 | `/analyze` | **Main workflow** - 3-step analysis (Select Caller → Configure & Select Calls → Run & View Results) |
 | `/prompts` | **Prompt Gallery** - View all caller prompts, filter by status, compose prompts |
 
-### Operations
+All admin pages are served under the `/x/` prefix.
+
+### Core
 
 | Route | Purpose |
 |-------|---------|
-| `/cockpit` | System status dashboard |
-| `/flow` | Visual pipeline (React Flow) |
-| `/ops` | Operations execution |
-| `/guide` | Getting started guide |
+| `/x/callers` | Caller list with profiles |
+| `/x/domains` | Domain management |
+| `/x/playbooks` | Playbook configuration |
+| `/x/specs` | Spec browser and editor |
+| `/x/pipeline` | Pipeline execution and monitoring |
 
-### Setup (Configuration)
-
-| Route | Purpose |
-|-------|---------|
-| `/admin` | Parameters management |
-| `/analysis-specs` | Analysis specifications |
-| `/prompt-slugs` | Adaptive prompts |
-| `/prompt-blocks` | Static prompt blocks |
-| `/memories` | Memory configuration |
-
-### Sources (Input Data)
+### Data & Analysis
 
 | Route | Purpose |
 |-------|---------|
-| `/knowledge-docs` | Knowledge documents |
-| `/transcripts` | Call transcripts |
+| `/x/dictionary` | Data dictionary (all parameters) |
+| `/x/taxonomy` | Taxonomy explorer |
+| `/x/taxonomy-graph` | Visual taxonomy graph |
+| `/x/caller-graph` | Caller relationship graph |
 
-### Processing (Intermediate)
-
-| Route | Purpose |
-|-------|---------|
-| `/chunks` | Knowledge chunks |
-| `/vectors` | Vector embeddings |
-| `/knowledge-artifacts` | Extracted artifacts |
-
-### Data (Results)
+### Tools
 
 | Route | Purpose |
 |-------|---------|
-| `/callers` | Caller list with profiles |
-| `/callers/[id]` | **Caller detail page** - All artifacts (personality, memories, scores, prompt) |
-| `/calls` | Call records |
+| `/x/playground` | AI playground and testing |
+| `/x/lab` | BDD lab (spec upload and compilation) |
+| `/x/import` | Spec import wizard |
+| `/x/studio` | Prompt studio |
+| `/x/sim` | WhatsApp-style simulator |
 
-### Analysis Config
-
-| Route | Purpose |
-|-------|---------|
-| `/analysis-profiles` | Analysis profiles |
-| `/analysis-runs` | Run history |
-| `/analysis-test` | Test lab |
-
-### Config (System)
+### Admin
 
 | Route | Purpose |
 |-------|---------|
-| `/agents` | Agent management |
-| `/run-configs` | Run configurations |
-| `/behavior-targets` | Agent behavior targets |
-| `/settings-library` | Settings library |
+| `/x/admin` | System administration |
+| `/x/users` | User management |
+| `/x/settings` | System settings |
+| `/x/ai-config` | AI provider configuration |
+| `/x/ai-knowledge` | AI knowledge dashboard |
+| `/x/logs` | System logs |
+| `/x/metering` | Usage metering |
+| `/x/supervisor` | Supervisor dashboard |
+| `/x/data-management` | Data management tools |
+| `/x/tickets` | Support tickets |
 
 ---
 
@@ -1072,9 +1075,9 @@ Response:
 
 ### Start Pipeline
 
-1. Navigate to `/getting-started` for step-by-step onboarding
-2. Use `/flow` for visual pipeline management
-3. Use `/ops` for low-level operation control
+1. Navigate to `/x/callers` to see caller profiles
+2. Use `/x/pipeline` for pipeline execution and monitoring
+3. Use `/x/specs` to manage analysis specifications
 
 ### Common Operations
 

@@ -172,6 +172,48 @@ function extractModules(contentSpec: any): { modules: ModuleData[]; metadata: Cu
 }
 
 // =============================================================================
+// SUBJECT CURRICULUM FALLBACK
+// =============================================================================
+
+/**
+ * Extract modules from Subject-based curriculum (Curriculum.notableInfo.modules).
+ * Used when no CONTENT spec modules are found — bridges Subject system to composition pipeline.
+ */
+function extractSubjectCurriculumModules(
+  data: LoadedDataContext
+): { modules: ModuleData[]; specSlug: string } | null {
+  const subjects = data.subjectSources?.subjects;
+  if (!subjects?.length) return null;
+
+  for (const subject of subjects) {
+    const curriculum = subject.curriculum;
+    if (!curriculum?.notableInfo) continue;
+
+    const rawModules = (curriculum.notableInfo as any)?.modules;
+    if (!Array.isArray(rawModules) || rawModules.length === 0) continue;
+
+    const modules: ModuleData[] = rawModules.map((m: any, idx: number) => ({
+      id: m.id,
+      slug: m.id,
+      name: m.title || m.name || m.id,
+      description: m.description || "",
+      content: m,
+      sequence: m.sortOrder ?? idx,
+      sortOrder: m.sortOrder ?? idx,
+      prerequisites: [],
+      learningOutcomes: m.learningOutcomes || [],
+      assessmentCriteria: m.assessmentCriteria || [],
+      keyTerms: m.keyTerms || [],
+      masteryThreshold: 0.7,
+    }));
+
+    return { modules, specSlug: curriculum.slug };
+  }
+
+  return null;
+}
+
+// =============================================================================
 // SHARED STATE COMPUTATION
 // =============================================================================
 
@@ -185,10 +227,38 @@ export function computeSharedState(
   specConfig: Record<string, any>,
 ): SharedComputedState {
   // Extract modules using contract-driven approach
-  const { modules, metadata } = extractModules(resolvedSpecs.contentSpec);
+  let { modules, metadata } = extractModules(resolvedSpecs.contentSpec);
+  let specSlug = resolvedSpecs.contentSpec?.slug || '';
+
+  // Fallback: if no modules from CONTENT spec, try Subject-based curriculum
+  if (modules.length === 0) {
+    const subjectResult = extractSubjectCurriculumModules(data);
+    if (subjectResult && subjectResult.modules.length > 0) {
+      modules = subjectResult.modules;
+      specSlug = subjectResult.specSlug;
+      // Create default metadata for Subject curriculum
+      if (!metadata) {
+        metadata = {
+          type: 'sequential',
+          trackingMode: 'module-based',
+          moduleSelector: 'subject-curriculum',
+          moduleOrder: 'sortBySequence',
+          progressKey: 'current_module',
+          masteryThreshold: 0.7,
+        };
+      }
+      console.log(`[modules] Subject curriculum fallback: ${modules.length} modules from "${specSlug}"`);
+    }
+  }
+
   const masteryThreshold = metadata?.masteryThreshold ?? 0.7;
 
   const isFirstCall = data.recentCalls.length === 0;
+
+  // Check if this is first call in current domain (for domain-switch re-onboarding)
+  const onboardingSession = data.onboardingSession;
+  const isFirstCallInDomain = !onboardingSession || !onboardingSession.isComplete;
+
   const lastCall = data.recentCalls[0];
   const daysSinceLastCall = lastCall
     ? Math.floor((Date.now() - new Date(lastCall.createdAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -197,7 +267,6 @@ export function computeSharedState(
   // Track completed modules from callerAttributes
   // Use contract-defined storage pattern if available
   const completedModules = new Set<string>();
-  const specSlug = resolvedSpecs.contentSpec?.slug || '';
   const progressKeyPrefix = metadata?.progressKey
     ? `curriculum:${specSlug}:mastery:`
     : '';
@@ -240,15 +309,17 @@ export function computeSharedState(
   const nextModule = nextModuleIndex < modules.length ? modules[nextModuleIndex] : null;
 
   // Determine review intensity based on time gap
+  // Thresholds from specConfig (default: 14/7/3 days for reintroduce/deep_review/application)
+  const reviewSchedule = specConfig.reviewSchedule || { reintroduce: 14, deepReview: 7, application: 3 };
   let reviewType = "quick_recall";
   let reviewReason = "Brief recall to activate prior knowledge";
-  if (daysSinceLastCall >= 14) {
+  if (daysSinceLastCall >= reviewSchedule.reintroduce) {
     reviewType = "reintroduce";
     reviewReason = `${daysSinceLastCall} days since last session - rebuild understanding`;
-  } else if (daysSinceLastCall >= 7) {
+  } else if (daysSinceLastCall >= reviewSchedule.deepReview) {
     reviewType = "deep_review";
     reviewReason = `${daysSinceLastCall} days gap - full review with new example`;
-  } else if (daysSinceLastCall >= 3) {
+  } else if (daysSinceLastCall >= reviewSchedule.application) {
     reviewType = "application";
     reviewReason = `${daysSinceLastCall} days gap - application question to check retention`;
   }
@@ -258,6 +329,7 @@ export function computeSharedState(
   return {
     modules,
     isFirstCall,
+    isFirstCallInDomain, // For domain-switch re-onboarding
     daysSinceLastCall,
     completedModules,
     estimatedProgress,
@@ -269,6 +341,7 @@ export function computeSharedState(
     thresholds,
     // Include metadata for downstream transforms
     curriculumMetadata: metadata,
+    curriculumSpecSlug: specSlug || undefined,
   };
 }
 

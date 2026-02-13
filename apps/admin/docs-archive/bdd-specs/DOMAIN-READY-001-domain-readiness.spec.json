@@ -1,0 +1,166 @@
+{
+  "id": "DOMAIN-READY-001",
+  "title": "Domain Readiness Checklist",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-12",
+  "domain": "system",
+  "specType": "SYSTEM",
+  "outputType": "SUPERVISE",
+  "specRole": "ORCHESTRATE",
+  "isDeletable": false,
+
+  "story": {
+    "asA": "domain administrator",
+    "iWant": "to see a clear checklist of what my domain needs before going live",
+    "soThat": "I know everything is in place for callers to have a good experience"
+  },
+
+  "context": {
+    "applies": "When evaluating whether a domain is ready to receive calls",
+    "dependsOn": ["PIPELINE-001", "COMP-001"],
+    "assumptions": [
+      "Each domain needs a published playbook to route specs correctly",
+      "IDENTITY specs define who the agent is (required for any call)",
+      "CONTENT specs define what to teach (recommended for tutors)",
+      "System specs (PIPELINE-001, COMP-001) must be active for pipeline/composition",
+      "At least one AI engine must have an API key configured",
+      "playbook_spec_role checks both domain PlaybookItems AND system specs enabled via Playbook.config.systemSpecToggles"
+    ]
+  },
+
+  "parameters": [
+    {
+      "id": "readiness_checks",
+      "name": "Domain Readiness Checks",
+      "description": "Ordered list of checks to evaluate domain call-readiness. Each check has a severity (critical/recommended/optional), a query type for the executor, and a fix action link.",
+      "config": {
+        "checks": [
+          {
+            "id": "playbook_published",
+            "name": "Published Playbook",
+            "description": "Domain has at least one published playbook linking specs together",
+            "severity": "critical",
+            "query": "playbook",
+            "fixAction": { "label": "Create Playbook", "href": "/x/domains?tab=playbooks" }
+          },
+          {
+            "id": "identity_spec",
+            "name": "Identity Spec",
+            "description": "Playbook includes an IDENTITY spec (domain PlaybookItem or enabled system spec toggle)",
+            "severity": "critical",
+            "query": "playbook_spec_role",
+            "queryArgs": { "specRole": "IDENTITY" },
+            "fixAction": { "label": "Create Identity Spec", "href": "/x/specs/new" }
+          },
+          {
+            "id": "content_spec",
+            "name": "Content Spec",
+            "description": "Playbook includes a CONTENT spec (domain PlaybookItem or enabled system spec toggle)",
+            "severity": "recommended",
+            "query": "playbook_spec_role",
+            "queryArgs": { "specRole": "CONTENT" },
+            "fixAction": { "label": "Create Content Spec", "href": "/x/specs/new" }
+          },
+          {
+            "id": "content_sources",
+            "name": "Content Sources",
+            "description": "Domain has content sources registered with trust levels",
+            "severity": "recommended",
+            "query": "content_sources",
+            "fixAction": { "label": "Add Content Sources", "href": "/x/content-sources" }
+          },
+          {
+            "id": "assertions_extracted",
+            "name": "Teaching Points Extracted",
+            "description": "Content assertions (approved teaching points) have been extracted from uploaded documents",
+            "severity": "recommended",
+            "query": "assertions",
+            "fixAction": { "label": "Upload Documents", "href": "/x/content-review" }
+          },
+          {
+            "id": "onboarding_configured",
+            "name": "Onboarding Configured",
+            "description": "Domain has onboarding identity spec and flow phases configured for first-call experience",
+            "severity": "recommended",
+            "query": "onboarding",
+            "fixAction": { "label": "Configure Onboarding", "href": "/x/domains?tab=onboarding" }
+          },
+          {
+            "id": "pipeline_spec",
+            "name": "Pipeline Spec Active",
+            "description": "PIPELINE-001 system spec is active and compiled (required for post-call analysis)",
+            "severity": "critical",
+            "query": "system_spec",
+            "queryArgs": { "slug": "PIPELINE-001" },
+            "fixAction": { "label": "Activate Pipeline Spec", "href": "/x/specs" }
+          },
+          {
+            "id": "compose_spec",
+            "name": "Compose Spec Active",
+            "description": "COMP-001 system spec is active and compiled (required for prompt composition)",
+            "severity": "critical",
+            "query": "system_spec",
+            "queryArgs": { "slug": "COMP-001" },
+            "fixAction": { "label": "Activate Compose Spec", "href": "/x/specs" }
+          },
+          {
+            "id": "ai_keys",
+            "name": "AI Keys Configured",
+            "description": "At least one AI provider (Claude or OpenAI) has an API key configured",
+            "severity": "critical",
+            "query": "ai_keys",
+            "fixAction": { "label": "Configure AI Keys", "href": "/x/settings" }
+          },
+          {
+            "id": "test_caller",
+            "name": "Test Caller Available",
+            "description": "Domain has at least one caller assigned for testing",
+            "severity": "optional",
+            "query": "test_caller",
+            "fixAction": { "label": "Create Test Caller", "href": "/x/callers" }
+          }
+        ]
+      }
+    }
+  ],
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "title": "Critical checks block go-live",
+      "given": "A domain with a failing critical check",
+      "when": "The readiness check is evaluated",
+      "then": "The domain is marked as NOT READY and the fix action is shown"
+    },
+    {
+      "id": "AC-2",
+      "title": "Recommended checks show warnings",
+      "given": "A domain with all critical checks passing but some recommended failing",
+      "when": "The readiness check is evaluated",
+      "then": "The domain is marked as ALMOST READY with warnings for missing items"
+    },
+    {
+      "id": "AC-3",
+      "title": "All checks pass shows ready",
+      "given": "A domain with all checks passing",
+      "when": "The readiness check is evaluated",
+      "then": "The domain is marked as READY with a green indicator"
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "C-1",
+      "type": "performance",
+      "description": "Readiness check should complete in under 500ms (all queries parallelized)",
+      "severity": "warning"
+    }
+  ],
+
+  "related": [
+    { "id": "PIPELINE-001", "title": "Pipeline Configuration", "relationship": "Required system spec checked by readiness" },
+    { "id": "COMP-001", "title": "Prompt Composition", "relationship": "Required system spec checked by readiness" },
+    { "id": "INIT-001", "title": "Caller Onboarding", "relationship": "Onboarding configuration checked by readiness" }
+  ]
+}

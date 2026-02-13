@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -57,7 +58,23 @@ async function getParameterFlat(parameterId: string) {
   return { ...rest, tags };
 }
 
+/**
+ * @api GET /api/ops/:opid/parameters/:id
+ * @visibility internal
+ * @scope ops:read
+ * @auth session
+ * @tags ops
+ * @description Get a single parameter by parameterId with tags and mappings
+ * @pathParam opid string - Operation identifier (unused, for route grouping)
+ * @pathParam id string - Parameter ID (parameterId)
+ * @response 200 Parameter (with flattened tags and mappings)
+ * @response 400 { error: "Missing id" }
+ * @response 404 { error: "Not found" }
+ */
 export async function GET(_req: Request, ctx: RouteCtx) {
+  const authResult = await requireAuth("VIEWER");
+  if (isAuthError(authResult)) return authResult.error;
+
   const { id } = await ctx.params;
   if (!id) return jsonError(400, "Missing id");
 
@@ -66,7 +83,34 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   return NextResponse.json(p);
 }
 
+/**
+ * @api PATCH /api/ops/:opid/parameters/:id
+ * @visibility internal
+ * @scope ops:write
+ * @auth session
+ * @tags ops
+ * @description Update a parameter's scalar fields and/or tags (partial update with tag reconciliation)
+ * @pathParam opid string - Operation identifier (unused, for route grouping)
+ * @pathParam id string - Parameter ID (parameterId)
+ * @body name string - Parameter display name
+ * @body sectionId string - Section identifier
+ * @body domainGroup string - Domain group
+ * @body definition string - Parameter definition text
+ * @body scaleType string - Scale type
+ * @body directionality string - Directionality
+ * @body computedBy string - Computed by method
+ * @body tags string[]|object[] - Tag names or objects to set (replaces all existing tags)
+ * @response 200 Parameter (with flattened tags)
+ * @response 400 { error: "Missing id" }
+ * @response 400 { error: "Invalid JSON body" }
+ * @response 400 { error: "tags must be an array of strings" }
+ * @response 404 { error: "Not found" }
+ * @response 500 { error: "..." }
+ */
 export async function PATCH(req: Request, ctx: RouteCtx) {
+  const authResult = await requireAuth("OPERATOR");
+  if (isAuthError(authResult)) return authResult.error;
+
   const { id } = await ctx.params;
   if (!id) return jsonError(400, "Missing id");
 
@@ -200,7 +244,24 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   }
 }
 
+/**
+ * @api DELETE /api/ops/:opid/parameters/:id
+ * @visibility internal
+ * @scope ops:write
+ * @auth session
+ * @tags ops
+ * @description Delete a parameter by parameterId
+ * @pathParam opid string - Operation identifier (unused, for route grouping)
+ * @pathParam id string - Parameter ID (parameterId)
+ * @response 200 { ok: true }
+ * @response 400 { error: "Missing id" }
+ * @response 404 { error: "Not found" }
+ * @response 500 { error: "..." }
+ */
 export async function DELETE(_req: Request, ctx: RouteCtx) {
+  const authResult = await requireAuth("OPERATOR");
+  if (isAuthError(authResult)) return authResult.error;
+
   const { id } = await ctx.params;
   if (!id) return jsonError(400, "Missing id");
 

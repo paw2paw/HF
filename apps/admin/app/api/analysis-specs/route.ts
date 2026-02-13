@@ -1,26 +1,36 @@
 import { NextResponse } from "next/server";
 import { PrismaClient, AnalysisOutputType } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/analysis-specs
- * List analysis specifications with optional filtering
- * Query params:
- * - limit: max records (default 100)
- * - domain: filter by domain (personality, memory, engagement, etc.)
- * - outputType: filter by MEASURE or LEARN
- * - active: "true" | "false" | "all" (default "all")
- * - include: "full" to include triggers, actions, and parameter anchors
+ * @api GET /api/analysis-specs
+ * @visibility internal
+ * @scope analysis-specs:read
+ * @auth session
+ * @tags analysis-specs
+ * @description List analysis specifications with optional filtering, trigger/action counts, and playbook usage
+ * @query limit number - Max records (default 100)
+ * @query domain string - Filter by domain (personality, memory, engagement, etc.)
+ * @query outputType string - Filter by output type (MEASURE, LEARN, etc.)
+ * @query active string - Filter by active status: "true", "false", or "all" (default "all")
+ * @query include string - Set to "full" to include triggers, actions, and parameter anchors
+ * @response 200 { ok: true, specs: AnalysisSpec[], count: number }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(req: Request) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") || "100");
     const domain = url.searchParams.get("domain");
     const outputType = url.searchParams.get("outputType") as AnalysisOutputType | null;
+    const specRole = url.searchParams.get("specRole");
     const active = url.searchParams.get("active") || "all";
     const include = url.searchParams.get("include");
 
@@ -32,6 +42,10 @@ export async function GET(req: Request) {
 
     if (outputType) {
       where.outputType = outputType;
+    }
+
+    if (specRole) {
+      where.specRole = specRole;
     }
 
     if (active === "true") {
@@ -155,36 +169,30 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/analysis-specs
- * Create a new analysis specification
- *
- * Body: {
- *   slug: string,
- *   name: string,
- *   description?: string,
- *   outputType: "MEASURE" | "LEARN",
- *   domain?: string,
- *   priority?: number,
- *   triggers?: Array<{
- *     given: string,
- *     when: string,
- *     then: string,
- *     name?: string,
- *     actions?: Array<{
- *       description: string,
- *       weight?: number,
- *       // For MEASURE:
- *       parameterId?: string,
- *       // For LEARN:
- *       learnCategory?: MemoryCategory,
- *       learnKeyPrefix?: string,
- *       learnKeyHint?: string,
- *     }>
- *   }>
- * }
+ * @api POST /api/analysis-specs
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description Create a new analysis specification with nested triggers and actions. Validates parameter IDs for MEASURE specs.
+ * @body slug string - Unique spec slug
+ * @body name string - Display name
+ * @body description string - Optional description
+ * @body outputType string - "MEASURE" or "LEARN" (default: "MEASURE")
+ * @body domain string - Domain category (personality, memory, engagement, etc.)
+ * @body priority number - Spec priority (default: 0)
+ * @body triggers Array - Nested triggers with actions: [{given, when, then, name?, actions?: [{description, weight?, parameterId?, learnCategory?, learnKeyPrefix?, learnKeyHint?}]}]
+ * @response 200 { ok: true, spec: AnalysisSpec }
+ * @response 400 { ok: false, error: "slug and name are required" }
+ * @response 400 { ok: false, error: "Unknown parameter(s): ..." }
+ * @response 409 { ok: false, error: "Spec with slug '...' already exists" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await req.json();
     const { slug, name, description, outputType, domain, priority, triggers } = body;
 

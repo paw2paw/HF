@@ -1,0 +1,959 @@
+{
+  "$schema": "./feature-spec-schema.json",
+  "id": "VARK-001",
+  "title": "VARK Learning Modality Assessment",
+  "version": "1.0",
+  "status": "Approved",
+  "date": "2026-02-08",
+  "domain": "learning",
+  "specType": "SYSTEM",
+  "outputType": "MEASURE",
+  "story": {
+    "asA": "Conversational AI System",
+    "iWant": "To measure caller learning modality preferences using the VARK model",
+    "soThat": "I can adapt my teaching style to match each learner's preferred information processing mode"
+  },
+  "context": {
+    "applies": "All learning-oriented conversations - modality assessment runs continuously",
+    "dependsOn": [
+      "PERS-001"
+    ],
+    "assumptions": [
+      "Sufficient conversational turns to establish modality patterns",
+      "Caller is speaking naturally about learning topics",
+      "Modality preferences are stable but context-dependent",
+      "Most learners are multimodal with varying strengths"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-VARK-001",
+      "title": "Visual modality detection",
+      "given": "A caller engaged in learning conversation",
+      "when": "The system analyzes spatial language and visualization requests",
+      "then": "A Visual modality score between 0-1 is produced",
+      "rationale": "Visual learners process information best through mental imagery and spatial relationships",
+      "measuredBy": [
+        "VARK-V"
+      ]
+    },
+    {
+      "id": "AC-VARK-002",
+      "title": "Auditory modality detection",
+      "given": "A caller engaged in learning conversation",
+      "when": "The system analyzes verbal processing patterns and sound-based language",
+      "then": "An Auditory modality score between 0-1 is produced",
+      "rationale": "Auditory learners process information best through verbal explanation and discussion",
+      "measuredBy": [
+        "VARK-A"
+      ]
+    },
+    {
+      "id": "AC-VARK-003",
+      "title": "Reading/Writing modality detection",
+      "given": "A caller engaged in learning conversation",
+      "when": "The system analyzes text-oriented language and structured thinking patterns",
+      "then": "A Reading/Writing modality score between 0-1 is produced",
+      "rationale": "Read/Write learners process information best through written words and structured text",
+      "measuredBy": [
+        "VARK-R"
+      ]
+    },
+    {
+      "id": "AC-VARK-004",
+      "title": "Kinesthetic modality detection",
+      "given": "A caller engaged in learning conversation",
+      "when": "The system analyzes experiential language and action-oriented requests",
+      "then": "A Kinesthetic modality score between 0-1 is produced",
+      "rationale": "Kinesthetic learners process information best through physical experience and practice",
+      "measuredBy": [
+        "VARK-K"
+      ]
+    },
+    {
+      "id": "AC-VARK-005",
+      "title": "Multimodal profile computation",
+      "given": "All four modality scores have been computed",
+      "when": "The system determines the caller's modality profile",
+      "then": "A multimodal classification is produced (unimodal, bimodal, trimodal, or quadmodal)",
+      "rationale": "Most learners have multiple strong modalities; knowing the combination guides adaptation",
+      "measuredBy": [
+        "VARK-PROFILE"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "CON-VARK-001",
+      "type": "accuracy",
+      "description": "VARK scores should correlate with validated VARK questionnaire at r >= 0.55",
+      "severity": "warning"
+    },
+    {
+      "id": "CON-VARK-002",
+      "type": "stability",
+      "description": "Modality scores should stabilize after 5-7 learning interactions and not fluctuate wildly",
+      "severity": "warning"
+    },
+    {
+      "id": "CON-VARK-003",
+      "type": "normalization",
+      "description": "VARK scores are relative strengths, not absolute - at least one modality should be >= 0.5",
+      "severity": "info"
+    },
+    {
+      "id": "CON-VARK-004",
+      "type": "context",
+      "description": "Modality preferences may shift by topic domain - track domain-specific patterns when possible",
+      "severity": "info"
+    }
+  ],
+  "failureConditions": [
+    {
+      "id": "FC-VARK-001",
+      "trigger": "insufficient_learning_context",
+      "threshold": {
+        "operator": "lt",
+        "value": 3
+      },
+      "implication": "Not enough learning interactions to assess modality - use balanced multimodal approach",
+      "severity": "warning"
+    },
+    {
+      "id": "FC-VARK-002",
+      "trigger": "all_modalities_low",
+      "threshold": {
+        "operator": "lt",
+        "value": 0.4
+      },
+      "implication": "No clear modality preference detected - may indicate non-learning conversation",
+      "severity": "info"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "VARK-V",
+      "name": "visual_modality",
+      "description": "Visual learning preference - processing information through mental imagery, spatial relationships, diagrams, and visual metaphors",
+      "section": "VARK Modalities",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "0.30 * visual_language + 0.25 * spatial_reasoning + 0.25 * visualization_requests + 0.20 * imagery_engagement",
+      "subMetrics": [
+        {
+          "id": "visual_language",
+          "name": "Visual Language Use",
+          "weight": 0.30,
+          "description": "Frequency of sight-based and visual metaphor language",
+          "formula": "visual_terms / total_descriptive_terms",
+          "definitions": {
+            "high": "Uses 'I see', 'looks like', 'picture this', 'imagine', 'appears', 'view', 'perspective'",
+            "low": "Rarely uses visual language; prefers other sensory or abstract terms"
+          },
+          "markers": [
+            "I see what you mean",
+            "Can you show me",
+            "Let me picture that",
+            "From my perspective",
+            "It appears that",
+            "I'm trying to visualize",
+            "That's not clear to me",
+            "I need to see the big picture",
+            "Looking at it from this angle",
+            "That looks right"
+          ]
+        },
+        {
+          "id": "spatial_reasoning",
+          "name": "Spatial Reasoning Expression",
+          "weight": 0.25,
+          "description": "Use of spatial relationships and structural language",
+          "formula": "spatial_references / total_references",
+          "definitions": {
+            "high": "Organizes concepts spatially; uses 'above', 'below', 'connected to', 'flows from'",
+            "low": "Describes concepts without spatial organization"
+          },
+          "markers": [
+            "How does this connect to",
+            "Where does this fit in",
+            "The relationship between",
+            "If I map this out",
+            "The structure looks like",
+            "At a higher level",
+            "Breaking this down into parts",
+            "The flow goes from X to Y"
+          ]
+        },
+        {
+          "id": "visualization_requests",
+          "name": "Visualization Requests",
+          "weight": 0.25,
+          "description": "Explicit requests for visual aids or mental imagery",
+          "formula": "viz_requests / total_clarification_requests",
+          "definitions": {
+            "high": "Asks for diagrams, charts, or verbal picture-painting; wants to 'see' the concept",
+            "low": "Doesn't request visual representations; satisfied with verbal or written explanation"
+          },
+          "markers": [
+            "Can you draw me a picture of",
+            "Is there a diagram for this",
+            "Help me visualize",
+            "What would this look like",
+            "Can you paint a mental picture",
+            "Walk me through this visually",
+            "If I were to diagram this"
+          ]
+        },
+        {
+          "id": "imagery_engagement",
+          "name": "Imagery Engagement",
+          "weight": 0.20,
+          "description": "Responsiveness to visual descriptions and metaphors",
+          "formula": "imagery_responses / visual_prompts",
+          "definitions": {
+            "high": "Lights up when given visual examples; extends visual metaphors; says 'I can see that now'",
+            "low": "Visual descriptions don't resonate; may ask for different explanation type"
+          }
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.25,
+          "label": "Low Visual",
+          "implication": "Visual approaches unlikely to resonate - use other modalities"
+        },
+        {
+          "min": 0.25,
+          "max": 0.45,
+          "label": "Mild Visual",
+          "implication": "Some visual elements helpful but not primary learning mode"
+        },
+        {
+          "min": 0.45,
+          "max": 0.65,
+          "label": "Moderate Visual",
+          "implication": "Visual learning is significant - include mental imagery and spatial organization"
+        },
+        {
+          "min": 0.65,
+          "max": 0.85,
+          "label": "Strong Visual",
+          "implication": "Visual learning is dominant - paint mental pictures, use spatial metaphors"
+        },
+        {
+          "min": 0.85,
+          "max": 1.0,
+          "label": "Highly Visual",
+          "implication": "Visual processing is primary mode - structure everything spatially with vivid imagery"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "Just explain it to me. I don't need to picture anything, I just want to understand the logic.",
+          "rationale": "Explicitly rejects visual framing; wants logical/verbal explanation instead",
+          "isGold": true
+        },
+        {
+          "score": 0.35,
+          "example": "Okay, I think I follow. You could maybe give me an example?",
+          "rationale": "Wants concrete example but doesn't specifically request visual framing",
+          "isGold": true
+        },
+        {
+          "score": 0.55,
+          "example": "I see what you mean - so if I picture it like a tree structure, the branches would be the different options?",
+          "rationale": "Uses visual language naturally; creates own spatial metaphor to organize concepts",
+          "isGold": true
+        },
+        {
+          "score": 0.75,
+          "example": "Can you help me visualize this? I'm trying to picture how all the pieces fit together. Like, if I were looking at a map of this concept...",
+          "rationale": "Explicitly requests visualization; naturally thinks in spatial/visual terms",
+          "isGold": true
+        },
+        {
+          "score": 0.92,
+          "example": "Oh! Now I can see it clearly - it's like a web with the main idea in the center and everything else radiating out. The connections are so obvious when you look at it this way. Can you describe what the next layer looks like?",
+          "rationale": "Deeply visual processing; constructs elaborate mental imagery; breakthrough comes through visualization",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "This learner is highly visual. Paint vivid mental pictures: 'Imagine you're looking at...' Use spatial metaphors extensively. Describe concepts as landscapes, structures, or diagrams. Say 'picture this' and 'from this perspective'. Organize information as mental maps or flowcharts.",
+        "whenLow": "This learner doesn't rely on visual processing. Don't force visual metaphors. Use logical explanations, verbal reasoning, or hands-on examples instead.",
+        "whenMedium": "Include some visual elements and spatial organization, but balance with other approaches. Offer to 'paint a picture' if helpful.",
+        "promptTemplate": "{{#if (gte visual_modality 0.65)}}Paint mental pictures for this visual learner. Use phrases like 'imagine you can see...' and organize concepts spatially. Describe relationships as visual structures.{{else if (lte visual_modality 0.3)}}This learner doesn't process visually - focus on verbal explanation or hands-on examples instead.{{/if}}"
+      },
+      "usedBy": [
+        "AC-VARK-001"
+      ]
+    },
+    {
+      "id": "VARK-A",
+      "name": "auditory_modality",
+      "description": "Auditory learning preference - processing information through listening, verbal discussion, rhythm, and sound-based language",
+      "section": "VARK Modalities",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "0.30 * auditory_language + 0.25 * verbal_processing + 0.25 * discussion_preference + 0.20 * repetition_requests",
+      "subMetrics": [
+        {
+          "id": "auditory_language",
+          "name": "Auditory Language Use",
+          "weight": 0.30,
+          "description": "Frequency of sound-based and auditory metaphor language",
+          "formula": "auditory_terms / total_descriptive_terms",
+          "definitions": {
+            "high": "Uses 'sounds like', 'I hear you', 'that rings true', 'tell me', 'listen'",
+            "low": "Rarely uses auditory language; prefers visual or action-based terms"
+          },
+          "markers": [
+            "That sounds right",
+            "I hear what you're saying",
+            "Tell me more about",
+            "That rings a bell",
+            "Let me talk through this",
+            "Something about that doesn't sound right",
+            "I'm all ears",
+            "That resonates with me",
+            "Say that again",
+            "The tone of"
+          ]
+        },
+        {
+          "id": "verbal_processing",
+          "name": "Verbal Processing Style",
+          "weight": 0.25,
+          "description": "Preference for talking through problems and verbal rehearsal",
+          "formula": "verbal_processing_markers / total_processing_markers",
+          "definitions": {
+            "high": "Talks through problems aloud; verbal rehearsal; thinks by speaking",
+            "low": "Processes internally; may find excessive verbalization distracting"
+          },
+          "markers": [
+            "Let me think out loud",
+            "So if I say this back to you",
+            "I'm just going to talk through this",
+            "Bear with me while I work this out verbally",
+            "When I explain it to myself",
+            "Saying it helps me understand it"
+          ]
+        },
+        {
+          "id": "discussion_preference",
+          "name": "Discussion Preference",
+          "weight": 0.25,
+          "description": "Preference for dialogue and verbal exchange over solo processing",
+          "formula": "discussion_requests / total_learning_requests",
+          "definitions": {
+            "high": "Prefers back-and-forth dialogue; asks clarifying questions verbally; learns through conversation",
+            "low": "Prefers to read/think independently; may find extended discussion tiring"
+          },
+          "markers": [
+            "Can we talk through this",
+            "I'd rather discuss it than read about it",
+            "Let's have a conversation about",
+            "Can you explain it to me",
+            "I learn better when we talk about it"
+          ]
+        },
+        {
+          "id": "repetition_requests",
+          "name": "Verbal Repetition Requests",
+          "weight": 0.20,
+          "description": "Requests to hear information repeated or rephrased",
+          "formula": "repetition_requests / total_clarification_requests",
+          "definitions": {
+            "high": "Frequently asks to hear things again; 'can you say that another way'; values verbal reinforcement",
+            "low": "Doesn't need verbal repetition; may prefer written reference"
+          },
+          "markers": [
+            "Can you say that again",
+            "Could you repeat that",
+            "One more time",
+            "How would you phrase that differently",
+            "Tell me that another way"
+          ]
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.25,
+          "label": "Low Auditory",
+          "implication": "Verbal-heavy teaching may be ineffective - use other modalities"
+        },
+        {
+          "min": 0.25,
+          "max": 0.45,
+          "label": "Mild Auditory",
+          "implication": "Some verbal explanation helpful but shouldn't be primary mode"
+        },
+        {
+          "min": 0.45,
+          "max": 0.65,
+          "label": "Moderate Auditory",
+          "implication": "Auditory learning is significant - emphasize verbal discussion"
+        },
+        {
+          "min": 0.65,
+          "max": 0.85,
+          "label": "Strong Auditory",
+          "implication": "Auditory learning is dominant - use rich verbal elaboration, encourage talk-through"
+        },
+        {
+          "min": 0.85,
+          "max": 1.0,
+          "label": "Highly Auditory",
+          "implication": "Auditory processing is primary mode - everything through verbal dialogue and sound"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "I'd rather just read about it. Can you send me something I can look at later?",
+          "rationale": "Explicitly prefers written over verbal; finds listening less effective",
+          "isGold": true
+        },
+        {
+          "score": 0.35,
+          "example": "Sure, keep going. I'm following along.",
+          "rationale": "Accepts verbal explanation but doesn't actively engage auditorily",
+          "isGold": true
+        },
+        {
+          "score": 0.55,
+          "example": "That sounds right to me. Let me just say it back to make sure I've got it - so you're saying that...",
+          "rationale": "Uses auditory language; verbal rehearsal to confirm understanding",
+          "isGold": true
+        },
+        {
+          "score": 0.75,
+          "example": "Can we just talk through this? I find I understand so much better when I hear it explained and can ask questions. Tell me more about that last part.",
+          "rationale": "Explicitly prefers verbal learning; asks for elaboration; values discussion",
+          "isGold": true
+        },
+        {
+          "score": 0.92,
+          "example": "Oh, the way you said that just clicked! Can you say it again exactly like that? I want to hear it a few times so it really sinks in. Something about the rhythm of how you explained it makes it so much clearer.",
+          "rationale": "Deep auditory processing; repetition important; notices rhythm/cadence of explanation",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "This learner is highly auditory. Emphasize verbal explanation with rich elaboration. Encourage them to 'talk through' their understanding. Use phrases like 'let me tell you about' and 'does this sound right?' Rhythm and cadence of explanation matter. Offer to repeat key points.",
+        "whenLow": "This learner doesn't prefer auditory processing. Keep verbal explanations concise. Offer written or visual alternatives. Don't rely on verbal repetition for reinforcement.",
+        "whenMedium": "Balance verbal explanation with other modalities. Some discussion and verbal elaboration, but don't make it the only approach.",
+        "promptTemplate": "{{#if (gte auditory_modality 0.65)}}Use rich verbal elaboration with this auditory learner. Encourage them to talk through their understanding. Ask 'does this sound right?' and offer to repeat key points.{{else if (lte auditory_modality 0.3)}}Keep verbal explanations concise - this learner prefers other modalities.{{/if}}"
+      },
+      "usedBy": [
+        "AC-VARK-002"
+      ]
+    },
+    {
+      "id": "VARK-R",
+      "name": "reading_writing_modality",
+      "description": "Reading/Writing learning preference - processing information through written text, lists, definitions, and structured prose",
+      "section": "VARK Modalities",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "0.30 * text_orientation + 0.25 * definition_seeking + 0.25 * structured_expression + 0.20 * note_taking_signals",
+      "subMetrics": [
+        {
+          "id": "text_orientation",
+          "name": "Text Orientation",
+          "weight": 0.30,
+          "description": "Preference for written words and text-based sources",
+          "formula": "text_references / total_source_references",
+          "definitions": {
+            "high": "References books, articles, written sources; asks for text resources; values the written word",
+            "low": "Prefers verbal explanation or experiential learning over reading"
+          },
+          "markers": [
+            "I read somewhere that",
+            "Is there an article about this",
+            "Can you recommend a book",
+            "What does the text say",
+            "I'd like to read more about",
+            "Where can I find this written down",
+            "According to what I've read"
+          ]
+        },
+        {
+          "id": "definition_seeking",
+          "name": "Definition Seeking",
+          "weight": 0.25,
+          "description": "Desire for precise definitions and terminology",
+          "formula": "definition_requests / total_clarification_requests",
+          "definitions": {
+            "high": "Asks 'what exactly does X mean?'; wants precise terminology; values formal definitions",
+            "low": "Comfortable with approximate understanding; doesn't need formal definitions"
+          },
+          "markers": [
+            "What's the definition of",
+            "What exactly do you mean by",
+            "Is there a technical term for",
+            "How would you define",
+            "What's the precise meaning",
+            "Can you be more specific about what X means"
+          ]
+        },
+        {
+          "id": "structured_expression",
+          "name": "Structured Expression",
+          "weight": 0.25,
+          "description": "Use of lists, bullet points, and organized verbal structure",
+          "formula": "structured_statements / total_statements",
+          "definitions": {
+            "high": "Speaks in lists ('first... second... third'); organizes thoughts hierarchically; uses ordinals",
+            "low": "Speaks in unstructured, flowing narrative; doesn't enumerate"
+          },
+          "markers": [
+            "First of all",
+            "There are three things",
+            "To summarize",
+            "The main points are",
+            "Let me list them out",
+            "In order of importance",
+            "Number one, number two"
+          ]
+        },
+        {
+          "id": "note_taking_signals",
+          "name": "Note-Taking Signals",
+          "weight": 0.20,
+          "description": "Indicators of mental or actual note-taking during learning",
+          "formula": "note_signals / total_processing_markers",
+          "definitions": {
+            "high": "Pauses to 'write that down'; asks for spelling; wants key points summarized",
+            "low": "Doesn't pause for note-taking; processes without writing things down"
+          },
+          "markers": [
+            "Let me write that down",
+            "Can you spell that",
+            "I'm taking notes",
+            "What were the key points again",
+            "I want to jot this down",
+            "Can you summarize that",
+            "Hold on, let me get that"
+          ]
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.25,
+          "label": "Low Read/Write",
+          "implication": "Text-heavy teaching unlikely to resonate - use verbal or experiential"
+        },
+        {
+          "min": 0.25,
+          "max": 0.45,
+          "label": "Mild Read/Write",
+          "implication": "Some text reference helpful but shouldn't be primary mode"
+        },
+        {
+          "min": 0.45,
+          "max": 0.65,
+          "label": "Moderate Read/Write",
+          "implication": "Read/Write learning is significant - provide structured summaries and definitions"
+        },
+        {
+          "min": 0.65,
+          "max": 0.85,
+          "label": "Strong Read/Write",
+          "implication": "Read/Write learning is dominant - use precise terminology, lists, structured explanations"
+        },
+        {
+          "min": 0.85,
+          "max": 1.0,
+          "label": "Highly Read/Write",
+          "implication": "Text-based processing is primary mode - structure everything as organized prose/lists"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "I don't want to read a bunch of stuff. Can you just explain it to me or show me how to do it?",
+          "rationale": "Explicitly rejects text-based learning; prefers verbal or experiential",
+          "isGold": true
+        },
+        {
+          "score": 0.35,
+          "example": "Sure, I could look at an article about it, but honestly I'd rather just talk it through.",
+          "rationale": "Open to text but not preferred; verbal learning more natural",
+          "isGold": true
+        },
+        {
+          "score": 0.55,
+          "example": "That's helpful. Can you give me a quick summary of the main points? I want to make sure I've got them written down correctly.",
+          "rationale": "Wants structured summary; taking notes; values written record",
+          "isGold": true
+        },
+        {
+          "score": 0.75,
+          "example": "What's the formal definition of that term? I want to make sure I understand exactly what it means. And is there a book or article you'd recommend where I can read more?",
+          "rationale": "Seeks precise definitions; references text sources; values formal terminology",
+          "isGold": true
+        },
+        {
+          "score": 0.92,
+          "example": "Let me organize this. So there are three main concepts: first, [X], which is defined as... second, [Y], meaning... and third, [Z]. Is that the right structure? I like to have it written out systematically before I really feel like I understand it.",
+          "rationale": "Deep read/write processing; creates structured lists; needs organized text representation to learn",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "This learner is highly text-oriented. Provide precise definitions and formal terminology. Structure explanations as lists with clear hierarchies. Offer summaries and key points. Use phrases like 'to define this precisely' and 'the three main elements are'. Recommend reading resources.",
+        "whenLow": "This learner doesn't prefer text-based processing. Don't overwhelm with lists or formal definitions. Use conversational explanation or experiential examples.",
+        "whenMedium": "Provide some structure and definitions, but balance with verbal and experiential elements. Offer to summarize key points.",
+        "promptTemplate": "{{#if (gte reading_writing_modality 0.65)}}Use precise definitions and structured lists with this Read/Write learner. Organize information hierarchically. Offer summaries and recommend reading resources.{{else if (lte reading_writing_modality 0.3)}}Keep it conversational - this learner doesn't need formal definitions or extensive text structure.{{/if}}"
+      },
+      "usedBy": [
+        "AC-VARK-003"
+      ]
+    },
+    {
+      "id": "VARK-K",
+      "name": "kinesthetic_modality",
+      "description": "Kinesthetic learning preference - processing information through physical experience, practice, emotions, and embodied understanding",
+      "section": "VARK Modalities",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "0.30 * experiential_language + 0.25 * action_orientation + 0.25 * feeling_references + 0.20 * practice_requests",
+      "subMetrics": [
+        {
+          "id": "experiential_language",
+          "name": "Experiential Language Use",
+          "weight": 0.30,
+          "description": "Frequency of touch, feel, and physical experience language",
+          "formula": "kinesthetic_terms / total_descriptive_terms",
+          "definitions": {
+            "high": "Uses 'I feel', 'that hits home', 'grasp this', 'get a handle on', 'hands-on'",
+            "low": "Rarely uses physical/feeling language; prefers abstract or sensory-specific terms"
+          },
+          "markers": [
+            "That feels right",
+            "I need to get a handle on this",
+            "Let me grasp this",
+            "That really hits home",
+            "I'm struggling to hold onto this concept",
+            "That's a heavy topic",
+            "I want to get my hands on",
+            "This is hard to wrap my head around",
+            "That strikes me as",
+            "I sense that"
+          ]
+        },
+        {
+          "id": "action_orientation",
+          "name": "Action Orientation",
+          "weight": 0.25,
+          "description": "Preference for doing, trying, and active engagement",
+          "formula": "action_expressions / total_learning_expressions",
+          "definitions": {
+            "high": "Wants to 'try it out', 'do something', 'practice'; prefers action over passive learning",
+            "low": "Comfortable with passive reception; doesn't need to 'do' to learn"
+          },
+          "markers": [
+            "Can I try it",
+            "Let me do it myself",
+            "I learn by doing",
+            "Can we practice this",
+            "I need to apply this",
+            "Show me so I can try",
+            "Hands-on is how I learn",
+            "I won't really get it until I do it"
+          ]
+        },
+        {
+          "id": "feeling_references",
+          "name": "Feeling/Emotion References",
+          "weight": 0.25,
+          "description": "Connection of learning to emotional or gut-level understanding",
+          "formula": "feeling_expressions / total_expressions",
+          "definitions": {
+            "high": "References how things 'feel'; gut reactions; emotional connection to learning",
+            "low": "Focuses on logical understanding without emotional/feeling component"
+          },
+          "markers": [
+            "I have a gut feeling",
+            "Something feels off about",
+            "I'm getting frustrated with",
+            "This is exciting",
+            "I feel like I'm getting it",
+            "My intuition says",
+            "That doesn't sit right with me",
+            "I'm emotionally invested in"
+          ]
+        },
+        {
+          "id": "practice_requests",
+          "name": "Practice/Application Requests",
+          "weight": 0.20,
+          "description": "Requests for practical application, exercises, or real-world examples",
+          "formula": "practice_requests / total_learning_requests",
+          "definitions": {
+            "high": "Asks 'how do I use this?', wants practice problems, real-world applications",
+            "low": "Satisfied with theoretical understanding; doesn't need practice"
+          },
+          "markers": [
+            "How do I apply this",
+            "Can you give me a practice problem",
+            "What does this look like in real life",
+            "I need to work through an example",
+            "Let me try with a real case",
+            "When would I actually use this"
+          ]
+        }
+      ],
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.25,
+          "label": "Low Kinesthetic",
+          "implication": "Experiential approaches may not be necessary - theoretical explanation works"
+        },
+        {
+          "min": 0.25,
+          "max": 0.45,
+          "label": "Mild Kinesthetic",
+          "implication": "Some practical application helpful but not primary learning mode"
+        },
+        {
+          "min": 0.45,
+          "max": 0.65,
+          "label": "Moderate Kinesthetic",
+          "implication": "Kinesthetic learning is significant - include practice and real-world examples"
+        },
+        {
+          "min": 0.65,
+          "max": 0.85,
+          "label": "Strong Kinesthetic",
+          "implication": "Kinesthetic learning is dominant - ground in experience and action"
+        },
+        {
+          "min": 0.85,
+          "max": 1.0,
+          "label": "Highly Kinesthetic",
+          "implication": "Experiential processing is primary mode - everything through doing and feeling"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "I don't need to practice it. Just explain the concept and I'll understand the theory.",
+          "rationale": "Explicitly doesn't need experiential learning; comfortable with abstract understanding",
+          "isGold": true
+        },
+        {
+          "score": 0.35,
+          "example": "I think I understand. Maybe I'll try it out later, but for now the explanation is enough.",
+          "rationale": "Open to practice eventually but doesn't need it to learn; theory-first approach",
+          "isGold": true
+        },
+        {
+          "score": 0.55,
+          "example": "Okay, that makes sense. But can you give me a real example I can work through? I want to feel like I can actually do this.",
+          "rationale": "Wants practical application; uses feeling language; needs to 'do' to internalize",
+          "isGold": true
+        },
+        {
+          "score": 0.75,
+          "example": "I really need to try this myself. I learn by doing, not by listening. Can we work through a hands-on example together? I won't really get it until I feel it click.",
+          "rationale": "Explicitly kinesthetic; action-oriented; feeling-based understanding",
+          "isGold": true
+        },
+        {
+          "score": 0.92,
+          "example": "Let me just dive in and try it. I know I'll make mistakes but that's how I learn - I need to feel my way through it. The theory doesn't land for me until I've gotten my hands dirty and experienced what works and what doesn't. Can we do something active?",
+          "rationale": "Deep kinesthetic processing; learns through trial and physical/emotional experience; needs action",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "This learner is highly kinesthetic. Ground everything in practical application and real-world examples. Use action verbs and physical metaphors. Ask 'how does that feel?' Connect concepts to bodily or emotional experience. Offer practice exercises and simulated scenarios.",
+        "whenLow": "This learner doesn't need experiential learning. Theoretical explanation is effective. Don't force action-oriented approaches if they're comfortable with abstraction.",
+        "whenMedium": "Include practical examples and some hands-on elements, but balance with other modalities. Offer to work through applications when it would help.",
+        "promptTemplate": "{{#if (gte kinesthetic_modality 0.65)}}Use action and experience with this kinesthetic learner. Ground concepts in practical application. Ask 'how does that feel?' Use physical metaphors and offer practice exercises.{{else if (lte kinesthetic_modality 0.3)}}Theoretical explanation works well - this learner doesn't need extensive practice to understand.{{/if}}"
+      },
+      "usedBy": [
+        "AC-VARK-004"
+      ]
+    },
+    {
+      "id": "VARK-PROFILE",
+      "name": "multimodal_profile",
+      "description": "Classification of learner's multimodal profile based on relative strengths across all four modalities",
+      "section": "VARK Profile",
+      "targetRange": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "formula": "Computed from relative strengths: count(modalities >= 0.55)",
+      "interpretationScale": [
+        {
+          "min": 0.0,
+          "max": 0.25,
+          "label": "Unimodal",
+          "implication": "Single dominant modality - strongly favor that approach"
+        },
+        {
+          "min": 0.25,
+          "max": 0.5,
+          "label": "Bimodal",
+          "implication": "Two strong modalities - blend both approaches"
+        },
+        {
+          "min": 0.5,
+          "max": 0.75,
+          "label": "Trimodal",
+          "implication": "Three strong modalities - use multiple approaches"
+        },
+        {
+          "min": 0.75,
+          "max": 1.0,
+          "label": "Quadmodal",
+          "implication": "All modalities strong - vary approaches freely"
+        }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "Profile: V=0.85, A=0.30, R=0.25, K=0.20",
+          "rationale": "Strong single modality (Visual); unimodal profile",
+          "isGold": true
+        },
+        {
+          "score": 0.40,
+          "example": "Profile: V=0.75, A=0.70, R=0.35, K=0.30",
+          "rationale": "Two strong modalities (Visual + Auditory); bimodal VA profile",
+          "isGold": true
+        },
+        {
+          "score": 0.65,
+          "example": "Profile: V=0.70, A=0.65, R=0.60, K=0.35",
+          "rationale": "Three strong modalities (VAR); trimodal profile",
+          "isGold": true
+        },
+        {
+          "score": 0.90,
+          "example": "Profile: V=0.70, A=0.65, R=0.60, K=0.55",
+          "rationale": "All modalities above threshold; quadmodal/Type Two profile",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "This learner is multimodal and processes well through multiple channels. Vary your approach - visual metaphors, verbal elaboration, structured summaries, and practical examples. Match the moment.",
+        "whenLow": "This learner has a dominant modality. Focus primarily on their strongest channel and use others as supplements.",
+        "whenMedium": "Blend 2-3 modalities based on relative strengths. Lead with strongest, support with secondary.",
+        "promptTemplate": "{{#if (gte multimodal_profile 0.75)}}This quadmodal learner processes through all channels - vary your approach: visuals, discussion, lists, and practice.{{else if (lte multimodal_profile 0.25)}}This unimodal learner has one clear preference - focus on their dominant modality.{{else}}Blend multiple approaches, leading with strongest modalities.{{/if}}"
+      },
+      "usedBy": [
+        "AC-VARK-005"
+      ]
+    }
+  ],
+  "workedExamples": [
+    {
+      "paramId": "VARK-V",
+      "description": "Calculating visual modality for a learner who thinks in spatial metaphors",
+      "input": "Learner frequently uses phrases like 'I see', 'picture this', asks to visualize connections between concepts, and creates mental maps",
+      "calculations": [
+        {
+          "subMetric": "visual_language",
+          "formula": "visual_terms=12 / total_descriptive=25 = 0.48",
+          "result": 0.48
+        },
+        {
+          "subMetric": "spatial_reasoning",
+          "formula": "spatial_references=8 / total=15 = 0.53",
+          "result": 0.53
+        },
+        {
+          "subMetric": "visualization_requests",
+          "formula": "viz_requests=3 / clarification=5 = 0.60",
+          "result": 0.60
+        },
+        {
+          "subMetric": "imagery_engagement",
+          "formula": "responded_positively=4 / visual_prompts=5 = 0.80",
+          "result": 0.80
+        }
+      ],
+      "finalResult": {
+        "value": 0.57,
+        "interpretation": "Moderate Visual - include mental imagery and spatial organization"
+      }
+    },
+    {
+      "paramId": "VARK-K",
+      "description": "Calculating kinesthetic modality for a hands-on learner",
+      "input": "Learner says 'I learn by doing', asks for practice problems, uses feeling language, and gets frustrated with pure theory",
+      "calculations": [
+        {
+          "subMetric": "experiential_language",
+          "formula": "kinesthetic_terms=15 / total=30 = 0.50",
+          "result": 0.50
+        },
+        {
+          "subMetric": "action_orientation",
+          "formula": "action_expressions=8 / total=10 = 0.80",
+          "result": 0.80
+        },
+        {
+          "subMetric": "feeling_references",
+          "formula": "feeling_expr=10 / total=15 = 0.67",
+          "result": 0.67
+        },
+        {
+          "subMetric": "practice_requests",
+          "formula": "practice_req=4 / total_requests=6 = 0.67",
+          "result": 0.67
+        }
+      ],
+      "finalResult": {
+        "value": 0.67,
+        "interpretation": "Strong Kinesthetic - ground in experience and action"
+      }
+    }
+  ],
+  "related": [
+    {
+      "id": "PERS-001",
+      "title": "Big Five Personality Assessment",
+      "relationship": "dependsOn - personality baseline affects modality expression interpretation"
+    },
+    {
+      "id": "LEARN-STYLE-001",
+      "title": "Learning Style Detection",
+      "relationship": "complements - VARK is modality-focused, LEARN-STYLE captures pace and interaction preferences"
+    },
+    {
+      "id": "CA-001",
+      "title": "Cognitive Activation Assessment",
+      "relationship": "informs - cognitive engagement affects modality responsiveness"
+    },
+    {
+      "id": "ADAPT-LEARN-001",
+      "title": "Learner Profile Adaptation",
+      "relationship": "consumedBy - VARK scores feed into learner profile for adaptation"
+    },
+    {
+      "id": "COMP-001",
+      "title": "Prompt Composition",
+      "relationship": "consumedBy - VARK guidance injected into prompts"
+    }
+  ],
+  "specRole": "EXTRACT"
+}

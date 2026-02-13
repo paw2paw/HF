@@ -98,7 +98,7 @@ describe('POST /api/callers', () => {
 ### 3. BDD Feature Tests
 **Purpose:** Test user workflows in business-readable format
 **Tool:** Cucumber (planned)
-**Location:** `bdd-specs/`
+**Location:** `docs-archive/bdd-specs/`
 
 **What to test:**
 - Complete user workflows

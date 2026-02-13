@@ -17,10 +17,10 @@
  * This is the first step in the post-call reward loop.
  */
 
-import { PrismaClient, AnalysisOutputType } from "@prisma/client";
+import { AnalysisOutputType } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { PARAMS } from "@/lib/registry";
-
-const prisma = new PrismaClient();
+import { getPipelineGates } from "@/lib/system-settings";
 
 // Config loaded from MEASURE_AGENT spec
 interface MeasureAgentConfig {
@@ -64,16 +64,34 @@ const DEFAULT_MEASURE_CONFIG: MeasureAgentConfig = {
   },
 };
 
-// Cached config and prompt template
+// Default prompt template for LLM scoring
+const DEFAULT_MEASURE_PROMPT = `Analyze this call transcript for the agent behavior parameter: {{parameterId}}
+
+Score how well the agent demonstrated this behavior from 0.0 to 1.0.
+- 0.0 = behavior completely absent
+- 0.5 = moderate demonstration
+- 1.0 = exemplary demonstration
+
+TRANSCRIPT:
+{{transcript}}
+
+Return a JSON object with:
+- "actualValue": number 0.0-1.0 (the score)
+- "confidence": number 0.0-1.0 (how confident you are in this score)
+- "evidence": string[] (specific quotes or observations supporting the score)
+- "reasoning": string (brief explanation of scoring rationale)`;
+
+// Cached config, prompt template, and llmConfig
 let cachedMeasureConfig: MeasureAgentConfig | null = null;
 let cachedPromptTemplate: string | null = null;
+let cachedLlmConfig: any = null;
 
 /**
  * Load MEASURE_AGENT spec config from database
  */
-async function loadMeasureConfig(): Promise<{ config: MeasureAgentConfig; promptTemplate: string | null }> {
+async function loadMeasureConfig(): Promise<{ config: MeasureAgentConfig; promptTemplate: string | null; llmConfig: any }> {
   if (cachedMeasureConfig) {
-    return { config: cachedMeasureConfig, promptTemplate: cachedPromptTemplate };
+    return { config: cachedMeasureConfig, promptTemplate: cachedPromptTemplate, llmConfig: cachedLlmConfig };
   }
 
   const spec = await prisma.analysisSpec.findFirst({
@@ -85,7 +103,7 @@ async function loadMeasureConfig(): Promise<{ config: MeasureAgentConfig; prompt
   });
 
   if (!spec?.config) {
-    return { config: DEFAULT_MEASURE_CONFIG, promptTemplate: null };
+    return { config: DEFAULT_MEASURE_CONFIG, promptTemplate: null, llmConfig: {} };
   }
 
   const config = spec.config as any;
@@ -107,8 +125,9 @@ async function loadMeasureConfig(): Promise<{ config: MeasureAgentConfig; prompt
     },
   };
   cachedPromptTemplate = spec.promptTemplate || null;
+  cachedLlmConfig = config.llmConfig || {};
 
-  return { config: cachedMeasureConfig, promptTemplate: cachedPromptTemplate };
+  return { config: cachedMeasureConfig, promptTemplate: cachedPromptTemplate, llmConfig: cachedLlmConfig };
 }
 
 interface MeasureAgentOptions {
@@ -217,7 +236,7 @@ export async function measureAgent(
   const {
     verbose = false,
     plan = false,
-    mock = true, // Default to mock for now
+    mock = false, // LLM is default; use --mock to opt in to mock mode
     callId,
     limit = 100,
     specSlug,
@@ -232,7 +251,7 @@ export async function measureAgent(
   };
 
   // Load config from MEASURE_AGENT spec
-  const { config, promptTemplate } = await loadMeasureConfig();
+  const { config, promptTemplate, llmConfig } = await loadMeasureConfig();
   if (verbose && promptTemplate) {
     console.log("Loaded MEASURE_AGENT spec with prompt template");
   }
@@ -303,8 +322,20 @@ export async function measureAgent(
     return result;
   }
 
+  // Load transcript length gates
+  const gates = await getPipelineGates();
+
   // 3. Process each call
   for (const call of calls) {
+    // Transcript length gate
+    const wordCount = (call.transcript || "").trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount < gates.minTranscriptWords) {
+      if (verbose) console.log(`Call ${call.id} skipped - transcript too short (${wordCount} words < ${gates.minTranscriptWords})`);
+      continue;
+    }
+    const isShort = wordCount < gates.shortTranscriptThresholdWords;
+    const confidenceCap = isShort ? gates.shortTranscriptConfidenceCap : 1.0;
+
     const existingMeasurements = new Set(
       call.behaviorMeasurements.map(m => m.parameterId)
     );
@@ -331,11 +362,70 @@ export async function measureAgent(
         if (mock) {
           measurement = mockScoreBehavior(parameterId, call.transcript, config);
         } else {
-          // TODO: Implement LLM-based scoring using promptTemplate
-          // Would render the template with parameter info and transcript,
-          // then call LLM and parse JSON response
-          measurement = mockScoreBehavior(parameterId, call.transcript, config);
+          // LLM scoring — config from MEASURE_AGENT spec
+          try {
+            const { getConfiguredMeteredAICompletion } = await import("@/lib/metering/instrumented-ai");
+            const { recoverBrokenJson } = await import("@/lib/utils/json-recovery");
+
+            const maxTokens = llmConfig.maxTokens || 512;
+            const temperature = llmConfig.temperature || 0.2;
+            const transcriptLimit = llmConfig.transcriptTruncateLength || 4000;
+            const systemPrompt = llmConfig.systemPrompt ||
+              "You are an expert at evaluating conversational AI agent behavior. Score precisely. Return valid JSON only.";
+
+            // Render prompt template
+            const template = promptTemplate || DEFAULT_MEASURE_PROMPT;
+            const rendered = template
+              .replace(/\{\{parameterId\}\}/g, parameterId)
+              .replace(/\{\{transcript\}\}/g, call.transcript.substring(0, transcriptLimit));
+
+            const fullPrompt = rendered + `\n\nRespond ONLY with a JSON object. No markdown, no explanation.`;
+
+            if (verbose) {
+              console.log(`  [LLM] Scoring ${parameterId} (maxTokens=${maxTokens}, temp=${temperature})`);
+            }
+
+            // @ai-call pipeline.score_agent — Score agent behavior from transcript | config: /x/ai-config
+            const aiResult = await getConfiguredMeteredAICompletion({
+              callPoint: "pipeline.score_agent",
+              engineOverride: (llmConfig.engine as any) || undefined,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: fullPrompt },
+              ],
+              maxTokens,
+              temperature,
+            }, { sourceOp: "measure:agent" });
+
+            const { parsed, recovered } = recoverBrokenJson<any>(aiResult.content, "measure:agent");
+            if (recovered && verbose) {
+              console.log(`  JSON recovery applied for ${parameterId}`);
+            }
+
+            measurement = {
+              parameterId,
+              actualValue: Math.max(0, Math.min(1, parsed.actualValue ?? parsed.score ?? 0.5)),
+              confidence: Math.max(0, Math.min(1, parsed.confidence ?? 0.7)),
+              evidence: Array.isArray(parsed.evidence) ? parsed.evidence : ["AI analysis"],
+            };
+          } catch (err: any) {
+            if (verbose) console.warn(`  LLM failed for ${parameterId}: ${err.message}, using mock`);
+            // Log failure for dashboard visibility
+            import("@/lib/ai/knowledge-accumulation").then(({ logAIInteraction }) => {
+              logAIInteraction({
+                callPoint: "pipeline.measure_agent",
+                userMessage: `Measure ${parameterId} for call ${call.id}`,
+                aiResponse: err.message,
+                outcome: "failure",
+                metadata: { action: "measure", entityType: "parameter", entityId: parameterId },
+              });
+            }).catch(() => {});
+            measurement = mockScoreBehavior(parameterId, call.transcript, config);
+          }
         }
+
+        // Apply confidence cap for short transcripts
+        measurement.confidence = Math.min(measurement.confidence, confidenceCap);
 
         // Store the measurement
         await prisma.behaviorMeasurement.upsert({
@@ -350,7 +440,7 @@ export async function measureAgent(
             confidence: measurement.confidence,
             evidence: measurement.evidence,
             measuredAt: new Date(),
-            measuredBy: mock ? "mock_v1" : "llm_v1",
+            measuredBy: mock ? "mock_v1" : (llmConfig.engine || "claude"),
           },
           create: {
             callId: call.id,
@@ -358,7 +448,7 @@ export async function measureAgent(
             actualValue: measurement.actualValue,
             confidence: measurement.confidence,
             evidence: measurement.evidence,
-            measuredBy: mock ? "mock_v1" : "llm_v1",
+            measuredBy: mock ? "mock_v1" : (llmConfig.engine || "claude"),
           },
         });
 
@@ -397,7 +487,7 @@ if (require.main === module) {
   const options: MeasureAgentOptions = {
     verbose: args.includes("--verbose") || args.includes("-v"),
     plan: args.includes("--plan"),
-    mock: !args.includes("--llm"),
+    mock: args.includes("--mock"),
     limit: parseInt(args.find(a => a.startsWith("--limit="))?.split("=")[1] || "100"),
     callId: args.find(a => a.startsWith("--call="))?.split("=")[1],
     specSlug: args.find(a => a.startsWith("--spec="))?.split("=")[1],
@@ -412,7 +502,7 @@ if (require.main === module) {
       console.error("Fatal error:", err);
       process.exit(1);
     })
-    .finally(() => prisma.$disconnect());
+;
 }
 
 export default measureAgent;

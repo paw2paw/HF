@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 // Path to .env.local (where secrets should live - not committed to git)
 const ENV_PATH = path.join(process.cwd(), ".env.local");
@@ -96,8 +97,19 @@ function writeEnvFile(updates: Record<string, string>): void {
   fs.writeFileSync(ENV_PATH, newLines.join("\n"));
 }
 
-// GET - Return key status for all providers
+/**
+ * @api GET /api/ai-keys
+ * @visibility internal
+ * @scope ai-keys:read
+ * @auth session
+ * @tags ai
+ * @description Return API key status for all configured AI providers. Keys are masked for display; shows whether each key comes from .env file or runtime environment.
+ * @response 200 { ok: true, keys: { claude: { envVar, configured, masked, fromEnv }, ... }, envPath: "..." }
+ */
 export async function GET() {
+  const authResult = await requireAuth("ADMIN");
+  if (isAuthError(authResult)) return authResult.error;
+
   const envVars = readEnvFile();
 
   const keyStatus: Record<string, {
@@ -128,9 +140,24 @@ export async function GET() {
   });
 }
 
-// POST - Save a key to .env file
+/**
+ * @api POST /api/ai-keys
+ * @visibility internal
+ * @scope ai-keys:write
+ * @auth bearer
+ * @tags ai
+ * @description Save an API key for a provider to the .env.local file. Requires server restart to take effect.
+ * @body provider string - AI provider name (e.g. "claude", "openai")
+ * @body key string - The API key value
+ * @response 200 { ok: true, message: "Saved ... to .env. Restart the server to apply.", envVar: "...", masked: "..." }
+ * @response 400 { ok: false, error: "Provider and key are required" }
+ * @response 500 { ok: false, error: "Failed to save API key" }
+ */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { provider, key } = body;
 
@@ -167,9 +194,23 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Remove a key from .env file
+/**
+ * @api DELETE /api/ai-keys
+ * @visibility internal
+ * @scope ai-keys:write
+ * @auth bearer
+ * @tags ai
+ * @description Remove an API key for a provider from the .env.local file. Requires server restart to take effect.
+ * @query provider string - AI provider name (e.g. "claude", "openai")
+ * @response 200 { ok: true, message: "Removed ... from .env. Restart the server to apply." }
+ * @response 400 { ok: false, error: "Provider is required" }
+ * @response 500 { ok: false, error: "Failed to delete API key" }
+ */
 export async function DELETE(request: NextRequest) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get("provider");
 

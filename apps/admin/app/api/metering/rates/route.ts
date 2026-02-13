@@ -7,18 +7,27 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { UsageCategory } from "@prisma/client";
 import { getDefaultRates, clearRateCache } from "@/lib/metering/cost-config";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/metering/rates
- *
- * List all cost rates (database entries + defaults).
+ * @api GET /api/metering/rates
+ * @visibility internal
+ * @scope metering:read
+ * @auth session
+ * @tags metering
+ * @description List all cost rates merged from database entries and defaults
+ * @response 200 { ok: true, rates: CostRate[], dbRatesCount: number, defaultRatesCount: number }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     // Get database rates
     const dbRates = await prisma.usageCostRate.findMany({
       where: {
@@ -100,12 +109,27 @@ export async function GET() {
 }
 
 /**
- * POST /api/metering/rates
- *
- * Create or update a cost rate.
+ * @api POST /api/metering/rates
+ * @visibility internal
+ * @scope metering:read
+ * @auth session
+ * @tags metering
+ * @description Create or update a cost rate (expires existing rate and creates new one)
+ * @body category string - Usage category (AI, DATABASE, COMPUTE, STORAGE, EXTERNAL)
+ * @body operation string - Optional operation name
+ * @body costPerUnit number - Cost per unit in cents
+ * @body unitType string - Unit type (e.g. "tokens", "bytes")
+ * @body description string - Optional description
+ * @response 200 { ok: true, rate: UsageCostRate, previousRateExpired: boolean }
+ * @response 400 { ok: false, error: "category, costPerUnit, and unitType are required" }
+ * @response 400 { ok: false, error: "Invalid category..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
 
     const { category, operation, costPerUnit, unitType, description } = body;

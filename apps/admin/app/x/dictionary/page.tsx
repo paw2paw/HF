@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { FancySelect } from "@/components/shared/FancySelect";
+import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
+import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 
 type XRef = {
   id: string;
@@ -16,6 +18,16 @@ type XRef = {
 export default function DictionaryPage() {
   const [search, setSearch] = useState("");
   const [filterSource, setFilterSource] = useState("");
+
+  // AI Assistant
+  const assistant = useAssistant({
+    defaultTab: "chat",
+    layout: "popout",
+    enabledTabs: ["chat", "data"],
+  });
+
+  // Keyboard shortcut for assistant
+  useAssistantKeyboardShortcut(assistant.toggle);
 
   const { data: xrefs, loading, error } = useApi<XRef[]>(
     "/api/data-dictionary/xrefs",
@@ -40,11 +52,35 @@ export default function DictionaryPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Data Dictionary</h1>
-        <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-          Cross-references and variables available in prompt templates
-        </p>
+      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Data Dictionary</h1>
+          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+            Cross-references and variables available in prompt templates
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            assistant.open(undefined, { page: "/x/dictionary" });
+          }}
+          style={{
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 500,
+            background: "rgba(139, 92, 246, 0.1)",
+            color: "#8b5cf6",
+            border: "1px solid rgba(139, 92, 246, 0.2)",
+            borderRadius: 6,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+          }}
+          title="Ask AI Assistant (Cmd+Shift+K)"
+        >
+          ✨ Ask AI
+        </button>
       </div>
 
       {/* Filters */}
@@ -124,6 +160,15 @@ export default function DictionaryPage() {
             ))}
         </div>
       )}
+
+      {/* AI Assistant */}
+      <UnifiedAssistantPanel
+        visible={assistant.isOpen}
+        onClose={assistant.close}
+        context={assistant.context}
+        location={assistant.location}
+        {...assistant.options}
+      />
     </div>
   );
 }

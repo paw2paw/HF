@@ -1,0 +1,187 @@
+{
+  "id": "DEMO-HARNESS-001",
+  "title": "Run a Controlled Test Conversation",
+  "subtitle": "Use the test harness for structured testing with full transcript inspection and turn-by-turn analysis",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["evaluator", "developer"],
+  "estimatedMinutes": 4,
+  "icon": "\ud83d\udd2c",
+  "story": {
+    "asA": "evaluator or developer",
+    "iWant": "to run structured test conversations with full transcript inspection",
+    "soThat": "I can verify system behavior in a controlled environment"
+  },
+  "objectives": [
+    "Use the test harness for structured testing",
+    "Select domain and caller for targeted testing",
+    "Observe real-time conversation streaming",
+    "Inspect turn-by-turn transcript details"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "The test harness gives you a controlled environment for testing conversations. Unlike the simulator, it provides full transcript inspection, turn-by-turn detail views, and systematic testing controls.",
+      "content": {
+        "type": "markdown",
+        "body": "# Run a Controlled Test Conversation\n\nThe **Test Harness** is your controlled testing environment. It differs from the Simulator in important ways:\n\n## Harness vs. Simulator\n\n| Feature | Simulator | Test Harness |\n|---------|-----------|-------------|\n| Purpose | Quick testing | Systematic verification |\n| Transcript view | Basic chat | Turn-by-turn inspection |\n| Control | Conversational | Structured steps |\n| Audience | Operators | Evaluators & developers |\n\n## What you'll do\n\n1. **Select a domain** and caller to test against\n2. **Send messages** and observe streaming responses\n3. **Inspect transcripts** at the turn level\n4. **Verify behavior** matches expectations\n\n## Time: ~4 minutes\n\nUse **arrow keys** to navigate."
+      },
+      "reason": "Understanding the difference between the harness and the simulator helps testers choose the right tool for the job.",
+      "goal": "Orient the viewer on what the test harness is and when to use it",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Test Harness demo",
+        "relatedConcepts": ["test harness", "simulator", "conversation testing", "transcript inspection"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "open-test-harness",
+      "title": "Open Test Harness",
+      "description": "Navigate to the Test Harness page from the sidebar. It lives in the System section and is designed for developers and evaluators who need structured testing.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-HARNESS-001/02-open-test-harness.png",
+        "alt": "Sidebar with Test Harness highlighted",
+        "annotations": [
+          { "x": "8%", "y": "68%", "label": "Test Harness", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "The test harness is a developer-facing tool located in the System section, separate from the operator-facing Simulator.",
+      "sidebarHighlight": { "href": "/x/test-harness", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Sidebar navigation",
+        "action": "Navigating to the Test Harness page",
+        "relatedConcepts": ["sidebar navigation", "test harness", "system tools"],
+        "assistantLocation": { "page": "/x/test-harness", "action": "navigate" }
+      }
+    },
+    {
+      "id": "select-domain",
+      "title": "Select Domain",
+      "description": "Choose which domain to test. The domain determines which specs, playbook, and content are active during the conversation.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-HARNESS-001/03-select-domain.png",
+        "alt": "Test harness domain selection dropdown",
+        "annotations": [
+          { "x": "35%", "y": "25%", "label": "Domain selector", "direction": "right", "highlight": true },
+          { "x": "35%", "y": "45%", "label": "Active domains listed", "direction": "right" }
+        ]
+      },
+      "reason": "Domain selection determines which AI configuration runs. Testing against the wrong domain will give misleading results.",
+      "tips": [
+        { "type": "tip", "message": "Only active domains with published playbooks appear in the selector" }
+      ],
+      "sidebarHighlight": { "href": "/x/test-harness", "type": "glow" },
+      "aiContext": {
+        "currentView": "Test harness page with domain selector open",
+        "action": "Selecting a domain to test against",
+        "relatedConcepts": ["domain selection", "published playbooks", "domain configuration"],
+        "assistantLocation": { "page": "/x/test-harness", "action": "select-domain" }
+      }
+    },
+    {
+      "id": "select-caller",
+      "title": "Select Caller",
+      "description": "Pick an existing test caller or create a new one. The caller determines the personality profile and conversation history context.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-HARNESS-001/04-select-caller.png",
+        "alt": "Test harness caller selection panel",
+        "annotations": [
+          { "x": "35%", "y": "35%", "label": "Existing callers", "direction": "right" },
+          { "x": "70%", "y": "15%", "label": "Create new caller", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Using a fresh caller gives you a clean slate. Using an existing caller lets you test how the system adapts to established profiles.",
+      "tips": [
+        { "type": "best-practice", "message": "Create a new caller for regression tests; use existing callers to verify adaptation" }
+      ],
+      "sidebarHighlight": { "href": "/x/test-harness", "type": "glow" },
+      "aiContext": {
+        "currentView": "Test harness caller selection panel",
+        "action": "Selecting or creating a test caller",
+        "relatedConcepts": ["caller profiles", "personality adaptation", "conversation history", "test isolation"],
+        "assistantLocation": { "page": "/x/test-harness", "action": "select-caller" }
+      }
+    },
+    {
+      "id": "start-conversation",
+      "title": "Start Conversation",
+      "description": "Send a message to start the test conversation. Watch the AI response stream in real time, with the full pipeline running behind the scenes.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-HARNESS-001/05-start-conversation.png",
+        "alt": "Test harness with a conversation in progress showing streaming response",
+        "annotations": [
+          { "x": "50%", "y": "80%", "label": "Type your message", "direction": "up", "highlight": true },
+          { "x": "50%", "y": "40%", "label": "Streaming response", "direction": "down" }
+        ]
+      },
+      "reason": "The harness runs the full pipeline (measure, adapt, compose) just like production. The streaming view lets you observe response generation in real time.",
+      "sidebarHighlight": { "href": "/x/test-harness", "type": "glow" },
+      "aiContext": {
+        "currentView": "Test harness with active conversation showing streaming response",
+        "action": "Sending a message and observing the streaming AI response",
+        "relatedConcepts": ["streaming response", "pipeline execution", "measure stage", "compose stage", "real-time testing"],
+        "assistantLocation": { "page": "/x/test-harness", "action": "converse" }
+      }
+    },
+    {
+      "id": "inspect-transcript",
+      "title": "Inspect Transcript",
+      "description": "Open the transcript inspector to see every turn in detail. Each message shows the role (system, caller, assistant), timestamps, and pipeline metadata.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-HARNESS-001/06-inspect-transcript.png",
+        "alt": "Transcript inspector showing turn-by-turn details with roles and metadata",
+        "annotations": [
+          { "x": "20%", "y": "25%", "label": "System message", "direction": "right" },
+          { "x": "20%", "y": "45%", "label": "Caller message", "direction": "right" },
+          { "x": "20%", "y": "65%", "label": "Assistant response", "direction": "right" },
+          { "x": "75%", "y": "45%", "label": "Turn metadata", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Transcript inspection is what makes the harness valuable for debugging. You can see exactly what the system prompt contained, what was measured, and how the response was composed.",
+      "tips": [
+        { "type": "tip", "message": "Click any turn to expand its full metadata: pipeline outputs, parameter scores, and timing" }
+      ],
+      "sidebarHighlight": { "href": "/x/test-harness", "type": "glow" },
+      "aiContext": {
+        "currentView": "Transcript inspector showing turn-by-turn message details",
+        "action": "Inspecting conversation transcript with roles, timestamps, and pipeline metadata",
+        "relatedConcepts": ["transcript inspection", "turn metadata", "system prompt", "pipeline outputs", "debugging"],
+        "assistantLocation": { "page": "/x/test-harness", "action": "inspect" }
+      },
+      "durationOverrideSec": 18
+    },
+    {
+      "id": "summary",
+      "title": "Done!",
+      "description": "You now know how to run controlled test conversations with full inspection capabilities.",
+      "content": {
+        "type": "markdown",
+        "body": "# Controlled Testing Complete\n\nYou've learned how to use the Test Harness for systematic conversation testing:\n\n- \u2705 **Selected a domain** for targeted testing\n- \u2705 **Chose a caller** with the right profile context\n- \u2705 **Ran a conversation** with real-time streaming\n- \u2705 **Inspected the transcript** turn by turn\n\n## When to Use What\n\n| Tool | Best For |\n|------|----------|\n| **Simulator** | Quick operator testing, caller experience preview |\n| **Test Harness** | Structured testing, transcript debugging, regression checks |\n| **Pipeline Inspector** | Understanding pipeline stage outputs and data flow |\n\n## Next Steps\n\n1. **Run regression tests** \u2014 Create test callers for each key scenario\n2. **Compare responses** \u2014 Test the same prompts across different domains\n3. **Check adaptation** \u2014 Send multiple messages and verify personality adaptation\n\n## Related Demos\n\n- *Understand the Pipeline Architecture* (DEMO-PIPELINE-001)\n- *Create a Custom Spec* (DEMO-SPEC-001)\n- *Launch a Domain in Under 5 Minutes* (DEMO-QUICK-001)"
+      },
+      "reason": "Understanding when to use the harness versus the simulator versus the pipeline inspector helps testers work efficiently.",
+      "goal": "Summarize harness capabilities and guide to related tools",
+      "aiContext": {
+        "currentView": "Demo summary and next steps",
+        "action": "Completed the Test Harness demo",
+        "relatedConcepts": ["test harness", "simulator comparison", "regression testing", "pipeline inspector"]
+      },
+      "durationOverrideSec": 15
+    }
+  ]
+}

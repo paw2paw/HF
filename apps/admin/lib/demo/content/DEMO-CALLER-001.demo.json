@@ -1,0 +1,275 @@
+{
+  "id": "DEMO-CALLER-001",
+  "title": "Track a Caller's Learning Journey",
+  "subtitle": "Monitor caller progress, personality profiles, call history, and memory summaries",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["operator", "team_member"],
+  "estimatedMinutes": 6,
+  "icon": "👤",
+  "story": {
+    "asA": "operator",
+    "iWant": "to monitor how callers are progressing",
+    "soThat": "I can identify who needs help and celebrate success"
+  },
+  "objectives": [
+    "Navigate the caller list",
+    "Read a caller's personality profile",
+    "Track learning progress and goals",
+    "View call history and memory summaries"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "This demo shows how to track a caller's learning journey — from personality traits to progress indicators to memory summaries.",
+      "content": {
+        "type": "markdown",
+        "body": "# Track a Caller's Learning Journey\n\nThe market test depends on evidence that callers are learning. This demo shows you how to monitor every aspect of a caller's progress.\n\n## What you'll learn\n\n- **Find callers** — search, filter, and browse your caller list\n- **Read personality profiles** — Big Five traits and VARK modality\n- **Track progress** — curriculum completion and learning goals\n- **Review history** — past calls and what the system remembers\n\n## Why this matters\n\nFor the market test, you need per-spec evidence that callers are progressing. This is where you find it.\n\n## Time: ~6 minutes\n\nUse **← →** arrow keys or the buttons below to navigate."
+      },
+      "reason": "Understanding caller tracking is essential for operators who need to provide evidence of learning progress during the market test.",
+      "goal": "Orient the viewer on what this demo covers",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Track a Caller's Learning Journey demo",
+        "relatedConcepts": ["callers", "personality profiles", "learning progress", "call history", "memory summaries"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "find-callers",
+      "title": "Find Callers",
+      "description": "Navigate to the Callers page using the sidebar. This is your central hub for managing all learners in the system.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CALLER-001/02-find-callers.png",
+        "alt": "Callers page with search and filter controls",
+        "annotations": [
+          { "x": "8%", "y": "38%", "label": "Click Callers", "direction": "right", "highlight": true },
+          { "x": "50%", "y": "12%", "label": "Search by name or ID", "direction": "down" },
+          { "x": "80%", "y": "12%", "label": "Filter by domain", "direction": "down" }
+        ]
+      },
+      "reason": "The caller list is the starting point for all monitoring. Search and filters help you find specific callers quickly, even with hundreds in the system.",
+      "sidebarHighlight": { "href": "/x/callers", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Callers listing page with search and filter controls",
+        "action": "Navigating to the Callers page",
+        "relatedConcepts": ["caller list", "search", "filters", "domain assignment"],
+        "assistantLocation": { "page": "/x/callers", "action": "navigate" }
+      }
+    },
+    {
+      "id": "caller-profile",
+      "title": "Caller Profile",
+      "description": "Click into a caller to see their full profile. The overview shows key stats: total calls, last active date, domain, and current learning status.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CALLER-001/03-caller-profile.png",
+        "alt": "Caller profile overview with key stats",
+        "annotations": [
+          { "x": "30%", "y": "20%", "label": "Caller name & ID", "direction": "right" },
+          { "x": "60%", "y": "35%", "label": "Total calls", "direction": "left" },
+          { "x": "60%", "y": "50%", "label": "Last active", "direction": "left" },
+          { "x": "60%", "y": "65%", "label": "Domain", "direction": "left" }
+        ]
+      },
+      "reason": "The profile overview gives you a quick health check on any caller. You can see at a glance whether they're active, engaged, and making progress.",
+      "sidebarHighlight": { "href": "/x/callers", "type": "glow" },
+      "aiContext": {
+        "currentView": "Individual caller profile overview",
+        "action": "Viewing a caller's profile and key stats",
+        "relatedConcepts": ["caller profile", "activity tracking", "engagement metrics", "domain assignment"],
+        "assistantLocation": { "page": "/x/callers", "action": "view" }
+      }
+    },
+    {
+      "id": "personality-traits",
+      "title": "Personality Traits",
+      "description": "The personality section shows Big Five trait scores and VARK learning modality. These are measured dynamically from conversations — not set manually.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-CALLER-001/04-personality-traits.png",
+          "alt": "Big Five personality traits and VARK modality scores"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## Big Five Traits\n\n- **Openness** — curiosity and willingness to explore\n- **Conscientiousness** — organization and discipline\n- **Extraversion** — social energy and expressiveness\n- **Agreeableness** — cooperation and empathy\n- **Neuroticism** — emotional sensitivity\n\n## VARK Learning Modality\n\n- **Visual** — learns from diagrams and images\n- **Auditory** — learns from listening and discussion\n- **Read/Write** — learns from text and notes\n- **Kinesthetic** — learns from practice and examples\n\nThese are **measured automatically** from each conversation. The tutor adapts its teaching style based on these scores."
+        }
+      },
+      "reason": "Personality traits drive the adaptive pipeline. Understanding a caller's profile helps you see why the tutor behaves differently with different people.",
+      "tips": [
+        { "type": "best-practice", "message": "Trait confidence increases with more calls — early scores are estimates that improve over time" }
+      ],
+      "aiContext": {
+        "currentView": "Caller personality profile — split view with traits and explanation",
+        "action": "Reviewing Big Five traits and VARK learning modality scores",
+        "relatedConcepts": ["Big Five", "VARK", "personality measurement", "PERS-001", "adaptive pipeline", "dynamic parameters"]
+      },
+      "durationOverrideSec": 18,
+      "capture": {
+        "url": "/x/callers/{callerId}",
+        "delay": 500
+      }
+    },
+    {
+      "id": "learning-progress",
+      "title": "Learning Progress",
+      "description": "The progress view shows how far the caller has advanced through the curriculum. Completion bars, milestone markers, and subject breakdowns are all visible here.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CALLER-001/05-learning-progress.png",
+        "alt": "Learning progress indicators and curriculum completion",
+        "annotations": [
+          { "x": "50%", "y": "25%", "label": "Overall progress", "direction": "down", "highlight": true },
+          { "x": "30%", "y": "55%", "label": "Subject breakdown", "direction": "right" },
+          { "x": "70%", "y": "55%", "label": "Milestone markers", "direction": "left" }
+        ]
+      },
+      "reason": "Progress tracking is the primary evidence for the market test. Each caller's advancement proves the system is working.",
+      "goal": "Understand how to read progress indicators",
+      "capture": {
+        "url": "/x/callers/{callerId}",
+        "delay": 500
+      },
+      "aiContext": {
+        "currentView": "Caller learning progress dashboard",
+        "action": "Reviewing curriculum completion and progress indicators",
+        "relatedConcepts": ["curriculum progress", "subject completion", "milestones", "learning evidence", "market test testimony"]
+      }
+    },
+    {
+      "id": "call-history",
+      "title": "Call History",
+      "description": "View a chronological list of all calls this caller has made. Each entry shows the date, duration, topics covered, and a brief summary.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CALLER-001/06-call-history.png",
+        "alt": "Call history list with summaries",
+        "annotations": [
+          { "x": "20%", "y": "30%", "label": "Date & duration", "direction": "right" },
+          { "x": "50%", "y": "30%", "label": "Topics covered", "direction": "down" },
+          { "x": "80%", "y": "30%", "label": "Call summary", "direction": "left" }
+        ]
+      },
+      "reason": "Call history lets you see the learning journey unfold over time. You can spot patterns — are they engaging more? Covering new topics? Getting stuck?",
+      "tips": [
+        { "type": "tip", "message": "Click any call to open the full transcript and pipeline run details" }
+      ],
+      "capture": {
+        "url": "/x/callers/{callerId}",
+        "delay": 500
+      },
+      "aiContext": {
+        "currentView": "Caller call history list with summaries",
+        "action": "Browsing the caller's past calls and summaries",
+        "relatedConcepts": ["call history", "call summaries", "transcript review", "topic coverage", "engagement patterns"]
+      }
+    },
+    {
+      "id": "goals-tab",
+      "title": "Goals",
+      "description": "Navigate to the Goals page to see this caller's learning objectives. Goals can be system-generated from the curriculum or manually set by operators.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CALLER-001/07-goals.png",
+        "alt": "Caller goals and learning objectives",
+        "annotations": [
+          { "x": "30%", "y": "30%", "label": "Active goals", "direction": "right", "highlight": true },
+          { "x": "30%", "y": "60%", "label": "Completed goals", "direction": "right" },
+          { "x": "80%", "y": "15%", "label": "Add goal", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Goals give structure to the learning journey. They help both the caller and the tutor stay focused on specific outcomes.",
+      "sidebarHighlight": { "href": "/x/goals", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Caller goals and learning objectives page",
+        "action": "Viewing the caller's learning goals",
+        "relatedConcepts": ["learning goals", "objectives", "goal tracking", "curriculum alignment"],
+        "assistantLocation": { "page": "/x/goals", "action": "view" }
+      }
+    },
+    {
+      "id": "caller-graph",
+      "title": "Caller Graph",
+      "description": "The caller graph shows interaction patterns and relationships. See how frequently a caller engages, which topics connect, and how their learning path branches.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-CALLER-001/08-caller-graph.png",
+        "alt": "Caller interaction and relationship visualization",
+        "annotations": [
+          { "x": "50%", "y": "50%", "label": "Interaction graph", "direction": "down", "highlight": true },
+          { "x": "20%", "y": "25%", "label": "Topic nodes", "direction": "right" },
+          { "x": "80%", "y": "25%", "label": "Connection strength", "direction": "left" }
+        ]
+      },
+      "reason": "The graph visualization reveals learning patterns that aren't obvious from lists alone. Strong connections between topics show deep understanding.",
+      "sidebarHighlight": { "href": "/x/callers", "type": "glow" },
+      "aiContext": {
+        "currentView": "Caller interaction graph visualization",
+        "action": "Exploring the caller's interaction and topic relationship graph",
+        "relatedConcepts": ["interaction graph", "topic relationships", "learning patterns", "engagement visualization"],
+        "assistantLocation": { "page": "/x/callers", "section": "graph" }
+      }
+    },
+    {
+      "id": "memory-summaries",
+      "title": "Memory Summaries",
+      "description": "The system maintains running memory summaries for each caller. These capture key facts, preferences, and conversation context that persist across calls.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-CALLER-001/09-memory-summaries.png",
+          "alt": "Caller memory summaries panel"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## How Memory Works\n\nThe system extracts and stores key information from every call:\n\n- **Facts** — things the caller has shared about themselves\n- **Preferences** — how they like to learn, topics they enjoy\n- **Context** — where they left off, what was discussed\n- **Progress** — achievements and areas needing work\n\n## Why It Matters\n\nMemory makes the tutor feel **continuous**. The caller doesn't have to repeat themselves. The tutor remembers what they said last time and picks up where they left off.\n\nThis is one of the strongest differentiators for the market test — callers notice when the tutor *remembers them*."
+        }
+      },
+      "reason": "Memory summaries are what make the tutor feel personal and continuous. They're also key evidence for the market test — proving the system learns about each caller.",
+      "tips": [
+        { "type": "best-practice", "message": "Memory summaries are extracted automatically — no manual entry needed" }
+      ],
+      "capture": {
+        "url": "/x/callers/{callerId}",
+        "delay": 500
+      },
+      "aiContext": {
+        "currentView": "Caller memory summaries — split view with data and explanation",
+        "action": "Reviewing how the system remembers caller context across calls",
+        "relatedConcepts": ["caller memory", "memory extraction", "cross-call context", "MEM-FLOW-001", "personalization"]
+      },
+      "durationOverrideSec": 18
+    },
+    {
+      "id": "summary",
+      "title": "Next Steps",
+      "description": "You now know how to track any caller's learning journey. Here's what to do next.",
+      "content": {
+        "type": "markdown",
+        "body": "# Tracking Callers — Complete\n\nYou've learned how to monitor every aspect of a caller's learning journey:\n\n- **Caller List** — search, filter, browse\n- **Profile** — key stats at a glance\n- **Personality** — Big Five traits and VARK modality\n- **Progress** — curriculum completion and milestones\n- **Call History** — past conversations and summaries\n- **Goals** — learning objectives and tracking\n- **Graph** — interaction patterns and relationships\n- **Memory** — what the system remembers\n\n## For the Market Test\n\nUse these tools to:\n1. **Identify struggling callers** — low progress, few calls, declining engagement\n2. **Celebrate success** — completed goals, strong trait development\n3. **Gather testimony** — per-spec evidence that the system works\n4. **Report to stakeholders** — concrete data on learning outcomes\n\n## Related Demos\n\n- *Launch a Domain in Under 5 Minutes* (DEMO-QUICK-001)\n- *Add Trusted Teaching Content* (DEMO-CONTENT-001)\n- *Test Your Tutor Before Going Live* (DEMO-SIM-001)"
+      },
+      "reason": "Knowing how to track callers is essential, but the real value comes from acting on what you see — intervening when needed and reporting progress.",
+      "goal": "Summarize what was covered and guide next steps",
+      "aiContext": {
+        "currentView": "Demo summary and next steps",
+        "action": "Completed the Track a Caller's Learning Journey demo",
+        "relatedConcepts": ["market test", "testimony gathering", "caller management", "progress reporting"]
+      },
+      "durationOverrideSec": 20
+    }
+  ]
+}

@@ -1,6 +1,71 @@
 # HF Project TODO List
 
-**Last Updated**: 2026-02-08
+**Last Updated**: 2026-02-13
+
+---
+
+## CRITICAL - Cloud Deployment (Market Test)
+
+### Cloud Deploy to Google Cloud Run
+**Status**: IN PROGRESS
+**Priority**: CRITICAL — blocks everything else
+**Target**: Feb 2026
+
+**Checklist:**
+- [ ] GCP project configured (`hf-admin-prod`)
+- [ ] Cloud SQL PostgreSQL instance running
+- [ ] VPC Connector created (Cloud Run → Cloud SQL)
+- [ ] Artifact Registry repo created
+- [ ] Docker image built & pushed (runner target)
+- [ ] Secrets stored in Secret Manager (DATABASE_URL, AUTH_SECRET, HF_SUPERADMIN_TOKEN)
+- [ ] Cloud Run service deployed
+- [ ] Database migrations run
+- [ ] Database seeded (specs, contracts, domains)
+- [ ] First admin user created
+- [ ] Email configured (Resend) for invites
+- [ ] End-to-end smoke test passing
+- [ ] Custom domain mapped (optional, can use Cloud Run URL)
+
+**Architecture:**
+```
+[Internet] → [Cloud Run (port 8080)] → [Cloud SQL (PostgreSQL 16)]
+                    ↓
+              [Resend API (email)]
+```
+
+**Cost:** ~$17/mo (Cloud SQL db-f1-micro + VPC connector)
+
+---
+
+## CRITICAL - Email Configuration
+
+### Resend Setup for Invite Emails
+**Status**: NOT STARTED
+**Priority**: CRITICAL — blocks tester onboarding
+
+- [ ] Sign up at resend.com (free: 100 emails/day)
+- [ ] Verify domain (DNS records)
+- [ ] Store RESEND_API_KEY in Secret Manager
+- [ ] Set EMAIL_FROM env var on Cloud Run
+- [ ] Test invite email delivery end-to-end
+
+---
+
+## CRITICAL - Analytics / Testimony Capture
+
+### Per-Spec Evidence for Market Test
+**Status**: NOT STARTED
+**Priority**: CRITICAL — needed to prove system works
+
+**Goal:** Capture per-spec evidence that the system produces useful results. For each active spec, collect:
+- Pipeline run count (how many calls processed)
+- Score distributions (are measurements sensible?)
+- Before/after prompt quality (does composition improve?)
+- Tester feedback (qualitative)
+
+**Files to create:**
+- `app/api/analytics/testimony/route.ts` — aggregate evidence per spec
+- `app/x/analytics/page.tsx` — dashboard showing testimony by spec
 
 ---
 
@@ -114,8 +179,8 @@ INGEST_RATE_LIMIT=100          # Max calls per minute
 - Version history / rollback capability
 
 **Current State:**
-- Voice rules defined in `bdd-specs/VOICE-001-voice-guidance.spec.json`
-- Behavior targets defined in `bdd-specs/playbooks-config.json`
+- Voice rules defined in `docs-archive/bdd-specs/VOICE-001-voice-guidance.spec.json`
+- Behavior targets defined in `docs-archive/bdd-specs/playbooks-config.json`
 - Must edit JSON files manually to tune agent behavior
 
 **What Admins Need:**
@@ -302,22 +367,23 @@ model PersonaConfig {
 ---
 
 ### 🔐 Authentication & Admin Users
-**Status**: IN PROGRESS (Basic auth implemented 2026-02-08)
+**Status**: ✅ COMPLETE (2026-02-12)
 **Priority**: High
-**Estimated Effort**: 1-2 days
 
 **What's Done:**
-- [x] NextAuth v5 with email magic link
+- [x] NextAuth v5 with Credentials + Email magic link
 - [x] User, Session, Account, Invite models in Prisma
 - [x] Login page with magic link flow
-- [x] Middleware protecting all routes
-- [x] Invite system for controlled signup
+- [x] Middleware protecting all routes (edge cookie check)
+- [x] Invite system for controlled signup (domain-locked)
 - [x] Team management page at `/x/users`
-
-**What's Left:**
-- [ ] Email provider configuration (need SMTP or Resend)
-- [ ] First user bootstrap (create initial admin)
-- [ ] Role-based page restrictions (currently all admins)
+- [x] `lib/permissions.ts`: `requireAuth(role)` + `isAuthError()` discriminated union
+- [x] 176/184 API routes call `requireAuth()`, 8 intentionally public
+- [x] Coverage test: `tests/lib/route-auth-coverage.test.ts` (fails CI if any route missing auth)
+- [x] 17 unit tests for permissions helper
+- [x] Sim auth integrated: access code system removed, invite → user → session flow
+- [x] OPERATOR sees only own callers in sim conversation list
+- [x] Default new user role: OPERATOR (changed from ADMIN)
 
 **Files Created:**
 - `lib/auth.ts` - NextAuth configuration
@@ -470,7 +536,7 @@ curl -X POST http://localhost:3000/api/callers/analyze-all
 - `app/api/admin/spec-sync/route.ts` - API to trigger sync (exists, enhance)
 
 **UI Features:**
-- [ ] Show list of `.spec.json` files in `bdd-specs/` folder
+- [ ] Show list of `.spec.json` files in `docs-archive/bdd-specs/` folder
 - [ ] Compare against `AnalysisSpec` table records
 - [ ] Status indicators: ✅ Synced, ⚠️ Modified, ❌ Not in DB
 - [ ] "Sync All" button to load missing specs

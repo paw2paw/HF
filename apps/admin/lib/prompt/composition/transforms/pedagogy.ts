@@ -2,7 +2,7 @@
  * Session Pedagogy Transform
  * Extracted from route.ts lines 2158-2229
  *
- * Uses INIT-001 first-call flow when available for new callers.
+ * Uses Domain onboarding flow for first-call, falls back to INIT-001.
  */
 
 import { registerTransform } from "../TransformRegistry";
@@ -11,13 +11,14 @@ import type { AssembledContext } from "../types";
 /**
  * Compute session pedagogy plan (flow, review, new material, principles).
  * Uses shared state for module data, review type, first-call detection.
- * For first calls, uses INIT-001's firstCallFlow if available.
+ * For first calls, uses Domain.onboardingFlowPhases > INIT-001 fallback.
  */
 registerTransform("computeSessionPedagogy", (
   _rawData: any,
   context: AssembledContext,
 ) => {
   const { isFirstCall, modules, moduleToReview, nextModule, reviewType, reviewReason } = context.sharedState;
+  const domain = context.loadedData.caller?.domain;
   const onboardingSpec = context.loadedData.onboardingSpec;
 
   const plan: {
@@ -43,18 +44,22 @@ registerTransform("computeSessionPedagogy", (
   if (isFirstCall) {
     const firstModule = modules[0];
 
-    // Use INIT-001's first-call flow if available
-    if (onboardingSpec?.config?.firstCallFlow) {
-      const fcFlow = onboardingSpec.config.firstCallFlow;
+    // Priority: Domain onboarding flow > INIT-001 fallback
+    const domainFlow = domain?.onboardingFlowPhases as { phases: any[]; successMetrics?: string[] } | null;
+    const initFlow = onboardingSpec?.config?.firstCallFlow;
+    const fcFlow = domainFlow || initFlow;
+    const source = domainFlow ? `Domain ${domain?.slug}` : "INIT-001";
+
+    if (fcFlow?.phases) {
       plan.firstCallPhases = fcFlow.phases;
       plan.successMetrics = fcFlow.successMetrics;
 
       // Convert phases to flow steps
-      plan.flow = fcFlow.phases.map((phase, i) =>
+      plan.flow = fcFlow.phases.map((phase: any, i: number) =>
         `${i + 1}. ${phase.phase.charAt(0).toUpperCase() + phase.phase.slice(1)} (${phase.duration}) - ${phase.goals[0]}`
       );
 
-      console.log(`[pedagogy] Using INIT-001 first-call flow with ${fcFlow.phases.length} phases`);
+      console.log(`[pedagogy] Using ${source} first-call flow with ${fcFlow.phases.length} phases`);
     } else {
       // Fallback to default first-call flow
       plan.flow = [

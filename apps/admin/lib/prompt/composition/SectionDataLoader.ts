@@ -48,6 +48,9 @@ export async function loadAllData(
     playbooks,
     systemSpecs,
     onboardingSpec,
+    onboardingSession,
+    subjectSources,
+    curriculumAssertions,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
     loaderRegistry.get("memories")!(callerId, { limit: memoriesLimit }),
@@ -62,6 +65,9 @@ export async function loadAllData(
     loaderRegistry.get("playbooks")!(callerId, { playbookIds: specConfig.playbookIds }),
     loaderRegistry.get("systemSpecs")!(callerId),
     loaderRegistry.get("onboardingSpec")!(callerId),
+    loaderRegistry.get("onboardingSession")!(callerId),
+    loaderRegistry.get("subjectSources")!(callerId),
+    loaderRegistry.get("curriculumAssertions")!(callerId),
   ]);
 
   return {
@@ -78,6 +84,9 @@ export async function loadAllData(
     playbooks: playbooks || [],
     systemSpecs: systemSpecs || [],
     onboardingSpec: onboardingSpec || null,
+    onboardingSession: onboardingSession || null,
+    subjectSources: subjectSources || null,
+    curriculumAssertions: curriculumAssertions || [],
   };
 }
 
@@ -95,11 +104,26 @@ registerLoader("caller", async (callerId) => {
       phone: true,
       externalId: true,
       domainId: true,
+      previousDomainId: true,
+      domainSwitchCount: true,
       domain: {
         select: {
           id: true,
           name: true,
           description: true,
+          slug: true,
+          // Onboarding configuration (from merged Persona concept)
+          onboardingWelcome: true,
+          onboardingIdentitySpecId: true,
+          onboardingFlowPhases: true,
+          onboardingDefaultTargets: true,
+          onboardingIdentitySpec: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+            },
+          },
         },
       },
     },
@@ -126,20 +150,35 @@ registerLoader("memories", async (callerId, config) => {
 });
 
 registerLoader("personality", async (callerId) => {
-  return prisma.callerPersonality.findUnique({
+  // Load from CallerPersonalityProfile for dynamic parameter values (Big Five, VARK, etc.)
+  const profile = await prisma.callerPersonalityProfile.findUnique({
     where: { callerId },
     select: {
-      openness: true,
-      conscientiousness: true,
-      extraversion: true,
-      agreeableness: true,
-      neuroticism: true,
+      parameterValues: true,
+      lastUpdatedAt: true,
+    },
+  });
+
+  // Also load legacy CallerPersonality for backward compatibility fields
+  const legacy = await prisma.callerPersonality.findUnique({
+    where: { callerId },
+    select: {
       preferredTone: true,
       preferredLength: true,
       technicalLevel: true,
       confidenceScore: true,
     },
   });
+
+  // Merge profile parameter values with legacy fields
+  return {
+    ...(profile?.parameterValues as Record<string, number> || {}),
+    preferredTone: legacy?.preferredTone,
+    preferredLength: legacy?.preferredLength,
+    technicalLevel: legacy?.technicalLevel,
+    confidenceScore: legacy?.confidenceScore,
+    lastUpdatedAt: profile?.lastUpdatedAt,
+  };
 });
 
 registerLoader("learnerProfile", async (callerId) => {
@@ -334,6 +373,7 @@ registerLoader("systemSpecs", async (_callerId) => {
  * Load the onboarding/bootstrap spec for first-call defaults.
  * Uses env-configurable spec slug (default: INIT-001, configurable via ONBOARDING_SPEC_SLUG).
  * Returns the spec config with default targets and first-call flow.
+ * NOTE: This is now a FALLBACK - Domain.onboarding* fields take precedence.
  */
 registerLoader("onboardingSpec", async (_callerId) => {
   // Get onboarding spec slug from config (env-configurable)
@@ -356,4 +396,207 @@ registerLoader("onboardingSpec", async (_callerId) => {
     },
   });
   return spec;
+});
+
+/**
+ * Load the caller's OnboardingSession for their current domain.
+ * Used to determine if this is their first call in the domain.
+ */
+registerLoader("onboardingSession", async (callerId) => {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+
+  if (!caller?.domainId) {
+    return null;
+  }
+
+  return prisma.onboardingSession.findUnique({
+    where: {
+      callerId_domainId: {
+        callerId,
+        domainId: caller.domainId,
+      },
+    },
+    select: {
+      id: true,
+      currentPhase: true,
+      completedPhases: true,
+      isComplete: true,
+      wasSkipped: true,
+      discoveredGoals: true,
+      createdAt: true,
+      completedAt: true,
+    },
+  });
+});
+
+/**
+ * Load subject-based sources for the caller's domain.
+ * Returns all subjects linked to the domain, with their sources and curricula.
+ */
+registerLoader("subjectSources", async (callerId) => {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+
+  if (!caller?.domainId) return null;
+
+  // Find all subjects linked to this domain
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    include: {
+      subject: {
+        include: {
+          sources: {
+            include: {
+              source: {
+                select: {
+                  id: true,
+                  slug: true,
+                  name: true,
+                  trustLevel: true,
+                  publisherOrg: true,
+                  accreditingBody: true,
+                  qualificationRef: true,
+                  validUntil: true,
+                  isActive: true,
+                },
+              },
+            },
+            orderBy: { sortOrder: "asc" },
+          },
+          curricula: {
+            orderBy: { updatedAt: "desc" },
+            take: 1,
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              description: true,
+              notableInfo: true,
+              deliveryConfig: true,
+              trustLevel: true,
+              qualificationBody: true,
+              qualificationNumber: true,
+              qualificationLevel: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (subjectDomains.length === 0) return null;
+
+  return {
+    subjects: subjectDomains.map((sd) => ({
+      id: sd.subject.id,
+      slug: sd.subject.slug,
+      name: sd.subject.name,
+      defaultTrustLevel: sd.subject.defaultTrustLevel,
+      qualificationRef: sd.subject.qualificationRef,
+      sources: sd.subject.sources.map((ss) => ({
+        slug: ss.source.slug,
+        name: ss.source.name,
+        trustLevel: ss.trustLevelOverride || ss.source.trustLevel,
+        tags: ss.tags || ["content"],
+        publisherOrg: ss.source.publisherOrg,
+        accreditingBody: ss.source.accreditingBody,
+        qualificationRef: ss.source.qualificationRef,
+        validUntil: ss.source.validUntil,
+        isActive: ss.source.isActive,
+      })),
+      curriculum: sd.subject.curricula[0] || null,
+    })),
+  };
+});
+
+/**
+ * Load curriculum assertions (approved teaching points) for the caller's domain.
+ * Fetches from ContentAssertion table, filtered by domain's linked content sources.
+ * Returns assertions grouped-ready with source metadata for the teaching-content transform.
+ */
+registerLoader("curriculumAssertions", async (callerId) => {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+
+  if (!caller?.domainId) return [];
+
+  // Find all content sources linked to the domain via subjects
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    select: {
+      subject: {
+        select: {
+          sources: {
+            select: { sourceId: true },
+          },
+        },
+      },
+    },
+  });
+
+  const sourceIds = subjectDomains.flatMap((sd) =>
+    sd.subject.sources.map((s) => s.sourceId)
+  );
+
+  if (sourceIds.length === 0) {
+    // Fallback: try to find any active content sources directly (not linked via subjects)
+    // This covers the case where content sources were created but not yet linked to a subject
+    const domainSources = await prisma.contentSource.findMany({
+      where: { isActive: true },
+      select: { id: true },
+      take: 10,
+    });
+    if (domainSources.length === 0) return [];
+    sourceIds.push(...domainSources.map((s) => s.id));
+  }
+
+  // Fetch assertions from these sources (limit to prevent prompt bloat)
+  const assertions = await prisma.contentAssertion.findMany({
+    where: {
+      sourceId: { in: [...new Set(sourceIds)] },
+    },
+    orderBy: [
+      { examRelevance: "desc" },
+      { category: "asc" },
+    ],
+    take: 100, // Limit to top 100 assertions by relevance
+    select: {
+      assertion: true,
+      category: true,
+      chapter: true,
+      section: true,
+      pageRef: true,
+      tags: true,
+      trustLevel: true,
+      examRelevance: true,
+      learningOutcomeRef: true,
+      source: {
+        select: {
+          name: true,
+          trustLevel: true,
+        },
+      },
+    },
+  });
+
+  return assertions.map((a) => ({
+    assertion: a.assertion,
+    category: a.category,
+    chapter: a.chapter,
+    section: a.section,
+    pageRef: a.pageRef,
+    tags: a.tags,
+    trustLevel: a.trustLevel,
+    examRelevance: a.examRelevance,
+    learningOutcomeRef: a.learningOutcomeRef,
+    sourceName: a.source.name,
+    sourceTrustLevel: a.source.trustLevel,
+  }));
 });

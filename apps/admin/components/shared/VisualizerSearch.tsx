@@ -1,6 +1,7 @@
 "use client";
 
 import React, { KeyboardEvent } from "react";
+import { Search, X, ChevronUp, ChevronDown } from "lucide-react";
 import { SearchMode, UseVisualizerSearchResult } from "@/hooks/useVisualizerSearch";
 
 export interface VisualizerSearchProps {
@@ -62,19 +63,7 @@ export function VisualizerSearch({
           className="w-full pl-8 pr-8 py-1.5 text-xs rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-1 focus:ring-indigo-500/20"
         />
         {/* Search icon */}
-        <svg
-          className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
         {/* Clear button */}
         {searchTerm && (
           <button
@@ -82,9 +71,7 @@ export function VisualizerSearch({
             className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
             title="Clear (Esc)"
           >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
@@ -114,18 +101,14 @@ export function VisualizerSearch({
                   className="p-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400"
                   title="Previous (Shift+Enter)"
                 >
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
+                  <ChevronUp className="h-3 w-3" />
                 </button>
                 <button
                   onClick={nextMatch}
                   className="p-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400"
                   title="Next (Enter)"
                 >
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronDown className="h-3 w-3" />
                 </button>
               </div>
             )}

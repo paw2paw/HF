@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -15,20 +16,26 @@ function assertLocalOnly() {
 }
 
 /**
- * POST /api/agents/[agentId]/publish
- *
- * Publish the current draft, superseding any existing published version.
- *
- * Workflow:
- * 1. Find DRAFT instance for this agentId
- * 2. Mark existing PUBLISHED as SUPERSEDED
- * 3. Mark DRAFT as PUBLISHED with publishedAt timestamp
+ * @api POST /api/agents/:agentId/publish
+ * @visibility internal
+ * @scope agents:write
+ * @auth session
+ * @tags agents
+ * @description Publish the current draft agent instance, superseding any existing published version.
+ *   Workflow: Find DRAFT, mark existing PUBLISHED as SUPERSEDED, mark DRAFT as PUBLISHED.
+ * @pathParam agentId string - The agent identifier
+ * @response 200 { ok: true, action: "published", instance: AgentInstance, superseded: { id, version } | null }
+ * @response 404 { ok: false, error: "No draft found to publish" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 
@@ -93,15 +100,24 @@ export async function POST(
 }
 
 /**
- * GET /api/agents/[agentId]/publish
- *
- * Get the currently published instance for this agent
+ * @api GET /api/agents/:agentId/publish
+ * @visibility internal
+ * @scope agents:read
+ * @auth session
+ * @tags agents
+ * @description Get the currently published instance for this agent with recent runs
+ * @pathParam agentId string - The agent identifier
+ * @response 200 { ok: true, published: AgentInstance | null }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
     const { agentId } = await params;
 

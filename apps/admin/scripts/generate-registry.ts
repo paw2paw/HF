@@ -3,7 +3,7 @@
  *
  * Reads all canonical parameters from the database and generates:
  * 1. lib/registry/index.ts - TypeScript constants
- * 2. bdd-specs/behavior-parameters.registry.json - Canonical JSON (for reference/audit)
+ * 2. docs-archive/bdd-specs/behavior-parameters.registry.json - Canonical JSON (for reference/audit)
  *
  * Run this at build time (npm run prebuild)
  */
@@ -280,7 +280,7 @@ export type SpecId = (typeof SPECS)[keyof typeof SPECS];
 
     const jsonPath = path.join(
       process.cwd(),
-      "bdd-specs/behavior-parameters.registry.json"
+      "docs-archive/bdd-specs/behavior-parameters.registry.json"
     );
     fs.writeFileSync(
       jsonPath,

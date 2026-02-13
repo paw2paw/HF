@@ -10,6 +10,18 @@ The system uses **AnalysisSpecs** to define both:
 - **MEASURE** specs: Score personality traits on calls
 - **LEARN** specs: Extract memories from conversations
 
+Each spec has an `outputType` (what data it produces) and a `specRole` (its architectural purpose):
+
+| SpecRole | Purpose |
+|----------|---------|
+| `ORCHESTRATE` | Flow/sequence control |
+| `EXTRACT` | Measurement and learning |
+| `SYNTHESISE` | Combine and transform data |
+| `CONSTRAIN` | Bounds and guard rules |
+| `IDENTITY` | Agent personas |
+| `CONTENT` | Curriculum material |
+| `VOICE` | Voice guidance |
+
 ---
 
 ## Feature: Transcript Processing
@@ -275,7 +287,7 @@ Feature: Flow Graph Visualization
   So that I understand how data flows through the system
 
   Scenario: View flow graph
-    When I navigate to /flow
+    When I navigate to /x/taxonomy-graph
     Then I see a React Flow diagram with:
       | Source nodes (blue)  | Knowledge, Transcripts, Parameters |
       | Agent nodes (purple) | Ingestor, Analyzer, Extractor      |
@@ -392,6 +404,6 @@ npm run db:seed:all
 ## Related Documentation
 
 - [ADMIN_USER_GUIDE.md](ADMIN_USER_GUIDE.md) - Comprehensive admin guide
-- [DATA_FLOW_GUIDE.md](DATA_FLOW_GUIDE.md) - Complete data flow documentation
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Admin architecture and data flow
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
 - [QUICKSTART.md](QUICKSTART.md) - Getting started guide

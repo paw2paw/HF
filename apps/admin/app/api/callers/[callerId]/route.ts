@@ -1,26 +1,33 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { composeCurriculumSection } from "@/lib/prompt/compose-curriculum-section";
+import { composeContentSection } from "@/lib/prompt/compose-content-section";
 import { getLearnerProfile } from "@/lib/learner/profile";
+import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 
 /**
- * GET /api/callers/[callerId]
- *
- * Get comprehensive caller data including:
- * - Basic profile
- * - Personality profile and observations
- * - Memories and summary
- * - Calls
+ * @api GET /api/callers/:callerId
+ * @visibility public
+ * @scope callers:read
+ * @auth session
+ * @tags callers
+ * @description Get comprehensive caller data including profile, personality, memories, calls, scores, goals, curriculum, and learner profile
+ * @pathParam callerId string - The caller ID
+ * @response 200 { ok: true, caller: object, personalityProfile: object, observations: Array, memories: Array, memorySummary: object, calls: Array, identities: Array, scores: Array, callerTargets: Array, curriculum: object, learnerProfile: object, goals: Array, counts: object }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireEntityAccess("callers", "R");
+    if (isEntityAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
 
     // Fetch all caller data in parallel
-    const [caller, personality, observations, memories, memorySummary, calls, identities, scores, callerTargets, curriculum, learnerProfile, goals] = await Promise.all([
+    const [caller, personalityProfile, observations, memories, memorySummary, calls, identities, scores, callerTargets, curriculum, learnerProfile, goals] = await Promise.all([
       // Basic caller info
       prisma.caller.findUnique({
         where: { id: callerId },
@@ -42,25 +49,20 @@ export async function GET(
         },
       }),
 
-      // Personality profile
-      prisma.callerPersonality.findUnique({
+      // Personality profile - ALL parameters (not hardcoded)
+      // parameterValues contains Big Five, VARK, and all other personality traits
+      // Frontend uses registry to determine which params to display
+      prisma.callerPersonalityProfile.findUnique({
         where: { callerId: callerId },
         select: {
-          openness: true,
-          conscientiousness: true,
-          extraversion: true,
-          agreeableness: true,
-          neuroticism: true,
-          confidenceScore: true,
-          lastAggregatedAt: true,
-          observationsUsed: true,
-          preferredTone: true,
-          preferredLength: true,
-          technicalLevel: true,
+          parameterValues: true,
+          lastUpdatedAt: true,
         },
       }),
 
       // Personality observations
+      // Note: PersonalityObservation table still has hardcoded Big Five fields
+      // TODO: Migrate to dynamic storage like CallerPersonalityProfile
       prisma.personalityObservation.findMany({
         where: { callerId: callerId },
         orderBy: { observedAt: "desc" },
@@ -239,7 +241,7 @@ export async function GET(
           });
 
           if (callerData?.domain?.name) {
-            return await composeCurriculumSection(callerId, callerData.domain.name);
+            return await composeContentSection(callerId, callerData.domain.name);
           }
           return null;
         } catch (error) {
@@ -439,14 +441,14 @@ export async function GET(
       ok: true,
       caller: {
         ...caller,
-        personality,
+        personalityProfile,
         _count: {
           calls: callCount,
           memories: memoryCount,
           personalityObservations: observationCount,
         },
       },
-      personality,
+      personalityProfile,
       observations,
       memories,
       memorySummary,
@@ -482,20 +484,50 @@ export async function GET(
 }
 
 /**
- * PATCH /api/callers/[callerId]
- *
- * Update caller profile (name, email, phone, domainId)
+ * @api PATCH /api/callers/:callerId
+ * @visibility public
+ * @scope callers:write
+ * @auth session
+ * @tags callers
+ * @description Update caller profile fields. Domain changes trigger goal archival and new goal creation from playbook.
+ * @pathParam callerId string - The caller ID
+ * @body name string - Caller display name
+ * @body email string - Caller email
+ * @body phone string - Caller phone number
+ * @body domainId string - New domain ID (triggers domain switch if different)
+ * @response 200 { ok: true, caller: object, goalsCreated?: string[] }
+ * @response 400 { ok: false, error: "Domain not found" }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireEntityAccess("callers", "U");
+    if (isEntityAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
     const body = await req.json();
 
     // Allowed fields to update
     const { name, email, phone, domainId } = body;
+
+    // Check if domain is changing (for domain-switch logic)
+    const currentCaller = await prisma.caller.findUnique({
+      where: { id: callerId },
+      select: { domainId: true, domainSwitchCount: true },
+    });
+
+    if (!currentCaller) {
+      return NextResponse.json(
+        { ok: false, error: "Caller not found" },
+        { status: 404 }
+      );
+    }
+
+    const isDomainSwitch = domainId !== undefined && domainId !== currentCaller.domainId;
 
     // Build update data
     const updateData: {
@@ -503,12 +535,21 @@ export async function PATCH(
       email?: string | null;
       phone?: string | null;
       domainId?: string | null;
+      previousDomainId?: string | null;
+      domainSwitchCount?: number;
     } = {};
 
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
     if (domainId !== undefined) updateData.domainId = domainId;
+
+    // Track domain switches
+    if (isDomainSwitch) {
+      updateData.previousDomainId = currentCaller.domainId;
+      updateData.domainSwitchCount = (currentCaller.domainSwitchCount || 0) + 1;
+      console.log(`[caller-api] Domain switch detected: ${currentCaller.domainId} → ${domainId} (switch #${updateData.domainSwitchCount})`);
+    }
 
     // If domainId provided, verify it exists
     if (domainId) {
@@ -533,6 +574,8 @@ export async function PATCH(
         externalId: true,
         createdAt: true,
         domainId: true,
+        previousDomainId: true,
+        domainSwitchCount: true,
         domain: {
           select: {
             id: true,
@@ -544,9 +587,9 @@ export async function PATCH(
       data: updateData,
     });
 
-    // If domain was changed, instantiate goals from playbook
+    // If domain was changed, instantiate goals from playbook and create OnboardingSession
     const goalsCreated: string[] = [];
-    if (domainId) {
+    if (isDomainSwitch && domainId) {
       // Archive old goals (don't delete, preserve history)
       await prisma.goal.updateMany({
         where: {
@@ -555,6 +598,31 @@ export async function PATCH(
         },
         data: { status: 'ARCHIVED' },
       });
+
+      // Create OnboardingSession for new domain (for re-onboarding tracking)
+      await prisma.onboardingSession.upsert({
+        where: {
+          callerId_domainId: {
+            callerId,
+            domainId,
+          },
+        },
+        create: {
+          callerId,
+          domainId,
+          isComplete: false,
+          wasSkipped: false,
+          discoveredGoals: 0,
+        },
+        update: {
+          // If session exists, reset it for re-onboarding
+          isComplete: false,
+          wasSkipped: false,
+          currentPhase: null,
+          completedAt: null,
+        },
+      });
+      console.log(`[caller-api] Created OnboardingSession for domain switch to ${domainId}`);
 
       // Find published playbook for new domain
       const playbook = await prisma.playbook.findFirst({
@@ -623,16 +691,26 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/callers/[callerId]
- *
- * Delete a caller and all their data.
- * Optionally exclude their phone/externalId from future imports.
+ * @api DELETE /api/callers/:callerId
+ * @visibility public
+ * @scope callers:delete
+ * @auth session
+ * @tags callers
+ * @description Delete a caller and all associated data. Optionally exclude their identifiers from future imports.
+ * @pathParam callerId string - The caller ID to delete
+ * @body exclude boolean - Add phone/externalId to ExcludedCaller table (default: false)
+ * @response 200 { ok: true, message: string, excluded: boolean }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: string }
  */
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireEntityAccess("callers", "D");
+    if (isEntityAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
     const body = await req.json().catch(() => ({}));
     const { exclude = false } = body;

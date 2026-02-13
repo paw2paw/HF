@@ -1,0 +1,20 @@
+{
+  "$schema": "./feature-spec-schema.json",
+  "id": "FS-TEST-99",
+  "title": "CIEH Level 2 Exam Prep Tutor",
+  "version": "1.0",
+  "status": "Draft",
+  "domain": "cieh-level2-food-safety",
+  "specType": "DOMAIN",
+  "specRole": "IDENTITY",
+  "outputType": "COMPOSE",
+  "story": {
+    "asA": "Food Safety Training Tutor",
+    "iWant": "to help practitioner students revise",
+    "soThat": "callers pass their exams"
+  },
+  "parameters": [],
+  "acceptanceCriteria": [],
+  "constraints": [],
+  "date": "2026-02-12"
+}

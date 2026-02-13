@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { processTranscripts } from "../../../lib/ops/transcripts-process";
 import { ingestKnowledge } from "../../../lib/ops/knowledge-ingest";
 import { extractKbLinks } from "../../../lib/ops/kb-links-extract";
@@ -16,7 +17,19 @@ export const runtime = "nodejs";
 // Increase timeout for long-running operations
 export const maxDuration = 300; // 5 minutes
 
+/**
+ * @api GET /api/ops
+ * @visibility internal
+ * @scope ops:read
+ * @auth session
+ * @tags ops
+ * @description List all available operations with their implementation status
+ * @response 200 { ok: true, operations: Array<{ opid, status, description? }> }
+ */
 export async function GET() {
+  const authResult = await requireAuth("VIEWER");
+  if (isAuthError(authResult)) return authResult.error;
+
   // Return list of available operations
   return NextResponse.json({
     ok: true,
@@ -44,18 +57,26 @@ export async function GET() {
 }
 
 /**
- * POST /api/ops
- * Execute operations (ops) for agents
- *
- * Body:
- * {
- *   "opid": "transcripts:process",
- *   "settings": { ... },
- *   "dryRun": false
- * }
+ * @api POST /api/ops
+ * @visibility internal
+ * @scope ops:write
+ * @auth session
+ * @tags ops
+ * @description Execute an operation by opid. Supports pipeline, transcript, knowledge, analysis, reward loop, and metering operations.
+ * @body opid string - Operation identifier (e.g. "pipeline:run", "transcripts:process", "personality:analyze")
+ * @body settings object - Operation-specific settings
+ * @body dryRun boolean - If true, plan only without executing (default: false)
+ * @response 200 { success: boolean, opid: string, result: object, timestamp: string }
+ * @response 400 { error: "Unknown operation: ..." }
+ * @response 403 { error: "Operations are disabled..." }
+ * @response 500 { error: "..." }
+ * @response 501 { error: "Operation ... not yet implemented" }
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { opid, settings = {}, dryRun = false } = body;
 

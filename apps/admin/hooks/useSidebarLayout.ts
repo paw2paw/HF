@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useMemo, useCallback, useEffect, useRef } from "react";
+import { useReducer, useMemo, useCallback, useEffect, useRef, useState } from "react";
 import {
   NavItem,
   NavSection,
@@ -16,6 +16,9 @@ import {
   clearLayout,
   loadGlobalDefault,
   saveGlobalDefault,
+  loadPersonalDefault,
+  savePersonalDefault,
+  clearPersonalDefault,
 } from "@/lib/sidebar/storage";
 
 // ============================================================================
@@ -134,6 +137,36 @@ function sidebarReducer(state: SidebarState, action: SidebarAction): SidebarStat
       };
     }
 
+    case "DELETE_SECTION": {
+      const deleted = state.layout.deletedSections || [];
+      if (deleted.includes(action.sectionId)) return state;
+      const hidden = (state.layout.hiddenSections || []).filter(
+        (id) => id !== action.sectionId
+      );
+      return {
+        ...state,
+        layout: {
+          ...state.layout,
+          deletedSections: [...deleted, action.sectionId],
+          hiddenSections: hidden,
+        },
+        hasCustomLayout: true,
+      };
+    }
+
+    case "UNDO_DELETE_SECTION": {
+      const deleted = state.layout.deletedSections || [];
+      if (!deleted.includes(action.sectionId)) return state;
+      return {
+        ...state,
+        layout: {
+          ...state.layout,
+          deletedSections: deleted.filter((id) => id !== action.sectionId),
+        },
+        hasCustomLayout: true,
+      };
+    }
+
     case "SET_DRAG_STATE":
       return {
         ...state,
@@ -162,8 +195,20 @@ const INITIAL_STATE: SidebarState = {
 // Hook
 // ============================================================================
 
+// Role hierarchy for requiredRole checks — must match lib/permissions.ts ROLE_LEVEL
+const SIDEBAR_ROLE_LEVEL: Record<string, number> = {
+  SUPERADMIN: 5,
+  ADMIN: 4,
+  OPERATOR: 3,
+  SUPER_TESTER: 2,
+  TESTER: 1,
+  DEMO: 0,
+  VIEWER: 1, // @deprecated alias
+};
+
 export interface UseSidebarLayoutOptions {
   userId?: string;
+  userRole?: string;
   baseSections: NavSection[];
   isAdmin?: boolean;
 }
@@ -173,7 +218,9 @@ export interface UseSidebarLayoutResult {
   sections: NavSection[];
   visibleSections: NavSection[];
   hiddenSectionIds: string[];
+  deletedSectionIds: string[];
   hasCustomLayout: boolean;
+  hasPersonalDefault: boolean;
   isLoaded: boolean;
 
   // Drag state for UI
@@ -183,10 +230,13 @@ export interface UseSidebarLayoutResult {
   renameSection: (sectionId: string, title: string) => void;
   hideSection: (sectionId: string) => void;
   showSection: (sectionId: string) => void;
+  deleteSection: (sectionId: string) => void;
+  undoDeleteSection: (sectionId: string) => void;
 
   // Layout actions
-  resetLayout: () => void;
+  resetLayout: () => Promise<void>;
   setAsDefault: () => Promise<boolean>;
+  setAsPersonalDefault: () => Promise<boolean>;
 
   // Drag handlers for sections
   sectionDragHandlers: {
@@ -210,12 +260,37 @@ export interface UseSidebarLayoutResult {
 
 export function useSidebarLayout({
   userId,
+  userRole,
   baseSections,
   isAdmin = false,
 }: UseSidebarLayoutOptions): UseSidebarLayoutResult {
   const [state, dispatch] = useReducer(sidebarReducer, INITIAL_STATE);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasLoadedRef = useRef(false);
+  const [hasPersonalDefault, setHasPersonalDefault] = useState(false);
+
+  // ============================================================================
+  // Role-based section filtering
+  // ============================================================================
+
+  // Filter baseSections by requiredRole (hard gate) and apply defaultHiddenFor
+  const { roleSections, roleDefaultHidden } = useMemo(() => {
+    const userLevel = SIDEBAR_ROLE_LEVEL[userRole || "OPERATOR"] ?? 3;
+
+    // Hard gate: remove sections the user's role can't see
+    const filtered = baseSections.filter((section) => {
+      if (!section.requiredRole) return true;
+      const requiredLevel = SIDEBAR_ROLE_LEVEL[section.requiredRole] ?? 0;
+      return userLevel >= requiredLevel;
+    });
+
+    // Soft default: collect section IDs that should be hidden by default for this role
+    const defaultHidden = filtered
+      .filter((section) => section.defaultHiddenFor?.includes(userRole || "OPERATOR"))
+      .map((section) => section.id);
+
+    return { roleSections: filtered, roleDefaultHidden: defaultHidden };
+  }, [baseSections, userRole]);
 
   // ============================================================================
   // Load layout on mount
@@ -227,23 +302,39 @@ export function useSidebarLayout({
     let cancelled = false;
 
     const load = async () => {
-      // Try user's personal layout first
+      // 1. Try localStorage (working copy)
       const userLayout = loadLayout(userId);
       if (userLayout && !cancelled) {
         dispatch({ type: "SET_LAYOUT", layout: userLayout });
         hasLoadedRef.current = true;
+        // Check if personal default exists in the background
+        loadPersonalDefault().then((p) => {
+          if (p && !cancelled) setHasPersonalDefault(true);
+        });
         return;
       }
 
-      // Then try global default
+      // 2. Try personal DB default (survives cache clears)
+      const personalLayout = await loadPersonalDefault();
+      if (personalLayout && !cancelled) {
+        setHasPersonalDefault(true);
+        dispatch({ type: "SET_LAYOUT", layout: personalLayout });
+        hasLoadedRef.current = true;
+        return;
+      }
+
+      // 3. Try global default
       const globalLayout = await loadGlobalDefault();
       if (globalLayout && !cancelled) {
         dispatch({ type: "SET_LAYOUT", layout: globalLayout });
-        // Don't mark as custom since it's the default
         hasLoadedRef.current = true;
       } else if (!cancelled) {
-        // Mark as loaded even if no layout found
-        dispatch({ type: "SET_LAYOUT", layout: {} });
+        // 4. No saved layout — apply role-based defaults
+        const roleLayout: Partial<typeof EMPTY_LAYOUT> = {};
+        if (roleDefaultHidden.length > 0) {
+          roleLayout.hiddenSections = roleDefaultHidden;
+        }
+        dispatch({ type: "SET_LAYOUT", layout: roleLayout });
         hasLoadedRef.current = true;
       }
     };
@@ -282,21 +373,24 @@ export function useSidebarLayout({
   const sections = useMemo(() => {
     const { sectionOrder, itemPlacements, itemOrder, sectionTitles } = state.layout;
 
+    // Use role-filtered sections (hard gate applied via requiredRole)
+    const effectiveSections = roleSections;
+
     // Determine section order
     let orderedSections: NavSection[];
     if (sectionOrder.length === 0) {
-      orderedSections = baseSections;
+      orderedSections = effectiveSections;
     } else {
       const orderedIds = sectionOrder.filter((id) =>
-        baseSections.some((s) => s.id === id)
+        effectiveSections.some((s) => s.id === id)
       );
-      const newSectionIds = baseSections
+      const newSectionIds = effectiveSections
         .filter((s) => !sectionOrder.includes(s.id))
         .map((s) => s.id);
       const finalOrder = [...orderedIds, ...newSectionIds];
 
       orderedSections = finalOrder
-        .map((id) => baseSections.find((s) => s.id === id))
+        .map((id) => effectiveSections.find((s) => s.id === id))
         .filter((s): s is NavSection => s !== undefined);
     }
 
@@ -307,7 +401,7 @@ export function useSidebarLayout({
     }
 
     // Collect items into target sections
-    for (const section of baseSections) {
+    for (const section of effectiveSections) {
       for (const item of section.items) {
         const targetSection = itemPlacements[item.href] || section.id;
         if (sectionItems[targetSection]) {
@@ -346,16 +440,22 @@ export function useSidebarLayout({
       title: sectionTitles?.[section.id] ?? section.title,
       items: sectionItems[section.id] || [],
     }));
-  }, [baseSections, state.layout]);
+  }, [roleSections, state.layout]);
 
-  // Filter visible sections
+  // Filter visible sections (exclude both hidden and deleted)
   const hiddenSectionIds = useMemo(
     () => state.layout.hiddenSections || [],
     [state.layout.hiddenSections]
   );
+  const deletedSectionIds = useMemo(
+    () => state.layout.deletedSections || [],
+    [state.layout.deletedSections]
+  );
   const visibleSections = useMemo(
-    () => sections.filter((s) => !hiddenSectionIds.includes(s.id)),
-    [sections, hiddenSectionIds]
+    () => sections.filter(
+      (s) => !hiddenSectionIds.includes(s.id) && !deletedSectionIds.includes(s.id)
+    ),
+    [sections, hiddenSectionIds, deletedSectionIds]
   );
 
   // ============================================================================
@@ -374,15 +474,39 @@ export function useSidebarLayout({
     dispatch({ type: "SHOW_SECTION", sectionId });
   }, []);
 
-  const resetLayout = useCallback(() => {
-    dispatch({ type: "RESET_LAYOUT" });
+  const deleteSection = useCallback((sectionId: string) => {
+    dispatch({ type: "DELETE_SECTION", sectionId });
+  }, []);
+
+  const undoDeleteSection = useCallback((sectionId: string) => {
+    dispatch({ type: "UNDO_DELETE_SECTION", sectionId });
+  }, []);
+
+  const resetLayout = useCallback(async () => {
+    // 1. Clear user layer: localStorage + personal DB default
     clearLayout(userId);
+    await clearPersonalDefault();
+    setHasPersonalDefault(false);
+
+    // 2. Re-load from the default layer chain: Global DB → BASE_SECTIONS
+    const globalLayout = await loadGlobalDefault();
+    if (globalLayout) {
+      dispatch({ type: "SET_LAYOUT", layout: globalLayout });
+    } else {
+      dispatch({ type: "RESET_LAYOUT" });
+    }
   }, [userId]);
 
   const setAsDefault = useCallback(async () => {
     if (!isAdmin) return false;
     return saveGlobalDefault(state.layout);
   }, [isAdmin, state.layout]);
+
+  const setAsPersonalDefault = useCallback(async () => {
+    const ok = await savePersonalDefault(state.layout);
+    if (ok) setHasPersonalDefault(true);
+    return ok;
+  }, [state.layout]);
 
   // ============================================================================
   // Section drag handlers
@@ -576,14 +700,19 @@ export function useSidebarLayout({
     sections,
     visibleSections,
     hiddenSectionIds,
+    deletedSectionIds,
     hasCustomLayout: state.hasCustomLayout,
+    hasPersonalDefault,
     isLoaded: state.isLoaded,
     dragState: state.dragState,
     renameSection,
     hideSection,
     showSection,
+    deleteSection,
+    undoDeleteSection,
     resetLayout,
     setAsDefault,
+    setAsPersonalDefault,
     sectionDragHandlers,
     itemDragHandlers,
   };

@@ -1,10 +1,15 @@
 /**
  * Seed From Specs - Load and activate BDD spec files
  *
- * This module provides the single source of truth for seeding:
- * - Reads JSON spec files from bdd-specs/ folder
- * - Creates BDDFeatureSet records
- * - Activates them to derive Parameters, ScoringAnchors, PromptSlugs, etc.
+ * @note INFRASTRUCTURE TOOL — intentionally reads from disk.
+ * This is a bootstrap/seeding script, not runtime code.
+ *
+ * Reads JSON spec files from docs-archive/bdd-specs/ folder,
+ * creates BDDFeatureSet records, and activates them to derive
+ * Parameters, ScoringAnchors, PromptSlugs, etc.
+ *
+ * After seeding, the database is the runtime source of truth.
+ * The docs-archive/bdd-specs/ folder is only needed for initial import.
  *
  * Usage:
  *   import { seedFromSpecs } from "./seed-from-specs";
@@ -29,19 +34,25 @@ import {
 } from "../lib/bdd/ai-parser";
 import { compileSpecToTemplate } from "../lib/bdd/compile-specs";
 import { ContractRegistry, ensureContractsLoaded } from "../lib/contracts/registry";
+import {
+  DEFAULT_FALLBACK_PERSONAS,
+  DEFAULT_IDENTITY_TEMPLATE,
+  DEFAULT_FLOW_PHASES,
+  DEFAULT_TRANSCRIPT_LIMITS,
+  DEFAULT_AI_MODEL_CONFIGS,
+} from "../lib/fallback-settings";
 
 const prisma = new PrismaClient();
 
-// Path to spec files
-// Use process.cwd() instead of __dirname to work in both CLI and Next.js API contexts
+// Path to spec files (archived — only used for initial import/seeding)
 function getSpecsFolder(): string {
   // Try process.cwd() first (works in Next.js API routes)
-  const cwdPath = path.join(process.cwd(), "bdd-specs");
+  const cwdPath = path.join(process.cwd(), "docs-archive", "bdd-specs");
   if (fs.existsSync(cwdPath)) {
     return cwdPath;
   }
   // Fallback to __dirname for CLI scripts
-  return path.join(__dirname, "../bdd-specs");
+  return path.join(__dirname, "../docs-archive/bdd-specs");
 }
 
 export interface SeedSpecResult {
@@ -56,6 +67,7 @@ export interface SeedSpecResult {
   promptSlugsCreated: number;
   agentCreated: boolean;
   curriculumCreated: boolean;
+  error?: string;
 }
 
 /**
@@ -72,8 +84,8 @@ export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; r
 
   const files = fs.readdirSync(specsFolder).filter(f =>
     f.endsWith(".spec.json") &&
-    !f.includes("schema") &&
-    !f.includes("config")
+    f !== "schema.spec.json" &&
+    f !== "config.spec.json"
   );
   console.log(`   Found ${files.length} spec files in ${specsFolder}`);
 
@@ -183,47 +195,65 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   const declaredOutputType = (scoringSpec?.outputType as AnalysisOutputType) || AnalysisOutputType.MEASURE;
 
   // Determine specRole (UI category) based on declared specRole or outputType
-  // This maps the old META catch-all to specific categories
   let specRole: SpecRole;
   const declaredSpecRole = scoringSpec?.specRole as SpecRole | undefined;
 
-  if (declaredSpecRole === SpecRole.IDENTITY) {
+  // NEW TAXONOMY (Feb 2026): ORCHESTRATE, EXTRACT, SYNTHESISE, CONSTRAIN, IDENTITY, CONTENT, VOICE
+  if (declaredSpecRole === SpecRole.ORCHESTRATE) {
+    specRole = SpecRole.ORCHESTRATE;
+  } else if (declaredSpecRole === SpecRole.EXTRACT) {
+    specRole = SpecRole.EXTRACT;
+  } else if (declaredSpecRole === SpecRole.SYNTHESISE) {
+    specRole = SpecRole.SYNTHESISE;
+  } else if (declaredSpecRole === SpecRole.CONSTRAIN) {
+    specRole = SpecRole.CONSTRAIN;
+  } else if (declaredSpecRole === SpecRole.IDENTITY) {
     specRole = SpecRole.IDENTITY;
   } else if (declaredSpecRole === SpecRole.CONTENT) {
     specRole = SpecRole.CONTENT;
   } else if (declaredSpecRole === SpecRole.VOICE) {
     specRole = SpecRole.VOICE;
+  // DEPRECATED VALUES (backward compatibility) - map to new taxonomy
+  } else if (declaredSpecRole === SpecRole.MEASURE) {
+    specRole = SpecRole.EXTRACT;
+  } else if (declaredSpecRole === SpecRole.ADAPT) {
+    specRole = SpecRole.SYNTHESISE;
+  } else if (declaredSpecRole === SpecRole.REWARD) {
+    specRole = SpecRole.SYNTHESISE;
   } else if (declaredSpecRole === SpecRole.GUARDRAIL) {
-    specRole = SpecRole.GUARDRAIL;
+    specRole = SpecRole.CONSTRAIN;
   } else if (declaredSpecRole === SpecRole.BOOTSTRAP) {
-    specRole = SpecRole.BOOTSTRAP;
+    specRole = SpecRole.ORCHESTRATE;
   } else {
-    // Map outputType to specRole for META/unspecified specs
+    // Map outputType to specRole for unspecified specs
     switch (declaredOutputType) {
       case AnalysisOutputType.MEASURE:
       case AnalysisOutputType.MEASURE_AGENT:
       case AnalysisOutputType.LEARN:
-        specRole = SpecRole.MEASURE;
+        specRole = SpecRole.EXTRACT; // Measurement/learning
         break;
       case AnalysisOutputType.ADAPT:
-        specRole = SpecRole.ADAPT;
+        specRole = SpecRole.SYNTHESISE; // Behavioral adaptation
         break;
       case AnalysisOutputType.REWARD:
-        specRole = SpecRole.REWARD;
+        specRole = SpecRole.SYNTHESISE; // Reward computation
         break;
       case AnalysisOutputType.SUPERVISE:
-        specRole = SpecRole.GUARDRAIL;
+        specRole = SpecRole.CONSTRAIN; // Guardrails
         break;
       default:
-        specRole = SpecRole.MEASURE; // Default for COMPOSE, AGGREGATE, etc.
+        specRole = SpecRole.EXTRACT; // Default for COMPOSE, AGGREGATE, etc.
     }
   }
 
   // Determine outputType: IDENTITY/CONTENT/VOICE specs use COMPOSE (they contribute to prompts)
+  // CONSTRAIN specs use SUPERVISE (they enforce guardrails/bounds)
   // Other specs use their declared outputType
   let outputType: AnalysisOutputType;
   if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT || specRole === SpecRole.VOICE) {
     outputType = AnalysisOutputType.COMPOSE; // Prompt contributors
+  } else if (specRole === SpecRole.CONSTRAIN) {
+    outputType = AnalysisOutputType.SUPERVISE; // Guardrails/bounds
   } else {
     outputType = declaredOutputType;
   }
@@ -254,7 +284,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     specRole === SpecRole.IDENTITY ||
     specRole === SpecRole.CONTENT ||
     specRole === SpecRole.VOICE ||
-    specRole === SpecRole.GUARDRAIL ||
+    specRole === SpecRole.CONSTRAIN ||
     outputType === AnalysisOutputType.LEARN ||
     outputType === AnalysisOutputType.COMPOSE;
 
@@ -629,8 +659,9 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
       console.log(`      Built config for ${specRole} spec with ${(config.parameters as any[]).length} parameters and keys: ${Object.keys(config).slice(0, 5).join(", ")}...`);
     }
   }
-  // For BOOTSTRAP specs (like INIT-001): preserve parameters AND copy top-level flow/template data
-  else if (specRole === SpecRole.BOOTSTRAP) {
+  // For ORCHESTRATE/BOOTSTRAP specs (like INIT-001, PIPELINE-001, QUICK-LAUNCH-001):
+  // Preserve parameters AND copy top-level flow/template data from rawSpec
+  else if (specRole === SpecRole.ORCHESTRATE || specRole as string === "BOOTSTRAP") {
     config = {
       parameters: compiledParams.map(p => ({
         id: p.id || p.parameterId,
@@ -665,7 +696,24 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     if (rawSpecData?.promptSlugs) {
       config.promptSlugs = rawSpecData.promptSlugs;
     }
-    console.log(`      Built BOOTSTRAP config with ${compiledParams.length} parameters and keys: ${Object.keys(config).slice(0, 8).join(", ")}...`);
+    // For ORCHESTRATE specs: copy any remaining top-level data from rawSpec
+    // that isn't already handled (e.g. implementation, story, etc.)
+    const handledKeys = new Set([
+      "id", "title", "name", "version", "status", "date", "domain",
+      "specType", "specRole", "outputType", "isDeletable",
+      "story", "context", "parameters", "acceptanceCriteria",
+      "constraints", "related", "description",
+      // Already handled above
+      "firstCallFlow", "personas", "outputs", "promptSlugs", "config",
+    ]);
+    if (rawSpecData) {
+      for (const [key, val] of Object.entries(rawSpecData)) {
+        if (!handledKeys.has(key) && val !== undefined && val !== null) {
+          config[key] = val;
+        }
+      }
+    }
+    console.log(`      Built ORCHESTRATE config with ${compiledParams.length} parameters and keys: ${Object.keys(config).slice(0, 8).join(", ")}...`);
   }
   // For ADAPT, AGGREGATE, etc.: preserve parameters array for pipeline to read configs
   else if (compiledParams.length > 0 && compiledParams.some(p => p.config)) {
@@ -675,7 +723,21 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
         config: p.config || {},
       })),
     };
+    // Copy root-level config from rawSpec (e.g., defaultAdaptConfidence for ADAPT specs)
+    if (rawSpecData?.config && typeof rawSpecData.config === "object") {
+      Object.assign(config, rawSpecData.config);
+      console.log(`      Merged root-level config keys: ${Object.keys(rawSpecData.config).join(", ")}`);
+    }
+    // Copy metadata from rawSpec if present
+    if (rawSpecData?.metadata) {
+      config.metadata = rawSpecData.metadata;
+    }
     console.log(`      Built config with ${compiledParams.length} parameters for ${outputType} spec`);
+  }
+
+  // Copy context.dependsOn into config for runtime dependency validation
+  if (config && rawSpecData?.context?.dependsOn && Array.isArray(rawSpecData.context.dependsOn)) {
+    config.dependsOn = rawSpecData.context.dependsOn;
   }
 
   // Compile the spec to generate promptTemplate from rawSpec in database
@@ -739,7 +801,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     console.log(`      ℹ️ Spec declares implementation of: ${implementedContracts.join(", ")}`);
 
     for (const contractId of implementedContracts) {
-      const validation = ContractRegistry.validateSpec(
+      const validation = await ContractRegistry.validateSpec(
         featureSet.featureId,
         specData.config || {},
         {
@@ -779,7 +841,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   }
 
   // 4c. Create PromptSlugs for BOOTSTRAP specs (INIT-001 onboarding)
-  if (specRole === SpecRole.BOOTSTRAP && rawSpecData?.personas) {
+  if ((specRole === SpecRole.ORCHESTRATE || specRole as string === "BOOTSTRAP") && rawSpecData?.personas) {
     const personaKeys = Object.keys(rawSpecData.personas).filter(k => !k.startsWith("_") && k !== "defaultPersona");
     let slugsCreated = 0;
 
@@ -1253,75 +1315,49 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     }
   }
 
-  // For ADAPT specs, create triggers from the spec's triggers array (from rawSpec in DB)
-  // These map personality/engagement signals to behavior parameters
+  // For ADAPT specs, auto-generate triggers from adaptationRules (single source of truth).
+  // The adapt-runner reads config.parameters[].config.adaptationRules at runtime.
+  // We generate AnalysisTrigger/AnalysisAction records for UI display and data dictionary.
   if (outputType === AnalysisOutputType.ADAPT) {
-    // Use explicitTriggers extracted from rawSpec earlier
-    const specTriggers = explicitTriggers;
+    let triggerIdx = 0;
+    for (const param of compiledParams) {
+      const rules = param.config?.adaptationRules || [];
+      if (rules.length === 0) continue;
 
-    for (let i = 0; i < specTriggers.length; i++) {
-      const t = specTriggers[i];
-      const trigger = await prisma.analysisTrigger.create({
-        data: {
-          specId: spec.id,
-          given: t.given,
-          when: t.when,
-          then: t.then,
-          name: t.name,
-          sortOrder: i,
-        },
-      });
-      results.triggersCreated++;
+      for (const rule of rules) {
+        const cond = rule.condition || {};
+        const actions = rule.actions || [];
+        if (actions.length === 0) continue;
 
-      // Handle actions array inside trigger (new format)
-      const triggerActions = t.actions || [];
-      for (let j = 0; j < triggerActions.length; j++) {
-        const action = triggerActions[j];
-        if (action.parameterId) {
-          const paramExists = await prisma.parameter.findUnique({
-            where: { parameterId: action.parameterId },
-          });
-
-          await prisma.analysisAction.create({
-            data: {
-              triggerId: trigger.id,
-              description: action.description || `Apply ${action.parameterId}`,
-              weight: action.weight ?? 1.0,
-              parameterId: paramExists ? action.parameterId : null,
-              sortOrder: j,
-            },
-          });
-          results.actionsCreated++;
-        }
-      }
-
-      // Also handle legacy format where parameterId is on trigger directly
-      if (t.parameterId && triggerActions.length === 0) {
-        // Check if parameter exists (BEH-* params may be seeded later)
-        const paramExists = await prisma.parameter.findUnique({
-          where: { parameterId: t.parameterId },
+        // Build human-readable BDD trigger from the rule
+        const opLabel = cond.operator === "gte" ? ">=" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : cond.operator === "lte" ? "<=" : cond.operator || "?";
+        const targetNames = actions.map((a: any) => a.targetParameter).join(", ");
+        const trigger = await prisma.analysisTrigger.create({
+          data: {
+            specId: spec.id,
+            given: `${cond.profileKey} is ${opLabel} ${cond.threshold}`,
+            when: "Computing behavior targets",
+            then: `Set ${targetNames}`,
+            name: `${param.id}: ${cond.profileKey} ${opLabel} ${cond.threshold}`,
+            sortOrder: triggerIdx++,
+          },
         });
+        results.triggersCreated++;
 
-        if (paramExists) {
-          await prisma.analysisAction.create({
-            data: {
-              triggerId: trigger.id,
-              description: `${t.then} [targetValue=${t.targetValue ?? 0.5}]`,
-              weight: t.targetValue ?? 0.5, // Use weight to store target value
-              parameterId: t.parameterId,
-              sortOrder: 0,
-            },
+        // Create an action for each behavior target in the rule
+        for (let j = 0; j < actions.length; j++) {
+          const action = actions[j];
+          const paramExists = await prisma.parameter.findUnique({
+            where: { parameterId: action.targetParameter },
           });
-          results.actionsCreated++;
-        } else {
-          // Parameter doesn't exist yet - create action without parameterId
-          // and store the intended parameterId in description
+
           await prisma.analysisAction.create({
             data: {
               triggerId: trigger.id,
-              description: `${t.then} [targetValue=${t.targetValue ?? 0.5}] [parameterId=${t.parameterId}]`,
-              weight: t.targetValue ?? 0.5,
-              sortOrder: 0,
+              description: action.rationale || `Set ${action.targetParameter} to ${action.value}`,
+              weight: action.value ?? 0.5,
+              parameterId: paramExists ? action.targetParameter : null,
+              sortOrder: j,
             },
           });
           results.actionsCreated++;
@@ -1436,7 +1472,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
 export async function reseedSingleSpec(
   featureId: string
 ): Promise<SeedSpecResult> {
-  ensureContractsLoaded();
+  await ensureContractsLoaded();
 
   const specsFolder = getSpecsFolder();
   const files = fs.readdirSync(specsFolder).filter(
@@ -1462,14 +1498,107 @@ export async function reseedSingleSpec(
 }
 
 /**
+ * Seed contracts from docs-archive/bdd-specs/contracts/*.contract.json into SystemSettings.
+ * This makes contracts available to the DB-backed ContractRegistry at runtime.
+ */
+export async function seedContracts(): Promise<{ seeded: number; errors: string[] }> {
+  const specsFolder = getSpecsFolder();
+  const contractsDir = path.join(specsFolder, "contracts");
+  const errors: string[] = [];
+  let seeded = 0;
+
+  if (!fs.existsSync(contractsDir)) {
+    console.log("   No contracts/ directory found, skipping contract seeding");
+    return { seeded: 0, errors: [] };
+  }
+
+  const files = fs.readdirSync(contractsDir).filter(f => f.endsWith(".contract.json"));
+  console.log(`   Found ${files.length} contract file(s)\n`);
+
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(path.join(contractsDir, file), "utf-8");
+      const contract = JSON.parse(content);
+
+      if (!contract.contractId || !contract.version) {
+        errors.push(`${file}: missing contractId or version`);
+        continue;
+      }
+
+      const key = `contract:${contract.contractId}`;
+      await prisma.systemSetting.upsert({
+        where: { key },
+        update: { value: content },
+        create: { key, value: content },
+      });
+
+      console.log(`   ✓ Contract: ${contract.contractId} v${contract.version}`);
+      seeded++;
+    } catch (e: any) {
+      errors.push(`${file}: ${e.message}`);
+      console.error(`   ✗ Contract ${file}: ${e.message}`);
+    }
+  }
+
+  return { seeded, errors };
+}
+
+/**
+ * Seed fallback defaults into SystemSettings.
+ * These are the last-resort values used when specs or AI are unavailable.
+ * Uses upsert so re-running is safe (won't overwrite admin edits unless value is identical).
+ */
+export async function seedFallbacks(): Promise<{ seeded: number; skipped: number }> {
+  const fallbacks: Array<{ key: string; value: unknown; label: string }> = [
+    { key: "fallback:onboarding.personas", value: DEFAULT_FALLBACK_PERSONAS, label: "Onboarding Personas" },
+    { key: "fallback:identity.template", value: DEFAULT_IDENTITY_TEMPLATE, label: "Identity Template" },
+    { key: "fallback:onboarding.flow_phases", value: DEFAULT_FLOW_PHASES, label: "Onboarding Flow Phases" },
+    { key: "fallback:pipeline.transcript_limits", value: DEFAULT_TRANSCRIPT_LIMITS, label: "Transcript Limits" },
+    { key: "fallback:ai.default_models", value: DEFAULT_AI_MODEL_CONFIGS, label: "AI Model Defaults" },
+  ];
+
+  let seeded = 0;
+  let skipped = 0;
+
+  for (const { key, value, label } of fallbacks) {
+    const jsonValue = JSON.stringify(value);
+    const existing = await prisma.systemSetting.findUnique({ where: { key } });
+
+    if (existing) {
+      // Don't overwrite if admin has customized the value
+      skipped++;
+      continue;
+    }
+
+    await prisma.systemSetting.create({
+      data: { key, value: jsonValue },
+    });
+    seeded++;
+    console.log(`      ✓ ${label} (${key})`);
+  }
+
+  return { seeded, skipped };
+}
+
+/**
  * Main function - seed from all spec files
  */
 export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<SeedSpecResult[]> {
   console.log("\n📋 SEEDING FROM BDD SPEC FILES\n");
   console.log("━".repeat(60));
 
-  // Load contracts before validating specs
-  ensureContractsLoaded();
+  // Seed contracts into DB first, then load them for validation
+  console.log("\n   📦 Seeding contracts into SystemSettings...\n");
+  const contractResult = await seedContracts();
+  console.log(`   ✅ ${contractResult.seeded} contracts seeded\n`);
+
+  // Seed fallback defaults into SystemSettings
+  console.log("   🛡️  Seeding fallback defaults...\n");
+  const fallbackResult = await seedFallbacks();
+  console.log(`   ✅ ${fallbackResult.seeded} fallbacks seeded, ${fallbackResult.skipped} already exist\n`);
+
+  // Load contracts from DB for spec validation
+  await ensureContractsLoaded();
 
   let specFiles = loadSpecFiles();
 
@@ -1481,7 +1610,7 @@ export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<S
   }
 
   if (specFiles.length === 0) {
-    console.log("   No spec files found in bdd-specs/ folder");
+    console.log("   No spec files found in docs-archive/bdd-specs/ folder");
     return [];
   }
 
@@ -1508,8 +1637,22 @@ export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<S
       console.log(`      ✓ Triggers: ${result.triggersCreated}, Actions: ${result.actionsCreated}`);
       console.log("");
     } catch (e: any) {
-      console.log(`      ✗ Error: ${e.message}`);
+      console.error(`      ✗ Error seeding ${content.id}: ${e.message}`);
       console.log("");
+      results.push({
+        specId: content.id,
+        title: content.title || content.id,
+        parametersCreated: 0,
+        parametersUpdated: 0,
+        anchorsCreated: 0,
+        specsCreated: 0,
+        triggersCreated: 0,
+        actionsCreated: 0,
+        promptSlugsCreated: 0,
+        agentCreated: false,
+        curriculumCreated: false,
+        error: e.message,
+      });
     }
   }
 

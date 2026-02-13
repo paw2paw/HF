@@ -1,18 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/callers/:callerId/calls
- * Create a new call for a caller
+ * @api POST /api/callers/:callerId/calls
+ * @visibility public
+ * @scope callers:write
+ * @auth session
+ * @tags callers, calls
+ * @description Create a new call record for a caller. Auto-determines call sequence number if not provided. Links to previous call for chain tracking.
+ * @pathParam callerId string - The caller ID to create a call for
+ * @body source string - Call source identifier (default: "ai-simulation")
+ * @body callSequence number - Explicit sequence number (optional, auto-incremented if omitted)
+ * @body transcript string - Call transcript text (default: "")
+ * @response 200 { ok: true, call: { id, callSequence, source, createdAt } }
+ * @response 404 { ok: false, error: "Caller not found" }
+ * @response 500 { ok: false, error: "Failed to create call" }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { callerId } = await params;
     const body = await request.json();
-    const { source = "ai-simulation", callSequence, transcript = "" } = body;
+    const { source = "ai-simulation", callSequence, transcript = "", usedPromptId } = body;
 
     // Verify caller exists
     const caller = await prisma.caller.findUnique({
@@ -53,6 +68,7 @@ export async function POST(
         previousCallId: previousCall?.id || null,
         transcript: transcript || "",
         externalId: source === "playground-upload" ? `upload-${Date.now()}` : `ai-sim-${Date.now()}`,
+        ...(usedPromptId ? { usedPromptId } : {}),
       },
     });
 

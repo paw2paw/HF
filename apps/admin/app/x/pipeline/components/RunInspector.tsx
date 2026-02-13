@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   ExpandMore,
   ExpandLess,
@@ -15,7 +15,6 @@ import {
   SectionIcon,
   SPIN_KEYFRAMES,
 } from "@/lib/pipeline/icons";
-import { CallerPicker } from "@/components/shared/CallerPicker";
 import { FancySelect } from "@/components/shared/FancySelect";
 
 // =============================================================================
@@ -85,10 +84,91 @@ interface PipelineRun {
 }
 
 // =============================================================================
+// RECENT CALLERS (derived from pipeline runs)
+// =============================================================================
+
+interface RecentCaller {
+  id: string;
+  name: string | null;
+  lastRunAt: string;
+  totalRuns: number;
+  lastStatus: string;
+  lastModel: string | null;
+  lastDurationMs: number | null;
+}
+
+type SortMode = "recent" | "most-runs" | "name";
+
+function groupByCallerId(runs: PipelineRun[]): RecentCaller[] {
+  const map = new Map<string, RecentCaller>();
+  for (const run of runs) {
+    const cid = run.callerId || run._caller?.id;
+    if (!cid) continue;
+    const existing = map.get(cid);
+    if (existing) {
+      existing.totalRuns++;
+      // Keep most recent
+      if (run.startedAt > existing.lastRunAt) {
+        existing.lastRunAt = run.startedAt;
+        existing.lastStatus = run.status;
+        existing.lastModel = run._model || null;
+        existing.lastDurationMs = run.durationMs;
+      }
+    } else {
+      map.set(cid, {
+        id: cid,
+        name: run._caller?.name || null,
+        lastRunAt: run.startedAt,
+        totalRuns: 1,
+        lastStatus: run.status,
+        lastModel: run._model || null,
+        lastDurationMs: run.durationMs,
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function sortCallers(callers: RecentCaller[], mode: SortMode): RecentCaller[] {
+  const sorted = [...callers];
+  switch (mode) {
+    case "recent":
+      sorted.sort((a, b) => b.lastRunAt.localeCompare(a.lastRunAt));
+      break;
+    case "most-runs":
+      sorted.sort((a, b) => b.totalRuns - a.totalRuns);
+      break;
+    case "name":
+      sorted.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+      break;
+  }
+  return sorted;
+}
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
 export default function RunInspector() {
+  // Recent callers state
+  const [allRecentRuns, setAllRecentRuns] = useState<PipelineRun[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
+  const [sortMode, setSortMode] = useState<SortMode>("recent");
+  const [callerSearch, setCallerSearch] = useState("");
+
+  // Selected caller state
   const [selectedCallerId, setSelectedCallerId] = useState<string | null>(null);
   const [runs, setRuns] = useState<PipelineRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -96,7 +176,35 @@ export default function RunInspector() {
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
   const [aiConfigs, setAiConfigs] = useState<Record<string, AIConfigInfo>>({});
 
-  // Fetch AI configs on mount
+  // Derive recent callers list
+  const recentCallers = useMemo(() => {
+    const grouped = groupByCallerId(allRecentRuns);
+    let filtered = grouped;
+    if (callerSearch.trim()) {
+      const q = callerSearch.toLowerCase();
+      filtered = grouped.filter(
+        (c) =>
+          (c.name || "").toLowerCase().includes(q) ||
+          c.id.toLowerCase().includes(q),
+      );
+    }
+    return sortCallers(filtered, sortMode);
+  }, [allRecentRuns, sortMode, callerSearch]);
+
+  // Fetch recent runs + AI configs on mount
+  useEffect(() => {
+    setLoadingRecent(true);
+    fetch("/api/pipeline/runs?limit=200")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.runs) {
+          setAllRecentRuns(data.runs);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingRecent(false));
+  }, []);
+
   useEffect(() => {
     async function fetchAIConfigs() {
       try {
@@ -193,8 +301,19 @@ export default function RunInspector() {
     }
   };
 
+  const refreshAll = async () => {
+    setLoadingRecent(true);
+    try {
+      const res = await fetch("/api/pipeline/runs?limit=200");
+      const data = await res.json();
+      if (data.ok && data.runs) setAllRecentRuns(data.runs);
+    } catch {}
+    finally { setLoadingRecent(false); }
+    if (selectedCallerId) refreshRuns();
+  };
+
   return (
-    <div>
+    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Add spin keyframes + highlight animation */}
       <style dangerouslySetInnerHTML={{ __html: `
         ${SPIN_KEYFRAMES}
@@ -207,183 +326,400 @@ export default function RunInspector() {
         }
       ` }} />
 
-      {/* Filters */}
+      {/* ======== LEFT PANEL: Recent Callers ======== */}
       <div
         style={{
+          width: 280,
+          flexShrink: 0,
           display: "flex",
-          gap: 16,
-          marginBottom: 24,
-          alignItems: "center",
+          flexDirection: "column",
+          borderRight: "1px solid var(--border-default, #e5e7eb)",
+          background: "var(--surface-secondary, #f9fafb)",
+          height: "100%",
         }}
       >
-        {/* Caller Picker */}
-        <div style={{ flex: 1, maxWidth: 300 }}>
-          <label
-            style={{
-              display: "block",
-              fontSize: 12,
-              fontWeight: 500,
-              color: "var(--text-secondary)",
-              marginBottom: 4,
-            }}
-          >
-            Caller
-          </label>
-          <CallerPicker
-            value={selectedCallerId}
-            onChange={(callerId) => setSelectedCallerId(callerId || null)}
-            placeholder="Select a caller..."
-          />
-        </div>
-
-        {/* Run Picker */}
-        <div style={{ flex: 1, maxWidth: 400 }}>
-          <label
-            style={{
-              display: "block",
-              fontSize: 12,
-              fontWeight: 500,
-              color: "var(--text-secondary)",
-              marginBottom: 4,
-            }}
-          >
-            Run
-          </label>
-          <FancySelect
-            value={selectedRunId || ""}
-            onChange={(v) => setSelectedRunId(v || null)}
-            disabled={!selectedCallerId || runs.length === 0}
-            placeholder={loading ? "Loading..." : runs.length === 0 ? "No runs found" : "Select a run..."}
-            searchable={runs.length > 5}
-            options={runs.map((r) => ({
-              value: r.id,
-              label: `${new Date(r.startedAt).toLocaleString()}`,
-              subtitle: `${r.triggeredBy || "manual"} (${r.durationMs}ms)`,
-            }))}
-          />
-        </div>
-
-        {/* Refresh */}
-        <button
-          onClick={refreshRuns}
-          disabled={!selectedCallerId}
-          style={{
-            marginTop: 20,
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            color: "var(--text-secondary)",
-            cursor: selectedCallerId ? "pointer" : "not-allowed",
-            opacity: selectedCallerId ? 1 : 0.5,
-          }}
-        >
-          <Refresh style={{ fontSize: 18 }} />
-        </button>
-      </div>
-
-      {/* Empty State */}
-      {!selectedRun && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: 60,
-            color: "var(--text-muted)",
-          }}
-        >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-          <div style={{ fontSize: 16 }}>
-            Select a caller and run to inspect prompt composition details
+        {/* Header + search */}
+        <div style={{ padding: "12px 10px 8px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary, #111827)" }}>
+              Recent Callers
+            </span>
+            <button
+              onClick={refreshAll}
+              style={{
+                padding: "3px 6px",
+                borderRadius: 4,
+                border: "1px solid var(--border-default, #e5e7eb)",
+                background: "var(--surface-primary, #fff)",
+                color: "var(--text-tertiary, #9ca3af)",
+                cursor: "pointer",
+                fontSize: 12,
+                display: "flex",
+                alignItems: "center",
+              }}
+              title="Refresh"
+            >
+              <Refresh style={{ fontSize: 14 }} />
+            </button>
           </div>
-        </div>
-      )}
 
-      {/* Run Details */}
-      {selectedRun && (
-        <div>
-          {/* Run Header */}
+          {/* Search */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              marginBottom: 24,
-              padding: 16,
-              background: "var(--surface-secondary)",
-              borderRadius: 8,
-              border: "1px solid var(--border-default)",
+              gap: 6,
+              padding: "5px 8px",
+              borderRadius: 6,
+              border: "1px solid var(--border-default, #e5e7eb)",
+              background: "var(--surface-primary, #fff)",
+              marginBottom: 6,
             }}
           >
-            <StatusBadge status={selectedRun.status} size={24} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>
-                Prompt Composition
-                {selectedRun._model && (
-                  <span
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary, #9ca3af)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              value={callerSearch}
+              onChange={(e) => setCallerSearch(e.target.value)}
+              placeholder="Search callers..."
+              style={{
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: 11,
+                color: "var(--text-primary, #111827)",
+                width: "100%",
+              }}
+            />
+            {callerSearch && (
+              <button
+                onClick={() => setCallerSearch("")}
+                style={{ border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--text-tertiary)", padding: 0 }}
+              >
+                &times;
+              </button>
+            )}
+          </div>
+
+          {/* Sort */}
+          <div style={{ display: "flex", gap: 4 }}>
+            {([
+              { id: "recent" as const, label: "Recent" },
+              { id: "most-runs" as const, label: "Most Runs" },
+              { id: "name" as const, label: "Name" },
+            ]).map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSortMode(s.id)}
+                style={{
+                  padding: "3px 8px",
+                  borderRadius: 4,
+                  border: sortMode === s.id
+                    ? "1px solid var(--accent-primary, #3b82f6)"
+                    : "1px solid var(--border-default, #e5e7eb)",
+                  background: sortMode === s.id
+                    ? "color-mix(in srgb, var(--accent-primary, #3b82f6) 10%, transparent)"
+                    : "var(--surface-primary, #fff)",
+                  color: sortMode === s.id
+                    ? "var(--accent-primary, #3b82f6)"
+                    : "var(--text-tertiary, #9ca3af)",
+                  fontSize: 10,
+                  fontWeight: sortMode === s.id ? 600 : 400,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Caller list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 6px 8px" }}>
+          {loadingRecent ? (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--text-tertiary)", fontSize: 11 }}>
+              Loading recent activity...
+            </div>
+          ) : recentCallers.length === 0 ? (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--text-tertiary)", fontSize: 11 }}>
+              {callerSearch ? "No callers match" : "No pipeline runs found"}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {recentCallers.map((caller) => {
+                const isSelected = caller.id === selectedCallerId;
+                return (
+                  <button
+                    key={caller.id}
+                    onClick={() => setSelectedCallerId(caller.id)}
                     style={{
-                      marginLeft: 8,
-                      padding: "2px 8px",
-                      background: selectedRun._model === "deterministic" ? "#dbeafe" : "#fef3c7",
-                      color: selectedRun._model === "deterministic" ? "#1e40af" : "#92400e",
-                      borderRadius: 4,
-                      fontSize: 11,
-                      fontWeight: 500,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      border: isSelected
+                        ? "1px solid var(--accent-primary, #3b82f6)"
+                        : "1px solid transparent",
+                      background: isSelected
+                        ? "color-mix(in srgb, var(--accent-primary, #3b82f6) 8%, transparent)"
+                        : "var(--surface-primary, #fff)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.15s",
+                      boxShadow: isSelected ? "0 1px 4px rgba(59,130,246,0.1)" : "0 1px 2px rgba(0,0,0,0.03)",
+                      width: "100%",
                     }}
                   >
-                    {selectedRun._model}
-                  </span>
-                )}
+                    {/* Status dot */}
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: caller.lastStatus === "SUCCESS" ? "#22c55e" : "#ef4444",
+                        flexShrink: 0,
+                      }}
+                    />
+
+                    {/* Name + metadata */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: "var(--text-primary, #111827)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {caller.name || caller.id.slice(0, 8)}
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--text-tertiary, #9ca3af)", marginTop: 1 }}>
+                        {caller.totalRuns} run{caller.totalRuns !== 1 ? "s" : ""}
+                        {caller.lastDurationMs != null && ` \u00B7 ${caller.lastDurationMs}ms`}
+                      </div>
+                    </div>
+
+                    {/* Relative time */}
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--text-tertiary, #9ca3af)",
+                        flexShrink: 0,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatRelativeTime(caller.lastRunAt)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer count */}
+        <div
+          style={{
+            padding: "6px 10px",
+            borderTop: "1px solid var(--border-default, #e5e7eb)",
+            fontSize: 10,
+            color: "var(--text-tertiary, #9ca3af)",
+          }}
+        >
+          {recentCallers.length} caller{recentCallers.length !== 1 ? "s" : ""} with activity
+        </div>
+      </div>
+
+      {/* ======== RIGHT PANEL: Run Detail ======== */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Run picker bar */}
+        {selectedCallerId && (
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "10px 16px",
+              borderBottom: "1px solid var(--border-default, #e5e7eb)",
+              background: "var(--surface-primary, #fff)",
+              flexShrink: 0,
+              alignItems: "center",
+            }}
+          >
+            <div style={{ flex: 1, maxWidth: 400 }}>
+              <FancySelect
+                value={selectedRunId || ""}
+                onChange={(v) => setSelectedRunId(v || null)}
+                disabled={runs.length === 0}
+                placeholder={loading ? "Loading..." : runs.length === 0 ? "No runs found" : "Select a run..."}
+                searchable={runs.length > 5}
+                options={runs.map((r) => ({
+                  value: r.id,
+                  label: `${new Date(r.startedAt).toLocaleString()}`,
+                  subtitle: `${r.triggeredBy || "manual"} (${r.durationMs}ms)`,
+                }))}
+              />
+            </div>
+            <button
+              onClick={refreshRuns}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 6,
+                border: "1px solid var(--border-default, #e5e7eb)",
+                background: "var(--surface-primary, #fff)",
+                color: "var(--text-secondary, #6b7280)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+              }}
+              title="Refresh runs"
+            >
+              <Refresh style={{ fontSize: 16 }} />
+            </button>
+            <span style={{ fontSize: 11, color: "var(--text-tertiary, #9ca3af)" }}>
+              {runs.length} run{runs.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        )}
+
+        {/* Content area */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+          {/* Empty State: no caller selected */}
+          {!selectedCallerId && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: 60,
+                color: "var(--text-muted, #9ca3af)",
+              }}
+            >
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.4 }}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+                Select a caller to inspect traces
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                {new Date(selectedRun.startedAt).toLocaleString()} •{" "}
-                {selectedRun.durationMs}ms • {selectedRun.stepsSucceeded}/
-                {selectedRun.stepsTotal} steps • triggered by {selectedRun.triggeredBy || "manual"}
+              <div style={{ fontSize: 12 }}>
+                Callers are sorted by most recent pipeline activity
               </div>
             </div>
-            {selectedRun.errorSummary && (
+          )}
+
+          {/* Empty State: caller selected but no run */}
+          {selectedCallerId && !selectedRun && !loading && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: 60,
+                color: "var(--text-muted, #9ca3af)",
+              }}
+            >
+              <div style={{ fontSize: 14 }}>
+                {runs.length === 0 ? "No pipeline runs for this caller" : "Select a run above"}
+              </div>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {loading && (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-tertiary, #9ca3af)", fontSize: 13 }}>
+              Loading runs...
+            </div>
+          )}
+
+          {/* Run Details */}
+          {selectedRun && (
+            <div>
+              {/* Run Header */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
-                  padding: "6px 12px",
-                  background: "#fee2e2",
-                  borderRadius: 6,
-                  color: "#dc2626",
-                  fontSize: 13,
+                  gap: 12,
+                  marginBottom: 20,
+                  padding: 14,
+                  background: "var(--surface-secondary, #f9fafb)",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-default, #e5e7eb)",
                 }}
               >
-                <Warning style={{ fontSize: 16 }} />
-                {selectedRun.errorSummary}
+                <StatusBadge status={selectedRun.status} size={24} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary, #111827)" }}>
+                    Prompt Composition
+                    {selectedRun._model && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          padding: "2px 8px",
+                          background: selectedRun._model === "deterministic" ? "#dbeafe" : "#fef3c7",
+                          color: selectedRun._model === "deterministic" ? "#1e40af" : "#92400e",
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {selectedRun._model}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary, #6b7280)" }}>
+                    {new Date(selectedRun.startedAt).toLocaleString()} •{" "}
+                    {selectedRun.durationMs}ms • {selectedRun.stepsSucceeded}/
+                    {selectedRun.stepsTotal} steps • triggered by {selectedRun.triggeredBy || "manual"}
+                  </div>
+                </div>
+                {selectedRun.errorSummary && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 12px",
+                      background: "#fee2e2",
+                      borderRadius: 6,
+                      color: "#dc2626",
+                      fontSize: 12,
+                    }}
+                  >
+                    <Warning style={{ fontSize: 16 }} />
+                    {selectedRun.errorSummary}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Steps Timeline */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-              maxHeight: "calc(100vh - 300px)",
-              overflowY: "auto",
-              paddingLeft: 4,
-              paddingRight: 8,
-            }}
-          >
-            {selectedRun.steps.map((step, idx) => (
-              <StepCard
-                key={step.id}
-                step={step}
-                isLast={idx === selectedRun.steps.length - 1}
-                expanded={expandedSteps.has(step.id)}
-                onToggle={() => toggleStep(step.id)}
-                aiConfigs={aiConfigs}
-              />
-            ))}
-          </div>
+              {/* Steps Timeline */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  paddingLeft: 4,
+                  paddingRight: 8,
+                }}
+              >
+                {selectedRun.steps.map((step, idx) => (
+                  <StepCard
+                    key={step.id}
+                    step={step}
+                    isLast={idx === selectedRun.steps.length - 1}
+                    expanded={expandedSteps.has(step.id)}
+                    onToggle={() => toggleStep(step.id)}
+                    aiConfigs={aiConfigs}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

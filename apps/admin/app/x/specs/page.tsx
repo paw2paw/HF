@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEntityContext } from "@/contexts/EntityContext";
@@ -13,6 +13,10 @@ import {
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
 import { SpecPill, ParameterPill, DomainPill, StatusBadge } from "@/src/components/shared/EntityPill";
+import { SpecRoleBadge, getSpecEditorRoute, requiresSpecialEditor } from "@/components/shared/SpecRoleBadge";
+import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
+import { useAssistant } from "@/hooks/useAssistant";
+import { SpecConfigEditor } from "@/components/config-editor";
 
 type Spec = {
   id: string;
@@ -69,6 +73,7 @@ type Trigger = {
   given: string | null;
   when: string | null;
   then: string | null;
+  notes: string | null;
   sortOrder: number;
   actions: TriggerAction[];
 };
@@ -87,6 +92,7 @@ type SpecDetail = {
   isActive: boolean;
   isLocked: boolean;
   lockedReason: string | null;
+  isDeletable: boolean;
   priority: number;
   version: string | null;
   compiledAt: string | null;
@@ -139,13 +145,20 @@ const scopeColors: Record<string, { bg: string; text: string; icon: string; desc
 };
 
 const roleColors: Record<string, { bg: string; text: string; label: string; icon: string; desc: string }> = {
-  IDENTITY: { bg: "#dbeafe", text: "#1e40af", label: "Identity", icon: "🎭", desc: "Who the agent is" },
-  CONTENT: { bg: "#d1fae5", text: "#065f46", label: "Content", icon: "📚", desc: "Domain knowledge/curriculum" },
-  VOICE: { bg: "#fef3c7", text: "#92400e", label: "Voice", icon: "🎤", desc: "Voice-specific guidance" },
-  MEASURE: { bg: "#fef9c3", text: "#854d0e", label: "Measure", icon: "📊", desc: "Measurement/scoring specs" },
-  ADAPT: { bg: "#ede9fe", text: "#5b21b6", label: "Adapt", icon: "🔄", desc: "Behavioral adaptation" },
-  REWARD: { bg: "#fce7f3", text: "#9d174d", label: "Reward", icon: "🏆", desc: "Reward computation" },
-  GUARDRAIL: { bg: "#fee2e2", text: "#991b1b", label: "Guardrail", icon: "🛡️", desc: "Safety constraints" },
+  // New taxonomy
+  ORCHESTRATE: { bg: "#dbeafe", text: "#1e40af", label: "Orchestrate", icon: "🎯", desc: "Flow/sequence control" },
+  EXTRACT: { bg: "#dcfce7", text: "#166534", label: "Extract", icon: "🔍", desc: "Measurement/learning" },
+  SYNTHESISE: { bg: "#fef3c7", text: "#92400e", label: "Synthesise", icon: "🧮", desc: "Combine/transform data" },
+  CONSTRAIN: { bg: "#fee2e2", text: "#991b1b", label: "Constrain", icon: "📏", desc: "Bounds/guardrails" },
+  IDENTITY: { bg: "#e0e7ff", text: "#4338ca", label: "Identity", icon: "👤", desc: "Agent personas" },
+  CONTENT: { bg: "#fce7f3", text: "#be185d", label: "Content", icon: "📚", desc: "Curriculum" },
+  VOICE: { bg: "#e0e7ff", text: "#4338ca", label: "Voice", icon: "🎙️", desc: "Voice guidance" },
+  // Deprecated (backward compatibility) - grayed out
+  MEASURE: { bg: "#f3f4f6", text: "#6b7280", label: "Measure (→Extract)", icon: "📊", desc: "DEPRECATED: Use EXTRACT" },
+  ADAPT: { bg: "#f3f4f6", text: "#6b7280", label: "Adapt (→Synthesise)", icon: "🔄", desc: "DEPRECATED: Use SYNTHESISE" },
+  REWARD: { bg: "#f3f4f6", text: "#6b7280", label: "Reward (→Synthesise)", icon: "⭐", desc: "DEPRECATED: Use SYNTHESISE" },
+  GUARDRAIL: { bg: "#f3f4f6", text: "#6b7280", label: "Guardrail (→Constrain)", icon: "🛡️", desc: "DEPRECATED: Use CONSTRAIN" },
+  BOOTSTRAP: { bg: "#f3f4f6", text: "#6b7280", label: "Bootstrap (→Orchestrate)", icon: "🔄", desc: "DEPRECATED: Use ORCHESTRATE" },
 };
 
 // =============================================================================
@@ -185,6 +198,321 @@ function getNodePath(tree: TreeNode | null, targetId: string, path: string[] = [
   }
 
   return null;
+}
+
+// =============================================================================
+// Source Authority Panel (for CONTENT specs)
+// =============================================================================
+
+const TRUST_LEVEL_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+  REGULATORY_STANDARD: { bg: "#dcfce7", text: "#14532d", label: "L5 Regulatory" },
+  ACCREDITED_MATERIAL: { bg: "#dbeafe", text: "#1e3a5f", label: "L4 Accredited" },
+  PUBLISHED_REFERENCE: { bg: "#e0e7ff", text: "#3730a3", label: "L3 Published" },
+  EXPERT_CURATED: { bg: "#fef3c7", text: "#78350f", label: "L2 Expert" },
+  AI_ASSISTED: { bg: "#fce7f3", text: "#9d174d", label: "L1 AI" },
+  UNVERIFIED: { bg: "#f3f4f6", text: "#6b7280", label: "L0 Unverified" },
+};
+
+type AvailableSource = {
+  slug: string;
+  name: string;
+  trustLevel: string;
+  publisherOrg: string | null;
+  validUntil: string | null;
+  isExpired: boolean;
+};
+
+function SourceAuthorityPanel({
+  configText,
+  onConfigChange,
+  disabled,
+}: {
+  configText: string;
+  onConfigChange: (newConfig: string) => void;
+  disabled: boolean;
+}) {
+  const [availableSources, setAvailableSources] = useState<AvailableSource[]>([]);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+
+  // Parse current sourceAuthority from config
+  const parsed = useMemo(() => {
+    try {
+      const cfg = JSON.parse(configText);
+      return cfg?.sourceAuthority || null;
+    } catch {
+      return null;
+    }
+  }, [configText]);
+
+  const primarySource = parsed?.primarySource || null;
+  const secondarySources: any[] = parsed?.secondarySources || [];
+
+  // Fetch available sources
+  useEffect(() => {
+    setLoadingSources(true);
+    fetch("/api/content-sources/available")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) setAvailableSources(d.sources || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSources(false));
+  }, []);
+
+  // Update config JSON when sourceAuthority changes
+  const updateSourceAuthority = useCallback(
+    (newSA: any) => {
+      try {
+        const cfg = JSON.parse(configText);
+        cfg.sourceAuthority = { ...newSA, contract: "CONTENT_TRUST_V1" };
+        onConfigChange(JSON.stringify(cfg, null, 2));
+      } catch {
+        // Config isn't valid JSON - can't update
+      }
+    },
+    [configText, onConfigChange],
+  );
+
+  const setPrimarySource = useCallback(
+    (slug: string) => {
+      const source = availableSources.find((s) => s.slug === slug);
+      if (!source) return;
+      updateSourceAuthority({
+        ...parsed,
+        primarySource: {
+          slug: source.slug,
+          name: source.name,
+          trustLevel: source.trustLevel,
+          publisherOrg: source.publisherOrg,
+        },
+      });
+    },
+    [availableSources, parsed, updateSourceAuthority],
+  );
+
+  const addSecondarySource = useCallback(
+    (slug: string) => {
+      const source = availableSources.find((s) => s.slug === slug);
+      if (!source) return;
+      // Don't add duplicates
+      if (secondarySources.some((s: any) => s.slug === slug)) return;
+      updateSourceAuthority({
+        ...parsed,
+        secondarySources: [
+          ...secondarySources,
+          {
+            slug: source.slug,
+            name: source.name,
+            trustLevel: source.trustLevel,
+            publisherOrg: source.publisherOrg,
+          },
+        ],
+      });
+    },
+    [availableSources, parsed, secondarySources, updateSourceAuthority],
+  );
+
+  const removeSecondarySource = useCallback(
+    (slug: string) => {
+      updateSourceAuthority({
+        ...parsed,
+        secondarySources: secondarySources.filter((s: any) => s.slug !== slug),
+      });
+    },
+    [parsed, secondarySources, updateSourceAuthority],
+  );
+
+  const removePrimarySource = useCallback(() => {
+    const { primarySource: _removed, ...rest } = parsed || {};
+    updateSourceAuthority(rest);
+  }, [parsed, updateSourceAuthority]);
+
+  const TrustBadge = ({ level }: { level: string }) => {
+    const info = TRUST_LEVEL_COLORS[level] || TRUST_LEVEL_COLORS.UNVERIFIED;
+    return (
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          padding: "2px 6px",
+          borderRadius: 4,
+          background: info.bg,
+          color: info.text,
+        }}
+      >
+        {info.label}
+      </span>
+    );
+  };
+
+  // Sources not yet assigned
+  const unassignedSources = availableSources.filter(
+    (s) =>
+      s.slug !== primarySource?.slug &&
+      !secondarySources.some((sec: any) => sec.slug === s.slug),
+  );
+
+  return (
+    <div
+      style={{
+        marginBottom: 20,
+        border: "1px solid var(--border-default)",
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 14px",
+          background: "var(--surface-secondary)",
+          border: "none",
+          cursor: "pointer",
+          fontSize: 12,
+          fontWeight: 600,
+          color: "var(--text-secondary)",
+        }}
+      >
+        <span>Source Authority {primarySource ? `(${primarySource.slug})` : "(not configured)"}</span>
+        <span style={{ fontSize: 10 }}>{expanded ? "▼" : "▶"}</span>
+      </button>
+
+      {expanded && (
+        <div style={{ padding: 14 }}>
+          {/* Primary Source */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+              Primary Source
+            </label>
+            {primarySource ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  background: "var(--surface-primary)",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: 6,
+                }}
+              >
+                <TrustBadge level={primarySource.trustLevel} />
+                <span style={{ fontSize: 12, fontWeight: 500 }}>{primarySource.name || primarySource.slug}</span>
+                {primarySource.publisherOrg && (
+                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>({primarySource.publisherOrg})</span>
+                )}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={removePrimarySource}
+                    style={{ marginLeft: "auto", fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ) : (
+              <select
+                disabled={disabled || loadingSources}
+                onChange={(e) => { if (e.target.value) setPrimarySource(e.target.value); }}
+                value=""
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  fontSize: 12,
+                  borderRadius: 6,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-primary)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                <option value="">
+                  {loadingSources ? "Loading sources..." : "Select primary source..."}
+                </option>
+                {availableSources.map((s) => (
+                  <option key={s.slug} value={s.slug}>
+                    [{TRUST_LEVEL_COLORS[s.trustLevel]?.label || s.trustLevel}] {s.name}
+                    {s.isExpired ? " (EXPIRED)" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Secondary Sources */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+              Secondary Sources ({secondarySources.length})
+            </label>
+            {secondarySources.map((src: any) => (
+              <div
+                key={src.slug}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 12px",
+                  marginBottom: 4,
+                  background: "var(--surface-primary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: 6,
+                }}
+              >
+                <TrustBadge level={src.trustLevel} />
+                <span style={{ fontSize: 12 }}>{src.name || src.slug}</span>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => removeSecondarySource(src.slug)}
+                    style={{ marginLeft: "auto", fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            {!disabled && unassignedSources.length > 0 && (
+              <select
+                onChange={(e) => { if (e.target.value) addSecondarySource(e.target.value); }}
+                value=""
+                style={{
+                  width: "100%",
+                  padding: "6px 12px",
+                  fontSize: 11,
+                  borderRadius: 6,
+                  border: "1px dashed var(--border-default)",
+                  background: "var(--surface-primary)",
+                  color: "var(--text-secondary)",
+                  marginTop: 4,
+                }}
+              >
+                <option value="">Add secondary source...</option>
+                {unassignedSources.map((s) => (
+                  <option key={s.slug} value={s.slug}>
+                    [{TRUST_LEVEL_COLORS[s.trustLevel]?.label || s.trustLevel}] {s.name}
+                    {s.isExpired ? " (EXPIRED)" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Link to source registry */}
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            <a href="/x/content-sources" target="_blank" rel="noopener" style={{ color: "var(--accent-primary)" }}>
+              Manage sources in registry →
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function SpecsPage() {
@@ -230,7 +558,19 @@ export default function SpecsPage() {
   const [showTriggers, setShowTriggers] = useState(true);
   const [expandedTriggers, setExpandedTriggers] = useState<Set<string>>(new Set());
   const [expandedActions, setExpandedActions] = useState<Set<string>>(new Set());
-  const highlightedRef = useRef<HTMLDivElement>(null);
+  const highlightedRef = useRef<HTMLElement | null>(null);
+  const setHighlightedRef = useCallback((el: HTMLElement | null) => { highlightedRef.current = el; }, []);
+
+  // Trigger editing state (modal for adding new)
+  const [triggerModalOpen, setTriggerModalOpen] = useState(false);
+  const [editingTrigger, setEditingTrigger] = useState<Trigger | null>(null);
+  const [triggerSaving, setTriggerSaving] = useState(false);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
+
+  // Inline grid editing state
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [cellSaving, setCellSaving] = useState<string | null>(null);
 
   // Explorer tree state
   const [viewMode, setViewMode] = useState<"list" | "tree">("list");
@@ -242,6 +582,16 @@ export default function SpecsPage() {
 
   // Unimported specs count (for sync badge)
   const [unimportedCount, setUnimportedCount] = useState<number>(0);
+
+  // Content source freshness
+  const [freshness, setFreshness] = useState<{ expired: number; expiring: number } | null>(null);
+
+  // AI Assistant panel (unified)
+  const assistant = useAssistant({
+    defaultTab: "spec",
+    layout: "popout",
+    enabledTabs: ["chat", "spec"], // Only show relevant tabs for spec page
+  });
 
   const { pushEntity } = useEntityContext();
 
@@ -263,6 +613,192 @@ export default function SpecsPage() {
       return next;
     });
   }, []);
+
+  // Trigger CRUD handlers
+  const handleAddTrigger = useCallback(() => {
+    setEditingTrigger(null);
+    setTriggerError(null);
+    setTriggerModalOpen(true);
+  }, []);
+
+  const handleEditTrigger = useCallback((trigger: Trigger) => {
+    setEditingTrigger(trigger);
+    setTriggerError(null);
+    setTriggerModalOpen(true);
+  }, []);
+
+  const handleDeleteTrigger = useCallback(async (triggerId: string) => {
+    if (!spec) return;
+    if (!window.confirm("Delete this trigger and all its actions?")) return;
+
+    try {
+      const res = await fetch(`/api/analysis-specs/${spec.id}/triggers`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggerId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // Refresh spec to get updated triggers
+        const refreshRes = await fetch(`/api/analysis-specs/${spec.id}`);
+        const refreshData = await refreshRes.json();
+        if (refreshData.ok) setSpec(refreshData.spec);
+      } else {
+        alert(data.error || "Failed to delete trigger");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to delete trigger");
+    }
+  }, [spec]);
+
+  const handleSaveTrigger = useCallback(async (formData: {
+    given: string;
+    when: string;
+    then: string;
+    name: string;
+    notes: string;
+    actions: Array<{
+      description: string;
+      weight: number;
+      parameterId?: string;
+      learnCategory?: string;
+      learnKeyPrefix?: string;
+      learnKeyHint?: string;
+    }>;
+  }) => {
+    if (!spec) return;
+    setTriggerSaving(true);
+    setTriggerError(null);
+
+    try {
+      const isEdit = !!editingTrigger;
+      const res = await fetch(`/api/analysis-specs/${spec.id}/triggers`, {
+        method: isEdit ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isEdit ? { triggerId: editingTrigger.id, ...formData } : formData),
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        setTriggerError(data.error || "Failed to save trigger");
+        return;
+      }
+
+      setTriggerModalOpen(false);
+      // Refresh spec to get updated triggers
+      const refreshRes = await fetch(`/api/analysis-specs/${spec.id}`);
+      const refreshData = await refreshRes.json();
+      if (refreshData.ok) setSpec(refreshData.spec);
+    } catch (e: any) {
+      setTriggerError(e.message || "Failed to save trigger");
+    } finally {
+      setTriggerSaving(false);
+    }
+  }, [spec, editingTrigger]);
+
+  // Inline cell save — patches a single trigger field
+  const handleInlineSave = useCallback(async (triggerId: string, field: string, value: string) => {
+    if (!spec) return;
+    const cellKey = `trigger-${triggerId}-${field}`;
+    setCellSaving(cellKey);
+    try {
+      const res = await fetch(`/api/analysis-specs/${spec.id}/triggers`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggerId, [field]: value }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // Update locally
+        setSpec((prev) => {
+          if (!prev?.triggers) return prev;
+          return {
+            ...prev,
+            triggers: prev.triggers.map((t) =>
+              t.id === triggerId ? { ...t, [field === "then" ? "then" : field]: value } : t
+            ),
+          };
+        });
+        setEditingCell(null);
+      } else {
+        alert(data.error || "Failed to save");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to save");
+    } finally {
+      setCellSaving(null);
+    }
+  }, [spec]);
+
+  // Save full actions array for a trigger (used for action add/edit/remove)
+  const handleSaveActions = useCallback(async (triggerId: string, actions: TriggerAction[]) => {
+    if (!spec) return;
+    setCellSaving(`trigger-${triggerId}-actions`);
+    try {
+      const res = await fetch(`/api/analysis-specs/${spec.id}/triggers`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          triggerId,
+          actions: actions.map((a) => ({
+            description: a.description || "",
+            weight: a.weight ?? 1.0,
+            parameterId: a.parameterId || null,
+            learnCategory: a.learnCategory || null,
+            learnKeyPrefix: a.learnKeyPrefix || null,
+            learnKeyHint: a.learnKeyHint || null,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // Refresh spec to get updated data with IDs
+        const refreshRes = await fetch(`/api/analysis-specs/${spec.id}`);
+        const refreshData = await refreshRes.json();
+        if (refreshData.ok) setSpec(refreshData.spec);
+        setEditingCell(null);
+      } else {
+        alert(data.error || "Failed to save actions");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to save actions");
+    } finally {
+      setCellSaving(null);
+    }
+  }, [spec]);
+
+  // Add a new empty action to a trigger
+  const handleAddAction = useCallback(async (trigger: Trigger) => {
+    const newActions: TriggerAction[] = [
+      ...trigger.actions,
+      {
+        id: `new-${Date.now()}`,
+        description: "",
+        weight: 1.0,
+        sortOrder: trigger.actions.length,
+        parameterId: null,
+        learnCategory: null,
+        learnKeyPrefix: null,
+        learnKeyHint: null,
+        parameter: null,
+      },
+    ];
+    await handleSaveActions(trigger.id, newActions);
+  }, [handleSaveActions]);
+
+  // Remove an action from a trigger
+  const handleRemoveAction = useCallback(async (trigger: Trigger, actionId: string) => {
+    const newActions = trigger.actions.filter((a) => a.id !== actionId);
+    await handleSaveActions(trigger.id, newActions);
+  }, [handleSaveActions]);
+
+  // Inline action field save — updates one field, patches full actions array
+  const handleInlineActionSave = useCallback(async (trigger: Trigger, actionId: string, field: string, value: string | number) => {
+    const updatedActions = trigger.actions.map((a) =>
+      a.id === actionId ? { ...a, [field]: value } : a
+    );
+    await handleSaveActions(trigger.id, updatedActions);
+  }, [handleSaveActions]);
 
   // Explorer tree functions
   const fetchExplorerTree = useCallback(async () => {
@@ -311,7 +847,19 @@ export default function SpecsPage() {
     setExpandedNodes(new Set([explorerTree.id]));
   }, [explorerTree]);
 
-  // Handle tree node double-click - navigate to spec
+  // Handle tree node selection - navigate to spec
+  const handleTreeNodeSelect = useCallback(
+    (node: TreeNode) => {
+      setSelectedTreeNode(node);
+      // Navigate to spec detail if it's a spec node
+      if (node.type === "spec" && node.meta?.specId) {
+        router.push(`/x/specs?id=${node.meta.specId}`, { scroll: false });
+      }
+    },
+    [router]
+  );
+
+  // Handle tree node double-click - same as single click for specs
   const handleTreeDoubleClick = useCallback(
     (node: TreeNode) => {
       if (node.type === "spec" && node.meta?.specId) {
@@ -327,7 +875,7 @@ export default function SpecsPage() {
     expandedNodes,
     selectedNode: selectedTreeNode,
     onToggleExpand: toggleNodeExpand,
-    onSelectNode: setSelectedTreeNode,
+    onSelectNode: handleTreeNodeSelect,
   });
 
   // Fetch tree when switching to tree view
@@ -372,6 +920,29 @@ export default function SpecsPage() {
       .catch(() => {
         // Silently fail - badge just won't show
       });
+  }, []);
+
+  // Fetch content source freshness for banner
+  useEffect(() => {
+    fetch("/api/content-sources")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.sources) {
+          const now = Date.now();
+          let expired = 0;
+          let expiring = 0;
+          for (const s of data.sources) {
+            if (!s.validUntil) continue;
+            const days = Math.floor((new Date(s.validUntil).getTime() - now) / 86400000);
+            if (days < 0) expired++;
+            else if (days <= 60) expiring++;
+          }
+          if (expired > 0 || expiring > 0) {
+            setFreshness({ expired, expiring });
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch detail when selectedId changes
@@ -517,6 +1088,16 @@ export default function SpecsPage() {
   });
 
   const selectSpec = (id: string) => {
+    // Check if this spec requires a special editor (ORCHESTRATE, SYNTHESISE, CONSTRAIN)
+    const selectedSpec = specs.find(s => s.id === id);
+    if (selectedSpec && requiresSpecialEditor(selectedSpec.specRole)) {
+      // Redirect to special editor
+      const editorRoute = getSpecEditorRoute(selectedSpec.id, selectedSpec.specRole);
+      router.push(editorRoute);
+      return;
+    }
+
+    // Normal spec detail view
     router.push(`/x/specs?id=${id}`, { scroll: false });
   };
 
@@ -567,10 +1148,22 @@ export default function SpecsPage() {
       if (data.ok) {
         setSpec(data.spec);
         setHasChanges(false);
-        setSaveMessage({ type: "success", text: "Saved successfully" });
-        setTimeout(() => setSaveMessage(null), 3000);
+        // Show source warnings if any
+        if (data.sourceWarnings?.length) {
+          const warnText = data.sourceWarnings.map((w: any) => w.message).join("; ");
+          setSaveMessage({ type: "success", text: `Saved. Source warnings: ${warnText}` });
+        } else {
+          setSaveMessage({ type: "success", text: "Saved successfully" });
+        }
+        setTimeout(() => setSaveMessage(null), 5000);
       } else {
-        setSaveMessage({ type: "error", text: data.error || "Failed to save" });
+        // Show source validation errors specifically
+        if (data.sourceErrors?.length) {
+          const errText = data.sourceErrors.map((e: any) => e.message).join("; ");
+          setSaveMessage({ type: "error", text: errText });
+        } else {
+          setSaveMessage({ type: "error", text: data.error || "Failed to save" });
+        }
       }
     } catch (e: any) {
       setSaveMessage({ type: "error", text: e.message });
@@ -735,7 +1328,7 @@ export default function SpecsPage() {
   const hasPromptTemplate = spec?.promptTemplate && spec.promptTemplate.length > 100;
 
   return (
-    <div>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
       <div
         style={{
@@ -749,19 +1342,6 @@ export default function SpecsPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Analysis Specs</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                padding: "6px 10px",
-                border: "1px solid var(--input-border)",
-                borderRadius: 6,
-                width: 160,
-                fontSize: 12,
-              }}
-            />
             <Link
               href="/x/specs/new"
               style={{
@@ -796,7 +1376,7 @@ export default function SpecsPage() {
                   alignItems: "center",
                   gap: 5,
                 }}
-                title={`${unimportedCount} spec${unimportedCount === 1 ? "" : "s"} found in bdd-specs/ folder but not imported to database`}
+                title={`${unimportedCount} spec${unimportedCount === 1 ? "" : "s"} found in spec files but not imported to database`}
               >
                 <span
                   style={{
@@ -831,11 +1411,53 @@ export default function SpecsPage() {
             >
               Schema
             </Link>
+            {selectedId && (
+              <button
+                onClick={() => {
+                  if (spec) {
+                    assistant.openWithSpec(spec);
+                  }
+                }}
+                style={{
+                  padding: "6px 12px",
+                  background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  fontWeight: 500,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                title="Ask AI about this spec"
+              >
+                🤖 Ask AI
+              </button>
+            )}
           </div>
         </div>
 
         {/* Filters */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--input-border)",
+              borderRadius: 6,
+              width: 160,
+              fontSize: 12,
+              alignSelf: "center",
+            }}
+          />
+
+          <div style={{ width: 1, height: 24, background: "var(--border-default)", alignSelf: "center" }} />
+
           {/* Scope */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by specification scope">Scope</span>
@@ -921,8 +1543,47 @@ export default function SpecsPage() {
         </div>
       )}
 
+      {freshness && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "8px 14px",
+            marginBottom: 12,
+            borderRadius: 8,
+            background: freshness.expired > 0 ? "#fef2f2" : "#fffbeb",
+            border: `1px solid ${freshness.expired > 0 ? "#fca5a5" : "#fcd34d"}`,
+            fontSize: 12,
+          }}
+        >
+          <span style={{ fontWeight: 600, color: freshness.expired > 0 ? "#991b1b" : "#92400e" }}>
+            {freshness.expired > 0
+              ? `${freshness.expired} expired source${freshness.expired > 1 ? "s" : ""}`
+              : `${freshness.expiring} source${freshness.expiring > 1 ? "s" : ""} expiring soon`}
+          </span>
+          {freshness.expired > 0 && freshness.expiring > 0 && (
+            <span style={{ color: "#92400e" }}>
+              + {freshness.expiring} expiring soon
+            </span>
+          )}
+          <Link
+            href="/x/content-sources"
+            style={{
+              marginLeft: "auto",
+              fontSize: 11,
+              fontWeight: 600,
+              color: freshness.expired > 0 ? "#991b1b" : "#92400e",
+              textDecoration: "underline",
+            }}
+          >
+            Manage sources
+          </Link>
+        </div>
+      )}
+
       {/* Master-Detail Layout */}
-      <div style={{ display: "flex", gap: 16, minHeight: "calc(100vh - 220px)" }}>
+      <div style={{ display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
         {/* List/Tree Panel */}
         <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column" }}>
           {/* View Toggle Header */}
@@ -1059,7 +1720,7 @@ export default function SpecsPage() {
                           transition: "border-color 0.15s, box-shadow 0.15s",
                         }}
                       >
-                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
                           <span
                             style={{
                               fontSize: 10,
@@ -1084,6 +1745,7 @@ export default function SpecsPage() {
                           >
                             {s.outputType}
                           </span>
+                          {s.specRole && <SpecRoleBadge role={s.specRole} size="sm" />}
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{s.name}</div>
                         <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
@@ -1117,7 +1779,7 @@ export default function SpecsPage() {
                       expandedNodes={expandedNodes}
                       selectedNode={selectedTreeNode}
                       onToggle={toggleNodeExpand}
-                      onSelect={setSelectedTreeNode}
+                      onSelect={handleTreeNodeSelect}
                       onDoubleClick={handleTreeDoubleClick}
                     />
                   </div>
@@ -1196,6 +1858,11 @@ export default function SpecsPage() {
                 {spec.isLocked && (
                   <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#fee2e2", color: "#b91c1c" }}>
                     Locked
+                  </span>
+                )}
+                {spec.isDeletable === false && (
+                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>
+                    🔒 Cannot Delete
                   </span>
                 )}
                 {!spec.isActive && (
@@ -1281,10 +1948,20 @@ export default function SpecsPage() {
                       style={{ maxWidth: 300 }}
                       options={[
                         { value: "", label: "None" },
-                        { value: "IDENTITY", label: "IDENTITY", subtitle: "who the agent is" },
-                        { value: "CONTENT", label: "CONTENT", subtitle: "domain knowledge" },
-                        { value: "CONTEXT", label: "CONTEXT", subtitle: "caller-specific" },
-                        { value: "META", label: "META", subtitle: "legacy" },
+                        // New taxonomy
+                        { value: "ORCHESTRATE", label: "🎯 ORCHESTRATE", subtitle: "Flow/sequence control" },
+                        { value: "EXTRACT", label: "🔍 EXTRACT", subtitle: "Measurement/learning" },
+                        { value: "SYNTHESISE", label: "🧮 SYNTHESISE", subtitle: "Combine/transform data" },
+                        { value: "CONSTRAIN", label: "📏 CONSTRAIN", subtitle: "Bounds/guardrails" },
+                        { value: "IDENTITY", label: "👤 IDENTITY", subtitle: "Agent personas" },
+                        { value: "CONTENT", label: "📚 CONTENT", subtitle: "Curriculum" },
+                        { value: "VOICE", label: "🎙️ VOICE", subtitle: "Voice guidance" },
+                        // Deprecated (backward compatibility)
+                        { value: "MEASURE", label: "📊 MEASURE (deprecated)", subtitle: "Use EXTRACT instead" },
+                        { value: "ADAPT", label: "🔄 ADAPT (deprecated)", subtitle: "Use SYNTHESISE instead" },
+                        { value: "REWARD", label: "⭐ REWARD (deprecated)", subtitle: "Use SYNTHESISE instead" },
+                        { value: "GUARDRAIL", label: "🛡️ GUARDRAIL (deprecated)", subtitle: "Use CONSTRAIN instead" },
+                        { value: "BOOTSTRAP", label: "🔄 BOOTSTRAP (deprecated)", subtitle: "Use ORCHESTRATE instead" },
                       ]}
                     />
                   </div>
@@ -1330,46 +2007,31 @@ export default function SpecsPage() {
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                         <label style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
-                          Config (JSON)
+                          Config
                           {isIdentityOrContent && (
                             <span style={{ marginLeft: 8, fontSize: 10, background: "#e0e7ff", color: "#3730a3", padding: "2px 6px", borderRadius: 4 }}>
                               Primary output for {spec.specRole} specs
                             </span>
                           )}
                         </label>
-                        <button
-                          onClick={formatJson}
-                          style={{ fontSize: 11, color: "#4f46e5", background: "none", border: "none", cursor: "pointer" }}
-                        >
-                          Format JSON
-                        </button>
                       </div>
-                      <div style={{ position: "relative" }}>
-                        <textarea
-                          value={configText}
-                          onChange={(e) => handleConfigChange(e.target.value)}
-                          disabled={spec.isLocked}
-                          rows={isIdentityOrContent ? 16 : 8}
-                          style={{
-                            width: "100%",
-                            fontFamily: "monospace",
-                            fontSize: 11,
-                            border: configError ? "1px solid var(--status-error-border)" : "1px solid var(--border-default)",
-                            borderRadius: 8,
-                            padding: 12,
-                            color: "var(--text-primary)",
-                            background: configError ? "var(--status-error-bg)" : spec.isLocked ? "var(--surface-disabled)" : "var(--surface-primary)",
-                            resize: "vertical",
-                          }}
-                          placeholder="{}"
-                        />
-                        {configError && (
-                          <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, background: "var(--status-error-bg)", color: "var(--status-error-text)", fontSize: 11, padding: 8, borderRadius: 4 }}>
-                            JSON Error: {configError}
-                          </div>
-                        )}
-                      </div>
+                      <SpecConfigEditor
+                        configText={configText}
+                        onConfigChange={handleConfigChange}
+                        disabled={spec.isLocked}
+                        specRole={spec.specRole}
+                        outputType={spec.outputType}
+                      />
                     </div>
+                  )}
+
+                  {/* Source Authority Panel (CONTENT specs only) */}
+                  {isIdentityOrContent && spec.specRole === "CONTENT" && (
+                    <SourceAuthorityPanel
+                      configText={configText}
+                      onConfigChange={(newConfig: string) => { handleConfigChange(newConfig); }}
+                      disabled={spec.isLocked}
+                    />
                   )}
 
                   {/* Save / Recompile Buttons */}
@@ -1437,391 +2099,346 @@ export default function SpecsPage() {
                     )}
                   </div>
 
-                  {/* Triggers Tree */}
-                  {spec.triggers && spec.triggers.length > 0 && (
-                    <div style={{ marginTop: 24, borderTop: "1px solid var(--border-default)", paddingTop: 20 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  {/* Triggers Grid */}
+                  <div style={{ marginTop: 24, borderTop: "1px solid var(--border-default)", paddingTop: 20 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <button
+                        onClick={() => setShowTriggers(!showTriggers)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--text-secondary)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span>{showTriggers ? "▼" : "▶"}</span>
+                        Triggers ({spec.triggers?.length || 0})
+                      </button>
+                      {showTriggers && !spec.isLocked && (
                         <button
-                          onClick={() => setShowTriggers(!showTriggers)}
+                          onClick={handleAddTrigger}
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            fontSize: 13,
+                            marginLeft: "auto",
+                            padding: "4px 10px",
+                            borderRadius: 4,
+                            border: "1px solid var(--accent-primary)",
+                            fontSize: 11,
                             fontWeight: 600,
-                            color: "var(--text-secondary)",
-                            background: "none",
-                            border: "none",
+                            color: "var(--accent-primary)",
+                            background: "transparent",
                             cursor: "pointer",
                           }}
                         >
-                          <span>{showTriggers ? "▼" : "▶"}</span>
-                          Triggers ({spec.triggers.length})
+                          + Add Trigger
                         </button>
-                        {showTriggers && (
-                          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
-                            <button
-                              onClick={() => {
-                                const allTriggerIds = new Set(spec.triggers!.map((t) => t.id));
-                                const allActionIds = new Set(spec.triggers!.flatMap((t) => t.actions.map((a) => a.id)));
-                                setExpandedTriggers(allTriggerIds);
-                                setExpandedActions(allActionIds);
-                              }}
-                              style={{
-                                padding: "4px 8px",
-                                borderRadius: 4,
-                                border: "none",
-                                fontSize: 11,
-                                color: "var(--text-muted)",
-                                background: "transparent",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Expand All
-                            </button>
-                            <button
-                              onClick={() => {
-                                setExpandedTriggers(new Set());
-                                setExpandedActions(new Set());
-                              }}
-                              style={{
-                                padding: "4px 8px",
-                                borderRadius: 4,
-                                border: "none",
-                                fontSize: 11,
-                                color: "var(--text-muted)",
-                                background: "transparent",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Collapse All
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {showTriggers && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                          {spec.triggers.map((trigger, tIdx) => {
-                            const isHighlightedTrigger = trigger.id === highlightTriggerId;
-                            const hasHighlightedAction = trigger.actions.some((a) => a.id === highlightActionId);
-
-                            return (
-                              <div
-                                key={trigger.id}
-                                ref={isHighlightedTrigger && !highlightActionId ? highlightedRef : undefined}
-                                style={{
-                                  border: isHighlightedTrigger ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                                  borderRadius: 8,
-                                  background: isHighlightedTrigger ? "var(--surface-selected)" : "var(--surface-primary)",
-                                  transition: "border-color 0.3s, background-color 0.3s",
-                                }}
-                              >
-                                <div
-                                  onClick={() => toggleTrigger(trigger.id)}
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    padding: 12,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  <div>
-                                    <div style={{ fontWeight: 500, color: "var(--text-primary)", fontSize: 13 }}>
-                                      Trigger {tIdx + 1}: {trigger.name || "Unnamed"}
-                                    </div>
-                                    <div style={{ marginTop: 2, fontSize: 11, color: "var(--text-muted)" }}>
-                                      {trigger.actions.length} action{trigger.actions.length !== 1 ? "s" : ""}
-                                    </div>
-                                  </div>
-                                  <span style={{ color: "var(--text-placeholder)" }}>
-                                    {expandedTriggers.has(trigger.id) ? "▾" : "▸"}
-                                  </span>
-                                </div>
-
-                                {expandedTriggers.has(trigger.id) && (
-                                  <div style={{ borderTop: "1px solid var(--border-default)", padding: 12 }}>
-                                    {/* Given/When/Then */}
-                                    <div
-                                      style={{
-                                        marginBottom: 12,
-                                        padding: 10,
-                                        background: "var(--surface-secondary)",
-                                        borderRadius: 6,
-                                        fontFamily: "monospace",
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      {trigger.given && (
-                                        <div style={{ marginBottom: 4 }}>
-                                          <span style={{ fontWeight: 600, color: "#7c3aed" }}>Given</span>{" "}
-                                          <span style={{ color: "var(--text-primary)" }}>{trigger.given}</span>
-                                        </div>
-                                      )}
-                                      {trigger.when && (
-                                        <div style={{ marginBottom: 4 }}>
-                                          <span style={{ fontWeight: 600, color: "#2563eb" }}>When</span>{" "}
-                                          <span style={{ color: "var(--text-primary)" }}>{trigger.when}</span>
-                                        </div>
-                                      )}
-                                      {trigger.then && (
-                                        <div>
-                                          <span style={{ fontWeight: 600, color: "#16a34a" }}>Then</span>{" "}
-                                          <span style={{ color: "var(--text-primary)" }}>{trigger.then}</span>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                      {trigger.actions.map((action, aIdx) => {
-                                        const isHighlightedAction = action.id === highlightActionId;
-
-                                        return (
-                                          <div
-                                            key={action.id}
-                                            ref={isHighlightedAction ? highlightedRef : undefined}
-                                            style={{
-                                              border: isHighlightedAction ? "2px solid var(--accent-secondary)" : "1px solid var(--border-default)",
-                                              borderRadius: 6,
-                                              background: isHighlightedAction ? "var(--surface-selected)" : "var(--surface-primary)",
-                                              transition: "border-color 0.3s, background-color 0.3s",
-                                            }}
-                                          >
-                                            <div
-                                              onClick={() => toggleAction(action.id)}
-                                              style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "space-between",
-                                                padding: 10,
-                                                cursor: "pointer",
-                                              }}
-                                            >
-                                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                <span
-                                                  style={{
-                                                    fontSize: 10,
-                                                    fontWeight: 600,
-                                                    padding: "2px 6px",
-                                                    borderRadius: 4,
-                                                    background:
-                                                      spec.outputType === "LEARN" ? "#fef3c7" : "#e0e7ff",
-                                                    color:
-                                                      spec.outputType === "LEARN" ? "#92400e" : "#3730a3",
-                                                  }}
-                                                >
-                                                  {spec.outputType === "LEARN" ? "EXT" : "AC"}
-                                                  {aIdx + 1}
-                                                </span>
-                                                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
-                                                  {action.description || "No description"}
-                                                </span>
-                                              </div>
-                                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                {spec.outputType === "MEASURE" && action.parameter && (
-                                                  <ParameterPill
-                                                    label={action.parameter.parameterId}
-                                                    size="compact"
-                                                    href={`/data-dictionary?search=${action.parameter.parameterId}`}
-                                                  />
-                                                )}
-                                                {spec.outputType === "LEARN" && action.learnCategory && (
-                                                  <span
-                                                    style={{
-                                                      fontSize: 10,
-                                                      padding: "2px 6px",
-                                                      borderRadius: 4,
-                                                      background: "#fef3c7",
-                                                      color: "#92400e",
-                                                    }}
-                                                  >
-                                                    {action.learnCategory}
-                                                  </span>
-                                                )}
-                                                <span style={{ color: "var(--text-placeholder)" }}>
-                                                  {expandedActions.has(action.id) ? "▾" : "▸"}
-                                                </span>
-                                              </div>
-                                            </div>
-
-                                            {expandedActions.has(action.id) && (
-                                              <div style={{ borderTop: "1px solid var(--border-default)", padding: 10 }}>
-                                                {/* MEASURE: Show parameter + anchors */}
-                                                {spec.outputType === "MEASURE" && action.parameter && (
-                                                  <>
-                                                    <div
-                                                      style={{
-                                                        marginBottom: 10,
-                                                        padding: 8,
-                                                        background: "#faf5ff",
-                                                        borderRadius: 6,
-                                                        fontSize: 12,
-                                                      }}
-                                                    >
-                                                      <div style={{ fontWeight: 500, color: "#6b21a8" }}>
-                                                        Parameter: {action.parameter.name}
-                                                      </div>
-                                                      {action.parameter.definition && (
-                                                        <div style={{ marginTop: 4, color: "#7c3aed" }}>
-                                                          {action.parameter.definition}
-                                                        </div>
-                                                      )}
-                                                      <div
-                                                        style={{
-                                                          marginTop: 8,
-                                                          display: "flex",
-                                                          gap: 16,
-                                                          fontSize: 11,
-                                                        }}
-                                                      >
-                                                        {action.parameter.interpretationHigh && (
-                                                          <div>
-                                                            <span style={{ fontWeight: 500, color: "#16a34a" }}>
-                                                              High:
-                                                            </span>{" "}
-                                                            <span style={{ color: "var(--text-secondary)" }}>
-                                                              {action.parameter.interpretationHigh}
-                                                            </span>
-                                                          </div>
-                                                        )}
-                                                        {action.parameter.interpretationLow && (
-                                                          <div>
-                                                            <span style={{ fontWeight: 500, color: "#dc2626" }}>
-                                                              Low:
-                                                            </span>{" "}
-                                                            <span style={{ color: "var(--text-secondary)" }}>
-                                                              {action.parameter.interpretationLow}
-                                                            </span>
-                                                          </div>
-                                                        )}
-                                                      </div>
-                                                    </div>
-
-                                                    {/* Scoring Anchors */}
-                                                    {action.parameter.scoringAnchors &&
-                                                      action.parameter.scoringAnchors.length > 0 && (
-                                                        <div>
-                                                          <div
-                                                            style={{
-                                                              fontSize: 10,
-                                                              fontWeight: 600,
-                                                              textTransform: "uppercase",
-                                                              color: "var(--text-muted)",
-                                                              marginBottom: 6,
-                                                            }}
-                                                          >
-                                                            Scoring Anchors
-                                                          </div>
-                                                          <div
-                                                            style={{
-                                                              display: "flex",
-                                                              flexDirection: "column",
-                                                              gap: 6,
-                                                            }}
-                                                          >
-                                                            {action.parameter.scoringAnchors.map((anchor) => (
-                                                              <div
-                                                                key={anchor.id}
-                                                                style={{
-                                                                  padding: 8,
-                                                                  background: "var(--surface-secondary)",
-                                                                  borderRadius: 4,
-                                                                  fontSize: 12,
-                                                                }}
-                                                              >
-                                                                <div
-                                                                  style={{
-                                                                    display: "flex",
-                                                                    alignItems: "center",
-                                                                    gap: 8,
-                                                                  }}
-                                                                >
-                                                                  <span
-                                                                    style={{
-                                                                      fontSize: 11,
-                                                                      fontWeight: 600,
-                                                                      padding: "2px 6px",
-                                                                      borderRadius: 4,
-                                                                    }}
-                                                                    className={getScoreColor(anchor.score)}
-                                                                  >
-                                                                    {anchor.score}
-                                                                    {anchor.isGold && " ⭐"}
-                                                                  </span>
-                                                                  <span style={{ color: "var(--text-secondary)" }}>
-                                                                    "{anchor.example}"
-                                                                  </span>
-                                                                </div>
-                                                                {anchor.rationale && (
-                                                                  <div
-                                                                    style={{
-                                                                      marginTop: 4,
-                                                                      fontSize: 11,
-                                                                      color: "var(--text-muted)",
-                                                                    }}
-                                                                  >
-                                                                    {anchor.rationale}
-                                                                  </div>
-                                                                )}
-                                                              </div>
-                                                            ))}
-                                                          </div>
-                                                        </div>
-                                                      )}
-                                                  </>
-                                                )}
-
-                                                {/* LEARN: Show learn config */}
-                                                {spec.outputType === "LEARN" && (
-                                                  <div
-                                                    style={{
-                                                      padding: 8,
-                                                      background: "#fffbeb",
-                                                      borderRadius: 6,
-                                                      fontSize: 12,
-                                                    }}
-                                                  >
-                                                    <div style={{ fontWeight: 500, color: "#92400e" }}>
-                                                      Learns to: {action.learnCategory || "Not configured"}
-                                                    </div>
-                                                    {action.learnKeyPrefix && (
-                                                      <div style={{ marginTop: 4, color: "#b45309" }}>
-                                                        Key prefix:{" "}
-                                                        <code
-                                                          style={{
-                                                            background: "#fef3c7",
-                                                            padding: "1px 4px",
-                                                            borderRadius: 3,
-                                                          }}
-                                                        >
-                                                          {action.learnKeyPrefix}
-                                                        </code>
-                                                      </div>
-                                                    )}
-                                                    {action.learnKeyHint && (
-                                                      <div style={{ marginTop: 4, color: "#b45309" }}>
-                                                        Hint: {action.learnKeyHint}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
                       )}
                     </div>
-                  )}
+
+                    {showTriggers && (
+                      <>
+                        {(!spec.triggers || spec.triggers.length === 0) ? (
+                          <div style={{ padding: 16, fontSize: 12, color: "var(--text-muted)", textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
+                            No triggers defined yet.{!spec.isLocked && " Click \"+ Add Trigger\" to create one."}
+                          </div>
+                        ) : (
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                            <thead>
+                              <tr>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: 28 }}>#</th>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: "14%" }}>Name</th>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "#7c3aed", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Given</th>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "#2563eb", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>When</th>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "#16a34a", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Then</th>
+                                <th style={{ padding: "6px 8px", textAlign: "center", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: 44 }}></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {spec.triggers.map((trigger, tIdx) => {
+                                const isHighlighted = trigger.id === highlightTriggerId;
+                                return (
+                                  <React.Fragment key={trigger.id}>
+                                    {/* Trigger row */}
+                                    <tr
+                                      ref={isHighlighted && !highlightActionId ? setHighlightedRef : undefined}
+                                      style={{
+                                        background: isHighlighted ? "var(--surface-selected)" : undefined,
+                                        transition: "background-color 0.3s",
+                                      }}
+                                    >
+                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top", fontWeight: 600, color: "var(--text-muted)", fontSize: 11 }}>{tIdx + 1}</td>
+                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                        <InlineCell
+                                          cellKey={`trigger-${trigger.id}-name`}
+                                          value={trigger.name || ""}
+                                          editingCell={editingCell}
+                                          editingValue={editingValue}
+                                          saving={cellSaving}
+                                          disabled={spec.isLocked}
+                                          placeholder="Unnamed"
+                                          onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                          onChangeEdit={setEditingValue}
+                                          onSave={() => { handleInlineSave(trigger.id, "name", editingValue); }}
+                                          onCancel={() => setEditingCell(null)}
+                                        />
+                                      </td>
+                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                        <InlineCell
+                                          cellKey={`trigger-${trigger.id}-given`}
+                                          value={trigger.given || ""}
+                                          editingCell={editingCell}
+                                          editingValue={editingValue}
+                                          saving={cellSaving}
+                                          disabled={spec.isLocked}
+                                          placeholder="Given..."
+                                          onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                          onChangeEdit={setEditingValue}
+                                          onSave={() => { handleInlineSave(trigger.id, "given", editingValue); }}
+                                          onCancel={() => setEditingCell(null)}
+                                        />
+                                      </td>
+                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                        <InlineCell
+                                          cellKey={`trigger-${trigger.id}-when`}
+                                          value={trigger.when || ""}
+                                          editingCell={editingCell}
+                                          editingValue={editingValue}
+                                          saving={cellSaving}
+                                          disabled={spec.isLocked}
+                                          placeholder="When..."
+                                          onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                          onChangeEdit={setEditingValue}
+                                          onSave={() => { handleInlineSave(trigger.id, "when", editingValue); }}
+                                          onCancel={() => setEditingCell(null)}
+                                        />
+                                      </td>
+                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                        <InlineCell
+                                          cellKey={`trigger-${trigger.id}-then`}
+                                          value={trigger.then || ""}
+                                          editingCell={editingCell}
+                                          editingValue={editingValue}
+                                          saving={cellSaving}
+                                          disabled={spec.isLocked}
+                                          placeholder="Then..."
+                                          onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                          onChangeEdit={setEditingValue}
+                                          onSave={() => { handleInlineSave(trigger.id, "then", editingValue); }}
+                                          onCancel={() => setEditingCell(null)}
+                                        />
+                                      </td>
+                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top", textAlign: "center" }}>
+                                        {!spec.isLocked && (
+                                          <button
+                                            onClick={() => handleDeleteTrigger(trigger.id)}
+                                            title="Delete trigger"
+                                            style={{
+                                              padding: "2px 4px",
+                                              borderRadius: 4,
+                                              border: "none",
+                                              background: "transparent",
+                                              fontSize: 12,
+                                              cursor: "pointer",
+                                              color: "#dc2626",
+                                              opacity: 0.6,
+                                            }}
+                                            onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; }}
+                                            onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = "0.6"; }}
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+
+                                    {/* Action sub-rows */}
+                                    {trigger.actions.map((action, aIdx) => {
+                                      const isActionHighlighted = action.id === highlightActionId;
+                                      const actionBg = isActionHighlighted ? "var(--surface-selected)" : "var(--surface-secondary)";
+                                      const badgeLabel = spec.outputType === "LEARN" ? "EXT" : "AC";
+
+                                      return (
+                                        <tr
+                                          key={action.id}
+                                          ref={isActionHighlighted ? setHighlightedRef : undefined}
+                                          style={{ background: actionBg, transition: "background-color 0.3s" }}
+                                        >
+                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)", fontSize: 10 }}></td>
+                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                            <span style={{
+                                              fontSize: 9,
+                                              fontWeight: 600,
+                                              padding: "1px 5px",
+                                              borderRadius: 3,
+                                              background: spec.outputType === "LEARN" ? "#fef3c7" : "#e0e7ff",
+                                              color: spec.outputType === "LEARN" ? "#92400e" : "#3730a3",
+                                            }}>
+                                              {badgeLabel}{aIdx + 1}
+                                            </span>
+                                          </td>
+                                          {/* Description spans given column */}
+                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                            <InlineCell
+                                              cellKey={`action-${action.id}-description`}
+                                              value={action.description || ""}
+                                              editingCell={editingCell}
+                                              editingValue={editingValue}
+                                              saving={cellSaving}
+                                              disabled={spec.isLocked}
+                                              placeholder="Description..."
+                                              onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                              onChangeEdit={setEditingValue}
+                                              onSave={() => { handleInlineActionSave(trigger, action.id, "description", editingValue); }}
+                                              onCancel={() => setEditingCell(null)}
+                                            />
+                                          </td>
+                                          {/* Type-specific columns */}
+                                          {spec.outputType === "MEASURE" ? (
+                                            <>
+                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                                <InlineCell
+                                                  cellKey={`action-${action.id}-parameterId`}
+                                                  value={action.parameterId || ""}
+                                                  editingCell={editingCell}
+                                                  editingValue={editingValue}
+                                                  saving={cellSaving}
+                                                  disabled={spec.isLocked}
+                                                  placeholder="parameter_id"
+                                                  mono
+                                                  onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                                  onChangeEdit={setEditingValue}
+                                                  onSave={() => { handleInlineActionSave(trigger, action.id, "parameterId", editingValue); }}
+                                                  onCancel={() => setEditingCell(null)}
+                                                />
+                                              </td>
+                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                                <InlineCell
+                                                  cellKey={`action-${action.id}-weight`}
+                                                  value={String(action.weight ?? 1.0)}
+                                                  editingCell={editingCell}
+                                                  editingValue={editingValue}
+                                                  saving={cellSaving}
+                                                  disabled={spec.isLocked}
+                                                  placeholder="1.0"
+                                                  type="number"
+                                                  mono
+                                                  onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                                  onChangeEdit={setEditingValue}
+                                                  onSave={() => { handleInlineActionSave(trigger, action.id, "weight", parseFloat(editingValue) || 1.0); }}
+                                                  onCancel={() => setEditingCell(null)}
+                                                />
+                                              </td>
+                                            </>
+                                          ) : spec.outputType === "LEARN" ? (
+                                            <>
+                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                                <InlineCell
+                                                  cellKey={`action-${action.id}-learnCategory`}
+                                                  value={action.learnCategory || ""}
+                                                  editingCell={editingCell}
+                                                  editingValue={editingValue}
+                                                  saving={cellSaving}
+                                                  disabled={spec.isLocked}
+                                                  placeholder="Category"
+                                                  type="select"
+                                                  options={[
+                                                    { value: "FACT", label: "FACT" },
+                                                    { value: "PREFERENCE", label: "PREFERENCE" },
+                                                    { value: "EVENT", label: "EVENT" },
+                                                    { value: "TOPIC", label: "TOPIC" },
+                                                    { value: "RELATIONSHIP", label: "RELATIONSHIP" },
+                                                    { value: "CONTEXT", label: "CONTEXT" },
+                                                  ]}
+                                                  onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                                  onChangeEdit={setEditingValue}
+                                                  onSave={() => { handleInlineActionSave(trigger, action.id, "learnCategory", editingValue); }}
+                                                  onCancel={() => setEditingCell(null)}
+                                                />
+                                              </td>
+                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                                <InlineCell
+                                                  cellKey={`action-${action.id}-learnKeyPrefix`}
+                                                  value={action.learnKeyPrefix || ""}
+                                                  editingCell={editingCell}
+                                                  editingValue={editingValue}
+                                                  saving={cellSaving}
+                                                  disabled={spec.isLocked}
+                                                  placeholder="key_prefix"
+                                                  mono
+                                                  onStartEdit={(key, val) => { setEditingCell(key); setEditingValue(val); }}
+                                                  onChangeEdit={setEditingValue}
+                                                  onSave={() => { handleInlineActionSave(trigger, action.id, "learnKeyPrefix", editingValue); }}
+                                                  onCancel={() => setEditingCell(null)}
+                                                />
+                                              </td>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}></td>
+                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}></td>
+                                            </>
+                                          )}
+                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)", textAlign: "center" }}>
+                                            {!spec.isLocked && (
+                                              <button
+                                                onClick={() => handleRemoveAction(trigger, action.id)}
+                                                title="Remove action"
+                                                style={{
+                                                  padding: "1px 4px",
+                                                  borderRadius: 3,
+                                                  border: "none",
+                                                  background: "transparent",
+                                                  fontSize: 10,
+                                                  cursor: "pointer",
+                                                  color: "var(--text-muted)",
+                                                  opacity: 0.5,
+                                                }}
+                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; (e.target as HTMLElement).style.color = "#dc2626"; }}
+                                                onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = "0.5"; (e.target as HTMLElement).style.color = "var(--text-muted)"; }}
+                                              >
+                                                ✕
+                                              </button>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+
+                                    {/* + Action row */}
+                                    {!spec.isLocked && (
+                                      <tr style={{ background: "var(--surface-secondary)" }}>
+                                        <td colSpan={6} style={{ padding: "4px 8px", borderBottom: "2px solid var(--border-default)" }}>
+                                          <button
+                                            onClick={() => handleAddAction(trigger)}
+                                            disabled={cellSaving === `trigger-${trigger.id}-actions`}
+                                            style={{
+                                              padding: "2px 8px",
+                                              borderRadius: 3,
+                                              border: "none",
+                                              background: "transparent",
+                                              fontSize: 10,
+                                              color: "var(--text-muted)",
+                                              cursor: "pointer",
+                                            }}
+                                          >
+                                            {cellSaving === `trigger-${trigger.id}-actions` ? "Saving..." : "+ Action"}
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </>
               )}
 
@@ -2047,6 +2664,571 @@ export default function SpecsPage() {
           )}
         </div>
       </div>
+
+      {/* Unified AI Assistant Panel */}
+      <UnifiedAssistantPanel
+        visible={assistant.isOpen}
+        onClose={assistant.close}
+        context={assistant.context}
+        location={{ page: "/x/specs", entityType: "spec", entityId: selectedId || undefined }}
+        endpoint="/api/specs/assistant-view"
+        {...assistant.options}
+      />
+
+      {triggerModalOpen && spec && (
+        <TriggerFormModal
+          trigger={editingTrigger}
+          outputType={spec.outputType}
+          saving={triggerSaving}
+          error={triggerError}
+          onSave={handleSaveTrigger}
+          onClose={() => setTriggerModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Trigger Form Modal ────────────────────────────────────────────
+function TriggerFormModal({
+  trigger,
+  outputType,
+  saving,
+  error,
+  onSave,
+  onClose,
+}: {
+  trigger: Trigger | null;
+  outputType: string;
+  saving: boolean;
+  error: string | null;
+  onSave: (data: any) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(trigger?.name || "");
+  const [given, setGiven] = useState(trigger?.given || "");
+  const [when, setWhen] = useState(trigger?.when || "");
+  const [thenVal, setThenVal] = useState(trigger?.then || "");
+  const [notes, setNotes] = useState(trigger?.notes || "");
+  const [actions, setActions] = useState<Array<{
+    description: string;
+    weight: number;
+    parameterId: string;
+    learnCategory: string;
+    learnKeyPrefix: string;
+    learnKeyHint: string;
+  }>>(
+    trigger?.actions?.map((a) => ({
+      description: a.description || "",
+      weight: a.weight ?? 1.0,
+      parameterId: a.parameterId || "",
+      learnCategory: a.learnCategory || "",
+      learnKeyPrefix: a.learnKeyPrefix || "",
+      learnKeyHint: a.learnKeyHint || "",
+    })) || []
+  );
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  const handleSubmit = () => {
+    onSave({
+      given,
+      when,
+      then: thenVal,
+      name: name || null,
+      notes: notes || null,
+      actions: actions.length > 0 ? actions.map((a) => ({
+        description: a.description,
+        weight: a.weight,
+        ...(outputType === "MEASURE" && a.parameterId ? { parameterId: a.parameterId } : {}),
+        ...(outputType === "LEARN" && a.learnCategory ? { learnCategory: a.learnCategory } : {}),
+        ...(outputType === "LEARN" && a.learnKeyPrefix ? { learnKeyPrefix: a.learnKeyPrefix } : {}),
+        ...(outputType === "LEARN" && a.learnKeyHint ? { learnKeyHint: a.learnKeyHint } : {}),
+      })) : undefined,
+    });
+  };
+
+  const addAction = () => {
+    setActions([...actions, { description: "", weight: 1.0, parameterId: "", learnCategory: "", learnKeyPrefix: "", learnKeyHint: "" }]);
+  };
+
+  const updateAction = (idx: number, field: string, value: any) => {
+    setActions(actions.map((a, i) => i === idx ? { ...a, [field]: value } : a));
+  };
+
+  const removeAction = (idx: number) => {
+    setActions(actions.filter((_, i) => i !== idx));
+  };
+
+  const isEdit = !!trigger;
+  const canSubmit = given.trim() && when.trim() && thenVal.trim() && !saving;
+
+  const inputStyle = {
+    width: "100%",
+    padding: "6px 8px",
+    borderRadius: 4,
+    border: "1px solid var(--border-default)",
+    background: "var(--surface-primary)",
+    fontSize: 12,
+    color: "var(--text-primary)",
+    fontFamily: "inherit",
+    resize: "vertical" as const,
+  };
+
+  const labelStyle = {
+    fontSize: 11,
+    fontWeight: 600 as const,
+    color: "var(--text-secondary)",
+    marginBottom: 3,
+    display: "block" as const,
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "var(--surface-primary)",
+          borderRadius: 16,
+          padding: 28,
+          width: 640,
+          maxWidth: "90vw",
+          maxHeight: "90vh",
+          overflow: "auto",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+          {isEdit ? "Edit Trigger" : "Add Trigger"}
+        </h3>
+        <p style={{ margin: "4px 0 20px", fontSize: 12, color: "var(--text-muted)" }}>
+          Define a Given/When/Then scenario that describes when this spec activates.
+        </p>
+
+        {error && (
+          <div style={{ padding: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, marginBottom: 16, fontSize: 12, color: "#dc2626" }}>
+            {error}
+          </div>
+        )}
+
+        {/* Name */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Name (optional)</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Short name for this trigger"
+            style={inputStyle}
+          />
+        </div>
+
+        {/* Given */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>
+            <span style={{ color: "#7c3aed" }}>Given</span> *
+          </label>
+          <textarea
+            value={given}
+            onChange={(e) => setGiven(e.target.value)}
+            placeholder="A caller sharing personal information during conversation"
+            rows={2}
+            style={inputStyle}
+          />
+        </div>
+
+        {/* When */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>
+            <span style={{ color: "#2563eb" }}>When</span> *
+          </label>
+          <textarea
+            value={when}
+            onChange={(e) => setWhen(e.target.value)}
+            placeholder="The system identifies factual statements about the caller"
+            rows={2}
+            style={inputStyle}
+          />
+        </div>
+
+        {/* Then */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>
+            <span style={{ color: "#16a34a" }}>Then</span> *
+          </label>
+          <textarea
+            value={thenVal}
+            onChange={(e) => setThenVal(e.target.value)}
+            placeholder="Personal facts are extracted with confidence scores"
+            rows={2}
+            style={inputStyle}
+          />
+        </div>
+
+        {/* Notes */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Notes (optional)</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Implementation notes..."
+            rows={2}
+            style={inputStyle}
+          />
+        </div>
+
+        {/* Actions */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>
+              Actions ({actions.length})
+            </label>
+            <button
+              onClick={addAction}
+              style={{
+                padding: "3px 10px",
+                borderRadius: 4,
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-secondary)",
+                fontSize: 11,
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+              }}
+            >
+              + Action
+            </button>
+          </div>
+
+          {actions.length === 0 && (
+            <div style={{ padding: 12, fontSize: 12, color: "var(--text-muted)", textAlign: "center", background: "var(--surface-secondary)", borderRadius: 6 }}>
+              No actions yet. Actions define what the trigger measures or extracts.
+            </div>
+          )}
+
+          {actions.map((action, idx) => (
+            <div
+              key={idx}
+              style={{
+                marginBottom: 8,
+                padding: 10,
+                border: "1px solid var(--border-default)",
+                borderRadius: 6,
+                background: "var(--surface-secondary)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>
+                  Action {idx + 1}
+                </span>
+                <button
+                  onClick={() => removeAction(idx)}
+                  style={{
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    border: "none",
+                    background: "transparent",
+                    fontSize: 11,
+                    color: "#dc2626",
+                    cursor: "pointer",
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+
+              <div style={{ marginBottom: 6 }}>
+                <input
+                  value={action.description}
+                  onChange={(e) => updateAction(idx, "description", e.target.value)}
+                  placeholder="What does this action look for?"
+                  style={inputStyle}
+                />
+              </div>
+
+              {outputType === "MEASURE" && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Parameter ID</label>
+                    <input
+                      value={action.parameterId}
+                      onChange={(e) => updateAction(idx, "parameterId", e.target.value)}
+                      placeholder="e.g. warmth_actual"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div style={{ width: 70 }}>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Weight</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      value={action.weight}
+                      onChange={(e) => updateAction(idx, "weight", parseFloat(e.target.value) || 1.0)}
+                      style={{ ...inputStyle, fontFamily: "monospace" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {outputType === "LEARN" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ ...labelStyle, fontSize: 10 }}>Category</label>
+                      <select
+                        value={action.learnCategory}
+                        onChange={(e) => updateAction(idx, "learnCategory", e.target.value)}
+                        style={{ ...inputStyle, cursor: "pointer" }}
+                      >
+                        <option value="">Select...</option>
+                        <option value="FACT">FACT</option>
+                        <option value="PREFERENCE">PREFERENCE</option>
+                        <option value="EVENT">EVENT</option>
+                        <option value="TOPIC">TOPIC</option>
+                        <option value="RELATIONSHIP">RELATIONSHIP</option>
+                        <option value="CONTEXT">CONTEXT</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ ...labelStyle, fontSize: 10 }}>Key Prefix</label>
+                      <input
+                        value={action.learnKeyPrefix}
+                        onChange={(e) => updateAction(idx, "learnKeyPrefix", e.target.value)}
+                        placeholder="e.g. location"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Key Hint</label>
+                    <input
+                      value={action.learnKeyHint}
+                      onChange={(e) => updateAction(idx, "learnKeyHint", e.target.value)}
+                      placeholder="Hint for key generation"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-secondary)",
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 6,
+              border: "none",
+              background: canSubmit ? "var(--accent-primary)" : "var(--surface-disabled)",
+              fontSize: 12,
+              fontWeight: 600,
+              color: canSubmit ? "#fff" : "var(--text-muted)",
+              cursor: canSubmit ? "pointer" : "default",
+            }}
+          >
+            {saving ? "Saving..." : isEdit ? "Update Trigger" : "Add Trigger"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Inline Editable Cell ──────────────────────────────────────────
+function InlineCell({
+  cellKey,
+  value,
+  editingCell,
+  editingValue,
+  saving,
+  disabled,
+  placeholder,
+  color,
+  mono,
+  onStartEdit,
+  onChangeEdit,
+  onSave,
+  onCancel,
+  type = "text",
+  options,
+}: {
+  cellKey: string;
+  value: string;
+  editingCell: string | null;
+  editingValue: string;
+  saving: string | null;
+  disabled?: boolean;
+  placeholder?: string;
+  color?: string;
+  mono?: boolean;
+  onStartEdit: (key: string, value: string) => void;
+  onChangeEdit: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  type?: "text" | "select" | "number";
+  options?: { value: string; label: string }[];
+}) {
+  const isEditing = editingCell === cellKey;
+  const isSaving = saving === cellKey;
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      if (inputRef.current instanceof HTMLInputElement || inputRef.current instanceof HTMLTextAreaElement) {
+        inputRef.current.select();
+      }
+    }
+  }, [isEditing]);
+
+  if (isEditing && !disabled) {
+    if (type === "select" && options) {
+      return (
+        <select
+          ref={inputRef as any}
+          value={editingValue}
+          onChange={(e) => onChangeEdit(e.target.value)}
+          onBlur={onSave}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+          }}
+          style={{
+            width: "100%",
+            padding: "3px 4px",
+            border: "1px solid var(--accent-primary)",
+            borderRadius: 3,
+            fontSize: 11,
+            background: "var(--surface-primary)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <option value="">—</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      );
+    }
+
+    if (type === "number") {
+      return (
+        <input
+          ref={inputRef as any}
+          type="number"
+          step="0.1"
+          min="0"
+          max="10"
+          value={editingValue}
+          onChange={(e) => onChangeEdit(e.target.value)}
+          onBlur={onSave}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSave();
+            if (e.key === "Escape") onCancel();
+          }}
+          style={{
+            width: "100%",
+            padding: "3px 4px",
+            border: "1px solid var(--accent-primary)",
+            borderRadius: 3,
+            fontSize: 11,
+            fontFamily: "monospace",
+            background: "var(--surface-primary)",
+            color: "var(--text-primary)",
+          }}
+        />
+      );
+    }
+
+    return (
+      <textarea
+        ref={inputRef as any}
+        value={editingValue}
+        onChange={(e) => onChangeEdit(e.target.value)}
+        onBlur={onSave}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSave(); }
+          if (e.key === "Escape") onCancel();
+        }}
+        rows={Math.max(1, Math.ceil((editingValue || "").length / 40))}
+        style={{
+          width: "100%",
+          padding: "3px 4px",
+          border: "1px solid var(--accent-primary)",
+          borderRadius: 3,
+          fontSize: 11,
+          fontFamily: mono ? "monospace" : "inherit",
+          background: "var(--surface-primary)",
+          color: "var(--text-primary)",
+          resize: "vertical",
+          lineHeight: 1.4,
+        }}
+      />
+    );
+  }
+
+  // Display mode
+  return (
+    <div
+      onClick={() => !disabled && onStartEdit(cellKey, value || "")}
+      title={disabled ? undefined : "Click to edit"}
+      style={{
+        cursor: disabled ? "default" : "text",
+        padding: "2px 4px",
+        borderRadius: 3,
+        minHeight: 18,
+        fontSize: 11,
+        lineHeight: 1.4,
+        color: isSaving ? "var(--text-muted)" : (color || "var(--text-primary)"),
+        fontFamily: mono ? "monospace" : "inherit",
+        opacity: isSaving ? 0.6 : 1,
+        border: "1px solid transparent",
+        transition: "border-color 0.15s",
+        ...(disabled ? {} : { ":hover": { borderColor: "var(--border-default)" } }),
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "transparent";
+      }}
+    >
+      {value || <span style={{ color: "var(--text-placeholder)", fontStyle: "italic" }}>{placeholder || "—"}</span>}
     </div>
   );
 }

@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/lab/uploads/debug
- *
- * Debug endpoint to show uploads
+ * @api GET /api/lab/uploads/debug
+ * @visibility internal
+ * @scope lab:read
+ * @auth session
+ * @tags lab
+ * @description Debug endpoint to list recent BDD uploads with metadata (last 20)
+ * @response 200 { ok: true, uploadCount: number, uploads: UploadSummary[] }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const uploads = await prisma.bDDUpload.findMany({
       orderBy: { createdAt: "desc" },
       take: 20,

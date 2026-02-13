@@ -1,0 +1,257 @@
+{
+  "id": "DEMO-PIPELINE-001",
+  "title": "Understand the Pipeline Architecture",
+  "subtitle": "Walk through the 7 pipeline stages, spec roles, output types, and the flow visualizer",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["developer"],
+  "estimatedMinutes": 7,
+  "icon": "\ud83d\udd27",
+  "story": {
+    "asA": "developer",
+    "iWant": "to understand how the analysis pipeline processes conversations",
+    "soThat": "I can debug issues and extend the system"
+  },
+  "objectives": [
+    "Understand the 7 pipeline stages",
+    "Know what spec roles and output types mean",
+    "Use the Flow Visualizer to see data flow",
+    "Inspect individual pipeline runs"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "The pipeline is the brain of the system. Every conversation flows through 7 stages: EXTRACT, SCORE_AGENT, AGGREGATE, REWARD, ADAPT, SUPERVISE, and COMPOSE.",
+      "content": {
+        "type": "markdown",
+        "body": "# Understand the Pipeline Architecture\n\nThe **analysis pipeline** is the brain of HumanFirst. Every conversation flows through 7 stages that measure, learn, adapt, and compose personalized responses.\n\n## The 7 Stages\n\n```\nEXTRACT \u2192 SCORE_AGENT \u2192 AGGREGATE \u2192 REWARD \u2192 ADAPT \u2192 SUPERVISE \u2192 COMPOSE\n```\n\n1. **EXTRACT** \u2014 Pull signals from the conversation (personality, learning style, engagement)\n2. **SCORE_AGENT** \u2014 Score each extracted signal against measurement specs\n3. **AGGREGATE** \u2014 Combine scores across time with decay weighting\n4. **REWARD** \u2014 Evaluate what's working and assign reward signals\n5. **ADAPT** \u2014 Adjust tutor parameters based on rewards\n6. **SUPERVISE** \u2014 Apply safety constraints and guardrails\n7. **COMPOSE** \u2014 Build the final personalized prompt\n\n## Time: ~7 minutes\n\nUse **arrow keys** to navigate."
+      },
+      "reason": "A high-level mental model of the pipeline is essential before diving into individual stages.",
+      "goal": "Provide an overview of the 7-stage pipeline",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Pipeline Architecture demo",
+        "relatedConcepts": ["pipeline", "EXTRACT", "SCORE_AGENT", "AGGREGATE", "REWARD", "ADAPT", "SUPERVISE", "COMPOSE"]
+      },
+      "durationOverrideSec": 18
+    },
+    {
+      "id": "pipeline-concept",
+      "title": "Data Flow Concept",
+      "description": "Understand how data flows through the pipeline. Raw conversation text enters at EXTRACT and a fully personalized prompt exits at COMPOSE.",
+      "content": {
+        "type": "markdown",
+        "body": "# How Data Flows Through the Pipeline\n\nThink of the pipeline as an assembly line. Each stage transforms the data and passes it forward.\n\n## Input \u2192 Output\n\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510    \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510    \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  Conversation  \u2502 \u2192  \u2502   EXTRACT   \u2502 \u2192  \u2502  Personality  \u2502\n\u2502  Transcript    \u2502    \u2502   Stage     \u2502    \u2502  Signals      \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518    \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518    \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n       \u2502                                        \u2502\n       \u2502         \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510            \u2502\n       \u2502         \u2502   SCORE_AGENT  \u2502 \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n       \u2502         \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n       \u2502                  \u2502\n       \u2502         \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n       \u2502         \u2502   AGGREGATE    \u2502 \u2500\u2500 Time-decay weighted\n       \u2502         \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n       \u2502                  \u2502\n       \u2502    \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510   \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510   \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n       \u2514\u2500\u2500\u2502 REWARD\u2502\u2192\u2500\u2502 ADAPT \u2502\u2192\u2500\u2502 SUPERVISE \u2502\n            \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518   \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518   \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                                        \u2502\n                               \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n                               \u2502    COMPOSE     \u2502 \u2192 Personalized Prompt\n                               \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n```\n\n## Key Principle\n\nEach stage reads from the previous stage's output. Stages are **composable** — you can add new EXTRACT specs without changing COMPOSE, and vice versa.\n\nThe pipeline runs **per-conversation-turn**, not just once per call."
+      },
+      "reason": "A visual diagram of data flow helps developers understand the pipeline's composable architecture before seeing it in the UI.",
+      "goal": "Illustrate the end-to-end data flow through pipeline stages",
+      "aiContext": {
+        "currentView": "Pipeline data flow diagram",
+        "action": "Explaining the pipeline data flow concept",
+        "relatedConcepts": ["data flow", "pipeline stages", "composability", "per-turn execution"]
+      },
+      "durationOverrideSec": 20
+    },
+    {
+      "id": "open-flows",
+      "title": "Open Flows",
+      "description": "Navigate to the Flows page from the sidebar. This page provides a visual representation of the pipeline and its connected components.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PIPELINE-001/03-open-flows.png",
+        "alt": "Sidebar with Flows highlighted",
+        "annotations": [
+          { "x": "8%", "y": "45%", "label": "Flows", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "The Flows page is the primary visual tool for understanding how pipeline components connect to each other.",
+      "sidebarHighlight": { "href": "/x/flows", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Sidebar navigation",
+        "action": "Navigating to the Flows page",
+        "relatedConcepts": ["flows page", "sidebar navigation", "pipeline visualization"],
+        "assistantLocation": { "page": "/x/flows", "action": "navigate" }
+      }
+    },
+    {
+      "id": "flow-visualizer",
+      "title": "Flow Visualizer",
+      "description": "The Flow Visualizer shows a visual graph of pipeline components and how they connect. Each node represents a stage or spec, and edges show data flow.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PIPELINE-001/04-flow-visualizer.png",
+        "alt": "Flow Visualizer showing pipeline component graph with nodes and edges",
+        "annotations": [
+          { "x": "15%", "y": "30%", "label": "EXTRACT nodes", "direction": "right" },
+          { "x": "50%", "y": "50%", "label": "Processing stages", "direction": "down", "highlight": true },
+          { "x": "85%", "y": "30%", "label": "COMPOSE output", "direction": "left" }
+        ]
+      },
+      "reason": "The visual graph makes it easy to see which specs feed into which stages, and how data flows from extraction to composition.",
+      "tips": [
+        { "type": "tip", "message": "Click any node to see its configuration, inputs, and outputs" }
+      ],
+      "sidebarHighlight": { "href": "/x/flows", "type": "glow" },
+      "aiContext": {
+        "currentView": "Flow Visualizer with pipeline component graph",
+        "action": "Exploring the visual pipeline graph",
+        "relatedConcepts": ["flow visualizer", "pipeline graph", "node connections", "data flow visualization"],
+        "assistantLocation": { "page": "/x/flows", "action": "view" }
+      },
+      "durationOverrideSec": 18
+    },
+    {
+      "id": "pipeline-stages",
+      "title": "Pipeline Stages",
+      "description": "A detailed look at each of the 7 pipeline stages, what they do, and how they connect to each other.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-PIPELINE-001/05-pipeline-stages.png",
+          "alt": "Pipeline stages visualization"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## The 7 Pipeline Stages\n\n### 1. EXTRACT\nPull raw signals from conversation text. Personality traits, learning style, engagement level, topic interest.\n\n### 2. SCORE_AGENT\nEach measurement spec scores the extracted signals. One spec per parameter (warmth, formality, etc.).\n\n### 3. AGGREGATE\nCombine scores across time using half-life decay. Recent conversations weigh more than older ones.\n\n### 4. REWARD\nEvaluate what's working. Did the caller engage more? Did comprehension improve? Assign reward signals.\n\n### 5. ADAPT\nAdjust tutor parameters based on rewards. If warmth increased engagement, dial it up.\n\n### 6. SUPERVISE\nApply safety constraints. Ensure adapted parameters stay within bounds. Check guardrails.\n\n### 7. COMPOSE\nBuild the final personalized prompt from identity + content + adapted parameters."
+        }
+      },
+      "reason": "Understanding each stage's responsibility is critical for debugging pipeline issues and knowing where to add new functionality.",
+      "aiContext": {
+        "currentView": "Split view: pipeline stages visualization and detailed explanation",
+        "action": "Reviewing each of the 7 pipeline stages in detail",
+        "relatedConcepts": ["EXTRACT", "SCORE_AGENT", "AGGREGATE", "REWARD", "ADAPT", "SUPERVISE", "COMPOSE", "pipeline debugging"]
+      },
+      "durationOverrideSec": 22,
+      "capture": { "url": "/x/flows", "delay": 500 }
+    },
+    {
+      "id": "spec-roles",
+      "title": "Spec Roles",
+      "description": "Every spec has a role that determines its function in the system. The 6 spec roles map to different parts of the pipeline and domain configuration.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-PIPELINE-001/06-spec-roles.png",
+          "alt": "Specs page showing different spec roles with role badges"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## The 6 Spec Roles\n\n### IDENTITY\nDefines WHO the agent is. Personality, teaching style, communication preferences. One per domain.\n\n### CONTENT\nDefines WHAT the agent teaches. Curriculum structure, teaching assertions, trust levels.\n\n### EXTRACT\nDefines HOW to measure. Each EXTRACT spec pulls specific signals from conversations (personality traits, engagement, etc.).\n\n### SYNTHESISE\nDefines HOW to combine. Merges multiple extractions into a unified learner profile.\n\n### ORCHESTRATE\nDefines the execution plan. Controls which specs run in which order, manages the pipeline flow.\n\n### CONSTRAIN\nDefines boundaries. Safety guardrails, topic restrictions, regulatory compliance rules."
+        }
+      },
+      "reason": "Spec roles determine where a spec plugs into the pipeline. Creating a spec with the wrong role means it won't execute in the right stage.",
+      "tips": [
+        { "type": "best-practice", "message": "Most custom specs will be EXTRACT (measurement) or CONTENT (curriculum). ORCHESTRATE and CONSTRAIN are usually system-level." }
+      ],
+      "aiContext": {
+        "currentView": "Split view: spec role badges and role explanations",
+        "action": "Understanding the 6 spec roles and their pipeline functions",
+        "relatedConcepts": ["IDENTITY", "CONTENT", "EXTRACT", "SYNTHESISE", "ORCHESTRATE", "CONSTRAIN", "spec taxonomy"]
+      },
+      "durationOverrideSec": 20,
+      "capture": { "url": "/x/specs", "delay": 500 }
+    },
+    {
+      "id": "output-types",
+      "title": "Output Types",
+      "description": "Specs produce different output types depending on what they do. Output types determine how the pipeline processes and stores results.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PIPELINE-001/07-output-types.png",
+        "alt": "Specs page showing output type column with different types",
+        "annotations": [
+          { "x": "65%", "y": "25%", "label": "MEASURE", "direction": "left" },
+          { "x": "65%", "y": "40%", "label": "LEARN", "direction": "left" },
+          { "x": "65%", "y": "55%", "label": "ADAPT", "direction": "left" },
+          { "x": "65%", "y": "70%", "label": "COMPOSE", "direction": "left" }
+        ]
+      },
+      "reason": "Output types tell the pipeline what kind of data a spec produces. A MEASURE spec outputs numerical scores; a COMPOSE spec outputs prompt text.",
+      "sidebarHighlight": { "href": "/x/specs", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Specs page showing output types column",
+        "action": "Understanding spec output types: MEASURE, LEARN, ADAPT, COMPOSE, AGGREGATE, REWARD",
+        "relatedConcepts": ["MEASURE", "LEARN", "ADAPT", "COMPOSE", "AGGREGATE", "REWARD", "output type routing"],
+        "assistantLocation": { "page": "/x/specs", "action": "view" }
+      }
+    },
+    {
+      "id": "open-pipeline-inspector",
+      "title": "Run Inspector",
+      "description": "Navigate to the Pipeline page to inspect individual pipeline runs. Each run shows exactly what happened at every stage.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PIPELINE-001/08-run-inspector.png",
+        "alt": "Pipeline page showing list of recent pipeline runs",
+        "annotations": [
+          { "x": "50%", "y": "30%", "label": "Recent pipeline runs", "direction": "down" },
+          { "x": "85%", "y": "30%", "label": "Inspect", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "The Run Inspector is the primary debugging tool. When something goes wrong, this is where you look to see what each stage produced.",
+      "sidebarHighlight": { "href": "/x/pipeline", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Pipeline page showing recent run history",
+        "action": "Opening the pipeline run inspector",
+        "relatedConcepts": ["pipeline inspector", "run history", "debugging", "stage outputs"],
+        "assistantLocation": { "page": "/x/pipeline", "action": "navigate" }
+      }
+    },
+    {
+      "id": "inspect-run",
+      "title": "Inspect a Run",
+      "description": "Click into a specific pipeline run to see execution details. Each stage shows its inputs, outputs, timing, and any errors.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PIPELINE-001/09-inspect-run.png",
+        "alt": "Pipeline run detail view showing stage-by-stage execution with inputs and outputs",
+        "annotations": [
+          { "x": "20%", "y": "20%", "label": "Run metadata", "direction": "right" },
+          { "x": "50%", "y": "45%", "label": "Stage outputs", "direction": "down", "highlight": true },
+          { "x": "80%", "y": "65%", "label": "Timing & errors", "direction": "left" }
+        ]
+      },
+      "reason": "Stage-by-stage inspection lets you pinpoint exactly where something went wrong or behaved unexpectedly in the pipeline.",
+      "tips": [
+        { "type": "tip", "message": "Expand any stage to see the full JSON input/output, including the prompt that was composed" }
+      ],
+      "sidebarHighlight": { "href": "/x/pipeline", "type": "glow" },
+      "aiContext": {
+        "currentView": "Pipeline run detail view with stage-by-stage breakdown",
+        "action": "Inspecting a specific pipeline run's execution details",
+        "relatedConcepts": ["run detail", "stage inputs", "stage outputs", "execution timing", "error diagnosis"],
+        "assistantLocation": { "page": "/x/pipeline", "action": "inspect" }
+      },
+      "durationOverrideSec": 18
+    },
+    {
+      "id": "summary",
+      "title": "Done!",
+      "description": "You now understand the pipeline architecture, spec roles, output types, and how to inspect pipeline runs.",
+      "content": {
+        "type": "markdown",
+        "body": "# Pipeline Architecture Understood\n\nYou've explored the core of the HumanFirst system:\n\n- \u2705 **7 Pipeline Stages** \u2014 EXTRACT \u2192 SCORE_AGENT \u2192 AGGREGATE \u2192 REWARD \u2192 ADAPT \u2192 SUPERVISE \u2192 COMPOSE\n- \u2705 **6 Spec Roles** \u2014 IDENTITY, CONTENT, EXTRACT, SYNTHESISE, ORCHESTRATE, CONSTRAIN\n- \u2705 **Output Types** \u2014 MEASURE, LEARN, ADAPT, COMPOSE, AGGREGATE, REWARD\n- \u2705 **Flow Visualizer** \u2014 Visual graph of pipeline component connections\n- \u2705 **Run Inspector** \u2014 Stage-by-stage debugging for pipeline runs\n\n## Extending the Pipeline\n\nTo add new measurement capabilities:\n\n1. **Create an EXTRACT spec** with the parameter you want to measure\n2. **Define scoring anchors** (what does high/low mean?)\n3. **Activate the spec** in a playbook\n4. **Test with the harness** to verify extraction works\n5. **Monitor in the pipeline inspector** to see scores flowing\n\nNo code changes required. The pipeline discovers new specs automatically.\n\n## Related Demos\n\n- *Create a Custom Spec* (DEMO-SPEC-001)\n- *Run a Controlled Test Conversation* (DEMO-HARNESS-001)\n- *Create a Tutor Domain from Scratch* (DEMO-TUTOR-001)"
+      },
+      "reason": "Summarizing the architecture and providing a concrete extension workflow gives developers a clear path forward.",
+      "goal": "Summarize pipeline architecture and guide developers on extension",
+      "aiContext": {
+        "currentView": "Demo summary and next steps",
+        "action": "Completed the Pipeline Architecture demo",
+        "relatedConcepts": ["pipeline extension", "custom specs", "spec activation", "pipeline debugging"]
+      },
+      "durationOverrideSec": 20
+    }
+  ]
+}

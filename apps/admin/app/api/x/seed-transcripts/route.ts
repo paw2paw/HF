@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * POST /api/x/seed-transcripts
- *
- * Recursively imports all transcript files from the HF_KB_PATH/sources/transcripts/raw directory
- * and all subdirectories. This is a wrapper around the existing
- * /api/transcripts/import endpoint that automatically finds and imports
- * all .json and .txt transcript files.
- *
- * Body:
- * - mode: "replace" | "keep" (optional, defaults to "keep")
- *   - "replace": Deletes ALL existing Callers and Calls before importing
- *   - "keep": Keeps existing data, skips duplicates
+ * @api POST /api/x/seed-transcripts
+ * @visibility internal
+ * @scope dev:seed
+ * @auth bearer
+ * @tags dev-tools
+ * @description Recursively imports all transcript files (.json, .txt) from HF_KB_PATH/sources/transcripts/raw. Wraps the /api/transcripts/import endpoint. In "replace" mode, deletes ALL existing callers and calls first. In "keep" mode, skips duplicates.
+ * @body mode string - "replace" (delete all first) or "keep" (skip duplicates, default)
+ * @response 200 { ok: true, message: "...", sourceDir: "...", mode: "...", details: {...} }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(request: Request) {
   try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
     // Parse body to get mode
     const body = await request.json().catch(() => ({}));
     const mode = body.mode || "keep";

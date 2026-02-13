@@ -1,16 +1,10 @@
 /**
  * Pipeline Runs API
- *
- * GET /api/pipeline/runs - List pipeline runs (from ComposedPrompt records)
- *
- * Each ComposedPrompt represents a composition "run" with:
- * - sectionsActivated/sectionsSkipped as "steps"
- * - timing information (loadTimeMs, transformTimeMs)
- * - input context (memories, personality, behavior targets, etc.)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 interface CompositionInputs {
   callerContext?: any;
@@ -32,7 +26,25 @@ interface CompositionInputs {
   };
 }
 
+/**
+ * @api GET /api/pipeline/runs
+ * @visibility public
+ * @scope pipeline:read
+ * @auth session
+ * @tags pipeline
+ * @description List pipeline runs derived from ComposedPrompt records. Each run includes
+ *   steps (load data, compose prompt), timing information, and input context (memories,
+ *   personality, behavior targets).
+ * @query callerId string - Filter runs by caller ID
+ * @query limit number - Max results (default 20)
+ * @query offset number - Pagination offset (default 0)
+ * @response 200 { ok: true, runs: PipelineRun[], total: number, limit: number, offset: number }
+ * @response 500 { ok: false, error: "Failed to fetch pipeline runs" }
+ */
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth("VIEWER");
+  if (isAuthError(authResult)) return authResult.error;
+
   const searchParams = request.nextUrl.searchParams;
 
   const callerId = searchParams.get("callerId");

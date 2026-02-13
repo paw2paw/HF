@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/tickets/stats
- * Get ticket statistics for dashboard/badges
+ * @api GET /api/tickets/stats
+ * @visibility internal
+ * @scope tickets:stats
+ * @auth session
+ * @tags tickets
+ * @description Returns ticket statistics for dashboard badges. Includes counts by status, priority, and per-user assignment/creation counts.
+ * @response 200 { ok: true, stats: { byStatus: {...}, byPriority: {...}, myAssigned: number, myCreated: number, totalOpen: number } }
+ * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const [statusCounts, priorityCounts, myAssigned, myCreated] = await Promise.all([
       // Count by status

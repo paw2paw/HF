@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
@@ -14,18 +15,27 @@ type ValidationError = {
 };
 
 /**
- * POST /api/analysis-specs/[specId]/compile
- * Compile a single spec: validate, check parameters/anchors, mark as compiled
- *
- * Body: {
- *   force?: boolean,  // Compile even with warnings
- * }
+ * @api POST /api/analysis-specs/:specId/compile
+ * @visibility internal
+ * @scope analysis-specs:write
+ * @auth session
+ * @tags analysis-specs
+ * @description Compile a spec: validate triggers/actions/parameters/anchors, and mark as compiled if validation passes
+ * @pathParam specId string - Spec UUID or slug
+ * @body force boolean - Compile even with critical errors (default: false)
+ * @response 200 { ok: true, spec: AnalysisSpec, validation: { passed, errors, warnings }, message: string }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 423 { ok: false, error: "Spec is locked and cannot be compiled..." }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
     const body = await req.json().catch(() => ({}));
     const { force = false } = body;
@@ -225,14 +235,25 @@ export async function POST(
 }
 
 /**
- * GET /api/analysis-specs/[specId]/compile
- * Get compilation status for a spec
+ * @api GET /api/analysis-specs/:specId/compile
+ * @visibility internal
+ * @scope analysis-specs:read
+ * @auth session
+ * @tags analysis-specs
+ * @description Get compilation status for a spec (compiled/dirty/locked state)
+ * @pathParam specId string - Spec UUID or slug
+ * @response 200 { ok: true, status: { isCompiled, isDirty, dirtyReason, compiledAt, compiledSetId, isLocked, lockedReason, usageCount } }
+ * @response 404 { ok: false, error: "Spec not found" }
+ * @response 500 { ok: false, error: "..." }
  */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ specId: string }> }
 ) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     const { specId } = await params;
 
     const spec = await prisma.analysisSpec.findFirst({

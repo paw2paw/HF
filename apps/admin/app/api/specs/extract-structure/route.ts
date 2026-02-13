@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAICompletion, getDefaultEngine } from "@/lib/ai/client";
+import { getConfiguredMeteredAICompletion } from "@/lib/metering";
+import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -129,7 +131,7 @@ Required output structure (respond with ONLY valid JSON):
   "domain": "behavior",
   "specType": "DOMAIN",
   "outputType": "MEASURE",
-  "specRole": "MEASURE",
+  "specRole": "EXTRACT",
 
   "story": {
     "asA": "system measuring [what]",
@@ -322,8 +324,25 @@ Document content:
 ---`,
 };
 
+/**
+ * @api POST /api/specs/extract-structure
+ * @visibility internal
+ * @scope specs:write
+ * @auth session
+ * @tags specs
+ * @description AI-powered structure extraction. Converts raw document text into a structured BDD spec JSON using type-specific prompts (CURRICULUM, MEASURE, IDENTITY, etc.).
+ * @body rawText string - The raw document text to extract structure from
+ * @body specType string - The spec type (CURRICULUM, MEASURE, IDENTITY, CONTENT, ADAPT, GUARDRAIL)
+ * @body fileName string - Original file name for ID generation
+ * @response 200 { ok: true, spec: object, warnings: string[], needsReview: string[] }
+ * @response 400 { ok: false, error: "No content provided" }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     const body = await request.json();
     const { rawText, specType, fileName } = body;
 
@@ -345,16 +364,15 @@ export async function POST(request: NextRequest) {
       .replace("{CONTENT}", contentForExtraction)
       .replace("{TODAY}", today);
 
-    // Call AI for extraction
-    const engine = getDefaultEngine();
-    const result = await getAICompletion({
-      engine,
+    // @ai-call spec.extract — Convert raw documents to structured BDD spec JSON | config: /x/ai-config
+    const result = await getConfiguredMeteredAICompletion({
+      callPoint: "spec.extract",
       messages: [
         { role: "user", content: prompt },
       ],
       maxTokens: 8000,
       temperature: 0.3,
-    });
+    }, { sourceOp: "spec.extract" });
 
     // Parse the JSON response
     let spec;
@@ -369,11 +387,17 @@ export async function POST(request: NextRequest) {
       // Generate ID if not present or generic
       if (!spec.id || spec.id.includes("XXX")) {
         const prefix = specType === "CURRICULUM" ? "CURR" :
-                       specType === "MEASURE" ? "MEAS" :
+                       specType === "MEASURE" ? "MEAS" :      // deprecated - use EXTRACT
+                       specType === "EXTRACT" ? "EXTR" :
+                       specType === "SYNTHESISE" ? "SYNTH" :
+                       specType === "CONSTRAIN" ? "CONST" :
+                       specType === "ORCHESTRATE" ? "ORCH" :
                        specType === "IDENTITY" ? "IDENT" :
                        specType === "CONTENT" ? "CONT" :
-                       specType === "ADAPT" ? "ADAPT" :
-                       specType === "GUARDRAIL" ? "GUARD" : "SPEC";
+                       specType === "VOICE" ? "VOICE" :
+                       specType === "ADAPT" ? "ADAPT" :       // deprecated - use SYNTHESISE
+                       specType === "GUARDRAIL" ? "GUARD" :   // deprecated - use CONSTRAIN
+                       "SPEC";
         const suffix = fileName
           ? fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9]/g, "-").toUpperCase().slice(0, 20)
           : "001";
@@ -387,11 +411,44 @@ export async function POST(request: NextRequest) {
 
     } catch (parseError) {
       console.error("Failed to parse AI extraction response:", result.content);
+
+      // Log failed extraction
+      logAssistantCall(
+        {
+          callPoint: "spec.extract",
+          userMessage: `Extract ${specType} from ${fileName || "document"}`,
+          metadata: { action: "extract", specType, fileName },
+        },
+        {
+          response: result.content,
+          success: false,
+        }
+      );
+
       return NextResponse.json(
         { ok: false, error: "Failed to parse extracted structure. Please try again." },
         { status: 500 }
       );
     }
+
+    // Log successful extraction for AI learning
+    logAssistantCall(
+      {
+        callPoint: "spec.extract",
+        userMessage: `Extract ${specType} from ${fileName || "document"}`,
+        metadata: {
+          action: "extract",
+          specType,
+          fileName,
+          extractedId: spec.id,
+        },
+      },
+      {
+        response: result.content,
+        success: true,
+        fieldUpdates: spec,
+      }
+    );
 
     return NextResponse.json({
       ok: true,

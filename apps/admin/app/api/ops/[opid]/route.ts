@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { execFile as _execFile } from "child_process";
 import { promisify } from "util";
 
@@ -1434,8 +1435,23 @@ const OPS: Record<string, OpSpec> = {
   },
 };
 
+/**
+ * @api GET /api/ops/:opid
+ * @visibility internal
+ * @scope ops:read
+ * @auth session
+ * @tags ops
+ * @description Get operation info. Use opid="_list" to list all available ops with descriptions.
+ * @pathParam opid string - Operation identifier or "_list" for listing all ops
+ * @response 200 { ok: true, items: Array<{ opid, title, description }> } (when opid="_list")
+ * @response 405 { ok: false, error: "Use POST with includePlan=true for op previews" }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function GET(req: Request, ctx: { params: Promise<{ opid: string }> }) {
   try {
+    const authResult = await requireAuth("VIEWER");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const { opid } = await ctx.params;
@@ -1461,8 +1477,27 @@ export async function GET(req: Request, ctx: { params: Promise<{ opid: string }>
   }
 }
 
+/**
+ * @api POST /api/ops/:opid
+ * @visibility internal
+ * @scope ops:write
+ * @auth session
+ * @tags ops
+ * @description Execute a specific allow-listed operation by opid (local-only, no shell injection).
+ *   Supports dryRun for plan preview, verbose for detailed events, and includePlan for structured plan output.
+ * @pathParam opid string - Operation identifier (e.g. "prisma:migrate:status", "git:status", "kb:build")
+ * @body dryRun boolean - If true, return plan without executing (default: false)
+ * @body verbose boolean - If true, include detailed events and metadata (default: false)
+ * @body includePlan boolean - If true, include structured plan in response (default: false)
+ * @response 200 { ok: true, opid, dryRun, startedAt, finishedAt, exitCode, stdout, stderr, plan?, events?, meta? }
+ * @response 404 { ok: false, error: "Unknown op: ..." }
+ * @response 500 { ok: false, error: "..." }
+ */
 export async function POST(req: Request, ctx: { params: Promise<{ opid: string }> }) {
   try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
     assertLocalOnly();
 
     const { opid } = await ctx.params;

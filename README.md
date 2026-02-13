@@ -1,162 +1,123 @@
 # HF
 
-HF is the working repo for the HumanFirst project (clean restart).
+HF is the working repo for the HumanFirst project — an adaptive conversational AI system that builds personality profiles, extracts memories, and composes personalized prompts based on call interactions.
 
-## What this repo contains (source of truth)
+## What this repo contains
+
 All technical artefacts live here:
-- System definition and architecture (`docs/`)
+- Application code (`apps/admin/`)
+- System architecture (`docs/`, `apps/admin/docs/`)
+- Database schema (`apps/admin/prisma/schema.prisma`)
+- BDD spec archive (`apps/admin/docs-archive/bdd-specs/`) — bootstrap material, not runtime
 - Decisions (`docs/adr/`)
-- Notion mapping (`notion/`)
-- Backlog export (`backlog/`)
 
-## Where collaboration happens
-- Notion is used for planning, status, meeting notes, and links.
-- Git is the single source of truth for specs, diagrams, data models, tests, and code.
+## Source of Truth
+
+**The database is the runtime source of truth.** BDD spec files are bootstrap/import material — you run them once to seed the database, then the database is authoritative. Specs can be created and edited entirely via the UI.
 
 ## Quick links
-- Ways of Working: `WORKING-AGREEMENT.md`
-- System Description: `docs/01-system-description.md`
-- Business Context: `docs/02-business-context.md`
-- Notion Schema: `notion/notion-schema.md`
-- Backlog Export: `backlog/backlog.csv`
 
+- **Documentation Index**: [docs/INDEX.md](docs/INDEX.md)
+- **Local Development**: [docs/DEV_ENV.md](docs/DEV_ENV.md)
+- **Architecture**: [apps/admin/docs/ARCHITECTURE.md](apps/admin/docs/ARCHITECTURE.md)
+- **Cloud Deployment**: [docs/CLOUD-DEPLOYMENT.md](docs/CLOUD-DEPLOYMENT.md)
+- **Codebase Overview**: [docs/CODEBASE-OVERVIEW.md](docs/CODEBASE-OVERVIEW.md)
+- **Quick Start**: [apps/admin/QUICKSTART.md](apps/admin/QUICKSTART.md)
 
+---
 
-HF – Collaborator Guide
-
-What This Repository Is
-
-HF is a behaviour-driven, memory-adaptive conversational system.
-
-The system is defined by behaviour first, not by infrastructure or UI.
-
-BDD is the source of truth.
-
-If behaviour is correct, the system is correct.
-
-⸻
-
-What This Repository Is NOT
-	•	Not UI-first
-	•	Not infra-first
-	•	Not database-driven
-	•	Not a place to add logic without tests
-
-⸻
-
-Source of Truth
-
-All behaviour lives in:
-
-bdd/features/
-
-These feature files define what the system does.
-
-If a feature passes, behaviour is preserved.
-If a feature fails, behaviour is broken — even if the app “looks fine”.
-
-⸻
-
-How to Work in This Repo
-
-Rule 1 — Start With Behaviour
-
-If you want to change or add functionality:
-	1.	Add or update a BDD feature
-	2.	Make the feature pass
-	3.	Only then adjust services or infra if needed
-
-No feature = no change.
-
-⸻
-
-Rule 2 — Services Must Be Pure
-
-Core services must:
-	•	Have no database access
-	•	Have no HTTP calls
-	•	Have no framework dependencies
-	•	Be deterministic and testable in memory
-
-Input → Output only.
-
-⸻
-
-Rule 3 — Infrastructure Is Optional
-
-Docker and Postgres exist only for integration work.
-
-BDD tests:
-	•	Do NOT require Docker
-	•	Do NOT require Postgres
-	•	Do NOT require external services
-
-If logic requires infra to test, it’s in the wrong place.
-
-⸻
-
-The HF Adaptive Loop (Do Not Break This)
+## The HF Adaptive Loop
 
 The system always flows like this:
 
-Call
-→ Transcript
-→ Analysis
-→ Memory
-→ Next Prompt
+```
+Call → Transcript → Pipeline (Measure → Aggregate → Adapt → Compose) → Next Prompt
+```
 
 Every feature, service, and change must respect this loop.
 
-⸻
+---
 
-Repository Structure (High Level)
+## System Overview
 
-bdd/
-Defines behaviour (source of truth)
+### Core Concepts
 
-packages/core/services/
-Pure domain logic
+1. **Parameters** — Dimensions to measure (e.g., Big Five personality, VARK learning styles)
+2. **AnalysisSpecs** — HOW to measure each parameter (EXTRACT) or compose prompts (SYNTHESISE)
+3. **Playbooks** — Collections of specs per domain, priority-ordered
+4. **Domains** — Logical groupings (Tutor, Companion, Coach) with readiness checks
+5. **Content Trust** — 6-level provenance taxonomy (L0 Unverified → L5 Regulatory Standard)
 
-apps/
-Optional UI / admin tools
+### SpecRole Taxonomy
 
-.runtime/
-Local machine state (ignored by git)
+- `ORCHESTRATE` — Flow/sequence control (PIPELINE-001, INIT-001)
+- `EXTRACT` — Measurement and learning (PERS-001, VARK-001, MEM-001)
+- `SYNTHESISE` — Combine/transform data (COMP-001, REW-001, ADAPT-*)
+- `CONSTRAIN` — Bounds and guards (GUARD-001)
+- `IDENTITY` — Agent personas (TUT-001, COACH-001)
+- `CONTENT` — Curriculum material (WNF-CONTENT-001)
+- `VOICE` — Voice guidance (VOICE-001)
 
-scripts/
-Dev helpers
+### Security
 
-⸻
+- **RBAC**: 176/184 API routes protected via `requireAuth()`, 8 intentionally public
+- **3 roles**: ADMIN > OPERATOR > VIEWER with inheritance
+- **Invite system**: Controlled onboarding with domain-locked invites
+- **Coverage test**: CI fails if any new route is missing auth
 
-How to Add a New Feature (Correct Process)
-	1.	Write a BDD scenario describing behaviour
-	2.	Make the scenario executable
-	3.	Implement or modify pure services to satisfy behaviour
-	4.	Ensure all BDD tests pass
+---
 
-If BDD is green, the change is valid.
+## Repository Structure
 
-⸻
+```
+apps/admin/           # Next.js 16 application (main app)
+├── app/api/          # 184 API routes
+├── app/x/            # Admin UI pages
+├── lib/              # Core business logic
+├── prisma/           # Schema + seeds
+├── tests/            # Vitest tests
+└── docs-archive/     # BDD specs (bootstrap only)
 
-CI Expectations
-	•	CI runs BDD tests only
-	•	No infrastructure in CI
-	•	All pull requests must pass BDD
+docs/                 # Project-level documentation
+scripts/              # Dev helpers
+```
 
-⸻
+---
 
-Common Mistakes
-	•	Adding logic without BDD coverage
-	•	Mixing database logic into services
-	•	Relying on infra for basic behaviour
-	•	“Temporary” shortcuts
+## Getting Started
 
-⸻
+```bash
+cd apps/admin
+npm install
+npx prisma migrate deploy && npx prisma generate
+npm run db:seed          # Seed specs + contracts
+npm run dev              # http://localhost:3000
+```
 
-Guiding Principle
+See [apps/admin/QUICKSTART.md](apps/admin/QUICKSTART.md) for full setup.
 
-HF evolves by behaviour, not by accident.
+---
 
-If you respect the contracts, you can refactor aggressively and safely.
+## Testing
 
-⸻
+```bash
+npm test                 # Unit tests (Vitest)
+npm run test:integration # Integration tests (requires Postgres)
+npm run test:coverage    # Coverage report
+```
+
+### CI Pipeline
+
+CI runs 4 jobs: **Lint & Type Check → Unit Tests → Integration Tests → Build Check**. All must pass for merge.
+
+---
+
+## Where collaboration happens
+
+- **Git** is the single source of truth for specs, data models, tests, and code
+- **Notion** is used for planning, status, meeting notes, and links
+
+---
+
+**Version**: 0.6
+**Last Updated**: 2026-02-12
