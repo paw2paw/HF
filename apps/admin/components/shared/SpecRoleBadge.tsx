@@ -212,7 +212,7 @@ export function requiresSpecialEditor(role: string | null): boolean {
  * ORCHESTRATE specs go to the Orchestrator Designer.
  */
 export function getSpecEditorRoute(specId: string, role: string | null): string {
-  if (role === "ORCHESTRATE") return `/x/orchestrators?id=${specId}`;
+  if (role === "ORCHESTRATE") return `/x/flows?id=${specId}`;
 
   // TODO: Implement special editors for these roles:
   // - SYNTHESISE: formula builder

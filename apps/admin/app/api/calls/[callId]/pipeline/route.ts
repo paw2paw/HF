@@ -35,18 +35,13 @@ import { recoverBrokenJson } from "@/lib/utils/json-recovery";
 import { executeComposition, persistComposedPrompt, loadComposeConfig } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
 import { getPipelineGates, getPipelineSettings } from "@/lib/system-settings";
+import { getTranscriptLimitsFallback } from "@/lib/fallback-settings";
 
 // =====================================================
 // TRANSCRIPT LIMITS (from AIConfig)
 // =====================================================
 
-// Default transcript limits (in characters) per stage
-const DEFAULT_TRANSCRIPT_LIMITS: Record<string, number> = {
-  "pipeline.measure": 4000,
-  "pipeline.learn": 4000,
-  "pipeline.score_agent": 4000,
-  "pipeline.adapt": 2500,
-};
+// Loaded from SystemSettings at runtime (see fallback-settings.ts for hardcoded last-resort)
 
 /**
  * Get transcript limit for a call point from AIConfig, with fallback to defaults
@@ -64,7 +59,8 @@ async function getTranscriptLimit(callPoint: string): Promise<number> {
   } catch {
     // Fallback to default on error
   }
-  return DEFAULT_TRANSCRIPT_LIMITS[callPoint] ?? 4000;
+  const limits = await getTranscriptLimitsFallback();
+  return limits[callPoint] ?? 4000;
 }
 
 // =====================================================

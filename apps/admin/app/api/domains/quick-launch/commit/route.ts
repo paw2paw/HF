@@ -1,0 +1,141 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAuthError } from "@/lib/permissions";
+import {
+  quickLaunchCommit,
+  type ProgressEvent,
+  type CommitOverrides,
+  type AnalysisPreview,
+} from "@/lib/domain/quick-launch";
+import { completeTask, updateTaskProgress } from "@/lib/ai/task-guidance";
+import { prisma } from "@/lib/prisma";
+
+/**
+ * @api POST /api/domains/quick-launch/commit
+ * @visibility internal
+ * @auth OPERATOR
+ * @tags domains, quick-launch
+ * @description Runs the commit phase of Quick Launch (Steps 5-7):
+ *   scaffold domain, generate curriculum, create caller.
+ *   Applies user overrides from the review screen.
+ *   Marks the associated UserTask as completed.
+ *
+ * @request application/json
+ *   taskId: string (optional) — UserTask ID for tracking
+ *   domainId: string (required) — Domain created during analysis
+ *   preview: AnalysisPreview (required) — Analysis results
+ *   overrides: CommitOverrides (required) — User edits from review
+ *   input: { subjectName, persona, learningGoals, qualificationRef } (required)
+ *
+ * @response 200 text/event-stream — progress events then final QuickLaunchResult
+ */
+
+export const maxDuration = 120; // 2 min for scaffold + curriculum
+
+export async function POST(req: NextRequest) {
+  // Auth
+  const authResult = await requireAuth("OPERATOR");
+  if (isAuthError(authResult)) return authResult.error;
+
+  // Parse JSON body
+  let body: {
+    taskId?: string;
+    domainId: string;
+    preview: AnalysisPreview;
+    overrides: CommitOverrides;
+    input: {
+      subjectName: string;
+      persona: string;
+      learningGoals: string[];
+      qualificationRef?: string;
+    };
+  };
+
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Expected JSON body" },
+      { status: 400 }
+    );
+  }
+
+  const { taskId, domainId, preview, overrides, input } = body;
+
+  if (!domainId) {
+    return NextResponse.json(
+      { ok: false, error: "domainId is required" },
+      { status: 400 }
+    );
+  }
+
+  // Verify domain exists
+  const domain = await prisma.domain.findUnique({ where: { id: domainId } });
+  if (!domain) {
+    return NextResponse.json(
+      { ok: false, error: "Domain not found" },
+      { status: 404 }
+    );
+  }
+
+  // Update task to committing phase
+  if (taskId) {
+    updateTaskProgress(taskId, {
+      currentStep: 4,
+      context: { phase: "committing", overrides },
+    }).catch(() => {});
+  }
+
+  // SSE stream
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendEvent = (event: ProgressEvent) => {
+        const data = JSON.stringify(event);
+        controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+      };
+
+      try {
+        // Build a minimal QuickLaunchInput (file not needed for commit phase)
+        const fakeFile = new File([], "commit-placeholder.txt");
+
+        const result = await quickLaunchCommit(
+          domainId,
+          preview,
+          overrides,
+          {
+            subjectName: input.subjectName,
+            persona: input.persona,
+            learningGoals: overrides.learningGoals ?? input.learningGoals,
+            file: fakeFile,
+            qualificationRef: input.qualificationRef,
+          },
+          sendEvent,
+        );
+
+        // Mark task as completed
+        if (taskId) {
+          completeTask(taskId).catch(() => {});
+        }
+
+        // Final result event (already sent by quickLaunchCommit, but ensure it's there)
+      } catch (err: any) {
+        console.error("[quick-launch:commit] Failed:", err);
+        sendEvent({
+          phase: "error",
+          message: err.message || "Commit failed",
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}

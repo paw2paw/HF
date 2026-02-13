@@ -195,8 +195,20 @@ const INITIAL_STATE: SidebarState = {
 // Hook
 // ============================================================================
 
+// Role hierarchy for requiredRole checks — must match lib/permissions.ts ROLE_LEVEL
+const SIDEBAR_ROLE_LEVEL: Record<string, number> = {
+  SUPERADMIN: 5,
+  ADMIN: 4,
+  OPERATOR: 3,
+  SUPER_TESTER: 2,
+  TESTER: 1,
+  DEMO: 0,
+  VIEWER: 1, // @deprecated alias
+};
+
 export interface UseSidebarLayoutOptions {
   userId?: string;
+  userRole?: string;
   baseSections: NavSection[];
   isAdmin?: boolean;
 }
@@ -248,6 +260,7 @@ export interface UseSidebarLayoutResult {
 
 export function useSidebarLayout({
   userId,
+  userRole,
   baseSections,
   isAdmin = false,
 }: UseSidebarLayoutOptions): UseSidebarLayoutResult {
@@ -255,6 +268,29 @@ export function useSidebarLayout({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasLoadedRef = useRef(false);
   const [hasPersonalDefault, setHasPersonalDefault] = useState(false);
+
+  // ============================================================================
+  // Role-based section filtering
+  // ============================================================================
+
+  // Filter baseSections by requiredRole (hard gate) and apply defaultHiddenFor
+  const { roleSections, roleDefaultHidden } = useMemo(() => {
+    const userLevel = SIDEBAR_ROLE_LEVEL[userRole || "OPERATOR"] ?? 3;
+
+    // Hard gate: remove sections the user's role can't see
+    const filtered = baseSections.filter((section) => {
+      if (!section.requiredRole) return true;
+      const requiredLevel = SIDEBAR_ROLE_LEVEL[section.requiredRole] ?? 0;
+      return userLevel >= requiredLevel;
+    });
+
+    // Soft default: collect section IDs that should be hidden by default for this role
+    const defaultHidden = filtered
+      .filter((section) => section.defaultHiddenFor?.includes(userRole || "OPERATOR"))
+      .map((section) => section.id);
+
+    return { roleSections: filtered, roleDefaultHidden: defaultHidden };
+  }, [baseSections, userRole]);
 
   // ============================================================================
   // Load layout on mount
@@ -293,7 +329,12 @@ export function useSidebarLayout({
         dispatch({ type: "SET_LAYOUT", layout: globalLayout });
         hasLoadedRef.current = true;
       } else if (!cancelled) {
-        dispatch({ type: "SET_LAYOUT", layout: {} });
+        // 4. No saved layout — apply role-based defaults
+        const roleLayout: Partial<typeof EMPTY_LAYOUT> = {};
+        if (roleDefaultHidden.length > 0) {
+          roleLayout.hiddenSections = roleDefaultHidden;
+        }
+        dispatch({ type: "SET_LAYOUT", layout: roleLayout });
         hasLoadedRef.current = true;
       }
     };
@@ -332,21 +373,24 @@ export function useSidebarLayout({
   const sections = useMemo(() => {
     const { sectionOrder, itemPlacements, itemOrder, sectionTitles } = state.layout;
 
+    // Use role-filtered sections (hard gate applied via requiredRole)
+    const effectiveSections = roleSections;
+
     // Determine section order
     let orderedSections: NavSection[];
     if (sectionOrder.length === 0) {
-      orderedSections = baseSections;
+      orderedSections = effectiveSections;
     } else {
       const orderedIds = sectionOrder.filter((id) =>
-        baseSections.some((s) => s.id === id)
+        effectiveSections.some((s) => s.id === id)
       );
-      const newSectionIds = baseSections
+      const newSectionIds = effectiveSections
         .filter((s) => !sectionOrder.includes(s.id))
         .map((s) => s.id);
       const finalOrder = [...orderedIds, ...newSectionIds];
 
       orderedSections = finalOrder
-        .map((id) => baseSections.find((s) => s.id === id))
+        .map((id) => effectiveSections.find((s) => s.id === id))
         .filter((s): s is NavSection => s !== undefined);
     }
 
@@ -357,7 +401,7 @@ export function useSidebarLayout({
     }
 
     // Collect items into target sections
-    for (const section of baseSections) {
+    for (const section of effectiveSections) {
       for (const item of section.items) {
         const targetSection = itemPlacements[item.href] || section.id;
         if (sectionItems[targetSection]) {
@@ -396,7 +440,7 @@ export function useSidebarLayout({
       title: sectionTitles?.[section.id] ?? section.title,
       items: sectionItems[section.id] || [],
     }));
-  }, [baseSections, state.layout]);
+  }, [roleSections, state.layout]);
 
   // Filter visible sections (exclude both hidden and deleted)
   const hiddenSectionIds = useMemo(

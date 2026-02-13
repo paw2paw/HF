@@ -242,6 +242,8 @@ export async function POST(request: NextRequest) {
         "targets",
         "playbooks",
         "anchors",
+        "contentSources",
+        "subjects",
       ],
       limit: 30,
     });

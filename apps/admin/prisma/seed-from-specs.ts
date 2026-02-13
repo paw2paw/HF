@@ -34,6 +34,13 @@ import {
 } from "../lib/bdd/ai-parser";
 import { compileSpecToTemplate } from "../lib/bdd/compile-specs";
 import { ContractRegistry, ensureContractsLoaded } from "../lib/contracts/registry";
+import {
+  DEFAULT_FALLBACK_PERSONAS,
+  DEFAULT_IDENTITY_TEMPLATE,
+  DEFAULT_FLOW_PHASES,
+  DEFAULT_TRANSCRIPT_LIMITS,
+  DEFAULT_AI_MODEL_CONFIGS,
+} from "../lib/fallback-settings";
 
 const prisma = new PrismaClient();
 
@@ -1537,6 +1544,43 @@ export async function seedContracts(): Promise<{ seeded: number; errors: string[
 }
 
 /**
+ * Seed fallback defaults into SystemSettings.
+ * These are the last-resort values used when specs or AI are unavailable.
+ * Uses upsert so re-running is safe (won't overwrite admin edits unless value is identical).
+ */
+export async function seedFallbacks(): Promise<{ seeded: number; skipped: number }> {
+  const fallbacks: Array<{ key: string; value: unknown; label: string }> = [
+    { key: "fallback:onboarding.personas", value: DEFAULT_FALLBACK_PERSONAS, label: "Onboarding Personas" },
+    { key: "fallback:identity.template", value: DEFAULT_IDENTITY_TEMPLATE, label: "Identity Template" },
+    { key: "fallback:onboarding.flow_phases", value: DEFAULT_FLOW_PHASES, label: "Onboarding Flow Phases" },
+    { key: "fallback:pipeline.transcript_limits", value: DEFAULT_TRANSCRIPT_LIMITS, label: "Transcript Limits" },
+    { key: "fallback:ai.default_models", value: DEFAULT_AI_MODEL_CONFIGS, label: "AI Model Defaults" },
+  ];
+
+  let seeded = 0;
+  let skipped = 0;
+
+  for (const { key, value, label } of fallbacks) {
+    const jsonValue = JSON.stringify(value);
+    const existing = await prisma.systemSetting.findUnique({ where: { key } });
+
+    if (existing) {
+      // Don't overwrite if admin has customized the value
+      skipped++;
+      continue;
+    }
+
+    await prisma.systemSetting.create({
+      data: { key, value: jsonValue },
+    });
+    seeded++;
+    console.log(`      ✓ ${label} (${key})`);
+  }
+
+  return { seeded, skipped };
+}
+
+/**
  * Main function - seed from all spec files
  */
 export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<SeedSpecResult[]> {
@@ -1547,6 +1591,11 @@ export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<S
   console.log("\n   📦 Seeding contracts into SystemSettings...\n");
   const contractResult = await seedContracts();
   console.log(`   ✅ ${contractResult.seeded} contracts seeded\n`);
+
+  // Seed fallback defaults into SystemSettings
+  console.log("   🛡️  Seeding fallback defaults...\n");
+  const fallbackResult = await seedFallbacks();
+  console.log(`   ✅ ${fallbackResult.seeded} fallbacks seeded, ${fallbackResult.skipped} already exist\n`);
 
   // Load contracts from DB for spec validation
   await ensureContractsLoaded();

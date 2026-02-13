@@ -348,6 +348,48 @@ program
   });
 
 program
+  .command('dev:x')
+  .description('Kill all Next processes, clear cache, restart dev')
+  .action(() => {
+    log('\n🔥 devX — Hard Restart\n', colors.bright);
+    exec('pkill -9 -f "next dev" || true && pkill -9 -f "next-server" || true && lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true', 'Killing existing processes...');
+    exec('rm -rf .next', 'Clearing .next cache...');
+    exec('npm run dev', 'Starting dev server...');
+  });
+
+program
+  .command('dev:t')
+  .description('Quick test run (vitest run)')
+  .action(() => {
+    log('\n🧪 devT — Quick Test\n', colors.bright);
+    exec('npx vitest run', 'Running vitest...');
+  });
+
+program
+  .command('dev:d')
+  .description('Data reset only (wipe DB + reload, keep server running)')
+  .action(() => {
+    log('\n🔄 devD — Data Reset\n', colors.bright);
+    exec('./scripts/dev-d.sh', 'Resetting data...');
+  });
+
+program
+  .command('dev:s')
+  .description('Spec reload + ngrok tunnel (keep caller data)')
+  .action(() => {
+    log('\n🌱 devS — Spec Reload\n', colors.bright);
+    exec('./scripts/dev-s.sh', 'Reloading specs...');
+  });
+
+program
+  .command('dev:zzz')
+  .description('Nuclear reset — wipe DB + cache + restart + seed + ngrok')
+  .action(() => {
+    log('\n💣 devZZZ — Nuclear Reset\n', colors.bright);
+    exec('./scripts/dev-zzz.sh', 'Running nuclear reset...');
+  });
+
+program
   .command('dev:stop')
   .description('Stop development server')
   .action(() => {
@@ -426,6 +468,69 @@ program
     }
 
     success('✅ Build & Test pipeline complete!');
+  });
+
+// ============================================================================
+// TOOLS & GENERATORS
+// ============================================================================
+
+program
+  .command('snap')
+  .description('Capture demo screenshots with Playwright')
+  .option('-d, --demo <id>', 'Capture specific demo only')
+  .option('-b, --base-url <url>', 'Base URL (default: http://localhost:3000)')
+  .action((options) => {
+    const args: string[] = [];
+    if (options.demo) args.push('--demo', options.demo);
+    if (options.baseUrl) args.push('--base-url', options.baseUrl);
+    exec(`npx tsx scripts/capture-demo-screenshots.ts ${args.join(' ')}`, 'Capturing demo screenshots...');
+  });
+
+program
+  .command('registry')
+  .description('Generate and validate spec registry')
+  .option('-v, --validate-only', 'Validate without generating')
+  .action((options) => {
+    if (options.validateOnly) {
+      exec('npm run registry:validate', 'Validating registry...');
+    } else {
+      exec('npm run registry:generate', 'Generating registry...');
+      exec('npm run registry:validate', 'Validating registry...');
+    }
+    success('Registry up to date!');
+  });
+
+program
+  .command('docs')
+  .description('Generate or check documentation')
+  .option('-a, --api', 'Generate API docs')
+  .option('-c, --check', 'Check API docs (no write)')
+  .option('-H, --health', 'Run doc health check')
+  .action((options) => {
+    if (options.health) {
+      exec('npm run docs:health', 'Running doc health check...');
+    } else if (options.check) {
+      exec('npm run docs:api:check', 'Checking API docs...');
+    } else if (options.api) {
+      exec('npm run docs:api', 'Generating API docs...');
+    } else {
+      exec('npm run docs:api', 'Generating API docs...');
+      exec('npm run docs:health', 'Running doc health check...');
+    }
+  });
+
+program
+  .command('bootstrap')
+  .description('Bootstrap admin user')
+  .action(() => {
+    exec('npm run bootstrap-admin', 'Bootstrapping admin user...');
+  });
+
+program
+  .command('cleanup')
+  .description('Clean up orphaned slugs')
+  .action(() => {
+    exec('npm run cleanup:orphaned-slugs', 'Cleaning up orphaned slugs...');
   });
 
 // ============================================================================
@@ -532,6 +637,17 @@ async function showInteractiveMenu() {
     log('  c. E2E debug           - Debug mode with inspector');
     log('  d. E2E list            - List all E2E tests');
     log('  e. E2E report          - View last test report');
+    log('');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('  🔧 TOOLS & GENERATORS', colors.bright);
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', colors.cyan);
+    log('');
+    log('  f. Snap screenshots    - Capture demo screenshots (Playwright)');
+    log('  g. Registry            - Generate + validate spec registry');
+    log('  h. API docs            - Generate API documentation');
+    log('  i. Doc health          - Check documentation health');
+    log('  j. Bootstrap admin     - Create admin user');
+    log('  k. Cleanup slugs       - Remove orphaned slugs');
     log('');
     log('  0. Exit');
     log('');
@@ -649,6 +765,46 @@ async function showInteractiveMenu() {
       case 'e':
         log('\n📊 Opening Last Test Report\n', colors.bright);
         exec('npx playwright show-report');
+        break;
+
+      // ========================================
+      // TOOLS & GENERATORS
+      // ========================================
+      case 'f':
+        log('\n📸 Capturing Demo Screenshots\n', colors.bright);
+        exec('npm run snap', 'Running Playwright screenshot capture...');
+        await pressEnterToContinue();
+        break;
+
+      case 'g':
+        log('\n📦 Spec Registry\n', colors.bright);
+        exec('npm run registry:generate', 'Generating registry...');
+        exec('npm run registry:validate', 'Validating registry...');
+        await pressEnterToContinue();
+        break;
+
+      case 'h':
+        log('\n📝 API Documentation\n', colors.bright);
+        exec('npm run docs:api', 'Generating API docs...');
+        await pressEnterToContinue();
+        break;
+
+      case 'i':
+        log('\n🏥 Doc Health Check\n', colors.bright);
+        exec('npm run docs:health', 'Running doc health check...');
+        await pressEnterToContinue();
+        break;
+
+      case 'j':
+        log('\n👤 Bootstrap Admin\n', colors.bright);
+        exec('npm run bootstrap-admin', 'Creating admin user...');
+        await pressEnterToContinue();
+        break;
+
+      case 'k':
+        log('\n🧹 Cleanup Orphaned Slugs\n', colors.bright);
+        exec('npm run cleanup:orphaned-slugs', 'Cleaning up...');
+        await pressEnterToContinue();
         break;
 
       case '0':

@@ -274,6 +274,35 @@ export async function getCacheSettings(): Promise<CacheSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 7. DEMO CAPTURE
+// ═══════════════════════════════════════════════════════
+
+export interface DemoCaptureSettings {
+  defaultCaller: string;
+  defaultDomain: string;
+  defaultPlaybook: string;
+  defaultSpec: string;
+}
+
+export const DEMO_CAPTURE_DEFAULTS: DemoCaptureSettings = {
+  defaultCaller: "Paul",
+  defaultDomain: "qm-tutor",
+  defaultPlaybook: "",
+  defaultSpec: "PERS-001",
+};
+
+const DEMO_CAPTURE_KEYS: Record<keyof DemoCaptureSettings, string> = {
+  defaultCaller: "demo.default_caller",
+  defaultDomain: "demo.default_domain",
+  defaultPlaybook: "demo.default_playbook",
+  defaultSpec: "demo.default_spec",
+};
+
+export async function getDemoCaptureSettings(): Promise<DemoCaptureSettings> {
+  return loadGroup(DEMO_CAPTURE_KEYS, DEMO_CAPTURE_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -281,11 +310,12 @@ export interface SettingDef {
   key: string;
   label: string;
   description: string;
-  type: "int" | "float" | "bool";
-  default: number | boolean;
+  type: "int" | "float" | "bool" | "text";
+  default: number | boolean | string;
   min?: number;
   max?: number;
   step?: number;
+  placeholder?: string;
 }
 
 export interface SettingGroup {
@@ -376,6 +406,18 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "cache.ai_config_ttl_ms", label: "AI config cache TTL", description: "How long AI config is cached (ms)", type: "int", default: 60000, min: 1000, max: 600000 },
       { key: "cache.cost_config_ttl_ms", label: "Cost config cache TTL", description: "How long cost rates are cached (ms)", type: "int", default: 300000, min: 1000, max: 600000 },
       { key: "cache.data_paths_ttl_ms", label: "Data paths cache TTL", description: "How long data paths are cached (ms)", type: "int", default: 5000, min: 1000, max: 60000 },
+    ],
+  },
+  {
+    id: "demo",
+    label: "Demo Capture",
+    icon: "Camera",
+    description: "Default entities used when capturing demo screenshots (npm run snap)",
+    settings: [
+      { key: "demo.default_caller", label: "Default caller", description: "Caller name used for entity screenshots", type: "text", default: "Paul", placeholder: "e.g. Paul" },
+      { key: "demo.default_domain", label: "Default domain", description: "Domain slug used for entity screenshots", type: "text", default: "qm-tutor", placeholder: "e.g. qm-tutor" },
+      { key: "demo.default_playbook", label: "Default playbook", description: "Playbook name (leave empty for first available)", type: "text", default: "", placeholder: "e.g. QM Adaptive v1" },
+      { key: "demo.default_spec", label: "Default spec", description: "Spec slug for spec-related screenshots", type: "text", default: "PERS-001", placeholder: "e.g. PERS-001" },
     ],
   },
 ];

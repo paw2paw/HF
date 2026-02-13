@@ -4,7 +4,7 @@
  * Covers:
  * - GET /api/onboarding - returns 404 when spec not in DB
  * - GET /api/onboarding - returns persona data from DB
- * - GET /api/onboarding/personas - returns 404 when spec not in DB
+ * - GET /api/onboarding/personas - returns fallback personas when spec not in DB
  * - GET /api/onboarding/personas - lists personas from DB
  * - POST /api/onboarding/personas/manage - creates persona
  * - DELETE /api/onboarding/personas/manage - deletes persona
@@ -50,6 +50,13 @@ vi.mock('@/lib/config', () => ({
 // Mock registry (used in onboarding/route.ts)
 vi.mock('@/lib/registry', () => ({
   PARAMS: {},
+}));
+
+// Mock fallback-settings (used in onboarding/personas/route.ts)
+vi.mock('@/lib/fallback-settings', () => ({
+  getOnboardingPersonasFallback: vi.fn().mockResolvedValue([
+    { slug: 'tutor', name: 'Tutor', description: 'Patient teaching expert' },
+  ]),
 }));
 
 // Test helpers
@@ -190,15 +197,18 @@ describe('GET /api/onboarding/personas', () => {
     GET = mod.GET;
   });
 
-  it('returns 404 when spec not in DB', async () => {
+  it('returns fallback personas when spec not in DB', async () => {
     mockPrisma.analysisSpec.findFirst.mockResolvedValue(null);
 
     const res = await GET();
     const body = await res.json();
 
-    expect(res.status).toBe(404);
-    expect(body.ok).toBe(false);
-    expect(body.error).toContain('INIT-001');
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.source).toBe('fallback');
+    expect(body.personas).toHaveLength(1);
+    expect(body.personas[0].slug).toBe('tutor');
+    expect(body.defaultPersona).toBe('tutor');
   });
 
   it('lists all personas from DB spec', async () => {

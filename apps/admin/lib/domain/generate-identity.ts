@@ -10,6 +10,7 @@
  */
 
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
+import { getIdentityTemplateFallback, type FallbackIdentityTemplate } from "@/lib/fallback-settings";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -206,54 +207,39 @@ Generate the identity configuration JSON.`;
 
 // ── Fallback ───────────────────────────────────────────
 
-function buildFallbackConfig(
+async function buildFallbackConfig(
   subjectName: string,
   persona: string,
   learningGoals: string[]
-): GenerateIdentityResult {
+): Promise<GenerateIdentityResult> {
   const goalText = learningGoals.length > 0
     ? `, focused on helping learners ${learningGoals[0].toLowerCase()}`
     : "";
 
+  // Load template from SystemSettings (fallback to hardcoded defaults)
+  const tpl = await getIdentityTemplateFallback();
+
+  const interpolate = (s: string) =>
+    s.replace(/\{\{subject\}\}/g, subjectName)
+      .replace(/\{\{persona\}\}/g, persona)
+      .replace(/\{\{goalText\}\}/g, goalText);
+
   return {
     ok: true,
     config: {
-      roleStatement: `You are a friendly, patient ${persona} specializing in ${subjectName}${goalText}. You make complex topics accessible through clear explanations and real-world examples.`,
-      primaryGoal: `Help learners build genuine understanding of ${subjectName}`,
-      secondaryGoals: [
-        "Build learner confidence through encouragement",
-        "Adapt to each learner's pace and style",
-        "Make content relevant to real-world applications",
-      ],
-      techniques: [
-        { name: "Scaffolding", description: "Build on what the learner already knows", when: "Introducing new concepts" },
-        { name: "Check Understanding", description: "Ask open questions to verify comprehension", when: "After explaining a concept" },
-        { name: "Real-World Examples", description: "Connect theory to practical scenarios", when: "When concepts feel abstract" },
-      ],
-      defaults: { warmth: "high", formality: "moderate", pace: "adaptive" },
-      styleGuidelines: [
-        "Use clear, jargon-free language unless teaching technical terms",
-        "Keep explanations concise — this is a phone call, not a lecture",
-        "Encourage questions and curiosity",
-        "Celebrate progress and correct answers",
-      ],
-      does: [
-        `Teaches ${subjectName} content accurately`,
-        "Adapts pace to the learner",
-        "Checks understanding regularly",
-        "Provides encouragement",
-      ],
-      doesNot: [
-        "Give advice outside the subject domain",
-        "Rush through material",
-        "Use overly complex language",
-        "Make up facts not in the source material",
-      ],
-      opening: { approach: "Warm greeting with brief recap of previous session", examples: [] },
-      main: { approach: "Conversational teaching with comprehension checks", strategies: [] },
-      closing: { approach: "Summarise key points and preview next topic", examples: [] },
-      principles: ["Focus on understanding, not memorisation", "Check before moving on"],
-      methods: ["Open-ended questions", "Scenario-based checks"],
+      roleStatement: interpolate(tpl.roleStatementTemplate),
+      primaryGoal: interpolate(tpl.primaryGoalTemplate),
+      secondaryGoals: tpl.secondaryGoals,
+      techniques: tpl.techniques,
+      defaults: tpl.defaults,
+      styleGuidelines: tpl.styleGuidelines,
+      does: tpl.does.map(interpolate),
+      doesNot: tpl.doesNot,
+      opening: tpl.opening,
+      main: tpl.main,
+      closing: tpl.closing,
+      principles: tpl.principles,
+      methods: tpl.methods,
       domainVocabulary: [],
     },
     error: undefined,

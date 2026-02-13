@@ -265,6 +265,24 @@ function parseTextTranscript(content: string, filename: string): VAPICall | null
 async function createInfrastructure() {
   console.log("\n🏗️  CREATING INFRASTRUCTURE\n");
 
+  // Ensure default admin user exists (needed for login, e2e tests, screenshot capture)
+  const adminEmail = "admin@test.com";
+  const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (!existing) {
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        name: "Admin",
+        role: "SUPERADMIN",
+        isActive: true,
+        // No passwordHash — auth.ts accepts "admin123" as default
+      },
+    });
+    console.log(`   ✓ Created admin user: ${adminEmail}`);
+  } else {
+    console.log(`   ✓ Admin user exists: ${adminEmail}`);
+  }
+
   // NOTE: Default domain and playbook creation removed
   // Use seed-domains.ts and BDD-based seeding for proper domain/playbook setup
   console.log("   ℹ️  Skipping default domain/playbook creation");

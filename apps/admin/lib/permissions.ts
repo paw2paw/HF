@@ -2,7 +2,7 @@
  * Role-Based Access Control
  *
  * Provides requireAuth() helper for API route handlers.
- * Role hierarchy: ADMIN > OPERATOR > VIEWER
+ * Role hierarchy: SUPERADMIN > ADMIN > OPERATOR > SUPER_TESTER > TESTER > DEMO
  *
  * Usage:
  *   const authResult = await requireAuth("OPERATOR");
@@ -17,9 +17,13 @@ import type { Session } from "next-auth";
 
 // Role hierarchy: higher number = more access
 const ROLE_LEVEL: Record<UserRole, number> = {
-  ADMIN: 3,
-  OPERATOR: 2,
-  VIEWER: 1,
+  SUPERADMIN: 5,
+  ADMIN: 4,
+  OPERATOR: 3,
+  SUPER_TESTER: 2,
+  TESTER: 1,
+  DEMO: 0,
+  VIEWER: 1, // @deprecated — alias for TESTER level
 };
 
 type AuthSuccess = { session: Session };

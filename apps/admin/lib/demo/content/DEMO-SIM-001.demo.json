@@ -1,0 +1,216 @@
+{
+  "id": "DEMO-SIM-001",
+  "title": "Test Your Tutor Before Going Live",
+  "subtitle": "Use the simulator to verify tutor behavior, observe adaptation, and understand the pipeline",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["operator", "evaluator"],
+  "estimatedMinutes": 5,
+  "icon": "🧪",
+  "story": {
+    "asA": "operator or evaluator",
+    "iWant": "to test the tutor in a safe environment",
+    "soThat": "I can verify behavior before real callers arrive"
+  },
+  "objectives": [
+    "Start a simulator conversation",
+    "Observe the tutor's adaptive behavior",
+    "Understand what the pipeline does during a call",
+    "Know when the tutor is ready for real callers"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "This demo shows how to test your tutor in the simulator — a safe environment where you can verify everything works before real callers start calling.",
+      "content": {
+        "type": "markdown",
+        "body": "# Test Your Tutor Before Going Live\n\nBefore real callers arrive, you need to know your tutor works correctly. The **Simulator** runs the full pipeline — personality measurement, adaptation, prompt composition — without a real phone connection.\n\n## What you'll learn\n\n- **Start a test conversation** — chat with the tutor as a simulated caller\n- **Observe adaptation** — watch the tutor adjust to personality traits\n- **Understand the pipeline** — see what happens behind each message\n- **Readiness checklist** — know when the tutor is ready for real callers\n\n## Why this matters\n\nLaunching an untested tutor risks a bad first impression. The simulator lets you catch issues before they affect real learners.\n\n## Time: ~5 minutes\n\nUse **← →** arrow keys or the buttons below to navigate."
+      },
+      "reason": "Simulation testing is a critical step between configuration and live deployment. Skipping it risks poor caller experiences.",
+      "goal": "Orient the viewer on why simulation testing matters",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Test Your Tutor Before Going Live demo",
+        "relatedConcepts": ["simulator", "pipeline testing", "pre-launch validation", "quality assurance"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "open-simulator",
+      "title": "Open Simulator",
+      "description": "Navigate to the Simulator page from the sidebar. The Sim is in the Tools section — it's purpose-built for testing tutor behavior before going live.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SIM-001/02-open-simulator.png",
+        "alt": "Sidebar with Simulator highlighted",
+        "annotations": [
+          { "x": "8%", "y": "62%", "label": "Simulator", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "The Simulator is separate from the live system. It uses the same pipeline but doesn't affect real caller data or metrics.",
+      "sidebarHighlight": { "href": "/x/sim", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Sidebar navigation",
+        "action": "Navigating to the Simulator page",
+        "relatedConcepts": ["simulator", "sidebar navigation", "testing tools"],
+        "assistantLocation": { "page": "/x/sim", "action": "navigate" }
+      }
+    },
+    {
+      "id": "select-test-caller",
+      "title": "Select Test Caller",
+      "description": "Pick a test caller from the list. You can use an existing caller or create a new test persona. The simulator will use this caller's profile for the conversation.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SIM-001/03-select-test-caller.png",
+        "alt": "Test caller selection list in the simulator",
+        "annotations": [
+          { "x": "50%", "y": "30%", "label": "Available test callers", "direction": "down", "highlight": true },
+          { "x": "50%", "y": "70%", "label": "Caller personality preview", "direction": "up" },
+          { "x": "80%", "y": "85%", "label": "Start conversation", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Different callers have different personality profiles. Testing with varied profiles ensures the tutor adapts correctly to different types of learners.",
+      "tips": [
+        { "type": "best-practice", "message": "Test with at least 2-3 different caller profiles to verify the tutor adapts its style" }
+      ],
+      "sidebarHighlight": { "href": "/x/sim", "type": "glow" },
+      "aiContext": {
+        "currentView": "Simulator test caller selection panel",
+        "action": "Selecting a test caller for the simulation",
+        "relatedConcepts": ["test callers", "caller profiles", "personality variation", "test coverage"],
+        "assistantLocation": { "page": "/x/sim", "action": "select-caller" }
+      }
+    },
+    {
+      "id": "start-conversation",
+      "title": "Start Conversation",
+      "description": "The chat interface appears. Type a message to begin. The tutor will respond using the full pipeline — exactly as it would for a real caller.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SIM-001/04-start-conversation.png",
+        "alt": "Simulator chat interface with message input",
+        "annotations": [
+          { "x": "50%", "y": "30%", "label": "Tutor greeting", "direction": "down" },
+          { "x": "50%", "y": "85%", "label": "Type your message", "direction": "up", "highlight": true }
+        ]
+      },
+      "reason": "The first message triggers the full pipeline. The tutor's greeting comes from the identity spec and onboarding configuration you've set up.",
+      "sidebarHighlight": { "href": "/x/sim", "type": "glow" },
+      "aiContext": {
+        "currentView": "Simulator chat interface with tutor greeting",
+        "action": "Starting a simulated conversation with the tutor",
+        "relatedConcepts": ["chat interface", "tutor greeting", "onboarding flow", "pipeline execution"],
+        "assistantLocation": { "page": "/x/sim", "action": "chat" }
+      }
+    },
+    {
+      "id": "observe-adaptation",
+      "title": "Observe Adaptive Behavior",
+      "description": "As the conversation continues, notice how the tutor adapts. It adjusts warmth, formality, pacing, and teaching style based on the caller's measured traits.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-SIM-001/05-adaptive-behavior.png",
+          "alt": "Chat showing tutor adapting its communication style"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## How Adaptation Works\n\nEvery message goes through the pipeline:\n\n1. **MEASURE** — Extract personality signals from the caller's words\n2. **ADAPT** — Update the caller's personality profile\n3. **COMPOSE** — Build a prompt tuned to this specific caller\n4. **RESPOND** — Generate a response that matches their style\n\n## What to Look For\n\n- **Warmth** — Does the tutor match the caller's emotional tone?\n- **Formality** — Does it adjust between casual and professional?\n- **Pacing** — Does it give short answers to brief questions, and detailed answers when asked?\n- **Teaching style** — Does it use examples for kinesthetic learners, diagrams for visual learners?\n\nThe adaptation is subtle at first but becomes more pronounced after several messages."
+        }
+      },
+      "reason": "Adaptive behavior is the core value proposition. If the tutor doesn't adapt, it's just a chatbot. Watching it adapt in real time proves the pipeline works.",
+      "tips": [
+        { "type": "tip", "message": "Try sending messages in different styles — formal, casual, brief, detailed — to see how the tutor adjusts" }
+      ],
+      "aiContext": {
+        "currentView": "Simulator conversation — split view showing adaptation in action",
+        "action": "Observing how the tutor adapts its style to the caller's personality",
+        "relatedConcepts": ["adaptive behavior", "personality adaptation", "MEASURE stage", "COMPOSE stage", "dynamic parameters", "teaching style"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/sim", "delay": 500 }
+    },
+    {
+      "id": "personality-measurement",
+      "title": "Personality Measurement",
+      "description": "The simulator shows real-time personality measurements. As the conversation progresses, you can see Big Five traits and VARK scores being updated.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SIM-001/06-personality-measurement.png",
+        "alt": "Real-time personality measurement panel during simulation",
+        "annotations": [
+          { "x": "80%", "y": "20%", "label": "Big Five scores", "direction": "left", "highlight": true },
+          { "x": "80%", "y": "50%", "label": "VARK modality", "direction": "left", "highlight": true },
+          { "x": "80%", "y": "75%", "label": "Confidence level", "direction": "left" }
+        ]
+      },
+      "reason": "Seeing measurements update in real time proves the EXTRACT stage is working. Confidence levels show how much data the system has — more messages means more accurate profiles.",
+      "tips": [
+        { "type": "best-practice", "message": "Personality confidence below 0.5 means the system needs more data — keep the conversation going" }
+      ],
+      "aiContext": {
+        "currentView": "Real-time personality measurement panel in simulator",
+        "action": "Watching personality traits being measured during the conversation",
+        "relatedConcepts": ["personality measurement", "PERS-001", "VARK-001", "Big Five", "confidence scores", "EXTRACT stage"]
+      },
+      "capture": { "url": "/x/sim", "delay": 500 }
+    },
+    {
+      "id": "prompt-composition",
+      "title": "Prompt Composition",
+      "description": "Behind each response, the pipeline composes a personalized prompt. The simulator can show you exactly what prompt was sent to the AI model.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-SIM-001/07-prompt-composition.png",
+          "alt": "Prompt composition details showing pipeline stages"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## The Composition Pipeline\n\nEvery response is built from layers:\n\n1. **System Context** — domain identity, boundaries, rules\n2. **Caller Profile** — personality traits, learning style, preferences\n3. **Memory** — facts and context from previous calls\n4. **Content** — relevant teaching material at the right trust level\n5. **Conversation** — recent messages for context\n\n## Why This Matters\n\nThe prompt isn't static. It's rebuilt for every single message, incorporating the latest personality measurements, memory updates, and content relevance.\n\nThis is why two callers get different responses to the same question — their profiles shape the prompt differently.\n\n## In the Simulator\n\nClick **Pipeline Details** on any message to see the full composed prompt. This is the best way to debug unexpected tutor behavior."
+        }
+      },
+      "reason": "Understanding prompt composition helps you debug issues. If the tutor says something wrong, the composed prompt shows you exactly why.",
+      "tips": [
+        { "type": "tip", "message": "Click Pipeline Details on any message to inspect the full prompt that was sent to the AI model" }
+      ],
+      "aiContext": {
+        "currentView": "Prompt composition details — split view showing pipeline layers",
+        "action": "Inspecting how the pipeline composes personalized prompts",
+        "relatedConcepts": ["prompt composition", "pipeline stages", "system context", "caller profile injection", "memory integration", "content selection"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/sim", "delay": 500 }
+    },
+    {
+      "id": "ready-to-go-live",
+      "title": "Ready to Go Live",
+      "description": "You've tested the tutor and verified it works. Here's a checklist for going live, plus what to do next.",
+      "content": {
+        "type": "markdown",
+        "body": "# Ready to Go Live?\n\nBefore accepting real callers, confirm these items:\n\n## Pre-Launch Checklist\n\n- [ ] **Tutor responds correctly** — answers are accurate and on-topic\n- [ ] **Adaptation works** — tutor adjusts to different communication styles\n- [ ] **Personality measurement active** — Big Five and VARK scores update\n- [ ] **Content is accurate** — assertions match your source material\n- [ ] **Onboarding feels right** — first-call experience is welcoming\n- [ ] **Edge cases handled** — off-topic questions, confusion, silence\n- [ ] **Trust levels set** — regulated content uses L4+ trust\n\n## When the Tutor Isn't Ready\n\nCommon issues and fixes:\n- **Wrong tone** — adjust identity spec parameters (warmth, formality)\n- **Inaccurate content** — review assertions, check trust levels\n- **No adaptation** — verify PERS-001 and VARK-001 specs are active\n- **Poor onboarding** — edit onboarding flow in domain settings\n\n## What's Next\n\n1. **Invite real callers** — use the invite system\n2. **Monitor progress** — track callers from day one\n3. **Iterate** — refine based on real conversations\n\n## Related Demos\n\n- *Create a Tutor Domain from Scratch* (DEMO-TUTOR-001)\n- *Launch a Domain in Under 5 Minutes* (DEMO-QUICK-001)\n- *Track a Caller's Learning Journey* (DEMO-CALLER-001)"
+      },
+      "reason": "Going live without a checklist risks avoidable issues. This summary ensures operators have verified everything and know what to do if something isn't right.",
+      "goal": "Provide a go-live checklist and summarize the demo",
+      "aiContext": {
+        "currentView": "Demo summary with pre-launch checklist",
+        "action": "Completed the Test Your Tutor Before Going Live demo",
+        "relatedConcepts": ["go-live checklist", "pre-launch validation", "common issues", "invite system", "caller onboarding", "iteration"]
+      },
+      "durationOverrideSec": 20
+    }
+  ]
+}

@@ -1,0 +1,246 @@
+{
+  "id": "DEMO-SPEC-001",
+  "title": "Create a Custom Spec",
+  "subtitle": "Build a custom measurement spec from scratch to extend what the platform can measure and adapt",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["developer"],
+  "estimatedMinutes": 6,
+  "icon": "\u2699\ufe0f",
+  "story": {
+    "asA": "developer",
+    "iWant": "to create a custom measurement spec",
+    "soThat": "I can extend the platform to measure new aspects of caller behavior"
+  },
+  "objectives": [
+    "Navigate the spec taxonomy",
+    "Understand spec types and output types",
+    "Create a new spec from scratch",
+    "Configure parameters and scoring anchors"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "Specs are the building blocks of HumanFirst. Every behavior the system measures, every adaptation it makes, and every prompt it composes is driven by a spec.",
+      "content": {
+        "type": "markdown",
+        "body": "# Create a Custom Spec\n\nSpecs are the **building blocks** of HumanFirst. Every behavior the system measures or produces comes from a spec.\n\n## What is a Spec?\n\nA spec is a structured definition that tells the pipeline:\n- **What** to measure (parameters)\n- **How** to score it (anchors)\n- **Where** it fits (role and output type)\n- **Who** it applies to (system, domain, or caller level)\n\n## Why Create Custom Specs?\n\n- Measure a **new behavior** (e.g., technical vocabulary usage)\n- Track a **domain-specific trait** (e.g., food safety knowledge recall)\n- Add a **new adaptation dimension** (e.g., humor level)\n\nNo code changes required. Create the spec, activate it, and the pipeline handles the rest.\n\n## Time: ~6 minutes\n\nUse **arrow keys** to navigate."
+      },
+      "reason": "Understanding that specs are the extensibility mechanism is foundational. Developers need to know that adding measurement capability requires zero code changes.",
+      "goal": "Explain what specs are and why you would create a custom one",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Create a Custom Spec demo",
+        "relatedConcepts": ["specs", "measurement", "extensibility", "zero code changes", "pipeline integration"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "open-specs",
+      "title": "Open Specs",
+      "description": "Navigate to the Specs page from the sidebar. This is the central registry of all specs in the system, organized by role and taxonomy level.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SPEC-001/02-open-specs.png",
+        "alt": "Sidebar with Specs highlighted",
+        "annotations": [
+          { "x": "8%", "y": "38%", "label": "Specs", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "The Specs page is the single place to browse, create, and manage all specs. Understanding its layout is the first step.",
+      "sidebarHighlight": { "href": "/x/specs", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Sidebar navigation",
+        "action": "Navigating to the Specs page",
+        "relatedConcepts": ["sidebar navigation", "spec registry", "spec management"],
+        "assistantLocation": { "page": "/x/specs", "action": "navigate" }
+      }
+    },
+    {
+      "id": "spec-taxonomy",
+      "title": "Spec Taxonomy",
+      "description": "Specs are organized in a 3-level hierarchy: SYSTEM specs apply everywhere, DOMAIN specs apply to a specific domain, and CALLER specs can be personalized per caller.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SPEC-001/03-spec-taxonomy.png",
+        "alt": "Specs page showing taxonomy tree: SYSTEM, DOMAIN, CALLER levels",
+        "annotations": [
+          { "x": "20%", "y": "25%", "label": "SYSTEM level", "direction": "right" },
+          { "x": "25%", "y": "45%", "label": "DOMAIN level", "direction": "right", "highlight": true },
+          { "x": "30%", "y": "65%", "label": "CALLER level", "direction": "right" }
+        ]
+      },
+      "reason": "The taxonomy determines scope. A SYSTEM spec runs for all domains. A DOMAIN spec runs only for its domain. A CALLER spec can have per-caller overrides.",
+      "tips": [
+        { "type": "tip", "message": "Most custom measurement specs should be DOMAIN level. Use SYSTEM only for universal behaviors." }
+      ],
+      "sidebarHighlight": { "href": "/x/specs", "type": "glow" },
+      "aiContext": {
+        "currentView": "Specs page showing taxonomy hierarchy tree",
+        "action": "Exploring the spec taxonomy: SYSTEM, DOMAIN, CALLER levels",
+        "relatedConcepts": ["spec taxonomy", "SYSTEM level", "DOMAIN level", "CALLER level", "scope hierarchy"],
+        "assistantLocation": { "page": "/x/specs", "action": "view" }
+      }
+    },
+    {
+      "id": "spec-roles",
+      "title": "Spec Roles",
+      "description": "Every spec has a role that determines its function: IDENTITY defines WHO, CONTENT defines WHAT, EXTRACT defines HOW to measure, and more.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-SPEC-001/04-spec-roles.png",
+          "alt": "Specs page with role filter badges showing all 6 roles"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## The 6 Spec Roles\n\n### IDENTITY\nDefines WHO the agent is. Personality, style, tone. One per domain.\n\n### CONTENT\nDefines WHAT to teach. Curriculum, assertions, trust levels.\n\n### EXTRACT\nDefines HOW to measure. Pulls signals from conversations. **This is the role you'll use for custom measurement specs.**\n\n### SYNTHESISE\nCombines multiple extractions into unified profiles.\n\n### ORCHESTRATE\nControls pipeline execution order and flow.\n\n### CONSTRAIN\nSafety guardrails, topic limits, compliance rules."
+        }
+      },
+      "reason": "For creating custom measurement specs, you need the EXTRACT role. Understanding all roles helps you pick the right one.",
+      "tips": [
+        { "type": "best-practice", "message": "Custom measurement specs use the EXTRACT role. Custom teaching content uses CONTENT." }
+      ],
+      "aiContext": {
+        "currentView": "Split view: spec role badges and role descriptions",
+        "action": "Understanding spec roles, especially EXTRACT for custom measurement",
+        "relatedConcepts": ["IDENTITY", "CONTENT", "EXTRACT", "SYNTHESISE", "ORCHESTRATE", "CONSTRAIN", "spec role selection"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/specs", "delay": 500 }
+    },
+    {
+      "id": "output-types",
+      "title": "Output Types",
+      "description": "Each spec declares what kind of output it produces. This determines how the pipeline routes and stores the spec's results.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-SPEC-001/05-output-types.png",
+          "alt": "Spec detail view showing output type selector"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## Output Types\n\n### MEASURE\nProduces numerical scores (0-1). Used for personality traits, engagement, comprehension.\n\n### LEARN\nProduces learning observations. Memories, facts about the caller, style preferences.\n\n### ADAPT\nProduces parameter adjustments. Changes to tutor behavior based on feedback.\n\n### COMPOSE\nProduces prompt text. System prompts, response templates, greeting messages.\n\n### AGGREGATE\nProduces combined scores. Weighted averages across time or dimensions.\n\n### REWARD\nProduces reward signals. Feedback on what's working and what isn't.\n\nFor a custom measurement spec, you'll typically use **MEASURE** output type."
+        }
+      },
+      "reason": "Output type determines how the pipeline processes your spec's results. MEASURE specs produce scores that feed into AGGREGATE and ADAPT stages.",
+      "aiContext": {
+        "currentView": "Split view: output type selector and type descriptions",
+        "action": "Understanding output types, especially MEASURE for custom specs",
+        "relatedConcepts": ["MEASURE", "LEARN", "ADAPT", "COMPOSE", "AGGREGATE", "REWARD", "output routing"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/specs", "delay": 500 }
+    },
+    {
+      "id": "create-new-spec",
+      "title": "Create New Spec",
+      "description": "Click 'New Spec' to open the creation form. You'll define the spec's name, slug, role, output type, and taxonomy level.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SPEC-001/06-create-new-spec.png",
+        "alt": "Spec creation form with fields for name, slug, role, output type, and level",
+        "annotations": [
+          { "x": "50%", "y": "18%", "label": "Spec name & slug", "direction": "down" },
+          { "x": "50%", "y": "38%", "label": "Role: EXTRACT", "direction": "down", "highlight": true },
+          { "x": "50%", "y": "52%", "label": "Output: MEASURE", "direction": "down" },
+          { "x": "50%", "y": "66%", "label": "Level: DOMAIN", "direction": "down" },
+          { "x": "50%", "y": "85%", "label": "Create", "direction": "up", "highlight": true }
+        ]
+      },
+      "reason": "The creation form captures the essential metadata. Role and output type must be correct because they determine pipeline routing.",
+      "tips": [
+        { "type": "tip", "message": "Slug format: FEATURE-NNN (e.g., VOCAB-001). Use uppercase with a 3-digit number." }
+      ],
+      "sidebarHighlight": { "href": "/x/specs", "type": "glow" },
+      "aiContext": {
+        "currentView": "Spec creation form",
+        "action": "Creating a new EXTRACT/MEASURE spec",
+        "relatedConcepts": ["spec creation", "slug conventions", "role selection", "output type selection", "taxonomy level"],
+        "assistantLocation": { "page": "/x/specs", "action": "create" }
+      }
+    },
+    {
+      "id": "configure-parameters",
+      "title": "Configure Parameters",
+      "description": "Define what this spec measures by adding parameters. Each parameter has a name, type, and description that tells the EXTRACT stage what to look for.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SPEC-001/07-configure-parameters.png",
+        "alt": "Spec parameter configuration panel with parameter list",
+        "annotations": [
+          { "x": "30%", "y": "30%", "label": "Parameter name", "direction": "right" },
+          { "x": "30%", "y": "50%", "label": "Parameter type", "direction": "right" },
+          { "x": "30%", "y": "70%", "label": "Description & extraction prompt", "direction": "right" },
+          { "x": "80%", "y": "20%", "label": "Add parameter", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Parameters are what the pipeline actually measures. Each parameter becomes a score in the caller's personality profile, updated every conversation turn.",
+      "tips": [
+        { "type": "best-practice", "message": "Write clear extraction prompts. The AI uses these to know what to look for in the conversation." }
+      ],
+      "aiContext": {
+        "currentView": "Spec parameter configuration panel",
+        "action": "Adding measurement parameters to the custom spec",
+        "relatedConcepts": ["parameter definition", "extraction prompts", "personality profile", "dynamic parameters", "per-turn measurement"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/specs", "delay": 500 }
+    },
+    {
+      "id": "scoring-anchors",
+      "title": "Scoring Anchors",
+      "description": "Set high and low interpretation anchors for each parameter. Anchors tell the system what a score of 0.0 versus 1.0 means in human terms.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-SPEC-001/08-scoring-anchors.png",
+        "alt": "Scoring anchor configuration showing low and high anchor text fields",
+        "annotations": [
+          { "x": "30%", "y": "35%", "label": "Low anchor (0.0)", "direction": "right" },
+          { "x": "30%", "y": "55%", "label": "High anchor (1.0)", "direction": "right", "highlight": true },
+          { "x": "70%", "y": "75%", "label": "Save anchors", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Anchors provide semantic meaning to numerical scores. Without anchors, a score of 0.8 is meaningless. With anchors, 0.8 means 'very warm and friendly' or 'highly technical vocabulary'.",
+      "tips": [
+        { "type": "tip", "message": "Good anchors are specific and behavioral. 'Uses simple vocabulary' (low) vs. 'Uses domain-specific jargon fluently' (high)." }
+      ],
+      "aiContext": {
+        "currentView": "Scoring anchor configuration for spec parameters",
+        "action": "Setting high and low interpretation anchors for measurement parameters",
+        "relatedConcepts": ["scoring anchors", "score interpretation", "semantic meaning", "0-1 scale", "behavioral descriptions"]
+      },
+      "capture": { "url": "/x/specs", "delay": 500 }
+    },
+    {
+      "id": "summary",
+      "title": "Done!",
+      "description": "Your custom spec is ready. Activate it in a playbook and the pipeline will start measuring this new dimension automatically.",
+      "content": {
+        "type": "markdown",
+        "body": "# Custom Spec Created\n\nYou've built a custom measurement spec from scratch:\n\n- \u2705 **Navigated the taxonomy** \u2014 SYSTEM, DOMAIN, CALLER hierarchy\n- \u2705 **Chose the right role** \u2014 EXTRACT for measurement\n- \u2705 **Set the output type** \u2014 MEASURE for numerical scores\n- \u2705 **Defined parameters** \u2014 What to look for in conversations\n- \u2705 **Set scoring anchors** \u2014 Human-readable meaning for scores\n\n## Activating Your Spec\n\n1. **Open a Playbook** \u2014 Navigate to the playbook for your domain\n2. **Add the spec** \u2014 Include your new spec as a playbook item\n3. **Publish** \u2014 Publish the playbook to make it live\n4. **Test** \u2014 Run a conversation in the Test Harness and check the pipeline inspector\n\nThe pipeline discovers new specs automatically. No code changes, no redeployment. Just add, activate, and test.\n\n## Related Demos\n\n- *Understand the Pipeline Architecture* (DEMO-PIPELINE-001)\n- *Run a Controlled Test Conversation* (DEMO-HARNESS-001)\n- *Create a Tutor Domain from Scratch* (DEMO-TUTOR-001)"
+      },
+      "reason": "The activation workflow is the final piece. Creating a spec is useless until it's activated in a playbook and tested.",
+      "goal": "Summarize what was built and explain how to activate and test the spec",
+      "aiContext": {
+        "currentView": "Demo summary and next steps",
+        "action": "Completed the Create a Custom Spec demo",
+        "relatedConcepts": ["spec activation", "playbook integration", "pipeline discovery", "test harness verification"]
+      },
+      "durationOverrideSec": 18
+    }
+  ]
+}

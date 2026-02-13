@@ -25,6 +25,22 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         _count: { select: { assertions: true } },
+        subjects: {
+          include: {
+            subject: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                domains: {
+                  include: {
+                    domain: { select: { id: true, name: true, slug: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: [{ trustLevel: "asc" }, { name: "asc" }],
     });

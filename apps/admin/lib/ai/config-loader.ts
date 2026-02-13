@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { AIEngine } from "./client";
+import { getAIModelConfigsFallback } from "@/lib/fallback-settings";
 
 // =====================================================
 // ENGINE AVAILABILITY (inlined to avoid circular imports)
@@ -168,12 +169,13 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
     console.warn(`[ai-config] Failed to load config for ${callPoint}:`, error);
   }
 
-  // Fall back to defaults
-  const defaultConfig = DEFAULT_CONFIGS[callPoint];
+  // Fall back to defaults (SystemSettings → hardcoded constant)
+  const fallbackConfigs = await getAIModelConfigsFallback();
+  const defaultConfig = fallbackConfigs[callPoint] || DEFAULT_CONFIGS[callPoint];
   if (defaultConfig) {
     // Ensure the default provider is actually available
     const { provider, model } = ensureAvailableProvider(
-      defaultConfig.provider,
+      defaultConfig.provider as AIEngine,
       defaultConfig.model
     );
 

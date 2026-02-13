@@ -16,7 +16,10 @@ import {
   extractAssertions,
   type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
-import { generateIdentityFromAssertions } from "@/lib/domain/generate-identity";
+import {
+  generateIdentityFromAssertions,
+  type GeneratedIdentityConfig,
+} from "@/lib/domain/generate-identity";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 
@@ -46,6 +49,8 @@ export interface ProgressEvent {
   stepIndex?: number;
   totalSteps?: number;
   detail?: Record<string, any>;
+  /** Structured data payload for progressive UI updates */
+  data?: Record<string, any>;
 }
 
 export type ProgressCallback = (event: ProgressEvent) => void;
@@ -602,4 +607,362 @@ export async function quickLaunch(
     goalCount: ctx.results.goalCount || 0,
     warnings: ctx.results.warnings || [],
   };
+}
+
+// ── Analysis Preview Types ──────────────────────────────
+
+export interface AssertionSummary {
+  categoryBreakdown: Record<string, number>;
+  chapters: Array<{ name: string; count: number }>;
+  sampleAssertions: Array<{ assertion: string; category: string; chapter?: string }>;
+}
+
+export interface AnalysisPreview {
+  domainId: string;
+  domainSlug: string;
+  domainName: string;
+  subjectId: string;
+  sourceId: string;
+  assertionCount: number;
+  assertionSummary: AssertionSummary;
+  identityConfig: GeneratedIdentityConfig | null;
+  warnings: string[];
+}
+
+export interface CommitOverrides {
+  domainName?: string;
+  domainSlug?: string;
+  callerName?: string;
+  learningGoals?: string[];
+  identityConfig?: Partial<GeneratedIdentityConfig>;
+}
+
+// ── Assertion Summary ───────────────────────────────────
+
+/**
+ * Compute a summary of extracted assertions for the review UI.
+ * Groups by category and chapter, picks representative samples.
+ */
+export function computeAssertionSummary(assertions: ExtractedAssertion[]): AssertionSummary {
+  // Category breakdown
+  const categoryBreakdown: Record<string, number> = {};
+  for (const a of assertions) {
+    categoryBreakdown[a.category] = (categoryBreakdown[a.category] || 0) + 1;
+  }
+
+  // Chapter breakdown
+  const chapterMap = new Map<string, number>();
+  for (const a of assertions) {
+    const ch = a.chapter || "Uncategorized";
+    chapterMap.set(ch, (chapterMap.get(ch) || 0) + 1);
+  }
+  const chapters = Array.from(chapterMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Sample assertions: pick ~2 from each top category (up to 10 total)
+  const sampleAssertions: AssertionSummary["sampleAssertions"] = [];
+  const topCategories = Object.entries(categoryBreakdown)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([cat]) => cat);
+
+  for (const cat of topCategories) {
+    const matching = assertions.filter((a) => a.category === cat);
+    const picks = matching.slice(0, 2);
+    for (const p of picks) {
+      if (sampleAssertions.length >= 10) break;
+      sampleAssertions.push({
+        assertion: p.assertion,
+        category: p.category,
+        chapter: p.chapter || undefined,
+      });
+    }
+  }
+
+  return { categoryBreakdown, chapters, sampleAssertions };
+}
+
+// ── Analyze (Steps 1-4) ────────────────────────────────
+
+/**
+ * Run the analysis phase of Quick Launch (Steps 1-4).
+ * Emits structured data events so the frontend can progressively populate the review UI.
+ * Returns an AnalysisPreview with all data needed for the review screen.
+ */
+export async function quickLaunchAnalyze(
+  input: QuickLaunchInput,
+  onProgress: ProgressCallback,
+): Promise<AnalysisPreview> {
+  const steps = await loadLaunchSteps();
+  // Only run the first 4 steps (analysis phase)
+  const analyzeOps = ["create_domain", "extract_content", "save_assertions", "generate_identity"];
+  const analyzeSteps = steps.filter((s) => analyzeOps.includes(s.operation));
+
+  const ctx: LaunchContext = {
+    input,
+    results: { warnings: [] },
+    onProgress,
+  };
+
+  onProgress({
+    phase: "init",
+    message: `Analyzing (${analyzeSteps.length} steps)...`,
+    totalSteps: analyzeSteps.length,
+  });
+
+  for (let i = 0; i < analyzeSteps.length; i++) {
+    const step = analyzeSteps[i];
+    const executor = stepExecutors[step.operation];
+
+    if (!executor) {
+      const msg = `Unknown step operation: "${step.operation}"`;
+      if (step.onError === "abort") throw new Error(msg);
+      ctx.results.warnings!.push(msg);
+      continue;
+    }
+
+    onProgress({
+      phase: step.id,
+      message: step.progressMessage,
+      stepIndex: i,
+      totalSteps: analyzeSteps.length,
+    });
+
+    try {
+      await executor(ctx, step);
+
+      // Emit structured data events after each step
+      if (step.operation === "create_domain") {
+        onProgress({
+          phase: "domain_ready",
+          message: `${step.name} ✓`,
+          stepIndex: i,
+          totalSteps: analyzeSteps.length,
+          data: {
+            domainId: ctx.results.domainId,
+            domainSlug: ctx.results.domainSlug,
+            domainName: ctx.results.domainName,
+            subjectId: ctx.results.subjectId,
+          },
+        });
+      } else if (step.operation === "extract_content") {
+        const summary = computeAssertionSummary(ctx.results.assertions || []);
+        onProgress({
+          phase: "extraction_complete",
+          message: `${step.name} ✓`,
+          stepIndex: i,
+          totalSteps: analyzeSteps.length,
+          data: {
+            assertionCount: ctx.results.assertionCount,
+            assertionSummary: summary,
+          },
+        });
+      } else if (step.operation === "save_assertions") {
+        onProgress({
+          phase: "assertions_saved",
+          message: `${step.name} ✓`,
+          stepIndex: i,
+          totalSteps: analyzeSteps.length,
+          data: { sourceId: ctx.results.sourceId },
+        });
+      } else if (step.operation === "generate_identity") {
+        onProgress({
+          phase: "identity_ready",
+          message: `${step.name} ✓`,
+          stepIndex: i,
+          totalSteps: analyzeSteps.length,
+          data: { identityConfig: ctx.results.identityConfig || null },
+        });
+      } else {
+        onProgress({
+          phase: step.id,
+          message: `${step.name} ✓`,
+          stepIndex: i,
+          totalSteps: analyzeSteps.length,
+        });
+      }
+    } catch (err: any) {
+      console.error(`[quick-launch:analyze] Step "${step.id}" failed:`, err.message);
+
+      if (step.onError === "abort") {
+        onProgress({
+          phase: step.id,
+          message: `Failed: ${err.message}`,
+          stepIndex: i,
+          totalSteps: analyzeSteps.length,
+        });
+        throw err;
+      }
+
+      ctx.results.warnings!.push(`${step.name}: ${err.message}`);
+      onProgress({
+        phase: step.id,
+        message: `${step.name} — skipped (${err.message})`,
+        stepIndex: i,
+        totalSteps: analyzeSteps.length,
+      });
+    }
+  }
+
+  const summary = computeAssertionSummary(ctx.results.assertions || []);
+
+  const preview: AnalysisPreview = {
+    domainId: ctx.results.domainId!,
+    domainSlug: ctx.results.domainSlug!,
+    domainName: ctx.results.domainName!,
+    subjectId: ctx.results.subjectId!,
+    sourceId: ctx.results.sourceId || "",
+    assertionCount: ctx.results.assertionCount || 0,
+    assertionSummary: summary,
+    identityConfig: ctx.results.identityConfig || null,
+    warnings: ctx.results.warnings || [],
+  };
+
+  onProgress({
+    phase: "analysis_complete",
+    message: "Analysis complete!",
+    totalSteps: analyzeSteps.length,
+    data: preview,
+  });
+
+  return preview;
+}
+
+// ── Commit (Steps 5-7 with overrides) ──────────────────
+
+/**
+ * Run the commit phase of Quick Launch (Steps 5-7) with user overrides.
+ * Applies domain name/slug changes, identity config edits, caller name, and goal edits
+ * before creating the scaffold, curriculum, and test caller.
+ */
+export async function quickLaunchCommit(
+  domainId: string,
+  preview: AnalysisPreview,
+  overrides: CommitOverrides,
+  input: QuickLaunchInput,
+  onProgress: ProgressCallback,
+): Promise<QuickLaunchResult> {
+  // Apply domain overrides first
+  if (overrides.domainName || overrides.domainSlug) {
+    const updateData: Record<string, string> = {};
+    if (overrides.domainName) updateData.name = overrides.domainName;
+    if (overrides.domainSlug) updateData.slug = overrides.domainSlug;
+    await prisma.domain.update({ where: { id: domainId }, data: updateData });
+  }
+
+  const effectiveDomainName = overrides.domainName || preview.domainName;
+  const effectiveDomainSlug = overrides.domainSlug || preview.domainSlug;
+
+  // Merge identity config overrides
+  const effectiveIdentityConfig = preview.identityConfig
+    ? { ...preview.identityConfig, ...overrides.identityConfig }
+    : null;
+
+  const effectiveGoals = overrides.learningGoals ?? input.learningGoals;
+  const effectiveCallerName = overrides.callerName || `Test Caller — ${effectiveDomainName}`;
+
+  // Build a context for the commit steps
+  const ctx: LaunchContext = {
+    input: { ...input, learningGoals: effectiveGoals },
+    results: {
+      domainId,
+      domainSlug: effectiveDomainSlug,
+      domainName: effectiveDomainName,
+      subjectId: preview.subjectId,
+      identityConfig: effectiveIdentityConfig,
+      assertionCount: preview.assertionCount,
+      warnings: [],
+    },
+    onProgress,
+  };
+
+  const steps = await loadLaunchSteps();
+  const commitOps = ["scaffold_domain", "generate_curriculum", "create_caller"];
+  const commitSteps = steps.filter((s) => commitOps.includes(s.operation));
+
+  onProgress({
+    phase: "init",
+    message: `Creating tutor (${commitSteps.length} steps)...`,
+    totalSteps: commitSteps.length,
+  });
+
+  for (let i = 0; i < commitSteps.length; i++) {
+    const step = commitSteps[i];
+
+    // For create_caller, inject the overridden caller name
+    if (step.operation === "create_caller") {
+      // Override the caller name in the executor by patching input temporarily
+      ctx.input = {
+        ...ctx.input,
+        subjectName: effectiveCallerName.replace(/^Test Caller — /, "") || ctx.input.subjectName,
+      };
+    }
+
+    const executor = stepExecutors[step.operation];
+    if (!executor) {
+      const msg = `Unknown step operation: "${step.operation}"`;
+      if (step.onError === "abort") throw new Error(msg);
+      ctx.results.warnings!.push(msg);
+      continue;
+    }
+
+    onProgress({
+      phase: step.id,
+      message: step.progressMessage,
+      stepIndex: i,
+      totalSteps: commitSteps.length,
+    });
+
+    try {
+      await executor(ctx, step);
+      onProgress({
+        phase: step.id,
+        message: `${step.name} ✓`,
+        stepIndex: i,
+        totalSteps: commitSteps.length,
+      });
+    } catch (err: any) {
+      console.error(`[quick-launch:commit] Step "${step.id}" failed:`, err.message);
+      if (step.onError === "abort") {
+        onProgress({ phase: step.id, message: `Failed: ${err.message}`, stepIndex: i, totalSteps: commitSteps.length });
+        throw err;
+      }
+      ctx.results.warnings!.push(`${step.name}: ${err.message}`);
+      onProgress({ phase: step.id, message: `${step.name} — skipped (${err.message})`, stepIndex: i, totalSteps: commitSteps.length });
+    }
+  }
+
+  // If caller name was overridden, update it directly
+  if (overrides.callerName && ctx.results.callerId) {
+    await prisma.caller.update({
+      where: { id: ctx.results.callerId },
+      data: { name: overrides.callerName },
+    });
+    ctx.results.callerName = overrides.callerName;
+  }
+
+  const result: QuickLaunchResult = {
+    domainId: ctx.results.domainId!,
+    domainSlug: effectiveDomainSlug,
+    domainName: effectiveDomainName,
+    subjectId: preview.subjectId,
+    callerId: ctx.results.callerId!,
+    callerName: ctx.results.callerName || effectiveCallerName,
+    identitySpecId: ctx.results.identitySpecId,
+    contentSpecId: ctx.results.contentSpecId,
+    playbookId: ctx.results.playbookId,
+    assertionCount: preview.assertionCount,
+    moduleCount: ctx.results.moduleCount || 0,
+    goalCount: effectiveGoals.length,
+    warnings: ctx.results.warnings || [],
+  };
+
+  onProgress({
+    phase: "complete",
+    message: "Quick Launch complete!",
+    detail: result as any,
+  });
+
+  return result;
 }

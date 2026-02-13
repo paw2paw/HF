@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { config } from "@/lib/config";
+import { getOnboardingPersonasFallback } from "@/lib/fallback-settings";
 
 /**
  * @api GET /api/onboarding/personas
  * @visibility internal
  * @auth session
  * @tags onboarding
- * @description List all persona onboarding configurations from INIT-001 spec. Returns summary of each persona for the selector UI.
- * @response 200 { ok: true, source: "database" | "hardcoded", specId: string, defaultPersona: string, personas: Array<{ slug, name, description, targetCount, phaseCount, hasWelcomeSlug }> }
+ * @description List all persona onboarding configurations from INIT-001 spec. Falls back to SystemSettings if spec not found.
+ * @response 200 { ok: true, source: "database" | "fallback", specId?: string, defaultPersona: string, personas: Array<{ slug, name, description, targetCount, phaseCount, hasWelcomeSlug }> }
  * @response 500 { ok: false, error: string }
  */
 export async function GET() {
@@ -39,10 +40,23 @@ export async function GET() {
     });
 
     if (!spec) {
-      return NextResponse.json(
-        { ok: false, error: "INIT-001 onboarding spec not found. Import it via /x/admin/spec-sync." },
-        { status: 404 }
-      );
+      // Spec not found — fall back to SystemSettings
+      const fallbackPersonas = await getOnboardingPersonasFallback();
+      return NextResponse.json({
+        ok: true,
+        source: "fallback",
+        defaultPersona: fallbackPersonas[0]?.slug || "tutor",
+        personas: fallbackPersonas.map(p => ({
+          slug: p.slug,
+          name: p.name,
+          description: p.description,
+          targetCount: 0,
+          phaseCount: 0,
+          hasWelcomeSlug: false,
+          welcomeSlug: null,
+          successMetricCount: 0,
+        })),
+      });
     }
 
     const specConfig = spec.config as any || {};

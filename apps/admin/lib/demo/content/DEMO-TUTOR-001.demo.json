@@ -110,7 +110,8 @@
         "currentView": "Domain creation form",
         "action": "Filling in domain name, description, and configuration",
         "relatedConcepts": ["domain model", "domain fields", "domain configuration"]
-      }
+      },
+      "capture": { "url": "/x/domains/{domainId}", "delay": 500 }
     },
     {
       "id": "add-identity-spec",
@@ -160,7 +161,8 @@
         "action": "Reviewing identity spec parameters (warmth, formality, pacing, exploration)",
         "relatedConcepts": ["dynamic parameters", "personality measurement", "VARK", "Big Five", "adaptive pipeline"]
       },
-      "durationOverrideSec": 18
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/specs", "delay": 500 }
     },
     {
       "id": "content-sources",
@@ -209,7 +211,8 @@
         "currentView": "Document upload dialog",
         "action": "Uploading a curriculum document for assertion extraction",
         "relatedConcepts": ["document processing", "assertion extraction", "learning objectives", "content pipeline"]
-      }
+      },
+      "capture": { "url": "/x/content-sources", "delay": 500 }
     },
     {
       "id": "create-playbook",
@@ -257,7 +260,8 @@
         "action": "Adding and ordering specs in the playbook",
         "relatedConcepts": ["PlaybookBuilder", "spec ordering", "required vs optional items", "system spec toggles"]
       },
-      "durationOverrideSec": 15
+      "durationOverrideSec": 15,
+      "capture": { "url": "/x/playbooks", "delay": 500 }
     },
     {
       "id": "measurement-specs",
@@ -331,7 +335,8 @@
         "currentView": "Domain readiness dashboard with check results",
         "action": "Reviewing domain readiness checks before activation",
         "relatedConcepts": ["domain readiness", "readiness checks", "critical vs recommended", "activation requirements"]
-      }
+      },
+      "capture": { "url": "/x/domains/{domainId}", "delay": 500 }
     },
     {
       "id": "test-simulator",

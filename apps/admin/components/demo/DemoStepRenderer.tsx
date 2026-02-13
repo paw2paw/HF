@@ -5,12 +5,14 @@ import { ScreenshotViewer } from "./ScreenshotViewer";
 
 interface DemoStepRendererProps {
   content: DemoStepContent;
+  /** Called when user clicks a highlighted annotation (advances to next step) */
+  onAnnotationClick?: () => void;
 }
 
-export function DemoStepRenderer({ content }: DemoStepRendererProps) {
+export function DemoStepRenderer({ content, onAnnotationClick }: DemoStepRendererProps) {
   switch (content.type) {
     case "screenshot":
-      return <ScreenshotViewer content={content} />;
+      return <ScreenshotViewer content={content} onAnnotationClick={onAnnotationClick} />;
 
     case "markdown":
       return <MarkdownContent body={content.body} />;
@@ -29,10 +31,10 @@ export function DemoStepRenderer({ content }: DemoStepRendererProps) {
           className="demo-split-view"
         >
           <div>
-            <DemoStepRenderer content={content.left} />
+            <DemoStepRenderer content={content.left} onAnnotationClick={onAnnotationClick} />
           </div>
           <div>
-            <DemoStepRenderer content={content.right} />
+            <DemoStepRenderer content={content.right} onAnnotationClick={onAnnotationClick} />
           </div>
 
           <style jsx>{`

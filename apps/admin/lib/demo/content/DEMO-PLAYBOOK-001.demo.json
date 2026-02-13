@@ -1,0 +1,243 @@
+{
+  "id": "DEMO-PLAYBOOK-001",
+  "title": "Build and Publish a Playbook",
+  "subtitle": "Understand how playbooks bundle specs together into effective tutor configurations",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["team_member", "operator"],
+  "estimatedMinutes": 6,
+  "icon": "\ud83d\udccb",
+  "story": {
+    "asA": "team member configuring tutors",
+    "iWant": "to understand how playbooks bundle specs together",
+    "soThat": "I can build effective tutor configurations"
+  },
+  "objectives": [
+    "Understand what a playbook is and why it matters",
+    "Create a new playbook for a domain",
+    "Add identity, measurement, and content specs",
+    "Publish the playbook to make it live"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "A playbook is the execution plan that ties identity, content, and measurement specs together into a complete tutor configuration. This demo shows how to build and publish one.",
+      "content": {
+        "type": "markdown",
+        "body": "# Build and Publish a Playbook\n\nA **playbook** is the glue that holds a tutor together. It bundles:\n\n- **Identity Spec** \u2014 WHO the tutor is\n- **Measurement Specs** \u2014 HOW the tutor learns about each caller\n- **Content Spec** \u2014 WHAT the tutor teaches\n\n## Why playbooks matter\n\nWithout a playbook, specs are just standalone definitions. The playbook tells the pipeline **which specs to run, in what order, for which domain**.\n\nPublishing a playbook makes it live \u2014 callers will experience the configuration you define.\n\n## Time: ~6 minutes\n\nUse **\u2190 \u2192** arrow keys or the buttons below to navigate."
+      },
+      "reason": "Understanding the playbook concept is essential before building one. Playbooks are the bridge between spec definitions and live tutor behavior.",
+      "goal": "Orient the viewer on what playbooks are and why they matter",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Build and Publish a Playbook demo",
+        "relatedConcepts": ["playbooks", "spec composition", "domain configuration", "publish workflow"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "navigate-playbooks",
+      "title": "Open Playbooks",
+      "description": "Navigate to the Playbooks page using the sidebar. This is where you manage all playbook configurations across your domains.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PLAYBOOK-001/02-navigate-playbooks.png",
+        "alt": "Sidebar with Playbooks highlighted",
+        "annotations": [
+          { "x": "8%", "y": "48%", "label": "Click Playbooks", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "The Playbooks page is the central management hub for all playbook configurations. Each playbook belongs to a domain and defines a complete tutor experience.",
+      "sidebarHighlight": { "href": "/x/playbooks", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Admin sidebar navigation",
+        "action": "Navigating to the Playbooks page",
+        "relatedConcepts": ["sidebar navigation", "playbook management", "domain configuration"],
+        "assistantLocation": { "page": "/x/playbooks", "action": "navigate" }
+      }
+    },
+    {
+      "id": "create-playbook",
+      "title": "Create New Playbook",
+      "description": "Click 'New Playbook' to start creating a playbook. You'll name it, give it a description, and select which domain it serves.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PLAYBOOK-001/03-create-playbook.png",
+        "alt": "Playbooks page with New Playbook button and creation form",
+        "annotations": [
+          { "x": "85%", "y": "12%", "label": "New Playbook", "direction": "left", "highlight": true },
+          { "x": "50%", "y": "40%", "label": "Playbook name", "direction": "down" },
+          { "x": "50%", "y": "60%", "label": "Description", "direction": "down" }
+        ]
+      },
+      "reason": "The playbook name and description help team members understand what this configuration does. Choose a name that reflects the domain and purpose.",
+      "tips": [
+        { "type": "tip", "message": "Name playbooks descriptively, e.g., 'QM Tutor - Adaptive v2' so team members can tell them apart" }
+      ],
+      "sidebarHighlight": { "href": "/x/playbooks", "type": "glow" },
+      "aiContext": {
+        "currentView": "Playbooks page with creation form open",
+        "action": "Creating a new playbook",
+        "relatedConcepts": ["playbook creation", "playbook naming", "domain association"],
+        "assistantLocation": { "page": "/x/playbooks", "action": "create" }
+      }
+    },
+    {
+      "id": "select-domain",
+      "title": "Select Domain",
+      "description": "Choose which domain this playbook serves. A playbook belongs to exactly one domain, and a domain can have multiple playbooks (but only one published at a time).",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PLAYBOOK-001/04-select-domain.png",
+        "alt": "Domain selector dropdown in playbook form",
+        "annotations": [
+          { "x": "50%", "y": "35%", "label": "Select domain", "direction": "down", "highlight": true },
+          { "x": "50%", "y": "55%", "label": "Quantum Mechanics Tutor", "direction": "right" },
+          { "x": "50%", "y": "70%", "label": "Food Safety Training", "direction": "right" }
+        ]
+      },
+      "reason": "Each playbook is tied to a domain. This ensures that specs, content, and measurements are scoped correctly. Only one playbook can be published (live) per domain at any time.",
+      "tips": [
+        { "type": "best-practice", "message": "You can have draft playbooks alongside a published one \u2014 useful for testing new configurations" }
+      ],
+      "aiContext": {
+        "currentView": "Playbook creation form \u2014 domain selector",
+        "action": "Selecting which domain the playbook belongs to",
+        "relatedConcepts": ["domain association", "playbook scoping", "one published per domain"]
+      },
+      "capture": { "url": "/x/playbooks", "delay": 500 }
+    },
+    {
+      "id": "add-identity-spec",
+      "title": "Add Identity Spec",
+      "description": "Add the identity spec that defines WHO the tutor is. Every playbook needs exactly one identity spec \u2014 it controls personality, teaching style, and boundaries.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PLAYBOOK-001/05-add-identity.png",
+        "alt": "PlaybookBuilder with identity spec being added",
+        "annotations": [
+          { "x": "75%", "y": "15%", "label": "Add Item", "direction": "left", "highlight": true },
+          { "x": "30%", "y": "35%", "label": "IDENTITY: TUT-001", "direction": "right", "highlight": true },
+          { "x": "70%", "y": "35%", "label": "Required", "direction": "left" }
+        ]
+      },
+      "reason": "The identity spec is the foundation. Without it, the tutor has no personality or teaching guidelines. It must be marked as required \u2014 the playbook cannot activate without one.",
+      "goal": "Add the tutor's identity definition to the playbook",
+      "tips": [
+        { "type": "warning", "message": "Every playbook must have exactly one IDENTITY spec. The system will flag a validation error if it's missing." }
+      ],
+      "aiContext": {
+        "currentView": "PlaybookBuilder \u2014 adding identity spec item",
+        "action": "Adding the identity spec (TUT-001) to the playbook",
+        "relatedConcepts": ["specRole IDENTITY", "TUT-001", "required items", "playbook validation"]
+      },
+      "capture": { "url": "/x/playbooks", "delay": 500 }
+    },
+    {
+      "id": "add-measurement-specs",
+      "title": "Add Measurement Specs",
+      "description": "Add PERS-001 (personality measurement) and VARK-001 (learning modality). These EXTRACT specs analyze conversations and build caller profiles over time.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PLAYBOOK-001/06-add-measurements.png",
+        "alt": "PlaybookBuilder with measurement specs listed",
+        "annotations": [
+          { "x": "30%", "y": "45%", "label": "PERS-001: Personality", "direction": "right", "highlight": true },
+          { "x": "30%", "y": "60%", "label": "VARK-001: Learning Style", "direction": "right", "highlight": true },
+          { "x": "70%", "y": "45%", "label": "EXTRACT role", "direction": "left" }
+        ]
+      },
+      "reason": "Measurement specs make the tutor adaptive. PERS-001 measures Big Five personality traits (openness, conscientiousness, etc.) and VARK-001 detects learning modality (visual, auditory, read/write, kinesthetic). Together they power personalization.",
+      "goal": "Enable adaptive learning by adding measurement specs",
+      "tips": [
+        { "type": "best-practice", "message": "PERS-001 and VARK-001 are the recommended baseline \u2014 they provide enough data for meaningful adaptation" }
+      ],
+      "aiContext": {
+        "currentView": "PlaybookBuilder \u2014 measurement specs added",
+        "action": "Adding PERS-001 and VARK-001 measurement specs",
+        "relatedConcepts": ["PERS-001", "VARK-001", "EXTRACT pipeline stage", "personality measurement", "learning modality"]
+      },
+      "capture": { "url": "/x/playbooks", "delay": 500 }
+    },
+    {
+      "id": "add-content-spec",
+      "title": "Add Content Spec",
+      "description": "Link the content/teaching spec that defines WHAT the tutor teaches. This connects to your content sources and curriculum structure.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-PLAYBOOK-001/07-add-content.png",
+        "alt": "PlaybookBuilder with content spec added alongside identity and measurement",
+        "annotations": [
+          { "x": "30%", "y": "75%", "label": "CONTENT: Curriculum spec", "direction": "right", "highlight": true },
+          { "x": "70%", "y": "75%", "label": "Links to content sources", "direction": "left" }
+        ]
+      },
+      "reason": "The content spec connects the playbook to your teaching material. It defines what the tutor can teach, references content sources with trust levels, and controls how the AI uses that material.",
+      "tips": [
+        { "type": "tip", "message": "Content specs reference Content Sources \u2014 make sure you've uploaded your curriculum before linking it here" }
+      ],
+      "aiContext": {
+        "currentView": "PlaybookBuilder \u2014 content spec added",
+        "action": "Adding the content/teaching spec to the playbook",
+        "relatedConcepts": ["content spec", "content sources", "trust levels", "curriculum structure", "teaching material"]
+      },
+      "capture": { "url": "/x/playbooks", "delay": 500 }
+    },
+    {
+      "id": "review-and-publish",
+      "title": "Review & Publish",
+      "description": "Review the complete playbook configuration, then publish it to make it live for callers. Publishing replaces any currently published playbook for this domain.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-PLAYBOOK-001/08-review-publish.png",
+          "alt": "Playbook review panel with all specs listed and Publish button"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## Publish Workflow\n\n1. **Review** \u2014 All specs are listed with their roles and status\n2. **Validate** \u2014 The system checks for required items (identity, at least one content or measurement spec)\n3. **Publish** \u2014 This playbook becomes the active configuration for the domain\n\n### What happens when you publish?\n\n- The previous published playbook (if any) is **unpublished** automatically\n- New calls use the new configuration immediately\n- Existing in-progress calls finish with their original configuration\n- You can unpublish and revert at any time\n\n### Draft vs. Published\n\n- **Draft**: Only visible to team members, not used by the pipeline\n- **Published**: Live \u2014 the pipeline uses this playbook for all new calls"
+        }
+      },
+      "reason": "Publishing is the critical step that makes your configuration live. Always review before publishing, especially in production domains with active callers.",
+      "goal": "Publish the playbook to make it live for callers",
+      "tips": [
+        { "type": "warning", "message": "Publishing immediately affects new calls. Review carefully in production domains." }
+      ],
+      "aiContext": {
+        "currentView": "Playbook review panel with publish workflow \u2014 split view",
+        "action": "Reviewing playbook configuration and preparing to publish",
+        "relatedConcepts": ["publish workflow", "draft vs published", "playbook validation", "domain activation"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/playbooks", "delay": 500 }
+    },
+    {
+      "id": "verify-in-domain",
+      "title": "Verify in Domain",
+      "description": "After publishing, navigate to the domain to confirm the playbook is active. The domain overview shows which playbook is currently published.",
+      "content": {
+        "type": "markdown",
+        "body": "# Playbook Published\n\nYour playbook is now live. Here's how to verify and what to do next:\n\n## Verify\n\n1. **Go to Domains** \u2014 Open the domain you published to\n2. **Check the playbook badge** \u2014 It should show your playbook name with a \"Published\" status\n3. **Run a test call** \u2014 Open the Simulator and verify the tutor behaves as expected\n\n## What You Built\n\n- \u2705 **Identity Spec** \u2014 Defines WHO the tutor is\n- \u2705 **Measurement Specs** \u2014 PERS-001 + VARK-001 for adaptive learning\n- \u2705 **Content Spec** \u2014 Links to your teaching material\n- \u2705 **Published** \u2014 Live and active for callers\n\n## Next Steps\n\n1. **Test in Simulator** \u2014 Verify the tutor's personality and teaching behavior\n2. **Monitor adaptation** \u2014 Watch how personality profiles build over calls\n3. **Iterate** \u2014 Create a new draft playbook to test changes safely\n4. **Add more specs** \u2014 Expand measurement or add specialized content\n\n## Related Demos\n\n- *Create a Tutor Domain from Scratch* (DEMO-TUTOR-001)\n- *See How Adaptive Learning Works* (DEMO-ADAPT-001)\n- *Monitor Learning Goals Across Callers* (DEMO-GOALS-001)"
+      },
+      "reason": "Verification confirms the publish was successful. Testing in the Simulator ensures the tutor behaves as expected before real callers interact with it.",
+      "goal": "Confirm the playbook is active and understand next steps",
+      "aiContext": {
+        "currentView": "Demo summary \u2014 verification and next steps",
+        "action": "Completed the Build and Publish a Playbook demo",
+        "relatedConcepts": ["domain verification", "simulator testing", "playbook iteration", "draft playbooks"]
+      },
+      "durationOverrideSec": 20
+    }
+  ]
+}

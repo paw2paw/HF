@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 
-type UserRole = "ADMIN" | "OPERATOR" | "VIEWER";
+type UserRole = "SUPERADMIN" | "ADMIN" | "OPERATOR" | "SUPER_TESTER" | "TESTER" | "DEMO" | "VIEWER";
 
 interface User {
   id: string;
@@ -13,6 +13,8 @@ interface User {
   role: UserRole;
   isActive: boolean;
   createdAt: string;
+  assignedDomainId: string | null;
+  assignedDomain: { id: string; name: string; slug: string } | null;
 }
 
 interface Invite {
@@ -46,10 +48,18 @@ interface AuditLogEntry {
 }
 
 const ROLE_COLORS: Record<UserRole, { bg: string; text: string; darkBg: string; darkText: string }> = {
+  SUPERADMIN: { bg: "#fef3c7", text: "#b45309", darkBg: "#78350f", darkText: "#fcd34d" },
   ADMIN: { bg: "#f3e8ff", text: "#7c3aed", darkBg: "#4c1d95", darkText: "#c4b5fd" },
   OPERATOR: { bg: "#dbeafe", text: "#2563eb", darkBg: "#1e3a5f", darkText: "#93c5fd" },
+  SUPER_TESTER: { bg: "#d1fae5", text: "#059669", darkBg: "#064e3b", darkText: "#6ee7b7" },
+  TESTER: { bg: "#ecfdf5", text: "#10b981", darkBg: "#065f46", darkText: "#a7f3d0" },
+  DEMO: { bg: "#fef9c3", text: "#a16207", darkBg: "#713f12", darkText: "#fef08a" },
   VIEWER: { bg: "#f3f4f6", text: "#4b5563", darkBg: "#374151", darkText: "#d1d5db" },
 };
+
+function formatRoleLabel(role: string): string {
+  return role.split("_").map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+}
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(135deg, #6366f1, #8b5cf6)",
@@ -78,7 +88,6 @@ export default function UsersPage() {
   const [newInviteDomainId, setNewInviteDomainId] = useState("");
   const [domains, setDomains] = useState<Domain[]>([]);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -87,14 +96,24 @@ export default function UsersPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [showAuditLogs, setShowAuditLogs] = useState(false);
+  const [contractRoles, setContractRoles] = useState<string[]>([]);
+  const [domainScopableRoles, setDomainScopableRoles] = useState<Set<string>>(new Set());
+
+  // Invite preview state
+  type InviteStep = "form" | "confirm" | "result";
+  const [inviteStep, setInviteStep] = useState<InviteStep>("form");
+  const [appConfig, setAppConfig] = useState<{ baseUrl: string; source: string } | null>(null);
+  const [lastEmailSent, setLastEmailSent] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [usersRes, invitesRes, auditRes, domainsRes] = await Promise.all([
+      const [usersRes, invitesRes, auditRes, domainsRes, matrixRes, appConfigRes] = await Promise.all([
         fetch("/api/admin/users"),
         fetch("/api/invites"),
         fetch("/api/admin/audit"),
         fetch("/api/domains"),
+        fetch("/api/admin/access-matrix"),
+        fetch("/api/admin/app-config"),
       ]);
 
       if (usersRes.ok) {
@@ -116,6 +135,35 @@ export default function UsersPage() {
       if (domainsRes.ok) {
         const data = await domainsRes.json();
         setDomains(data.domains || []);
+      }
+
+      if (matrixRes.ok) {
+        const data = await matrixRes.json();
+        if (data.contract?.roles) {
+          setContractRoles(data.contract.roles);
+        }
+        if (data.contract?.matrix) {
+          // Derive domain-scopable roles: roles with DOMAIN or OWN scope on any entity
+          const scopable = new Set<string>();
+          const mtx = data.contract.matrix as Record<string, Record<string, string>>;
+          for (const role of data.contract.roles || []) {
+            for (const entity of Object.keys(mtx)) {
+              const rule = mtx[entity]?.[role];
+              if (!rule) continue;
+              const scope = rule.split(":")[0];
+              if (scope === "DOMAIN" || scope === "OWN") {
+                scopable.add(role);
+                break;
+              }
+            }
+          }
+          setDomainScopableRoles(scopable);
+        }
+      }
+
+      if (appConfigRes.ok) {
+        const data = await appConfigRes.json();
+        setAppConfig(data);
       }
     } catch (err) {
       console.error("Failed to fetch data:", err);
@@ -148,10 +196,19 @@ export default function UsersPage() {
     }
   };
 
-  const handleCreateInvite = async (e: React.FormEvent) => {
+  const handlePreviewInvite = (e: React.FormEvent) => {
     e.preventDefault();
     setInviteError(null);
-    setInviteSuccess(null);
+    if (!newInviteEmail) {
+      setInviteError("Email is required");
+      return;
+    }
+    setInviteStep("confirm");
+  };
+
+  const handleSendInvite = async (sendEmail: boolean) => {
+    setInviteError(null);
+
     setLastInviteUrl(null);
 
     try {
@@ -164,6 +221,7 @@ export default function UsersPage() {
           firstName: newInviteFirstName || undefined,
           lastName: newInviteLastName || undefined,
           domainId: newInviteDomainId || undefined,
+          sendEmail,
         }),
       });
 
@@ -171,20 +229,35 @@ export default function UsersPage() {
 
       if (!res.ok) {
         setInviteError(data.error || "Failed to create invite");
+        setInviteStep("form");
         return;
       }
 
-      const emailStatus = data.emailSent ? "Email sent" : "Email failed — share link manually";
-      setInviteSuccess(`Invite created for ${newInviteEmail}. ${emailStatus}.`);
       setLastInviteUrl(data.inviteUrl || null);
-      setNewInviteEmail("");
-      setNewInviteFirstName("");
-      setNewInviteLastName("");
-      setNewInviteDomainId("");
+      setLastEmailSent(data.emailSent || false);
+      setInviteStep("result");
+
+      if (!sendEmail && data.inviteUrl) {
+        try { await navigator.clipboard.writeText(data.inviteUrl); } catch {}
+      }
+
       fetchData();
     } catch {
       setInviteError("Failed to create invite");
+      setInviteStep("form");
     }
+  };
+
+  const handleResetInviteForm = () => {
+    setNewInviteEmail("");
+    setNewInviteFirstName("");
+    setNewInviteLastName("");
+    setNewInviteDomainId("");
+    setInviteStep("form");
+    setInviteError(null);
+
+    setLastInviteUrl(null);
+    setLastEmailSent(false);
   };
 
   const handleDeleteInvite = async (id: string) => {
@@ -219,6 +292,19 @@ export default function UsersPage() {
       fetchData();
     } catch (err) {
       console.error("Failed to update role:", err);
+    }
+  };
+
+  const handleChangeDomain = async (user: User, domainId: string) => {
+    try {
+      await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, assignedDomainId: domainId }),
+      });
+      fetchData();
+    } catch (err) {
+      console.error("Failed to update domain:", err);
     }
   };
 
@@ -304,119 +390,244 @@ export default function UsersPage() {
         padding: 24, borderRadius: 12,
         background: "var(--surface-primary)", border: "1px solid var(--border-default)",
       }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 16px" }}>
-          Invite Field Tester
-        </h2>
-        <form onSubmit={handleCreateInvite} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Row 1: Email + Role */}
-          <div style={{ display: "flex", gap: 10 }}>
-            <input
-              type="email"
-              value={newInviteEmail}
-              onChange={(e) => setNewInviteEmail(e.target.value)}
-              placeholder="tester@example.com"
-              required
-              style={{
-                flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
-                border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", outline: "none",
-              }}
-            />
-            <select
-              value={newInviteRole}
-              onChange={(e) => setNewInviteRole(e.target.value as UserRole)}
-              style={{
-                padding: "8px 12px", fontSize: 13, borderRadius: 8,
-                border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", cursor: "pointer",
-              }}
-            >
-              <option value="OPERATOR">Operator</option>
-              <option value="ADMIN">Admin</option>
-              <option value="VIEWER">Viewer</option>
-            </select>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+            Invite Field Tester
+          </h2>
+          {appConfig && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "3px 10px", borderRadius: 6, fontSize: 12,
+              background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "#dcfce7"
+                : appConfig.source === "NEXTAUTH_URL" ? "#fef9c3"
+                : "#fee2e2",
+              color: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "#166534"
+                : appConfig.source === "NEXTAUTH_URL" ? "#854d0e"
+                : "#991b1b",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%",
+                background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "#22c55e"
+                  : appConfig.source === "NEXTAUTH_URL" ? "#eab308"
+                  : "#ef4444",
+              }} />
+              Links &rarr; {appConfig.baseUrl}
+            </span>
+          )}
+        </div>
 
-          {/* Row 2: First/Last Name + Domain */}
-          <div style={{ display: "flex", gap: 10 }}>
-            <input
-              type="text"
-              value={newInviteFirstName}
-              onChange={(e) => setNewInviteFirstName(e.target.value)}
-              placeholder="First name (optional)"
-              style={{
-                flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
-                border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", outline: "none",
-              }}
-            />
-            <input
-              type="text"
-              value={newInviteLastName}
-              onChange={(e) => setNewInviteLastName(e.target.value)}
-              placeholder="Last name (optional)"
-              style={{
-                flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
-                border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", outline: "none",
-              }}
-            />
-            <select
-              value={newInviteDomainId}
-              onChange={(e) => setNewInviteDomainId(e.target.value)}
-              style={{
-                minWidth: 160, padding: "8px 12px", fontSize: 13, borderRadius: 8,
-                border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", cursor: "pointer",
-              }}
-            >
-              <option value="">Any domain (chooser)</option>
-              {domains.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-          </div>
+        {inviteError && <p style={{ marginBottom: 12, fontSize: 13, color: "#ef4444", margin: "0 0 12px" }}>{inviteError}</p>}
 
-          {/* Submit */}
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button
-              type="submit"
-              style={{
-                padding: "8px 24px", fontSize: 14, fontWeight: 500, borderRadius: 8,
-                background: "var(--button-primary-bg)", color: "#fff", border: "none", cursor: "pointer",
-              }}
-            >
-              Send Invite
-            </button>
-          </div>
-        </form>
+        {/* Step 1: Form */}
+        {inviteStep === "form" && (
+          <form onSubmit={handlePreviewInvite} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Row 1: Email + Role */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                type="email"
+                value={newInviteEmail}
+                onChange={(e) => setNewInviteEmail(e.target.value)}
+                placeholder="tester@example.com"
+                required
+                style={{
+                  flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
+                  color: "var(--text-primary)", outline: "none",
+                }}
+              />
+              <select
+                value={newInviteRole}
+                onChange={(e) => setNewInviteRole(e.target.value as UserRole)}
+                style={{
+                  padding: "8px 12px", fontSize: 13, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
+                  color: "var(--text-primary)", cursor: "pointer",
+                }}
+              >
+                {contractRoles.map((role) => (
+                  <option key={role} value={role}>{formatRoleLabel(role)}</option>
+                ))}
+              </select>
+            </div>
 
-        {inviteError && <p style={{ marginTop: 12, fontSize: 13, color: "#ef4444" }}>{inviteError}</p>}
-        {inviteSuccess && (
-          <div style={{ marginTop: 12 }}>
-            <p style={{ fontSize: 13, color: "#22c55e", margin: 0 }}>{inviteSuccess}</p>
-            {lastInviteUrl && (
+            {/* Row 2: First/Last Name + Domain */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                type="text"
+                value={newInviteFirstName}
+                onChange={(e) => setNewInviteFirstName(e.target.value)}
+                placeholder="First name (optional)"
+                style={{
+                  flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
+                  color: "var(--text-primary)", outline: "none",
+                }}
+              />
+              <input
+                type="text"
+                value={newInviteLastName}
+                onChange={(e) => setNewInviteLastName(e.target.value)}
+                placeholder="Last name (optional)"
+                style={{
+                  flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
+                  color: "var(--text-primary)", outline: "none",
+                }}
+              />
+              <select
+                value={newInviteDomainId}
+                onChange={(e) => setNewInviteDomainId(e.target.value)}
+                style={{
+                  minWidth: 160, padding: "8px 12px", fontSize: 13, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
+                  color: "var(--text-primary)", cursor: "pointer",
+                }}
+              >
+                <option value="">Any domain (chooser)</option>
+                {domains.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Submit */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="submit"
+                style={{
+                  padding: "8px 24px", fontSize: 14, fontWeight: 500, borderRadius: 8,
+                  background: "var(--button-primary-bg)", color: "#fff", border: "none", cursor: "pointer",
+                }}
+              >
+                Preview Invite
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 2: Confirmation */}
+        {inviteStep === "confirm" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{
+              padding: 16, borderRadius: 8,
+              background: "var(--surface-secondary, var(--surface-primary))",
+              border: "1px solid var(--border-default)",
+            }}>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>Invite preview</div>
+              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
+                <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Email</span>
+                <span style={{ color: "var(--text-primary)" }}>{newInviteEmail}</span>
+                <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Role</span>
+                <span style={{ color: "var(--text-primary)" }}>{formatRoleLabel(newInviteRole)}</span>
+                {(newInviteFirstName || newInviteLastName) && <>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Name</span>
+                  <span style={{ color: "var(--text-primary)" }}>{[newInviteFirstName, newInviteLastName].filter(Boolean).join(" ")}</span>
+                </>}
+                {newInviteDomainId && <>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Domain</span>
+                  <span style={{ color: "var(--text-primary)" }}>{domains.find(d => d.id === newInviteDomainId)?.name || newInviteDomainId}</span>
+                </>}
+              </div>
+            </div>
+
+            <div style={{
+              padding: 12, borderRadius: 8,
+              background: "var(--surface-secondary, var(--surface-primary))",
+              border: "1px dashed var(--border-default)",
+            }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Link will be</div>
+              <code style={{ fontSize: 13, color: "var(--text-primary)", wordBreak: "break-all" }}>
+                {appConfig?.baseUrl || "http://localhost:3000"}/invite/accept?token=&lt;generated&gt;
+              </code>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setInviteStep("form")}
+                style={{
+                  padding: "8px 16px", fontSize: 13, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "transparent",
+                  color: "var(--text-muted)", cursor: "pointer",
+                }}
+              >
+                Back
+              </button>
+              <button
+                onClick={() => handleSendInvite(false)}
+                style={{
+                  padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "transparent",
+                  color: "var(--text-primary)", cursor: "pointer",
+                }}
+              >
+                Create &amp; Copy Link
+              </button>
+              <button
+                onClick={() => handleSendInvite(true)}
+                style={{
+                  padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
+                  background: "var(--button-primary-bg)", color: "#fff", border: "none", cursor: "pointer",
+                }}
+              >
+                Create &amp; Send Email
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Result */}
+        {inviteStep === "result" && lastInviteUrl && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{
+              padding: 16, borderRadius: 8,
+              background: "#dcfce7", border: "1px solid #bbf7d0",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#166534", marginBottom: 8 }}>
+                Invite created for {newInviteEmail}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                <span style={{
+                  padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  background: lastEmailSent ? "#22c55e" : "#f59e0b",
+                  color: "#fff",
+                }}>
+                  {lastEmailSent ? "Email sent" : "Email not sent"}
+                </span>
+                {!lastEmailSent && (
+                  <span style={{ fontSize: 12, color: "#854d0e" }}>Share the link below manually</span>
+                )}
+              </div>
               <div style={{
-                marginTop: 8, padding: "8px 12px", borderRadius: 8,
-                background: "var(--surface-secondary, var(--surface-primary))",
-                border: "1px solid var(--border-default)",
+                padding: "10px 14px", borderRadius: 8,
+                background: "#fff", border: "1px solid #bbf7d0",
                 display: "flex", alignItems: "center", gap: 8,
               }}>
-                <code style={{ flex: 1, fontSize: 12, color: "var(--text-muted)", wordBreak: "break-all" }}>
+                <code style={{ flex: 1, fontSize: 13, color: "#166534", wordBreak: "break-all" }}>
                   {lastInviteUrl}
                 </code>
                 <button
                   onClick={() => { navigator.clipboard.writeText(lastInviteUrl); }}
                   style={{
-                    padding: "4px 10px", fontSize: 12, borderRadius: 6,
-                    border: "1px solid var(--border-default)", background: "transparent",
-                    color: "var(--text-primary)", cursor: "pointer", whiteSpace: "nowrap",
+                    padding: "6px 14px", fontSize: 12, fontWeight: 600, borderRadius: 6,
+                    border: "1px solid #22c55e", background: "#f0fdf4",
+                    color: "#166534", cursor: "pointer", whiteSpace: "nowrap",
                   }}
                 >
                   Copy
                 </button>
               </div>
-            )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={handleResetInviteForm}
+                style={{
+                  padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
+                  background: "var(--button-primary-bg)", color: "#fff", border: "none", cursor: "pointer",
+                }}
+              >
+                Create Another
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -507,9 +718,13 @@ export default function UsersPage() {
                 user={user}
                 isCurrentUser={user.id === session?.user?.id}
                 isAdmin={isAdmin}
+                domains={domains}
+                roleOptions={contractRoles}
+                domainScopableRoles={domainScopableRoles}
                 confirmDelete={confirmDelete}
                 onToggleActive={() => handleToggleActive(user)}
                 onChangeRole={(role) => handleChangeRole(user, role)}
+                onChangeDomain={(domainId) => handleChangeDomain(user, domainId)}
                 onDelete={() => handleDeleteUser(user.id)}
                 onConfirmDelete={() => setConfirmDelete(user.id)}
                 onCancelDelete={() => setConfirmDelete(null)}
@@ -533,9 +748,13 @@ export default function UsersPage() {
                 user={user}
                 isCurrentUser={user.id === session?.user?.id}
                 isAdmin={isAdmin}
+                domains={domains}
+                roleOptions={contractRoles}
+                domainScopableRoles={domainScopableRoles}
                 confirmDelete={confirmDelete}
                 onToggleActive={() => handleToggleActive(user)}
                 onChangeRole={(role) => handleChangeRole(user, role)}
+                onChangeDomain={(domainId) => handleChangeDomain(user, domainId)}
                 onDelete={() => handleDeleteUser(user.id)}
                 onConfirmDelete={() => setConfirmDelete(user.id)}
                 onCancelDelete={() => setConfirmDelete(null)}
@@ -657,9 +876,13 @@ function UserCard({
   user,
   isCurrentUser,
   isAdmin,
+  domains,
+  roleOptions,
+  domainScopableRoles,
   confirmDelete,
   onToggleActive,
   onChangeRole,
+  onChangeDomain,
   onDelete,
   onConfirmDelete,
   onCancelDelete,
@@ -668,9 +891,13 @@ function UserCard({
   user: User;
   isCurrentUser: boolean;
   isAdmin: boolean;
+  domains: Domain[];
+  roleOptions: string[];
+  domainScopableRoles: Set<string>;
   confirmDelete: string | null;
   onToggleActive: () => void;
   onChangeRole: (role: UserRole) => void;
+  onChangeDomain: (domainId: string) => void;
   onDelete: () => void;
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
@@ -816,9 +1043,9 @@ function UserCard({
               border: "none", cursor: "pointer", appearance: "auto",
             }}
           >
-            <option value="ADMIN">ADMIN</option>
-            <option value="OPERATOR">OPERATOR</option>
-            <option value="VIEWER">VIEWER</option>
+            {roleOptions.map((role) => (
+              <option key={role} value={role}>{role}</option>
+            ))}
           </select>
         ) : (
           <span style={{
@@ -832,6 +1059,40 @@ function UserCard({
           Joined {new Date(user.createdAt).toLocaleDateString()}
         </span>
       </div>
+
+      {/* Domain assignment (shown for scoped roles — derived from ENTITY_ACCESS_V1 contract) */}
+      {isAdmin && !isCurrentUser && (domainScopableRoles.has(user.role) || user.assignedDomainId) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>Domain:</span>
+          <select
+            value={user.assignedDomainId || ""}
+            onChange={(e) => onChangeDomain(e.target.value)}
+            style={{
+              flex: 1, padding: "4px 8px", fontSize: 12, borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-secondary, var(--surface-primary))",
+              color: "var(--text-primary)", cursor: "pointer",
+            }}
+          >
+            <option value="">All domains</option>
+            {domains.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Domain badge (read-only for non-admins or self) */}
+      {user.assignedDomain && !(isAdmin && !isCurrentUser && (domainScopableRoles.has(user.role) || user.assignedDomainId)) && (
+        <div style={{ marginBottom: 12 }}>
+          <span style={{
+            padding: "2px 8px", fontSize: 11, borderRadius: 4,
+            background: "var(--surface-tertiary)", color: "var(--text-secondary)",
+          }}>
+            {user.assignedDomain.name}
+          </span>
+        </div>
+      )}
 
       {/* Actions */}
       {isAdmin && !isCurrentUser && (

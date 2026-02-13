@@ -59,10 +59,34 @@ export async function GET(
             },
           },
         },
+        subjects: {
+          include: {
+            subject: {
+              include: {
+                sources: {
+                  include: {
+                    source: {
+                      select: {
+                        id: true,
+                        slug: true,
+                        name: true,
+                        trustLevel: true,
+                        _count: { select: { assertions: true } },
+                      },
+                    },
+                  },
+                  orderBy: { sortOrder: "asc" },
+                },
+                _count: { select: { sources: true } },
+              },
+            },
+          },
+        },
         _count: {
           select: {
             callers: true,
             playbooks: true,
+            subjects: true,
           },
         },
       },

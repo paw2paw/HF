@@ -11,6 +11,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { getFlowPhasesFallback } from "@/lib/fallback-settings";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -31,46 +32,7 @@ export interface ScaffoldResult {
 
 // ── Default onboarding flow phases ─────────────────────
 
-const DEFAULT_FLOW_PHASES = {
-  phases: [
-    {
-      phase: "welcome",
-      duration: "2-3 minutes",
-      goals: [
-        "Greet the caller warmly",
-        "Introduce yourself and your role",
-        "Set expectations for the session",
-      ],
-    },
-    {
-      phase: "discovery",
-      duration: "3-5 minutes",
-      goals: [
-        "Learn about the caller's background",
-        "Understand their goals and motivations",
-        "Assess existing knowledge level",
-      ],
-    },
-    {
-      phase: "first-topic",
-      duration: "5-8 minutes",
-      goals: [
-        "Introduce the first core concept",
-        "Check understanding with open questions",
-        "Adapt pace to caller's responses",
-      ],
-    },
-    {
-      phase: "wrap-up",
-      duration: "2-3 minutes",
-      goals: [
-        "Summarise what was covered",
-        "Preview what comes next",
-        "End on an encouraging note",
-      ],
-    },
-  ],
-};
+// Loaded from SystemSettings at runtime (see fallback-settings.ts for hardcoded last-resort)
 
 // ── Main scaffold function ─────────────────────────────
 
@@ -243,7 +205,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     where: { id: domainId },
     data: {
       onboardingIdentitySpecId: identitySpec.id,
-      onboardingFlowPhases: options?.flowPhases || DEFAULT_FLOW_PHASES,
+      onboardingFlowPhases: options?.flowPhases || await getFlowPhasesFallback(),
     },
   });
 

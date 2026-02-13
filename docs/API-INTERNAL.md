@@ -45,6 +45,7 @@
   - [Metering](#metering)
   - [Onboarding](#onboarding)
   - [Ops](#ops)
+  - [Other](#other)
   - [Parameters](#parameters)
   - [Pipeline](#pipeline)
   - [Playbooks](#playbooks)
@@ -55,6 +56,7 @@
   - [Specs](#specs)
   - [System](#system)
   - [Tasks](#tasks)
+  - [Test Harness](#test-harness)
   - [Tickets](#tickets)
   - [Transcripts](#transcripts)
   - [Users](#users)
@@ -69,6 +71,37 @@
 ## Endpoints
 
 ## Admin
+
+### `GET` /api/admin/access-matrix
+
+Load the ENTITY_ACCESS_V1 contract for the access matrix viewer
+
+**Auth**: Session · **Scope**: `admin:read`
+
+**Response** `200`
+```json
+{ ok: true, contract: object }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Contract not found" }
+```
+
+---
+
+### `GET` /api/admin/app-config
+
+Returns the active base URL and its source env var.
+
+**Auth**: Session · **Scope**: `admin:read`
+
+**Response** `200`
+```json
+{ baseUrl: string, source: "NEXT_PUBLIC_APP_URL" | "NEXTAUTH_URL" | "default" }
+```
+
+---
 
 ### `GET` /api/admin/audit
 
@@ -3412,6 +3445,32 @@ text/event-stream — progress events then final result
 
 ---
 
+### `POST` /api/domains/quick-launch/analyze
+
+Runs the analysis phase of Quick Launch (Steps 1-4):
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+text/event-stream — progressive data events then final AnalysisPreview
+```
+
+---
+
+### `POST` /api/domains/quick-launch/commit
+
+Runs the commit phase of Quick Launch (Steps 5-7):
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+text/event-stream — progress events then final QuickLaunchResult
+```
+
+---
+
 ## Goals
 
 ### `GET` /api/goals
@@ -4652,13 +4711,13 @@ Fetch onboarding spec data for visualization. Returns persona-specific config in
 
 ### `GET` /api/onboarding/personas
 
-List all persona onboarding configurations from INIT-001 spec. Returns summary of each persona for the selector UI.
+List all persona onboarding configurations from INIT-001 spec. Falls back to SystemSettings if spec not found.
 
 **Auth**: Session
 
 **Response** `200`
 ```json
-{ ok: true, source: "database" | "hardcoded", specId: string, defaultPersona: string, personas: Array<{ slug, name, description, targetCount, phaseCount, hasWelcomeSlug }> }
+{ ok: true, source: "database" | "fallback", specId?: string, defaultPersona: string, personas: Array<{ slug, name, description, targetCount, phaseCount, hasWelcomeSlug }> }
 ```
 
 **Response** `500`
@@ -5082,6 +5141,48 @@ Parameter (with flattened tags)
 ```json
 { error: "..." }
 ```
+
+---
+
+## Other
+
+### `GET` /api/admin/access-control/entity-access
+
+Load the ENTITY_ACCESS_V1 contract for the access matrix editor
+
+**Auth**: ADMIN
+
+---
+
+### `POST` /api/admin/access-control/entity-access
+
+Update the ENTITY_ACCESS_V1 contract matrix
+
+**Auth**: ADMIN
+
+---
+
+### `POST` /api/admin/access-control/entity-access/reset
+
+Reset the ENTITY_ACCESS_V1 contract to its seed default
+
+**Auth**: SUPERADMIN
+
+---
+
+### `GET` /api/admin/access-control/sidebar-visibility
+
+Load sidebar visibility rules (DB-backed, falls back to manifest)
+
+**Auth**: ADMIN
+
+---
+
+### `POST` /api/admin/access-control/sidebar-visibility
+
+Save sidebar visibility rules
+
+**Auth**: ADMIN
 
 ---
 
@@ -7389,6 +7490,79 @@ Updates progress on an existing task.
 
 ---
 
+## Test Harness
+
+### `POST` /api/test-harness/generate-callers
+
+Batch-create N test callers in a domain. Returns SSE progress stream.
+
+**Auth**: ADMIN
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | body | string | No | Target domain ID (required) |
+| count | body | number | No | Number of callers to create (1-50, required) |
+| namePrefix | body | string | No | Name prefix for callers (default "Test Caller") |
+
+**Response** `200`
+```json
+text/event-stream
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `POST` /api/test-harness/onboarding-call
+
+Compose an onboarding prompt and create the first call record for a caller.
+
+**Auth**: ADMIN
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| callerId | body | string | No | Caller to onboard (required) |
+| runInitialGreeting | body | boolean | No | Generate AI's opening message (default true) |
+
+**Response** `200`
+```json
+{ ok: true, prompt: object, call: object, greeting?: string }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `POST` /api/test-harness/run-sim
+
+Run a fully automated AI-simulated call where AI plays both system and caller roles.
+
+**Auth**: ADMIN
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| callerId | body | string | No | Caller to simulate (required) |
+| turnCount | body | number | No | Number of conversation turns (2-20, default 6) |
+| runPipeline | body | boolean | No | Run end-call pipeline after sim (default true) |
+
+**Response** `200`
+```json
+text/event-stream
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ## Tickets
 
 ### `GET` /api/tickets
@@ -7818,6 +7992,7 @@ Creates a new invite for a field tester and sends magic link email. Expires in 7
 | firstName | body | string | No | Tester's first name (optional, pre-fills accept form) |
 | lastName | body | string | No | Tester's last name (optional, pre-fills accept form) |
 | domainId | body | string | No | Lock tester to specific domain (optional, null = domain chooser) |
+| sendEmail | body | boolean | No | Whether to send the invite email (default: true) |
 
 **Response** `201`
 ```json
@@ -8075,10 +8250,10 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 183 |
-| Files with annotations | 176 |
+| Route files found | 193 |
+| Files with annotations | 186 |
 | Files missing annotations | 7 |
-| Coverage | 96.2% |
+| Coverage | 96.4% |
 
 ### Files missing `@api` annotations
 

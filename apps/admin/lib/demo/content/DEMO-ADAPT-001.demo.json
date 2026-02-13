@@ -1,0 +1,259 @@
+{
+  "id": "DEMO-ADAPT-001",
+  "title": "See How Adaptive Learning Works",
+  "subtitle": "Understand the measure-adapt-compose pipeline and how the system personalizes each caller's experience",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["evaluator", "team_member"],
+  "estimatedMinutes": 7,
+  "icon": "\ud83d\udd04",
+  "story": {
+    "asA": "evaluator",
+    "iWant": "to understand how the system personalizes each caller's experience",
+    "soThat": "I can write credible testimony about the platform's effectiveness"
+  },
+  "objectives": [
+    "Understand the measure, adapt, compose pipeline cycle",
+    "See how personality profiles are built from calls",
+    "Observe parameter dynamics across conversations",
+    "Know what spec-level evidence looks like"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "The adaptive learning system ensures every caller gets a unique, personalized experience. This demo explains how it works under the hood.",
+      "content": {
+        "type": "markdown",
+        "body": "# See How Adaptive Learning Works\n\nThe promise of HumanFirst is simple: **every caller gets a unique experience**, tailored to who they are and how they learn.\n\nThis isn't a chatbot with a fixed script. The system:\n\n1. **Measures** each caller's personality and learning style\n2. **Adapts** the tutor's behavior based on what it learns\n3. **Composes** personalized prompts for every conversation\n\nAfter just a few calls, two callers talking to the same tutor will have noticeably different experiences \u2014 because the system has learned what works for each person.\n\n## Time: ~7 minutes\n\nUse **\u2190 \u2192** arrow keys or the buttons below to navigate."
+      },
+      "reason": "Setting the adaptive learning promise upfront gives evaluators the framework they need to assess the system's effectiveness.",
+      "goal": "Orient the viewer on the adaptive learning promise",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the See How Adaptive Learning Works demo",
+        "relatedConcepts": ["adaptive learning", "personalization", "pipeline", "caller experience"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "pipeline-concept",
+      "title": "The Pipeline Concept",
+      "description": "The adaptive pipeline has three stages: EXTRACT (measure the caller), ADAPT (adjust parameters), and COMPOSE (build personalized prompts). This cycle runs on every call.",
+      "content": {
+        "type": "markdown",
+        "body": "# The Adaptive Pipeline\n\nEvery call goes through three stages:\n\n## 1. EXTRACT (Measure)\n\nMeasurement specs analyze the conversation and extract data about the caller:\n- Personality traits (Big Five: openness, conscientiousness, extraversion, agreeableness, neuroticism)\n- Learning modality (VARK: visual, auditory, read/write, kinesthetic)\n- Engagement patterns, comprehension signals, emotional state\n\n## 2. ADAPT (Adjust)\n\nThe system takes the measurements and adjusts target parameters:\n- If a caller is highly visual, increase diagram and example usage\n- If a caller is introverted, use a gentler, more patient tone\n- If comprehension is low, slow down pacing and add more repetition\n\n## 3. COMPOSE (Build)\n\nAdapted parameters are woven into the next prompt:\n- Personality-matched tone and language\n- Learning-style-appropriate teaching strategies\n- Content selected and ordered for this specific caller\n\n---\n\n**This cycle repeats every call**, getting more accurate over time as the system builds a richer profile."
+      },
+      "reason": "The three-stage pipeline is the core concept evaluators need to understand. Everything else in this demo builds on EXTRACT, ADAPT, COMPOSE.",
+      "goal": "Explain the three-stage adaptive pipeline",
+      "aiContext": {
+        "currentView": "Pipeline concept explanation \u2014 markdown",
+        "action": "Explaining the EXTRACT \u2192 ADAPT \u2192 COMPOSE pipeline",
+        "relatedConcepts": ["EXTRACT stage", "ADAPT stage", "COMPOSE stage", "pipeline cycle", "per-call processing"]
+      },
+      "durationOverrideSec": 20
+    },
+    {
+      "id": "extract-stage",
+      "title": "EXTRACT Stage",
+      "description": "Navigate to Flows to see how measurement specs analyze conversations. Each EXTRACT spec produces structured data about the caller from the conversation transcript.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-ADAPT-001/03-extract-stage.png",
+        "alt": "Flows page showing EXTRACT stage with measurement spec outputs",
+        "annotations": [
+          { "x": "30%", "y": "30%", "label": "EXTRACT stage", "direction": "right", "highlight": true },
+          { "x": "60%", "y": "45%", "label": "PERS-001 output", "direction": "left" },
+          { "x": "60%", "y": "60%", "label": "VARK-001 output", "direction": "left" }
+        ]
+      },
+      "reason": "Seeing the EXTRACT stage in action shows evaluators that measurement is real and data-driven, not guesswork. The structured outputs are auditable.",
+      "goal": "Show how measurement specs analyze conversations",
+      "sidebarHighlight": { "href": "/x/flows", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Flows page showing EXTRACT stage execution",
+        "action": "Viewing how measurement specs analyze conversations",
+        "relatedConcepts": ["EXTRACT stage", "PERS-001", "VARK-001", "measurement output", "transcript analysis"],
+        "assistantLocation": { "page": "/x/flows", "action": "view" }
+      }
+    },
+    {
+      "id": "personality-profile",
+      "title": "Personality Profile",
+      "description": "Navigate to a caller's profile to see their measured personality traits. These traits are built up over multiple calls and represent the system's understanding of who this person is.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-ADAPT-001/04-personality-profile.png",
+        "alt": "Caller profile showing personality trait measurements with confidence levels",
+        "annotations": [
+          { "x": "50%", "y": "25%", "label": "Personality traits", "direction": "down", "highlight": true },
+          { "x": "75%", "y": "40%", "label": "Confidence: 0.87", "direction": "left" },
+          { "x": "50%", "y": "60%", "label": "Learning modality", "direction": "down" }
+        ]
+      },
+      "reason": "The personality profile is the concrete output of EXTRACT. Each trait has a value and a confidence score that increases with more data points (more calls).",
+      "tips": [
+        { "type": "tip", "message": "Confidence scores increase over calls. After 3-5 calls, most traits reach high confidence (0.8+)" }
+      ],
+      "sidebarHighlight": { "href": "/x/callers", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Caller profile \u2014 personality trait measurements",
+        "action": "Viewing a caller's measured personality traits and confidence levels",
+        "relatedConcepts": ["personality profile", "Big Five traits", "VARK modality", "confidence scores", "trait evolution"],
+        "assistantLocation": { "page": "/x/callers", "action": "view" }
+      }
+    },
+    {
+      "id": "adapt-stage",
+      "title": "ADAPT Stage",
+      "description": "Navigate to Specs to see how target parameters adjust based on measurements. The ADAPT stage takes measured traits and computes ideal tutor behavior parameters.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-ADAPT-001/05-adapt-stage.png",
+        "alt": "Specs page showing parameter adaptation rules",
+        "annotations": [
+          { "x": "30%", "y": "30%", "label": "Measured: Openness 0.85", "direction": "right" },
+          { "x": "60%", "y": "30%", "label": "\u2192 Target: Exploration HIGH", "direction": "left", "highlight": true },
+          { "x": "30%", "y": "50%", "label": "Measured: Introversion 0.72", "direction": "right" },
+          { "x": "60%", "y": "50%", "label": "\u2192 Target: Pacing GENTLE", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "The ADAPT stage is where measurement becomes action. Evaluators need to see that the system doesn't just measure traits \u2014 it actively uses them to change behavior.",
+      "goal": "Show how measurements translate into tutor behavior adjustments",
+      "sidebarHighlight": { "href": "/x/specs", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Specs page showing parameter adaptation rules",
+        "action": "Viewing how measured traits map to target behavior parameters",
+        "relatedConcepts": ["ADAPT stage", "parameter mapping", "target parameters", "behavior adjustment", "trait-to-behavior"],
+        "assistantLocation": { "page": "/x/specs", "action": "view" }
+      }
+    },
+    {
+      "id": "compose-stage",
+      "title": "COMPOSE Stage",
+      "description": "Navigate to Pipeline to see how adapted parameters are assembled into the final prompt. The COMPOSE stage builds a personalized prompt from the tutor's identity, adapted parameters, and content.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-ADAPT-001/06-compose-stage.png",
+        "alt": "Pipeline page showing prompt composition with adapted parameters",
+        "annotations": [
+          { "x": "30%", "y": "25%", "label": "Identity template", "direction": "right" },
+          { "x": "30%", "y": "45%", "label": "Adapted parameters", "direction": "right", "highlight": true },
+          { "x": "30%", "y": "65%", "label": "Content selection", "direction": "right" },
+          { "x": "70%", "y": "45%", "label": "Final composed prompt", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "The COMPOSE stage is where personalization becomes visible. The final prompt shows exactly how the tutor will speak to this specific caller.",
+      "sidebarHighlight": { "href": "/x/pipeline", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Pipeline page showing prompt composition",
+        "action": "Viewing how adapted parameters are woven into the final prompt",
+        "relatedConcepts": ["COMPOSE stage", "prompt composition", "SectionDataLoader", "PromptTemplateCompiler", "personalized prompts"],
+        "assistantLocation": { "page": "/x/pipeline", "action": "view" }
+      }
+    },
+    {
+      "id": "before-and-after",
+      "title": "Before & After",
+      "description": "Compare how a caller's experience changes between their first call and their tenth call. The system starts with defaults and progressively personalizes.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "markdown",
+          "body": "## First Call (Day 1)\n\n**Personality Profile**: Empty \u2014 no data yet\n\n**Tutor Behavior**: Default parameters\n- Warmth: 0.5 (neutral)\n- Formality: 0.5 (balanced)\n- Pacing: 0.5 (moderate)\n- Exploration: 0.5 (balanced)\n\n**Experience**: Generic, one-size-fits-all. The tutor uses a balanced approach because it doesn't know the caller yet.\n\n**Measurement**: First EXTRACT runs \u2014 initial trait estimates with low confidence (0.2-0.4)."
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## Tenth Call (Day 30)\n\n**Personality Profile**: Rich \u2014 high-confidence data\n\n**Tutor Behavior**: Fully adapted\n- Warmth: 0.82 (warm, friendly)\n- Formality: 0.28 (casual tone)\n- Pacing: 0.65 (slightly thorough)\n- Exploration: 0.91 (very open-ended)\n\n**Experience**: Highly personalized. The tutor knows this caller prefers casual, exploratory conversations with warm encouragement.\n\n**Measurement**: Confidence scores at 0.85+ across all traits. Adaptation is precise and stable."
+        }
+      },
+      "reason": "The before-and-after comparison is the most powerful way to demonstrate adaptive learning. It shows concrete, measurable change over time.",
+      "goal": "Demonstrate the progressive personalization from first call to tenth call",
+      "aiContext": {
+        "currentView": "Before and after comparison \u2014 split view showing first-call vs tenth-call differences",
+        "action": "Comparing caller experience at first call versus tenth call",
+        "relatedConcepts": ["progressive personalization", "default parameters", "confidence growth", "trait stability", "adaptation curve"]
+      },
+      "durationOverrideSec": 20
+    },
+    {
+      "id": "parameter-dynamics",
+      "title": "Parameter Dynamics",
+      "description": "See how traits evolve over calls. Parameters aren't static \u2014 they adjust as new data comes in, with a time-decay that weights recent interactions more heavily.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-ADAPT-001/08-parameter-dynamics.png",
+          "alt": "Parameter evolution chart showing trait values over multiple calls"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## How Parameters Evolve\n\n### Time-Weighted Aggregation\n\nRecent calls matter more than old ones. A 30-day half-life means:\n- Yesterday's call: full weight\n- 30 days ago: half weight\n- 60 days ago: quarter weight\n\n### Convergence\n\nMost traits stabilize after 5-8 calls. The system reaches a confident profile quickly, then makes small adjustments.\n\n### Drift Detection\n\nIf a caller's behavior shifts significantly (e.g., they become more engaged over time), the system detects this and re-adapts.\n\n### All Parameters Are Dynamic\n\nAdding new measurement capabilities = activating a spec. Zero code changes. The pipeline automatically picks up new parameters and starts measuring."
+        }
+      },
+      "reason": "Understanding parameter dynamics is crucial for evaluators. It shows the system is genuinely learning, not just using a static profile.",
+      "tips": [
+        { "type": "best-practice", "message": "Look for convergence patterns \u2014 stable traits with high confidence are the strongest evidence of accurate profiling" }
+      ],
+      "aiContext": {
+        "currentView": "Parameter dynamics \u2014 split view with evolution chart and explanation",
+        "action": "Examining how personality parameters evolve over time across calls",
+        "relatedConcepts": ["time-decay aggregation", "parameter convergence", "drift detection", "dynamic parameters", "half-life weighting"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/callers/{callerId}", "delay": 500 }
+    },
+    {
+      "id": "spec-level-evidence",
+      "title": "Spec-Level Evidence",
+      "description": "Navigate to Goals to see what evidence looks like per-spec. Each goal is linked to a specific spec, providing traceable proof that the system is delivering on its learning objectives.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-ADAPT-001/09-spec-evidence.png",
+        "alt": "Goals page showing spec-linked evidence with measurement data",
+        "annotations": [
+          { "x": "30%", "y": "30%", "label": "Goal: Understand quantum states", "direction": "right" },
+          { "x": "70%", "y": "30%", "label": "Spec: QM-BASICS-001", "direction": "left", "highlight": true },
+          { "x": "50%", "y": "50%", "label": "Progress: 78%", "direction": "down", "highlight": true },
+          { "x": "50%", "y": "70%", "label": "Measurement data attached", "direction": "up" }
+        ]
+      },
+      "reason": "Spec-level evidence is what makes testimony credible. Each goal traces back to a specific spec, creating an auditable chain from learning objective to measured outcome.",
+      "goal": "Show what per-spec evidence looks like for testimony",
+      "sidebarHighlight": { "href": "/x/goals", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Goals page showing spec-linked evidence",
+        "action": "Viewing per-spec evidence \u2014 goals linked to specific specs with measurement data",
+        "relatedConcepts": ["spec-level evidence", "testimony", "goal-spec linkage", "auditable outcomes", "measurement data"],
+        "assistantLocation": { "page": "/x/goals", "action": "view" }
+      }
+    },
+    {
+      "id": "testimony-guide",
+      "title": "Testimony Guide",
+      "description": "Now that you understand how adaptive learning works, here's what to look for when writing testimony and which related demos to explore next.",
+      "content": {
+        "type": "markdown",
+        "body": "# Writing Credible Testimony\n\nYou now understand the full adaptive learning cycle. Here's how to use that knowledge for testimony.\n\n## What to Look For\n\n1. **Profile convergence** \u2014 Do personality traits stabilize over calls? (Shows accurate measurement)\n2. **Behavioral adaptation** \u2014 Does the tutor's style visibly change between callers? (Shows personalization)\n3. **Goal completion rates** \u2014 Are callers completing learning objectives? (Shows effectiveness)\n4. **Before/after comparisons** \u2014 How does a caller's experience on call 1 compare to call 10? (Shows growth)\n5. **Parameter diversity** \u2014 Do different callers have meaningfully different profiles? (Shows true individualization)\n\n## How to Document\n\n- **Screenshots**: Capture personality profiles, parameter charts, goal progress\n- **Comparisons**: Show two callers with different profiles getting different experiences\n- **Timelines**: Track one caller's adaptation curve from first call to stable state\n- **Completion data**: Export goal completion rates per-spec for quantitative evidence\n\n## Key Metrics for Testimony\n\n| Metric | Where to Find | What It Shows |\n|--------|--------------|---------------|\n| Trait confidence | Caller profile | Measurement accuracy |\n| Parameter delta | Pipeline view | Adaptation magnitude |\n| Goal completion % | Goals dashboard | Learning effectiveness |\n| Calls to convergence | Parameter chart | System efficiency |\n\n## Related Demos\n\n- *Monitor Learning Goals Across Callers* (DEMO-GOALS-001)\n- *Build and Publish a Playbook* (DEMO-PLAYBOOK-001)\n- *Create a Tutor Domain from Scratch* (DEMO-TUTOR-001)\n- *Launch a Domain in Under 5 Minutes* (DEMO-QUICK-001)"
+      },
+      "reason": "The testimony guide is the key deliverable for evaluators. It tells them exactly what to look for and how to document the system's effectiveness.",
+      "goal": "Provide a practical guide for writing testimony based on adaptive learning evidence",
+      "aiContext": {
+        "currentView": "Testimony guide \u2014 what to look for and how to document",
+        "action": "Completed the See How Adaptive Learning Works demo",
+        "relatedConcepts": ["testimony writing", "evidence documentation", "profile convergence", "behavioral adaptation", "market test validation"]
+      },
+      "durationOverrideSec": 25
+    }
+  ]
+}

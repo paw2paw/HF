@@ -1,0 +1,187 @@
+{
+  "id": "DEMO-GOALS-001",
+  "title": "Monitor Learning Goals Across Callers",
+  "subtitle": "Track learning objectives, filter by status and type, and link goals back to individual callers",
+  "version": "1.0.0",
+  "status": "active",
+  "date": "2026-02-13",
+  "audience": ["team_member", "evaluator"],
+  "estimatedMinutes": 4,
+  "icon": "\ud83c\udfaf",
+  "story": {
+    "asA": "team member or evaluator",
+    "iWant": "to track learning objectives across all callers",
+    "soThat": "I can identify who's progressing and who needs help"
+  },
+  "objectives": [
+    "Navigate the goals dashboard",
+    "Filter goals by type and status",
+    "Understand goal lifecycle (Active, Completed, Archived)",
+    "Link goals back to individual callers"
+  ],
+  "prerequisites": [],
+  "autoplay": {
+    "enabled": false,
+    "defaultDurationSec": 12
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "description": "Goals are the evidence layer for the market test. Every learning objective, behavioral change, and achievement is tracked as a goal \u2014 giving you concrete data for testimony.",
+      "content": {
+        "type": "markdown",
+        "body": "# Monitor Learning Goals Across Callers\n\nGoals are how you measure whether the system is actually working. Each goal represents a specific learning objective assigned to a caller.\n\n## Why goals matter for the market test\n\n- **Evidence**: Goals provide per-spec proof that callers are learning\n- **Visibility**: See who's progressing and who's stuck at a glance\n- **Testimony**: Completed goals become evidence for stakeholder reports\n- **Intervention**: Identify callers who need additional support\n\nThe goals dashboard gives you a bird's-eye view across all callers and all domains.\n\n## Time: ~4 minutes\n\nUse **\u2190 \u2192** arrow keys or the buttons below to navigate."
+      },
+      "reason": "Understanding why goals exist and how they connect to the market test gives context for everything else in this demo.",
+      "goal": "Orient the viewer on why goals are the evidence layer",
+      "tips": [
+        { "type": "shortcut", "message": "Arrow keys navigate, Space toggles autoplay, ? opens AI assistant" }
+      ],
+      "aiContext": {
+        "currentView": "Demo welcome screen",
+        "action": "Starting the Monitor Learning Goals demo",
+        "relatedConcepts": ["goals", "learning objectives", "market test", "testimony", "evidence gathering"]
+      },
+      "durationOverrideSec": 15
+    },
+    {
+      "id": "navigate-goals",
+      "title": "Open Goals",
+      "description": "Navigate to the Goals page from the sidebar. This page shows all learning goals across all callers and domains.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-GOALS-001/02-navigate-goals.png",
+        "alt": "Sidebar with Goals highlighted",
+        "annotations": [
+          { "x": "8%", "y": "55%", "label": "Click Goals", "direction": "right", "highlight": true }
+        ]
+      },
+      "reason": "The Goals page is the central hub for tracking learning outcomes. It aggregates data from all callers across all domains into a single filterable view.",
+      "sidebarHighlight": { "href": "/x/goals", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Admin sidebar navigation",
+        "action": "Navigating to the Goals page",
+        "relatedConcepts": ["sidebar navigation", "goals dashboard", "cross-caller view"],
+        "assistantLocation": { "page": "/x/goals", "action": "navigate" }
+      }
+    },
+    {
+      "id": "filter-by-status",
+      "title": "Filter by Status",
+      "description": "Use the status filters to focus on goals in different lifecycle stages. Active goals are in-progress, Completed goals have been achieved, Paused goals are on hold, and Archived goals are historical.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-GOALS-001/03-filter-status.png",
+        "alt": "Goals page with status filter bar showing ACTIVE, COMPLETED, PAUSED, ARCHIVED",
+        "annotations": [
+          { "x": "20%", "y": "15%", "label": "ACTIVE", "direction": "down", "highlight": true },
+          { "x": "38%", "y": "15%", "label": "COMPLETED", "direction": "down" },
+          { "x": "56%", "y": "15%", "label": "PAUSED", "direction": "down" },
+          { "x": "74%", "y": "15%", "label": "ARCHIVED", "direction": "down" }
+        ]
+      },
+      "reason": "Status filters let you quickly focus on what needs attention. Active goals show current work. Completed goals are your evidence. Paused goals may need intervention.",
+      "tips": [
+        { "type": "tip", "message": "For market test testimony, focus on COMPLETED goals \u2014 they're your strongest evidence" }
+      ],
+      "sidebarHighlight": { "href": "/x/goals", "type": "glow" },
+      "aiContext": {
+        "currentView": "Goals page with status filter bar",
+        "action": "Filtering goals by lifecycle status",
+        "relatedConcepts": ["goal lifecycle", "ACTIVE status", "COMPLETED status", "PAUSED status", "ARCHIVED status"],
+        "assistantLocation": { "page": "/x/goals", "action": "filter" }
+      }
+    },
+    {
+      "id": "goal-types",
+      "title": "Goal Types",
+      "description": "Goals come in six types, each representing a different kind of learning outcome. Understanding types helps you categorize and report on different aspects of caller progress.",
+      "content": {
+        "type": "split",
+        "left": {
+          "type": "screenshot",
+          "src": "/demos/DEMO-GOALS-001/04-goal-types.png",
+          "alt": "Goals list showing different goal type badges"
+        },
+        "right": {
+          "type": "markdown",
+          "body": "## Goal Types\n\n- **LEARN** \u2014 Knowledge acquisition. The caller should understand a concept or topic.\n- **ACHIEVE** \u2014 Skill demonstration. The caller should be able to do something.\n- **CHANGE** \u2014 Behavioral change. The caller should adopt a new habit or practice.\n- **CONNECT** \u2014 Relationship building. The caller should form connections with concepts or people.\n- **SUPPORT** \u2014 Emotional/motivational. The caller should feel supported or encouraged.\n- **CREATE** \u2014 Creative output. The caller should produce something original.\n\n### How types map to evidence\n\nEach type generates different kinds of testimony:\n- LEARN/ACHIEVE \u2192 Knowledge test results\n- CHANGE \u2192 Before/after behavioral observations\n- CONNECT/SUPPORT \u2192 Engagement metrics\n- CREATE \u2192 Output artifacts"
+        }
+      },
+      "reason": "Goal types categorize what kind of learning outcome is being tracked. This matters for testimony because different types require different kinds of evidence.",
+      "aiContext": {
+        "currentView": "Goals page \u2014 split view showing goal type badges and explanations",
+        "action": "Reviewing the six goal types and how they map to evidence",
+        "relatedConcepts": ["goal types", "LEARN", "ACHIEVE", "CHANGE", "CONNECT", "SUPPORT", "CREATE", "testimony evidence"]
+      },
+      "durationOverrideSec": 18,
+      "capture": { "url": "/x/goals", "delay": 500 }
+    },
+    {
+      "id": "goal-detail",
+      "title": "Goal Detail",
+      "description": "Click on any goal to see its detail view. Each goal has a progress bar, priority level, associated spec, and a timeline of updates.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-GOALS-001/05-goal-detail.png",
+        "alt": "Individual goal detail view with progress bar, priority, and timeline",
+        "annotations": [
+          { "x": "50%", "y": "20%", "label": "Goal title and type", "direction": "down" },
+          { "x": "50%", "y": "40%", "label": "Progress bar", "direction": "down", "highlight": true },
+          { "x": "75%", "y": "20%", "label": "Priority: HIGH", "direction": "left" },
+          { "x": "50%", "y": "65%", "label": "Update timeline", "direction": "up" }
+        ]
+      },
+      "reason": "The detail view gives you everything you need to understand a single goal: what it is, how far along the caller is, and what's happened over time.",
+      "tips": [
+        { "type": "tip", "message": "The update timeline shows when progress was recorded \u2014 useful for identifying stalls or acceleration" }
+      ],
+      "sidebarHighlight": { "href": "/x/goals", "type": "glow" },
+      "aiContext": {
+        "currentView": "Individual goal detail with progress bar, priority, and timeline",
+        "action": "Examining a specific goal's detail view",
+        "relatedConcepts": ["goal progress", "priority levels", "update timeline", "spec association"]
+      }
+    },
+    {
+      "id": "caller-link",
+      "title": "Caller Link",
+      "description": "From any goal, you can jump directly to the caller's profile. This lets you see the full context: their personality profile, call history, and all their other goals.",
+      "content": {
+        "type": "screenshot",
+        "src": "/demos/DEMO-GOALS-001/06-caller-link.png",
+        "alt": "Goal detail with caller link highlighted, showing the jump to caller profile",
+        "annotations": [
+          { "x": "30%", "y": "25%", "label": "Caller: Jane Smith", "direction": "right", "highlight": true },
+          { "x": "55%", "y": "25%", "label": "View Profile \u2192", "direction": "left", "highlight": true }
+        ]
+      },
+      "reason": "Goals don't exist in isolation. Linking to the caller profile gives you the complete picture: personality traits, call history, all goals, and learning trajectory.",
+      "sidebarHighlight": { "href": "/x/callers", "type": "pulse" },
+      "aiContext": {
+        "currentView": "Goal detail with caller profile link",
+        "action": "Jumping from a goal to the associated caller's profile",
+        "relatedConcepts": ["caller profile", "goal-caller relationship", "call history", "personality profile"],
+        "assistantLocation": { "page": "/x/callers", "action": "navigate" }
+      }
+    },
+    {
+      "id": "summary",
+      "title": "Summary",
+      "description": "Goals are the evidence backbone for the market test. Here's how they connect to testimony gathering and what to do next.",
+      "content": {
+        "type": "markdown",
+        "body": "# Goals: Your Evidence Layer\n\nYou now know how to navigate and use the goals system:\n\n- \u2705 **Dashboard** \u2014 Bird's-eye view of all goals across callers\n- \u2705 **Status filters** \u2014 ACTIVE, COMPLETED, PAUSED, ARCHIVED\n- \u2705 **Goal types** \u2014 LEARN, ACHIEVE, CHANGE, CONNECT, SUPPORT, CREATE\n- \u2705 **Detail view** \u2014 Progress, priority, and update timeline\n- \u2705 **Caller links** \u2014 Jump to full caller context\n\n## How goals power testimony\n\n1. **Per-spec evidence**: Each completed goal ties back to a specific spec\n2. **Progress tracking**: Progress bars show measurable improvement\n3. **Before/after**: Compare goal status at market test start vs. end\n4. **Volume**: 100 callers \u00d7 multiple goals = strong evidence base\n\n## Next Steps\n\n1. **Review active goals** \u2014 Identify callers who may need intervention\n2. **Export completed goals** \u2014 Use as testimony evidence\n3. **Set up regular check-ins** \u2014 Monitor goal completion rates weekly\n\n## Related Demos\n\n- *See How Adaptive Learning Works* (DEMO-ADAPT-001)\n- *Build and Publish a Playbook* (DEMO-PLAYBOOK-001)\n- *Create a Tutor Domain from Scratch* (DEMO-TUTOR-001)"
+      },
+      "reason": "Connecting goals to testimony gathering is the key takeaway. The market test depends on concrete evidence, and goals are how you collect it.",
+      "goal": "Summarize the goals system and connect to testimony gathering",
+      "aiContext": {
+        "currentView": "Demo summary and next steps",
+        "action": "Completed the Monitor Learning Goals demo",
+        "relatedConcepts": ["testimony gathering", "per-spec evidence", "market test validation", "caller progress"]
+      },
+      "durationOverrideSec": 20
+    }
+  ]
+}

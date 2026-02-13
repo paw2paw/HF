@@ -41,6 +41,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Sim pages - render without sidebar/chrome (standalone WhatsApp-style app)
   const isSimPage = pathname?.startsWith('/x/sim');
 
+  // Demo player — auto-collapse sidebar to give demos full width
+  const isDemoPlayer = /^\/x\/demos\/[^/]+$/.test(pathname || '');
+  const preDemoCollapsedRef = useRef<boolean | null>(null);
+  const demoForcedRef = useRef(false);
+
   // persist sidebar state
   const storageKey = 'hf.sidebar.collapsed';
 
@@ -60,8 +65,23 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   }, [storageKey]);
 
   useEffect(() => {
+    // Skip persisting when demo auto-forced the collapse
+    if (demoForcedRef.current) return;
     window.localStorage.setItem(storageKey, collapsed ? '1' : '0');
   }, [collapsed, storageKey]);
+
+  // Auto-collapse when entering a demo, restore when leaving
+  useEffect(() => {
+    if (isDemoPlayer && preDemoCollapsedRef.current === null) {
+      preDemoCollapsedRef.current = collapsed;
+      demoForcedRef.current = true;
+      setCollapsed(true);
+    } else if (!isDemoPlayer && preDemoCollapsedRef.current !== null) {
+      demoForcedRef.current = false;
+      setCollapsed(preDemoCollapsedRef.current);
+      preDemoCollapsedRef.current = null;
+    }
+  }, [isDemoPlayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save width when it changes
   useEffect(() => {

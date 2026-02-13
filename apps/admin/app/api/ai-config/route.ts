@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { clearAIConfigCache } from "@/lib/ai/config-loader";
-import { requireAuth, isAuthError } from "@/lib/permissions";
+import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 
 // =====================================================
 // CALL POINT DEFINITIONS
@@ -276,8 +276,8 @@ export type CallPointId = typeof AI_CALL_POINTS[number]["callPoint"];
  */
 export async function GET() {
   try {
-    const authResult = await requireAuth("ADMIN");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("ai_config", "R");
+    if (isEntityAuthError(authResult)) return authResult.error;
 
     // Fetch all saved configurations and available models in parallel
     const [savedConfigs, availableModels] = await Promise.all([
@@ -375,8 +375,8 @@ interface UpdateConfigBody {
  */
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth("ADMIN");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("ai_config", "U");
+    if (isEntityAuthError(authResult)) return authResult.error;
 
     const body: UpdateConfigBody = await request.json();
 
@@ -467,8 +467,8 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await requireAuth("ADMIN");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("ai_config", "D");
+    if (isEntityAuthError(authResult)) return authResult.error;
 
     const { searchParams } = new URL(request.url);
     const callPoint = searchParams.get("callPoint");

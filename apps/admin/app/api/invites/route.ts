@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { randomUUID } from "crypto";
 import { sendInviteEmail } from "@/lib/email";
+import { config } from "@/lib/config";
 
 /**
  * @api GET /api/invites
@@ -39,6 +40,7 @@ export async function GET() {
  * @body firstName string - Tester's first name (optional, pre-fills accept form)
  * @body lastName string - Tester's last name (optional, pre-fills accept form)
  * @body domainId string - Lock tester to specific domain (optional, null = domain chooser)
+ * @body sendEmail boolean - Whether to send the invite email (default: true)
  * @response 201 { ok: true, invite: {...}, inviteUrl: string }
  * @response 400 { error: "Email is required" | "User already exists..." | "Invalid domain ID" | ... }
  * @response 401 { error: "Unauthorized" }
@@ -56,6 +58,7 @@ export async function POST(req: NextRequest) {
     firstName,
     lastName,
     domainId,
+    sendEmail: shouldSendEmail = true,
   } = body;
 
   if (!email || typeof email !== "string") {
@@ -115,29 +118,27 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    "http://localhost:3000";
-  const inviteUrl = `${baseUrl}/invite/accept?token=${invite.token}`;
+  const inviteUrl = `${config.app.url}/invite/accept?token=${invite.token}`;
 
   // Send invite email (don't fail the request if email fails)
   let emailSent = false;
-  try {
-    await sendInviteEmail({
-      to: invite.email,
-      firstName: invite.firstName || undefined,
-      inviteUrl,
-      domainName,
-    });
-    emailSent = true;
+  if (shouldSendEmail) {
+    try {
+      await sendInviteEmail({
+        to: invite.email,
+        firstName: invite.firstName || undefined,
+        inviteUrl,
+        domainName,
+      });
+      emailSent = true;
 
-    await prisma.invite.update({
-      where: { id: invite.id },
-      data: { sentAt: new Date() },
-    });
-  } catch (emailError) {
-    console.error("[Invites] Failed to send invite email:", emailError);
+      await prisma.invite.update({
+        where: { id: invite.id },
+        data: { sentAt: new Date() },
+      });
+    } catch (emailError) {
+      console.error("[Invites] Failed to send invite email:", emailError);
+    }
   }
 
   return NextResponse.json(

@@ -126,10 +126,10 @@ function SectionKebabMenu({
 }
 
 // ============================================================================
-// Base Section Definitions
+// Base Section Definitions (manifest is structural fallback; DB rules override visibility)
 // ============================================================================
 
-const BASE_SECTIONS: NavSection[] = sidebarManifest as NavSection[];
+const MANIFEST_SECTIONS: NavSection[] = sidebarManifest as NavSection[];
 
 // ============================================================================
 // Component
@@ -148,7 +148,40 @@ export default function SimpleSidebarNav({
   const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  const isAdmin = session?.user?.role === "ADMIN";
+  const userRole = session?.user?.role as string | undefined;
+  const isAdmin = userRole === "ADMIN" || userRole === "SUPERADMIN";
+
+  // ── DB-backed visibility rules (overrides manifest requiredRole/defaultHiddenFor) ──
+  const [visibilityRules, setVisibilityRules] = useState<Record<
+    string,
+    { requiredRole: string | null; defaultHiddenFor: string[] }
+  > | null>(null);
+
+  useEffect(() => {
+    // Only admins have access to this endpoint; for others, manifest defaults are fine
+    if (!isAdmin) return;
+    fetch("/api/admin/access-control/sidebar-visibility")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.rules?.sections) {
+          setVisibilityRules(data.rules.sections);
+        }
+      })
+      .catch(() => {}); // Fall back to manifest defaults silently
+  }, [isAdmin]);
+
+  const BASE_SECTIONS = useMemo(() => {
+    if (!visibilityRules) return MANIFEST_SECTIONS;
+    return MANIFEST_SECTIONS.map((section) => {
+      const dbRule = visibilityRules[section.id];
+      if (!dbRule) return section;
+      return {
+        ...section,
+        requiredRole: dbRule.requiredRole ?? section.requiredRole,
+        defaultHiddenFor: dbRule.defaultHiddenFor ?? section.defaultHiddenFor,
+      };
+    });
+  }, [visibilityRules]);
   const assistant = useGlobalAssistant();
   const guidance = useGuidance();
 
@@ -201,7 +234,7 @@ export default function SimpleSidebarNav({
     setAsPersonalDefault,
     sectionDragHandlers,
     itemDragHandlers,
-  } = useSidebarLayout({ userId, baseSections: BASE_SECTIONS, isAdmin });
+  } = useSidebarLayout({ userId, userRole, baseSections: BASE_SECTIONS, isAdmin });
 
   // UI state
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -575,8 +608,8 @@ export default function SimpleSidebarNav({
       )}
 
       {/* Scrollable nav area */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <nav ref={navRef} className="flex flex-col gap-1.5" onKeyDown={handleKeyDown} role="navigation" aria-label="Main navigation">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sidebar-scroll">
+        <nav ref={navRef} className="flex flex-col gap-3" onKeyDown={handleKeyDown} role="navigation" aria-label="Main navigation">
           {visibleSections.map((section) => {
             const isDraggingSection = dragState.draggedSection === section.id;
             const isDragOverForSection = dragState.dragOverSection === section.id;
@@ -607,6 +640,11 @@ export default function SimpleSidebarNav({
                 }
                 style={{ cursor: collapsed ? "default" : dragState.draggedItem ? "default" : "grab" }}
               >
+                {/* Section divider */}
+                {section.title && !collapsed && (
+                  <div className="mx-2 border-t border-[var(--border-subtle)]" />
+                )}
+
                 {/* Section title with kebab menu */}
                 {section.title && !collapsed && (
                   <div
@@ -628,24 +666,47 @@ export default function SimpleSidebarNav({
                             setEditingTitle("");
                           }
                         }}
-                        className="w-full text-[10px] font-semibold uppercase tracking-wider bg-transparent border-b border-[var(--accent-primary)] outline-none"
+                        className="w-full text-[11px] font-medium tracking-wide bg-transparent border-b border-[var(--accent-primary)] outline-none"
                         style={{ color: "var(--text-secondary)" }}
                       />
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggleSectionCollapse(section.id)}
-                        className="flex-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider transition-colors"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <ChevronDown
-                          className="w-3 h-3 transition-transform"
-                          style={{
-                            transform: collapsedSections.has(section.id) ? "rotate(-90deg)" : "rotate(0deg)",
-                          }}
-                        />
-                        <span>{section.title}</span>
-                      </button>
+                      <div className="flex-1 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionCollapse(section.id)}
+                          className="flex-shrink-0 p-0 transition-colors"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          <ChevronDown
+                            className="w-3 h-3 transition-transform"
+                            style={{
+                              transform: collapsedSections.has(section.id) ? "rotate(-90deg)" : "rotate(0deg)",
+                            }}
+                          />
+                        </button>
+                        {section.href ? (
+                          <Link
+                            href={section.href}
+                            className="group flex items-center text-[11px] font-medium tracking-wide transition-colors"
+                            style={{
+                              color: isActive(section.href) ? "var(--accent-primary)" : "var(--text-muted)",
+                              textDecoration: "none",
+                            }}
+                          >
+                            <span>{section.title}</span>
+                            <span className="opacity-0 group-hover:opacity-60 transition-opacity text-[9px] ml-0.5">{"\u2192"}</span>
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleSectionCollapse(section.id)}
+                            className="text-[11px] font-medium tracking-wide transition-colors"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {section.title}
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {editingSectionId !== section.id && (
@@ -663,7 +724,7 @@ export default function SimpleSidebarNav({
 
                 {/* Section items (collapsible) */}
                 <div
-                  className="flex flex-col gap-px overflow-hidden transition-all duration-200"
+                  className="flex flex-col gap-0.5 overflow-hidden transition-all duration-200"
                   style={{
                     maxHeight: section.title && collapsedSections.has(section.id) ? "0px" : "500px",
                     opacity: section.title && collapsedSections.has(section.id) ? 0 : 1,
@@ -704,14 +765,14 @@ export default function SimpleSidebarNav({
                         className={
                           baseClass +
                           highlightClass +
-                          "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 " +
+                          "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 " +
                           (isDraggingItem ? "opacity-50 " : "") +
                           (isDragOverThisItem ? "border-t-2 border-[var(--accent-primary)] " : "") +
                           (active
-                            ? "bg-[var(--accent-primary)]/10 font-semibold border-l-2 border-[var(--accent-primary)]"
+                            ? "bg-[var(--accent-primary)]/8 font-semibold"
                             : isFocused
                               ? "bg-[var(--hover-bg)] font-medium"
-                              : "font-medium hover:bg-[var(--hover-bg)]")
+                              : "font-medium hover:bg-[var(--hover-bg)] hover:shadow-[inset_2px_0_0_var(--accent-primary)]")
                         }
                         style={{
                           cursor: collapsed ? "default" : "grab",
@@ -719,13 +780,18 @@ export default function SimpleSidebarNav({
                         }}
                       >
                         {item.icon && (
-                          <NavIcon
-                            name={item.icon}
-                            className={
-                              "w-4 h-4 flex-shrink-0 " +
-                              (active ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]")
-                            }
-                          />
+                          <span className={
+                            "flex items-center justify-center w-6 h-6 flex-shrink-0 rounded-md transition-colors " +
+                            (active ? "bg-[var(--accent-primary)]/10" : "")
+                          }>
+                            <NavIcon
+                              name={item.icon}
+                              className={
+                                "w-4 h-4 " +
+                                (active ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]")
+                              }
+                            />
+                          </span>
                         )}
                         {!collapsed && <span className="truncate">{item.label}</span>}
                         {!collapsed && item.href === "/x/messages" && unreadCount > 0 && (
@@ -774,6 +840,13 @@ export default function SimpleSidebarNav({
           </button>
         </div>
       )}
+
+      <style>{`
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 30%, transparent); border-radius: 4px; }
+        .sidebar-scroll:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 50%, transparent); }
+      `}</style>
     </div>
   );
 }

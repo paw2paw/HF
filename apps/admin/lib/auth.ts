@@ -15,11 +15,13 @@ declare module "next-auth" {
       name: string | null;
       image: string | null;
       role: UserRole;
+      assignedDomainId: string | null;
     };
   }
 
   interface User {
     role: UserRole;
+    assignedDomainId?: string | null;
   }
 }
 
@@ -85,6 +87,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          assignedDomainId: user.assignedDomainId,
         };
       },
     }),
@@ -145,6 +148,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.assignedDomainId = user.assignedDomainId ?? null;
       }
       return token;
     },
@@ -154,6 +158,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
+        session.user.assignedDomainId = (token.assignedDomainId as string) ?? null;
       }
       return session;
     },

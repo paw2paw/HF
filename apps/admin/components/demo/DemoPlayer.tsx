@@ -117,7 +117,7 @@ export function DemoPlayer({ spec, onOpenAssistant }: DemoPlayerProps) {
             className="demo-step-content-enter"
             style={{ width: "100%" }}
           >
-            <DemoStepRenderer content={currentStep.content} />
+            <DemoStepRenderer content={currentStep.content} onAnnotationClick={next} />
           </div>
         </div>
 

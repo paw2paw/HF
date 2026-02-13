@@ -1,0 +1,48 @@
+{
+  "contractId": "ENTITY_ACCESS_V1",
+  "version": "1.0",
+  "status": "active",
+  "description": "Entity Access Matrix — defines per-role CRUD permissions and data scope for all system entities. Loaded by lib/access-control.ts at runtime via ContractRegistry.",
+  "appliesTo": {
+    "specRoles": ["CONSTRAIN"],
+    "domains": ["admin", "system"]
+  },
+  "roles": ["SUPERADMIN", "ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
+  "scopes": {
+    "ALL": "Unrestricted access to all records",
+    "DOMAIN": "Access limited to records within user's assignedDomainId",
+    "OWN": "Access limited to records owned by/linked to the user",
+    "NONE": "No access — returns 403 Forbidden"
+  },
+  "operations": {
+    "C": "Create",
+    "R": "Read/View",
+    "U": "Update",
+    "D": "Delete"
+  },
+  "matrix": {
+    "callers":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:CR", "TESTER": "OWN:R",    "DEMO": "OWN:R"    },
+    "calls":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "OWN:R"    },
+    "domains":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
+    "playbooks":  { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
+    "specs":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "parameters": { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "goals":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "NONE"     },
+    "users":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "pipeline":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "ai_config":  { "SUPERADMIN": "ALL:CRUD", "ADMIN": "NONE",     "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "settings":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "NONE",     "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "analytics":  { "SUPERADMIN": "ALL:R",    "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "NONE"     },
+    "metering":   { "SUPERADMIN": "ALL:R",    "ADMIN": "ALL:R",    "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "messages":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "ALL:CRU",   "TESTER": "OWN:CRU",  "DEMO": "NONE"     },
+    "content":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
+    "sim":        { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:CRUD","TESTER": "OWN:CRUD", "DEMO": "OWN:CR"   },
+    "invites":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     }
+  },
+  "metadata": {
+    "gdprReady": {
+      "description": "Scope-based access (DOMAIN, OWN) provides the foundation for GDPR visibility controls. Future: add data residency and right-to-erasure scope constraints.",
+      "required": false
+    }
+  }
+}

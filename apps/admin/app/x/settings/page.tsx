@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Sun, Moon, Monitor, Check, Info,
-  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge,
+  Sun, Moon, Monitor, Check, Info, Shield, X, Save,
+  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Lock, Camera,
 } from "lucide-react";
 import { useTheme, usePalette, type ThemePreference } from "@/contexts";
 import { type SettingGroup, type SettingDef, SETTINGS_REGISTRY } from "@/lib/system-settings";
+import { FALLBACK_SETTINGS_REGISTRY } from "@/lib/fallback-settings";
 
 // ── Icon map for setting groups ─────────────────────
 
 const GROUP_ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
-  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge,
+  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Shield, Camera,
 };
 
 // ── Theme helpers ───────────────────────────────────
@@ -40,9 +41,44 @@ function SettingInput({
   onChange,
 }: {
   setting: SettingDef;
-  value: number | boolean;
-  onChange: (value: number | boolean) => void;
+  value: number | boolean | string;
+  onChange: (value: number | boolean | string) => void;
 }) {
+  if (setting.type === "text") {
+    return (
+      <div style={{ padding: "12px 0", borderBottom: "1px solid var(--border-default)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>
+            {setting.label}
+          </label>
+          <input
+            type="text"
+            value={String(value ?? setting.default)}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={setting.placeholder}
+            style={{
+              width: 200,
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-secondary)",
+              color: "var(--text-primary)",
+              fontSize: 13,
+            }}
+          />
+        </div>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+          {setting.description}
+          {setting.default ? (
+            <span style={{ fontStyle: "italic", marginLeft: 6, opacity: 0.7 }}>
+              (default: {String(setting.default)})
+            </span>
+          ) : null}
+        </p>
+      </div>
+    );
+  }
+
   if (setting.type === "bool") {
     return (
       <div style={{ padding: "12px 0", borderBottom: "1px solid var(--border-default)" }}>
@@ -128,6 +164,8 @@ function SettingInput({
 const TABS = [
   { id: "appearance", label: "Appearance" },
   ...SETTINGS_REGISTRY.map((g) => ({ id: g.id, label: g.label })),
+  { id: "security", label: "Security" },
+  { id: "fallbacks", label: "Fallback Defaults" },
 ];
 
 // ── Main component ──────────────────────────────────
@@ -149,26 +187,68 @@ export default function SettingsPage() {
   };
 
   // Server-side settings state
-  const [values, setValues] = useState<Record<string, number | boolean>>({});
+  const [values, setValues] = useState<Record<string, number | boolean | string>>({});
   const [loaded, setLoaded] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Access matrix state
+  const [accessMatrix, setAccessMatrix] = useState<{
+    roles: string[];
+    matrix: Record<string, Record<string, string>>;
+  } | null>(null);
+  const [matrixLoading, setMatrixLoading] = useState(false);
+  const [matrixError, setMatrixError] = useState("");
+
+  // Fallback JSON editor state
+  const [fallbackValues, setFallbackValues] = useState<Record<string, unknown>>({});
+  const [jsonModalOpen, setJsonModalOpen] = useState(false);
+  const [jsonModalKey, setJsonModalKey] = useState("");
+  const [jsonModalLabel, setJsonModalLabel] = useState("");
+  const [jsonModalText, setJsonModalText] = useState("");
+  const [jsonModalError, setJsonModalError] = useState("");
 
   useEffect(() => {
     fetch("/api/system-settings")
       .then((r) => r.json())
       .then((data) => {
         if (!data.ok) return;
-        const map: Record<string, number | boolean> = {};
+        const map: Record<string, number | boolean | string> = {};
+        const fbMap: Record<string, unknown> = {};
         for (const s of data.settings) {
-          map[s.key] = s.value;
+          if (typeof s.key === "string" && s.key.startsWith("fallback:")) {
+            fbMap[s.key] = s.value;
+          } else {
+            map[s.key] = s.value;
+          }
         }
         setValues(map);
+        setFallbackValues(fbMap);
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
 
-  const saveSetting = useCallback((key: string, value: number | boolean) => {
+  // Lazy-load access matrix when Security tab is opened
+  useEffect(() => {
+    if (activeTab !== "security" || accessMatrix || matrixLoading) return;
+    setMatrixLoading(true);
+    fetch("/api/admin/access-matrix")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.contract) {
+          setAccessMatrix({
+            roles: data.contract.roles,
+            matrix: data.contract.matrix,
+          });
+        } else {
+          setMatrixError(data.error || "Failed to load access matrix");
+        }
+      })
+      .catch((err) => setMatrixError(err.message))
+      .finally(() => setMatrixLoading(false));
+  }, [activeTab, accessMatrix, matrixLoading]);
+
+  const saveSetting = useCallback((key: string, value: number | boolean | string) => {
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       fetch("/api/system-settings", {
@@ -180,7 +260,7 @@ export default function SettingsPage() {
   }, []);
 
   const updateSetting = useCallback(
-    (key: string, value: number | boolean) => {
+    (key: string, value: number | boolean | string) => {
       setValues((prev) => ({ ...prev, [key]: value }));
       saveSetting(key, value);
     },
@@ -399,6 +479,408 @@ export default function SettingsPage() {
             )}
           </div>
         ) : null
+      )}
+
+      {/* Security Tab — Access Matrix Viewer */}
+      {activeTab === "security" && (
+        <div
+          style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 16,
+            padding: 24,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ color: "var(--text-muted)" }}>
+              <Lock size={18} strokeWidth={1.5} />
+            </div>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+              Entity Access Matrix
+            </h2>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
+            Per-role CRUD permissions and data scopes for all system entities.
+            Loaded from the <code style={{ fontSize: 12, padding: "1px 4px", borderRadius: 4, background: "var(--surface-tertiary)" }}>ENTITY_ACCESS_V1</code> contract.
+          </p>
+
+          {/* Legend */}
+          <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+            {[
+              { label: "C", desc: "Create", color: "#22c55e" },
+              { label: "R", desc: "Read", color: "#3b82f6" },
+              { label: "U", desc: "Update", color: "#f59e0b" },
+              { label: "D", desc: "Delete", color: "#ef4444" },
+            ].map((op) => (
+              <div key={op.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  width: 18, height: 18, borderRadius: 4, fontSize: 10, fontWeight: 700,
+                  background: op.color, color: "#fff",
+                }}>{op.label}</span>
+                <span style={{ color: "var(--text-muted)" }}>{op.desc}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 18, height: 18, borderRadius: 4, fontSize: 10, fontWeight: 600,
+                background: "var(--surface-tertiary)", color: "var(--text-muted)",
+              }}>—</span>
+              <span style={{ color: "var(--text-muted)" }}>No access</span>
+            </div>
+          </div>
+
+          {/* Scope legend */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            {[
+              { scope: "ALL", desc: "All records", bg: "#dbeafe", text: "#1e40af" },
+              { scope: "DOMAIN", desc: "Same domain only", bg: "#d1fae5", text: "#065f46" },
+              { scope: "OWN", desc: "Own records only", bg: "#fef3c7", text: "#92400e" },
+            ].map((s) => (
+              <span key={s.scope} style={{
+                padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
+                background: s.bg, color: s.text,
+              }}>{s.scope}: {s.desc}</span>
+            ))}
+          </div>
+
+          {matrixLoading && (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading access matrix...</p>
+          )}
+
+          {matrixError && (
+            <p style={{ fontSize: 13, color: "#ef4444" }}>{matrixError}</p>
+          )}
+
+          {accessMatrix && (
+            <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--border-default)" }}>
+              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 700 }}>
+                <thead>
+                  <tr style={{ background: "var(--surface-secondary)" }}>
+                    <th style={{
+                      padding: "10px 14px", textAlign: "left", fontWeight: 600,
+                      color: "var(--text-primary)", position: "sticky", left: 0,
+                      background: "var(--surface-secondary)", borderRight: "1px solid var(--border-default)",
+                    }}>Entity</th>
+                    {accessMatrix.roles.map((role) => (
+                      <th key={role} style={{
+                        padding: "10px 8px", textAlign: "center", fontWeight: 600,
+                        color: "var(--text-primary)", fontSize: 10, letterSpacing: "0.05em",
+                      }}>{role}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(accessMatrix.matrix).map(([entity, roleMap], idx) => (
+                    <tr key={entity} style={{
+                      background: idx % 2 === 0 ? "var(--surface-primary)" : "var(--surface-secondary)",
+                    }}>
+                      <td style={{
+                        padding: "8px 14px", fontWeight: 500, color: "var(--text-primary)",
+                        position: "sticky", left: 0, borderRight: "1px solid var(--border-default)",
+                        background: idx % 2 === 0 ? "var(--surface-primary)" : "var(--surface-secondary)",
+                      }}>{entity}</td>
+                      {accessMatrix.roles.map((role) => {
+                        const rule = roleMap[role] || "NONE";
+                        const [scope, ops] = rule.split(":");
+                        const isNone = scope === "NONE";
+
+                        const scopeColors: Record<string, { bg: string; text: string }> = {
+                          ALL: { bg: "#dbeafe", text: "#1e40af" },
+                          DOMAIN: { bg: "#d1fae5", text: "#065f46" },
+                          OWN: { bg: "#fef3c7", text: "#92400e" },
+                          NONE: { bg: "transparent", text: "var(--text-muted)" },
+                        };
+                        const sc = scopeColors[scope] || scopeColors.NONE;
+
+                        const opColors: Record<string, string> = {
+                          C: "#22c55e", R: "#3b82f6", U: "#f59e0b", D: "#ef4444",
+                        };
+
+                        return (
+                          <td key={role} style={{ padding: "6px 8px", textAlign: "center" }}>
+                            {isNone ? (
+                              <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                                <span style={{
+                                  padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: 600,
+                                  background: sc.bg, color: sc.text,
+                                }}>{scope}</span>
+                                <div style={{ display: "flex", gap: 2 }}>
+                                  {(ops || "").split("").map((op) => (
+                                    <span key={op} style={{
+                                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                      width: 16, height: 16, borderRadius: 3, fontSize: 9, fontWeight: 700,
+                                      background: opColors[op] || "#6b7280", color: "#fff",
+                                    }}>{op}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div style={{ marginTop: 16, fontSize: 12, color: "var(--text-muted)" }}>
+            The access matrix is stored as a contract in the database and cached for 30 seconds.
+            To modify permissions, update the <code style={{ fontSize: 11, padding: "1px 4px", borderRadius: 4, background: "var(--surface-tertiary)" }}>ENTITY_ACCESS_V1</code> contract
+            via seed scripts or the Fallback Defaults tab.
+          </div>
+        </div>
+      )}
+
+      {/* Fallback Defaults Tab */}
+      {activeTab === "fallbacks" && (
+        <div
+          style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 16,
+            padding: 24,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ color: "var(--text-muted)" }}>
+              <Shield size={18} strokeWidth={1.5} />
+            </div>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+              {FALLBACK_SETTINGS_REGISTRY.label}
+            </h2>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+            {FALLBACK_SETTINGS_REGISTRY.description}
+          </p>
+
+          {!loaded ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading...</p>
+          ) : (
+            <div>
+              {FALLBACK_SETTINGS_REGISTRY.settings.map((s) => {
+                const currentValue = fallbackValues[s.key];
+                const hasValue = currentValue !== undefined;
+                return (
+                  <div
+                    key={s.key}
+                    style={{
+                      padding: "14px 0",
+                      borderBottom: "1px solid var(--border-default)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>
+                          {s.label}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                          {s.description}
+                        </div>
+                        <div style={{ fontSize: 11, color: hasValue ? "var(--accent-primary)" : "var(--text-muted)", marginTop: 4, fontStyle: "italic" }}>
+                          {hasValue ? "Stored in database" : "Using hardcoded default (not yet seeded)"}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setJsonModalKey(s.key);
+                          setJsonModalLabel(s.label);
+                          setJsonModalText(
+                            hasValue
+                              ? JSON.stringify(currentValue, null, 2)
+                              : "Not seeded yet. Run npm run db:seed to populate."
+                          );
+                          setJsonModalError("");
+                          setJsonModalOpen(true);
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          border: "1px solid var(--border-default)",
+                          background: "var(--surface-secondary)",
+                          color: "var(--text-primary)",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          marginLeft: 16,
+                        }}
+                      >
+                        {hasValue ? "Edit" : "View"}
+                      </button>
+                    </div>
+                    {hasValue && (
+                      <pre
+                        style={{
+                          marginTop: 10,
+                          padding: 14,
+                          borderRadius: 10,
+                          background: "var(--surface-secondary)",
+                          border: "1px solid var(--border-default)",
+                          color: "var(--text-secondary)",
+                          fontSize: 12,
+                          fontFamily: "monospace",
+                          lineHeight: 1.5,
+                          overflowX: "auto",
+                          maxHeight: 260,
+                          overflowY: "auto",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {JSON.stringify(currentValue, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* JSON Editor Modal */}
+      {jsonModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setJsonModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 16,
+              padding: 24,
+              width: "90%",
+              maxWidth: 700,
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+                {jsonModalLabel}
+              </h3>
+              <button
+                onClick={() => setJsonModalOpen(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  padding: 4,
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8, fontFamily: "monospace" }}>
+              {jsonModalKey}
+            </div>
+
+            <textarea
+              value={jsonModalText}
+              onChange={(e) => {
+                setJsonModalText(e.target.value);
+                setJsonModalError("");
+              }}
+              style={{
+                flex: 1,
+                minHeight: 300,
+                padding: 16,
+                borderRadius: 10,
+                border: jsonModalError
+                  ? "2px solid var(--status-error, #ef4444)"
+                  : "1px solid var(--border-default)",
+                background: "var(--surface-secondary)",
+                color: "var(--text-primary)",
+                fontSize: 13,
+                fontFamily: "monospace",
+                lineHeight: 1.5,
+                resize: "vertical",
+              }}
+            />
+
+            {jsonModalError && (
+              <div style={{ fontSize: 12, color: "var(--status-error, #ef4444)", marginTop: 8 }}>
+                {jsonModalError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button
+                onClick={() => setJsonModalOpen(false)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-secondary)",
+                  color: "var(--text-primary)",
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    const parsed = JSON.parse(jsonModalText);
+                    fetch("/api/system-settings", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ key: jsonModalKey, value: parsed }),
+                    })
+                      .then((r) => r.json())
+                      .then((data) => {
+                        if (data.ok) {
+                          setFallbackValues((prev) => ({ ...prev, [jsonModalKey]: parsed }));
+                          setJsonModalOpen(false);
+                        } else {
+                          setJsonModalError(data.error || "Failed to save");
+                        }
+                      })
+                      .catch((err) => setJsonModalError(err.message));
+                  } catch {
+                    setJsonModalError("Invalid JSON — please fix syntax errors before saving");
+                  }
+                }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "var(--accent-primary)",
+                  color: "white",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Save size={14} />
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Footer */}

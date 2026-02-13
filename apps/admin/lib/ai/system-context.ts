@@ -27,7 +27,7 @@ export interface SystemContextOptions {
 export type ContextModule =
   | "specs"           // Active analysis specs
   | "parameters"      // System parameters
-  | "domains"         // Domain categories
+  | "domains"         // Domain categories (with full details)
   | "callers"         // Recent/active callers
   | "activity"        // Recent system activity
   | "pipeline"        // Pipeline configuration
@@ -37,6 +37,8 @@ export type ContextModule =
   | "targets"         // Behavioral targets
   | "playbooks"       // Active playbooks
   | "anchors"         // Scoring calibration examples
+  | "contentSources"  // Content sources with trust levels
+  | "subjects"        // Teaching subjects
   | "location";       // Page/route context (passed in)
 
 export interface SystemContext {
@@ -52,6 +54,8 @@ export interface SystemContext {
   targets?: TargetContext[];
   playbooks?: PlaybookContext[];
   anchors?: AnchorContext[];
+  contentSources?: ContentSourceContext[];
+  subjects?: SubjectContext[];
   location?: LocationContext;
 }
 
@@ -75,9 +79,14 @@ interface ParameterContext {
 }
 
 interface DomainContext {
-  domain: string;
-  specCount: number;
-  paramCount: number;
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  hasPublishedPlaybook: boolean;
+  callerCount: number;
+  onboardingConfigured: boolean;
 }
 
 interface CallerContext {
@@ -144,7 +153,28 @@ interface AnchorContext {
   isGold: boolean;
 }
 
-interface LocationContext {
+interface ContentSourceContext {
+  id: string;
+  slug: string;
+  name: string;
+  trustLevel: string;
+  assertionCount: number;
+  publisherOrg?: string;
+  accreditingBody?: string;
+  qualificationRef?: string;
+  isExpired: boolean;
+}
+
+interface SubjectContext {
+  id: string;
+  slug: string;
+  name: string;
+  qualificationRef?: string;
+  domains: string[];
+  sourceCount: number;
+}
+
+export interface LocationContext {
   page: string;           // Current page/route
   section?: string;       // Section within page
   entityType?: string;    // 'caller', 'spec', 'parameter', etc.
@@ -221,36 +251,29 @@ async function loadParametersContext(
 }
 
 async function loadDomainsContext(): Promise<DomainContext[]> {
-  // Get unique domains from specs and parameters
-  const specs = await prisma.analysisSpec.groupBy({
-    by: ["domain"],
-    where: { isActive: true, domain: { not: null } },
-    _count: true,
+  const domains = await prisma.domain.findMany({
+    where: { isActive: true },
+    include: {
+      _count: { select: { callers: true } },
+      playbooks: {
+        where: { status: "PUBLISHED" },
+        select: { id: true },
+        take: 1,
+      },
+    },
+    orderBy: { name: "asc" },
+    take: 30,
   });
 
-  const params = await prisma.parameter.groupBy({
-    by: ["domainGroup"],
-    _count: true,
-  });
-
-  const domainMap = new Map<string, { specs: number; params: number }>();
-
-  specs.forEach((s) => {
-    if (s.domain) {
-      domainMap.set(s.domain, { specs: s._count, params: 0 });
-    }
-  });
-
-  params.forEach((p) => {
-    const existing = domainMap.get(p.domainGroup) || { specs: 0, params: 0 };
-    existing.params = p._count;
-    domainMap.set(p.domainGroup, existing);
-  });
-
-  return Array.from(domainMap.entries()).map(([domain, counts]) => ({
-    domain,
-    specCount: counts.specs,
-    paramCount: counts.params,
+  return domains.map((d) => ({
+    id: d.id,
+    slug: d.slug,
+    name: d.name,
+    description: d.description?.substring(0, 150) || undefined,
+    isDefault: d.isDefault,
+    hasPublishedPlaybook: d.playbooks.length > 0,
+    callerCount: d._count.callers,
+    onboardingConfigured: !!(d.onboardingIdentitySpecId && d.onboardingFlowPhases),
   }));
 }
 
@@ -472,6 +495,70 @@ async function loadAnchorsContext(limit = 30): Promise<AnchorContext[]> {
   }));
 }
 
+async function loadContentSourcesContext(limit = 50): Promise<ContentSourceContext[]> {
+  const sources = await prisma.contentSource.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      trustLevel: true,
+      publisherOrg: true,
+      accreditingBody: true,
+      accreditationRef: true,
+      validUntil: true,
+      _count: { select: { assertions: true } },
+    },
+    orderBy: { name: "asc" },
+    take: limit,
+  });
+
+  return sources.map((s) => ({
+    id: s.id,
+    slug: s.slug,
+    name: s.name,
+    trustLevel: s.trustLevel,
+    assertionCount: s._count.assertions,
+    publisherOrg: s.publisherOrg || undefined,
+    accreditingBody: s.accreditingBody || undefined,
+    qualificationRef: s.accreditationRef || undefined,
+    isExpired: s.validUntil ? new Date(s.validUntil) < new Date() : false,
+  }));
+}
+
+async function loadSubjectsContext(limit = 30): Promise<SubjectContext[]> {
+  // Subject model may not be in generated client yet — gracefully handle
+  try {
+    const subjects = await (prisma as any).subject.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        qualificationRef: true,
+        domains: {
+          select: { domain: { select: { name: true } } },
+        },
+        sources: { select: { sourceId: true } },
+      },
+      orderBy: { name: "asc" },
+      take: limit,
+    });
+
+    return subjects.map((s: any) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.name,
+      qualificationRef: s.qualificationRef || undefined,
+      domains: s.domains.map((d: any) => d.domain.name),
+      sourceCount: s.sources.length,
+    }));
+  } catch {
+    // Subject model not yet in generated client — return empty
+    return [];
+  }
+}
+
 // ============================================================================
 // MAIN CONTEXT LOADER
 // ============================================================================
@@ -586,6 +673,22 @@ export async function getSystemContext(
     );
   }
 
+  if (modules.includes("contentSources")) {
+    loaders.push(
+      loadContentSourcesContext(limit).then((data) => {
+        context.contentSources = data;
+      })
+    );
+  }
+
+  if (modules.includes("subjects")) {
+    loaders.push(
+      loadSubjectsContext(limit).then((data) => {
+        context.subjects = data;
+      })
+    );
+  }
+
   // Location context is passed in, not loaded
   // It will be set by the caller if needed
 
@@ -637,7 +740,13 @@ export function injectSystemContext(
   if (context.domains) {
     contextText += `### Domains (${context.domains.length})\n`;
     context.domains.forEach((d) => {
-      contextText += `- ${d.domain}: ${d.specCount} specs, ${d.paramCount} parameters\n`;
+      contextText += `- **${d.name}** (${d.slug})`;
+      if (d.isDefault) contextText += " [DEFAULT]";
+      contextText += ` — ${d.callerCount} callers`;
+      contextText += d.hasPublishedPlaybook ? ", published" : ", no playbook";
+      contextText += d.onboardingConfigured ? ", onboarding ready" : "";
+      contextText += "\n";
+      if (d.description) contextText += `  ${d.description}\n`;
     });
     contextText += "\n";
   }
@@ -729,6 +838,32 @@ export function injectSystemContext(
     contextText += "\n";
   }
 
+  if (context.contentSources) {
+    contextText += `### Content Sources (${context.contentSources.length})\n`;
+    context.contentSources.forEach((s) => {
+      contextText += `- **${s.name}** (${s.slug}) — Trust: ${s.trustLevel}`;
+      if (s.publisherOrg) contextText += ` | Publisher: ${s.publisherOrg}`;
+      if (s.accreditingBody) contextText += ` | Accredited: ${s.accreditingBody}`;
+      if (s.qualificationRef) contextText += ` | Qual: ${s.qualificationRef}`;
+      contextText += ` | ${s.assertionCount} assertions`;
+      if (s.isExpired) contextText += " [EXPIRED]";
+      contextText += "\n";
+    });
+    contextText += "\n";
+  }
+
+  if (context.subjects) {
+    contextText += `### Subjects (${context.subjects.length})\n`;
+    context.subjects.forEach((s) => {
+      contextText += `- **${s.name}** (${s.slug})`;
+      if (s.qualificationRef) contextText += ` — ${s.qualificationRef}`;
+      if (s.domains.length > 0) contextText += ` | Domains: ${s.domains.join(", ")}`;
+      contextText += ` | ${s.sourceCount} source(s)`;
+      contextText += "\n";
+    });
+    contextText += "\n";
+  }
+
   if (context.location) {
     contextText += `### Current Location\n`;
     contextText += `- Page: ${context.location.page}\n`;
@@ -788,11 +923,11 @@ export const CONTEXT_PRESETS: Record<string, SystemContextOptions> = {
     limit: 30,
   },
   "workflow.classify": {
-    modules: ["specs", "domains", "parameters", "playbooks", "personas", "callers"],
+    modules: ["specs", "domains", "parameters", "playbooks", "personas", "callers", "contentSources", "subjects"],
     limit: 50,
   },
   "workflow.step": {
-    modules: ["specs", "domains", "parameters", "playbooks"],
+    modules: ["specs", "domains", "parameters", "playbooks", "contentSources"],
     limit: 30,
   },
   default: {

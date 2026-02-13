@@ -1,6 +1,71 @@
 # HF Project TODO List
 
-**Last Updated**: 2026-02-12
+**Last Updated**: 2026-02-13
+
+---
+
+## CRITICAL - Cloud Deployment (Market Test)
+
+### Cloud Deploy to Google Cloud Run
+**Status**: IN PROGRESS
+**Priority**: CRITICAL — blocks everything else
+**Target**: Feb 2026
+
+**Checklist:**
+- [ ] GCP project configured (`hf-admin-prod`)
+- [ ] Cloud SQL PostgreSQL instance running
+- [ ] VPC Connector created (Cloud Run → Cloud SQL)
+- [ ] Artifact Registry repo created
+- [ ] Docker image built & pushed (runner target)
+- [ ] Secrets stored in Secret Manager (DATABASE_URL, AUTH_SECRET, HF_SUPERADMIN_TOKEN)
+- [ ] Cloud Run service deployed
+- [ ] Database migrations run
+- [ ] Database seeded (specs, contracts, domains)
+- [ ] First admin user created
+- [ ] Email configured (Resend) for invites
+- [ ] End-to-end smoke test passing
+- [ ] Custom domain mapped (optional, can use Cloud Run URL)
+
+**Architecture:**
+```
+[Internet] → [Cloud Run (port 8080)] → [Cloud SQL (PostgreSQL 16)]
+                    ↓
+              [Resend API (email)]
+```
+
+**Cost:** ~$17/mo (Cloud SQL db-f1-micro + VPC connector)
+
+---
+
+## CRITICAL - Email Configuration
+
+### Resend Setup for Invite Emails
+**Status**: NOT STARTED
+**Priority**: CRITICAL — blocks tester onboarding
+
+- [ ] Sign up at resend.com (free: 100 emails/day)
+- [ ] Verify domain (DNS records)
+- [ ] Store RESEND_API_KEY in Secret Manager
+- [ ] Set EMAIL_FROM env var on Cloud Run
+- [ ] Test invite email delivery end-to-end
+
+---
+
+## CRITICAL - Analytics / Testimony Capture
+
+### Per-Spec Evidence for Market Test
+**Status**: NOT STARTED
+**Priority**: CRITICAL — needed to prove system works
+
+**Goal:** Capture per-spec evidence that the system produces useful results. For each active spec, collect:
+- Pipeline run count (how many calls processed)
+- Score distributions (are measurements sensible?)
+- Before/after prompt quality (does composition improve?)
+- Tester feedback (qualitative)
+
+**Files to create:**
+- `app/api/analytics/testimony/route.ts` — aggregate evidence per spec
+- `app/x/analytics/page.tsx` — dashboard showing testimony by spec
 
 ---
 

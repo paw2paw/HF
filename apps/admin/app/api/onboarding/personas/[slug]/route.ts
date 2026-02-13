@@ -53,8 +53,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const config = spec.config as any || {};
-    const personasConfig = config.personas || {};
+    const specConfig = spec.config as any || {};
+    const personasConfig = specConfig.personas || {};
     const personaConfig = personasConfig[personaSlug];
 
     if (!personaConfig) {
@@ -65,8 +65,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Get system defaults for merging
-    const defaultTargetsParam = config.parameters?.find((p: any) => p.id === "default_targets_quality");
-    const systemDefaultTargets = defaultTargetsParam?.config?.defaultTargets || config.defaultTargets || {};
+    const defaultTargetsParam = specConfig.parameters?.find((p: any) => p.id === "default_targets_quality");
+    const systemDefaultTargets = defaultTargetsParam?.config?.defaultTargets || specConfig.defaultTargets || {};
 
     // Get associated prompt slugs
     const welcomeSlugRecord = personaConfig.welcomeSlug
@@ -170,8 +170,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const config = spec.config as any || {};
-    const personasConfig = config.personas || {};
+    const specConfig = spec.config as any || {};
+    const personasConfig = specConfig.personas || {};
 
     if (!personasConfig[personaSlug]) {
       return NextResponse.json(
@@ -194,7 +194,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     // Update the spec config
     const newConfig = {
-      ...config,
+      ...specConfig,
       personas: {
         ...personasConfig,
         [personaSlug]: updatedPersonaConfig,

@@ -26,6 +26,8 @@ export async function GET() {
       role: true,
       isActive: true,
       createdAt: true,
+      assignedDomainId: true,
+      assignedDomain: { select: { id: true, name: true, slug: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -74,6 +76,7 @@ export async function PATCH(req: NextRequest) {
   if (isActive !== undefined) updateData.isActive = isActive;
   if (name !== undefined) updateData.name = name;
   if (displayName !== undefined) updateData.displayName = displayName;
+  if (body.assignedDomainId !== undefined) updateData.assignedDomainId = body.assignedDomainId || null;
 
   const user = await prisma.user.update({
     where: { id },
@@ -85,6 +88,8 @@ export async function PATCH(req: NextRequest) {
       displayName: true,
       role: true,
       isActive: true,
+      assignedDomainId: true,
+      assignedDomain: { select: { id: true, name: true, slug: true } },
     },
   });
 

@@ -49,7 +49,9 @@
     "docs:api:check": "tsx scripts/api-docs/generator.ts --check",
     "docs:health": "tsx scripts/doc-health.ts",
     "docs:health:ci": "tsx scripts/doc-health.ts --ci",
-    "docs:health:json": "tsx scripts/doc-health.ts --json"
+    "docs:health:json": "tsx scripts/doc-health.ts --json",
+    "snap": "tsx scripts/capture-demo-screenshots.ts",
+    "seed:demo": "tsx prisma/seed-demo-fixtures.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

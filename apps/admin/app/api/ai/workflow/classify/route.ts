@@ -3,7 +3,6 @@ import { AIMessage } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering";
 import { getSystemContext, injectSystemContext } from "@/lib/ai/system-context";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
-import { prisma } from "@/lib/prisma";
 import type { ClassifyRequest, ClassifyResponse, ChatOption } from "@/lib/workflow/types";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 
@@ -167,50 +166,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Load system context — specs, domains, parameters, playbooks, personas, callers
+    // Load system context — uses "workflow.classify" preset with contentSources + subjects
     const systemContext = await getSystemContext({
-      modules: ["specs", "domains", "parameters", "playbooks", "personas", "callers"],
+      modules: ["specs", "domains", "parameters", "playbooks", "personas", "callers", "contentSources", "subjects"],
       limit: 50,
     });
 
-    // Also load content sources for matching
-    const contentSources = await prisma.contentSource.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        trustLevel: true,
-        publisherOrg: true,
-        accreditingBody: true,
-        qualificationRef: true,
-        validUntil: true,
-        _count: { select: { assertions: true } },
-      },
-      orderBy: { name: "asc" },
-      take: 50,
-    });
-
-    // Build system prompt with full context
+    // Build system prompt with full context (contentSources now included via system context)
     let systemPrompt = WORKFLOW_SYSTEM_PROMPT;
     systemPrompt = injectSystemContext(systemPrompt, systemContext);
-
-    // Add content sources to context
-    if (contentSources.length > 0) {
-      systemPrompt += `\n### Content Sources (${contentSources.length})\n`;
-      for (const src of contentSources) {
-        systemPrompt += `- **${src.name}** (${src.slug}) — Trust: ${src.trustLevel}`;
-        if (src.publisherOrg) systemPrompt += ` | Publisher: ${src.publisherOrg}`;
-        if (src.accreditingBody) systemPrompt += ` | Accredited: ${src.accreditingBody}`;
-        if (src.qualificationRef) systemPrompt += ` | Qual: ${src.qualificationRef}`;
-        systemPrompt += ` | ${src._count.assertions} assertions`;
-        if (src.validUntil) {
-          const isExpired = new Date(src.validUntil) < new Date();
-          systemPrompt += isExpired ? " [EXPIRED]" : "";
-        }
-        systemPrompt += "\n";
-      }
-    }
 
     // If there's an existing plan being amended, include it
     if (currentPlan) {

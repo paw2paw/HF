@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { composeContentSection } from "@/lib/prompt/compose-content-section";
 import { getLearnerProfile } from "@/lib/learner/profile";
-import { requireAuth, isAuthError } from "@/lib/permissions";
+import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 
 /**
  * @api GET /api/callers/:callerId
@@ -21,8 +21,8 @@ export async function GET(
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
-    const authResult = await requireAuth("VIEWER");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("callers", "R");
+    if (isEntityAuthError(authResult)) return authResult.error;
 
     const { callerId } = await params;
 
@@ -505,8 +505,8 @@ export async function PATCH(
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
-    const authResult = await requireAuth("OPERATOR");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("callers", "U");
+    if (isEntityAuthError(authResult)) return authResult.error;
 
     const { callerId } = await params;
     const body = await req.json();
@@ -708,8 +708,8 @@ export async function DELETE(
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
-    const authResult = await requireAuth("OPERATOR");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("callers", "D");
+    if (isEntityAuthError(authResult)) return authResult.error;
 
     const { callerId } = await params;
     const body = await req.json().catch(() => ({}));

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/access-control";
 
 /**
  * @api GET /api/callers
@@ -17,16 +18,21 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  */
 export async function GET(req: Request) {
   try {
-    const authResult = await requireAuth("VIEWER");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("callers", "R");
+    if (isEntityAuthError(authResult)) return authResult.error;
+    const { scope, session } = authResult;
 
     const url = new URL(req.url);
     const withCounts = url.searchParams.get("withCounts") === "true";
     const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
+    // Apply scope filter (ALL=no filter, DOMAIN=user's domain, OWN=user's callers)
+    const scopeFilter = buildScopeFilter(scope, session, "userId", "domainId");
+
     // Fetch callers with available relations
     const callers = await prisma.caller.findMany({
+      where: scopeFilter,
       take: limit,
       skip: offset,
       include: {
@@ -122,7 +128,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const total = await prisma.caller.count();
+    const total = await prisma.caller.count({ where: scopeFilter });
 
     return NextResponse.json({
       ok: true,
@@ -157,8 +163,8 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    const authResult = await requireAuth("OPERATOR");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("callers", "C");
+    if (isEntityAuthError(authResult)) return authResult.error;
 
     const body = await req.json();
     let { name, email, phone, domainId } = body;

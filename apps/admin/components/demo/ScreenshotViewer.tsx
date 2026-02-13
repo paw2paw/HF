@@ -1,12 +1,36 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { ScreenshotContent, Annotation } from "@/lib/demo/types";
 
 interface ScreenshotViewerProps {
   content: ScreenshotContent;
+  /** Called when user clicks a highlighted annotation (advances to next step) */
+  onAnnotationClick?: () => void;
 }
 
-export function ScreenshotViewer({ content }: ScreenshotViewerProps) {
+export function ScreenshotViewer({ content, onAnnotationClick }: ScreenshotViewerProps) {
+  const hasClickableAnnotation = content.annotations?.some((a) => a.highlight) && !!onAnnotationClick;
+  const [showHint, setShowHint] = useState(false);
+  const [hintDismissed, setHintDismissed] = useState(false);
+
+  // Show hint on first render with a clickable annotation, auto-fade after 4s
+  useEffect(() => {
+    if (hasClickableAnnotation && !hintDismissed) {
+      setShowHint(true);
+      const timer = setTimeout(() => setShowHint(false), 4000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowHint(false);
+    }
+  }, [hasClickableAnnotation, hintDismissed]);
+
+  const handleAnnotationClick = () => {
+    setHintDismissed(true);
+    setShowHint(false);
+    onAnnotationClick?.();
+  };
+
   return (
     <div style={{ position: "relative", width: "100%", maxWidth: 900, margin: "0 auto" }}>
       {/* Screenshot image */}
@@ -46,14 +70,42 @@ export function ScreenshotViewer({ content }: ScreenshotViewerProps) {
 
         {/* Annotation overlays */}
         {content.annotations?.map((annotation, i) => (
-          <AnnotationOverlay key={i} annotation={annotation} />
+          <AnnotationOverlay
+            key={i}
+            annotation={annotation}
+            onClick={annotation.highlight ? handleAnnotationClick : undefined}
+          />
         ))}
       </div>
+
+      {/* Click-to-continue hint */}
+      {hasClickableAnnotation && (
+        <div
+          className="demo-click-hint"
+          style={{
+            textAlign: "center",
+            marginTop: 10,
+            fontSize: 12,
+            color: "var(--text-muted)",
+            opacity: showHint ? 1 : 0,
+            transition: "opacity 0.5s ease",
+            pointerEvents: "none",
+          }}
+        >
+          Click the highlighted area to continue
+        </div>
+      )}
     </div>
   );
 }
 
-function AnnotationOverlay({ annotation }: { annotation: Annotation }) {
+function AnnotationOverlay({
+  annotation,
+  onClick,
+}: {
+  annotation: Annotation;
+  onClick?: () => void;
+}) {
   const arrowMap: Record<string, string> = {
     up: "↑",
     down: "↓",
@@ -61,15 +113,19 @@ function AnnotationOverlay({ annotation }: { annotation: Annotation }) {
     right: "→",
   };
 
+  const isClickable = !!onClick;
+
   return (
     <div
+      onClick={onClick}
       style={{
         position: "absolute",
         left: annotation.x,
         top: annotation.y,
         transform: "translate(-50%, -50%)",
         zIndex: 10,
-        pointerEvents: "none",
+        pointerEvents: isClickable ? "auto" : "none",
+        cursor: isClickable ? "pointer" : "default",
       }}
     >
       {/* Pulsing highlight circle */}
@@ -103,7 +159,11 @@ function AnnotationOverlay({ annotation }: { annotation: Annotation }) {
           display: "flex",
           alignItems: "center",
           gap: 4,
+          ...(isClickable
+            ? { transition: "transform 0.15s ease, box-shadow 0.15s ease" }
+            : {}),
         }}
+        className={isClickable ? "demo-annotation-clickable" : undefined}
       >
         {annotation.direction && (
           <span style={{ fontSize: 14 }}>{arrowMap[annotation.direction]}</span>
@@ -124,6 +184,10 @@ function AnnotationOverlay({ annotation }: { annotation: Annotation }) {
         }
         .demo-annotation-pulse {
           animation: demoPulse 1.5s ease-out infinite;
+        }
+        .demo-annotation-clickable:hover {
+          transform: scale(1.05);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
         }
       `}</style>
     </div>

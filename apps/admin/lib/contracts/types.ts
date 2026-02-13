@@ -37,6 +37,12 @@ export interface DataContract {
 
   // Metadata about spec behavior
   metadata?: Record<string, any>;
+
+  // Access control contracts (ENTITY_ACCESS_V1)
+  roles?: string[];
+  scopes?: Record<string, string>;
+  operations?: Record<string, string>;
+  matrix?: Record<string, Record<string, string>>;
 }
 
 export interface DataSchemaField {

@@ -100,7 +100,38 @@ export interface DemoStep {
     href: string;
     type: "pulse" | "flash" | "glow";
   };
+
+  /** Screenshot capture config — used by capture script, not the DemoPlayer */
+  capture?: DemoCaptureConfig;
 }
+
+// =====================================================
+// CAPTURE TYPES (for automated screenshot capture)
+// =====================================================
+
+/**
+ * Configuration for the `npm run snap` capture script.
+ * When present on a step, the capture script uses this instead of
+ * deriving the URL from sidebarHighlight or assistantLocation.
+ */
+export interface DemoCaptureConfig {
+  /** URL template with entity placeholders, e.g. "/x/callers/{callerId}" */
+  url: string;
+  /** Ordered actions to perform before taking the screenshot */
+  actions?: DemoCaptureAction[];
+  /** CSS selector to wait for (visible) before capture */
+  waitFor?: string;
+  /** Extra delay in ms after page settled (default: 0) */
+  delay?: number;
+}
+
+export type DemoCaptureAction =
+  | { type: "click"; selector: string }
+  | { type: "fill"; selector: string; value: string }
+  | { type: "hover"; selector: string }
+  | { type: "wait"; selector: string }
+  | { type: "waitMs"; ms: number }
+  | { type: "keyboard"; key: string };
 
 export interface DemoTip {
   type: "tip" | "warning" | "shortcut" | "best-practice";

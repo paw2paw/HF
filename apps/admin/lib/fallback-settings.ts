@@ -1,0 +1,278 @@
+/**
+ * Fallback Settings
+ *
+ * Stores fallback/default values in SystemSetting with `fallback:` key prefix.
+ * These are the values used when primary data sources (specs, AI) are unavailable.
+ *
+ * Pattern: Primary source → SystemSetting fallback → hardcoded constant (last resort)
+ *
+ * Key convention: fallback:{category}.{subcategory}
+ */
+
+import { getSystemSetting } from "@/lib/system-settings";
+
+// ── Generic accessor ──────────────────────────────────────
+
+export async function getFallback<T>(key: string, hardcodedDefault: T): Promise<T> {
+  return getSystemSetting<T>(`fallback:${key}`, hardcodedDefault);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 1. ONBOARDING PERSONAS (quick-launch catch fallback)
+// ═══════════════════════════════════════════════════════════
+
+export interface FallbackPersona {
+  slug: string;
+  name: string;
+  description: string;
+}
+
+export const DEFAULT_FALLBACK_PERSONAS: FallbackPersona[] = [
+  { slug: "tutor", name: "Tutor", description: "Patient teaching expert" },
+];
+
+export async function getOnboardingPersonasFallback(): Promise<FallbackPersona[]> {
+  return getFallback("onboarding.personas", DEFAULT_FALLBACK_PERSONAS);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 2. IDENTITY TEMPLATE (generate-identity fallback)
+// ═══════════════════════════════════════════════════════════
+
+export interface FallbackIdentityTemplate {
+  roleStatementTemplate: string;
+  primaryGoalTemplate: string;
+  secondaryGoals: string[];
+  techniques: Array<{ name: string; description: string; when: string }>;
+  defaults: Record<string, string>;
+  styleGuidelines: string[];
+  does: string[];
+  doesNot: string[];
+  opening: { approach: string; examples: string[] };
+  main: { approach: string; strategies: string[] };
+  closing: { approach: string; examples: string[] };
+  principles: string[];
+  methods: string[];
+}
+
+export const DEFAULT_IDENTITY_TEMPLATE: FallbackIdentityTemplate = {
+  roleStatementTemplate:
+    "You are a friendly, patient {{persona}} specializing in {{subject}}{{goalText}}. You make complex topics accessible through clear explanations and real-world examples.",
+  primaryGoalTemplate:
+    "Help learners build genuine understanding of {{subject}}",
+  secondaryGoals: [
+    "Build learner confidence through encouragement",
+    "Adapt to each learner's pace and style",
+    "Make content relevant to real-world applications",
+  ],
+  techniques: [
+    { name: "Scaffolding", description: "Build on what the learner already knows", when: "Introducing new concepts" },
+    { name: "Check Understanding", description: "Ask open questions to verify comprehension", when: "After explaining a concept" },
+    { name: "Real-World Examples", description: "Connect theory to practical scenarios", when: "When concepts feel abstract" },
+  ],
+  defaults: { warmth: "high", formality: "moderate", pace: "adaptive" },
+  styleGuidelines: [
+    "Use clear, jargon-free language unless teaching technical terms",
+    "Keep explanations concise — this is a phone call, not a lecture",
+    "Encourage questions and curiosity",
+    "Celebrate progress and correct answers",
+  ],
+  does: [
+    "Teaches {{subject}} content accurately",
+    "Adapts pace to the learner",
+    "Checks understanding regularly",
+    "Provides encouragement",
+  ],
+  doesNot: [
+    "Give advice outside the subject domain",
+    "Rush through material",
+    "Use overly complex language",
+    "Make up facts not in the source material",
+  ],
+  opening: { approach: "Warm greeting with brief recap of previous session", examples: [] },
+  main: { approach: "Conversational teaching with comprehension checks", strategies: [] },
+  closing: { approach: "Summarise key points and preview next topic", examples: [] },
+  principles: ["Focus on understanding, not memorisation", "Check before moving on"],
+  methods: ["Open-ended questions", "Scenario-based checks"],
+};
+
+export async function getIdentityTemplateFallback(): Promise<FallbackIdentityTemplate> {
+  return getFallback("identity.template", DEFAULT_IDENTITY_TEMPLATE);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 3. ONBOARDING FLOW PHASES (scaffold fallback)
+// ═══════════════════════════════════════════════════════════
+
+export interface FallbackFlowPhase {
+  phase: string;
+  duration: string;
+  goals: string[];
+}
+
+export interface FallbackFlowPhases {
+  phases: FallbackFlowPhase[];
+}
+
+export const DEFAULT_FLOW_PHASES: FallbackFlowPhases = {
+  phases: [
+    {
+      phase: "welcome",
+      duration: "2-3 minutes",
+      goals: [
+        "Greet the caller warmly",
+        "Introduce yourself and your role",
+        "Set expectations for the session",
+      ],
+    },
+    {
+      phase: "discovery",
+      duration: "3-5 minutes",
+      goals: [
+        "Learn about the caller's background",
+        "Understand their goals and motivations",
+        "Assess existing knowledge level",
+      ],
+    },
+    {
+      phase: "first-topic",
+      duration: "5-8 minutes",
+      goals: [
+        "Introduce the first core concept",
+        "Check understanding with open questions",
+        "Adapt pace to caller's responses",
+      ],
+    },
+    {
+      phase: "wrap-up",
+      duration: "2-3 minutes",
+      goals: [
+        "Summarise what was covered",
+        "Preview what comes next",
+        "End on an encouraging note",
+      ],
+    },
+  ],
+};
+
+export async function getFlowPhasesFallback(): Promise<FallbackFlowPhases> {
+  return getFallback("onboarding.flow_phases", DEFAULT_FLOW_PHASES);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 4. TRANSCRIPT LIMITS (pipeline fallback)
+// ═══════════════════════════════════════════════════════════
+
+export interface FallbackTranscriptLimits {
+  [callPoint: string]: number;
+}
+
+export const DEFAULT_TRANSCRIPT_LIMITS: FallbackTranscriptLimits = {
+  "pipeline.measure": 4000,
+  "pipeline.learn": 4000,
+  "pipeline.score_agent": 4000,
+  "pipeline.adapt": 2500,
+};
+
+export async function getTranscriptLimitsFallback(): Promise<FallbackTranscriptLimits> {
+  return getFallback("pipeline.transcript_limits", DEFAULT_TRANSCRIPT_LIMITS);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 5. AI MODEL DEFAULTS (config-loader fallback)
+// ═══════════════════════════════════════════════════════════
+
+export interface FallbackAIModelConfig {
+  provider: string;
+  model: string;
+}
+
+export const DEFAULT_AI_MODEL_CONFIGS: Record<string, FallbackAIModelConfig> = {
+  "pipeline.measure": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "pipeline.learn": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "pipeline.score_agent": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "pipeline.adapt": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "compose.prompt": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "analysis.measure": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "analysis.learn": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "parameter.enrich": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "bdd.parse": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.stream": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.assistant": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.view": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "chat.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.call": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.tasks": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "assistant.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "content-trust.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "workflow.classify": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "workflow.step": { provider: "claude", model: "claude-sonnet-4-20250514" },
+};
+
+export async function getAIModelConfigsFallback(): Promise<Record<string, FallbackAIModelConfig>> {
+  return getFallback("ai.default_models", DEFAULT_AI_MODEL_CONFIGS);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS REGISTRY (for the Settings UI "Fallback Defaults" tab)
+// ═══════════════════════════════════════════════════════════
+
+export interface FallbackSettingDef {
+  key: string;
+  label: string;
+  description: string;
+  type: "json";
+}
+
+export interface FallbackSettingGroup {
+  id: string;
+  label: string;
+  icon: string;
+  description: string;
+  settings: FallbackSettingDef[];
+}
+
+export const FALLBACK_SETTINGS_REGISTRY: FallbackSettingGroup = {
+  id: "fallbacks",
+  label: "Fallback Defaults",
+  icon: "Shield",
+  description: "Default values used when primary data sources (specs, AI) are unavailable. Edit with care — these are last-resort values.",
+  settings: [
+    {
+      key: "fallback:onboarding.personas",
+      label: "Onboarding Personas",
+      description: "Fallback persona list when INIT-001 spec is unavailable",
+      type: "json",
+    },
+    {
+      key: "fallback:identity.template",
+      label: "Identity Template",
+      description: "Fallback identity config template when AI generation fails. Supports {{subject}}, {{persona}}, {{goalText}} placeholders.",
+      type: "json",
+    },
+    {
+      key: "fallback:onboarding.flow_phases",
+      label: "Onboarding Flow Phases",
+      description: "Default first-call flow phases (welcome, discovery, first-topic, wrap-up)",
+      type: "json",
+    },
+    {
+      key: "fallback:pipeline.transcript_limits",
+      label: "Transcript Limits",
+      description: "Character limits per pipeline stage for transcript truncation",
+      type: "json",
+    },
+    {
+      key: "fallback:ai.default_models",
+      label: "AI Model Defaults",
+      description: "Default AI provider and model per call point (used when AIConfig DB is empty)",
+      type: "json",
+    },
+  ],
+};

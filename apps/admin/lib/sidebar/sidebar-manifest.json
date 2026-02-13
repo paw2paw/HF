@@ -4,6 +4,7 @@
     "items": [
       { "href": "/x", "label": "Home", "icon": "Home" },
       { "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
+      { "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
       { "href": "/x/launchpad", "label": "Launchpad", "icon": "Rocket" },
       { "href": "/x/demos", "label": "Demos", "icon": "PlayCircle" }
     ]
@@ -11,6 +12,7 @@
   {
     "id": "communicate",
     "title": "Communicate",
+    "defaultHiddenFor": ["DEMO"],
     "items": [
       { "href": "/x/messages", "label": "Inbox", "icon": "Mail" },
       { "href": "/x/tickets", "label": "Tickets", "icon": "Ticket" }
@@ -19,6 +21,8 @@
   {
     "id": "data",
     "title": "Data",
+    "href": "/x/data",
+    "defaultHiddenFor": ["TESTER", "DEMO"],
     "items": [
       { "href": "/x/callers", "label": "Callers", "icon": "User" },
       { "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
@@ -30,44 +34,57 @@
   {
     "id": "analytics",
     "title": "Analytics",
+    "defaultHiddenFor": ["TESTER", "DEMO"],
     "items": [
       { "href": "/x/analytics", "label": "Dashboard", "icon": "TrendingUp" }
     ]
   },
   {
-    "id": "config",
-    "title": "Configure",
+    "id": "content",
+    "title": "Content",
+    "href": "/x/content",
+    "requiredRole": "OPERATOR",
+    "defaultHiddenFor": ["DEMO"],
     "items": [
       { "href": "/x/subjects", "label": "Subjects", "icon": "BookMarked" },
+      { "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck" },
+      { "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" }
+    ]
+  },
+  {
+    "id": "config",
+    "title": "Configure",
+    "href": "/x/configure",
+    "requiredRole": "OPERATOR",
+    "defaultHiddenFor": ["OPERATOR"],
+    "items": [
       { "href": "/x/domains", "label": "Domains", "icon": "Globe" },
       { "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen" },
       { "href": "/x/specs", "label": "Specs", "icon": "ClipboardList" },
-      { "href": "/x/orchestrators", "label": "Orchestrators", "icon": "Workflow" },
-      { "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck" },
-      { "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" },
+      { "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
       { "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" }
     ]
   },
   {
     "id": "system",
     "title": "System",
+    "href": "/x/system",
+    "requiredRole": "ADMIN",
     "items": [
       { "href": "/x/metering", "label": "Metering", "icon": "BarChart3" },
       { "href": "/x/ai-config", "label": "AI Config", "icon": "Bot" },
       { "href": "/x/ai-errors", "label": "AI Errors", "icon": "AlertTriangle" },
       { "href": "/x/ai-knowledge", "label": "AI Knowledge", "icon": "Brain" },
       { "href": "/x/users", "label": "Team", "icon": "Users" },
+      { "href": "/x/system/access-control", "label": "Access Control", "icon": "Shield" },
       { "href": "/x/settings", "label": "Settings", "icon": "Settings" }
     ]
-  },
-  {
-    "id": "supervisor",
-    "items": [{ "href": "/x/supervisor", "label": "Pipeline", "icon": "Zap", "highlighted": true }]
   },
   {
     "id": "devtools",
     "title": "Dev Tools",
     "collapsedByDefault": true,
+    "requiredRole": "SUPERADMIN",
     "items": [
       { "href": "/x/playground", "label": "Playground", "icon": "FlaskConical" },
       { "href": "/x/pipeline", "label": "Pipeline Runs", "icon": "GitBranch" },
@@ -75,7 +92,9 @@
       { "href": "/x/debug", "label": "Debug", "icon": "Bug" },
       { "href": "/x/logs", "label": "Logs", "icon": "FileText" },
       { "href": "/x/admin/tests", "label": "E2E Tests", "icon": "TestTube" },
-      { "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" }
+      { "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" },
+      { "href": "/x/test-harness", "label": "Test Harness", "icon": "Beaker" },
+      { "href": "/x/spec-schema", "label": "Spec Schema", "icon": "FileJson" }
     ]
   }
 ]

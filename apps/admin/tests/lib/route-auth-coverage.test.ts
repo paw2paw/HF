@@ -1,13 +1,14 @@
 /**
  * Route Auth Coverage Test
  *
- * Scans all API route files and verifies they call requireAuth()
- * or are explicitly listed as public. This prevents auth regressions
- * when new routes are added.
+ * Scans all API route files and verifies they call requireAuth() or
+ * requireEntityAccess(), or are explicitly listed as public.
+ * This prevents auth regressions when new routes are added.
  *
  * NO HARDCODED ROLE ASSIGNMENTS — roles are defined only in:
  *   1. lib/permissions.ts (ROLE_LEVEL hierarchy)
- *   2. Each route's requireAuth("ROLE") call
+ *   2. Each route's requireAuth("ROLE") or requireEntityAccess() call
+ *   3. ENTITY_ACCESS_V1 contract (entity-level access matrix)
  */
 
 import { describe, it, expect } from "vitest";
@@ -77,8 +78,10 @@ describe("Route auth coverage", () => {
 
       const content = fs.readFileSync(filePath, "utf-8");
 
-      // Check for requireAuth import and call
-      const hasRequireAuth = content.includes("requireAuth");
+      // Check for requireAuth or requireEntityAccess import and call
+      const hasRequireAuth =
+        content.includes("requireAuth") ||
+        content.includes("requireEntityAccess");
 
       if (!hasRequireAuth) {
         missing.push(relative);
@@ -97,7 +100,7 @@ describe("Route auth coverage", () => {
 
   it("no route uses ad-hoc role checks instead of requireAuth()", () => {
     const adHocPatterns = [
-      /session\.user\.role\s*(!==|===|!=|==)\s*["'](ADMIN|OPERATOR|VIEWER)["']/,
+      /session\.user\.role\s*(!==|===|!=|==)\s*["'](SUPERADMIN|ADMIN|OPERATOR|SUPER_TESTER|TESTER|VIEWER|DEMO)["']/,
     ];
 
     // This one exception is a business rule, not auth
@@ -141,7 +144,7 @@ describe("Route auth coverage", () => {
       if (!fs.existsSync(fullPath)) continue;
 
       const content = fs.readFileSync(fullPath, "utf-8");
-      if (content.includes("requireAuth")) {
+      if (content.includes("requireAuth") || content.includes("requireEntityAccess")) {
         unnecessaryPublic.push(route);
       }
     }

@@ -51,6 +51,30 @@ type Playbook = {
   _count?: { items: number };
 };
 
+type SubjectSourceItem = {
+  id: string;
+  tags: string[];
+  sortOrder: number;
+  source: {
+    id: string;
+    slug: string;
+    name: string;
+    trustLevel: string;
+    _count: { assertions: number };
+  };
+};
+
+type SubjectItem = {
+  subject: {
+    id: string;
+    slug: string;
+    name: string;
+    qualificationRef?: string | null;
+    sources: SubjectSourceItem[];
+    _count: { sources: number };
+  };
+};
+
 type DomainDetail = {
   id: string;
   slug: string;
@@ -62,6 +86,7 @@ type DomainDetail = {
   updatedAt: string;
   callers: Caller[];
   playbooks: Playbook[];
+  subjects?: SubjectItem[];
   onboardingWelcome?: string | null;
   onboardingIdentitySpec?: {
     id: string;
@@ -73,6 +98,7 @@ type DomainDetail = {
   _count: {
     callers: number;
     playbooks: number;
+    subjects?: number;
   };
 };
 
@@ -89,6 +115,35 @@ const playbookStatusMap: Record<string, "draft" | "active" | "archived"> = {
   PUBLISHED: "active",
   ARCHIVED: "archived",
 };
+
+const TRUST_LEVELS = [
+  { value: "REGULATORY_STANDARD", label: "L5 Regulatory", color: "#D4AF37", bg: "#FDF6E3" },
+  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited", color: "#8B8B8B", bg: "#F5F5F5" },
+  { value: "PUBLISHED_REFERENCE", label: "L3 Published", color: "#4A90D9", bg: "#EBF3FC" },
+  { value: "EXPERT_CURATED", label: "L2 Expert", color: "#2E7D32", bg: "#E8F5E9" },
+  { value: "AI_ASSISTED", label: "L1 AI", color: "#FF8F00", bg: "#FFF3E0" },
+  { value: "UNVERIFIED", label: "L0 Unverified", color: "#B71C1C", bg: "#FFEBEE" },
+];
+
+function TrustBadge({ level }: { level: string }) {
+  const config = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 4,
+        fontSize: 11,
+        fontWeight: 600,
+        color: config.color,
+        backgroundColor: config.bg,
+        border: `1px solid ${config.color}33`,
+      }}
+    >
+      {config.label}
+    </span>
+  );
+}
 
 export default function DomainsPage() {
   const router = useRouter();
@@ -110,7 +165,7 @@ export default function DomainsPage() {
   const [domain, setDomain] = useState<DomainDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"callers" | "playbooks" | "onboarding">("playbooks");
+  const [activeTab, setActiveTab] = useState<"callers" | "playbooks" | "content" | "onboarding">("playbooks");
   const [showPlaybookModal, setShowPlaybookModal] = useState(false);
   const [creatingPlaybook, setCreatingPlaybook] = useState(false);
   const [newPlaybook, setNewPlaybook] = useState({ name: "", description: "" });
@@ -980,6 +1035,10 @@ export default function DomainsPage() {
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Published</div>
                 </div>
+                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
+                  <div style={{ fontSize: 24, fontWeight: 600 }}>{domain._count.subjects ?? 0}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Subjects</div>
+                </div>
               </div>
 
               {/* Tabs */}
@@ -988,10 +1047,11 @@ export default function DomainsPage() {
                 tabs={[
                   { id: "playbooks", label: `Playbooks (${domain.playbooks.length})` },
                   { id: "callers", label: `Callers (${domain._count.callers})` },
+                  { id: "content", label: `Content (${domain._count.subjects ?? 0})` },
                   { id: "onboarding", label: "Onboarding" },
                 ]}
                 activeTab={activeTab}
-                onTabChange={(id) => setActiveTab(id as "callers" | "playbooks" | "onboarding")}
+                onTabChange={(id) => setActiveTab(id as "callers" | "playbooks" | "content" | "onboarding")}
                 containerStyle={{ marginBottom: 24 }}
               />
 
@@ -1301,6 +1361,141 @@ export default function DomainsPage() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Content Tab */}
+              {activeTab === "content" && (
+                <div>
+                  <h3 style={{ margin: "0 0 16px 0", fontSize: 16, fontWeight: 600 }}>Subjects & Content Sources</h3>
+                  {(!domain.subjects || domain.subjects.length === 0) ? (
+                    <div style={{
+                      padding: 32,
+                      textAlign: "center",
+                      background: "var(--surface-secondary)",
+                      borderRadius: 8,
+                    }}>
+                      <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
+                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 12 }}>
+                        No subjects linked to this domain yet.
+                      </div>
+                      <Link
+                        href="/x/subjects"
+                        style={{
+                          color: "var(--accent-primary)",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          textDecoration: "none",
+                        }}
+                      >
+                        Go to Subjects to link one →
+                      </Link>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {domain.subjects.map((sd) => {
+                        const subj = sd.subject;
+                        const totalAssertions = subj.sources.reduce(
+                          (sum, ss) => sum + ss.source._count.assertions, 0
+                        );
+                        return (
+                          <div
+                            key={subj.id}
+                            style={{
+                              border: "1px solid var(--border-default)",
+                              borderRadius: 8,
+                              overflow: "hidden",
+                            }}
+                          >
+                            {/* Subject header */}
+                            <div style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "12px 16px",
+                              background: "var(--surface-secondary)",
+                            }}>
+                              <div>
+                                <Link
+                                  href={`/x/subjects?id=${subj.id}`}
+                                  style={{
+                                    fontSize: 14,
+                                    fontWeight: 600,
+                                    color: "var(--text-primary)",
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  {subj.name}
+                                </Link>
+                                {subj.qualificationRef && (
+                                  <span style={{
+                                    marginLeft: 8,
+                                    fontSize: 11,
+                                    color: "var(--text-muted)",
+                                    fontFamily: "monospace",
+                                  }}>
+                                    {subj.qualificationRef}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                                {subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}
+                              </div>
+                            </div>
+                            {/* Sources list */}
+                            {subj.sources.length > 0 ? (
+                              <div style={{ padding: "8px 16px" }}>
+                                {subj.sources.map((ss, idx) => (
+                                  <div
+                                    key={ss.id}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 12,
+                                      padding: "8px 0",
+                                      borderTop: idx > 0 ? "1px solid var(--border-secondary)" : "none",
+                                    }}
+                                  >
+                                    <span style={{ color: "var(--text-muted)", fontSize: 14, width: 20 }}>
+                                      {idx === subj.sources.length - 1 ? "└" : "├"}
+                                    </span>
+                                    {ss.tags?.length > 0 && (
+                                      <span style={{
+                                        display: "inline-block",
+                                        padding: "1px 6px",
+                                        borderRadius: 4,
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: "var(--text-muted)",
+                                        background: "var(--surface-tertiary)",
+                                        textTransform: "uppercase",
+                                      }}>
+                                        {ss.tags[0]}
+                                      </span>
+                                    )}
+                                    <Link
+                                      href={`/x/content-sources?highlight=${ss.source.id}`}
+                                      style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}
+                                    >
+                                      {ss.source.name}
+                                    </Link>
+                                    <TrustBadge level={ss.source.trustLevel} />
+                                    <span style={{ fontSize: 12, color: "var(--text-muted)", minWidth: 80, textAlign: "right" }}>
+                                      {ss.source._count.assertions} assertion{ss.source._count.assertions !== 1 ? "s" : ""}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>
+                                No sources linked to this subject
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

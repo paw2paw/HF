@@ -10,9 +10,14 @@ export type NavItem = {
 export type NavSection = {
   id: string;
   title?: string;
+  href?: string;
   items: NavItem[];
   dividerAfter?: boolean;
   collapsedByDefault?: boolean;
+  /** Minimum role required to see this section (hard gate — can't override) */
+  requiredRole?: string;
+  /** Roles for which this section is hidden by default (soft — user can unhide) */
+  defaultHiddenFor?: string[];
 };
 
 // Persisted layout configuration
