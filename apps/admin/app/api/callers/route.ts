@@ -11,6 +11,7 @@ import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/
  * @tags callers
  * @description List all callers with optional memory/call counts. Returns paginated results ordered by creation date descending, with flattened domain and personality data.
  * @query withCounts boolean - When "true", fetches active memory and call counts per caller
+ * @query includeArchived boolean - When "true", includes archived callers (default false)
  * @query limit number - Maximum callers to return (default 100, max 500)
  * @query offset number - Number of callers to skip for pagination (default 0)
  * @response 200 { ok: true, callers: Caller[], total: number, limit: number, offset: number }
@@ -24,15 +25,22 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const withCounts = url.searchParams.get("withCounts") === "true";
+    const includeArchived = url.searchParams.get("includeArchived") === "true";
     const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
     // Apply scope filter (ALL=no filter, DOMAIN=user's domain, OWN=user's callers)
     const scopeFilter = buildScopeFilter(scope, session, "userId", "domainId");
 
+    // Merge scope filter with archive filter
+    const whereClause = {
+      ...scopeFilter,
+      ...(includeArchived ? {} : { archivedAt: null }),
+    };
+
     // Fetch callers with available relations
     const callers = await prisma.caller.findMany({
-      where: scopeFilter,
+      where: whereClause,
       take: limit,
       skip: offset,
       include: {
@@ -73,6 +81,7 @@ export async function GET(req: Request) {
       domain: caller.domain || null,
       personality: caller.personality || null,
       createdAt: caller.createdAt,
+      archivedAt: caller.archivedAt || null,
     }));
 
     // If counts requested, fetch related counts
@@ -128,7 +137,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const total = await prisma.caller.count({ where: scopeFilter });
+    const total = await prisma.caller.count({ where: whereClause });
 
     return NextResponse.json({
       ok: true,

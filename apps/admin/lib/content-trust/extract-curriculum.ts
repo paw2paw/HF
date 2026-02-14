@@ -119,6 +119,7 @@ ${assertionText}
 Generate a structured curriculum from these assertions.`;
 
   try {
+    // @ai-call content-trust.curriculum — Generate structured curriculum from assertions | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion({
       callPoint: "content-trust.curriculum",
       messages: [
@@ -172,6 +173,127 @@ Generate a structured curriculum from these assertions.`;
       deliveryConfig: {},
       warnings,
       error: `AI extraction failed: ${error.message}`,
+    };
+  }
+}
+
+// ------------------------------------------------------------------
+// Goals-based curriculum generation (no document required)
+// ------------------------------------------------------------------
+
+const GOALS_CURRICULUM_SYSTEM_PROMPT = `You are a curriculum design specialist. Given a subject, teaching style, and optional learning goals, generate a structured curriculum with modules, learning outcomes, and assessment criteria.
+
+Rules:
+1. Generate 4-8 modules progressing from foundational to advanced
+2. Each module should have 3-8 clear, measurable learning outcomes ("Identify...", "Explain...", "Apply...")
+3. Include practical assessment criteria for each module
+4. Adapt the pedagogical approach to the teaching style (e.g. tutor = structured, coach = goal-oriented, mentor = reflective)
+5. If learning goals are provided, ensure the curriculum covers them
+6. If no learning goals are provided, infer sensible goals for the subject
+7. Generate practical module IDs (MOD-1, MOD-2, etc.)
+
+Return valid JSON only with this structure:
+{
+  "name": "Curriculum title",
+  "description": "Brief description of what this curriculum covers",
+  "modules": [
+    {
+      "id": "MOD-1",
+      "title": "Module title",
+      "description": "What this module covers",
+      "learningOutcomes": ["LO1: Identify...", "LO2: Explain..."],
+      "assessmentCriteria": ["Can define X", "Can list Y"],
+      "keyTerms": ["term1", "term2"],
+      "estimatedDurationMinutes": 30,
+      "sortOrder": 1
+    }
+  ],
+  "deliveryConfig": {
+    "sessionStructure": ["Opening review", "New content", "Practice activity", "Summary check"],
+    "assessmentStrategy": "Spaced repetition with formative checks per module",
+    "pedagogicalNotes": ["Start with real-world examples", "Use misconception correction"]
+  }
+}`;
+
+/**
+ * Generate curriculum structure from subject, persona, and learning goals.
+ * Used when no document is uploaded — AI creates the curriculum from scratch.
+ */
+export async function generateCurriculumFromGoals(
+  subjectName: string,
+  persona: string,
+  learningGoals: string[],
+  qualificationRef?: string,
+): Promise<ExtractedCurriculum> {
+  const warnings: string[] = [];
+
+  const goalsSection = learningGoals.length > 0
+    ? `\nLearning Goals:\n${learningGoals.map((g, i) => `${i + 1}. ${g}`).join("\n")}`
+    : "\nNo specific learning goals provided — infer appropriate goals for this subject.";
+
+  const userPrompt = `Subject: ${subjectName}
+Teaching Style: ${persona}${qualificationRef ? `\nQualification Reference: ${qualificationRef}` : ""}${goalsSection}
+
+Generate a structured curriculum for this subject.`;
+
+  try {
+    // @ai-call content-trust.curriculum-from-goals — Generate curriculum from subject + goals (no document) | config: /x/ai-config
+    const response = await getConfiguredMeteredAICompletion({
+      callPoint: "content-trust.curriculum-from-goals",
+      messages: [
+        { role: "system", content: GOALS_CURRICULUM_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+    });
+
+    const content = response.content || "";
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return {
+        ok: false,
+        name: subjectName,
+        description: "",
+        modules: [],
+        deliveryConfig: {},
+        warnings,
+        error: "AI did not return valid JSON",
+      };
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (learningGoals.length === 0) {
+      warnings.push("No goals provided — curriculum is based on AI inference for this subject");
+    }
+
+    return {
+      ok: true,
+      name: parsed.name || subjectName,
+      description: parsed.description || "",
+      modules: (parsed.modules || []).map((m: any, i: number) => ({
+        id: m.id || `MOD-${i + 1}`,
+        title: m.title || `Module ${i + 1}`,
+        description: m.description || "",
+        learningOutcomes: m.learningOutcomes || [],
+        assessmentCriteria: m.assessmentCriteria || [],
+        keyTerms: m.keyTerms || [],
+        estimatedDurationMinutes: m.estimatedDurationMinutes || null,
+        sortOrder: m.sortOrder || i + 1,
+      })),
+      deliveryConfig: parsed.deliveryConfig || {},
+      warnings,
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      name: subjectName,
+      description: "",
+      modules: [],
+      deliveryConfig: {},
+      warnings,
+      error: `AI curriculum generation failed: ${error.message}`,
     };
   }
 }

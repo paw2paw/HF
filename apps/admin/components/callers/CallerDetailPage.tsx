@@ -9,7 +9,12 @@ import { useEntityContext } from "@/contexts/EntityContext";
 import { DomainPill, PlaybookPill, StatusBadge, GoalPill, SpecPill } from "@/src/components/shared/EntityPill";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
+import { FileText as FileTextIcon, FileSearch, Brain, MessageCircle, Smartphone, User, TrendingUp, BookMarked, PlayCircle, BarChart3, Target, ClipboardCheck, GitBranch } from "lucide-react";
+import { SectionSelector, useSectionVisibility } from "@/components/shared/SectionSelector";
 import { CallerDomainSection } from "@/components/callers/CallerDomainSection";
+import { ArtifactCard } from "@/components/sim/ArtifactCard";
+import { SimChat } from "@/components/sim/SimChat";
+import '@/app/x/sim/sim.css';
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 import { EXAM_LEVEL_CONFIG } from "@/lib/curriculum/constants";
@@ -30,6 +35,7 @@ type CallerProfile = {
   phone: string | null;
   externalId: string | null;
   createdAt: string;
+  archivedAt: string | null;
   domainId: string | null;
   domain: Domain | null;
 };
@@ -56,8 +62,10 @@ type Memory = {
   category: string;
   key: string;
   value: string;
+  normalizedKey: string | null;
   evidence: string | null;
   confidence: number;
+  decayFactor: number | null;
   extractedAt: string;
   expiresAt: string | null;
 };
@@ -189,6 +197,7 @@ type CallerData = {
     prompts: number;
     targets: number;
     measurements: number;
+    artifacts?: number;
     curriculumModules?: number;
     curriculumCompleted?: number;
     goals?: number;
@@ -209,7 +218,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
 // Parameter display config will be fetched dynamically from /api/parameters/display-config
 // NO HARDCODING - all parameter metadata comes from database
 
-type SectionId = "calls" | "transcripts" | "memories" | "traits" | "scores" | "learning" | "exam-readiness" | "agent-behavior" | "prompt" | "personality" | "ai-call" | "slugs";
+type SectionId = "calls" | "profile" | "progress" | "artifacts" | "ai-call";
 
 type ComposedPrompt = {
   id: string;
@@ -236,9 +245,16 @@ export default function CallerDetailPage() {
   const backLink = isInXArea ? '/x/callers' : '/callers';
 
   // Get initial tab from URL param (e.g., ?tab=ai-call)
-  const tabParam = searchParams.get("tab") as SectionId | null;
-  const validTabs: SectionId[] = ["calls", "transcripts", "memories", "traits", "scores", "learning", "exam-readiness", "agent-behavior", "prompt", "ai-call", "slugs"];
-  const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : null;
+  // Backwards compat: map old tab IDs to new consolidated tabs
+  const tabRedirects: Record<string, SectionId> = {
+    memories: "profile", traits: "profile", personality: "profile", slugs: "profile",
+    scores: "progress", "agent-behavior": "progress", learning: "progress", "exam-readiness": "progress",
+    transcripts: "calls", prompt: "calls",
+  };
+  const rawTab = searchParams.get("tab");
+  const validTabs: SectionId[] = ["calls", "profile", "progress", "artifacts", "ai-call"];
+  const mappedTab = rawTab ? (tabRedirects[rawTab] || rawTab) as SectionId : null;
+  const initialTab = mappedTab && validTabs.includes(mappedTab) ? mappedTab : null;
 
   const [data, setData] = useState<CallerData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -268,6 +284,14 @@ export default function CallerDetailPage() {
       )
     : {};
 
+  // Section visibility for consolidated tabs (persisted to localStorage)
+  const [profileVis, toggleProfileVis] = useSectionVisibility("caller-profile", {
+    memories: true, traits: true, slugs: true,
+  });
+  const [progressVis, toggleProgressVis] = useSectionVisibility("caller-progress", {
+    scores: true, behaviour: true, goals: true, exam: true,
+  });
+
   // Expanded states
   const [expandedCall, setExpandedCall] = useState<string | null>(null);
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
@@ -278,6 +302,7 @@ export default function CallerDetailPage() {
   const [promptsLoading, setPromptsLoading] = useState(false);
   const [composing, setComposing] = useState(false);
   const [promptProgress, setPromptProgress] = useState("");
+  const [exporting, setExporting] = useState(false);
   const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
 
   // Domain state
@@ -516,6 +541,40 @@ export default function CallerDetailPage() {
     fetchData();
   }, [fetchData]);
 
+  // ── Processing detection + auto-poll ──────────────
+  // A call is "processing" if it's recent (< 5 min) and hasn't been analyzed yet.
+  // When processing calls exist, poll every 5s to pick up pipeline results.
+  const PROCESSING_WINDOW_MS = 5 * 60 * 1000;
+  const processingCallIds = useMemo(() => {
+    if (!data?.calls) return new Set<string>();
+    const now = Date.now();
+    return new Set(
+      data.calls
+        .filter((c) => {
+          const age = now - new Date(c.createdAt).getTime();
+          return age < PROCESSING_WINDOW_MS && !c.hasScores && !c.hasPrompt;
+        })
+        .map((c) => c.id)
+    );
+  }, [data?.calls]);
+
+  const isProcessing = processingCallIds.size > 0;
+
+  useEffect(() => {
+    if (!isProcessing) return;
+    const interval = setInterval(() => {
+      fetch(`/api/callers/${callerId}`)
+        .then((r) => r.json())
+        .then((result) => {
+          if (result.ok) {
+            setData({ ...result, personality: result.personalityProfile || null });
+          }
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isProcessing, callerId]);
+
   // Update caller domain
   const handleDomainChange = async (domainId: string | null) => {
     if (!data) return;
@@ -575,30 +634,18 @@ export default function CallerDetailPage() {
   }
 
   // Sections organized into logical groups:
-  // - History: call recordings and transcripts
-  // - Caller: who they are (personality, memories)
-  // - Shared: variables for both agent and caller (slugs, scores)
-  // - Behaviour: targets, measurements, prompt
-  // - Action: make a call
-  const sections: { id: SectionId; label: string; icon: string; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "agent" | "action" }[] = [
-    // History
-    { id: "calls", label: "Calls", icon: "📞", count: data.counts.calls, group: "history" },
-    // Caller group
-    { id: "memories", label: "Mem", icon: "💭", count: data.counts.memories, group: "caller" },
-    { id: "traits", label: "Traits", icon: "🧠", count: data.counts.observations, group: "caller" },
-    { id: "learning", label: "Goals", icon: "🎯", count: data.counts.activeGoals || 0, group: "caller" },
-    { id: "exam-readiness", label: "Exam", icon: "📝", group: "caller" },
-    // Shared group - data for both caller and agent
-    { id: "slugs", label: "Slugs", icon: "🏷️", group: "shared" },
-    { id: "scores", label: "Scores", icon: "📈", count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0, group: "shared" },
-    // Behaviour-specific group (includes targets + measurements)
-    { id: "agent-behavior", label: "Behaviour", icon: "🤖", count: (data.counts.targets || 0) + (data.counts.measurements || 0), group: "agent" },
-    // Action group
-    { id: "ai-call", label: "Call", icon: "📞", special: true, group: "action" },
+  // Consolidated tabs: Calls | Profile | Progress | Artifacts | Call (action)
+  const sections: { id: SectionId; label: string; icon: React.ReactNode; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "action" }[] = [
+    { id: "calls", label: "Calls", icon: <Smartphone size={13} />, count: data.counts.calls, group: "history" },
+    { id: "profile", label: "Profile", icon: <User size={13} />, count: (data.counts.memories || 0) + (data.counts.observations || 0), group: "caller" },
+    { id: "progress", label: "Progress", icon: <TrendingUp size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + (data.counts.targets || 0) + (data.counts.measurements || 0), group: "shared" },
+    { id: "artifacts", label: "Artifacts", icon: <BookMarked size={13} />, count: data.counts.artifacts || 0, group: "shared" },
+    { id: "ai-call", label: "Call", icon: <PlayCircle size={13} />, special: true, group: "action" },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: 1920, margin: "0 auto", width: "100%" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {/* Header */}
       <div style={{ padding: "24px 24px 16px 24px", flexShrink: 0 }}>
         <Link href={backLink} style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>
@@ -808,8 +855,93 @@ export default function CallerDetailPage() {
           >
             ✨ Ask AI
           </button>
+
+          {/* Export Data Button (GDPR SAR) */}
+          <button
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await fetch(`/api/callers/${callerId}/export`);
+                const data = await res.json();
+                if (!data.ok) throw new Error(data.error || "Export failed");
+
+                const blob = new Blob([JSON.stringify(data.export, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `caller-${callerId}-export.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (err: any) {
+                alert(`Export failed: ${err.message}`);
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting}
+            title="Export all caller data (GDPR)"
+            style={{
+              padding: "10px 20px",
+              background: exporting ? "var(--text-placeholder)" : "rgba(59, 130, 246, 0.1)",
+              color: exporting ? "var(--text-muted)" : "#3b82f6",
+              border: "1px solid rgba(59, 130, 246, 0.2)",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: exporting ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {exporting ? "Exporting..." : "Export Data"}
+          </button>
         </div>
       </div>
+
+      {/* Archive Banner */}
+      {data.caller.archivedAt && (
+        <div style={{
+          padding: "12px 24px",
+          background: "var(--status-warning-bg)",
+          borderBottom: "1px solid var(--status-warning-border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: 14,
+          color: "var(--status-warning-text)",
+          flexShrink: 0,
+        }}>
+          <span>This caller was archived on {new Date(data.caller.archivedAt).toLocaleDateString()}</span>
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch(`/api/callers/${callerId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ archive: false }),
+                });
+                const result = await res.json();
+                if (result.ok) {
+                  setData({ ...data, caller: { ...data.caller, archivedAt: null } });
+                }
+              } catch {}
+            }}
+            style={{
+              padding: "6px 12px",
+              fontSize: 13,
+              fontWeight: 600,
+              background: "var(--button-primary-bg)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            Unarchive
+          </button>
+        </div>
+      )}
 
       {/* Active Prompt Section - Shows most recent prompt for next call */}
       {composedPrompts.length > 0 && (
@@ -856,13 +988,32 @@ export default function CallerDetailPage() {
         </div>
       )}
 
-      {/* Section Tabs - Grouped: History | Caller | Agent | Action */}
+      {/* Processing Banner */}
+      {isProcessing && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 24px",
+            background: "var(--status-info-bg)",
+            borderBottom: "1px solid var(--status-info-border)",
+            fontSize: 13,
+            fontWeight: 500,
+            color: "var(--status-info-text)",
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
+          Processing {processingCallIds.size === 1 ? "latest call" : `${processingCallIds.size} calls`} — extracting scores, memories, and generating prompt...
+        </div>
+      )}
+
+      {/* Section Tabs */}
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-default)", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", zIndex: 10, padding: "8px 24px 0 24px", marginLeft: -24, marginRight: -24, flexShrink: 0 }}>
-        {sections.map((section, index) => {
+        {sections.map((section) => {
           const isActive = activeSection === section.id;
           const isSpecial = section.special;
-          const prevSection = index > 0 ? sections[index - 1] : null;
-          const showGroupSeparator = prevSection && prevSection.group !== section.group;
 
           // Special styling for the Call tab (green background)
           const specialStyles = isSpecial ? {
@@ -875,18 +1026,6 @@ export default function CallerDetailPage() {
 
           return (
             <span key={section.id} style={{ display: "contents" }}>
-              {/* Group Separator */}
-              {showGroupSeparator && (
-                <div
-                  style={{
-                    width: 1,
-                    height: 24,
-                    background: "var(--button-disabled-bg)",
-                    margin: "0 6px",
-                    flexShrink: 0,
-                  }}
-                />
-              )}
               <button
                 onClick={() => setActiveSection(section.id)}
                 style={{
@@ -906,16 +1045,20 @@ export default function CallerDetailPage() {
                   ...specialStyles,
                 }}
               >
-                <span style={{ fontSize: 12 }}>{section.icon}</span>
+                <span style={{ display: "flex", alignItems: "center" }}>{section.icon}</span>
                 {section.label}
                 {section.count !== undefined && section.count > 0 && (
                   <span
                     style={{
-                      fontSize: 10,
-                      background: isActive ? "var(--status-info-bg)" : "var(--surface-secondary)",
-                      color: isActive ? "var(--button-primary-bg)" : "var(--text-muted)",
-                      padding: "1px 5px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      lineHeight: "16px",
+                      minWidth: 18,
+                      textAlign: "center",
+                      padding: "1px 6px",
                       borderRadius: 10,
+                      background: isActive ? "color-mix(in srgb, var(--button-primary-bg) 15%, transparent)" : "var(--surface-tertiary)",
+                      color: isActive ? "var(--button-primary-bg)" : "var(--text-secondary)",
                     }}
                   >
                     {section.count}
@@ -961,6 +1104,7 @@ export default function CallerDetailPage() {
           expandedCall={expandedCall}
           setExpandedCall={setExpandedCall}
           callerId={callerId}
+          processingCallIds={processingCallIds}
           onCallUpdated={() => {
             // Refresh data after op runs
             fetch(`/api/callers/${callerId}`)
@@ -980,64 +1124,119 @@ export default function CallerDetailPage() {
         />
       )}
 
-      {activeSection === "transcripts" && (
-        <TranscriptsSection calls={data.calls} />
+      {activeSection === "profile" && (
+        <>
+          {isProcessing && !data.counts.memories && !data.counts.observations && (
+            <ProcessingNotice message="Memories and personality traits will appear here once analysis completes." />
+          )}
+          <SectionSelector
+            storageKey="caller-profile"
+            sections={[
+              { id: "memories", label: "Memories", icon: <MessageCircle size={13} />, count: data.counts.memories },
+              { id: "traits", label: "Traits", icon: <Brain size={13} />, count: data.counts.observations },
+              { id: "slugs", label: "Identity", icon: <GitBranch size={13} /> },
+            ]}
+            visible={profileVis}
+            onToggle={toggleProfileVis}
+          >
+            {/* Memory category chips inline */}
+            {data.memorySummary && profileVis.memories !== false && (
+              <>
+                <div style={{ width: 1, height: 20, background: "var(--border-default)", margin: "0 4px", flexShrink: 0 }} />
+                {[
+                  { label: "Facts", count: data.memorySummary.factCount, color: CATEGORY_COLORS.FACT },
+                  { label: "Prefs", count: data.memorySummary.preferenceCount, color: CATEGORY_COLORS.PREFERENCE },
+                  { label: "Events", count: data.memorySummary.eventCount, color: CATEGORY_COLORS.EVENT },
+                  { label: "Topics", count: data.memorySummary.topicCount, color: CATEGORY_COLORS.TOPIC },
+                ].map((stat) => (
+                  <span
+                    key={stat.label}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "4px 8px",
+                      fontSize: 11,
+                      background: stat.color.bg,
+                      color: stat.color.text,
+                      borderRadius: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {stat.count} {stat.label}
+                  </span>
+                ))}
+              </>
+            )}
+          </SectionSelector>
+          {profileVis.memories !== false && (
+            <MemoriesSection
+              memories={data.memories}
+              summary={data.memorySummary}
+              expandedMemory={expandedMemory}
+              setExpandedMemory={setExpandedMemory}
+              hideSummary
+            />
+          )}
+          {profileVis.traits !== false && (
+            <PersonalitySection
+              personality={data.personality}
+              observations={data.observations}
+              paramConfig={paramConfig}
+            />
+          )}
+          {profileVis.slugs !== false && (
+            <CallerSlugsSection callerId={callerId} />
+          )}
+        </>
       )}
 
-      {activeSection === "memories" && (
-        <MemoriesSection
-          memories={data.memories}
-          summary={data.memorySummary}
-          expandedMemory={expandedMemory}
-          setExpandedMemory={setExpandedMemory}
-        />
+      {activeSection === "progress" && (
+        <>
+          {isProcessing && !data.scores?.length && !data.counts.measurements && (
+            <ProcessingNotice message="Scores and behaviour data will appear here once analysis completes." />
+          )}
+          <SectionSelector
+            storageKey="caller-progress"
+            sections={[
+              { id: "scores", label: "Scores", icon: <BarChart3 size={13} />, count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0 },
+              { id: "behaviour", label: "Behaviour", icon: <Brain size={13} />, count: (data.counts.targets || 0) + (data.counts.measurements || 0) },
+              { id: "goals", label: "Goals", icon: <Target size={13} />, count: data.counts.activeGoals || 0 },
+              { id: "exam", label: "Exam", icon: <ClipboardCheck size={13} /> },
+            ]}
+            visible={progressVis}
+            onToggle={toggleProgressVis}
+          />
+          {progressVis.scores !== false && <ScoresSection scores={data.scores} />}
+          {progressVis.behaviour !== false && <TopLevelAgentBehaviorSection callerId={callerId} />}
+          {progressVis.goals !== false && (
+            <LearningSection curriculum={data.curriculum} learnerProfile={data.learnerProfile} goals={data.goals} callerId={callerId} />
+          )}
+          {progressVis.exam !== false && <ExamReadinessSection callerId={callerId} />}
+        </>
       )}
 
-      {activeSection === "traits" && (
-        <PersonalitySection
-          personality={data.personality}
-          observations={data.observations}
-          paramConfig={paramConfig}
-        />
-      )}
-
-      {activeSection === "scores" && <ScoresSection scores={data.scores} />}
-
-      {activeSection === "learning" && (
-        <LearningSection curriculum={data.curriculum} learnerProfile={data.learnerProfile} goals={data.goals} callerId={callerId} />
-      )}
-
-      {activeSection === "exam-readiness" && (
-        <ExamReadinessSection callerId={callerId} />
-      )}
-
-      {activeSection === "agent-behavior" && (
-        <TopLevelAgentBehaviorSection callerId={callerId} />
-      )}
-
-      {activeSection === "slugs" && (
-        <CallerSlugsSection callerId={callerId} />
+      {activeSection === "artifacts" && (
+        <ArtifactsSection callerId={callerId} isProcessing={isProcessing} />
       )}
 
       {activeSection === "ai-call" && (
-        <AICallSection
+        <SimChat
           callerId={callerId}
           callerName={data.caller.name || "Caller"}
-          calls={data.calls}
-          onCallEnded={() => {
-            // Refresh data after call ends
+          domainName={data.caller.domain?.name}
+          mode="embedded"
+          onCallEnd={() => {
             fetch(`/api/callers/${callerId}`)
               .then((r) => r.json())
               .then((result) => {
                 if (result.ok) {
-                  // Map personalityProfile -> personality for backward compatibility
                   setData({
                     ...result,
                     personality: result.personalityProfile || null,
                   });
                 }
               });
-            // Refresh prompts
             fetchPrompts();
           }}
         />
@@ -1067,13 +1266,13 @@ function OverviewSection({
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Quick Stats</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <StatCard label="Total Calls" value={data.counts.calls} icon="📞" onClick={() => onNavigate("calls")} />
-          <StatCard label="Memories" value={data.counts.memories} icon="💭" onClick={() => onNavigate("memories")} />
-          <StatCard label="Observations" value={data.counts.observations} icon="👁️" onClick={() => onNavigate("personality")} />
+          <StatCard label="Memories" value={data.counts.memories} icon="💭" onClick={() => onNavigate("profile")} />
+          <StatCard label="Observations" value={data.counts.observations} icon="👁️" onClick={() => onNavigate("profile")} />
           <StatCard
             label="Parameters"
             value={data.personality?.parameterValues ? Object.keys(data.personality.parameterValues).length : 0}
             icon="📊"
-            onClick={() => onNavigate("personality")}
+            onClick={() => onNavigate("profile")}
           />
         </div>
       </div>
@@ -1082,7 +1281,7 @@ function OverviewSection({
       {data.personality && data.personality.parameterValues && paramConfig && (
         <div
           style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
-          onClick={() => onNavigate("personality")}
+          onClick={() => onNavigate("profile")}
         >
           <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Personality Profile</h3>
 
@@ -1131,7 +1330,7 @@ function OverviewSection({
       {data.memorySummary && data.memorySummary.keyFacts.length > 0 && (
         <div
           style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
-          onClick={() => onNavigate("memories")}
+          onClick={() => onNavigate("profile")}
         >
           <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Key Facts</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1149,7 +1348,7 @@ function OverviewSection({
       {data.memorySummary && Object.keys(data.memorySummary.preferences).length > 0 && (
         <div
           style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, cursor: "pointer" }}
-          onClick={() => onNavigate("memories")}
+          onClick={() => onNavigate("profile")}
         >
           <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>Preferences</h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1679,18 +1878,43 @@ function getAIEngine(): "mock" | "claude" | "openai" {
   return "mock";
 }
 
+// Processing Notice — shown in tabs when pipeline is running and data is empty
+function ProcessingNotice({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 16px",
+        marginBottom: 16,
+        background: "var(--status-info-bg)",
+        border: "1px solid var(--status-info-border)",
+        borderRadius: 8,
+        fontSize: 13,
+        color: "var(--status-info-text)",
+      }}
+    >
+      <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
+      {message}
+    </div>
+  );
+}
+
 // Calls Section
 function CallsSection({
   calls,
   expandedCall,
   setExpandedCall,
   callerId,
+  processingCallIds,
   onCallUpdated,
 }: {
   calls: Call[];
   expandedCall: string | null;
   setExpandedCall: (id: string | null) => void;
   callerId: string;
+  processingCallIds?: Set<string>;
   onCallUpdated?: () => void;
 }) {
   // Pipeline state (simplified: just prep and prompt)
@@ -2021,7 +2245,26 @@ function CallsSection({
                       PROMPTED
                     </span>
                   )}
-                  {!call.hasScores && !call.hasPrompt && (
+                  {!call.hasScores && !call.hasPrompt && processingCallIds?.has(call.id) && (
+                    <span
+                      title="Pipeline running — extracting scores, memories, generating prompt"
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 600,
+                        padding: "2px 5px",
+                        borderRadius: 3,
+                        background: "var(--status-warning-bg)",
+                        color: "var(--status-warning-text)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      <span style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: 8 }}>⏳</span>
+                      PROCESSING
+                    </span>
+                  )}
+                  {!call.hasScores && !call.hasPrompt && !processingCallIds?.has(call.id) && (
                     <span
                       title="Not yet processed"
                       style={{
@@ -2173,7 +2416,10 @@ function CallDetailPanel({
   details: any;
   loading: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"transcript" | "memories" | "traits" | "scores" | "measurements" | "prompt">("transcript");
+  const [activeTab, setActiveTab] = useState<"transcript" | "extraction" | "measurements" | "prompt">("transcript");
+  const [extractionVis, toggleExtractionVis] = useSectionVisibility("call-extraction", {
+    memories: true, traits: true, scores: true,
+  });
 
   if (loading) {
     return (
@@ -2191,30 +2437,18 @@ function CallDetailPanel({
   const effectiveTargets = details?.effectiveTargets || [];
   const personalityObservation = details?.personalityObservation;
 
-  const tabs = [
-    // Transcript first
-    { id: "transcript", label: "Trans", icon: "📄", count: null, tooltip: "View the full call transcript" },
-    // Caller group
-    { id: "memories", label: "Mem", icon: "💭", count: memories.length, tooltip: "Memories extracted from the caller" },
-    { id: "traits", label: "Traits", icon: "🧠", count: personalityObservation ? 1 : null, tooltip: "Personality observation from this call" },
-    // Shared group
-    { id: "scores", label: "Scores", icon: "📊", count: scores.length, tooltip: "Behavior and caller scores" },
-    // Behaviour group (targets + measurements combined)
-    { id: "measurements", label: "Behaviour", icon: "🤖", count: effectiveTargets.length + measurements.length, tooltip: "Targets and behavioral measurements" },
-    { id: "prompt", label: "Prompt", icon: "📝", count: triggeredPrompts.length || null, tooltip: "Composed prompts triggered by this call" },
-  ];
-
   return (
     <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
       {/* Tabs - matching header tab styling */}
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-default)", background: "var(--surface-primary)", paddingBottom: 0, alignItems: "center" }}>
         <DraggableTabs
           storageKey={`call-detail-tabs-${call.id}`}
-          tabs={tabs.map((tab) => ({
-            id: tab.id,
-            label: `${tab.icon} ${tab.label}${tab.count !== null && tab.count > 0 ? ` (${tab.count})` : ""}`,
-            title: tab.tooltip,
-          }))}
+          tabs={[
+            { id: "transcript", label: "Transcript", icon: <FileTextIcon size={14} />, title: "View the full call transcript" },
+            { id: "extraction", label: "Extraction", icon: <FileSearch size={14} />, count: memories.length + (personalityObservation ? 1 : 0) + scores.length, title: "What the pipeline learned from this caller" },
+            { id: "measurements", label: "Behaviour", icon: <Brain size={14} />, count: measurements.length || null, title: "Agent behavioral measurements", accentColor: "#4338ca" },
+            { id: "prompt", label: "Prompt", icon: <MessageCircle size={14} />, count: triggeredPrompts.length || null, title: "Composed prompts for the agent", accentColor: "#4338ca" },
+          ]}
           activeTab={activeTab}
           onTabChange={(id) => setActiveTab(id as typeof activeTab)}
           containerStyle={{ flex: 1, border: "none" }}
@@ -2243,16 +2477,22 @@ function CallDetailPanel({
           <TranscriptTab transcript={call.transcript} />
         )}
 
-        {activeTab === "memories" && (
-          <MemoriesTab memories={memories} />
-        )}
-
-        {activeTab === "traits" && (
-          <CallTraitsTab observation={personalityObservation} />
-        )}
-
-        {activeTab === "scores" && (
-          <ScoresTab scores={scores} />
+        {activeTab === "extraction" && (
+          <>
+            <SectionSelector
+              storageKey="call-extraction"
+              sections={[
+                { id: "memories", label: "Memories", icon: <MessageCircle size={13} />, count: memories.length },
+                { id: "traits", label: "Traits", icon: <Brain size={13} />, count: personalityObservation ? 1 : 0 },
+                { id: "scores", label: "Scores", icon: <BarChart3 size={13} />, count: scores.length },
+              ]}
+              visible={extractionVis}
+              onToggle={toggleExtractionVis}
+            />
+            {extractionVis.memories !== false && <MemoriesTab memories={memories} />}
+            {extractionVis.traits !== false && <CallTraitsTab observation={personalityObservation} />}
+            {extractionVis.scores !== false && <ScoresTab scores={scores} />}
+          </>
         )}
 
         {activeTab === "measurements" && (
@@ -3280,7 +3520,6 @@ function TwoColumnTargetsDisplay({
   historyByParameter?: Record<string, number[]>;
 }) {
   const [expandedTarget, setExpandedTarget] = useState<string | null>(null);
-  const [rhsFilter, setRhsFilter] = useState<"adjusted" | "base" | "all">("adjusted");
 
   // Create measurement lookup
   const measurementMap = new Map(measurements.map((m: any) => [m.parameterId, m.actualValue]));
@@ -3292,6 +3531,11 @@ function TwoColumnTargetsDisplay({
   const baseCount = behaviorTargets.filter(
     (t: any) => t.effectiveScope === "SYSTEM" || t.effectiveScope === "PLAYBOOK"
   ).length;
+
+  // Smart default: show "adjusted" if any exist, otherwise "all"
+  const [rhsFilter, setRhsFilter] = useState<"adjusted" | "base" | "all">(
+    adjustedCount > 0 ? "adjusted" : "all"
+  );
 
   // Filter RHS targets
   const filteredBehaviorTargets = behaviorTargets.filter((t: any) => {
@@ -4421,16 +4665,18 @@ function MemoriesSection({
   summary,
   expandedMemory,
   setExpandedMemory,
+  hideSummary,
 }: {
   memories: Memory[];
   summary: MemorySummary | null;
   expandedMemory: string | null;
   setExpandedMemory: (id: string | null) => void;
+  hideSummary?: boolean;
 }) {
   return (
     <div>
-      {/* Summary Cards */}
-      {summary && (
+      {/* Summary Cards - hidden when shown inline in SectionSelector */}
+      {!hideSummary && summary && (
         <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           {[
             { label: "Facts", count: summary.factCount, color: CATEGORY_COLORS.FACT },
@@ -4499,16 +4745,45 @@ function MemoriesSection({
                     <span style={{ fontSize: 13, color: "var(--text-muted)" }}>= "{memory.value}"</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {memory.decayFactor != null && memory.decayFactor < 1 && (
+                      <span style={{ fontSize: 10, color: "var(--text-placeholder)", opacity: 0.8 }} title={`Decay: ${memory.decayFactor.toFixed(2)}`}>
+                        {memory.decayFactor >= 0.8 ? "●" : memory.decayFactor >= 0.5 ? "◐" : "○"}
+                      </span>
+                    )}
                     <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{(memory.confidence * 100).toFixed(0)}%</span>
+                    <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
+                      {(() => {
+                        const d = new Date(memory.extractedAt);
+                        const now = new Date();
+                        const days = Math.floor((now.getTime() - d.getTime()) / 86400000);
+                        if (days === 0) return "today";
+                        if (days === 1) return "1d ago";
+                        if (days < 30) return `${days}d ago`;
+                        return `${Math.floor(days / 30)}mo ago`;
+                      })()}
+                    </span>
                     <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>{isExpanded ? "▼" : "▶"}</span>
                   </div>
                 </button>
-                {isExpanded && memory.evidence && (
+                {isExpanded && (
                   <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)", fontSize: 13 }}>
-                    <div style={{ fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Evidence:</div>
-                    <div style={{ fontStyle: "italic", color: "var(--text-secondary)" }}>"{memory.evidence}"</div>
-                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-placeholder)" }}>
-                      Extracted {new Date(memory.extractedAt).toLocaleString()}
+                    {memory.evidence && (
+                      <>
+                        <div style={{ fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Evidence:</div>
+                        <div style={{ fontStyle: "italic", color: "var(--text-secondary)", marginBottom: 8 }}>"{memory.evidence}"</div>
+                      </>
+                    )}
+                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 11, color: "var(--text-placeholder)" }}>
+                      <span>Extracted {new Date(memory.extractedAt).toLocaleString()}</span>
+                      {memory.normalizedKey && memory.normalizedKey !== memory.key && (
+                        <span>Key: {memory.normalizedKey}</span>
+                      )}
+                      {memory.decayFactor != null && (
+                        <span>Decay: {memory.decayFactor.toFixed(2)}</span>
+                      )}
+                      {memory.expiresAt && (
+                        <span>Expires: {new Date(memory.expiresAt).toLocaleDateString()}</span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -7606,546 +7881,116 @@ function SlugVariableNode({ variable }: { variable: SlugNode }) {
   );
 }
 
-// =====================================================
-// AI CALL SECTION - Simulates a real voice call
-// =====================================================
+// Artifacts Section - shows content delivered to the caller
+function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProcessing?: boolean }) {
+  const [artifacts, setArtifacts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-type CallState = "idle" | "active" | "ended" | "processing";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
-
-function AICallSection({
-  callerId,
-  callerName,
-  calls,
-  onCallEnded,
-}: {
-  callerId: string;
-  callerName: string;
-  calls: Call[];
-  onCallEnded: () => void;
-}) {
-  const [callState, setCallState] = useState<CallState>("idle");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
-  const [transcript, setTranscript] = useState<string>("");
-  const [pipelineStatus, setPipelineStatus] = useState<string>("");
-  const [aiModel, setAiModel] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    fetch(`/api/callers/${callerId}/artifacts?limit=200`)
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.ok) setArtifacts(result.artifacts || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [callerId]);
 
-  // Focus input when call becomes active
+  // Auto-poll when processing to pick up new artifacts
   useEffect(() => {
-    if (callState === "active") {
-      inputRef.current?.focus();
-    }
-  }, [callState]);
+    if (!isProcessing) return;
+    const interval = setInterval(() => {
+      fetch(`/api/callers/${callerId}/artifacts?limit=200`)
+        .then((r) => r.json())
+        .then((result) => {
+          if (result.ok) setArtifacts(result.artifacts || []);
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isProcessing, callerId]);
 
-  // Get next call sequence number
-  const nextCallSequence = calls.length > 0
-    ? Math.max(...calls.map((c) => c.callSequence || 0)) + 1
-    : 1;
+  if (loading) return <div style={{ padding: 20, color: "var(--text-muted)" }}>Loading artifacts...</div>;
+  if (artifacts.length === 0 && isProcessing) return <ProcessingNotice message="Artifacts will appear here once the pipeline finishes processing the latest call." />;
+  if (artifacts.length === 0) return <div style={{ padding: 20, color: "var(--text-placeholder)" }}>No artifacts delivered yet</div>;
 
-  // Start call - create a new call record and fetch the composed prompt
-  const handleStartCall = async () => {
-    setCallState("active");
-    setMessages([]);
-    setTranscript("");
-    setPipelineStatus("");
+  // Get unique types and statuses for filters
+  const types = [...new Set(artifacts.map((a) => a.type))].sort();
+  const statuses = [...new Set(artifacts.map((a) => a.status))].sort();
 
-    try {
-      // Create a new call record
-      const createRes = await fetch(`/api/callers/${callerId}/calls`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "ai-simulation",
-          callSequence: nextCallSequence,
-        }),
-      });
-      const createData = await createRes.json();
-      if (createData.ok && createData.call?.id) {
-        setCurrentCallId(createData.call.id);
-      }
-
-      // AI greets the user first
-      const greetingPrompt = `The user just picked up the phone. Greet ${callerName} warmly and naturally, as if this is a real phone call. Keep it short (1-2 sentences).`;
-
-      await streamAIResponse(greetingPrompt, []);
-    } catch (err) {
-      console.error("Error starting call:", err);
-      setCallState("idle");
-    }
-  };
-
-  // Stream AI response
-  const streamAIResponse = async (userMessage: string, history: ChatMessage[]) => {
-    setIsStreaming(true);
-
-    // Use random suffix to avoid duplicate keys when user and assistant messages created in same millisecond
-    const assistantMsgId = `msg-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setMessages((prev) => [
-      ...prev,
-      { id: assistantMsgId, role: "assistant", content: "", timestamp: new Date() },
-    ]);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userMessage,
-          mode: "CALL",
-          entityContext: [{ type: "caller", id: callerId, label: callerName }],
-          conversationHistory: history.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
-
-      if (!response.ok) {
-        // Try to get the error message from the response
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || `Chat API failed (${response.status})`);
-      }
-
-      // Capture the AI model from response header
-      const engine = response.headers.get("X-AI-Engine");
-      if (engine) {
-        setAiModel(engine);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          fullContent += chunk;
-
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId ? { ...m, content: fullContent } : m
-            )
-          );
-        }
-      }
-
-      // Update transcript
-      setTranscript((prev) => prev + (prev ? "\n" : "") + `AI: ${fullContent}`);
-
-    } catch (err) {
-      console.error("Error streaming response:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantMsgId
-            ? { ...m, content: `⚠️ ${errorMessage}` }
-            : m
-        )
-      );
-    } finally {
-      setIsStreaming(false);
-    }
-  };
-
-  // Handle user message
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isStreaming || callState !== "active") return;
-
-    const userMsg: ChatMessage = {
-      id: `msg-user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      role: "user",
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setTranscript((prev) => prev + (prev ? "\n" : "") + `User: ${userMsg.content}`);
-    setInputValue("");
-
-    await streamAIResponse(userMsg.content, [...messages, userMsg]);
-  };
-
-  // End call - save transcript and run pipeline
-  const handleEndCall = async () => {
-    if (callState !== "active") return;
-
-    setCallState("processing");
-    setPipelineStatus("Saving transcript...");
-
-    try {
-      if (!currentCallId) {
-        setPipelineStatus("Error: No call ID - call was not created properly");
-        setCallState("ended");
-        return;
-      }
-
-      if (messages.length === 0) {
-        setPipelineStatus("Error: No messages to save");
-        setCallState("ended");
-        return;
-      }
-
-      // Save messages as JSON transcript to the call
-      // The /end endpoint expects JSON array of {role, content, timestamp}
-      const messagesJson = JSON.stringify(
-        messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp.toISOString(),
-        }))
-      );
-
-      await fetch(`/api/calls/${currentCallId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: messagesJson }),
-      });
-
-      setPipelineStatus("Running analysis pipeline...");
-
-      // Use the proper /end endpoint which formats transcript and runs pipeline
-      const endRes = await fetch(`/api/calls/${currentCallId}/end`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ engine: "claude" }),
-      });
-
-      const endData = await endRes.json();
-      if (endData.ok) {
-        const p = endData.pipeline || {};
-        const promptStatus = endData.prompt?.composed ? "Prompt composed" : "No prompt";
-        setPipelineStatus(
-          `Pipeline complete: ${p.scoresCreated || 0} scores, ` +
-          `${p.memoriesCreated || 0} memories, ` +
-          `${p.measurementsCreated || 0} measurements. ${promptStatus}` +
-          (p.playbookUsed ? ` (${p.playbookUsed})` : "")
-        );
-      } else {
-        setPipelineStatus(`Pipeline error: ${endData.error}`);
-      }
-
-      setCallState("ended");
-      onCallEnded();
-    } catch (err: any) {
-      setPipelineStatus(`Error: ${err.message}`);
-      setCallState("ended");
-    }
-  };
-
-  // Reset for new call
-  const handleNewCall = () => {
-    setCallState("idle");
-    setMessages([]);
-    setCurrentCallId(null);
-    setTranscript("");
-    setPipelineStatus("");
-    setAiModel(null);
-  };
+  const filtered = artifacts.filter((a) => {
+    if (typeFilter && a.type !== typeFilter) return false;
+    if (statusFilter && a.status !== statusFilter) return false;
+    return true;
+  });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 300px)", minHeight: 500 }}>
-      {/* Call Header */}
-      <div
-        style={{
-          padding: "16px 20px",
-          background: callState === "active" ? "var(--status-success-bg)" : callState === "processing" ? "var(--status-warning-bg)" : "var(--background)",
-          borderRadius: "12px 12px 0 0",
-          borderBottom: "1px solid var(--border-default)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: "50%",
-              background: callState === "active" ? "var(--button-success-bg)" : "var(--border-default)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 24,
-            }}
-          >
-            {callState === "active" ? "📞" : callState === "processing" ? "⏳" : "📱"}
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 16 }}>{callerName}</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 8 }}>
-              <span>
-                {callState === "idle" && "Ready to call"}
-                {callState === "active" && "Call in progress..."}
-                {callState === "processing" && "Processing call..."}
-                {callState === "ended" && "Call ended"}
-              </span>
-              {aiModel && callState !== "idle" && (
-                <span
-                  style={{
-                    padding: "2px 6px",
-                    background: "var(--badge-purple-bg)",
-                    color: "var(--badge-purple-text)",
-                    borderRadius: 4,
-                    fontSize: 10,
-                    fontWeight: 500,
-                  }}
-                >
-                  {aiModel}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Call Controls */}
-        <div style={{ display: "flex", gap: 8 }}>
-          {callState === "idle" && (
+    <div>
+      {/* Filter chips */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+        <span style={{ fontSize: 11, color: "var(--text-muted)", alignSelf: "center", marginRight: 4 }}>Type:</span>
+        <button
+          onClick={() => setTypeFilter(null)}
+          style={{
+            padding: "3px 8px", fontSize: 11, borderRadius: 12, border: "1px solid var(--border-default)", cursor: "pointer",
+            background: !typeFilter ? "var(--status-info-bg)" : "transparent",
+            color: !typeFilter ? "var(--button-primary-bg)" : "var(--text-muted)",
+            fontWeight: !typeFilter ? 600 : 400,
+          }}
+        >
+          All ({artifacts.length})
+        </button>
+        {types.map((type) => {
+          const count = artifacts.filter((a) => a.type === type).length;
+          return (
             <button
-              onClick={handleStartCall}
+              key={type}
+              onClick={() => setTypeFilter(typeFilter === type ? null : type)}
               style={{
-                padding: "12px 24px",
-                background: "var(--button-success-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 24,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
+                padding: "3px 8px", fontSize: 11, borderRadius: 12, border: "1px solid var(--border-default)", cursor: "pointer",
+                background: typeFilter === type ? "var(--status-info-bg)" : "transparent",
+                color: typeFilter === type ? "var(--button-primary-bg)" : "var(--text-muted)",
+                fontWeight: typeFilter === type ? 600 : 400,
               }}
             >
-              <span style={{ fontSize: 18 }}>📞</span>
-              Start Call
+              {type.replace(/_/g, " ")} ({count})
             </button>
-          )}
-          {callState === "active" && (
-            <button
-              onClick={handleEndCall}
-              style={{
-                padding: "12px 24px",
-                background: "var(--button-destructive-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 24,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 18 }}>📵</span>
-              End Call
-            </button>
-          )}
-          {(callState === "ended" || callState === "processing") && (
-            <button
-              onClick={handleNewCall}
-              disabled={callState === "processing"}
-              style={{
-                padding: "12px 24px",
-                background: callState === "processing" ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 24,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: callState === "processing" ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 18 }}>🔄</span>
-              New Call
-            </button>
-          )}
-        </div>
+          );
+        })}
+        {statuses.length > 1 && (
+          <>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", alignSelf: "center", marginLeft: 8, marginRight: 4 }}>Status:</span>
+            {statuses.map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(statusFilter === status ? null : status)}
+                style={{
+                  padding: "3px 8px", fontSize: 11, borderRadius: 12, border: "1px solid var(--border-default)", cursor: "pointer",
+                  background: statusFilter === status ? "var(--status-info-bg)" : "transparent",
+                  color: statusFilter === status ? "var(--button-primary-bg)" : "var(--text-muted)",
+                  fontWeight: statusFilter === status ? 600 : 400,
+                }}
+              >
+                {status}
+              </button>
+            ))}
+          </>
+        )}
       </div>
 
-      {/* Messages Area */}
-      <div
-        style={{
-          flex: 1,
-          overflow: "auto",
-          padding: 20,
-          background: callState === "active" ? "var(--status-success-bg)" : "var(--surface-primary)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        {callState === "idle" && (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--text-muted)",
-              gap: 16,
-            }}
-          >
-            <div style={{ fontSize: 64 }}>📱</div>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>Ready to Simulate Call</div>
-            <div style={{ fontSize: 14, textAlign: "center", maxWidth: 400 }}>
-              Click "Start Call" to begin a simulated voice conversation with {callerName}.
-              The AI will use the composed prompt and remember this caller's history.
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-placeholder)", marginTop: 8 }}>
-              Call #{nextCallSequence} for this caller
-            </div>
-          </div>
-        )}
-
-        {callState !== "idle" && messages.length === 0 && !isStreaming && (
-          <div style={{ color: "var(--text-placeholder)", textAlign: "center", padding: 20 }}>
-            Starting call...
-          </div>
-        )}
-
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              display: "flex",
-              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-            }}
-          >
-            <div
-              style={{
-                maxWidth: "80%",
-                padding: "12px 16px",
-                borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                background: msg.role === "user" ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                color: msg.role === "user" ? "white" : "var(--text-primary)",
-                border: msg.role === "user" ? "none" : "1px solid var(--border-default)",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-              }}
-            >
-              <div style={{ fontSize: 10, color: msg.role === "user" ? "rgba(255,255,255,0.7)" : "var(--text-placeholder)", marginBottom: 4 }}>
-                {msg.role === "user" ? "You" : "AI"}
-              </div>
-              <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-                {msg.content || (isStreaming ? "..." : "")}
-              </div>
-            </div>
-          </div>
+      {/* Artifact cards */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {filtered.map((artifact) => (
+          <ArtifactCard key={artifact.id} artifact={artifact} />
         ))}
-
-        {/* Pipeline Status */}
-        {pipelineStatus && (
-          <div
-            style={{
-              padding: 12,
-              background: callState === "ended" ? "var(--status-success-bg)" : "var(--status-warning-bg)",
-              borderRadius: 8,
-              fontSize: 13,
-              color: callState === "ended" ? "var(--status-success-text)" : "var(--status-warning-text)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            {callState === "processing" && <span style={{ animation: "spin 1s linear infinite" }}>⏳</span>}
-            {callState === "ended" && <span>✅</span>}
-            {pipelineStatus}
+        {filtered.length === 0 && (
+          <div style={{ padding: 20, color: "var(--text-placeholder)", textAlign: "center" }}>
+            No artifacts match the current filters
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
-
-      {/* Input Area */}
-      {callState === "active" && (
-        <div
-          style={{
-            padding: 16,
-            borderTop: "1px solid var(--border-default)",
-            background: "var(--status-success-bg)",
-            borderRadius: "0 0 12px 12px",
-          }}
-        >
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-              placeholder="Type your message..."
-              disabled={isStreaming}
-              style={{
-                flex: 1,
-                padding: "12px 16px",
-                border: "1px solid var(--input-border)",
-                borderRadius: 24,
-                fontSize: 14,
-                outline: "none",
-                background: "var(--surface-primary)",
-                color: "var(--text-primary)",
-              }}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={isStreaming || !inputValue.trim()}
-              style={{
-                padding: "12px 20px",
-                background: isStreaming || !inputValue.trim() ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 24,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: isStreaming || !inputValue.trim() ? "not-allowed" : "pointer",
-              }}
-            >
-              {isStreaming ? "..." : "Send"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Call Summary after ended */}
-      {callState === "ended" && messages.length > 0 && (
-        <div
-          style={{
-            padding: 16,
-            borderTop: "1px solid var(--border-default)",
-            background: "var(--background)",
-            borderRadius: "0 0 12px 12px",
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Call Summary</div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            {messages.filter((m) => m.role === "user").length} user messages,{" "}
-            {messages.filter((m) => m.role === "assistant").length} AI responses
-          </div>
-        </div>
-      )}
-
-
     </div>
   );
 }

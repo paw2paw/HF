@@ -41,6 +41,7 @@ import {
   DEFAULT_TRANSCRIPT_LIMITS,
   DEFAULT_AI_MODEL_CONFIGS,
 } from "../lib/fallback-settings";
+import { slimParameters, slimSummary } from "../lib/bdd/spec-slim";
 
 const prisma = new PrismaClient();
 
@@ -587,10 +588,11 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   if (outputType === AnalysisOutputType.COMPOSE) {
     // If this is a CONTENT spec, preserve full parameter structure from featureSet
     if (specRole === SpecRole.CONTENT && featureSet.parameters) {
+      const slimmed = slimParameters(featureSet.parameters as any[]);
       config = {
-        parameters: featureSet.parameters,
+        parameters: slimmed,
       };
-      console.log(`      Built COMPOSE config with ${(featureSet.parameters as any[]).length} parameters (full structure preserved for CONTENT spec)`);
+      console.log(`      Built COMPOSE config with ${slimmed.length} parameters (${slimSummary(featureSet.parameters as any[])})`);
     } else {
       // For other COMPOSE specs, use compiled params
       config = {
@@ -620,10 +622,12 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   }
   // For IDENTITY and CONTENT specs: preserve parameters array AND flatten for backward compat
   else if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT) {
-    // NEW: Preserve full parameter structure (needed for generic curriculum composer)
+    // Preserve parameter structure but strip already-extracted fields (scoringAnchors, interpretationScale, etc.)
+    const slimmed = slimParameters((featureSet.parameters as any[]) || []);
     config = {
-      parameters: featureSet.parameters || [],
+      parameters: slimmed,
     };
+    console.log(`      ${slimSummary((featureSet.parameters as any[]) || [])}`);
 
     // Also flatten top-level config properties for backward compatibility
     for (const param of compiledParams) {
@@ -761,6 +765,9 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     console.log(`      ⚠️ No rawSpec in database - re-run seed to populate rawSpec`);
   }
 
+  // Extract extendsAgent from rawSpec (for overlay identity specs like TUT-QM-001 → extends TUT-001)
+  const extendsAgent = rawSpecData?.extendsAgent || null;
+
   const specData = {
     name: featureSet.name,
     description,
@@ -775,6 +782,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     compiledAt: new Date(),
     compiledSetId: featureSet.id,
     isDirty: false,
+    ...(extendsAgent && { extendsAgent }),
     ...(config && { config }),
     ...(promptTemplate && { promptTemplate }),
   };

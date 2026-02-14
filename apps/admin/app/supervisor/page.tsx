@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense, lazy } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
+import { Workflow, ClipboardList, FileSearch } from "lucide-react";
 
 // Lazy load heavy components
 const FlowVisualizer = lazy(() => import("./components/FlowVisualizer"));
@@ -55,10 +56,10 @@ type SupervisorData = {
   };
 };
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: "flow", label: "Flow Visualizer", icon: "🔀" },
-  { id: "stages", label: "Pipeline Stages", icon: "📋" },
-  { id: "traces", label: "Traces", icon: "🔍" },
+const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: "flow", label: "Flow Visualizer", icon: <Workflow size={14} /> },
+  { id: "stages", label: "Pipeline Stages", icon: <ClipboardList size={14} /> },
+  { id: "traces", label: "Traces", icon: <FileSearch size={14} /> },
 ];
 
 export default function SupervisorPage() {

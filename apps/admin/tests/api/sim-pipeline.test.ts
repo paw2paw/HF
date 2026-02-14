@@ -36,6 +36,7 @@ const mockPrisma = {
     findFirst: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    count: vi.fn(),
   },
   callerMemory: {
     create: vi.fn(),
@@ -44,6 +45,7 @@ const mockPrisma = {
     findFirst: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    count: vi.fn(),
   },
   behaviorTarget: {
     findMany: vi.fn(),
@@ -67,6 +69,7 @@ const mockPrisma = {
     upsert: vi.fn(),
     findMany: vi.fn(),
     update: vi.fn(),
+    count: vi.fn(),
   },
   callerTarget: {
     upsert: vi.fn(),
@@ -91,9 +94,11 @@ vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
 }));
 
+const mockIsEngineAvailable = vi.fn((engine: string) => engine === "mock" || engine === "claude");
+
 vi.mock("@/lib/ai/client", () => ({
   AIEngine: "mock",
-  isEngineAvailable: vi.fn((engine: string) => engine === "mock" || engine === "claude"),
+  isEngineAvailable: mockIsEngineAvailable,
 }));
 
 const mockGetMeteredAICompletion = vi.fn().mockResolvedValue({
@@ -183,7 +188,7 @@ vi.mock("@/lib/system-settings", () => ({
   PIPELINE_DEFAULTS: { minTranscriptWords: 20, shortTranscriptThresholdWords: 50, shortTranscriptConfidenceCap: 0.3, maxRetries: 2, mockMode: false, personalityDecayHalfLifeDays: 30, mockScoreBase: 0.3, mockScoreRange: 0.4 },
   getPipelineSettings: vi.fn().mockResolvedValue({ minTranscriptWords: 20, shortTranscriptThresholdWords: 50, shortTranscriptConfidenceCap: 0.3, maxRetries: 2, mockMode: false, personalityDecayHalfLifeDays: 30, mockScoreBase: 0.3, mockScoreRange: 0.4 }),
   clearSystemSettingsCache: vi.fn(),
-  getSystemSetting: vi.fn().mockResolvedValue(null),
+  getSystemSetting: vi.fn().mockImplementation(async (_key: string, defaultValue?: any) => defaultValue ?? null),
   SETTINGS_REGISTRY: [],
 }));
 
@@ -351,13 +356,16 @@ function setupSimMocks() {
   // No playbook
   mockPrisma.playbook.findFirst.mockResolvedValue(null);
 
-  // Empty prior data
+  // Empty prior data (count=0 ensures idempotency checks pass through)
   mockPrisma.callScore.findMany.mockResolvedValue([]);
   mockPrisma.callScore.findFirst.mockResolvedValue(null);
   mockPrisma.callScore.create.mockResolvedValue({ id: "score-1" });
+  mockPrisma.callScore.count.mockResolvedValue(0);
   mockPrisma.behaviorMeasurement.findFirst.mockResolvedValue(null);
+  mockPrisma.behaviorMeasurement.count.mockResolvedValue(0);
   mockPrisma.behaviorTarget.findMany.mockResolvedValue([]);
   mockPrisma.callTarget.findMany.mockResolvedValue([]);
+  mockPrisma.callTarget.count.mockResolvedValue(0);
   mockPrisma.personalityObservation.findUnique.mockResolvedValue(null);
   mockPrisma.personalityObservation.create.mockResolvedValue({});
   mockPrisma.callerPersonalityProfile.findUnique.mockResolvedValue(null);
@@ -376,7 +384,8 @@ function setupSimMocks() {
   mockPrisma.aIConfig.findUnique.mockResolvedValue(null);
   mockPrisma.systemSetting.findUnique.mockResolvedValue(null);
 
-  // Re-configure AI completion mock (cleared by vi.clearAllMocks)
+  // Re-configure mocks cleared by vi.clearAllMocks
+  mockIsEngineAvailable.mockImplementation((engine: string) => engine === "mock" || engine === "claude");
   mockGetMeteredAICompletion.mockResolvedValue({
     content: JSON.stringify({
       scores: {

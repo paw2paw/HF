@@ -17,6 +17,7 @@ import { entityColors } from "@/src/components/shared/uiColors";
 import { useVisualizerSearch } from "@/hooks/useVisualizerSearch";
 import { VisualizerSearch } from "@/components/shared/VisualizerSearch";
 import { drawIconNode, renderIconToCanvas, spriteTextureCache, NodeIcon } from "@/components/shared/VisualizerIcons";
+import { encodeTaxonomyNode, type VisualMode } from "@/lib/graph/visual-encoding";
 
 type NodeType = "spec" | "parameter" | "playbook" | "domain" | "trigger" | "action" | "anchor" | "promptSlug" | "behaviorTarget" | "range";
 
@@ -32,6 +33,11 @@ interface GraphNode {
   slug?: string;
   isOrphan?: boolean;
   details?: NodeDetail[];
+  anchorCount?: number;
+  confidence?: number;
+  source?: string;
+  minValue?: number;
+  maxValue?: number;
   x?: number;
   y?: number;
   z?: number;
@@ -114,6 +120,7 @@ export default function TaxonomyGraphPage() {
   const [is3D, setIs3D] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [minimal, setMinimal] = useState(true); // Default to minimal - exclude trigger/action implementation details
+  const [visualMode, setVisualMode] = useState<VisualMode>("simple");
 
   // Search functionality
   const searchableNodes = useMemo(() =>
@@ -368,13 +375,13 @@ export default function TaxonomyGraphPage() {
         import("three").then((THREE) => {
           graph
             .nodeThreeObject((node: GraphNode) => {
-              const size = nodeSizes[node.type] || 8;
               const color = node.isOrphan ? "#ef4444" : (nodeColors[node.type] || "#888888");
-              const cacheKey = `${node.type}:${color}`;
+              const encoded = encodeTaxonomyNode(node, visualMode, nodeSizes[node.type] || 8, color);
+              const cacheKey = `${node.type}:${encoded.color}:${encoded.ring?.color || ""}`;
 
               let texture = spriteTextureCache.get(cacheKey);
               if (!texture) {
-                const canvas = renderIconToCanvas(node.type, color);
+                const canvas = renderIconToCanvas(node.type, encoded.color, 64, encoded.ring);
                 texture = new THREE.CanvasTexture(canvas);
                 spriteTextureCache.set(cacheKey, texture);
               }
@@ -382,10 +389,10 @@ export default function TaxonomyGraphPage() {
               const material = new THREE.SpriteMaterial({
                 map: texture,
                 transparent: true,
-                opacity: 0.9,
+                opacity: encoded.opacity,
               });
               const sprite = new THREE.Sprite(material);
-              sprite.scale.set(size * 1.5, size * 1.5, 1);
+              sprite.scale.set(encoded.radius * 1.5, encoded.radius * 1.5, 1);
               return sprite;
             })
             .nodeOpacity(0.95)
@@ -407,13 +414,13 @@ export default function TaxonomyGraphPage() {
               return;
             }
 
-            // In highlight mode, dim non-matches
-            const opacity = isSearching && !isNodeMatch ? 0.15 : 1;
-            ctx.globalAlpha = opacity;
-
-            const size = nodeSizes[node.type] || 8;
+            const baseOpacity = isSearching && !isNodeMatch ? 0.15 : 1;
             const color = node.isOrphan ? "#ef4444" : (nodeColors[node.type] || "#888888");
-            drawIconNode(ctx, node.type, node.x!, node.y!, size, color);
+            const encoded = encodeTaxonomyNode(node, visualMode, nodeSizes[node.type] || 8, color);
+
+            ctx.globalAlpha = baseOpacity === 1 ? encoded.opacity : baseOpacity;
+
+            drawIconNode(ctx, node.type, node.x!, node.y!, encoded.radius, encoded.color, encoded.ring);
 
             ctx.globalAlpha = 1; // Reset alpha
           })
@@ -441,7 +448,7 @@ export default function TaxonomyGraphPage() {
         graphRef.current = null;
       }
     };
-  }, [graphData, is3D, isDarkMode, navigateToEntity, centerOnNode]);
+  }, [graphData, is3D, isDarkMode, navigateToEntity, centerOnNode, visualMode]);
 
   // Update visibility when filters or search change
   useEffect(() => {
@@ -662,7 +669,7 @@ export default function TaxonomyGraphPage() {
               </button>
             </div>
           </div>
-          {/* Minimal mode toggle */}
+          {/* Mode toggles */}
           <div className="mb-3 flex items-center gap-2">
             <button
               onClick={() => setMinimal(!minimal)}
@@ -676,9 +683,16 @@ export default function TaxonomyGraphPage() {
               <span className="text-sm">{minimal ? "✓" : "○"}</span>
               Minimal
             </button>
-            <span className="text-[10px] text-neutral-600 dark:text-neutral-400 font-medium" title="Excludes trigger/action nodes which are pipeline implementation details">
-              {minimal ? "Hiding details" : "Show all"}
-            </span>
+            <button
+              onClick={() => setVisualMode(v => v === "simple" ? "rich" : "simple")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${
+                visualMode === "rich"
+                  ? "bg-amber-600 text-white border-amber-500 shadow-inner"
+                  : "bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-600 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+              }`}
+            >
+              Detailed
+            </button>
           </div>
           <div className="flex flex-col gap-1">
             {(["domain", "playbook", "spec", "parameter", ...(minimal ? [] : ["trigger", "action"] as NodeType[]), "anchor", "promptSlug", "behaviorTarget", "range"] as NodeType[]).map(type => {

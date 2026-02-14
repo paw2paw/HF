@@ -157,19 +157,30 @@ async function loadTranscripts() {
   }
   console.log(`   Using domain: ${domain.name} (${domain.slug})\n`);
 
-  // Find all JSON/TXT files
-  const files = fs.readdirSync(TRANSCRIPTS_DIR).filter(
-    (f) => f.endsWith(".json") || f.endsWith(".txt")
-  );
+  // Find all JSON/TXT files (recursively, including subdirectories)
+  function findTranscriptFiles(dir: string): string[] {
+    const results: string[] = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results.push(...findTranscriptFiles(fullPath));
+      } else if (entry.name.endsWith(".json") || entry.name.endsWith(".txt")) {
+        results.push(fullPath);
+      }
+    }
+    return results;
+  }
 
-  console.log(`   Found: ${files.length} transcript files\n`);
+  const filePaths = findTranscriptFiles(TRANSCRIPTS_DIR);
+
+  console.log(`   Found: ${filePaths.length} transcript files\n`);
 
   let callersCreated = 0;
   let callsCreated = 0;
   const callersByPhone = new Map<string, string>(); // phone -> callerId
 
-  for (const filename of files) {
-    const filePath = path.join(TRANSCRIPTS_DIR, filename);
+  for (const filePath of filePaths) {
+    const filename = path.basename(filePath);
     const content = fs.readFileSync(filePath, "utf-8");
 
     try {
@@ -233,11 +244,14 @@ function parseTextTranscript(content: string, filename: string): VAPICall | null
     const lines = content.split("\n");
     let transcript = "";
     let phone = "unknown";
+    let callerName = "";
     let inTranscript = false;
 
     for (const line of lines) {
       if (line.startsWith("Phone Number:")) {
         phone = line.replace("Phone Number:", "").trim();
+      } else if (line.startsWith("Caller:")) {
+        callerName = line.replace("Caller:", "").trim();
       } else if (line.trim() === "Transcript") {
         inTranscript = true;
       } else if (inTranscript && line.trim()) {
@@ -247,11 +261,11 @@ function parseTextTranscript(content: string, filename: string): VAPICall | null
 
     if (!transcript.trim()) return null;
 
-    const idMatch = filename.match(/log_([a-f0-9-]+)/i);
+    const idMatch = filename.match(/(?:log[_ ]?(?:id[_ ]?)?)([a-f0-9-]{36})/i);
     return {
       id: idMatch?.[1] || filename.replace(/\.[^.]+$/, ""),
       transcript: transcript.trim(),
-      customer: { number: phone },
+      customer: { number: phone, name: callerName || undefined },
     };
   } catch {
     return null;

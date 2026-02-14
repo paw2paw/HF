@@ -26,6 +26,9 @@ import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner"
 import { validateSpecDependencies } from "@/lib/pipeline/validate-dependencies";
 import { trackGoalProgress } from "@/lib/goals/track-progress";
 import { extractGoals } from "@/lib/goals/extract-goals";
+import { extractArtifacts } from "@/lib/artifacts/extract-artifacts";
+import { deliverArtifacts } from "@/lib/artifacts/deliver-artifacts";
+import { config as appConfig } from "@/lib/config";
 import { updateCurriculumProgress, getCurriculumProgress, completeModule } from "@/lib/curriculum/track-progress";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
@@ -1991,6 +1994,7 @@ interface PipelineContext {
   guardrails: GuardrailsConfig;
   pipelineStages: PipelineStage[];
   mode: "prep" | "prompt";
+  force: boolean;
   log: ReturnType<typeof createLogger>;
   request: NextRequest;
   // Accumulated results from previous stages
@@ -2010,6 +2014,16 @@ const stageExecutors: Record<string, StageExecutor> = {
   // EXTRACT stage: Learn + Measure caller data (batched)
   EXTRACT: async (ctx, stage) => {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+
+    // Idempotency: skip AI call if scores already exist for this call
+    if (!ctx.force) {
+      const existingScores = await prisma.callScore.count({ where: { callId: ctx.callId } });
+      if (existingScores > 0) {
+        ctx.log.info(`EXTRACT skipped: ${existingScores} scores already exist for call ${ctx.callId} (use force=true to re-run)`);
+        return { scoresCreated: 0, memoriesCreated: 0, skippedReason: "existing_scores" };
+      }
+    }
+
     const callerResult = await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
     const deltaResult = await computeAdapt(ctx.callId, ctx.callerId, ctx.log);
 
@@ -2021,12 +2035,28 @@ const stageExecutors: Record<string, StageExecutor> = {
       ctx.log.warn(`Curriculum progress tracking failed (non-blocking): ${err.message}`);
     }
 
+    // Extract conversation artifacts (non-blocking — errors logged but don't fail the stage)
+    let artifactsExtracted = 0;
+    try {
+      if (appConfig.artifacts.enabled) {
+        const artifactResult = await extractArtifacts(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+        artifactsExtracted = artifactResult.artifactsCreated;
+        if (artifactsExtracted > 0) {
+          const deliveryResult = await deliverArtifacts(ctx.callId, ctx.callerId, ctx.log);
+          ctx.log.info("Artifact delivery result", deliveryResult);
+        }
+      }
+    } catch (err: any) {
+      ctx.log.warn(`Artifact extraction failed (non-blocking): ${err.message}`);
+    }
+
     return {
       playbookUsed: callerResult.playbookUsed,
       scoresCreated: callerResult.scoresCreated,
       memoriesCreated: callerResult.memoriesCreated,
       deltasComputed: deltaResult.deltasComputed,
       curriculumUpdated,
+      artifactsExtracted,
       learningAssessment: callerResult.learningAssessment ? {
         moduleId: callerResult.learningAssessment.moduleId,
         mastery: callerResult.learningAssessment.overallMastery,
@@ -2038,6 +2068,16 @@ const stageExecutors: Record<string, StageExecutor> = {
   // SCORE_AGENT stage: Score agent behavior (batched)
   SCORE_AGENT: async (ctx, stage) => {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
+
+    // Idempotency: skip AI call if measurements already exist for this call
+    if (!ctx.force) {
+      const existingMeasurements = await prisma.behaviorMeasurement.count({ where: { callId: ctx.callId } });
+      if (existingMeasurements > 0) {
+        ctx.log.info(`SCORE_AGENT skipped: ${existingMeasurements} measurements already exist for call ${ctx.callId} (use force=true to re-run)`);
+        return { agentMeasurements: 0, skippedReason: "existing_measurements" };
+      }
+    }
+
     const agentResult = await runBatchedAgentAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
     return {
       agentMeasurements: agentResult.measurementsCreated,
@@ -2077,36 +2117,68 @@ const stageExecutors: Record<string, StageExecutor> = {
   },
 
   // ADAPT stage: Compute personalized targets
+  // Ops 1-3 are independent and run in parallel for latency savings
   ADAPT: async (ctx, stage) => {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
 
-    // 1. Run AI-based adapt specs (creates CallTarget entries)
-    const adaptResult = await runAdaptSpecs(ctx.callId, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log);
+    // Idempotency: skip AI calls if targets already exist for this call
+    if (!ctx.force) {
+      const existingTargets = await prisma.callTarget.count({ where: { callId: ctx.callId } });
+      if (existingTargets > 0) {
+        ctx.log.info(`ADAPT skipped: ${existingTargets} targets already exist for call ${ctx.callId} (use force=true to re-run)`);
+        return { callTargetsCreated: 0, skippedReason: "existing_targets" };
+      }
+    }
 
-    // 2. Run rule-based adapt specs (creates/updates CallerTarget entries based on learner profile)
-    const ruleBasedResult = await runRuleBasedAdapt(ctx.callerId);
-    ctx.log.info(`Rule-based adapt completed`, {
-      specsRun: ruleBasedResult.specsRun,
-      targetsCreated: ruleBasedResult.targetsCreated,
-      targetsUpdated: ruleBasedResult.targetsUpdated,
-      errors: ruleBasedResult.errors
-    });
+    const startTime = Date.now();
 
-    // 3. Extract goals from transcript (GOAL-001)
-    const goalExtractionResult = await extractGoals(ctx.call, ctx.callerId, ctx.engine, ctx.log);
-    ctx.log.info(`Goal extraction completed`, {
-      goalsCreated: goalExtractionResult.goalsCreated,
-      goalsUpdated: goalExtractionResult.goalsUpdated,
-      goalsSkipped: goalExtractionResult.goalsSkipped,
-      errors: goalExtractionResult.errors,
-    });
+    // Run AI adapt, rule-based adapt, and goal extraction in parallel
+    const [adaptSettled, ruleSettled, goalSettled] = await Promise.allSettled([
+      // 1. AI-based adapt specs (creates CallTarget entries)
+      runAdaptSpecs(ctx.callId, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log),
+      // 2. Rule-based adapt specs (creates/updates CallerTarget entries)
+      runRuleBasedAdapt(ctx.callerId),
+      // 3. Extract goals from transcript (GOAL-001)
+      extractGoals(ctx.call, ctx.callerId, ctx.engine, ctx.log),
+    ]);
 
-    // 4. Track goal progress based on call outcomes
+    const adaptResult = adaptSettled.status === "fulfilled" ? adaptSettled.value : { targetsCreated: 0 };
+    if (adaptSettled.status === "rejected") {
+      ctx.log.error(`AI-based adapt failed (non-blocking)`, { error: adaptSettled.reason?.message || String(adaptSettled.reason) });
+    }
+
+    const ruleBasedResult = ruleSettled.status === "fulfilled" ? ruleSettled.value : { specsRun: 0, targetsCreated: 0, targetsUpdated: 0, errors: [] };
+    if (ruleSettled.status === "rejected") {
+      ctx.log.error(`Rule-based adapt failed (non-blocking)`, { error: ruleSettled.reason?.message || String(ruleSettled.reason) });
+    } else {
+      ctx.log.info(`Rule-based adapt completed`, {
+        specsRun: ruleBasedResult.specsRun,
+        targetsCreated: ruleBasedResult.targetsCreated,
+        targetsUpdated: ruleBasedResult.targetsUpdated,
+        errors: ruleBasedResult.errors
+      });
+    }
+
+    const goalExtractionResult = goalSettled.status === "fulfilled" ? goalSettled.value : { goalsCreated: 0, goalsUpdated: 0, goalsSkipped: 0, errors: [] };
+    if (goalSettled.status === "rejected") {
+      ctx.log.error(`Goal extraction failed (non-blocking)`, { error: goalSettled.reason?.message || String(goalSettled.reason) });
+    } else {
+      ctx.log.info(`Goal extraction completed`, {
+        goalsCreated: goalExtractionResult.goalsCreated,
+        goalsUpdated: goalExtractionResult.goalsUpdated,
+        goalsSkipped: goalExtractionResult.goalsSkipped,
+        errors: goalExtractionResult.errors,
+      });
+    }
+
+    // 4. Track goal progress — depends on extracted goals, runs after
     const goalResult = await trackGoalProgress(ctx.callerId, ctx.callId);
     ctx.log.info(`Goal tracking completed`, {
       goalsUpdated: goalResult.updated,
       goalsCompleted: goalResult.completed,
     });
+
+    ctx.log.info(`ADAPT parallel ops completed in ${Date.now() - startTime}ms`);
 
     return {
       callTargetsCreated: adaptResult.targetsCreated,
@@ -2294,7 +2366,7 @@ export async function POST(
 
     const { callId } = await params;
     const body = await request.json().catch(() => ({}));
-    const { callerId, mode, engine: requestedEngine } = body;
+    const { callerId, mode, engine: requestedEngine, force = false } = body;
 
     if (!callerId) {
       return NextResponse.json({ ok: false, error: "callerId is required", logs: log.getLogs() }, { status: 400 });
@@ -2349,6 +2421,7 @@ export async function POST(
       guardrails,
       pipelineStages,
       mode: mode as "prep" | "prompt",
+      force,
       log,
       request,
       results: {},

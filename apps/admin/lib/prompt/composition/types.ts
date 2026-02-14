@@ -49,6 +49,8 @@ export interface ResolvedSpec {
   slug?: string;
   config: any;
   description?: string | null;
+  /** Base archetype ID (e.g., "TUT-001") — triggers merge at composition time */
+  extendsAgent?: string | null;
 }
 
 export interface ResolvedSpecs {
@@ -212,6 +214,8 @@ export interface MemoryData {
   value: string;
   confidence: number;
   evidence: string | null;
+  extractedAt: Date | null;
+  decayFactor: number;
 }
 
 export interface PersonalityData {
@@ -362,6 +366,8 @@ export interface SystemSpecData {
   config: any;
   domain: string | null;
   promptTemplate?: string | null;
+  /** Base archetype ID (e.g., "TUT-001") — for overlay specs */
+  extendsAgent?: string | null;
 }
 
 // === TRANSFORM FUNCTION SIGNATURE ===

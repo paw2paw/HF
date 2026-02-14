@@ -20,6 +20,12 @@ interface GraphNode {
   group?: string;
   isOrphan?: boolean; // true if node has no edges (for top-level types only)
   details?: NodeDetail[]; // Field+value pairs shown on hover
+  // Visual encoding metadata (used by rich mode)
+  anchorCount?: number;
+  confidence?: number;
+  source?: string;
+  minValue?: number;
+  maxValue?: number;
 }
 
 interface GraphEdge {
@@ -299,6 +305,7 @@ export async function GET(request: NextRequest) {
         type: "parameter",
         slug: param.parameterId,
         group: param.sectionId,
+        anchorCount: param.scoringAnchors?.length ?? 0,
         details: [
           { label: "ID", value: param.parameterId },
           { label: "Name", value: param.name },
@@ -392,6 +399,8 @@ export async function GET(request: NextRequest) {
           id: `range:${slug.id}/${range.id}`,
           label: rangeLabel,
           type: "range",
+          minValue: range.minValue ?? undefined,
+          maxValue: range.maxValue ?? undefined,
           details: [
             { label: "Label", value: range.label ?? null },
             { label: "Min", value: range.minValue ?? null },
@@ -431,6 +440,8 @@ export async function GET(request: NextRequest) {
         id: `target:${target.id}`,
         label: targetLabel,
         type: "behaviorTarget",
+        confidence: target.confidence ?? undefined,
+        source: target.source ?? undefined,
         details: [
           { label: "Target Value", value: target.targetValue },
           { label: "Scope", value: target.scope },

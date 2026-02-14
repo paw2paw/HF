@@ -33,6 +33,42 @@ enum ContentTrustLevel {
   UNVERIFIED          // L0: Unreviewed submissions, user notes (default)
 }
 
+// Conversation artifact types - content worth sharing from a call
+enum ConversationArtifactType {
+  SUMMARY // Call summary / key takeaways
+  KEY_FACT // Important fact discussed or taught
+  FORMULA // Mathematical or domain formula
+  EXERCISE // Practice question or exercise
+  RESOURCE_LINK // Book, tool, or resource reference
+  STUDY_NOTE // Study note or revision aid
+  REMINDER // Follow-up action or reminder
+  MEDIA // Image, PDF, or audio clip
+}
+
+// Artifact trust level - how well the content traces to trusted sources
+enum ArtifactTrustLevel {
+  VERIFIED // All facts trace to ContentAssertions
+  INFERRED // AI-generated but plausible
+  UNVERIFIED // Caller-contributed or unverifiable
+}
+
+// Artifact delivery status
+enum ArtifactStatus {
+  PENDING // Extracted, not yet delivered
+  SENT // Sent to channel (awaiting confirmation)
+  DELIVERED // Confirmed delivered
+  READ // Confirmed read/opened
+  FAILED // Delivery failed
+}
+
+// Inbound message types from callers
+enum InboundMessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+}
+
 // Goal types - different kinds of objectives for callers
 enum GoalType {
   LEARN // Knowledge/skill acquisition (curriculum-based)
@@ -671,8 +707,16 @@ model Caller {
   // Caller's goals (learn, achieve, connect, etc.)
   goals Goal[]
 
+  // Conversation artifacts (content shared after calls)
+  artifacts       ConversationArtifact[]
+  inboundMessages InboundMessage[]
+  artifactConsent Boolean @default(true) // true for sim, explicit opt-in for WhatsApp
+
   // Onboarding tracking per domain
   onboardingSessions OnboardingSession[]
+
+  // Archive: null = active, non-null = archived with timestamp
+  archivedAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -680,6 +724,7 @@ model Caller {
   @@index([externalId])
   @@index([domainId])
   @@index([previousDomainId])
+  @@index([archivedAt])
 }
 
 // ExcludedCaller - Phone numbers/IDs to skip during transcript import
@@ -924,6 +969,9 @@ model Call {
 
   // Per-call behavior targets (computed by ADAPT specs)
   callTargets CallTarget[]
+
+  // Conversation artifacts extracted from this call
+  artifacts ConversationArtifact[]
 
   // Onboarding tracking (if this call was the first in a domain)
   onboardingSessionsAsFirstCall OnboardingSession[]
@@ -1853,6 +1901,10 @@ model AnalysisSpec {
   priority Int     @default(0) // Higher = more important
   isActive Boolean @default(true)
 
+  // Base agent reference — for overlay IDENTITY specs that extend a base archetype
+  // Value is the spec ID (e.g., "TUT-001"). Prompt composition merges base + overlay at runtime.
+  extendsAgent String?
+
   // Deletion control - prevents accidental deletion of critical specs
   isDeletable Boolean @default(true) // ORCHESTRATE specs (PIPELINE-001, INIT-001) should be false
 
@@ -1936,6 +1988,7 @@ model AnalysisSpec {
   @@index([compiledSetId])
   @@index([sourceFeatureSetId])
   @@index([isLocked])
+  @@index([extendsAgent])
   // Keep old name as map for migration compatibility
   @@map("BddFeature")
 }
@@ -3419,4 +3472,78 @@ model SubjectDomain {
   @@unique([subjectId, domainId])
   @@index([subjectId])
   @@index([domainId])
+}
+
+// =============================================================================
+// Conversation Artifacts — content shared after calls
+// =============================================================================
+
+// ConversationArtifact - Content extracted from calls worth sharing with the caller
+// Channel-agnostic: works in Sim (Phase 1) and WhatsApp (Phase 2)
+model ConversationArtifact {
+  id String @id @default(uuid())
+
+  // Source
+  callId   String
+  call     Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Content
+  type      ConversationArtifactType // SUMMARY, KEY_FACT, FORMULA, EXERCISE, etc.
+  title     String // Short descriptive title
+  content   String @db.Text // Markdown text body
+  mediaUrl  String? // For images/PDFs — URL to stored media
+  mediaType String? // MIME type: image/png, application/pdf, audio/mpeg
+
+  // Trust chain — links to ContentAssertion IDs for provenance
+  contentAssertionIds String[] // Array of ContentAssertion IDs
+  trustLevel          ArtifactTrustLevel @default(INFERRED)
+
+  // Extraction metadata
+  confidence Float @default(0.8) // 0-1: extraction confidence
+  evidence   String? @db.Text // Transcript excerpt that triggered extraction
+
+  // Delivery
+  status             ArtifactStatus @default(PENDING)
+  channel            String         @default("sim") // "sim" | "whatsapp"
+  externalMessageId  String? // WhatsApp message ID (Phase 2)
+  deliveredAt        DateTime?
+  readAt             DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([callId])
+  @@index([callerId])
+  @@index([callerId, status])
+  @@index([status])
+}
+
+// InboundMessage - Content sent by callers (sim text input or future WhatsApp messages)
+// Processed into CallerMemory for inclusion in next call's prompt
+model InboundMessage {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Channel
+  channel           String  @default("sim") // "sim" | "whatsapp"
+  externalMessageId String? // WhatsApp message ID (Phase 2)
+
+  // Content
+  type      InboundMessageType @default(TEXT)
+  content   String?            @db.Text // Text body or transcription
+  mediaUrl  String? // Downloaded + stored media URL
+  mediaType String? // MIME type
+
+  // Processing state
+  processed   Boolean @default(false)
+  processedAs String? // "CALLER_MEMORY", "GOAL_UPDATE", etc.
+
+  createdAt DateTime @default(now())
+
+  @@index([callerId])
+  @@index([processed])
 }

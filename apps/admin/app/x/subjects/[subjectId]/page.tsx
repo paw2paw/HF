@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
 
 // ------------------------------------------------------------------
 // Trust level config
@@ -106,6 +107,7 @@ type CurriculumModule = {
 export default function SubjectDetailPage() {
   const { subjectId } = useParams<{ subjectId: string }>();
   const router = useRouter();
+  const { addJob: addToGlobalQueue } = useContentJobQueue();
 
   const [subject, setSubject] = useState<Subject | null>(null);
   const [loading, setLoading] = useState(true);
@@ -240,12 +242,12 @@ export default function SubjectDetailPage() {
 
     setUploadResults([]);
 
-    for (const file of validFiles) {
+    // Upload all files in parallel — each returns immediately with a background job
+    const uploads = validFiles.map(async (file) => {
       setUploadingFiles((prev) => [...prev, file.name]);
       try {
         const fd = new FormData();
         fd.append("file", file);
-        fd.append("mode", "import");
         fd.append("tags", "content");
 
         const res = await fetch(`/api/subjects/${subjectId}/upload`, {
@@ -253,15 +255,32 @@ export default function SubjectDetailPage() {
           body: fd,
         });
         const data = await res.json();
-        setUploadResults((prev) => [...prev, { fileName: file.name, ...data }]);
+
+        // Add to global job queue for background tracking
+        if (data.ok && data.jobId) {
+          addToGlobalQueue(
+            data.jobId,
+            data.source.id,
+            data.source.name,
+            file.name
+          );
+          setUploadResults((prev) => [
+            ...prev,
+            { fileName: file.name, ok: true, message: "Extraction started in background" },
+          ]);
+        } else {
+          setUploadResults((prev) => [...prev, { fileName: file.name, ...data }]);
+        }
       } catch (err: any) {
         setUploadResults((prev) => [...prev, { fileName: file.name, ok: false, error: err.message }]);
       } finally {
         setUploadingFiles((prev) => prev.filter((n) => n !== file.name));
       }
-    }
+    });
 
-    // Refresh subject data
+    await Promise.all(uploads);
+
+    // Refresh subject data (new sources will show even before extraction completes)
     loadSubject();
   }
 
@@ -574,7 +593,9 @@ export default function SubjectDetailPage() {
                 }}
               >
                 {r.ok
-                  ? `${r.fileName}: ${r.created} assertions extracted (${r.duplicatesSkipped} duplicates skipped)`
+                  ? r.message
+                    ? `${r.fileName}: ${r.message}`
+                    : `${r.fileName}: ${r.created} assertions extracted (${r.duplicatesSkipped} duplicates skipped)`
                   : `${r.fileName}: ${r.error}`}
               </div>
             ))}

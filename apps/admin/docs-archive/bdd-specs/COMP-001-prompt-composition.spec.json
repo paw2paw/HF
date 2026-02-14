@@ -169,7 +169,7 @@
       ],
       "config": {
         "templates": "From memory_section.config.narrativeTemplates (key -> template with {value})",
-        "fallback": "From memory_section.config.genericNarrativeTemplate (default: Their {key} is {value})"
+        "fallback": "From memory_section.config.genericNarrativeTemplate (default: They mentioned their {key} is {value})"
       }
     },
     {
@@ -312,7 +312,7 @@
           "education": "Their educational background is in {value}",
           "language": "Their preferred language is {value}"
         },
-        "genericNarrativeTemplate": "Their {key} is {value}",
+        "genericNarrativeTemplate": "They mentioned their {key} is {value}",
         "instructionCategoryLimits": {
           "FACT": 3,
           "RELATIONSHIP": 2,

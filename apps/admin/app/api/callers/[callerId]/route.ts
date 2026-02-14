@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { composeContentSection } from "@/lib/prompt/compose-content-section";
 import { getLearnerProfile } from "@/lib/learner/profile";
 import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
+import { deleteCallerData } from "@/lib/gdpr/delete-caller-data";
+import { auditLog, AuditAction } from "@/lib/audit";
 
 /**
  * @api GET /api/callers/:callerId
@@ -39,6 +41,7 @@ export async function GET(
           externalId: true,
           createdAt: true,
           domainId: true,
+          archivedAt: true,
           domain: {
             select: {
               id: true,
@@ -80,7 +83,7 @@ export async function GET(
         },
       }),
 
-      // Active memories (not superseded, not expired)
+      // Active memories (not superseded, not expired), deduplicated by normalizedKey
       prisma.callerMemory.findMany({
         where: {
           callerId: callerId,
@@ -91,17 +94,30 @@ export async function GET(
           ],
         },
         orderBy: [{ category: "asc" }, { confidence: "desc" }],
-        take: 100,
+        take: 200, // fetch extra to allow dedup
         select: {
           id: true,
           category: true,
           key: true,
           value: true,
+          normalizedKey: true,
           evidence: true,
           confidence: true,
+          decayFactor: true,
           extractedAt: true,
           expiresAt: true,
         },
+      }).then(raw => {
+        // Deduplicate by normalizedKey — keep highest confidence per key
+        const seen = new Map<string, typeof raw[0]>();
+        for (const m of raw) {
+          const dedup = m.normalizedKey || m.key;
+          const existing = seen.get(dedup);
+          if (!existing || (m.confidence ?? 0) > (existing.confidence ?? 0)) {
+            seen.set(dedup, m);
+          }
+        }
+        return Array.from(seen.values()).slice(0, 100);
       }),
 
       // Memory summary
@@ -287,7 +303,7 @@ export async function GET(
     }
 
     // Get counts
-    const [callCount, memoryCount, observationCount, measurementsCount] = await Promise.all([
+    const [callCount, memoryCount, observationCount, measurementsCount, artifactCount] = await Promise.all([
       prisma.call.count({ where: { callerId: callerId } }),
       prisma.callerMemory.count({
         where: {
@@ -307,6 +323,7 @@ export async function GET(
         distinct: ['parameterId'],
         select: { parameterId: true },
       }).then(results => results.length),
+      prisma.conversationArtifact.count({ where: { callerId: callerId } }),
     ]);
 
     // Get behavior targets count for this caller
@@ -468,6 +485,7 @@ export async function GET(
         targets: targetsCount,
         callerTargets: callerTargets.length,
         measurements: measurementsCount,
+        artifacts: artifactCount,
         curriculumModules: curriculum?.totalModules || 0,
         curriculumCompleted: curriculum?.completedCount || 0,
         goals: goals.length,
@@ -495,6 +513,7 @@ export async function GET(
  * @body email string - Caller email
  * @body phone string - Caller phone number
  * @body domainId string - New domain ID (triggers domain switch if different)
+ * @body archive boolean - Set true to archive, false to unarchive
  * @response 200 { ok: true, caller: object, goalsCreated?: string[] }
  * @response 400 { ok: false, error: "Domain not found" }
  * @response 404 { ok: false, error: "Caller not found" }
@@ -512,7 +531,7 @@ export async function PATCH(
     const body = await req.json();
 
     // Allowed fields to update
-    const { name, email, phone, domainId } = body;
+    const { name, email, phone, domainId, archive } = body;
 
     // Check if domain is changing (for domain-switch logic)
     const currentCaller = await prisma.caller.findUnique({
@@ -537,12 +556,14 @@ export async function PATCH(
       domainId?: string | null;
       previousDomainId?: string | null;
       domainSwitchCount?: number;
+      archivedAt?: Date | null;
     } = {};
 
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
     if (domainId !== undefined) updateData.domainId = domainId;
+    if (archive !== undefined) updateData.archivedAt = archive ? new Date() : null;
 
     // Track domain switches
     if (isDomainSwitch) {
@@ -576,6 +597,7 @@ export async function PATCH(
         domainId: true,
         previousDomainId: true,
         domainSwitchCount: true,
+        archivedAt: true,
         domain: {
           select: {
             id: true,
@@ -762,49 +784,24 @@ export async function DELETE(
       }
     }
 
-    // Delete all related records (order matters due to FK constraints)
-    // Delete in order of dependency
-    await prisma.$transaction(async (tx) => {
-      // Delete call-related records first
-      const callIds = await tx.call.findMany({
-        where: { callerId },
-        select: { id: true },
-      });
-      const callIdList = callIds.map((c) => c.id);
+    // Delete all related records via shared utility
+    const deletionCounts = await deleteCallerData(callerId);
+    const excluded = exclude && !!(caller.phone || caller.externalId);
 
-      if (callIdList.length > 0) {
-        // Delete records that reference calls
-        await tx.callScore.deleteMany({ where: { callId: { in: callIdList } } });
-        await tx.behaviorMeasurement.deleteMany({ where: { callId: { in: callIdList } } });
-        await tx.callTarget.deleteMany({ where: { callId: { in: callIdList } } });
-        await tx.rewardScore.deleteMany({ where: { callId: { in: callIdList } } });
-      }
-
-      // Delete caller-related records
-      await tx.callerMemory.deleteMany({ where: { callerId } });
-      await tx.callerMemorySummary.deleteMany({ where: { callerId } });
-      await tx.personalityObservation.deleteMany({ where: { callerId } });
-      await tx.callerPersonality.deleteMany({ where: { callerId } });
-      await tx.callerPersonalityProfile.deleteMany({ where: { callerId } });
-      await tx.promptSlugSelection.deleteMany({ where: { callerId } });
-      await tx.composedPrompt.deleteMany({ where: { callerId } });
-      await tx.callerTarget.deleteMany({ where: { callerId } });
-      await tx.callerAttribute.deleteMany({ where: { callerId } });
-
-      // Delete caller identities
-      await tx.callerIdentity.deleteMany({ where: { callerId } });
-
-      // Delete calls
-      await tx.call.deleteMany({ where: { callerId } });
-
-      // Finally delete the caller
-      await tx.caller.delete({ where: { id: callerId } });
+    // Audit trail (non-blocking, non-throwing)
+    auditLog({
+      userId: authResult.session.user.id,
+      userEmail: authResult.session.user.email,
+      action: AuditAction.DELETED_CALLER,
+      entityType: "Caller",
+      entityId: callerId,
+      metadata: { excluded, deletionCounts },
     });
 
     return NextResponse.json({
       ok: true,
       message: `Deleted caller ${caller.name || caller.phone || callerId}`,
-      excluded: exclude && (caller.phone || caller.externalId),
+      excluded,
     });
   } catch (error: any) {
     console.error("Error deleting caller:", error);

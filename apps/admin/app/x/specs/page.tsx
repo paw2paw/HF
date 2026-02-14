@@ -12,6 +12,7 @@ import {
 } from "@/components/shared/ExplorerTree";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
+import { Zap, FileJson } from "lucide-react";
 import { SpecPill, ParameterPill, DomainPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { SpecRoleBadge, getSpecEditorRoute, requiresSpecialEditor } from "@/components/shared/SpecRoleBadge";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
@@ -1925,8 +1926,8 @@ export default function SpecsPage() {
               <DraggableTabs
                 storageKey={`spec-detail-tabs-${spec.id}`}
                 tabs={[
-                  { id: "derived", label: "Derived Output" },
-                  ...(featureSet ? [{ id: "source", label: "Source Spec" }] : []),
+                  { id: "derived", label: "Derived Output", icon: <Zap size={14} /> },
+                  ...(featureSet ? [{ id: "source", label: "Source Spec", icon: <FileJson size={14} /> }] : []),
                 ]}
                 activeTab={activeTab}
                 onTabChange={(id) => setActiveTab(id as "derived" | "source")}

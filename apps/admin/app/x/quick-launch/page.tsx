@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ReviewPanel from "./ReviewPanel";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
+import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
 
 // ── Types ──────────────────────────────────────────
 
@@ -489,6 +490,7 @@ export default function QuickLaunchPage() {
   const [file, setFile] = useState<File | null>(null);
   const [qualificationRef, setQualificationRef] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [launchMode, setLaunchMode] = useState<"upload" | "generate">("generate");
 
   // Personas from API
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -570,6 +572,11 @@ export default function QuickLaunchPage() {
       setQualificationRef(ctx.input.qualificationRef || "");
     }
 
+    // Restore launch mode
+    if (ctx.mode) {
+      setLaunchMode(ctx.mode);
+    }
+
     // Restore preview if available
     if (ctx.preview) {
       setPreview(ctx.preview);
@@ -582,7 +589,26 @@ export default function QuickLaunchPage() {
       setOverrides(ctx.overrides);
     }
 
-    setPhase(ctx.phase === "review" ? "review" : "form");
+    // If still building (extraction in progress), resume polling instead of going to form
+    if (ctx.phase === "building" && ctx.sourceId && ctx.jobId) {
+      setPreview({
+        domainId: ctx.domainId,
+        domainSlug: ctx.domainSlug,
+        domainName: ctx.domainName,
+        subjectId: ctx.subjectId,
+        sourceId: ctx.sourceId,
+      });
+      setExtractionJobId(ctx.jobId);
+      setExtractionSourceId(ctx.sourceId);
+      setAnalysisProgress(10);
+      setAnalysisLabel("Resuming extraction...");
+      setPhase("review"); // Shows review panel with progress bar + skeletons
+    } else if (ctx.phase === "review") {
+      setPhase("review");
+    } else {
+      setPhase("form");
+    }
+
     setResumeTask(null);
   }, [resumeTask]);
 
@@ -654,9 +680,93 @@ export default function QuickLaunchPage() {
     e.stopPropagation();
   }, []);
 
+  // ── Global job queue ──────────────────────────────
+  const { addJob: addToGlobalQueue } = useContentJobQueue();
+
+  // Poll extraction job for completion
+  const jobPollRef = useRef<NodeJS.Timeout | null>(null);
+  const [extractionJobId, setExtractionJobId] = useState<string | null>(null);
+  const [extractionSourceId, setExtractionSourceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!extractionJobId || !extractionSourceId) return;
+    if (analysisComplete) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `/api/content-sources/${extractionSourceId}/import?jobId=${extractionJobId}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.ok || !data.job) return;
+
+        const job = data.job;
+        const pct =
+          job.totalChunks > 0
+            ? Math.round((job.currentChunk / job.totalChunks) * 80) + 10
+            : 10;
+
+        if (job.status === "extracting") {
+          setAnalysisProgress(pct);
+          setAnalysisLabel(
+            `Extracting... ${job.extractedCount} teaching points found`
+          );
+        } else if (job.status === "importing") {
+          setAnalysisProgress(85);
+          setAnalysisLabel("Saving content...");
+        } else if (job.status === "done") {
+          // Extraction complete — fetch full preview from UserTask
+          setAnalysisProgress(95);
+          setAnalysisLabel("Finishing up...");
+          if (jobPollRef.current) clearInterval(jobPollRef.current);
+
+          // Update preview with assertion count from job
+          setPreview((prev) => ({
+            ...prev,
+            assertionCount: job.importedCount ?? job.extractedCount ?? 0,
+          }));
+
+          // Fetch full preview from task (includes identity config + assertion summary)
+          if (taskId) {
+            try {
+              const taskRes = await fetch(`/api/tasks?status=in_progress`);
+              const taskData = await taskRes.json();
+              if (taskData.ok && taskData.tasks) {
+                const qlTask = taskData.tasks.find(
+                  (t: any) => t.id === taskId && t.context?.preview
+                );
+                if (qlTask?.context?.preview) {
+                  setPreview(qlTask.context.preview as Partial<AnalysisPreview>);
+                }
+              }
+            } catch {
+              // Preview from task unavailable — continue with what we have
+            }
+          }
+
+          setAnalysisComplete(true);
+          setAnalysisProgress(100);
+          setAnalysisLabel("Analysis complete!");
+        } else if (job.status === "error") {
+          if (jobPollRef.current) clearInterval(jobPollRef.current);
+          setError(job.error || "Content extraction failed");
+        }
+      } catch {
+        // Keep polling
+      }
+    };
+
+    jobPollRef.current = setInterval(poll, 3000);
+    poll(); // Run immediately
+    return () => {
+      if (jobPollRef.current) clearInterval(jobPollRef.current);
+    };
+  }, [extractionJobId, extractionSourceId, analysisComplete, taskId]);
+
   // ── Build My Tutor (Analyze) ─────────────────────
 
-  const canLaunch = subjectName.trim() && persona && file && phase === "form";
+  const canLaunch = subjectName.trim() && persona && (launchMode === "generate" || !!file) && phase === "form";
 
   const handleBuild = async () => {
     if (!canLaunch) return;
@@ -666,13 +776,16 @@ export default function QuickLaunchPage() {
     setPreview({});
     setOverrides({});
     setAnalysisComplete(false);
-    setAnalysisProgress(0);
+    setAnalysisProgress(5);
     setAnalysisLabel("Setting up domain...");
 
     const formData = new FormData();
     formData.append("subjectName", subjectName.trim());
     formData.append("persona", persona);
-    formData.append("file", file!);
+    formData.append("mode", launchMode);
+    if (launchMode === "upload" && file) {
+      formData.append("file", file);
+    }
     if (goals.length > 0) {
       formData.append("learningGoals", JSON.stringify(goals));
     }
@@ -686,145 +799,47 @@ export default function QuickLaunchPage() {
         body: formData,
       });
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.error || `Server error: ${response.status}`);
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response stream");
+      // Set scaffold data immediately
+      setTaskId(data.taskId || null);
+      setPreview({
+        domainId: data.domainId,
+        domainSlug: data.domainSlug,
+        domainName: data.domainName,
+        subjectId: data.subjectId,
+        sourceId: data.sourceId || "",
+        identityConfig: data.identityConfig || null,
+        mode: launchMode,
+      });
 
-      const decoder = new TextDecoder();
-      let buffer = "";
-      const totalAnalysisSteps = 4;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const block of lines) {
-          const dataLine = block.split("\n").find((l) => l.startsWith("data: "));
-          if (!dataLine) continue;
-
-          try {
-            const event = JSON.parse(dataLine.slice(6));
-            handleAnalysisEvent(event, totalAnalysisSteps);
-          } catch {
-            // Ignore malformed events
-          }
-        }
+      if (launchMode === "upload" && file) {
+        // Upload mode: start polling for extraction completion
+        addToGlobalQueue(
+          data.jobId,
+          data.sourceId,
+          data.domainName || subjectName.trim(),
+          file.name
+        );
+        setExtractionJobId(data.jobId);
+        setExtractionSourceId(data.sourceId);
+        setAnalysisProgress(10);
+        setAnalysisLabel("Extracting content...");
+      } else {
+        // Generate mode: no extraction needed — go straight to review
+        setAnalysisComplete(true);
+        setAnalysisProgress(100);
+        setAnalysisLabel("Ready for review");
       }
 
-      // Process any remaining buffer
-      if (buffer.trim()) {
-        const dataLine = buffer.split("\n").find((l) => l.startsWith("data: "));
-        if (dataLine) {
-          try {
-            const event = JSON.parse(dataLine.slice(6));
-            handleAnalysisEvent(event, totalAnalysisSteps);
-          } catch {
-            // Ignore
-          }
-        }
-      }
+      // Transition to review
+      setPhase("review");
     } catch (err: any) {
       setError(err.message || "Analysis failed");
       setPhase("form");
-    }
-  };
-
-  const handleAnalysisEvent = (event: any, totalSteps: number) => {
-    const { phase: evtPhase, message, data: evtData } = event;
-
-    // Task created
-    if (evtPhase === "task_created" && evtData?.taskId) {
-      setTaskId(evtData.taskId);
-      return;
-    }
-
-    // Error
-    if (evtPhase === "error") {
-      setError(message);
-      setPhase("form");
-      return;
-    }
-
-    // Init
-    if (evtPhase === "init") return;
-
-    // Domain ready
-    if (evtPhase === "domain_ready" && evtData) {
-      setPreview((prev) => ({
-        ...prev,
-        domainId: evtData.domainId,
-        domainSlug: evtData.domainSlug,
-        domainName: evtData.domainName,
-        subjectId: evtData.subjectId,
-      }));
-      setAnalysisProgress(25);
-      setAnalysisLabel("Extracting content...");
-      return;
-    }
-
-    // Extraction progress (per-chunk)
-    if (evtPhase === "extract_content" && message) {
-      setAnalysisLabel(message);
-      return;
-    }
-
-    // Extraction complete
-    if (evtPhase === "extraction_complete" && evtData) {
-      setPreview((prev) => ({
-        ...prev,
-        assertionCount: evtData.assertionCount,
-        assertionSummary: evtData.assertionSummary,
-      }));
-      setAnalysisProgress(50);
-      setAnalysisLabel("Saving content...");
-      return;
-    }
-
-    // Assertions saved
-    if (evtPhase === "assertions_saved" && evtData) {
-      setPreview((prev) => ({ ...prev, sourceId: evtData.sourceId }));
-      setAnalysisProgress(65);
-      setAnalysisLabel("Generating tutor identity...");
-      return;
-    }
-
-    // Identity ready
-    if (evtPhase === "identity_ready" && evtData) {
-      setPreview((prev) => ({
-        ...prev,
-        identityConfig: evtData.identityConfig,
-      }));
-      setAnalysisProgress(90);
-      setAnalysisLabel("Finalizing...");
-      return;
-    }
-
-    // Analysis complete
-    if (evtPhase === "analysis_complete") {
-      if (evtData) {
-        setPreview(evtData as Partial<AnalysisPreview>);
-      }
-      setAnalysisComplete(true);
-      setAnalysisProgress(100);
-      setAnalysisLabel("Analysis complete!");
-      setPhase("review");
-      return;
-    }
-
-    // Generic step progress
-    if (message) {
-      setAnalysisLabel(message);
-      if (event.stepIndex !== undefined && totalSteps > 0) {
-        setAnalysisProgress(((event.stepIndex + 1) / totalSteps) * 100);
-      }
     }
   };
 
@@ -849,6 +864,7 @@ export default function QuickLaunchPage() {
             persona,
             learningGoals: overrides.learningGoals ?? goals,
             qualificationRef: qualificationRef.trim() || undefined,
+            mode: launchMode,
           },
         }),
       });
@@ -976,7 +992,7 @@ export default function QuickLaunchPage() {
 
   // ── Form completion ───────────────────────────────
 
-  const formSteps = [!!subjectName.trim(), !!persona, !!file];
+  const formSteps = [!!subjectName.trim(), !!persona, launchMode === "generate" || !!file];
   const completedSteps = formSteps.filter(Boolean).length;
 
   const selectedPersona = personas.find((p) => p.slug === persona);
@@ -1131,9 +1147,10 @@ export default function QuickLaunchPage() {
             persona,
             personaName: selectedPersona?.name,
             goals,
-            fileName: file?.name || "",
-            fileSize: file?.size || 0,
+            fileName: file?.name,
+            fileSize: file?.size,
             qualificationRef: qualificationRef.trim() || undefined,
+            mode: launchMode,
           }}
           preview={preview}
           overrides={overrides}
@@ -1502,70 +1519,192 @@ export default function QuickLaunchPage() {
             )}
           </FormCard>
 
-          {/* Step 4: Course Material */}
+          {/* Step 4: Curriculum Source */}
           <FormCard>
-            <StepMarker number={4} label="Upload course material" completed={!!file} />
-            <div
-              ref={dropRef}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                padding: file ? "20px 24px" : "44px 24px",
-                borderRadius: 16,
-                border: `2px dashed ${file ? "var(--accent-primary)" : "var(--border-default)"}`,
-                background: file ? "var(--status-info-bg)" : "var(--surface-primary)",
-                textAlign: "center",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {file ? (
-                <div>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-primary)" }}>
-                    {file.name}
-                  </div>
-                  <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-                    {(file.size / 1024).toFixed(0)} KB
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFile(null);
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "var(--accent-primary)",
-                        cursor: "pointer",
-                        marginLeft: 12,
-                        textDecoration: "underline",
-                        fontSize: 14,
-                        fontWeight: 500,
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.25 }}>&#8613;</div>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-secondary)" }}>
-                    Drop a file here or click to browse
-                  </div>
-                  <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 6 }}>
-                    PDF, TXT, Markdown, or JSON
-                  </div>
-                </div>
-              )}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.txt,.md,.markdown,.json"
-              onChange={(e) => handleFile(e.target.files?.[0] || null)}
-              style={{ display: "none" }}
+            <StepMarker
+              number={4}
+              label="Curriculum source"
+              completed={launchMode === "generate" || !!file}
             />
+
+            {/* Mode toggle */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+              <button
+                onClick={() => setLaunchMode("generate")}
+                style={{
+                  flex: 1,
+                  padding: "16px 16px 14px",
+                  borderRadius: 12,
+                  border: `2px solid ${launchMode === "generate" ? "var(--accent-primary)" : "var(--border-default)"}`,
+                  background: launchMode === "generate" ? "var(--status-info-bg)" : "var(--surface-primary)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s",
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                  Generate with AI
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
+                  AI creates your syllabus
+                </div>
+              </button>
+              <button
+                onClick={() => setLaunchMode("upload")}
+                style={{
+                  flex: 1,
+                  padding: "16px 16px 14px",
+                  borderRadius: 12,
+                  border: `2px solid ${launchMode === "upload" ? "var(--accent-primary)" : "var(--border-default)"}`,
+                  background: launchMode === "upload" ? "var(--status-info-bg)" : "var(--surface-primary)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s",
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                  Upload Materials
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
+                  Extract from your documents
+                </div>
+              </button>
+            </div>
+
+            {/* Generate mode: inline summary card */}
+            {launchMode === "generate" && (
+              <div
+                style={{
+                  padding: "20px 24px",
+                  borderRadius: 14,
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>
+                  We&apos;ll build a course for:
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Subject</span>
+                    <span style={{ color: subjectName.trim() ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
+                      {subjectName.trim() || "enter subject above"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Style</span>
+                    <span style={{ color: selectedPersona ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
+                      {selectedPersona?.name || "select above"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 14, alignItems: "flex-start" }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70, paddingTop: 1 }}>Goals</span>
+                    {goals.length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {goals.map((g, i) => (
+                          <span key={i} style={{
+                            padding: "3px 10px",
+                            borderRadius: 8,
+                            background: "var(--surface-tertiary)",
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: "var(--text-primary)",
+                          }}>
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)", fontWeight: 500, fontStyle: "italic" }}>
+                        none (AI will infer)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {goals.length === 0 && (
+                  <div style={{
+                    marginTop: 14,
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    background: "color-mix(in srgb, var(--status-warning-text) 8%, transparent)",
+                    border: "1px solid color-mix(in srgb, var(--status-warning-text) 15%, transparent)",
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    fontWeight: 500,
+                  }}>
+                    Adding learning goals helps AI create a more tailored syllabus
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Upload mode: file dropzone */}
+            {launchMode === "upload" && (
+              <>
+                <div
+                  ref={dropRef}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    padding: file ? "20px 24px" : "44px 24px",
+                    borderRadius: 16,
+                    border: `2px dashed ${file ? "var(--accent-primary)" : "var(--border-default)"}`,
+                    background: file ? "var(--status-info-bg)" : "var(--surface-primary)",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {file ? (
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-primary)" }}>
+                        {file.name}
+                      </div>
+                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+                        {(file.size / 1024).toFixed(0)} KB
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFile(null);
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--accent-primary)",
+                            cursor: "pointer",
+                            marginLeft: 12,
+                            textDecoration: "underline",
+                            fontSize: 14,
+                            fontWeight: 500,
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.25 }}>&#8613;</div>
+                      <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-secondary)" }}>
+                        Drop a file here or click to browse
+                      </div>
+                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 6 }}>
+                        PDF, TXT, Markdown, or JSON
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.md,.markdown,.json"
+                  onChange={(e) => handleFile(e.target.files?.[0] || null)}
+                  style={{ display: "none" }}
+                />
+              </>
+            )}
           </FormCard>
 
           {/* Advanced Options */}
@@ -1673,9 +1812,11 @@ export default function QuickLaunchPage() {
                   <span>
                     {!subjectName.trim()
                       ? "Enter a subject name"
-                      : !file
-                        ? "Upload course material"
-                        : ""}
+                      : !persona
+                        ? "Select a teaching style"
+                        : launchMode === "upload" && !file
+                          ? "Upload course material"
+                          : ""}
                   </span>
                 )}
               </div>

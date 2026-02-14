@@ -145,6 +145,8 @@ registerLoader("memories", async (callerId, config) => {
       value: true,
       confidence: true,
       evidence: true,
+      extractedAt: true,
+      decayFactor: true,
     },
   });
 });
@@ -342,6 +344,7 @@ registerLoader("playbooks", async (callerId, config?: { playbookIds?: string[] }
               config: true,
               promptTemplate: true,
               domain: true,
+              extendsAgent: true,
             },
           },
         },
@@ -365,6 +368,7 @@ registerLoader("systemSpecs", async (_callerId) => {
       outputType: true,
       config: true,
       domain: true,
+      extendsAgent: true,
     },
   });
 });

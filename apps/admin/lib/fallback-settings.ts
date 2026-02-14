@@ -170,8 +170,9 @@ export interface FallbackTranscriptLimits {
 export const DEFAULT_TRANSCRIPT_LIMITS: FallbackTranscriptLimits = {
   "pipeline.measure": 4000,
   "pipeline.learn": 4000,
-  "pipeline.score_agent": 4000,
-  "pipeline.adapt": 2500,
+  "pipeline.score_agent": 3000,
+  "pipeline.adapt": 2000,
+  "pipeline.extract_goals": 3000,
 };
 
 export async function getTranscriptLimitsFallback(): Promise<FallbackTranscriptLimits> {
@@ -217,6 +218,41 @@ export const DEFAULT_AI_MODEL_CONFIGS: Record<string, FallbackAIModelConfig> = {
 
 export async function getAIModelConfigsFallback(): Promise<Record<string, FallbackAIModelConfig>> {
   return getFallback("ai.default_models", DEFAULT_AI_MODEL_CONFIGS);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 6. ACTIVITIES CONFIG (activity toolkit & text delivery)
+// ═══════════════════════════════════════════════════════════
+
+export interface ActivitiesConfig {
+  /** Master switch — disables all activity recommendations when false */
+  enabled: boolean;
+  /** Text message delivery provider */
+  textProvider: "stub" | "twilio" | "vapi-sms";
+  /** Twilio config (only used when textProvider = "twilio") */
+  twilio?: {
+    fromNumber: string;
+    accountSid?: string; // Falls back to env TWILIO_ACCOUNT_SID
+    authToken?: string;  // Falls back to env TWILIO_AUTH_TOKEN
+  };
+  /** Max structured activities the AI should deploy per session */
+  maxActivitiesPerSession: number;
+  /** Max text messages to send per caller per week */
+  maxTextsPerWeek: number;
+  /** Whether between-session text activities are enabled */
+  betweenSessionTextsEnabled: boolean;
+}
+
+export const DEFAULT_ACTIVITIES_CONFIG: ActivitiesConfig = {
+  enabled: true,
+  textProvider: "stub",
+  maxActivitiesPerSession: 2,
+  maxTextsPerWeek: 2,
+  betweenSessionTextsEnabled: false,
+};
+
+export async function getActivitiesConfig(): Promise<ActivitiesConfig> {
+  return getFallback("activities.config", DEFAULT_ACTIVITIES_CONFIG);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -272,6 +308,12 @@ export const FALLBACK_SETTINGS_REGISTRY: FallbackSettingGroup = {
       key: "fallback:ai.default_models",
       label: "AI Model Defaults",
       description: "Default AI provider and model per call point (used when AIConfig DB is empty)",
+      type: "json",
+    },
+    {
+      key: "fallback:activities.config",
+      label: "Activities Config",
+      description: "Activity toolkit settings: enable/disable, text provider (stub/twilio/vapi-sms), session limits, between-session texts",
       type: "json",
     },
   ],

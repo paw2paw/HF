@@ -56,6 +56,7 @@ vi.mock('@prisma/client', () => {
     callScore: {
       findMany: vi.fn(),
       create: vi.fn(),
+      count: vi.fn(),
     },
     compiledAnalysisSet: {
       findMany: vi.fn(),
@@ -81,6 +82,20 @@ vi.mock('@prisma/client', () => {
     knowledgeChunk: {
       create: vi.fn(),
       deleteMany: vi.fn(),
+    },
+    conversationArtifact: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+    },
+    inboundMessage: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+    },
+    contentAssertion: {
+      findMany: vi.fn(),
     },
     $disconnect: vi.fn(),
   };
@@ -128,6 +143,34 @@ vi.mock('@prisma/client', () => {
       NO_CUSTOMER: 'NO_CUSTOMER',
       DB_ERROR: 'DB_ERROR',
       UNKNOWN: 'UNKNOWN',
+    },
+    ConversationArtifactType: {
+      SUMMARY: 'SUMMARY',
+      KEY_FACT: 'KEY_FACT',
+      FORMULA: 'FORMULA',
+      EXERCISE: 'EXERCISE',
+      RESOURCE_LINK: 'RESOURCE_LINK',
+      STUDY_NOTE: 'STUDY_NOTE',
+      REMINDER: 'REMINDER',
+      MEDIA: 'MEDIA',
+    },
+    ArtifactTrustLevel: {
+      VERIFIED: 'VERIFIED',
+      INFERRED: 'INFERRED',
+      UNVERIFIED: 'UNVERIFIED',
+    },
+    ArtifactStatus: {
+      PENDING: 'PENDING',
+      SENT: 'SENT',
+      DELIVERED: 'DELIVERED',
+      READ: 'READ',
+      FAILED: 'FAILED',
+    },
+    InboundMessageType: {
+      TEXT: 'TEXT',
+      IMAGE: 'IMAGE',
+      AUDIO: 'AUDIO',
+      DOCUMENT: 'DOCUMENT',
     },
   };
 });
@@ -198,7 +241,7 @@ vi.mock('@/lib/access-control', () => ({
 // Mock system-settings — provide all exported constants and async getters
 vi.mock('@/lib/system-settings', () => ({
   clearSystemSettingsCache: vi.fn(),
-  getSystemSetting: vi.fn().mockResolvedValue(null),
+  getSystemSetting: vi.fn().mockImplementation(async (_key: string, defaultValue?: any) => defaultValue ?? null),
   PIPELINE_DEFAULTS: { minTranscriptWords: 20, shortTranscriptThresholdWords: 50, shortTranscriptConfidenceCap: 0.3, maxRetries: 2, mockMode: false, personalityDecayHalfLifeDays: 30, mockScoreBase: 0.3, mockScoreRange: 0.4 },
   getPipelineSettings: vi.fn().mockResolvedValue({ minTranscriptWords: 20, shortTranscriptThresholdWords: 50, shortTranscriptConfidenceCap: 0.3, maxRetries: 2, mockMode: false, personalityDecayHalfLifeDays: 30, mockScoreBase: 0.3, mockScoreRange: 0.4 }),
   getPipelineGates: vi.fn().mockResolvedValue({ minTranscriptWords: 20, shortTranscriptThresholdWords: 50, shortTranscriptConfidenceCap: 0.3 }),
@@ -206,6 +249,8 @@ vi.mock('@/lib/system-settings', () => ({
   getMemorySettings: vi.fn().mockResolvedValue({ confidenceDefault: 0.5, confidenceHigh: 0.8, confidenceLow: 0.3, summaryRecentLimit: 10, summaryTopLimit: 5, transcriptLimitChars: 8000 }),
   GOAL_DEFAULTS: { confidenceThreshold: 0.5, similarityThreshold: 0.8, transcriptMinChars: 100, transcriptLimitChars: 4000 },
   getGoalSettings: vi.fn().mockResolvedValue({ confidenceThreshold: 0.5, similarityThreshold: 0.8, transcriptMinChars: 100, transcriptLimitChars: 4000 }),
+  ARTIFACT_DEFAULTS: { confidenceThreshold: 0.6, similarityThreshold: 0.8, transcriptMinChars: 100, transcriptLimitChars: 4000 },
+  getArtifactSettings: vi.fn().mockResolvedValue({ confidenceThreshold: 0.6, similarityThreshold: 0.8, transcriptMinChars: 100, transcriptLimitChars: 4000 }),
   TRUST_DEFAULTS: { weightL5Regulatory: 1.0, weightL4Accredited: 0.95, weightL3Published: 0.80, weightL2Expert: 0.60, weightL1AiAssisted: 0.30, weightL0Unverified: 0.05, certificationMinWeight: 0.80, extractionMaxChunkChars: 8000 },
   getTrustSettings: vi.fn().mockResolvedValue({ weightL5Regulatory: 1.0, weightL4Accredited: 0.95, weightL3Published: 0.80, weightL2Expert: 0.60, weightL1AiAssisted: 0.30, weightL0Unverified: 0.05, certificationMinWeight: 0.80, extractionMaxChunkChars: 8000 }),
   AI_LEARNING_DEFAULTS: { initialConfidence: 0.3, confidenceIncrement: 0.05, minOccurrences: 3 },

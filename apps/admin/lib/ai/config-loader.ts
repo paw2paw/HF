@@ -57,7 +57,8 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "pipeline.measure": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "pipeline.learn": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "pipeline.score_agent": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.adapt": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "pipeline.adapt": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "pipeline.extract_goals": { provider: "claude", model: "claude-3-haiku-20240307" },
   "compose.prompt": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "analysis.measure": { provider: "claude", model: "claude-3-haiku-20240307" },
   "analysis.learn": { provider: "claude", model: "claude-3-haiku-20240307" },
@@ -77,8 +78,13 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "assistant.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "assistant.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "content-trust.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "content-trust.curriculum": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "workflow.classify": { provider: "claude", model: "claude-sonnet-4-20250514" },
   "workflow.step": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "quick-launch.identity": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "test-harness.system": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "test-harness.caller": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "test-harness.greeting": { provider: "claude", model: "claude-sonnet-4-20250514" },
 };
 
 // In-memory cache with TTL

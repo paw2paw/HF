@@ -53,11 +53,12 @@ CMD ["node", "server.js"]
 FROM node:20-alpine AS seed
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
+COPY package.json tsconfig.json ./
 COPY prisma ./prisma
 COPY docs-archive/bdd-specs ./docs-archive/bdd-specs
 COPY lib ./lib
 COPY scripts ./scripts
+COPY transcripts ./transcripts
 RUN npx prisma generate
 CMD ["npx", "tsx", "prisma/seed-clean.ts"]
 

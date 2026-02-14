@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Search, AccountTree } from "@mui/icons-material";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
+import { FileSearch, Workflow } from "lucide-react";
 import RunInspector from "./components/RunInspector";
 import Blueprint from "./components/Blueprint";
 
 type Tab = "inspector" | "blueprint";
 
 const TABS = [
-  { id: "inspector", label: <><Search style={{ fontSize: 16, marginRight: 6 }} />Run Inspector</> },
-  { id: "blueprint", label: <><AccountTree style={{ fontSize: 16, marginRight: 6 }} />Blueprint</> },
+  { id: "inspector", label: "Run Inspector", icon: <FileSearch size={14} /> },
+  { id: "blueprint", label: "Blueprint", icon: <Workflow size={14} /> },
 ];
 
 export default function PipelinePage() {

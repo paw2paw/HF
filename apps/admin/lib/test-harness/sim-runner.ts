@@ -158,6 +158,7 @@ export async function runSimulation(options: SimRunnerOptions): Promise<SimRunne
   const conversationHistory: AIMessage[] = [];
 
   // ─── Turn 1: System agent opens ───
+  // @ai-call test-harness.system — System agent opening turn in sim conversation | config: /x/ai-config
   const openingResult = await getConfiguredMeteredAICompletion(
     {
       callPoint: "test-harness.system",
@@ -183,6 +184,7 @@ export async function runSimulation(options: SimRunnerOptions): Promise<SimRunne
     if (isCallerTurn) {
       // Caller responds
       const callerHistory = invertRoles(conversationHistory);
+      // @ai-call test-harness.caller — Caller persona turn in sim conversation | config: /x/ai-config
       const callerResult = await getConfiguredMeteredAICompletion(
         {
           callPoint: "test-harness.caller",
@@ -201,7 +203,7 @@ export async function runSimulation(options: SimRunnerOptions): Promise<SimRunne
       conversationHistory.push({ role: "user", content: callerText });
       onProgress({ phase: "turn", turn, role: "caller", message: callerText });
     } else {
-      // System responds
+      // @ai-call test-harness.system — System agent response turn in sim conversation | config: /x/ai-config
       const systemResult = await getConfiguredMeteredAICompletion(
         {
           callPoint: "test-harness.system",

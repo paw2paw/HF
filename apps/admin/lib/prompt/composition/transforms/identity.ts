@@ -28,13 +28,16 @@ export function resolveSpecs(
         if (!identitySpec && item.spec.specRole === "IDENTITY" && item.spec.domain !== "voice") {
           identitySpec = {
             name: item.spec.name,
+            slug: item.spec.slug,
             config: item.spec.config,
             description: item.spec.description,
+            extendsAgent: item.spec.extendsAgent || null,
           };
         }
         if (!contentSpec && item.spec.specRole === "CONTENT") {
           contentSpec = {
             name: item.spec.name,
+            slug: item.spec.slug,
             config: item.spec.config,
             description: item.spec.description,
           };
@@ -42,6 +45,7 @@ export function resolveSpecs(
         if (!voiceSpec && (item.spec.specRole === "VOICE" || (item.spec.specRole === "IDENTITY" && item.spec.domain === "voice"))) {
           voiceSpec = {
             name: item.spec.name,
+            slug: item.spec.slug,
             config: item.spec.config,
             description: item.spec.description,
           };
@@ -56,13 +60,13 @@ export function resolveSpecs(
       const role = spec.specRole as string;
 
       if (!identitySpec && role === "IDENTITY" && spec.domain !== "voice") {
-        identitySpec = { name: spec.name, config: spec.config, description: spec.description };
+        identitySpec = { name: spec.name, slug: spec.slug, config: spec.config, description: spec.description, extendsAgent: spec.extendsAgent || null };
       }
       if (!contentSpec && role === "CONTENT") {
-        contentSpec = { name: spec.name, config: spec.config, description: spec.description };
+        contentSpec = { name: spec.name, slug: spec.slug, config: spec.config, description: spec.description };
       }
       if (!voiceSpec && (role === "VOICE" || (role === "IDENTITY" && spec.domain === "voice"))) {
-        voiceSpec = { name: spec.name, config: spec.config, description: spec.description };
+        voiceSpec = { name: spec.name, slug: spec.slug, config: spec.config, description: spec.description };
       }
     }
   }
@@ -101,6 +105,111 @@ export async function resolveVoiceSpecFallback(
   }
 
   return current;
+}
+
+/**
+ * Merge an overlay identity spec with its base archetype.
+ * Uses parameter-level replace: if overlay provides a parameter, it wins.
+ * Base parameters not in overlay are inherited. Constraints stack.
+ *
+ * If no extendsAgent or base not found, returns the overlay unchanged.
+ */
+export async function mergeIdentitySpec(
+  overlay: ResolvedSpec,
+): Promise<ResolvedSpec> {
+  if (!overlay.extendsAgent) return overlay;
+
+  // Convert extendsAgent ID (e.g. "TUT-001") to DB slug (e.g. "spec-tut-001")
+  const baseSlug = `spec-${overlay.extendsAgent.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+  const baseSpec = await prisma.analysisSpec.findFirst({
+    where: {
+      slug: baseSlug,
+      isActive: true,
+    },
+    select: {
+      name: true,
+      slug: true,
+      config: true,
+      description: true,
+    },
+  });
+
+  if (!baseSpec) {
+    console.warn(
+      `[mergeIdentitySpec] Base spec "${overlay.extendsAgent}" (slug: ${baseSlug}) not found or inactive. Using overlay as-is.`
+    );
+    return overlay;
+  }
+
+  const baseConfig = (baseSpec.config as Record<string, any>) || {};
+  const overlayConfig = (overlay.config as Record<string, any>) || {};
+
+  // Get parameters arrays from both specs
+  const baseParams: any[] = baseConfig.parameters || [];
+  const overlayParams: any[] = overlayConfig.parameters || [];
+
+  // Parameter-level merge: overlay replaces base by param id
+  const mergedParamsMap = new Map<string, any>();
+  for (const param of baseParams) {
+    const id = param.id || param.parameterId;
+    if (id) mergedParamsMap.set(id, param);
+  }
+  for (const param of overlayParams) {
+    const id = param.id || param.parameterId;
+    if (id) mergedParamsMap.set(id, param); // Replace or add
+  }
+
+  // Flatten merged params into a config object (same pattern as seed-from-specs)
+  const mergedConfig: Record<string, any> = {};
+
+  // Flatten base parameter configs first
+  for (const param of baseParams) {
+    if (param.config && typeof param.config === "object") {
+      Object.assign(mergedConfig, param.config);
+    }
+  }
+
+  // Overlay parameter configs replace base (parameter-level)
+  for (const param of overlayParams) {
+    if (param.config && typeof param.config === "object") {
+      Object.assign(mergedConfig, param.config);
+    }
+  }
+
+  // Also copy any top-level keys from both configs (non-parameters, non-constraints)
+  for (const key of Object.keys(baseConfig)) {
+    if (key !== "parameters" && key !== "constraints") {
+      mergedConfig[key] = baseConfig[key];
+    }
+  }
+  for (const key of Object.keys(overlayConfig)) {
+    if (key !== "parameters" && key !== "constraints") {
+      mergedConfig[key] = overlayConfig[key]; // Overlay wins
+    }
+  }
+
+  // Store structured parameters for downstream use
+  mergedConfig.parameters = Array.from(mergedParamsMap.values());
+
+  // Constraints stack (base + overlay, never remove base constraints)
+  const baseConstraints = baseConfig.constraints || [];
+  const overlayConstraints = overlayConfig.constraints || [];
+  if (baseConstraints.length > 0 || overlayConstraints.length > 0) {
+    mergedConfig.constraints = [...baseConstraints, ...overlayConstraints];
+  }
+
+  console.log(
+    `[mergeIdentitySpec] Merged "${overlay.extendsAgent}" (${baseParams.length} params) + overlay (${overlayParams.length} params) → ${mergedParamsMap.size} merged params`
+  );
+
+  return {
+    name: overlay.name, // Keep overlay's name (domain-specific)
+    slug: overlay.slug,
+    config: mergedConfig,
+    description: overlay.description || baseSpec.description,
+    extendsAgent: overlay.extendsAgent,
+  };
 }
 
 /**

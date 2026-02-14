@@ -9,6 +9,8 @@ import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
 import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
+import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
+import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 import { GuidanceBridge } from '@/src/components/shared/GuidanceBridge';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Menu } from 'lucide-react';
@@ -147,7 +149,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Mobile layout (< 768px, not forced desktop mode)
   if (isMobile && !showDesktop) {
     return (
-      <div className="h-screen flex flex-col">
+      <div className="h-full flex flex-col">
         {/* Mobile header with hamburger */}
         <header
           className="h-14 border-b flex items-center px-4 gap-3 flex-shrink-0"
@@ -207,14 +209,14 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Desktop layout (current grid)
   return (
     <div
-      className="grid h-screen"
+      className="grid h-full"
       style={{
         gridTemplateColumns: `${effectiveSidebarWidth}px 1fr`,
         transition: isResizing ? 'none' : 'grid-template-columns 150ms ease-out',
       }}
     >
       {/* Sidebar */}
-      <aside className="relative h-screen overflow-hidden border-r bg-[var(--surface-primary)]" style={{ borderColor: "var(--border-subtle)" }}>
+      <aside className="relative h-full overflow-hidden border-r bg-[var(--surface-primary)]" style={{ borderColor: "var(--border-subtle)" }}>
         <div className="h-full px-2 py-4">
           <SimpleSidebarNav
             collapsed={collapsed}
@@ -242,11 +244,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className="flex h-screen min-w-0 flex-col transition-all duration-200"
+        className="flex h-full min-w-0 flex-col transition-all duration-200"
         style={getMainStyle()}
       >
         <div className="flex-1 overflow-auto">
-          <div className="mx-auto px-8 py-6" style={{ maxWidth: '1200px' }}>
+          <div className="px-8 py-6">
             {children}
           </div>
         </div>
@@ -268,29 +270,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased">
-        <ThemeProvider>
-          <PaletteProvider>
-            <SessionProvider>
-              <EntityProvider>
-                <GuidanceProvider>
-                  <ChatProvider>
-                    <GlobalAssistantProvider>
-                      <GuidanceBridge />
-                      <Suspense fallback={null}>
-                        <LayoutInner>{children}</LayoutInner>
-                      </Suspense>
-                      {/* Old AI Chat Panel (Deprecated - use GlobalAssistant instead) */}
-                      {/* <ChatPanel /> */}
-                      {/* New Unified AI Assistant (Cmd+K) - includes search & all features */}
-                      <GlobalAssistant />
-                    </GlobalAssistantProvider>
-                  </ChatProvider>
-                </GuidanceProvider>
-              </EntityProvider>
-            </SessionProvider>
-          </PaletteProvider>
-        </ThemeProvider>
+      <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased flex flex-col">
+        <EnvironmentBanner />
+        <div className="flex-1 min-h-0">
+          <ThemeProvider>
+            <PaletteProvider>
+              <SessionProvider>
+                <EntityProvider>
+                  <GuidanceProvider>
+                    <ChatProvider>
+                      <GlobalAssistantProvider>
+                        <ContentJobQueueProvider>
+                          <GuidanceBridge />
+                          <Suspense fallback={null}>
+                            <LayoutInner>{children}</LayoutInner>
+                          </Suspense>
+                          {/* New Unified AI Assistant (Cmd+K) - includes search & all features */}
+                          <GlobalAssistant />
+                          <ContentJobQueue />
+                        </ContentJobQueueProvider>
+                      </GlobalAssistantProvider>
+                    </ChatProvider>
+                  </GuidanceProvider>
+                </EntityProvider>
+              </SessionProvider>
+            </PaletteProvider>
+          </ThemeProvider>
+        </div>
       </body>
     </html>
   );

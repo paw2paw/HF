@@ -28,6 +28,13 @@ interface GraphNode {
   details?: NodeDetail[];
   value?: number;       // For parameter nodes: score (0-1)
   status?: string;      // For goal nodes: ACTIVE/COMPLETED etc.
+  // Visual encoding metadata (used by rich mode)
+  confidence?: number;
+  decayFactor?: number;
+  category?: string;
+  progress?: number;
+  age?: number;
+  scoreCount?: number;
 }
 
 interface GraphEdge {
@@ -251,12 +258,26 @@ export async function GET(
 
         // Individual memory nodes (cap at 15 per category to avoid clutter)
         for (const mem of mems.slice(0, 15)) {
+          // Compute decay factor based on category and age
+          const categoryDecay: Record<string, number> = {
+            FACT: 1.0, PREFERENCE: 1.0, RELATIONSHIP: 1.0,
+            TOPIC: 0.95, EVENT: 0.90, CONTEXT: 0.85,
+          };
+          const decay = categoryDecay[mem.category] ?? 1.0;
+          const daysSince = mem.extractedAt
+            ? (Date.now() - mem.extractedAt.getTime()) / (1000 * 60 * 60 * 24)
+            : 0;
+          const decayFactor = Math.pow(decay, daysSince / 30);
+
           addNode({
             id: `memory:${mem.id}`,
             label: `${mem.key}: ${mem.value.slice(0, 30)}${mem.value.length > 30 ? "..." : ""}`,
             type: "memory",
             group: "memory",
             value: mem.confidence ?? undefined,
+            confidence: mem.confidence ?? undefined,
+            decayFactor,
+            category: mem.category,
             details: [
               { label: "Key", value: mem.key },
               { label: "Value", value: mem.value.slice(0, 100) },
@@ -272,14 +293,18 @@ export async function GET(
 
     // 5. CALL CLUSTER
     if (calls.length > 0) {
+      const maxSeq = Math.max(...calls.map(c => c.callSequence ?? 0), 1);
       for (const call of calls) {
         const dateStr = call.createdAt.toISOString().split("T")[0];
         const seq = call.callSequence ? `#${call.callSequence}` : "";
+        const age = maxSeq > 0 ? 1 - ((call.callSequence ?? 0) / maxSeq) : 0;
         addNode({
           id: `call:${call.id}`,
           label: `${seq} ${dateStr}`.trim(),
           type: "call",
           group: "calls",
+          scoreCount: call._count.scores + call._count.behaviorMeasurements,
+          age,
           details: [
             { label: "Date", value: dateStr },
             { label: "Source", value: call.source },
@@ -302,6 +327,7 @@ export async function GET(
           group: "goals",
           status: goal.status,
           value: goal.progress,
+          progress: goal.progress,
           details: [
             { label: "Name", value: goal.name },
             { label: "Type", value: goal.type },
@@ -325,6 +351,7 @@ export async function GET(
           type: "target",
           group: "targets",
           value: target.targetValue,
+          confidence: target.confidence ?? undefined,
           details: [
             { label: "Parameter", value: paramName },
             { label: "Target", value: Math.round(target.targetValue * 100) / 100 },

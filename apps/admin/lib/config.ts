@@ -216,6 +216,28 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // VAPI Integration
+  // ---------------------------------------------------------------------------
+  vapi: {
+    /** VAPI API key for updating assistants */
+    get apiKey(): string | undefined {
+      return process.env.VAPI_API_KEY;
+    },
+    /** Webhook secret for verifying VAPI signatures */
+    get webhookSecret(): string | undefined {
+      return process.env.VAPI_WEBHOOK_SECRET;
+    },
+    /** Whether VAPI integration is configured */
+    get isConfigured(): boolean {
+      return !!process.env.VAPI_API_KEY;
+    },
+    /** Auto-run pipeline on call ingest */
+    get autoPipeline(): boolean {
+      return optionalBool("VAPI_AUTO_PIPELINE", true);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // Application
   // ---------------------------------------------------------------------------
   app: {
@@ -230,6 +252,10 @@ export const config = {
     /** Node environment */
     get nodeEnv(): string {
       return optional("NODE_ENV", "development");
+    },
+    /** Application environment label (DEV / STG / LIVE) */
+    get env(): string {
+      return optional("NEXT_PUBLIC_APP_ENV", "DEV");
     },
     /** Is production environment */
     get isProduction(): boolean {
@@ -260,6 +286,34 @@ export const config = {
     /** Docker command timeout (ms) */
     get dockerTimeoutMs(): number {
       return optionalInt("DOCKER_TIMEOUT_MS", 5000);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Artifacts (Conversation Artifacts sub-system)
+  // ---------------------------------------------------------------------------
+  artifacts: {
+    /** Delivery channel: "sim" (Phase 1) or "whatsapp" (Phase 2) */
+    get channel(): string {
+      return optional("ARTIFACTS_CHANNEL", "sim");
+    },
+    /** Whether artifact extraction is enabled in the pipeline */
+    get enabled(): boolean {
+      return optionalBool("ARTIFACTS_ENABLED", true);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Data Retention (GDPR)
+  // ---------------------------------------------------------------------------
+  retention: {
+    /** Days to retain caller data. 0 = disabled (keep indefinitely). */
+    get callerDataDays(): number {
+      return optionalInt("RETENTION_CALLER_DATA_DAYS", 0);
+    },
+    /** Days to retain audit log entries. Default: 365. */
+    get auditLogDays(): number {
+      return optionalInt("RETENTION_AUDIT_LOG_DAYS", 365);
     },
   },
 

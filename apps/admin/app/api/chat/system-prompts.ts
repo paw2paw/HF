@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getPageDocsSummary } from "@/lib/chat/page-docs";
+import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
 
 type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
 
@@ -708,7 +709,10 @@ async function getDomainContext(domainId: string): Promise<string | null> {
 }
 
 /**
- * Build CALL mode prompt using the actual composed prompt for the caller
+ * Build CALL mode prompt using the actual composed prompt for the caller.
+ *
+ * Uses renderVoicePrompt() for the same voice-optimized format that VAPI receives,
+ * giving a realistic simulation of the actual call experience.
  */
 async function buildCallSimPrompt(entityContext: EntityBreadcrumb[]): Promise<string> {
   const callerEntity = entityContext.find((e) => e.type === "caller");
@@ -728,7 +732,16 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
       orderBy: { composedAt: "desc" },
     });
 
-    // Fetch caller with memories
+    // If we have a composed prompt with llmPrompt JSON, use the voice-optimized renderer
+    if (composedPrompt?.llmPrompt) {
+      const voicePrompt = renderVoicePrompt(composedPrompt.llmPrompt as any);
+      return `You are simulating a VAPI voice AI call. This is the EXACT prompt the voice AI receives.
+Keep responses SHORT (1-3 sentences) — this is voice, not text.
+
+${voicePrompt}`;
+    }
+
+    // Fallback: no composed prompt — use basic caller info
     const caller = await prisma.caller.findUnique({
       where: { id: callerEntity.id },
       include: {
@@ -747,56 +760,18 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
     const parts = [
       `You are simulating a VAPI voice AI call with ${caller?.name || "a caller"}.
 
-## Instructions
+No composed prompt found — run "Compose Prompt" for this caller first for the full experience.
+
+## Fallback Instructions
 - Keep responses SHORT (1-3 sentences) - this simulates voice AI
 - Be conversational and natural
-- Use the caller's name when appropriate
-- Reference their memories and preferences naturally
-- Stay in character as a helpful, warm AI assistant`,
+- Use the caller's name when appropriate`,
     ];
 
-    // Add personality adaptations
-    if (caller?.personality) {
-      const p = caller.personality;
-      parts.push("\n## Personality Adaptations");
-      if (p.extraversion !== null && p.extraversion > 0.7) {
-        parts.push("- Be energetic and engaging - they're outgoing");
-      } else if (p.extraversion !== null && p.extraversion < 0.3) {
-        parts.push("- Be calm and give space - they're more reserved");
-      }
-      if (p.agreeableness !== null && p.agreeableness > 0.7) {
-        parts.push("- Be warm and supportive - they value harmony");
-      }
-      if (p.openness !== null && p.openness > 0.7) {
-        parts.push("- Explore ideas and be creative - they love new concepts");
-      }
-    }
-
-    // Add key memories
     if (caller?.memories && caller.memories.length > 0) {
       parts.push("\n## Key Facts About This Caller");
-      const facts = caller.memories.filter((m) => m.category === "FACT").slice(0, 5);
-      const prefs = caller.memories.filter((m) => m.category === "PREFERENCE").slice(0, 3);
-
-      if (facts.length > 0) {
-        for (const f of facts) {
-          parts.push(`- ${f.key}: ${f.value}`);
-        }
-      }
-      if (prefs.length > 0) {
-        parts.push("\nPreferences:");
-        for (const p of prefs) {
-          parts.push(`- ${p.key}: ${p.value}`);
-        }
-      }
-    }
-
-    // Add composed prompt if available
-    if (composedPrompt?.llmPrompt) {
-      parts.push("\n## Agent Guidance (from composed prompt)");
-      const llm = composedPrompt.llmPrompt as Record<string, unknown>;
-      if (llm.instructions) {
-        parts.push(JSON.stringify(llm.instructions, null, 2));
+      for (const m of caller.memories.slice(0, 10)) {
+        parts.push(`- ${m.key}: ${m.value}`);
       }
     }
 

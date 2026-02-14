@@ -40,6 +40,8 @@ import {
   BookA,
   Beaker,
   FileJson,
+  FileSearch,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -85,4 +87,6 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   BookA,
   Beaker,
   FileJson,
+  FileSearch,
+  Layers,
 };

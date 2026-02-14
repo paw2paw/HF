@@ -73,13 +73,29 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   });
 
   if (!identitySpec) {
+    // Build overlay config: only domain-specific parameters, not a full standalone spec.
+    // At prompt composition time, mergeIdentitySpec() merges this overlay with the TUT-001 base.
+    const overlayConfig = options?.identityConfig
+      ? JSON.parse(JSON.stringify(options.identityConfig))
+      : {
+          parameters: [
+            {
+              id: "tutor_role",
+              name: "Domain Role Override",
+              section: "identity",
+              config: {
+                roleStatement: `You are a friendly, patient tutor specializing in ${domain.name}. You adapt to each learner's pace and style while maintaining high standards for understanding.`,
+                primaryGoal: `Help learners build genuine understanding of ${domain.name}`,
+              },
+            },
+          ],
+        };
+
     identitySpec = await prisma.analysisSpec.create({
       data: {
         slug: identitySlug,
         name: `${domain.name} Identity`,
-        description: options?.identityConfig
-          ? `AI-generated identity for the ${domain.name} domain, tailored from source material analysis.`
-          : `Identity and teaching personality for the ${domain.name} agent. Edit this spec to customise how the AI presents itself.`,
+        description: `Domain overlay for ${domain.name} — extends the base tutor archetype with domain-specific adaptations.`,
         outputType: "COMPOSE",
         specRole: "IDENTITY",
         specType: "DOMAIN",
@@ -88,9 +104,8 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
         isActive: true,
         isDirty: false,
         isDeletable: true,
-        config: options?.identityConfig
-          ? JSON.parse(JSON.stringify(options.identityConfig))
-          : undefined,
+        extendsAgent: "TUT-001",
+        config: overlayConfig,
         triggers: {
           create: [
             {

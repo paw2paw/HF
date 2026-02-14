@@ -1,0 +1,406 @@
+{
+  "id": "ACTIVITY-001",
+  "title": "Interaction Activity Toolkit",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-14",
+  "domain": "pedagogy",
+  "specType": "SYSTEM",
+  "specRole": "ORCHESTRATE",
+  "agentScope": "SYSTEM",
+  "story": {
+    "asA": "voice tutor",
+    "iWant": "a toolkit of interactive activities I can deploy during or between sessions",
+    "soThat": "learning is varied, engaging, and uses evidence-based techniques beyond pure conversation"
+  },
+  "context": {
+    "applies": "Any tutoring session where the agent has an identity spec and curriculum",
+    "dependsOn": ["TUT-001", "PIPELINE-001"],
+    "assumptions": [
+      "Voice-native activities require no infrastructure — the AI executes them conversationally",
+      "Text activities require a send_text_to_caller VAPI tool",
+      "Activity selection is context-aware based on personality, mastery, session phase, and time gaps",
+      "The AI has autonomy to choose WHEN to deploy activities — the spec provides the WHAT and HOW"
+    ]
+  },
+  "parameters": [
+    {
+      "id": "activity_catalog",
+      "name": "Activity Catalog",
+      "description": "All available interaction activities with formats and triggers",
+      "section": "activities",
+      "config": {
+        "activities": [
+          {
+            "id": "pop_quiz",
+            "name": "Pop Quiz",
+            "channel": "voice",
+            "category": "assessment",
+            "description": "A quick, unexpected question to check retention or understanding of recently taught material",
+            "format": {
+              "steps": [
+                "Announce casually: 'Quick one for you...' or 'Let me test something...'",
+                "Ask ONE clear, specific question about a concept you've covered",
+                "Wait for their full answer — do NOT interrupt or hint",
+                "Give specific feedback: what was right, what to refine",
+                "If wrong, briefly re-teach then move on — don't dwell"
+              ],
+              "duration": "1-2 min",
+              "difficulty_range": "match current mastery level"
+            },
+            "triggers": {
+              "when": [
+                "After teaching a new concept (comprehension check)",
+                "At session start for returning callers (spaced retrieval)",
+                "When caller claims understanding but you haven't verified",
+                "When energy seems to be dropping (pattern break)"
+              ],
+              "avoid_when": [
+                "Caller is frustrated or anxious",
+                "First 2 minutes of a first-ever call",
+                "Immediately after they got something wrong"
+              ]
+            },
+            "personality_adaptations": {
+              "low_extraversion": "Frame gently: 'No pressure, just curious...'",
+              "high_neuroticism": "Preface with reassurance: 'This isn't a test, just want to see where we are'",
+              "high_openness": "Make questions more creative or unexpected",
+              "low_agreeableness": "Be direct: 'Quick check —' without preamble"
+            }
+          },
+          {
+            "id": "mcq_voice",
+            "name": "Multiple Choice (Voice)",
+            "channel": "voice",
+            "category": "assessment",
+            "description": "Present 3-4 options verbally and ask the caller to choose",
+            "format": {
+              "steps": [
+                "State the question clearly",
+                "Present 3-4 options with labels: 'A, B, C, or D'",
+                "Keep options short enough to remember verbally (max 10 words each)",
+                "Wait for their choice",
+                "If correct: affirm and explain WHY it's right",
+                "If wrong: explain why their choice seemed reasonable, then clarify the correct answer"
+              ],
+              "duration": "1-3 min",
+              "difficulty_range": "slightly below to at mastery level"
+            },
+            "triggers": {
+              "when": [
+                "Reviewing material from previous sessions",
+                "Checking understanding of distinctions between similar concepts",
+                "Building exam readiness (if curriculum has exam component)",
+                "Caller seems to prefer structured questions over open ones"
+              ],
+              "avoid_when": [
+                "Topic is too complex for discrete options",
+                "Caller prefers open-ended exploration",
+                "First call with no taught material yet"
+              ]
+            },
+            "personality_adaptations": {
+              "low_openness": "Stick to clearly defined, concrete options",
+              "high_conscientiousness": "Caller will appreciate the structured format — lean into it",
+              "low_extraversion": "Give extra thinking time: 'Take a moment to consider...'"
+            }
+          },
+          {
+            "id": "mcq_text",
+            "name": "Multiple Choice (Text/SMS)",
+            "channel": "text",
+            "category": "assessment",
+            "description": "Send a formatted MCQ via text so the caller can read options at their own pace",
+            "format": {
+              "steps": [
+                "Tell the caller: 'I'm sending you a question by text — have a look and tell me what you think'",
+                "Use send_text_to_caller tool with formatted question",
+                "Wait for their verbal or text response",
+                "Discuss their answer, whether right or wrong"
+              ],
+              "text_template": "Quick question:\n\n{question}\n\nA) {option_a}\nB) {option_b}\nC) {option_c}\nD) {option_d}\n\nWhat do you think?",
+              "duration": "2-3 min",
+              "difficulty_range": "at or slightly above mastery level"
+            },
+            "triggers": {
+              "when": [
+                "Options are too long or complex for voice-only",
+                "Caller is a visual/read-write learner (high VARK-R)",
+                "Exam preparation with real exam-style questions",
+                "Mid-session as a change of pace"
+              ],
+              "avoid_when": [
+                "Caller is driving or can't look at phone",
+                "No phone number available for SMS"
+              ]
+            },
+            "personality_adaptations": {
+              "high_conscientiousness": "Great fit — they'll engage carefully with written options",
+              "low_extraversion": "Preferred over verbal MCQ — less pressure to respond quickly"
+            }
+          },
+          {
+            "id": "rapid_fire",
+            "name": "Rapid Fire True/False",
+            "channel": "voice",
+            "category": "assessment",
+            "description": "3-5 quick true/false statements to test factual recall in rapid succession",
+            "format": {
+              "steps": [
+                "Set up: 'Let's do a quick rapid fire — I'll say a statement, you tell me true or false. Ready?'",
+                "State 3-5 short, clear factual statements",
+                "Accept brief answers (true/false/yes/no)",
+                "Keep pace brisk but not stressful",
+                "After the round: review any they got wrong, celebrate what they nailed"
+              ],
+              "duration": "2-3 min",
+              "difficulty_range": "recall level — facts they should know"
+            },
+            "triggers": {
+              "when": [
+                "Spaced retrieval phase of returning caller session",
+                "End of session as a fun recap",
+                "Caller has high energy and seems ready for a challenge",
+                "Multiple simple facts need verification"
+              ],
+              "avoid_when": [
+                "Caller is tentative or low confidence",
+                "Concepts are nuanced (not suited to true/false)",
+                "First session — no established knowledge base yet"
+              ]
+            },
+            "personality_adaptations": {
+              "high_extraversion": "Increase pace, make it competitive: 'Let's see how many you can nail'",
+              "low_extraversion": "Slower pace, fewer items (3 max), no time pressure",
+              "high_neuroticism": "Frame as 'just a quick check' not a 'test', offer encouragement between"
+            }
+          },
+          {
+            "id": "scenario",
+            "name": "Scenario / What-If",
+            "channel": "voice",
+            "category": "application",
+            "description": "Present a realistic scenario and ask the caller how they'd handle it, applying what they've learned",
+            "format": {
+              "steps": [
+                "Paint a brief, vivid scenario relevant to the curriculum",
+                "Ask: 'What would you do?' or 'How would you handle this?'",
+                "Let them think and respond fully",
+                "Discuss their reasoning — what's strong, what to consider",
+                "If relevant, connect to the formal concept or rule"
+              ],
+              "duration": "3-5 min",
+              "difficulty_range": "application level — requires understanding, not just recall"
+            },
+            "triggers": {
+              "when": [
+                "After a concept has been taught and basic recall confirmed",
+                "Building toward exam scenarios",
+                "Caller learns best through practical application",
+                "Bridging theory to practice"
+              ],
+              "avoid_when": [
+                "Basic recall hasn't been established yet",
+                "Caller is struggling with fundamentals",
+                "Time is running short in session"
+              ]
+            },
+            "personality_adaptations": {
+              "high_openness": "Make scenarios more creative, unusual, or thought-provoking",
+              "low_openness": "Keep scenarios concrete, realistic, and clearly connected to what was taught",
+              "high_conscientiousness": "Include specific details and constraints in the scenario",
+              "high_extraversion": "Encourage them to think out loud as they work through it"
+            }
+          },
+          {
+            "id": "teach_back",
+            "name": "Teach It Back",
+            "channel": "voice",
+            "category": "deep_learning",
+            "description": "Ask the caller to explain a concept as if teaching someone else — the ultimate comprehension check",
+            "format": {
+              "steps": [
+                "Frame it: 'Imagine you had to explain [concept] to a friend who knows nothing about it. How would you put it?'",
+                "Listen to their full explanation without interrupting",
+                "Note what they included, missed, or got wrong",
+                "Affirm what they got right, gently fill gaps: 'Great — you'd also want to mention...'",
+                "Use log_activity_result to record comprehension level"
+              ],
+              "duration": "3-5 min",
+              "difficulty_range": "deep understanding — they must synthesize, not just recall"
+            },
+            "triggers": {
+              "when": [
+                "Caller has been studying a concept across multiple sessions",
+                "Before moving to the next major topic (mastery gate)",
+                "Caller says they 'get it' — verify with teach-back",
+                "Preparing for an exam"
+              ],
+              "avoid_when": [
+                "Concept was just introduced this session",
+                "Caller is not confident yet — could feel like being put on the spot",
+                "Very early in the learning journey"
+              ]
+            },
+            "personality_adaptations": {
+              "low_extraversion": "Make it less performative: 'In your own words, what would you say the key idea is?'",
+              "high_neuroticism": "Reassure: 'There's no perfect answer — just tell me how you think about it'",
+              "high_extraversion": "They'll enjoy this — let them run with it"
+            }
+          },
+          {
+            "id": "reflection_prompt",
+            "name": "Reflection Prompt (Text)",
+            "channel": "text",
+            "category": "metacognition",
+            "description": "Send a reflective question via text for the caller to think about between sessions",
+            "format": {
+              "steps": [
+                "Near end of session: 'I'll send you something to think about before next time'",
+                "Use send_text_to_caller with a thought-provoking question",
+                "Question should connect what they learned to their life or goals",
+                "In next session, reference the prompt: 'Did you think about that question I sent?'"
+              ],
+              "text_template": "Something to think about before next time:\n\n{reflection_question}\n\nNo rush — just let it percolate.",
+              "duration": "30 sec (to send), follows up next session",
+              "difficulty_range": "open-ended — no right answer"
+            },
+            "triggers": {
+              "when": [
+                "End of a productive session",
+                "Caller has shown interest in deeper understanding",
+                "Bridging material across sessions",
+                "Building metacognitive habits"
+              ],
+              "avoid_when": [
+                "First session — too early for homework",
+                "Caller seems overwhelmed",
+                "Session ended on a frustrating note"
+              ]
+            },
+            "personality_adaptations": {
+              "high_openness": "Ask more abstract, philosophical reflection questions",
+              "low_openness": "Keep reflections practical and concrete",
+              "high_conscientiousness": "They'll actually do it — make it meaningful"
+            }
+          },
+          {
+            "id": "spaced_retrieval_text",
+            "name": "Spaced Retrieval (Text)",
+            "channel": "text",
+            "category": "retention",
+            "description": "Timed text message between sessions to trigger retrieval practice at optimal intervals",
+            "format": {
+              "steps": [
+                "System sends text at scheduled interval (1/3/7/14 days after learning)",
+                "Question focuses on key concept from a past session",
+                "Caller can reply by text or discuss in next call",
+                "Track whether they responded and incorporate into next session"
+              ],
+              "text_template": "Quick recall from last time:\n\n{retrieval_question}\n\nReply with your answer anytime — or we'll chat about it next session!",
+              "duration": "Async — between sessions",
+              "difficulty_range": "recall level — match to spaced repetition interval"
+            },
+            "triggers": {
+              "when": [
+                "Automatically based on spaced repetition schedule",
+                "High-stakes concepts that need reinforcement",
+                "Caller has opted into between-session practice"
+              ],
+              "avoid_when": [
+                "Caller hasn't opted in to text messages",
+                "Too many texts already sent (max 2 per week)",
+                "Caller explicitly asked not to be texted"
+              ]
+            },
+            "personality_adaptations": {
+              "high_conscientiousness": "They'll engage — increase frequency slightly",
+              "low_conscientiousness": "Keep messages shorter, less frequent, more casual",
+              "high_neuroticism": "Frame as casual check-in, not a test"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection_strategy",
+      "name": "Activity Selection Strategy",
+      "description": "How the AI should choose which activities to use",
+      "section": "activities",
+      "config": {
+        "principles": [
+          "Activities serve learning — never use one just for novelty",
+          "Match activity to session phase: retrieval activities early, application activities later",
+          "Adapt frequency to personality: high conscientiousness can handle more structure, high openness prefers variety",
+          "One structured activity per session is usually enough — don't overdo it",
+          "Voice-native activities are the default; use text only when it genuinely helps",
+          "Always gauge the moment — if the caller is in flow, don't break it with a forced activity"
+        ],
+        "session_phase_recommendations": {
+          "reconnect": ["pop_quiz", "rapid_fire"],
+          "spaced_retrieval": ["pop_quiz", "rapid_fire", "mcq_voice"],
+          "new_material": ["scenario"],
+          "integrate": ["teach_back", "scenario", "mcq_voice"],
+          "close": ["reflection_prompt", "rapid_fire"]
+        },
+        "mastery_level_recommendations": {
+          "novice": ["mcq_voice", "pop_quiz"],
+          "developing": ["scenario", "mcq_voice", "mcq_text", "pop_quiz"],
+          "proficient": ["teach_back", "scenario", "rapid_fire"],
+          "mastered": ["teach_back", "scenario"]
+        },
+        "max_activities_per_session": 2,
+        "max_text_messages_per_week": 2,
+        "min_minutes_between_activities": 5
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C-ACT-1",
+      "type": "priority",
+      "description": "Activities must serve learning objectives — never use as filler or to show off",
+      "severity": "critical"
+    },
+    {
+      "id": "C-ACT-2",
+      "type": "safety",
+      "description": "Never send text messages without caller consent or if no phone number available",
+      "severity": "critical"
+    },
+    {
+      "id": "C-ACT-3",
+      "type": "scope",
+      "description": "Activity difficulty must match current mastery level — never humiliate with too-hard questions",
+      "severity": "critical"
+    },
+    {
+      "id": "C-ACT-4",
+      "type": "frequency",
+      "description": "Maximum 2 structured activities per session, minimum 5 minutes apart",
+      "severity": "warning"
+    }
+  ],
+  "related": [
+    {
+      "id": "TUT-001",
+      "title": "Tutor Identity",
+      "relationship": "Activities extend the tutor's teaching techniques"
+    },
+    {
+      "id": "PIPELINE-001",
+      "title": "Pipeline Configuration",
+      "relationship": "Activity outcomes feed into pipeline for evidence tracking"
+    },
+    {
+      "id": "VOICE-001",
+      "title": "Voice Guidance",
+      "relationship": "Voice rules apply during voice-channel activities"
+    },
+    {
+      "id": "PERS-001",
+      "title": "Personality Measurement",
+      "relationship": "Personality drives activity selection and adaptation"
+    }
+  ]
+}

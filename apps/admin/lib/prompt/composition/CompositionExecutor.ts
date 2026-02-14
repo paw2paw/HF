@@ -13,7 +13,7 @@
 
 import { loadAllData } from "./SectionDataLoader";
 import { getTransform } from "./TransformRegistry";
-import { resolveSpecs, resolveVoiceSpecFallback } from "./transforms/identity";
+import { resolveSpecs, resolveVoiceSpecFallback, mergeIdentitySpec } from "./transforms/identity";
 import { computeSharedState } from "./transforms/modules";
 import type {
   AssembledContext,
@@ -35,6 +35,7 @@ import "./transforms/identity";
 import "./transforms/simple";
 import "./transforms/trust";
 import "./transforms/teaching-content";
+import "./transforms/activities";
 
 /**
  * Execute the full composition pipeline.
@@ -62,8 +63,16 @@ export async function executeComposition(
   let resolvedSpecs = resolveSpecs(loadedData.playbooks, loadedData.systemSpecs);
   resolvedSpecs = await resolveVoiceSpecFallback(resolvedSpecs);
 
+  // 2b. Merge base + overlay if identity spec extends a base archetype
+  if (resolvedSpecs.identitySpec?.extendsAgent) {
+    resolvedSpecs = {
+      ...resolvedSpecs,
+      identitySpec: await mergeIdentitySpec(resolvedSpecs.identitySpec),
+    };
+  }
+
   console.log(`[CompositionExecutor] Playbooks stacked: ${loadedData.playbooks.length} (${loadedData.playbooks.map(p => p.name).join(", ") || "none"})`);
-  console.log(`[CompositionExecutor] Identity: ${resolvedSpecs.identitySpec?.name || "NONE"}`);
+  console.log(`[CompositionExecutor] Identity: ${resolvedSpecs.identitySpec?.name || "NONE"}${resolvedSpecs.identitySpec?.extendsAgent ? ` (extends ${resolvedSpecs.identitySpec.extendsAgent})` : ""}`);
   console.log(`[CompositionExecutor] Content: ${resolvedSpecs.contentSpec?.name || "NONE"}`);
   console.log(`[CompositionExecutor] Voice: ${resolvedSpecs.voiceSpec?.name || "NONE"}`);
 
@@ -584,6 +593,17 @@ export function getDefaultSections(): CompositionSectionDef[] {
       transform: "renderTeachingContent",
       outputKey: "teachingContent",
       dependsOn: ["content_trust"],
+    },
+    {
+      id: "activity_toolkit",
+      name: "Activity Toolkit",
+      priority: 12.8,
+      dataSource: "_assembled",
+      activateWhen: { condition: "always" },
+      fallback: { action: "emptyObject", value: { hasActivities: false, recommended: [], principles: [] } },
+      transform: "computeActivityToolkit",
+      outputKey: "activityToolkit",
+      dependsOn: ["personality", "curriculum", "instructions_pedagogy"],
     },
     // Pedagogy and voice are computed first, then assembled into instructions
     {

@@ -29,6 +29,10 @@ const PUBLIC_ROUTES = new Set([
   "app/api/invite/route.ts",         // Accept invite (token-based, not session)
   "app/api/invite/accept/route.ts",
   "app/api/invite/verify/route.ts",  // Token-based invite verification (no session)
+  "app/api/vapi/assistant-request/route.ts", // VAPI webhook (webhook-secret auth)
+  "app/api/vapi/knowledge/route.ts",         // VAPI webhook (webhook-secret auth)
+  "app/api/vapi/tools/route.ts",             // VAPI webhook (webhook-secret auth)
+  "app/api/vapi/webhook/route.ts",           // VAPI webhook (webhook-secret auth)
 ]);
 
 // =====================================================

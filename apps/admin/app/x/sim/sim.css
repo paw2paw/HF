@@ -673,3 +673,16 @@
   color: var(--wa-green-dark);
   font-weight: 600;
 }
+
+/* Embedded mode — bounded container within admin pages */
+.sim-embedded {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 280px);
+  min-height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--wa-border);
+  background: var(--wa-surface);
+  position: relative;
+}

@@ -67,3 +67,18 @@ export const StorageKeys = {
   CHAT_LAYOUT: 'chatLayout',
   CHAT_MODE: 'chatMode',
 } as const;
+
+/**
+ * Cloud E2E test data — matches entities created by prisma/seed-e2e.ts
+ */
+export const CloudTestData = {
+  E2E_CALLER: {
+    name: 'E2E Test Caller',
+    externalId: 'e2e-sim-caller',
+  },
+  E2E_DOMAIN: {
+    name: 'E2E Test Domain',
+    slug: 'e2e-test-domain',
+  },
+  QUICK_LAUNCH_SUBJECT: `E2E Cloud Test`,
+} as const;

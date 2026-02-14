@@ -159,11 +159,11 @@ describe("/api/ai-config", () => {
         expect(config.defaultTranscriptLimit).toBeGreaterThanOrEqual(2000);
       }
 
-      // ADAPT should have lower default (2500) for cost optimization
+      // ADAPT should have lower default (2000) for cost optimization
       const adaptConfig = data.configs.find(
         (c: any) => c.callPoint === "pipeline.adapt"
       );
-      expect(adaptConfig.defaultTranscriptLimit).toBe(2500);
+      expect(adaptConfig.defaultTranscriptLimit).toBe(2000);
     });
   });
 
@@ -324,7 +324,7 @@ describe("Transcript limit integration", () => {
     );
 
     expect((measurePoint as any).defaultTranscriptLimit).toBe(4000);
-    expect((adaptPoint as any).defaultTranscriptLimit).toBe(2500);
+    expect((adaptPoint as any).defaultTranscriptLimit).toBe(2000);
   });
 
   it("should define transcript limits for all pipeline stages", async () => {

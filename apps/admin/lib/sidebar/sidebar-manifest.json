@@ -61,6 +61,8 @@
       { "href": "/x/domains", "label": "Domains", "icon": "Globe" },
       { "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen" },
       { "href": "/x/specs", "label": "Specs", "icon": "ClipboardList" },
+      { "href": "/x/layers", "label": "Layers", "icon": "Layers" },
+      { "href": "/x/content-explorer", "label": "Content Explorer", "icon": "FileSearch" },
       { "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
       { "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" }
     ]

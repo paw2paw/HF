@@ -177,3 +177,7 @@ docker build --target migrate .   # migrate — prisma migrate deploy only
 ```
 
 The runner image CANNOT run seeds — use the seed target or SSH tunnel.
+
+## Deployment
+
+Production runs on **GCP Cloud Run** (europe-west2) with **Cloud SQL** (PostgreSQL 16). Full deployment procedures, data safety guarantees, rollback steps, and GCP resource details are in `docs/CLOUD-DEPLOYMENT.md`. Use `/deploy` for an interactive deployment menu or `/deploy-check` for pre-flight validation.

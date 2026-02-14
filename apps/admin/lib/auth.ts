@@ -4,6 +4,7 @@ import EmailProvider from "next-auth/providers/email";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import { sendMagicLinkEmail } from "./email";
 import type { UserRole } from "@prisma/client";
 import type { Adapter } from "next-auth/adapters";
 
@@ -102,6 +103,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
       },
       from: process.env.EMAIL_FROM || "HF Admin <noreply@example.com>",
+      sendVerificationRequest: async ({ identifier: email, url }) => {
+        await sendMagicLinkEmail({ to: email, url });
+      },
     }),
   ],
   callbacks: {

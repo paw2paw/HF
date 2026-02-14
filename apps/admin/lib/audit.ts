@@ -39,6 +39,10 @@ export const AuditAction = {
   // Settings
   UPDATED_SETTING: "updated_setting",
   TOGGLED_AUDIT: "toggled_audit",
+
+  // GDPR
+  EXPORTED_CALLER_DATA: "exported_caller_data",
+  RETENTION_CLEANUP: "retention_cleanup",
 } as const;
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];

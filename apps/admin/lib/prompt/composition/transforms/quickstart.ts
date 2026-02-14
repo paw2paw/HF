@@ -91,7 +91,9 @@ registerTransform("computeQuickStart", (
       return `Progress: ${completed}/${total} modules mastered${currentModuleName ? ` | Current: ${currentModuleName}` : ""}`;
     })() : null,
 
-    key_memory: deduplicated[0] ? `${deduplicated[0].key}: ${deduplicated[0].value}` : null,
+    key_memories: deduplicated.length > 0
+      ? deduplicated.slice(0, 3).map((m: any) => `${m.key}: ${m.value}`)
+      : null,
 
     voice_style: (() => {
       const warmth = mergedTargets.find((t: any) => t.parameterId === PARAMS.BEH_WARMTH);

@@ -13,12 +13,27 @@ import { classifyValue, getAttributeValue } from "../types";
 import { computePersonalityAdaptation } from "./personality";
 import type { AssembledContext, CallerAttributeData } from "../types";
 
+// Structural defaults for common memory keys — used when COMP-001 doesn't provide narrativeTemplates
+const DEFAULT_NARRATIVE_TEMPLATES: Record<string, string> = {
+  location: "They live in {value}",
+  occupation: "They work as {value}",
+  job: "They work as {value}",
+  name: "They go by {value}",
+  preferred_name: "They prefer to be called {value}",
+  learning_style: "They learn best with {value} approaches",
+  family: "Family: {value}",
+  children: "They have {value}",
+  goal: "They're working toward {value}",
+  exam_date: "Their exam is {value}",
+  diet: "Diet note: {value}",
+};
+
 /**
  * Build narrative sentences from memories using spec-driven templates.
  *
  * Templates come from COMP-001 memory_section.config.narrativeTemplates.
  * Unknown keys fall back to genericNarrativeTemplate (also from spec).
- * If no spec config is provided, everything uses the structural default.
+ * If no spec config is provided, uses structural defaults for common keys.
  *
  * @param memories - Array of { key, value, category? } objects
  * @param specConfig - narrativeTemplates and genericNarrativeTemplate from COMP-001
@@ -33,8 +48,8 @@ export function narrativeFrame(
 ): string {
   if (!memories || memories.length === 0) return "";
 
-  const templates = specConfig.narrativeTemplates || {};
-  const genericTemplate = specConfig.genericNarrativeTemplate || "Their {key} is {value}";
+  const templates = specConfig.narrativeTemplates || DEFAULT_NARRATIVE_TEMPLATES;
+  const genericTemplate = specConfig.genericNarrativeTemplate || "They mentioned their {key} is {value}";
 
   const sentences = memories.map((m) => {
     const normalizedKey = m.key.toLowerCase().replace(/\s+/g, "_");

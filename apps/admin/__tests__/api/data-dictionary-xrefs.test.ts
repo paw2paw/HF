@@ -39,6 +39,9 @@ vi.mock("@/lib/prisma", () => ({
     callerMemory: {
       count: vi.fn(),
     },
+    parameter: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 

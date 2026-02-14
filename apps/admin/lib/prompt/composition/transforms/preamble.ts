@@ -60,7 +60,7 @@ registerTransform("computePreamble", (
       memories: {
         priority: "LOW",
         what: "Facts/preferences from previous calls",
-        action: "Reference naturally. Don't force. Shows you remember them.",
+        action: "Reference naturally throughout. Don't force all at once. _quickStart.key_memories has the top 3.",
       },
     },
 

@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       persona: string;
       learningGoals: string[];
       qualificationRef?: string;
+      mode?: "upload" | "generate";
     };
   };
 
@@ -96,9 +97,6 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        // Build a minimal QuickLaunchInput (file not needed for commit phase)
-        const fakeFile = new File([], "commit-placeholder.txt");
-
         const result = await quickLaunchCommit(
           domainId,
           preview,
@@ -107,8 +105,8 @@ export async function POST(req: NextRequest) {
             subjectName: input.subjectName,
             persona: input.persona,
             learningGoals: overrides.learningGoals ?? input.learningGoals,
-            file: fakeFile,
             qualificationRef: input.qualificationRef,
+            mode: input.mode,
           },
           sendEvent,
         );

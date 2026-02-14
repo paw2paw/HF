@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
     if (runInitialGreeting) {
       try {
         const systemPrompt = promptSummary || "You are a helpful AI assistant. Greet the caller warmly.";
+        // @ai-call test-harness.greeting — Generate initial greeting for onboarding call | config: /x/ai-config
         const result = await getConfiguredMeteredAICompletion(
           {
             callPoint: "test-harness.greeting",
