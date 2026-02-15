@@ -4,7 +4,8 @@
     "defaultHiddenFor": ["STUDENT"],
     "items": [
       { "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
-      { "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" }
+      { "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
+      { "href": "/x/demos", "label": "Demos", "icon": "Presentation" }
     ]
   },
   {

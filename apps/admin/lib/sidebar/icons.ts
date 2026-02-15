@@ -46,6 +46,7 @@ import {
   School,
   Building2,
   Phone,
+  Presentation,
   type LucideIcon,
 } from "lucide-react";
 
@@ -97,4 +98,5 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   School,
   Building2,
   Phone,
+  Presentation,
 };
