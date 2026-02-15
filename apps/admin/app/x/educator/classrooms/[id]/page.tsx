@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { SendArtifactModal } from "@/components/educator/SendArtifactModal";
 
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
@@ -55,6 +56,9 @@ export default function ClassroomDetailPage() {
 
   // Active calls for "In Call" badges
   const [activeCalls, setActiveCalls] = useState<Map<string, string>>(new Map());
+
+  // Send to class modal
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const loadClassroom = useCallback(async () => {
     const [classroomRes, callsRes] = await Promise.all([
@@ -196,6 +200,22 @@ export default function ClassroomDetailPage() {
               </span>
             </div>
           </div>
+          <button
+            onClick={() => setShowSendModal(true)}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "none",
+              background: "var(--accent-primary)",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            Send to Class
+          </button>
         </div>
       </div>
 
@@ -555,6 +575,14 @@ export default function ClassroomDetailPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {showSendModal && classroom && (
+        <SendArtifactModal
+          target={{ type: "classroom", id, name: classroom.name }}
+          onClose={() => setShowSendModal(false)}
+          onSuccess={() => setShowSendModal(false)}
+        />
       )}
     </div>
   );

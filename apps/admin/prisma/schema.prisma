@@ -3658,11 +3658,14 @@ model SubjectDomain {
 model ConversationArtifact {
   id String @id @default(uuid())
 
-  // Source
-  callId   String
-  call     Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
+  // Source — callId is null for educator-created artifacts
+  callId   String?
+  call     Call?   @relation(fields: [callId], references: [id], onDelete: Cascade)
   callerId String
   caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Provenance — userId of creator (educator, operator); null for AI-extracted
+  createdBy String?
 
   // Content
   type      ConversationArtifactType // SUMMARY, KEY_FACT, FORMULA, EXERCISE, etc.

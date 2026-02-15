@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { SendArtifactModal } from "@/components/educator/SendArtifactModal";
 
 interface StudentDetail {
   id: string;
@@ -32,6 +33,7 @@ export default function StudentDetailPage() {
   const [calls, setCalls] = useState<CallItem[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   useEffect(() => {
     fetch(`/api/educator/students/${id}`)
@@ -134,6 +136,23 @@ export default function StudentDetailPage() {
             </span>
           </div>
         </div>
+        <button
+          onClick={() => setShowSendModal(true)}
+          style={{
+            marginLeft: "auto",
+            padding: "8px 16px",
+            borderRadius: 8,
+            border: "none",
+            background: "var(--accent-primary)",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        >
+          Send Content
+        </button>
       </div>
 
       {/* Stats */}
@@ -325,6 +344,14 @@ export default function StudentDetailPage() {
           )}
         </div>
       </div>
+
+      {showSendModal && (
+        <SendArtifactModal
+          target={{ type: "student", id, name: student.name }}
+          onClose={() => setShowSendModal(false)}
+          onSuccess={() => setShowSendModal(false)}
+        />
+      )}
     </div>
   );
 }

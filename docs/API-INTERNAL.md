@@ -3729,42 +3729,6 @@ Uploads a .spec.json file, validates its structure (id, title, version, story, p
 
 ---
 
-### `GET` /api/x/sync-specs
-
-Returns sync status comparing filesystem .spec.json files to BDDFeatureSet database records. Shows which specs are synced vs unsynced.
-
-**Auth**: Bearer token · **Scope**: `dev:read`
-
-**Response** `200`
-```json
-{ ok: true, totalFiles: number, syncedFiles: number, unsyncedFiles: number, unsyncedList: [...] }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `POST` /api/x/sync-specs
-
-Syncs all BDD specs from docs-archive/bdd-specs/*.spec.json directory into the database. Creates/updates Parameters, AnalysisSpecs, Anchors, and PromptSlugs. Extracted as STEP 1 from the seed-system endpoint.
-
-**Auth**: Bearer token · **Scope**: `dev:seed`
-
-**Response** `200`
-```json
-{ ok: true, message: "...", details: { specsProcessed: number, parametersCreated: number, parametersUpdated: number, results: [...] } }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
 ## Domains
 
 ### `GET` /api/domains
@@ -6256,6 +6220,18 @@ Save sidebar visibility rules
 
 ---
 
+### `POST` /api/educator/classrooms/:id/artifacts
+
+**Auth**: EDUCATOR
+
+---
+
+### `POST` /api/educator/students/:id/artifacts
+
+**Auth**: EDUCATOR
+
+---
+
 ### `GET` /api/institution/branding
 
 Get branding for the current user's institution.
@@ -6320,6 +6296,18 @@ Accept a classroom join link. Creates User + Caller + sets session.
 
 ---
 
+### `GET` /api/student/artifacts
+
+**Auth**: STUDENT
+
+---
+
+### `POST` /api/student/artifacts/mark-read
+
+**Auth**: STUDENT
+
+---
+
 ### `GET` /api/student/calls
 
 **Auth**: STUDENT
@@ -6327,6 +6315,12 @@ Accept a classroom join link. Creates User + Caller + sets session.
 ---
 
 ### `GET` /api/student/calls/:callId
+
+**Auth**: STUDENT
+
+---
+
+### `GET` /api/student/notifications
 
 **Auth**: STUDENT
 
@@ -9457,8 +9451,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 241 |
-| Files with annotations | 234 |
+| Route files found | 245 |
+| Files with annotations | 238 |
 | Files missing annotations | 7 |
 | Coverage | 97.1% |
 

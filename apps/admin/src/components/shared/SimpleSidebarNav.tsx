@@ -220,6 +220,29 @@ export default function SimpleSidebarNav({
     return () => clearInterval(interval);
   }, [userId]);
 
+  // Student artifact notification badge
+  const [studentUnreadCount, setStudentUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId || userRole !== "STUDENT") return;
+
+    const fetchStudentUnread = async () => {
+      try {
+        const res = await fetch("/api/student/notifications");
+        const data = await res.json();
+        if (data.ok) {
+          setStudentUnreadCount(data.unreadCount || 0);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+
+    fetchStudentUnread();
+    const interval = setInterval(fetchStudentUnread, 30000);
+    return () => clearInterval(interval);
+  }, [userId, userRole]);
+
   // Collapse state
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = externalCollapsed ?? internalCollapsed;
@@ -754,6 +777,17 @@ export default function SimpleSidebarNav({
                             }}
                           >
                             {unreadCount}
+                          </span>
+                        )}
+                        {!collapsed && item.href === "/x/student/stuff" && studentUnreadCount > 0 && (
+                          <span
+                            className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
+                            style={{
+                              background: active ? "var(--accent-primary)" : "var(--accent-primary)",
+                              opacity: active ? 0.8 : 1,
+                            }}
+                          >
+                            {studentUnreadCount}
                           </span>
                         )}
                       </Link>

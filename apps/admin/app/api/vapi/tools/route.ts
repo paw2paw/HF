@@ -94,6 +94,10 @@ export async function POST(request: NextRequest) {
           result = await handleSendTextToCaller(args, callerId, customerPhone);
           break;
 
+        case "request_artifact":
+          result = await handleRequestArtifact(args, callerId);
+          break;
+
         default:
           result = { error: `Unknown tool: ${funcName}` };
       }
@@ -514,6 +518,58 @@ async function sendViaTwilio(
 }
 
 /**
+ * Request an artifact be created for the caller after the call ends.
+ * Creates a CallAction that the pipeline picks up during EXTRACT.
+ */
+async function handleRequestArtifact(
+  args: { type: string; title: string; content: string; reason?: string },
+  callerId: string | null,
+) {
+  if (!callerId) return { error: "Cannot request artifact — caller not identified" };
+  if (!args.type || !args.title || !args.content) {
+    return { error: "type, title, and content are required" };
+  }
+
+  const typeMap: Record<string, string> = {
+    SUMMARY: "TASK",
+    KEY_FACT: "TASK",
+    FORMULA: "TASK",
+    EXERCISE: "HOMEWORK",
+    RESOURCE_LINK: "SEND_MEDIA",
+    STUDY_NOTE: "TASK",
+    REMINDER: "REMINDER",
+    MEDIA: "SEND_MEDIA",
+  };
+
+  const actionType = typeMap[args.type.toUpperCase()] || "TASK";
+
+  const action = await prisma.callAction.create({
+    data: {
+      callerId,
+      type: actionType as any,
+      title: args.title.slice(0, 200),
+      description: args.content,
+      assignee: "AGENT",
+      status: "PENDING",
+      priority: "MEDIUM",
+      source: "EXTRACTED",
+      confidence: 0.8,
+      notes: JSON.stringify({
+        artifactType: args.type.toUpperCase(),
+        reason: args.reason || null,
+        requestedDuringCall: true,
+      }),
+    },
+  });
+
+  return {
+    success: true,
+    actionId: action.id,
+    message: `Artifact request recorded: "${args.title}" (type: ${args.type}). Will be delivered after the call.`,
+  };
+}
+
+/**
  * Tool definitions for VAPI assistant configuration.
  * These are included in the assistant-request response.
  */
@@ -666,6 +722,37 @@ export const VAPI_TOOL_DEFINITIONS = [
           },
         },
         required: ["message"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "request_artifact",
+      description:
+        "Request that a study artifact be sent to the caller after the call. Use when you want to share a summary, formula, exercise, study note, or resource with the learner. The artifact will be delivered after the call ends.",
+      parameters: {
+        type: "object",
+        properties: {
+          type: {
+            type: "string",
+            enum: ["SUMMARY", "KEY_FACT", "FORMULA", "EXERCISE", "RESOURCE_LINK", "STUDY_NOTE", "REMINDER", "MEDIA"],
+            description: "The type of artifact to send",
+          },
+          title: {
+            type: "string",
+            description: "A short descriptive title for the artifact (max 60 chars)",
+          },
+          content: {
+            type: "string",
+            description: "The content of the artifact in markdown format",
+          },
+          reason: {
+            type: "string",
+            description: "Why this artifact is being sent (for pipeline context)",
+          },
+        },
+        required: ["type", "title", "content"],
       },
     },
   },
