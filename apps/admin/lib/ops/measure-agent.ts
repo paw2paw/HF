@@ -21,6 +21,8 @@ import { AnalysisOutputType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PARAMS } from "@/lib/registry";
 import { getPipelineGates } from "@/lib/system-settings";
+import type { SpecConfig } from "@/lib/types/json-fields";
+import type { AIEngine } from "@/lib/ai/client";
 
 // Config loaded from MEASURE_AGENT spec
 interface MeasureAgentConfig {
@@ -106,7 +108,7 @@ async function loadMeasureConfig(): Promise<{ config: MeasureAgentConfig; prompt
     return { config: DEFAULT_MEASURE_CONFIG, promptTemplate: null, llmConfig: {} };
   }
 
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   cachedMeasureConfig = {
     scoring: {
       minScore: specConfig.scoring?.minScore ?? DEFAULT_MEASURE_CONFIG.scoring.minScore,
@@ -388,7 +390,7 @@ export async function measureAgent(
             // @ai-call pipeline.score_agent — Score agent behavior from transcript | config: /x/ai-config
             const aiResult = await getConfiguredMeteredAICompletion({
               callPoint: "pipeline.score_agent",
-              engineOverride: (llmConfig.engine as any) || undefined,
+              engineOverride: llmConfig.engine as AIEngine || undefined,
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: fullPrompt },

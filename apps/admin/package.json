@@ -75,16 +75,9 @@
     "openai": "^6.16.0",
     "pdf-parse": "^1.1.4",
     "prisma": "^6.19.1",
-    "ra-core": "^5.13.4",
-    "ra-data-simple-rest": "^5.13.4",
-    "ra-i18n-polyglot": "^5.13.4",
-    "ra-ui-materialui": "^5.13.4",
     "react": "19.2.3",
-    "react-admin": "^5.13.4",
     "react-dom": "19.2.3",
     "reactflow": "^11.11.4",
-    "vis-data": "^8.0.3",
-    "vis-network": "^10.0.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {

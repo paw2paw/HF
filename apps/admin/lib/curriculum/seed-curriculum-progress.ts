@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { updateCurriculumProgress } from "./track-progress";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 /**
  * Seed curriculum progress for a test caller
@@ -45,7 +46,7 @@ export async function seedCurriculumProgress(
     });
 
     if (contentSpec) {
-      const config = contentSpec.config as any;
+      const config = contentSpec.config as SpecConfig;
       const params = config?.parameters || [];
       const moduleParams = params.filter((p: any) => p.section === "content");
 

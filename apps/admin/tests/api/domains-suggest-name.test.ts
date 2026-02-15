@@ -253,7 +253,7 @@ describe("/api/domains/suggest-name", () => {
         "@/lib/metering/instrumented-ai"
       );
       (getConfiguredMeteredAICompletion as any).mockResolvedValue({
-        content: '"Creative Writing Workshop."',
+        content: '{"name": "Creative Writing Workshop."}',
       });
 
       const { POST } = await import(

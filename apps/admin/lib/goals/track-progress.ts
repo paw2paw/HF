@@ -8,6 +8,7 @@
 import { prisma } from "@/lib/prisma";
 import { GoalType, GoalStatus } from "@prisma/client";
 import { PARAMS } from "@/lib/registry";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 export interface GoalProgressUpdate {
   goalId: string;
@@ -120,7 +121,7 @@ async function calculateLearnProgress(
     ).length;
 
     // Get total modules from spec config
-    const totalModules = (goal.contentSpec.config as any)?.curriculum?.modules?.length || 1;
+    const totalModules = (goal.contentSpec.config as SpecConfig)?.curriculum?.modules?.length || 1;
 
     // Calculate progress as percentage of modules completed
     const curriculumProgress = completedModules / totalModules;

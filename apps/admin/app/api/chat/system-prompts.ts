@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getPageDocsSummary } from "@/lib/chat/page-docs";
 import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
 
 type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
 
@@ -237,7 +238,7 @@ async function getSystemOverview(): Promise<string | null> {
         parts.push(`- **${domain.name}** (${domain.slug}) — ${domain._count.callers} callers`);
         if (domain.description) parts.push(`  ${domain.description}`);
         for (const pb of domain.playbooks) {
-          const goals = (pb.config as any)?.goals;
+          const goals = (pb.config as PlaybookConfig)?.goals;
           const goalSummary = Array.isArray(goals) && goals.length > 0
             ? ` — Goals: ${goals.map((g: any) => g.name).join(", ")}`
             : "";

@@ -23,6 +23,7 @@ import {
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -564,7 +565,7 @@ async function loadPersonaFlowPhases(persona: string): Promise<any | null> {
 
   if (!spec?.config) return null;
 
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   const personaConfig = specConfig.personas?.[persona];
   return personaConfig?.firstCallFlow?.phases ? { phases: personaConfig.firstCallFlow.phases } : null;
 }

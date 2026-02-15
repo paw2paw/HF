@@ -8,6 +8,7 @@
 
 import { registerTransform } from "../TransformRegistry";
 import { classifyValue } from "../types";
+import type { SpecConfig } from "@/lib/types/json-fields";
 import type { AssembledContext } from "../types";
 import { PARAMS } from "@/lib/registry";
 
@@ -27,7 +28,7 @@ registerTransform("computeQuickStart", (
 
   // Get role statement
   const getRoleStatement = (): string => {
-    const config = identitySpec?.config as any;
+    const config = identitySpec?.config as SpecConfig;
     if (!config) return "A helpful voice assistant";
     if (config.tutor_role?.roleStatement) return config.tutor_role.roleStatement;
     if (config.roleStatement) return config.roleStatement;
@@ -125,7 +126,7 @@ registerTransform("computeQuickStart", (
     })(),
 
     first_line: (() => {
-      const identityOpening = (identitySpec?.config as any)?.sessionStructure?.opening?.instruction;
+      const identityOpening = (identitySpec?.config as SpecConfig)?.sessionStructure?.opening?.instruction;
       if (identityOpening) return identityOpening;
       if (isFirstCall) return "Good to have you. Let's just ease into this... no rush.";
       return "Good to reconnect. Let's pick up where we left off.";

@@ -8,6 +8,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 const prisma = new PrismaClient();
 
@@ -75,7 +76,7 @@ async function loadSlugSelectConfig(): Promise<SlugSelectConfig> {
     return DEFAULT_SLUG_SELECT_CONFIG;
   }
 
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   return {
     thresholds: {
       highNeuroticism: specConfig.thresholds?.highNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highNeuroticism,
@@ -479,7 +480,7 @@ export async function savePromptSlugSelection(
       promptSlug: selection.promptSlug,
       confidence: selection.confidence,
       reasoning: selection.reasoning,
-      personalitySnapshot: selection.personalitySnapshot as any,
+      personalitySnapshot: selection.personalitySnapshot as unknown as Record<string, any>,
       recentSlugs: [], // Will be populated by next selection
       selectionMethod: "rule-based",
     },

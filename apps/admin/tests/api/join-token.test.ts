@@ -198,7 +198,7 @@ describe("/api/join/[token]", () => {
 
       expect(data.ok).toBe(true);
       expect(data.message).toContain("joined");
-      expect(data.redirect).toBe("/x/sim");
+      expect(data.redirect).toBe("/x/student/progress");
     });
 
     it("should add existing user to cohort without creating new user", async () => {
@@ -238,7 +238,7 @@ describe("/api/join/[token]", () => {
 
       expect(data.ok).toBe(true);
       expect(data.message).toBe("Joined classroom");
-      expect(data.redirect).toBe("/x/sim");
+      expect(data.redirect).toBe("/x/student/progress");
       // Transaction should NOT have been called — existing user path
       expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });

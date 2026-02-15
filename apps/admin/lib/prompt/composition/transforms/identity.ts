@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext, PlaybookData, SystemSpecData, ResolvedSpecs, ResolvedSpec } from "../types";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 /**
  * Resolve identity, content, and voice specs from stacked playbooks + system specs.
@@ -225,7 +226,7 @@ registerTransform("extractIdentitySpec", (
 
   if (!identitySpec) return null;
 
-  const specConfig = identitySpec.config as any;
+  const specConfig = identitySpec.config as SpecConfig;
 
   return {
     specName: (() => {
@@ -275,7 +276,7 @@ registerTransform("extractContentSpec", (
   const contentSpec = context.resolvedSpecs.contentSpec;
   if (!contentSpec) return null;
 
-  const specConfig = contentSpec.config as any;
+  const specConfig = contentSpec.config as SpecConfig;
   const modulesSource = specConfig?.modules || specConfig?.curriculum?.modules || [];
 
   return {

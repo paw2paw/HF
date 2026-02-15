@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { updateLearnerProfile } from "@/lib/learner/profile";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 interface AggregationRule {
   sourceParameter: string;
@@ -71,11 +72,11 @@ export async function runAggregateSpecs(callerId: string): Promise<{
     try {
       console.log(`[aggregate-runner] Running ${spec.slug}...`);
 
-      const config = spec.config as any;
-      const parameters = config?.parameters || [];
+      const config = (spec.config as SpecConfig) || {};
+      const parameters = (config.parameters as Array<{ config?: AggregateConfig }>) || [];
 
       // Find the aggregate parameter with config
-      const aggregateParam = parameters.find((p: any) =>
+      const aggregateParam = parameters.find((p) =>
         p.config?.aggregationRules && p.config.aggregationRules.length > 0
       );
 

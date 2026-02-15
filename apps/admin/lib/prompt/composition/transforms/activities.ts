@@ -12,6 +12,7 @@
 import { registerTransform } from "../TransformRegistry";
 import { classifyValue } from "../types";
 import type { AssembledContext, SystemSpecData } from "../types";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -177,7 +178,7 @@ registerTransform("computeActivityToolkit", (
     };
   }
 
-  const specConfig = activitySpec.config as any;
+  const specConfig = activitySpec.config as SpecConfig;
 
   // Extract catalog and strategy from spec config.
   // The seed script for ORCHESTRATE specs flattens parameter configs onto the root,

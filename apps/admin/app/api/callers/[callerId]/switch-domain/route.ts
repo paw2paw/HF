@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
 
 /**
  * @api POST /api/callers/:callerId/switch-domain
@@ -164,7 +165,7 @@ export async function POST(
       // 5. Create new goals from playbook
       const newGoals: string[] = [];
       if (playbook?.config) {
-        const config = playbook.config as any;
+        const config = playbook.config as PlaybookConfig;
         const goals = config.goals || [];
 
         for (const goalConfig of goals) {

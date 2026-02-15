@@ -20,6 +20,7 @@
  */
 
 import { PrismaClient, BehaviorTargetScope } from "@prisma/client";
+import type { SpecConfig, OutcomeSignal } from "@/lib/types/json-fields";
 
 const prisma = new PrismaClient();
 
@@ -74,7 +75,7 @@ async function loadRewardConfig(): Promise<RewardConfig> {
     return DEFAULT_REWARD_CONFIG;
   }
 
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   return {
     defaultTargetValue: specConfig.defaultTargetValue ?? DEFAULT_REWARD_CONFIG.defaultTargetValue,
     tolerance: specConfig.tolerance ?? DEFAULT_REWARD_CONFIG.tolerance,
@@ -462,7 +463,7 @@ export async function computeReward(
           effectiveTargets: effectiveTargetsJson,
           actualBehavior: actualBehaviorJson,
           parameterDiffs: parameterDiffsJson,
-          outcomeSignals: outcomes as any,
+          outcomeSignals: outcomes as Record<string, any>,
         },
       });
 

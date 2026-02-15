@@ -18,6 +18,7 @@
 
 import { PrismaClient, BehaviorTargetScope } from "@prisma/client";
 import { PARAM_GROUPS, TRAITS, TRAIT_NAMES } from "@/lib/registry";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 const prisma = new PrismaClient();
 
@@ -104,7 +105,7 @@ async function loadComposeConfig(): Promise<ComposeNextPromptConfig> {
     return DEFAULT_COMPOSE_CONFIG;
   }
 
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   cachedComposeConfig = {
     targetLevelThresholds: {
       high: specConfig.targetLevelThresholds?.high ?? DEFAULT_COMPOSE_CONFIG.targetLevelThresholds.high,
@@ -349,7 +350,7 @@ async function composePromptForCaller(
 
       // Check each trait using config thresholds
       for (const [traitField, descriptions] of Object.entries(traitDescriptions)) {
-        const value = (callerPersonality as any)[traitField];
+        const value = (callerPersonality as unknown as Record<string, number | null>)[traitField];
         if (value !== null) {
           const traitName = traitField.charAt(0).toUpperCase() + traitField.slice(1);
           if (value >= thresholdHigh) {

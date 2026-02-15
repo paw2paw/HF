@@ -12,6 +12,7 @@ import { registerTransform } from "../TransformRegistry";
 import { classifyValue, getAttributeValue } from "../types";
 import { computePersonalityAdaptation } from "./personality";
 import type { AssembledContext, CallerAttributeData } from "../types";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 // Structural defaults for common memory keys — used when COMP-001 doesn't provide narrativeTemplates
 const DEFAULT_NARRATIVE_TEMPLATES: Record<string, string> = {
@@ -88,8 +89,8 @@ registerTransform("computeInstructions", (
   const mergedTargets = sections.behaviorTargets?._merged || sections.behaviorTargets?.all || [];
 
   // Memory instruction config from COMP-001 spec (zero hardcoding)
-  const memSectionConfig = (context.specConfig?.parameters as any[])?.find(
-    (p: any) => p.id === "memory_section"
+  const memSectionConfig = (context.specConfig?.parameters as Array<{ id: string; config?: SpecConfig }>)?.find(
+    (p) => p.id === "memory_section"
   )?.config || context.specConfig;
 
   // Category selection for instructions — from spec config or structural defaults

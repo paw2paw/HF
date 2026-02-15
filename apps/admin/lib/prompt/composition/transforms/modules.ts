@@ -189,7 +189,7 @@ function extractSubjectCurriculumModules(
     const curriculum = subject.curriculum;
     if (!curriculum?.notableInfo) continue;
 
-    const rawModules = (curriculum.notableInfo as any)?.modules;
+    const rawModules = (curriculum.notableInfo as Record<string, any>)?.modules;
     if (!Array.isArray(rawModules) || rawModules.length === 0) continue;
 
     const modules: ModuleData[] = rawModules.map((m: any, idx: number) => ({
@@ -362,7 +362,7 @@ registerTransform("computeModuleProgress", (
   const contentCfg = contentSpec?.config as Record<string, any> | null;
   const callerAttributes = loadedData.callerAttributes;
   const totalCallCount = loadedData.callCount;
-  const masteryThreshold = (sharedState as any).curriculumMetadata?.masteryThreshold ?? 0.7;
+  const masteryThreshold = (sharedState as Record<string, any>).curriculumMetadata?.masteryThreshold ?? 0.7;
 
   const curriculumAttrs = callerAttributes.filter((a: CallerAttributeData) =>
     a.key.includes("module") ||

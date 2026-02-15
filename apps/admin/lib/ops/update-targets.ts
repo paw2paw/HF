@@ -25,6 +25,7 @@
  */
 
 import { PrismaClient, BehaviorTargetScope, BehaviorTargetSource, Prisma } from "@prisma/client";
+import type { SpecConfig, ParameterDiff } from "@/lib/types/json-fields";
 
 const prisma = new PrismaClient();
 
@@ -73,7 +74,7 @@ async function loadTargetLearnConfig(): Promise<TargetLearnConfig> {
     return DEFAULT_TARGET_LEARN_CONFIG;
   }
 
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   return {
     tolerance: specConfig.tolerance ?? DEFAULT_TARGET_LEARN_CONFIG.tolerance,
     learningRate: specConfig.learningRate ?? DEFAULT_TARGET_LEARN_CONFIG.learningRate,
@@ -272,8 +273,8 @@ export async function updateTargets(
         const targetData = effectiveTargets[parameterId];
         if (!targetData) continue;
 
-        const { target, actual, withinTolerance } = diffData as any;
-        const { confidence: targetConfidence, scope } = targetData as any;
+        const { target, actual, withinTolerance } = diffData as ParameterDiff;
+        const { confidence: targetConfidence, scope } = targetData as { confidence: number; scope: string };
 
         // Skip if confidence is too low (avoid over-adjusting)
         if (targetConfidence < config.minConfidence) {

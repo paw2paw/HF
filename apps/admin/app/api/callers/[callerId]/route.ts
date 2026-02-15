@@ -6,6 +6,7 @@ import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 import { deleteCallerData } from "@/lib/gdpr/delete-caller-data";
 import { auditLog, AuditAction } from "@/lib/audit";
 import type { CallerRole } from "@prisma/client";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
 
 /**
  * @api GET /api/callers/:callerId
@@ -683,7 +684,7 @@ export async function PATCH(
       });
 
       if (playbook?.config) {
-        const config = playbook.config as any;
+        const config = playbook.config as PlaybookConfig;
         const goals = config.goals || [];
 
         // Create goal instances for caller

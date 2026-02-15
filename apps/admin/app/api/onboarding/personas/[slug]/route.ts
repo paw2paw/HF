@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { config } from "@/lib/config";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const specConfig = spec.config as any || {};
+    const specConfig = spec.config as SpecConfig || {};
     const personasConfig = specConfig.personas || {};
     const personaConfig = personasConfig[personaSlug];
 
@@ -170,7 +171,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const specConfig = spec.config as any || {};
+    const specConfig = spec.config as SpecConfig || {};
     const personasConfig = specConfig.personas || {};
 
     if (!personasConfig[personaSlug]) {

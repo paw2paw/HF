@@ -38,361 +38,12 @@ import { TRAITS } from "@/lib/registry";
 import { recoverBrokenJson } from "@/lib/utils/json-recovery";
 import { executeComposition, persistComposedPrompt, loadComposeConfig } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
-import { getPipelineGates, getPipelineSettings } from "@/lib/system-settings";
-import { getTranscriptLimitsFallback } from "@/lib/fallback-settings";
-
-// =====================================================
-// TRANSCRIPT LIMITS (from AIConfig)
-// =====================================================
-
-// Loaded from SystemSettings at runtime (see fallback-settings.ts for hardcoded last-resort)
-
-/**
- * Get transcript limit for a call point from AIConfig, with fallback to defaults
- */
-async function getTranscriptLimit(callPoint: string): Promise<number> {
-  try {
-    const aiCfg = await prisma.aIConfig.findUnique({
-      where: { callPoint },
-    });
-    // Use type assertion since Prisma types may be stale after migration
-    const limit = (aiCfg as any)?.transcriptLimit;
-    if (limit && typeof limit === "number") {
-      return limit;
-    }
-  } catch {
-    // Fallback to default on error
-  }
-  const limits = await getTranscriptLimitsFallback();
-  return limits[callPoint] ?? 4000;
-}
-
-// =====================================================
-// SPEC SELECTION BY TYPE
-// =====================================================
-
-/**
- * Get SYSTEM specs filtered by playbook toggle settings.
- * System specs can be toggled ON/OFF per playbook via PlaybookSystemSpec.isEnabled.
- * Defaults to enabled if no PlaybookSystemSpec record exists.
- */
-async function getSystemSpecs(
-  outputTypes: string[],
-  playbookId: string | null,
-  log: ReturnType<typeof createLogger>
-): Promise<Array<{ id: string; slug: string; outputType: string }>> {
-  // Get all active SYSTEM specs
-  const allSystemSpecs = await prisma.analysisSpec.findMany({
-    where: {
-      scope: "SYSTEM",
-      outputType: { in: outputTypes as any[] },
-      isActive: true,
-      isDirty: false,
-    },
-    select: { id: true, slug: true, outputType: true },
-    orderBy: { priority: "desc" },
-  });
-
-  // If no playbook, return all system specs (default behavior)
-  if (!playbookId) {
-    log.info(`Loaded ${allSystemSpecs.length} SYSTEM specs (no playbook)`, { outputTypes });
-    return allSystemSpecs;
-  }
-
-  // Filter system specs based on playbook's systemSpecToggles config
-  const playbook = await prisma.playbook.findUnique({
-    where: { id: playbookId },
-    select: { config: true },
-  });
-
-  const playbookConfig = (playbook?.config as Record<string, any>) || {};
-  const toggles = playbookConfig.systemSpecToggles || {};
-
-  // If no toggles configured, return all system specs (default = enabled)
-  if (Object.keys(toggles).length === 0) {
-    log.info(`Loaded ${allSystemSpecs.length} SYSTEM specs (no toggles configured)`, { outputTypes, playbookId });
-    return allSystemSpecs;
-  }
-
-  // Filter: exclude specs that are explicitly disabled
-  const filtered = allSystemSpecs.filter(spec => {
-    const toggle = toggles[spec.id] || toggles[spec.slug];
-    if (toggle && toggle.isEnabled === false) {
-      log.info(`SYSTEM spec "${spec.slug}" disabled by playbook toggle`);
-      return false;
-    }
-    return true;
-  });
-
-  log.info(`Loaded ${filtered.length}/${allSystemSpecs.length} SYSTEM specs (${allSystemSpecs.length - filtered.length} disabled by playbook)`, {
-    outputTypes,
-    playbookId,
-  });
-
-  return filtered;
-}
-
-/**
- * Get specs by outputType for a specific pipeline stage.
- */
-async function getSpecsByOutputType(
-  outputType: string,
-  log: ReturnType<typeof createLogger>
-): Promise<Array<{ id: string; slug: string; outputType: string }>> {
-  const specs = await prisma.analysisSpec.findMany({
-    where: {
-      outputType: outputType as any,
-      isActive: true,
-      isDirty: false,
-    },
-    select: { id: true, slug: true, outputType: true },
-    orderBy: { priority: "desc" },
-  });
-
-  log.info(`Loaded ${specs.length} ${outputType} specs`);
-  return specs;
-}
-
-// =====================================================
-// PLAYBOOK-AWARE SPEC SELECTION (DOMAIN specs)
-// =====================================================
-
-/**
- * Get DOMAIN specs from the caller's domain's published playbook.
- * Only returns specs with scope=DOMAIN (not SYSTEM).
- * Falls back to all active DOMAIN specs if no playbook is published.
- */
-async function getPlaybookSpecs(
-  callerId: string,
-  outputTypes: string[],
-  log: ReturnType<typeof createLogger>
-): Promise<{
-  specs: Array<{ id: string; slug: string; outputType: string }>;
-  playbookId: string | null;
-  playbookName: string | null;
-  fallback: boolean;
-}> {
-  // 1. Get caller's domain
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true, domain: { select: { slug: true, name: true } } },
-  });
-
-  if (!caller?.domainId) {
-    log.warn("Caller has no domain assigned, using fallback (all active DOMAIN specs)");
-    const allSpecs = await prisma.analysisSpec.findMany({
-      where: {
-        scope: "DOMAIN",
-        outputType: { in: outputTypes as any[] },
-        isActive: true,
-        isDirty: false,
-      },
-      select: { id: true, slug: true, outputType: true },
-    });
-    return { specs: allSpecs, playbookId: null, playbookName: null, fallback: true };
-  }
-
-  // 2. Find PUBLISHED playbook for this domain
-  const playbook = await prisma.playbook.findFirst({
-    where: {
-      domainId: caller.domainId,
-      status: "PUBLISHED",
-    },
-    select: {
-      id: true,
-      name: true,
-      items: {
-        where: {
-          itemType: "SPEC",
-          isEnabled: true,
-          spec: {
-            scope: "DOMAIN",
-            outputType: { in: outputTypes as any[] },
-            isActive: true,
-            isDirty: false,
-          },
-        },
-        select: {
-          spec: {
-            select: { id: true, slug: true, outputType: true },
-          },
-        },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-  });
-
-  if (!playbook) {
-    log.warn(`No published playbook for domain "${caller.domain?.slug}", using fallback (all active DOMAIN specs)`);
-    const allSpecs = await prisma.analysisSpec.findMany({
-      where: {
-        scope: "DOMAIN",
-        outputType: { in: outputTypes as any[] },
-        isActive: true,
-        isDirty: false,
-      },
-      select: { id: true, slug: true, outputType: true },
-    });
-    return { specs: allSpecs, playbookId: null, playbookName: null, fallback: true };
-  }
-
-  // 3. Extract specs from playbook items
-  const specs = playbook.items
-    .filter((item) => item.spec)
-    .map((item) => item.spec!);
-
-  log.info(`Using playbook "${playbook.name}" for domain "${caller.domain?.slug}"`, {
-    playbookId: playbook.id,
-    specCount: specs.length,
-    outputTypes,
-  });
-
-  return {
-    specs,
-    playbookId: playbook.id,
-    playbookName: playbook.name,
-    fallback: false,
-  };
-}
-
-// =====================================================
-// BATCHED PARAMETER LOOKUP (OPTIMIZATION)
-// =====================================================
-
-/**
- * Batch-load parameters by IDs in a single query instead of N queries.
- * Reduces DB round-trips from O(N) to O(1).
- */
-async function batchLoadParameters(
-  specs: Array<{ triggers: Array<{ actions: Array<{ parameterId: string | null }> }> }>
-): Promise<Map<string, { parameterId: string; name: string; definition: string | null }>> {
-  // Collect unique parameter IDs first
-  const paramIds = new Set<string>();
-  for (const spec of specs) {
-    for (const trigger of spec.triggers) {
-      for (const action of trigger.actions) {
-        if (action.parameterId) {
-          paramIds.add(action.parameterId);
-        }
-      }
-    }
-  }
-
-  if (paramIds.size === 0) {
-    return new Map();
-  }
-
-  // Single batched query
-  const params = await prisma.parameter.findMany({
-    where: { parameterId: { in: Array.from(paramIds) } },
-    select: { parameterId: true, name: true, definition: true },
-  });
-
-  // Build lookup map
-  const paramMap = new Map<string, { parameterId: string; name: string; definition: string | null }>();
-  for (const param of params) {
-    paramMap.set(param.parameterId, param);
-  }
-
-  return paramMap;
-}
-
-// Category mappings for normalizing LLM output to valid MemoryCategory enum values
-// Mirrors the taxonomy config from system-memory-taxonomy spec
-const CATEGORY_MAPPINGS: Record<string, MemoryCategory> = {
-  // Direct matches (uppercase)
-  "FACT": MemoryCategory.FACT,
-  "PREFERENCE": MemoryCategory.PREFERENCE,
-  "EVENT": MemoryCategory.EVENT,
-  "TOPIC": MemoryCategory.TOPIC,
-  "RELATIONSHIP": MemoryCategory.RELATIONSHIP,
-  "CONTEXT": MemoryCategory.CONTEXT,
-  // Common variations LLM might return
-  "INTEREST": MemoryCategory.TOPIC,
-  "INTEREST_": MemoryCategory.TOPIC,
-  "INTERESTS": MemoryCategory.TOPIC,
-  "HOBBY": MemoryCategory.TOPIC,
-  "HOBBIES": MemoryCategory.TOPIC,
-  "LIKE": MemoryCategory.PREFERENCE,
-  "LIKES": MemoryCategory.PREFERENCE,
-  "DISLIKE": MemoryCategory.PREFERENCE,
-  "DISLIKES": MemoryCategory.PREFERENCE,
-  "PERSONAL": MemoryCategory.FACT,
-  "PERSONAL_INFO": MemoryCategory.FACT,
-  "DEMOGRAPHIC": MemoryCategory.FACT,
-  "LOCATION": MemoryCategory.FACT,
-  "EXPERIENCE": MemoryCategory.EVENT,
-  "HISTORY": MemoryCategory.EVENT,
-  "SITUATION": MemoryCategory.CONTEXT,
-  "CURRENT": MemoryCategory.CONTEXT,
-  "FAMILY": MemoryCategory.RELATIONSHIP,
-  "FRIEND": MemoryCategory.RELATIONSHIP,
-  "WORK": MemoryCategory.FACT,
-  "JOB": MemoryCategory.FACT,
-};
-
-const DEFAULT_CATEGORY = MemoryCategory.FACT;
-
-/**
- * Map LLM category output to valid MemoryCategory enum
- */
-function mapToMemoryCategory(category: string): MemoryCategory {
-  if (!category) return DEFAULT_CATEGORY;
-
-  // Clean up the category string
-  const cleaned = category.toUpperCase().trim().replace(/[^A-Z_]/g, '');
-
-  // Direct enum match
-  if (cleaned in MemoryCategory) {
-    return cleaned as MemoryCategory;
-  }
-
-  // Lookup in mappings
-  const mapped = CATEGORY_MAPPINGS[cleaned];
-  if (mapped) {
-    return mapped;
-  }
-
-  // Try partial match (e.g., "interest_" -> "INTEREST")
-  for (const [key, value] of Object.entries(CATEGORY_MAPPINGS)) {
-    if (cleaned.startsWith(key) || key.startsWith(cleaned)) {
-      return value;
-    }
-  }
-
-  return DEFAULT_CATEGORY;
-}
-
-// Log entry type
-type LogEntry = {
-  timestamp: string;
-  level: "info" | "warn" | "error" | "debug";
-  message: string;
-  data?: any;
-};
-
-// Logger helper
-function createLogger() {
-  const logs: LogEntry[] = [];
-  const startTime = Date.now();
-
-  return {
-    info: (message: string, data?: any) => {
-      logs.push({ timestamp: new Date().toISOString(), level: "info", message, data });
-    },
-    warn: (message: string, data?: any) => {
-      logs.push({ timestamp: new Date().toISOString(), level: "warn", message, data });
-    },
-    error: (message: string, data?: any) => {
-      logs.push({ timestamp: new Date().toISOString(), level: "error", message, data });
-    },
-    debug: (message: string, data?: any) => {
-      logs.push({ timestamp: new Date().toISOString(), level: "debug", message, data });
-    },
-    getLogs: () => logs,
-    getDuration: () => Date.now() - startTime,
-  };
-}
+import { getPipelineGates } from "@/lib/system-settings";
+import { createLogger, type PipelineLogger } from "@/lib/pipeline/logger";
+import { mapToMemoryCategory } from "@/lib/pipeline/memory";
+import { loadGuardrails, type GuardrailsConfig } from "@/lib/pipeline/guardrails";
+import { getTranscriptLimit, getSystemSpecs, getSpecsByOutputType, getPlaybookSpecs, batchLoadParameters } from "@/lib/pipeline/specs-loader";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 /**
  * Build a BATCHED prompt for all MEASURE + LEARN specs
@@ -404,7 +55,7 @@ function createLogger() {
  */
 async function loadCurrentModuleContext(
   callerId: string,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{
   specSlug: string;
   moduleId: string;
@@ -486,7 +137,7 @@ async function loadCurrentModuleContext(
     const curriculum = sd.subject.curricula[0];
     if (!curriculum?.notableInfo) continue;
 
-    const rawModules = (curriculum.notableInfo as any)?.modules;
+    const rawModules = (curriculum.notableInfo as Record<string, any>)?.modules;
     if (!Array.isArray(rawModules) || rawModules.length === 0) continue;
 
     const progress = await getCurriculumProgress(callerId, curriculum.slug);
@@ -576,7 +227,7 @@ async function runBatchedCallerAnalysis(
   call: { id: string; transcript: string | null },
   callerId: string,
   engine: AIEngine,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{
   scoresCreated: number;
   memoriesCreated: number;
@@ -667,7 +318,7 @@ async function runBatchedCallerAnalysis(
 
   // Check if LEARN-ASSESS-001 (or any spec with assessmentMode) is active
   const assessmentSpec = learnSpecs.find(
-    (s) => (s.config as any)?.assessmentMode === "curriculum_mastery"
+    (s) => (s.config as SpecConfig)?.assessmentMode === "curriculum_mastery"
   );
   let moduleContext: Awaited<ReturnType<typeof loadCurrentModuleContext>> = null;
 
@@ -759,7 +410,7 @@ async function runBatchedCallerAnalysis(
   } else {
     // @ai-call pipeline.measure — Score caller parameters from transcript | config: /x/ai-config
     const transcriptLimit = await getTranscriptLimit("pipeline.measure");
-    const assessPromptInstructions = assessmentSpec ? (assessmentSpec.config as any)?.promptInstructions : null;
+    const assessPromptInstructions = assessmentSpec ? (assessmentSpec.config as SpecConfig)?.promptInstructions : null;
     const prompt = buildBatchedCallerPrompt(transcript, measureParams, learnActions, transcriptLimit, moduleContext, assessPromptInstructions);
 
     try {
@@ -891,7 +542,7 @@ async function runBatchedAgentAnalysis(
   call: { id: string; transcript: string | null },
   callerId: string,
   engine: AIEngine,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{ measurementsCreated: number }> {
   const transcript = call.transcript || "";
 
@@ -1068,7 +719,7 @@ async function runBatchedAgentAnalysis(
  */
 async function computeReward(
   callId: string,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{ overallScore: number }> {
   const call = await prisma.call.findUnique({
     where: { id: callId },
@@ -1119,7 +770,7 @@ async function computeReward(
 async function aggregatePersonality(
   callId: string,
   callerId: string,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{ observationCreated: boolean; profileUpdated: boolean }> {
   // Load AGGREGATE spec config
   const aggregateSpec = await prisma.analysisSpec.findFirst({
@@ -1131,7 +782,7 @@ async function aggregatePersonality(
   });
 
   // Extract config with defaults
-  const specConfig = (aggregateSpec?.config as any) || {};
+  const specConfig = (aggregateSpec?.config as SpecConfig) || {};
   const traitMapping: Record<string, string> = specConfig.traitMapping || {
     [TRAITS.B5_O]: "openness",
     [TRAITS.B5_C]: "conscientiousness",
@@ -1312,7 +963,7 @@ async function aggregatePersonality(
 async function computeAdapt(
   callId: string,
   callerId: string,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{ deltasComputed: number }> {
   const currentCall = await prisma.call.findUnique({
     where: { id: callId },
@@ -1369,117 +1020,6 @@ async function computeAdapt(
 }
 
 // =====================================================
-// PIPELINE STAGE CONFIGURATION
-// =====================================================
-
-// PipelineStage type imported from @/lib/pipeline/config
-
-// =====================================================
-// GUARDRAILS LOADER
-// =====================================================
-
-/**
- * Guardrails configuration loaded from GUARD-001 spec
- */
-interface GuardrailsConfig {
-  targetClamp: { minValue: number; maxValue: number };
-  confidenceBounds: { minConfidence: number; maxConfidence: number; defaultConfidence: number };
-  mockBehavior: { scoreRangeMin: number; scoreRangeMax: number; nudgeFactor: number };
-  aiSettings: { temperature: number; maxRetries: number };
-  aggregation: {
-    decayHalfLifeDays: number;
-    confidenceGrowthBase: number;
-    confidenceGrowthPerCall: number;
-    maxAggregatedConfidence: number;
-  };
-}
-
-// Default guardrails if no SUPERVISE spec found
-const DEFAULT_GUARDRAILS: GuardrailsConfig = {
-  targetClamp: { minValue: 0.2, maxValue: 0.8 },
-  confidenceBounds: { minConfidence: 0.3, maxConfidence: 0.95, defaultConfidence: 0.7 },
-  mockBehavior: { scoreRangeMin: 0.4, scoreRangeMax: 0.8, nudgeFactor: 0.2 },
-  aiSettings: { temperature: 0.3, maxRetries: 2 },
-  aggregation: {
-    decayHalfLifeDays: 30,
-    confidenceGrowthBase: 0.5,
-    confidenceGrowthPerCall: 0.1,
-    maxAggregatedConfidence: 0.95,
-  },
-};
-
-/**
- * Load guardrails configuration from SUPERVISE spec (GUARD-001 or similar)
- * Falls back to defaults if no spec found
- */
-async function loadGuardrails(log: ReturnType<typeof createLogger>): Promise<GuardrailsConfig> {
-  // Load system settings for fallback defaults
-  const ps = await getPipelineSettings();
-
-  const superviseSpec = await prisma.analysisSpec.findFirst({
-    where: {
-      outputType: "SUPERVISE",
-      isActive: true,
-      isDirty: false,
-    },
-    select: { slug: true, config: true },
-  });
-
-  if (!superviseSpec) {
-    log.info("No SUPERVISE spec found - using default guardrails");
-    return DEFAULT_GUARDRAILS;
-  }
-
-  const specConfig = (superviseSpec.config as any) || {};
-  const parameters: Array<{ id: string; config?: any }> = specConfig.parameters || [];
-
-  // Helper to get parameter config by ID
-  const getParamConfig = (paramId: string): any => {
-    const param = parameters.find((p) => p.id === paramId);
-    return param?.config || {};
-  };
-
-  const targetClampConfig = getParamConfig("target_clamp");
-  const confidenceConfig = getParamConfig("confidence_bounds");
-  const mockConfig = getParamConfig("mock_behavior");
-  const aiConfig = getParamConfig("ai_settings");
-  const aggConfig = getParamConfig("aggregation");
-
-  const guardrails: GuardrailsConfig = {
-    targetClamp: {
-      minValue: targetClampConfig.minValue ?? DEFAULT_GUARDRAILS.targetClamp.minValue,
-      maxValue: targetClampConfig.maxValue ?? DEFAULT_GUARDRAILS.targetClamp.maxValue,
-    },
-    confidenceBounds: {
-      minConfidence: confidenceConfig.minConfidence ?? DEFAULT_GUARDRAILS.confidenceBounds.minConfidence,
-      maxConfidence: confidenceConfig.maxConfidence ?? DEFAULT_GUARDRAILS.confidenceBounds.maxConfidence,
-      defaultConfidence: confidenceConfig.defaultConfidence ?? DEFAULT_GUARDRAILS.confidenceBounds.defaultConfidence,
-    },
-    mockBehavior: {
-      scoreRangeMin: mockConfig.scoreRangeMin ?? DEFAULT_GUARDRAILS.mockBehavior.scoreRangeMin,
-      scoreRangeMax: mockConfig.scoreRangeMax ?? DEFAULT_GUARDRAILS.mockBehavior.scoreRangeMax,
-      nudgeFactor: mockConfig.nudgeFactor ?? DEFAULT_GUARDRAILS.mockBehavior.nudgeFactor,
-    },
-    aiSettings: {
-      temperature: aiConfig.temperature ?? DEFAULT_GUARDRAILS.aiSettings.temperature,
-      maxRetries: aiConfig.maxRetries ?? ps.maxRetries,
-    },
-    aggregation: {
-      decayHalfLifeDays: aggConfig.decayHalfLifeDays ?? ps.personalityDecayHalfLifeDays,
-      confidenceGrowthBase: aggConfig.confidenceGrowthBase ?? DEFAULT_GUARDRAILS.aggregation.confidenceGrowthBase,
-      confidenceGrowthPerCall: aggConfig.confidenceGrowthPerCall ?? DEFAULT_GUARDRAILS.aggregation.confidenceGrowthPerCall,
-      maxAggregatedConfidence: aggConfig.maxAggregatedConfidence ?? DEFAULT_GUARDRAILS.aggregation.maxAggregatedConfidence,
-    },
-  };
-
-  log.info(`Guardrails loaded from "${superviseSpec.slug}"`, {
-    targetClamp: guardrails.targetClamp,
-  });
-
-  return guardrails;
-}
-
-// =====================================================
 // ADAPT & SUPERVISE SPEC RUNNERS
 // =====================================================
 
@@ -1520,7 +1060,7 @@ async function runAdaptSpecs(
   callerId: string,
   engine: AIEngine,
   guardrails: GuardrailsConfig,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{ targetsCreated: number }> {
   // Load ADAPT specs (by outputType, not specType)
   const adaptSpecs = await getSpecsByOutputType("ADAPT", log);
@@ -1681,7 +1221,7 @@ async function runAdaptSpecs(
 async function validateTargets(
   callId: string,
   guardrails: GuardrailsConfig,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{ adjustments: number }> {
   const targets = await prisma.callTarget.findMany({
     where: { callId },
@@ -1730,7 +1270,7 @@ async function aggregateCallerTargets(
   callId: string,
   callerId: string,
   guardrails: GuardrailsConfig,
-  log: ReturnType<typeof createLogger>
+  log: PipelineLogger
 ): Promise<{ aggregated: number }> {
   // Get all CallTargets for this caller's calls
   const callerCalls = await prisma.call.findMany({
@@ -1830,7 +1370,7 @@ async function aggregateCallerTargets(
  */
 async function trackCurriculumAfterCall(
   callerId: string,
-  log: ReturnType<typeof createLogger>,
+  log: PipelineLogger,
   learningAssessment?: {
     specSlug: string;
     moduleId: string;
@@ -1953,7 +1493,7 @@ async function trackCurriculumAfterCall(
         const curriculum = sd.subject.curricula[0];
         if (!curriculum?.notableInfo) continue;
 
-        const rawModules = (curriculum.notableInfo as any)?.modules;
+        const rawModules = (curriculum.notableInfo as Record<string, any>)?.modules;
         if (!Array.isArray(rawModules) || rawModules.length === 0) continue;
 
         const progress = await getCurriculumProgress(callerId, curriculum.slug);
@@ -1996,7 +1536,7 @@ interface PipelineContext {
   pipelineStages: PipelineStage[];
   mode: "prep" | "prompt";
   force: boolean;
-  log: ReturnType<typeof createLogger>;
+  log: PipelineLogger;
   request: NextRequest;
   // Accumulated results from previous stages
   results: Record<string, any>;
