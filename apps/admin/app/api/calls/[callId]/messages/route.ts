@@ -37,18 +37,18 @@ export async function POST(
 
   const { callId } = await params;
   const body = await request.json();
-  const { role, content } = body;
+  const { role, content, mediaId, senderName } = body;
 
-  if (!role || !content) {
+  if (!role || (!content && !mediaId)) {
     return NextResponse.json(
-      { ok: false, error: "role and content are required" },
+      { ok: false, error: "role and (content or mediaId) are required" },
       { status: 400 }
     );
   }
 
-  if (!["user", "assistant"].includes(role)) {
+  if (!["user", "assistant", "teacher"].includes(role)) {
     return NextResponse.json(
-      { ok: false, error: "role must be 'user' or 'assistant'" },
+      { ok: false, error: "role must be 'user', 'assistant', or 'teacher'" },
       { status: 400 }
     );
   }
@@ -66,17 +66,32 @@ export async function POST(
     );
   }
 
+  // Validate mediaId if provided
+  if (mediaId) {
+    const media = await prisma.mediaAsset.findUnique({ where: { id: mediaId }, select: { id: true } });
+    if (!media) {
+      return NextResponse.json({ ok: false, error: "Media asset not found" }, { status: 404 });
+    }
+  }
+
   const message = await prisma.callMessage.create({
     data: {
       callId,
       role,
-      content,
+      content: content || "",
+      mediaId: mediaId || null,
+      senderName: senderName || null,
     },
     select: {
       id: true,
       role: true,
       content: true,
+      senderName: true,
+      mediaId: true,
       createdAt: true,
+      media: mediaId ? {
+        select: { id: true, fileName: true, mimeType: true, title: true },
+      } : false,
     },
   });
 
@@ -118,7 +133,11 @@ export async function GET(
       role: true,
       content: true,
       senderName: true,
+      mediaId: true,
       createdAt: true,
+      media: {
+        select: { id: true, fileName: true, mimeType: true, title: true },
+      },
     },
   });
 

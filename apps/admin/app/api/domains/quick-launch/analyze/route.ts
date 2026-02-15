@@ -278,8 +278,8 @@ export async function POST(req: NextRequest) {
     }
 
     const chunks = chunkText(text);
-    const job = createJob(source.id, file!.name);
-    updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
+    const job = await createJob(source.id, file!.name);
+    await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
     // Create UserTask for tracking/resume
     let taskId: string | null = null;
@@ -326,9 +326,9 @@ export async function POST(req: NextRequest) {
         subjectId: subject.id,
       },
       taskId,
-    ).catch((err) => {
+    ).catch(async (err) => {
       console.error(`[quick-launch:analyze] Background job ${job.id} unhandled error:`, err);
-      updateJob(job.id, { status: "error", error: err.message || "Unknown error" });
+      await updateJob(job.id, { status: "error", error: err.message || "Unknown error" });
     });
 
     // Return immediately
@@ -393,7 +393,7 @@ async function runQuickLaunchBackground(
   });
 
   if (!result.ok) {
-    updateJob(jobId, {
+    await updateJob(jobId, {
       status: "error",
       error: result.error || "Extraction failed",
       warnings: result.warnings,
@@ -402,7 +402,7 @@ async function runQuickLaunchBackground(
   }
 
   // ── Save assertions to DB ──
-  updateJob(jobId, { status: "importing", extractedCount: result.assertions.length, warnings: result.warnings });
+  await updateJob(jobId, { status: "importing", extractedCount: result.assertions.length, warnings: result.warnings });
 
   const existingHashes = new Set(
     (await prisma.contentAssertion.findMany({
@@ -457,7 +457,7 @@ async function runQuickLaunchBackground(
   }
 
   // ── Mark job done ──
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "done",
     importedCount: toCreate.length,
     duplicatesSkipped,

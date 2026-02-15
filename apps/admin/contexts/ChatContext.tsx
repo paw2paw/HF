@@ -64,6 +64,7 @@ export interface ChatMessage {
     entityContext?: EntityBreadcrumb[];
     isStreaming?: boolean;
     error?: string;
+    toolCalls?: number;
   };
 }
 
@@ -555,6 +556,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           updateMessage(assistantId, { content: accumulatedContent });
         }
 
+        // Capture tool call count from response header
+        const toolCallsHeader = response.headers.get("X-Tool-Calls");
+        const toolCalls = toolCallsHeader ? parseInt(toolCallsHeader, 10) : undefined;
+
         // Parse guidance from the accumulated content
         const { cleanContent, directives } = parseGuidanceFromContent(accumulatedContent);
         if (directives.length > 0) {
@@ -563,11 +568,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           // Update message with cleaned content (without guidance block)
           updateMessage(assistantId, {
             content: cleanContent,
-            metadata: { isStreaming: false, entityContext: entityContext.breadcrumbs },
+            metadata: { isStreaming: false, entityContext: entityContext.breadcrumbs, toolCalls },
           });
         } else {
           updateMessage(assistantId, {
-            metadata: { isStreaming: false, entityContext: entityContext.breadcrumbs },
+            metadata: { isStreaming: false, entityContext: entityContext.breadcrumbs, toolCalls },
           });
         }
       } catch (err) {

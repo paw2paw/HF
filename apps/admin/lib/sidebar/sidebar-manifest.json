@@ -27,7 +27,6 @@
     "defaultHiddenFor": ["DEMO", "EDUCATOR"],
     "items": [
       { "href": "/x/subjects", "label": "Subjects", "icon": "BookMarked" },
-      { "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" },
       { "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck" },
       { "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" }
     ]
@@ -105,7 +104,8 @@
       { "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" },
       { "href": "/x/test-harness", "label": "Test Harness", "icon": "Beaker" },
       { "href": "/x/spec-schema", "label": "Spec Schema", "icon": "FileJson" },
-      { "href": "/x/sidebar", "label": "Responsive Viewer", "icon": "Smartphone" }
+      { "href": "/x/sidebar", "label": "Responsive Viewer", "icon": "Smartphone" },
+      { "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" }
     ]
   }
 ]

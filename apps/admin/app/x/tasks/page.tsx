@@ -21,7 +21,7 @@ interface UserTask {
 
 // ── Task Type Labels ───────────────────────────────
 
-const TASK_TYPE_LABELS: Record<string, { label: string; icon: string; resumePath: string }> = {
+const TASK_TYPE_LABELS: Record<string, { label: string; icon: string; resumePath: string; isBackground?: boolean }> = {
   quick_launch: {
     label: "Quick Launch",
     icon: "Zap",
@@ -37,6 +37,18 @@ const TASK_TYPE_LABELS: Record<string, { label: string; icon: string; resumePath
     icon: "User",
     resumePath: "/x/callers",
   },
+  extraction: {
+    label: "Content Extraction",
+    icon: "FileSearch",
+    resumePath: "/x/content-sources",
+    isBackground: true,
+  },
+  curriculum_generation: {
+    label: "Curriculum Generation",
+    icon: "BookOpen",
+    resumePath: "/x/subjects",
+    isBackground: true,
+  },
 };
 
 function getTaskLabel(task: UserTask): string {
@@ -45,11 +57,25 @@ function getTaskLabel(task: UserTask): string {
   if (task.taskType === "quick_launch" && ctx?.input?.subjectName) {
     return `${base} — ${ctx.input.subjectName}`;
   }
+  if (task.taskType === "extraction" && ctx?.fileName) {
+    return `${base} — ${ctx.fileName}`;
+  }
+  if (task.taskType === "curriculum_generation" && ctx?.subjectName) {
+    return `${base} — ${ctx.subjectName}`;
+  }
   return base;
 }
 
 function getResumePath(task: UserTask): string {
+  const ctx = task.context;
+  if (task.taskType === "curriculum_generation" && ctx?.subjectId) {
+    return `/x/subjects/${ctx.subjectId}`;
+  }
   return TASK_TYPE_LABELS[task.taskType]?.resumePath || "/x";
+}
+
+function isBackgroundTask(task: UserTask): boolean {
+  return TASK_TYPE_LABELS[task.taskType]?.isBackground === true;
 }
 
 // ── Time Ago ───────────────────────────────────────
@@ -157,13 +183,11 @@ export default function TasksPage() {
 
           {activeTasks.length === 0 ? (
             <div
+              className="bg-neutral-100 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400"
               style={{
                 padding: 32,
                 borderRadius: 14,
-                border: "1px solid var(--border)",
-                background: "var(--bg-secondary, #f8fafc)",
                 textAlign: "center",
-                color: "var(--text-muted)",
                 fontSize: 14,
               }}
             >
@@ -174,11 +198,10 @@ export default function TasksPage() {
               {activeTasks.map((task) => (
                 <div
                   key={task.id}
+                  className="bg-white dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700"
                   style={{
                     padding: 20,
                     borderRadius: 14,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-primary)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -187,32 +210,52 @@ export default function TasksPage() {
                         {getTaskLabel(task)}
                       </div>
                       <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                        Started {timeAgo(task.startedAt)} &middot; Step {task.currentStep} of {task.totalSteps}
+                        Started {timeAgo(task.startedAt)}
+                        {isBackgroundTask(task)
+                          ? ` \u00b7 ${task.taskType === "extraction"
+                              ? `${task.context?.extractedCount ?? 0} assertions extracted`
+                              : `Step ${task.currentStep} of ${task.totalSteps}`}`
+                          : ` \u00b7 Step ${task.currentStep} of ${task.totalSteps}`}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => router.push(getResumePath(task))}
-                        style={{
-                          padding: "8px 16px",
-                          borderRadius: 8,
-                          background: "var(--accent, #2563eb)",
-                          color: "#fff",
-                          border: "none",
-                          fontSize: 13,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Resume
-                      </button>
+                      {isBackgroundTask(task) ? (
+                        <span
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            background: "var(--surface-secondary)",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "var(--accent-primary)",
+                          }}
+                        >
+                          Running...
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => router.push(getResumePath(task))}
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            background: "var(--accent-primary)",
+                            color: "var(--accent-primary-text)",
+                            border: "none",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Resume
+                        </button>
+                      )}
                       <button
                         onClick={() => handleAbandon(task.id)}
                         style={{
                           padding: "8px 16px",
                           borderRadius: 8,
                           background: "transparent",
-                          border: "1px solid var(--border)",
+                          border: "1px solid var(--border-default)",
                           fontSize: 13,
                           fontWeight: 500,
                           cursor: "pointer",
@@ -229,7 +272,7 @@ export default function TasksPage() {
                     style={{
                       height: 6,
                       borderRadius: 3,
-                      background: "var(--bg-tertiary, #e5e7eb)",
+                      background: "var(--surface-tertiary)",
                       overflow: "hidden",
                     }}
                   >
@@ -238,7 +281,7 @@ export default function TasksPage() {
                         height: "100%",
                         width: `${(task.currentStep / task.totalSteps) * 100}%`,
                         borderRadius: 3,
-                        background: "var(--accent, #2563eb)",
+                        background: "var(--accent-primary)",
                         transition: "width 0.3s ease",
                       }}
                     />
@@ -246,7 +289,7 @@ export default function TasksPage() {
 
                   {/* Blockers */}
                   {task.blockers && task.blockers.length > 0 && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-warning, #d97706)" }}>
+                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--status-warning-text)" }}>
                       Blocked: {task.blockers.join(", ")}
                     </div>
                   )}
@@ -276,11 +319,10 @@ export default function TasksPage() {
             {recentTasks.map((task) => (
               <div
                 key={task.id}
+                className="bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700"
                 style={{
                   padding: "12px 20px",
                   borderRadius: 10,
-                  border: "1px solid var(--border-light, rgba(0,0,0,0.06))",
-                  background: "var(--bg-secondary, #f8fafc)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -288,11 +330,11 @@ export default function TasksPage() {
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div
+                    className="bg-emerald-500 dark:bg-emerald-400"
                     style={{
                       width: 20,
                       height: 20,
                       borderRadius: "50%",
-                      background: "var(--color-success, #22c55e)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -304,11 +346,11 @@ export default function TasksPage() {
                   >
                     &#10003;
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                  <div className="text-neutral-900 dark:text-neutral-100" style={{ fontSize: 14, fontWeight: 500 }}>
                     {getTaskLabel(task)}
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                <div className="text-neutral-500 dark:text-neutral-400" style={{ fontSize: 12 }}>
                   {task.completedAt ? timeAgo(task.completedAt) : timeAgo(task.updatedAt)}
                 </div>
               </div>

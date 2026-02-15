@@ -75,3 +75,36 @@ export function getDeliveryChannel(): DeliveryChannel {
   const channelName = config.artifacts.channel;
   return channels[channelName] ?? channels.sim;
 }
+
+/**
+ * Get the delivery channel for a specific domain.
+ * Checks ChannelConfig in the database for domain-specific overrides.
+ * Falls back to global config, then to env var.
+ */
+export async function getChannelForDomain(domainId: string): Promise<DeliveryChannel> {
+  try {
+    // Check for domain-specific config
+    const domainConfig = await prisma.channelConfig.findFirst({
+      where: { domainId, isEnabled: true },
+      orderBy: { priority: "desc" },
+    });
+
+    if (domainConfig && channels[domainConfig.channelType]) {
+      return channels[domainConfig.channelType];
+    }
+
+    // Check for global config (domainId is null)
+    const globalConfig = await prisma.channelConfig.findFirst({
+      where: { domainId: null, isEnabled: true },
+      orderBy: { priority: "desc" },
+    });
+
+    if (globalConfig && channels[globalConfig.channelType]) {
+      return channels[globalConfig.channelType];
+    }
+  } catch {
+    // DB error — fall back to env var config
+  }
+
+  return getDeliveryChannel();
+}

@@ -68,7 +68,7 @@ export default function TicketsPage() {
             style={{
               padding: "10px 20px",
               background: "#8b5cf6",
-              color: "white",
+              color: "#fff",
               border: "none",
               borderRadius: 8,
               fontSize: 14,
@@ -265,7 +265,7 @@ function StatCard({
       onClick={onClick}
       style={{
         padding: 16,
-        background: active ? `${color}15` : "var(--surface-primary)",
+        background: active ? `color-mix(in srgb, ${color} 8%, transparent)` : "var(--surface-primary)",
         border: `2px solid ${active ? color : "var(--border-default)"}`,
         borderRadius: 10,
         cursor: "pointer",
@@ -273,7 +273,7 @@ function StatCard({
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = color;
-        e.currentTarget.style.boxShadow = `0 4px 12px ${color}30`;
+        e.currentTarget.style.boxShadow = `0 4px 12px color-mix(in srgb, ${color} 20%, transparent)`;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = active ? color : "var(--border-default)";
@@ -301,7 +301,7 @@ function TicketCard({ ticket, onClick }: { ticket: Ticket; onClick: () => void }
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = getPriorityColor(ticket.priority);
-        e.currentTarget.style.boxShadow = `0 4px 12px ${getPriorityColor(ticket.priority)}30`;
+        e.currentTarget.style.boxShadow = `0 4px 12px color-mix(in srgb, ${getPriorityColor(ticket.priority)} 20%, transparent)`;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = getPriorityBorderColor(ticket.priority);
@@ -427,21 +427,21 @@ function PriorityBadge({ priority }: { priority: TicketPriority }) {
 // Helper functions
 function getStatusConfig(status: TicketStatus) {
   const configs: Record<TicketStatus, { bg: string; text: string; border: string }> = {
-    OPEN: { bg: "#dcfce7", text: "#166534", border: "#86efac" },
-    IN_PROGRESS: { bg: "#dbeafe", text: "#1e40af", border: "#93c5fd" },
-    WAITING: { bg: "#fef3c7", text: "#92400e", border: "#fcd34d" },
-    RESOLVED: { bg: "#d1fae5", text: "#065f46", border: "#6ee7b7" },
-    CLOSED: { bg: "#f3f4f6", text: "#374151", border: "#d1d5db" },
+    OPEN: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", border: "color-mix(in srgb, var(--status-success-text) 40%, transparent)" },
+    IN_PROGRESS: { bg: "var(--status-info-bg)", text: "var(--status-info-text)", border: "color-mix(in srgb, var(--status-info-text) 40%, transparent)" },
+    WAITING: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", border: "color-mix(in srgb, var(--status-warning-text) 40%, transparent)" },
+    RESOLVED: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", border: "color-mix(in srgb, var(--status-success-text) 40%, transparent)" },
+    CLOSED: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)", border: "color-mix(in srgb, var(--status-neutral-text) 40%, transparent)" },
   };
   return configs[status];
 }
 
 function getPriorityConfig(priority: TicketPriority) {
   const configs: Record<TicketPriority, { bg: string; text: string }> = {
-    LOW: { bg: "#f3f4f6", text: "#6b7280" },
-    MEDIUM: { bg: "#dbeafe", text: "#1e40af" },
-    HIGH: { bg: "#ffedd5", text: "#9a3412" },
-    URGENT: { bg: "#fee2e2", text: "#991b1b" },
+    LOW: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)" },
+    MEDIUM: { bg: "var(--status-info-bg)", text: "var(--status-info-text)" },
+    HIGH: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
+    URGENT: { bg: "var(--status-error-bg)", text: "var(--status-error-text)" },
   };
   return configs[priority];
 }
@@ -554,10 +554,10 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
             <div
               style={{
                 padding: 12,
-                background: "#fee2e2",
-                border: "1px solid #fecaca",
+                background: "var(--status-error-bg)",
+                border: "1px solid color-mix(in srgb, var(--status-error-text) 30%, transparent)",
                 borderRadius: 6,
-                color: "#991b1b",
+                color: "var(--status-error-text)",
                 fontSize: 14,
                 marginBottom: 16,
               }}
@@ -706,8 +706,8 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
               disabled={loading || !title.trim() || !description.trim()}
               style={{
                 padding: "8px 16px",
-                background: loading || !title.trim() || !description.trim() ? "#d1d5db" : "#8b5cf6",
-                color: "white",
+                background: loading || !title.trim() || !description.trim() ? "var(--surface-disabled)" : "#8b5cf6",
+                color: loading || !title.trim() || !description.trim() ? "var(--text-muted)" : "#fff",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 14,
@@ -929,8 +929,8 @@ function TicketDetailModal({
                 onClick={handleDelete}
                 style={{
                   padding: "6px 12px",
-                  background: "#fee2e2",
-                  color: "#991b1b",
+                  background: "var(--status-error-bg)",
+                  color: "var(--status-error-text)",
                   border: "none",
                   borderRadius: 6,
                   fontSize: 13,
@@ -1051,8 +1051,8 @@ function TicketDetailModal({
                   key={comment.id}
                   style={{
                     padding: 12,
-                    background: comment.isInternal ? "#fef3c7" : "var(--surface-secondary)",
-                    border: comment.isInternal ? "1px solid #fde047" : "1px solid var(--border-default)",
+                    background: comment.isInternal ? "var(--status-warning-bg)" : "var(--surface-secondary)",
+                    border: comment.isInternal ? "1px solid color-mix(in srgb, var(--status-warning-text) 40%, transparent)" : "1px solid var(--border-default)",
                     borderRadius: 8,
                   }}
                 >
@@ -1083,8 +1083,8 @@ function TicketDetailModal({
                               marginLeft: 8,
                               fontSize: 11,
                               fontWeight: 500,
-                              color: "#92400e",
-                              background: "#fde047",
+                              color: "var(--status-warning-text)",
+                              background: "color-mix(in srgb, var(--status-warning-text) 25%, transparent)",
                               padding: "2px 6px",
                               borderRadius: 3,
                             }}
@@ -1156,8 +1156,8 @@ function TicketDetailModal({
                 disabled={loading || !commentContent.trim()}
                 style={{
                   padding: "8px 16px",
-                  background: loading || !commentContent.trim() ? "#d1d5db" : "#8b5cf6",
-                  color: "white",
+                  background: loading || !commentContent.trim() ? "var(--surface-disabled)" : "#8b5cf6",
+                  color: loading || !commentContent.trim() ? "var(--text-muted)" : "#fff",
                   border: "none",
                   borderRadius: 6,
                   fontSize: 14,

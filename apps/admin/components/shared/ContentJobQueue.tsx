@@ -3,64 +3,112 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-// ── Types (mirrors server-side ExtractionJob shape) ──
+// ── Types ──
 
-type JobStatus = "pending" | "extracting" | "importing" | "done" | "error";
+type BackgroundTaskType = "extraction" | "curriculum_generation";
 
-interface JobProgress {
-  status: JobStatus;
-  currentChunk: number;
-  totalChunks: number;
-  extractedCount: number;
+interface TaskProgress {
+  status: string;            // "in_progress" | "completed" | "abandoned"
+  currentStep: number;
+  totalSteps: number;
+  // Extraction fields (from context)
+  currentChunk?: number;
+  totalChunks?: number;
+  extractedCount?: number;
   importedCount?: number;
   duplicatesSkipped?: number;
-  warnings: string[];
+  // Curriculum fields (from context)
+  phase?: string;
+  assertionCount?: number;
+  moduleCount?: number;
+  // Common
+  warnings?: string[];
   error?: string;
 }
 
-export interface QueuedJob {
-  jobId: string;
-  sourceId: string;
-  sourceName: string;
-  fileName: string;
+export interface QueuedTask {
+  taskId: string;
+  taskType: BackgroundTaskType;
+  label: string;
+  subjectId?: string;
+  sourceId?: string;
   startedAt: number;
-  progress: JobProgress;
+  progress: TaskProgress;
 }
 
 // ── Context ──
 
-interface ContentJobQueueContextValue {
-  jobs: QueuedJob[];
-  addJob: (jobId: string, sourceId: string, sourceName: string, fileName: string) => void;
-  dismissJob: (jobId: string) => void;
+interface BackgroundTaskQueueContextValue {
+  jobs: QueuedTask[];
+  addExtractionJob: (taskId: string, sourceId: string, sourceName: string, fileName: string, subjectId?: string) => void;
+  addCurriculumJob: (taskId: string, subjectId: string, subjectName: string) => void;
+  /** @deprecated Use addExtractionJob */
+  addJob: (taskId: string, sourceId: string, sourceName: string, fileName: string) => void;
+  dismissJob: (taskId: string) => void;
   activeCount: number;
 }
 
-const ContentJobQueueContext = createContext<ContentJobQueueContextValue>({
+const BackgroundTaskQueueContext = createContext<BackgroundTaskQueueContextValue>({
   jobs: [],
+  addExtractionJob: () => {},
+  addCurriculumJob: () => {},
   addJob: () => {},
   dismissJob: () => {},
   activeCount: 0,
 });
 
+/** @deprecated Use useBackgroundTaskQueue */
 export function useContentJobQueue() {
-  return useContext(ContentJobQueueContext);
+  return useContext(BackgroundTaskQueueContext);
 }
 
-// ── localStorage key ──
+export function useBackgroundTaskQueue() {
+  return useContext(BackgroundTaskQueueContext);
+}
 
-const STORAGE_KEY = "hf.extraction-jobs";
+// ── localStorage ──
+
+const STORAGE_KEY = "hf.background-tasks";
+const OLD_STORAGE_KEY = "hf.extraction-jobs";
 const POLL_INTERVAL_MS = 3000;
-const DONE_TTL_MS = 30_000;
-const ERROR_TTL_MS = 60_000;
 const MAX_STORED_JOBS = 50;
 
-function loadJobs(): QueuedJob[] {
+function loadJobs(): QueuedTask[] {
   try {
+    // Migrate from old key if needed
+    const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
+    if (oldRaw) {
+      localStorage.removeItem(OLD_STORAGE_KEY);
+      const oldJobs = JSON.parse(oldRaw) as any[];
+      // Convert old format to new
+      const migrated: QueuedTask[] = oldJobs.map((j) => ({
+        taskId: j.jobId || j.taskId,
+        taskType: "extraction" as BackgroundTaskType,
+        label: j.sourceName || j.fileName || "Extraction",
+        sourceId: j.sourceId,
+        startedAt: j.startedAt,
+        progress: {
+          status: j.progress?.status === "done" ? "completed"
+            : j.progress?.status === "error" ? "abandoned"
+            : "in_progress",
+          currentStep: j.progress?.status === "importing" ? 2 : 1,
+          totalSteps: 2,
+          currentChunk: j.progress?.currentChunk,
+          totalChunks: j.progress?.totalChunks,
+          extractedCount: j.progress?.extractedCount,
+          importedCount: j.progress?.importedCount,
+          duplicatesSkipped: j.progress?.duplicatesSkipped,
+          warnings: j.progress?.warnings,
+          error: j.progress?.error,
+        },
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      return migrated;
+    }
+
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as QueuedJob[];
-    // Prune old jobs (> 1 hour)
+    const parsed = JSON.parse(raw) as QueuedTask[];
     const cutoff = Date.now() - 60 * 60 * 1000;
     return parsed.filter((j) => j.startedAt > cutoff).slice(0, MAX_STORED_JOBS);
   } catch {
@@ -68,7 +116,7 @@ function loadJobs(): QueuedJob[] {
   }
 }
 
-function saveJobs(jobs: QueuedJob[]) {
+function saveJobs(jobs: QueuedTask[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs.slice(0, MAX_STORED_JOBS)));
   } catch {
@@ -76,10 +124,30 @@ function saveJobs(jobs: QueuedJob[]) {
   }
 }
 
+// Map server UserTask to our TaskProgress
+function serverTaskToProgress(task: any): TaskProgress {
+  const ctx = task.context || {};
+  return {
+    status: task.status,
+    currentStep: task.currentStep,
+    totalSteps: task.totalSteps,
+    currentChunk: ctx.currentChunk,
+    totalChunks: ctx.totalChunks,
+    extractedCount: ctx.extractedCount,
+    importedCount: ctx.importedCount,
+    duplicatesSkipped: ctx.duplicatesSkipped,
+    phase: ctx.phase,
+    assertionCount: ctx.assertionCount,
+    moduleCount: ctx.moduleCount,
+    warnings: ctx.warnings,
+    error: ctx.error,
+  };
+}
+
 // ── Provider ──
 
 export function ContentJobQueueProvider({ children }: { children: React.ReactNode }) {
-  const [jobs, setJobs] = useState<QueuedJob[]>([]);
+  const [jobs, setJobs] = useState<QueuedTask[]>([]);
   const jobsRef = useRef(jobs);
   jobsRef.current = jobs;
   const pollRef = useRef<NodeJS.Timeout | null>(null);
@@ -96,81 +164,128 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
     }
   }, [jobs]);
 
-  // Auto-prune completed/error jobs after TTL
+  // Poll active tasks from server
   useEffect(() => {
-    const interval = setInterval(() => {
-      setJobs((prev) => {
-        const now = Date.now();
-        const filtered = prev.filter((j) => {
-          if (j.progress.status === "done") {
-            // Find when it finished — approximate via last poll
-            return true; // keep for now, remove via dismissJob or age
-          }
-          return true;
-        });
-        return filtered;
-      });
-    }, 10_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Poll active jobs
-  useEffect(() => {
-    async function pollJobs() {
+    async function pollTasks() {
       const current = jobsRef.current;
-      const active = current.filter(
-        (j) => j.progress.status === "pending" || j.progress.status === "extracting" || j.progress.status === "importing"
-      );
-      if (active.length === 0) return;
+      const activeIds = current
+        .filter((j) => j.progress.status === "in_progress")
+        .map((j) => j.taskId);
 
-      const updates = await Promise.allSettled(
-        active.map(async (j) => {
-          const res = await fetch(`/api/content-sources/${j.sourceId}/import?jobId=${j.jobId}`);
-          if (!res.ok) return null;
-          const data = await res.json();
-          if (!data.ok || !data.job) return null;
-          return { jobId: j.jobId, progress: data.job as JobProgress };
-        })
-      );
+      if (activeIds.length === 0) return;
 
-      setJobs((prev) => {
-        let changed = false;
-        const next = prev.map((j) => {
-          const result = updates.find(
-            (u) => u.status === "fulfilled" && u.value?.jobId === j.jobId
-          );
-          if (result?.status === "fulfilled" && result.value) {
-            changed = true;
-            return { ...j, progress: result.value.progress };
-          }
-          return j;
+      try {
+        // Poll all in-progress tasks from the server
+        const res = await fetch("/api/tasks?status=in_progress");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.ok || !data.tasks) return;
+
+        const serverTasks = data.tasks as any[];
+
+        setJobs((prev) => {
+          let changed = false;
+          const next = prev.map((j) => {
+            // Find matching server task
+            const serverTask = serverTasks.find((st: any) => st.id === j.taskId);
+            if (serverTask) {
+              changed = true;
+              return { ...j, progress: serverTaskToProgress(serverTask) };
+            }
+            // If task was active but not in server response, it may have completed
+            if (j.progress.status === "in_progress") {
+              // Mark as needing a direct check
+              return j;
+            }
+            return j;
+          });
+          return changed ? next : prev;
         });
-        return changed ? next : prev;
-      });
+
+        // Check for completed/abandoned tasks that were active
+        for (const id of activeIds) {
+          const serverTask = serverTasks.find((st: any) => st.id === id);
+          if (!serverTask) {
+            // Task not in in_progress list — check directly
+            try {
+              const taskRes = await fetch(`/api/tasks?taskId=${id}`);
+              if (taskRes.ok) {
+                const taskData = await taskRes.json();
+                if (taskData.ok && taskData.guidance?.task) {
+                  // Task exists but completed — get its full data
+                  const fullRes = await fetch(`/api/tasks?status=completed`);
+                  if (fullRes.ok) {
+                    const fullData = await fullRes.json();
+                    const completedTask = fullData.tasks?.find((t: any) => t.id === id);
+                    if (completedTask) {
+                      setJobs((prev) =>
+                        prev.map((j) =>
+                          j.taskId === id
+                            ? { ...j, progress: serverTaskToProgress(completedTask) }
+                            : j
+                        )
+                      );
+                    }
+                  }
+                }
+              }
+            } catch {
+              // Ignore — will retry next poll
+            }
+          }
+        }
+
+        // Check server for any auto-triggered tasks we don't know about yet
+        const backgroundTypes: BackgroundTaskType[] = ["extraction", "curriculum_generation"];
+        const knownIds = new Set(current.map((j) => j.taskId));
+        for (const st of serverTasks) {
+          if (backgroundTypes.includes(st.taskType) && !knownIds.has(st.id)) {
+            const ctx = st.context || {};
+            const newJob: QueuedTask = {
+              taskId: st.id,
+              taskType: st.taskType,
+              label: st.taskType === "extraction"
+                ? ctx.fileName || "Content Extraction"
+                : ctx.subjectName || "Curriculum Generation",
+              subjectId: ctx.subjectId,
+              sourceId: ctx.sourceId,
+              startedAt: new Date(st.startedAt).getTime(),
+              progress: serverTaskToProgress(st),
+            };
+            setJobs((prev) => {
+              if (prev.some((j) => j.taskId === st.id)) return prev;
+              return [newJob, ...prev];
+            });
+          }
+        }
+      } catch {
+        // Network error — skip this poll
+      }
     }
 
-    pollRef.current = setInterval(pollJobs, POLL_INTERVAL_MS);
-    // Also poll immediately
-    pollJobs();
+    pollRef.current = setInterval(pollTasks, POLL_INTERVAL_MS);
+    pollTasks();
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
-  const addJob = useCallback(
-    (jobId: string, sourceId: string, sourceName: string, fileName: string) => {
+  const addExtractionJob = useCallback(
+    (taskId: string, sourceId: string, sourceName: string, fileName: string, subjectId?: string) => {
       setJobs((prev) => {
-        // Deduplicate
-        if (prev.some((j) => j.jobId === jobId)) return prev;
+        if (prev.some((j) => j.taskId === taskId)) return prev;
         return [
           {
-            jobId,
+            taskId,
+            taskType: "extraction" as BackgroundTaskType,
+            label: sourceName || fileName,
             sourceId,
-            sourceName,
-            fileName,
+            subjectId,
             startedAt: Date.now(),
             progress: {
-              status: "extracting" as JobStatus,
+              status: "in_progress",
+              currentStep: 1,
+              totalSteps: 2,
               currentChunk: 0,
               totalChunks: 0,
               extractedCount: 0,
@@ -184,29 +299,61 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
     []
   );
 
-  const dismissJob = useCallback((jobId: string) => {
-    setJobs((prev) => prev.filter((j) => j.jobId !== jobId));
+  const addCurriculumJob = useCallback(
+    (taskId: string, subjectId: string, subjectName: string) => {
+      setJobs((prev) => {
+        if (prev.some((j) => j.taskId === taskId)) return prev;
+        return [
+          {
+            taskId,
+            taskType: "curriculum_generation" as BackgroundTaskType,
+            label: subjectName,
+            subjectId,
+            startedAt: Date.now(),
+            progress: {
+              status: "in_progress",
+              currentStep: 1,
+              totalSteps: 3,
+              warnings: [],
+            },
+          },
+          ...prev,
+        ];
+      });
+    },
+    []
+  );
+
+  // Backward-compat alias
+  const addJob = useCallback(
+    (taskId: string, sourceId: string, sourceName: string, fileName: string) => {
+      addExtractionJob(taskId, sourceId, sourceName, fileName);
+    },
+    [addExtractionJob]
+  );
+
+  const dismissJob = useCallback((taskId: string) => {
+    setJobs((prev) => prev.filter((j) => j.taskId !== taskId));
   }, []);
 
-  const activeCount = jobs.filter(
-    (j) => j.progress.status === "pending" || j.progress.status === "extracting" || j.progress.status === "importing"
-  ).length;
+  const activeCount = jobs.filter((j) => j.progress.status === "in_progress").length;
 
   return (
-    <ContentJobQueueContext.Provider value={{ jobs, addJob, dismissJob, activeCount }}>
+    <BackgroundTaskQueueContext.Provider
+      value={{ jobs, addExtractionJob, addCurriculumJob, addJob, dismissJob, activeCount }}
+    >
       {children}
-    </ContentJobQueueContext.Provider>
+    </BackgroundTaskQueueContext.Provider>
   );
 }
 
 // ── UI Component ──
 
 export function ContentJobQueue() {
-  const { jobs, dismissJob, activeCount } = useContentJobQueue();
+  const { jobs, dismissJob, activeCount } = useBackgroundTaskQueue();
   const [expanded, setExpanded] = useState(false);
   const router = useRouter();
 
-  // Nothing to show
   if (jobs.length === 0) return null;
 
   const elapsed = (startedAt: number) => {
@@ -215,25 +362,64 @@ export function ContentJobQueue() {
     return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
   };
 
-  const pct = (p: JobProgress) =>
-    p.totalChunks > 0 ? Math.round((p.currentChunk / p.totalChunks) * 100) : 0;
+  const isActive = (j: QueuedTask) => j.progress.status === "in_progress";
+  const isDone = (j: QueuedTask) => j.progress.status === "completed";
+  const isError = (j: QueuedTask) => j.progress.status === "abandoned";
 
-  const statusColor = (s: JobStatus) => {
-    switch (s) {
-      case "done": return "#16a34a";
-      case "error": return "#B71C1C";
-      default: return "var(--accent-primary)";
-    }
+  const statusColor = (j: QueuedTask) => {
+    if (isDone(j)) return "#16a34a";
+    if (isError(j)) return "#B71C1C";
+    return "var(--accent-primary)";
   };
 
-  const statusLabel = (p: JobProgress) => {
-    switch (p.status) {
-      case "pending": return "Queued";
-      case "extracting": return `Extracting${p.extractedCount > 0 ? ` (${p.extractedCount})` : ""}`;
-      case "importing": return "Saving...";
-      case "done": return `${p.importedCount ?? p.extractedCount ?? 0} imported`;
-      case "error": return p.error || "Failed";
+  const statusLabel = (j: QueuedTask) => {
+    const p = j.progress;
+    if (j.taskType === "extraction") {
+      if (isError(j)) return p.error || "Failed";
+      if (isDone(j)) return `${p.importedCount ?? p.extractedCount ?? 0} imported`;
+      if (p.currentStep >= 2) return "Saving...";
+      return `Extracting${p.extractedCount ? ` (${p.extractedCount})` : ""}`;
     }
+    if (j.taskType === "curriculum_generation") {
+      if (isError(j)) return p.error || "Failed";
+      if (isDone(j)) return `${p.moduleCount ?? 0} modules`;
+      if (p.currentStep >= 2) return "Generating...";
+      return "Loading assertions...";
+    }
+    return isActive(j) ? "Running..." : isDone(j) ? "Done" : "Failed";
+  };
+
+  const pct = (j: QueuedTask) => {
+    if (j.taskType === "extraction") {
+      const chunks = j.progress.totalChunks || 0;
+      if (chunks > 0) return Math.round(((j.progress.currentChunk || 0) / chunks) * 100);
+      return 0;
+    }
+    // Curriculum: step-based
+    return Math.round((j.progress.currentStep / j.progress.totalSteps) * 100);
+  };
+
+  const badgeText = () => {
+    if (activeCount === 0) return `${jobs.length} job${jobs.length > 1 ? "s" : ""}`;
+    const extractionCount = jobs.filter((j) => j.taskType === "extraction" && isActive(j)).length;
+    const curriculumCount = jobs.filter((j) => j.taskType === "curriculum_generation" && isActive(j)).length;
+    if (extractionCount > 0 && curriculumCount === 0) {
+      return `${extractionCount} extraction${extractionCount > 1 ? "s" : ""} running`;
+    }
+    if (curriculumCount > 0 && extractionCount === 0) {
+      return "Generating curriculum...";
+    }
+    return `${activeCount} job${activeCount > 1 ? "s" : ""} running`;
+  };
+
+  const handleClick = (j: QueuedTask) => {
+    if (!isDone(j)) return;
+    if (j.taskType === "extraction") {
+      router.push("/x/content-sources");
+    } else if (j.taskType === "curriculum_generation" && j.subjectId) {
+      router.push(`/x/subjects/${j.subjectId}`);
+    }
+    setExpanded(false);
   };
 
   return (
@@ -276,11 +462,7 @@ export function ContentJobQueue() {
               }}
             />
           )}
-          <span>
-            {activeCount > 0
-              ? `${activeCount} extraction${activeCount > 1 ? "s" : ""} running`
-              : `${jobs.length} extraction${jobs.length > 1 ? "s" : ""}`}
-          </span>
+          <span>{badgeText()}</span>
           <style>{`@keyframes cjq-pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }`}</style>
         </button>
       )}
@@ -311,7 +493,7 @@ export function ContentJobQueue() {
             }}
           >
             <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
-              Content Extractions
+              Background Jobs
             </span>
             <button
               onClick={() => setExpanded(false)}
@@ -334,18 +516,13 @@ export function ContentJobQueue() {
           <div style={{ overflowY: "auto", flex: 1 }}>
             {jobs.map((job) => (
               <div
-                key={job.jobId}
+                key={job.taskId}
                 style={{
                   padding: "12px 16px",
                   borderBottom: "1px solid var(--border-secondary)",
-                  cursor: job.progress.status === "done" ? "pointer" : "default",
+                  cursor: isDone(job) ? "pointer" : "default",
                 }}
-                onClick={() => {
-                  if (job.progress.status === "done") {
-                    router.push("/x/content-sources");
-                    setExpanded(false);
-                  }
-                }}
+                onClick={() => handleClick(job)}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -359,7 +536,7 @@ export function ContentJobQueue() {
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {job.sourceName}
+                      {job.label}
                     </div>
                     <div
                       style={{
@@ -370,16 +547,16 @@ export function ContentJobQueue() {
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {job.fileName}
+                      {job.taskType === "extraction" ? "Content Extraction" : "Curriculum Generation"}
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <span style={{ fontSize: 11, color: statusColor(job.progress.status), fontWeight: 600 }}>
-                      {statusLabel(job.progress)}
+                    <span style={{ fontSize: 11, color: statusColor(job), fontWeight: 600 }}>
+                      {statusLabel(job)}
                     </span>
-                    {(job.progress.status === "done" || job.progress.status === "error") && (
+                    {(isDone(job) || isError(job)) && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); dismissJob(job.jobId); }}
+                        onClick={(e) => { e.stopPropagation(); dismissJob(job.taskId); }}
                         style={{
                           background: "none",
                           border: "none",
@@ -398,7 +575,7 @@ export function ContentJobQueue() {
                 </div>
 
                 {/* Progress bar for active jobs */}
-                {(job.progress.status === "extracting" || job.progress.status === "importing") && (
+                {isActive(job) && (
                   <div style={{ marginTop: 6 }}>
                     <div style={{ height: 3, borderRadius: 2, background: "var(--surface-tertiary)", overflow: "hidden" }}>
                       <div
@@ -406,10 +583,16 @@ export function ContentJobQueue() {
                           height: "100%",
                           borderRadius: 2,
                           background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
-                          width: `${pct(job.progress)}%`,
+                          width: job.taskType === "curriculum_generation" && job.progress.currentStep < 3
+                            ? "100%"
+                            : `${pct(job)}%`,
                           transition: "width 0.5s ease-out",
-                          minWidth: job.progress.totalChunks === 0 ? "30%" : undefined,
-                          animation: job.progress.totalChunks === 0 ? "cjq-indeterminate 1.5s ease-in-out infinite" : undefined,
+                          minWidth: pct(job) === 0 ? "30%" : undefined,
+                          animation:
+                            (job.taskType === "extraction" && (job.progress.totalChunks || 0) === 0) ||
+                            (job.taskType === "curriculum_generation" && job.progress.currentStep === 2)
+                              ? "cjq-indeterminate 1.5s ease-in-out infinite"
+                              : undefined,
                         }}
                       />
                     </div>
@@ -423,9 +606,11 @@ export function ContentJobQueue() {
                       }}
                     >
                       <span>
-                        {job.progress.totalChunks > 0
-                          ? `chunk ${job.progress.currentChunk}/${job.progress.totalChunks}`
-                          : "starting..."}
+                        {job.taskType === "extraction"
+                          ? (job.progress.totalChunks || 0) > 0
+                            ? `chunk ${job.progress.currentChunk || 0}/${job.progress.totalChunks}`
+                            : "starting..."
+                          : `step ${job.progress.currentStep}/${job.progress.totalSteps}`}
                       </span>
                       <span style={{ fontVariantNumeric: "tabular-nums" }}>{elapsed(job.startedAt)}</span>
                     </div>

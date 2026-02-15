@@ -218,6 +218,20 @@ async function generateSuggestions(task: TaskContext): Promise<GuidanceSuggestio
         },
       });
       break;
+
+    case "extraction":
+      suggestions.push({
+        type: "tip",
+        message: "You can continue working while extraction runs in the background",
+      });
+      break;
+
+    case "curriculum_generation":
+      suggestions.push({
+        type: "tip",
+        message: "Curriculum generation runs in the background — you'll be notified when it's ready to review",
+      });
+      break;
   }
 
   // Check for common blockers
@@ -267,12 +281,28 @@ async function generateNextActions(task: TaskContext): Promise<NextAction[]> {
 
   // Completion
   if (task.currentStep === task.totalSteps) {
-    actions.push({
-      label: "Create & Activate",
-      description: "Finish creating your spec and make it active",
-      priority: "high",
-      estimated: "Quick",
-    });
+    if (task.taskType === "curriculum_generation") {
+      actions.push({
+        label: "Review Curriculum",
+        description: "Review the generated curriculum and save or regenerate",
+        priority: "high",
+        estimated: "2 min",
+      });
+    } else if (task.taskType === "extraction") {
+      actions.push({
+        label: "View Assertions",
+        description: "Review the extracted teaching points",
+        priority: "high",
+        estimated: "Quick",
+      });
+    } else {
+      actions.push({
+        label: "Create & Activate",
+        description: "Finish creating your spec and make it active",
+        priority: "high",
+        estimated: "Quick",
+      });
+    }
   }
 
   return actions;
@@ -448,6 +478,34 @@ const TASK_STEP_MAPS: Record<string, Record<number, TaskStep>> = {
       title: "Create",
       description: "Building your tutor domain, curriculum, and test caller",
       estimated: "30 sec",
+    },
+  },
+  extraction: {
+    1: {
+      title: "Extracting",
+      description: "AI is reading your document and extracting teaching points",
+      estimated: "1-3 min",
+    },
+    2: {
+      title: "Saving",
+      description: "Importing extracted assertions to database",
+      estimated: "30 sec",
+    },
+  },
+  curriculum_generation: {
+    1: {
+      title: "Loading",
+      description: "Loading assertions from all sources",
+      estimated: "10 sec",
+    },
+    2: {
+      title: "Generating",
+      description: "AI is structuring your curriculum into modules and learning outcomes",
+      estimated: "1-3 min",
+    },
+    3: {
+      title: "Complete",
+      description: "Curriculum ready for review",
     },
   },
 };

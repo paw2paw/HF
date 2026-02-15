@@ -317,6 +317,35 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // Storage (Media file storage)
+  // ---------------------------------------------------------------------------
+  storage: {
+    /** Storage backend: "gcs" (production) or "local" (dev/test) */
+    get backend(): string {
+      return optional("STORAGE_BACKEND", "gcs");
+    },
+    /** GCS bucket name */
+    get gcsBucket(): string {
+      return optional("STORAGE_GCS_BUCKET", "hf-media");
+    },
+    /** Local storage path (for dev/test) */
+    get localPath(): string {
+      return optional("STORAGE_LOCAL_PATH", "./storage/media");
+    },
+    /** Maximum file size in bytes (default: 20MB) */
+    get maxFileSize(): number {
+      return optionalInt("STORAGE_MAX_FILE_SIZE", 20971520);
+    },
+    /** Comma-separated list of allowed MIME types */
+    get allowedMimeTypes(): string[] {
+      return optional(
+        "STORAGE_ALLOWED_MIME_TYPES",
+        "image/jpeg,image/png,image/webp,application/pdf,audio/mpeg,audio/wav,audio/ogg"
+      ).split(",");
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // Artifacts (Conversation Artifacts sub-system)
   // ---------------------------------------------------------------------------
   artifacts: {

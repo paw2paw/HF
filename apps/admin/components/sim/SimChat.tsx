@@ -7,6 +7,8 @@ import { TypingIndicator } from './TypingIndicator';
 import { MessageInput } from './MessageInput';
 import { ArtifactCard } from './ArtifactCard';
 import { ActionCard } from './ActionCard';
+import { ContentPicker } from './ContentPicker';
+import type { MediaInfo } from './MessageBubble';
 
 interface Message {
   id: string;
@@ -14,6 +16,7 @@ interface Message {
   content: string;
   timestamp: Date;
   senderName?: string;
+  media?: MediaInfo | null;
 }
 
 export interface SimChatProps {
@@ -100,6 +103,7 @@ export function SimChat({
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [actions, setActions] = useState<any[]>([]);
   const [callEnded, setCallEnded] = useState(false);
+  const [showContentPicker, setShowContentPicker] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -144,26 +148,42 @@ export function SimChat({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming, artifacts, actions]);
 
-  // Poll for teacher interjections
+  // Poll for server-side messages (teacher interjections + AI-shared media)
   const lastInterjectionCheck = useRef(new Date().toISOString());
   useEffect(() => {
     if (!callId) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(
-          `/api/calls/${callId}/messages?after=${lastInterjectionCheck.current}&role=teacher`
+          `/api/calls/${callId}/messages?after=${lastInterjectionCheck.current}`
         );
         const data = await res.json();
         if (data.ok && data.messages?.length > 0) {
           lastInterjectionCheck.current = new Date().toISOString();
           for (const msg of data.messages) {
-            setMessages(prev => [...prev, {
-              id: msg.id,
-              role: 'teacher' as const,
-              content: msg.content,
-              timestamp: new Date(msg.createdAt),
-              senderName: msg.senderName,
-            }]);
+            // Skip messages we created client-side (user/assistant without media)
+            // Only inject: teacher messages, or any message with media attached
+            const isServerSide = msg.role === 'teacher' || msg.media;
+            if (!isServerSide) continue;
+
+            // Avoid duplicates
+            setMessages(prev => {
+              if (prev.some(m => m.id === msg.id)) return prev;
+              return [...prev, {
+                id: msg.id,
+                role: msg.role as 'user' | 'assistant' | 'teacher',
+                content: msg.content,
+                timestamp: new Date(msg.createdAt),
+                senderName: msg.senderName,
+                media: msg.media ? {
+                  id: msg.media.id,
+                  fileName: msg.media.fileName,
+                  mimeType: msg.media.mimeType,
+                  title: msg.media.title,
+                  url: `/api/media/${msg.media.id}`,
+                } : null,
+              }];
+            });
           }
         }
       } catch {
@@ -217,6 +237,13 @@ export function SimChat({
               content: m.content,
               timestamp: new Date(m.createdAt),
               senderName: m.senderName,
+              media: m.media ? {
+                id: m.media.id,
+                fileName: m.media.fileName,
+                mimeType: m.media.mimeType,
+                title: m.media.title,
+                url: `/api/media/${m.media.id}`,
+              } : null,
             }));
             setMessages(restored);
             console.log(`[sim] Restored ${restored.length} messages from active call`);
@@ -316,6 +343,7 @@ export function SimChat({
             { type: 'caller', id: callerId, label: callerName },
           ],
           conversationHistory: history.slice(-10),
+          callId: callIdRef.current,
         }),
         signal: abortRef.current.signal,
       });
@@ -612,6 +640,7 @@ export function SimChat({
             content={msg.content}
             timestamp={msg.timestamp}
             senderName={msg.senderName}
+            media={msg.media}
           />
         ))}
 
@@ -659,14 +688,45 @@ export function SimChat({
         </div>
       )}
 
+      {/* Content Picker overlay */}
+      {showContentPicker && callId && (
+        <ContentPicker
+          callerId={callerId}
+          callId={callId}
+          onClose={() => setShowContentPicker(false)}
+          onShared={() => showToast('Content shared')}
+        />
+      )}
+
       {/* Input */}
       {!callEnded && (
-        <MessageInput
-          value={input}
-          onChange={setInput}
-          onSend={handleSend}
-          disabled={isStreaming}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {callId && (
+            <button
+              onClick={() => setShowContentPicker(!showContentPicker)}
+              title="Share content"
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '8px 8px 8px 12px',
+                fontSize: 20,
+                cursor: 'pointer',
+                color: showContentPicker ? '#4338ca' : '#667781',
+                flexShrink: 0,
+              }}
+            >
+              {'\u{1F4CE}'}
+            </button>
+          )}
+          <div style={{ flex: 1 }}>
+            <MessageInput
+              value={input}
+              onChange={setInput}
+              onSend={handleSend}
+              disabled={isStreaming}
+            />
+          </div>
+        </div>
       )}
 
       {/* Post-call: start new call (embedded mode only) */}

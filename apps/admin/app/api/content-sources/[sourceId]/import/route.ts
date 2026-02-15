@@ -7,6 +7,7 @@ import {
   type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
 import { createJob, getJob, updateJob } from "@/lib/content-trust/extraction-jobs";
+// Note: createJob/getJob/updateJob now delegate to UserTask DB storage
 import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
@@ -82,8 +83,8 @@ export async function POST(
       }
 
       const chunks = chunkText(text);
-      const job = createJob(sourceId, file.name);
-      updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
+      const job = await createJob(sourceId, file.name);
+      await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
       // Fire-and-forget the extraction + import
       runBackgroundExtraction(job.id, source, text, file.name, fileType, pages, {
@@ -91,9 +92,9 @@ export async function POST(
         qualificationRef: source.qualificationRef || undefined,
         focusChapters,
         maxAssertions,
-      }).catch((err) => {
+      }).catch(async (err) => {
         console.error(`[extraction-job] ${job.id} unhandled error:`, err);
-        updateJob(job.id, { status: "error", error: err.message || "Unknown error" });
+        await updateJob(job.id, { status: "error", error: err.message || "Unknown error" });
       });
 
       return NextResponse.json(
@@ -181,7 +182,7 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "jobId query param required" }, { status: 400 });
   }
 
-  const job = getJob(jobId);
+  const job = await getJob(jobId);
   if (!job) {
     return NextResponse.json({ ok: false, error: "Job not found or expired" }, { status: 404 });
   }
@@ -260,7 +261,7 @@ async function runBackgroundExtraction(
   });
 
   if (!result.ok) {
-    updateJob(jobId, {
+    await updateJob(jobId, {
       status: "error",
       error: result.error || "Extraction failed",
       warnings: result.warnings,
@@ -269,11 +270,11 @@ async function runBackgroundExtraction(
   }
 
   // Now import to DB
-  updateJob(jobId, { status: "importing", extractedCount: result.assertions.length, warnings: result.warnings });
+  await updateJob(jobId, { status: "importing", extractedCount: result.assertions.length, warnings: result.warnings });
 
   const { created, duplicatesSkipped } = await saveAssertions(source.id, result.assertions);
 
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "done",
     importedCount: created,
     duplicatesSkipped,

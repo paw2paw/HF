@@ -433,6 +433,7 @@ model Domain {
   subjects           SubjectDomain[] // Subjects taught in this domain
   assignedUsers      User[] @relation("AssignedUsers") // Users scoped to this domain
   cohortGroups       CohortGroup[] // Cohort groups in this domain
+  channelConfigs     ChannelConfig[] // Delivery channel configs for this domain
 
   @@index([slug])
   @@index([isDefault])
@@ -676,6 +677,9 @@ model User {
 
   // Invites sent by this user (educator → student chain)
   sentInvites Invite[] @relation("SentInvites")
+
+  // Media uploads
+  mediaUploads MediaAsset[]
 
   @@index([email])
   @@index([role])
@@ -1155,7 +1159,12 @@ model CallMessage {
   senderName String? // For teacher messages: "Mrs. Smith"
   createdAt  DateTime @default(now())
 
+  // Optional media attachment
+  mediaId String?
+  media   MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
   @@index([callId, createdAt])
+  @@index([mediaId])
 }
 
 model CallScore {
@@ -3523,6 +3532,7 @@ model ContentSource {
   assertions ContentAssertion[]
   curricula  Curriculum[] @relation("CurriculumPrimarySource")
   subjects   SubjectSource[] // Subjects this source belongs to
+  mediaAssets MediaAsset[]   // Media files from this content source
 
   @@index([trustLevel])
   @@index([qualificationRef])
@@ -3607,6 +3617,7 @@ model Subject {
   sources   SubjectSource[]
   domains   SubjectDomain[]
   curricula Curriculum[]
+  media     SubjectMedia[]
 
   @@index([slug])
   @@index([isActive])
@@ -3671,8 +3682,12 @@ model ConversationArtifact {
   type      ConversationArtifactType // SUMMARY, KEY_FACT, FORMULA, EXERCISE, etc.
   title     String // Short descriptive title
   content   String @db.Text // Markdown text body
-  mediaUrl  String? // For images/PDFs — URL to stored media
+  mediaUrl  String? // For images/PDFs — URL to stored media (legacy, use mediaId)
   mediaType String? // MIME type: image/png, application/pdf, audio/mpeg
+
+  // Structured media reference (preferred over mediaUrl)
+  mediaId String?
+  media   MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
 
   // Trust chain — links to ContentAssertion IDs for provenance
   contentAssertionIds String[] // Array of ContentAssertion IDs
@@ -3699,6 +3714,7 @@ model ConversationArtifact {
   @@index([callerId])
   @@index([callerId, status])
   @@index([status])
+  @@index([mediaId])
 }
 
 // CallAction - Actionable items that emerge from calls (homework, follow-ups, media to send)
@@ -3778,4 +3794,71 @@ model InboundMessage {
 
   @@index([callerId])
   @@index([processed])
+}
+
+// =============================================================================
+// Media Assets — uploaded files (images, PDFs, audio) for content delivery
+// =============================================================================
+
+model MediaAsset {
+  id          String @id @default(uuid())
+  fileName    String
+  fileSize    Int
+  mimeType    String // image/png, application/pdf, audio/mpeg
+  contentHash String @unique // SHA-256 for deduplication
+  storageKey  String // Object key in storage backend
+  storageType String @default("gcs") // "gcs" | "local"
+
+  title       String?
+  description String?  @db.Text
+  tags        String[]
+
+  uploadedBy String
+  uploader   User   @relation(fields: [uploadedBy], references: [id])
+  sourceId   String?
+  source     ContentSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  trustLevel ContentTrustLevel @default(UNVERIFIED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subjects  SubjectMedia[]
+  messages  CallMessage[]
+  artifacts ConversationArtifact[]
+
+  @@index([uploadedBy])
+  @@index([sourceId])
+  @@index([mimeType])
+}
+
+// Many-to-many: which media assets belong to a subject's content library
+model SubjectMedia {
+  id        String     @id @default(uuid())
+  subjectId String
+  mediaId   String
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  media     MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  @@unique([subjectId, mediaId])
+  @@index([subjectId])
+  @@index([mediaId])
+}
+
+// Channel configuration — per-domain delivery channel settings
+model ChannelConfig {
+  id          String   @id @default(uuid())
+  channelType String // "sim" | "whatsapp" | "sms"
+  domainId    String?
+  domain      Domain?  @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  isEnabled   Boolean  @default(true)
+  config      Json     @default("{}") // Provider-specific: API keys, endpoints, phone numbers
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([domainId, channelType])
+  @@index([channelType])
 }

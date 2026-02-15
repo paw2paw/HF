@@ -9,6 +9,7 @@ import { useTheme, usePalette, type ThemePreference } from "@/contexts";
 import { type SettingGroup, type SettingDef, SETTINGS_REGISTRY, EMAIL_TEMPLATE_DEFAULTS } from "@/lib/system-settings";
 import { FALLBACK_SETTINGS_REGISTRY } from "@/lib/fallback-settings";
 import { renderEmailHtml } from "@/lib/email-render";
+import { ChannelsPanel } from "@/components/settings/ChannelsPanel";
 
 // ── Icon map for setting groups ─────────────────────
 
@@ -195,6 +196,7 @@ function SettingInput({
 const TABS = [
   { id: "appearance", label: "Appearance" },
   ...SETTINGS_REGISTRY.map((g) => ({ id: g.id, label: g.label })),
+  { id: "channels", label: "Channels" },
   { id: "security", label: "Security" },
   { id: "fallbacks", label: "Fallback Defaults" },
 ];
@@ -642,6 +644,25 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Channels Tab — Delivery Channel Config */}
+      {activeTab === "channels" && (
+        <div
+          style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 16,
+            padding: 24,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+              Delivery Channels
+            </h2>
+          </div>
+          <ChannelsPanel />
+        </div>
+      )}
+
       {/* Security Tab — Access Matrix Viewer */}
       {activeTab === "security" && (
         <div
@@ -695,9 +716,9 @@ export default function SettingsPage() {
           {/* Scope legend */}
           <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
             {[
-              { scope: "ALL", desc: "All records", bg: "#dbeafe", text: "#1e40af" },
-              { scope: "DOMAIN", desc: "Same domain only", bg: "#d1fae5", text: "#065f46" },
-              { scope: "OWN", desc: "Own records only", bg: "#fef3c7", text: "#92400e" },
+              { scope: "ALL", desc: "All records", bg: "var(--status-info-bg)", text: "var(--status-info-text)" },
+              { scope: "DOMAIN", desc: "Same domain only", bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
+              { scope: "OWN", desc: "Own records only", bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
             ].map((s) => (
               <span key={s.scope} style={{
                 padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
@@ -748,9 +769,9 @@ export default function SettingsPage() {
                         const isNone = scope === "NONE";
 
                         const scopeColors: Record<string, { bg: string; text: string }> = {
-                          ALL: { bg: "#dbeafe", text: "#1e40af" },
-                          DOMAIN: { bg: "#d1fae5", text: "#065f46" },
-                          OWN: { bg: "#fef3c7", text: "#92400e" },
+                          ALL: { bg: "var(--status-info-bg)", text: "var(--status-info-text)" },
+                          DOMAIN: { bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
+                          OWN: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
                           NONE: { bg: "transparent", text: "var(--text-muted)" },
                         };
                         const sc = scopeColors[scope] || scopeColors.NONE;
@@ -967,7 +988,7 @@ export default function SettingsPage() {
                 padding: 16,
                 borderRadius: 10,
                 border: jsonModalError
-                  ? "2px solid var(--status-error, #ef4444)"
+                  ? "2px solid var(--status-error-text)"
                   : "1px solid var(--border-default)",
                 background: "var(--surface-secondary)",
                 color: "var(--text-primary)",
@@ -979,7 +1000,7 @@ export default function SettingsPage() {
             />
 
             {jsonModalError && (
-              <div style={{ fontSize: 12, color: "var(--status-error, #ef4444)", marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--status-error-text)", marginTop: 8 }}>
                 {jsonModalError}
               </div>
             )}

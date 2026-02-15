@@ -9,7 +9,7 @@ import { useEntityContext } from "@/contexts/EntityContext";
 import { DomainPill, PlaybookPill, StatusBadge, GoalPill, SpecPill } from "@/src/components/shared/EntityPill";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
-import { FileText as FileTextIcon, FileSearch, Brain, MessageCircle, Smartphone, User, TrendingUp, BookMarked, PlayCircle, BarChart3, Target, ClipboardCheck, GitBranch, Send, BookOpen, CheckSquare, ArrowRight, Bell, Plus } from "lucide-react";
+import { FileText as FileTextIcon, FileSearch, Brain, MessageCircle, Smartphone, User, TrendingUp, BookMarked, PlayCircle, BarChart3, Target, ClipboardCheck, GitBranch, Send, BookOpen, CheckSquare, ArrowRight, Bell, Plus, Gauge } from "lucide-react";
 import { SectionSelector, useSectionVisibility } from "@/components/shared/SectionSelector";
 import { CallerDomainSection } from "@/components/callers/CallerDomainSection";
 import { ArtifactCard } from "@/components/sim/ArtifactCard";
@@ -261,6 +261,9 @@ export default function CallerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SectionId | null>(initialTab);
+  const [simChatMounted, setSimChatMounted] = useState(initialTab === "ai-call");
+  const [callSession, setCallSession] = useState(0);
+  if (activeSection === "ai-call" && !simChatMounted) setSimChatMounted(true);
 
   // Dynamic parameter display configuration (fetched from database)
   type ParamDisplayInfo = { parameterId: string; label: string; description: string; color: string; section: string };
@@ -635,11 +638,11 @@ export default function CallerDetailPage() {
   }
 
   // Sections organized into logical groups:
-  // Consolidated tabs: Calls | Profile | Progress | Artifacts | Call (action)
+  // Consolidated tabs: Calls | Profile | Assess | Artifacts | Call (action)
   const sections: { id: SectionId; label: string; icon: React.ReactNode; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "action" }[] = [
     { id: "calls", label: "Calls", icon: <Smartphone size={13} />, count: data.counts.calls, group: "history" },
     { id: "profile", label: "Profile", icon: <User size={13} />, count: (data.counts.memories || 0) + (data.counts.observations || 0), group: "caller" },
-    { id: "progress", label: "Progress", icon: <TrendingUp size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + (data.counts.targets || 0) + (data.counts.measurements || 0), group: "shared" },
+    { id: "progress", label: "Assess", icon: <Gauge size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + (data.counts.targets || 0) + (data.counts.measurements || 0), group: "shared" },
     { id: "artifacts", label: "Artifacts & Actions", icon: <BookMarked size={13} />, count: (data.counts.artifacts || 0) + (data.counts.actions || 0), group: "shared" },
     { id: "ai-call", label: "Call", icon: <PlayCircle size={13} />, special: true, group: "action" },
   ];
@@ -1221,26 +1224,30 @@ export default function CallerDetailPage() {
         <ArtifactsSection callerId={callerId} isProcessing={isProcessing} />
       )}
 
-      {activeSection === "ai-call" && (
-        <SimChat
-          callerId={callerId}
-          callerName={data.caller.name || "Caller"}
-          domainName={data.caller.domain?.name}
-          mode="embedded"
-          onCallEnd={() => {
-            fetch(`/api/callers/${callerId}`)
-              .then((r) => r.json())
-              .then((result) => {
-                if (result.ok) {
-                  setData({
-                    ...result,
-                    personality: result.personalityProfile || null,
-                  });
-                }
-              });
-            fetchPrompts();
-          }}
-        />
+      {simChatMounted && (
+        <div style={{ display: activeSection === "ai-call" ? undefined : "none" }}>
+          <SimChat
+            key={callSession}
+            callerId={callerId}
+            callerName={data.caller.name || "Caller"}
+            domainName={data.caller.domain?.name}
+            mode="embedded"
+            onCallEnd={() => {
+              fetch(`/api/callers/${callerId}`)
+                .then((r) => r.json())
+                .then((result) => {
+                  if (result.ok) {
+                    setData({
+                      ...result,
+                      personality: result.personalityProfile || null,
+                    });
+                  }
+                });
+              fetchPrompts();
+            }}
+            onNewCall={() => setCallSession(prev => prev + 1)}
+          />
+        </div>
       )}
       </div>
     </div>

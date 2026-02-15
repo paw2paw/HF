@@ -60,8 +60,8 @@ export default function MessagesPage() {
                   padding: "4px 10px",
                   fontSize: 14,
                   fontWeight: 600,
-                  background: "#3b82f6",
-                  color: "white",
+                  background: "var(--accent-primary)",
+                  color: "var(--accent-primary-text)",
                   borderRadius: 12,
                 }}
               >
@@ -73,8 +73,8 @@ export default function MessagesPage() {
             onClick={() => setShowCompose(true)}
             style={{
               padding: "10px 20px",
-              background: "#3b82f6",
-              color: "white",
+              background: "var(--accent-primary)",
+              color: "var(--accent-primary-text)",
               border: "none",
               borderRadius: 8,
               fontSize: 14,
@@ -111,8 +111,8 @@ export default function MessagesPage() {
               padding: "8px 16px",
               background: "none",
               border: "none",
-              borderBottom: tab === t ? "2px solid #3b82f6" : "2px solid transparent",
-              color: tab === t ? "#3b82f6" : "var(--text-muted)",
+              borderBottom: tab === t ? "2px solid var(--accent-primary)" : "2px solid transparent",
+              color: tab === t ? "var(--accent-primary)" : "var(--text-muted)",
               fontWeight: tab === t ? 600 : 500,
               fontSize: 14,
               cursor: "pointer",
@@ -139,6 +139,8 @@ export default function MessagesPage() {
             borderRadius: 6,
             fontSize: 14,
             outline: "none",
+            background: "var(--surface-secondary)",
+            color: "var(--text-primary)",
           }}
         />
         {tab === "inbox" && (
@@ -151,8 +153,8 @@ export default function MessagesPage() {
               border: "1px solid var(--border-default)",
               borderRadius: 6,
               cursor: "pointer",
-              background: unreadOnly ? "#eff6ff" : "transparent",
-              color: unreadOnly ? "#1e40af" : "var(--text-primary)",
+              background: unreadOnly ? "var(--status-info-bg)" : "transparent",
+              color: unreadOnly ? "var(--status-info-text)" : "var(--text-primary)",
             }}
           >
             <input
@@ -250,17 +252,17 @@ function MessageCard({
       style={{
         padding: 16,
         background: "var(--surface-primary)",
-        border: `2px solid ${isUnread ? "#3b82f6" : "var(--border-default)"}`,
+        border: `2px solid ${isUnread ? "var(--accent-primary)" : "var(--border-default)"}`,
         borderRadius: 10,
         cursor: "pointer",
         transition: "all 0.15s ease",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#3b82f6";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.1)";
+        e.currentTarget.style.borderColor = "var(--accent-primary)";
+        e.currentTarget.style.boxShadow = "0 4px 12px color-mix(in srgb, var(--accent-primary) 10%, transparent)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = isUnread ? "#3b82f6" : "var(--border-default)";
+        e.currentTarget.style.borderColor = isUnread ? "var(--accent-primary)" : "var(--border-default)";
         e.currentTarget.style.boxShadow = "none";
       }}
     >
@@ -271,8 +273,8 @@ function MessageCard({
             width: 40,
             height: 40,
             borderRadius: "50%",
-            background: "#3b82f6",
-            color: "white",
+            background: "var(--accent-primary)",
+            color: "var(--accent-primary-text)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -297,7 +299,7 @@ function MessageCard({
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
-                    background: "#3b82f6",
+                    background: "var(--accent-primary)",
                   }}
                 />
               )}
@@ -329,7 +331,7 @@ function MessageCard({
           </div>
 
           {hasReplies && (
-            <div style={{ marginTop: 8, fontSize: 12, color: "#3b82f6", fontWeight: 500 }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--accent-primary)", fontWeight: 500 }}>
               💬 {message._count?.replies} {message._count?.replies === 1 ? "reply" : "replies"}
             </div>
           )}
@@ -419,10 +421,10 @@ function ComposeMessageModal({ onClose, onSuccess }: { onClose: () => void; onSu
             <div
               style={{
                 padding: 12,
-                background: "#fee2e2",
-                border: "1px solid #fecaca",
+                background: "var(--status-error-bg)",
+                border: "1px solid color-mix(in srgb, var(--status-error-text) 30%, transparent)",
                 borderRadius: 6,
-                color: "#991b1b",
+                color: "var(--status-error-text)",
                 fontSize: 14,
                 marginBottom: 16,
               }}
@@ -513,8 +515,8 @@ function ComposeMessageModal({ onClose, onSuccess }: { onClose: () => void; onSu
               disabled={loading || !recipientId || !content.trim()}
               style={{
                 padding: "8px 16px",
-                background: loading || !recipientId || !content.trim() ? "#d1d5db" : "#3b82f6",
-                color: "white",
+                background: loading || !recipientId || !content.trim() ? "var(--surface-disabled)" : "var(--accent-primary)",
+                color: loading || !recipientId || !content.trim() ? "var(--text-muted)" : "var(--accent-primary-text)",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 14,
@@ -669,8 +671,8 @@ function MessageThreadModal({
                 onClick={handleDelete}
                 style={{
                   padding: "6px 12px",
-                  background: "#fee2e2",
-                  color: "#991b1b",
+                  background: "var(--status-error-bg)",
+                  color: "var(--status-error-text)",
                   border: "none",
                   borderRadius: 6,
                   fontSize: 13,
@@ -716,8 +718,8 @@ function MessageThreadModal({
                       width: 32,
                       height: 32,
                       borderRadius: "50%",
-                      background: "#3b82f6",
-                      color: "white",
+                      background: "var(--accent-primary)",
+                      color: "var(--accent-primary-text)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -782,8 +784,8 @@ function MessageThreadModal({
                 disabled={loading || !replyContent.trim()}
                 style={{
                   padding: "8px 16px",
-                  background: loading || !replyContent.trim() ? "#d1d5db" : "#3b82f6",
-                  color: "white",
+                  background: loading || !replyContent.trim() ? "var(--surface-disabled)" : "var(--accent-primary)",
+                  color: loading || !replyContent.trim() ? "var(--text-muted)" : "var(--accent-primary-text)",
                   border: "none",
                   borderRadius: 6,
                   fontSize: 14,

@@ -7,10 +7,11 @@ import {
   type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
 import {
-  createJob,
+  createExtractionTask,
   updateJob,
 } from "@/lib/content-trust/extraction-jobs";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { checkAutoTriggerCurriculum } from "@/lib/jobs/auto-trigger";
 
 /**
  * @api POST /api/subjects/:subjectId/upload
@@ -36,6 +37,7 @@ export async function POST(
   try {
     const authResult = await requireAuth("OPERATOR");
     if (isAuthError(authResult)) return authResult.error;
+    const userId = authResult.session.user.id;
 
     const { subjectId } = await params;
 
@@ -126,22 +128,25 @@ export async function POST(
     // ── Start background extraction ──
 
     const chunks = chunkText(text);
-    const job = createJob(source.id, file.name);
-    updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
+    const job = await createExtractionTask(userId, source.id, file.name, subjectId, subject.name);
+    await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
     // Fire-and-forget background extraction
     runBackgroundExtraction(
       job.id,
       source.id,
+      subjectId,
+      subject.name,
+      userId,
       text,
       {
         sourceSlug: subject.slug,
         qualificationRef: subject.qualificationRef || undefined,
         maxAssertions: 500,
       }
-    ).catch((err) => {
+    ).catch(async (err) => {
       console.error(`[subjects/:id/upload] Background job ${job.id} error:`, err);
-      updateJob(job.id, { status: "error", error: err.message || "Extraction failed" });
+      await updateJob(job.id, { status: "error", error: err.message || "Extraction failed" });
     });
 
     // ── Return immediately ──
@@ -176,6 +181,9 @@ export async function POST(
 async function runBackgroundExtraction(
   jobId: string,
   sourceId: string,
+  subjectId: string,
+  subjectName: string,
+  userId: string,
   text: string,
   opts: { sourceSlug: string; qualificationRef?: string; maxAssertions: number },
 ) {
@@ -232,10 +240,17 @@ async function runBackgroundExtraction(
     });
   }
 
-  updateJob(jobId, {
+  await updateJob(jobId, {
     status: "done",
     importedCount: toCreate.length,
     duplicatesSkipped,
     extractedCount: result.assertions.length,
   });
+
+  // Auto-trigger curriculum generation if all extractions for this subject are done
+  try {
+    await checkAutoTriggerCurriculum(subjectId, userId);
+  } catch (err) {
+    console.error(`[subjects/:id/upload] Auto-trigger error for subject ${subjectId}:`, err);
+  }
 }

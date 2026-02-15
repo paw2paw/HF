@@ -76,8 +76,12 @@ const PICKER_ROLE_COLORS: Record<string, string> = {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="px-3 pb-1 pt-5 text-[10px] font-semibold uppercase tracking-widest"
-      style={{ color: "var(--text-muted)" }}
+      className="px-3 pb-1.5 pt-6 text-[10px] font-semibold uppercase tracking-widest"
+      style={{
+        color: "var(--text-muted)",
+        borderTop: "1px solid var(--border-subtle)",
+        marginTop: "4px",
+      }}
     >
       {children}
     </div>
@@ -104,7 +108,7 @@ function PanelLink({
     <Link
       href={href}
       onClick={onClick}
-      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
+      className="flex items-center gap-3 rounded-lg px-3 py-3 text-[13px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
       style={{ color: accent ? "var(--accent-primary)" : "var(--text-secondary)" }}
     >
       <Icon
@@ -144,7 +148,7 @@ function PanelButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-40 disabled:pointer-events-none"
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-[13px] font-medium transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-40 disabled:pointer-events-none"
       style={{ color: accent ? "var(--accent-primary)" : muted ? "var(--text-muted)" : "var(--text-secondary)" }}
     >
       <Icon
@@ -267,7 +271,7 @@ function StepInSection() {
       {/* Toggle button */}
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-[13px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
         style={{ color: "var(--text-secondary)" }}
       >
         <LogIn
@@ -438,7 +442,7 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
 
       {/* ─── Profile card ─── */}
       <div
-        className="mx-3 mt-1 mb-1 flex flex-col items-center gap-3 rounded-xl px-5 py-5"
+        className="mx-3 mt-1 mb-2 flex flex-col items-center gap-3 rounded-xl px-5 py-5"
         style={{
           background: "var(--surface-secondary)",
           border: "1px solid var(--border-subtle)",
@@ -577,7 +581,10 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
       {/* ─── Footer ─── */}
       <div className="mt-auto">
         {/* Env badge + version */}
-        <div className="flex items-center justify-between px-4 pt-5 pb-2">
+        <div
+          className="flex items-center justify-between px-4 pt-4 pb-2"
+          style={{ borderTop: "1px solid var(--border-subtle)", marginTop: "4px" }}
+        >
           {envLabel && envSidebarColor ? (
             <span
               className="inline-block rounded-full px-2.5 py-0.5 text-[9px] font-bold tracking-wide"

@@ -11,6 +11,7 @@ import {
   getAICompletionStream,
   getConfiguredAICompletion,
   getConfiguredAICompletionStream,
+  getTextContent,
   AICompletionOptions,
   AICompletionResult,
   AIStreamOptions,
@@ -74,7 +75,7 @@ export async function getMeteredAICompletionStream(
   const stream = await getAICompletionStream(options);
 
   // Estimate input tokens from message content
-  const inputChars = options.messages.reduce((sum, m) => sum + m.content.length, 0);
+  const inputChars = options.messages.reduce((sum, m) => sum + getTextContent(m).length, 0);
   const estimatedInputTokens = Math.ceil(inputChars / 4);
 
   // Return stream with a callback to log output when streaming completes
@@ -112,7 +113,7 @@ export async function getMeteredAICompletionStream(
 export function createMeteredStream(
   originalStream: ReadableStream<Uint8Array>,
   engine: AIEngine,
-  inputMessages: { content: string }[],
+  inputMessages: { content: string | any[] }[],
   context?: MeteringContext
 ): ReadableStream<Uint8Array> {
   if (engine === "mock") {
@@ -123,7 +124,7 @@ export function createMeteredStream(
   const decoder = new TextDecoder();
 
   // Estimate input tokens
-  const inputChars = inputMessages.reduce((sum, m) => sum + m.content.length, 0);
+  const inputChars = inputMessages.reduce((sum, m) => sum + (typeof m.content === "string" ? m.content.length : JSON.stringify(m.content).length), 0);
   const estimatedInputTokens = Math.ceil(inputChars / 4);
 
   return new ReadableStream({
@@ -246,7 +247,7 @@ function createMeteredStreamWithModel(
   originalStream: ReadableStream<Uint8Array>,
   engine: AIEngine,
   model: string,
-  inputMessages: { content: string }[],
+  inputMessages: { content: string | any[] }[],
   context?: MeteringContext
 ): ReadableStream<Uint8Array> {
   if (engine === "mock") {
@@ -257,7 +258,7 @@ function createMeteredStreamWithModel(
   const decoder = new TextDecoder();
 
   // Estimate input tokens
-  const inputChars = inputMessages.reduce((sum, m) => sum + m.content.length, 0);
+  const inputChars = inputMessages.reduce((sum, m) => sum + (typeof m.content === "string" ? m.content.length : JSON.stringify(m.content).length), 0);
   const estimatedInputTokens = Math.ceil(inputChars / 4);
 
   return new ReadableStream({

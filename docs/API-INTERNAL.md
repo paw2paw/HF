@@ -44,6 +44,7 @@
   - [Layers](#layers)
   - [Logs](#logs)
   - [Manifest](#manifest)
+  - [Media](#media)
   - [Memories](#memories)
   - [Messages](#messages)
   - [Metering](#metering)
@@ -2387,6 +2388,19 @@ List conversation artifacts for a caller. Optionally filter by callId or status.
 
 ---
 
+### `GET` /api/callers/:callerId/available-media
+
+Get all media assets available for sharing with a caller, based on their domain's linked subjects.
+
+**Auth**: session (VIEWER+) · **Scope**: `callers:media:list`
+
+**Response** `200`
+```json
+{ ok: true, media: MediaAsset[] }
+```
+
+---
+
 ### `GET` /api/callers/:callerId/calls
 
 Get the most recent active sim call for a caller (endedAt is null, source is sim, within last 2 hours).
@@ -2985,7 +2999,7 @@ List call scores across all calls, ordered by most recent. Includes parameter de
 
 ### `POST` /api/chat
 
-Sends a message to the AI chat assistant. Supports multiple modes (CHAT, DATA, SPEC, CALL) with mode-specific system prompts. Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
+Sends a message to the AI chat assistant. Supports multiple modes (CHAT, DATA, SPEC, CALL) with mode-specific system prompts. DATA mode supports tool calling for database queries and spec updates. Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
 
 **Auth**: Session · **Scope**: `chat:send`
 
@@ -5286,6 +5300,125 @@ Execute sync between manifest and DB: bootstrap new agents, reset to defaults, o
 **Response** `500`
 ```json
 { ok: false, error: "..." }
+```
+
+---
+
+## Media
+
+### `DELETE` /api/media/:id
+
+Delete a media file by ID. Removes from storage backend and database.
+
+**Auth**: session (ADMIN+) · **Scope**: `media:delete`
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Media not found" }
+```
+
+---
+
+### `GET` /api/media/:id
+
+Serve a media file by ID. Generates a signed URL from the storage backend and redirects to it. For local storage, streams the file directly.
+
+**Auth**: session (VIEWER+) · **Scope**: `media:read`
+
+**Response** `302`
+```json
+Redirect to signed URL
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Media not found" }
+```
+
+---
+
+### `POST` /api/media/upload
+
+Upload a media file (image, PDF, audio). Validates MIME type and file size, deduplicates by content hash, stores in configured backend (GCS/local), and creates a MediaAsset record. Optionally links to a subject.
+
+**Auth**: session (OPERATOR+) · **Scope**: `media:upload`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| file | body | File | No | The file to upload (multipart/form-data) |
+| title | body | string | No | Optional display title |
+| description | body | string | No | Optional description |
+| tags | body | string | No | Optional comma-separated tags |
+| subjectId | body | string | No | Optional subject ID to link the media to |
+| trustLevel | body | string | No | Optional trust level (default: UNVERIFIED) |
+
+**Response** `200`
+```json
+{ ok: true, media: { id, fileName, mimeType, fileSize, url } }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `DELETE` /api/subjects/:subjectId/media
+
+Unlink a media asset from a subject's content library.
+
+**Auth**: session (OPERATOR+) · **Scope**: `subjects:media:unlink`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| mediaId | body | string | No | ID of the MediaAsset to unlink |
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+---
+
+### `GET` /api/subjects/:subjectId/media
+
+List all media assets linked to a subject's content library. Supports pagination and type filtering.
+
+**Auth**: session (VIEWER+) · **Scope**: `subjects:media:list`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| type | query | string | No | Filter by MIME type prefix (e.g. "image", "audio", "application/pdf") |
+| limit | query | number | No | Max results (default: 50) |
+| offset | query | number | No | Pagination offset (default: 0) |
+
+**Response** `200`
+```json
+{ ok: true, media: MediaAsset[], total: number }
+```
+
+---
+
+### `POST` /api/subjects/:subjectId/media
+
+Link an existing media asset to a subject, or update sort order.
+
+**Auth**: session (OPERATOR+) · **Scope**: `subjects:media:link`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| mediaId | body | string | No | ID of the MediaAsset to link |
+| sortOrder | body | number | No | Optional sort order (default: 0) |
+
+**Response** `200`
+```json
+{ ok: true, link: SubjectMedia }
 ```
 
 ---
@@ -7955,6 +8088,56 @@ Post-call pipeline endpoint that orchestrates call analysis. Receives call
 
 ## Settings
 
+### `DELETE` /api/settings/channels
+
+Delete a channel configuration by ID.
+
+**Auth**: session (ADMIN+) · **Scope**: `settings:channels:delete`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| id | body | string | No | Channel config ID to delete |
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+---
+
+### `GET` /api/settings/channels
+
+List all delivery channel configurations. Includes global defaults and per-domain overrides.
+
+**Auth**: session (ADMIN+) · **Scope**: `settings:channels:list`
+
+**Response** `200`
+```json
+{ ok: true, channels: ChannelConfig[] }
+```
+
+---
+
+### `POST` /api/settings/channels
+
+Create or update a delivery channel configuration.
+
+**Auth**: session (ADMIN+) · **Scope**: `settings:channels:upsert`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| channelType | body | string | No | "sim" | "whatsapp" | "sms" |
+| isEnabled | body | boolean | No | Whether this channel is active |
+| config | body | object | No | Provider-specific settings (API keys, endpoints, etc.) |
+| priority | body | number | No | Priority for channel selection (higher = preferred) |
+
+**Response** `200`
+```json
+{ ok: true, channel: ChannelConfig }
+```
+
+---
+
 ### `DELETE` /api/system-settings
 
 Delete a system setting by key, reverting to code default.
@@ -9529,8 +9712,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 246 |
-| Files with annotations | 240 |
+| Route files found | 251 |
+| Files with annotations | 245 |
 | Files missing annotations | 6 |
 | Coverage | 97.6% |
 
