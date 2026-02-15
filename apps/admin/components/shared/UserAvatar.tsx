@@ -9,6 +9,7 @@ export const ROLE_COLORS: Record<string, string> = {
   EDUCATOR: "#059669",
   SUPER_TESTER: "#7c3aed",
   TESTER: "#6b7280",
+  STUDENT: "#06b6d4",
   DEMO: "#a3a3a3",
   VIEWER: "#6b7280",
 };

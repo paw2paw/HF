@@ -87,7 +87,8 @@ describe("Route auth coverage", () => {
       const hasRequireAuth =
         content.includes("requireAuth") ||
         content.includes("requireEntityAccess") ||
-        content.includes("requireEducator");
+        content.includes("requireEducator") ||
+        content.includes("requireStudent");
 
       if (!hasRequireAuth) {
         missing.push(relative);

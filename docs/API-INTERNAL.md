@@ -6320,6 +6320,30 @@ Accept a classroom join link. Creates User + Caller + sets session.
 
 ---
 
+### `GET` /api/student/calls
+
+**Auth**: STUDENT
+
+---
+
+### `GET` /api/student/calls/:callId
+
+**Auth**: STUDENT
+
+---
+
+### `GET` /api/student/progress
+
+**Auth**: STUDENT
+
+---
+
+### `GET` /api/student/teacher
+
+**Auth**: STUDENT
+
+---
+
 ## Parameters
 
 ### `GET` /api/parameters
@@ -9433,10 +9457,10 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 237 |
-| Files with annotations | 230 |
+| Route files found | 241 |
+| Files with annotations | 234 |
 | Files missing annotations | 7 |
-| Coverage | 97.0% |
+| Coverage | 97.1% |
 
 ### Files missing `@api` annotations
 

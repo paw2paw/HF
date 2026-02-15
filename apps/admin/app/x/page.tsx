@@ -16,6 +16,8 @@ export default async function XDashboardPage() {
       return <AdminDashboard />;
     case "EDUCATOR":
       redirect("/x/educator");
+    case "STUDENT":
+      redirect("/x/student/progress");
     case "SUPER_TESTER":
       return <TesterDashboard enhanced />;
     case "TESTER":

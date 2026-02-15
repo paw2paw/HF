@@ -5,9 +5,9 @@ import type { NextRequest } from "next/server";
 // For database sessions, we can only check cookie existence here
 // Full session validation happens in server components via auth()
 
-const publicRoutes = ["/login", "/login/verify", "/login/error", "/invite"];
+const publicRoutes = ["/login", "/login/verify", "/login/error", "/invite", "/join"];
 // Routes that handle their own auth (webhooks, external APIs)
-const apiTokenRoutes = ["/api/auth", "/api/vapi", "/api/webhook", "/api/invite", "/api/health", "/api/ready", "/api/system/readiness"];
+const apiTokenRoutes = ["/api/auth", "/api/vapi", "/api/webhook", "/api/invite", "/api/join", "/api/health", "/api/ready", "/api/system/readiness"];
 
 // Internal API secret for server-to-server calls (bypasses session check)
 // No fallback — if unset, internal-secret bypass is disabled (fail-closed)

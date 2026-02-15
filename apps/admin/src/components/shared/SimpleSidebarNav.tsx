@@ -21,12 +21,11 @@ import {
   PenLine,
   Bot,
   Home,
-  VenetianMask,
-  PlayCircle,
 } from "lucide-react";
-import { MasqueradeUserPicker } from "@/components/shared/MasqueradeUserPicker";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { AccountPanel } from "@/components/shared/AccountPanel";
+import { envSidebarColor } from "@/components/shared/EnvironmentBanner";
+import { MASQUERADE_BANNER_HEIGHT } from "@/components/shared/MasqueradeBanner";
 
 // ============================================================================
 // Icon Helper
@@ -248,7 +247,6 @@ export default function SimpleSidebarNav({
 
   // UI state
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [showMasqueradePicker, setShowMasqueradePicker] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [deleteToast, setDeleteToast] = useState<{
@@ -437,20 +435,23 @@ export default function SimpleSidebarNav({
   }, [collapsed, onToggle, showAccountPanel]);
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden" style={{ color: "var(--text-primary)", zIndex: 50 }}>
-      {/* Sliding container for nav ↔ account panel */}
-      <div
-        style={{
-          display: "flex",
-          width: "200%",
-          flex: 1,
-          minHeight: 0,
-          transform: showAccountPanel ? "translateX(0)" : "translateX(-50%)",
-          transition: "transform 250ms cubic-bezier(0.4, 0, 0.2, 1)",
-        }}
-      >
-        {/* Left: Account panel (hidden by default, slides in from left) */}
-        <div style={{ width: "50%", flexShrink: 0, height: "100%", overflow: "hidden" }}>
+    <div className="relative flex h-full flex-col" style={{ color: "var(--text-primary)", zIndex: 50 }}>
+      {/* Fixed flyout: Account panel */}
+      {showAccountPanel && (
+        <div
+          style={{
+            position: "fixed",
+            top: isMasquerading ? MASQUERADE_BANNER_HEIGHT : 0,
+            left: envSidebarColor ? 3 : 0,
+            bottom: 0,
+            width: 280,
+            zIndex: 55,
+            background: "var(--surface-primary)",
+            borderRight: "1px solid var(--border-subtle)",
+            boxShadow: "4px 0 24px rgba(0,0,0,0.08)",
+            overflow: "hidden",
+          }}
+        >
           <AccountPanel
             onClose={() => setShowAccountPanel(false)}
             onNavigate={onNavigate}
@@ -467,11 +468,13 @@ export default function SimpleSidebarNav({
               onResetLayout: resetLayout,
               onShowSection: showSection,
             }}
+            masqueradeOptions={realIsAdmin ? { isRealAdmin: true } : undefined}
           />
         </div>
+      )}
 
-        {/* Right: Navigation panel */}
-        <div className="flex h-full flex-col p-2" style={{ width: "50%", flexShrink: 0 }}>
+      {/* Navigation panel */}
+      <div className="flex h-full flex-col p-2">
       {/* Header */}
       {collapsed ? (
         <div className="mb-2 flex flex-col items-center gap-1">
@@ -763,65 +766,6 @@ export default function SimpleSidebarNav({
         </nav>
 
         <div className="mt-auto pt-2" style={{ position: "relative" }}>
-          {/* Demos link — pinned above avatar */}
-          <Link
-            href="/x/demos"
-            onClick={(e) => handleNavClick(e, "/x/demos")}
-            title={collapsed ? "Demos" : undefined}
-            className={
-              "flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-colors mb-0.5 " +
-              (isActive("/x/demos")
-                ? "font-semibold"
-                : "hover:bg-[var(--hover-bg)]")
-            }
-            style={{
-              color: isActive("/x/demos") ? "var(--accent-primary)" : "var(--text-muted)",
-              background: isActive("/x/demos") ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : undefined,
-            }}
-          >
-            <span className="flex items-center justify-center w-6 h-6 flex-shrink-0">
-              <PlayCircle size={16} />
-            </span>
-            {!collapsed && "Demos"}
-          </Link>
-
-          {/* Masquerade user picker popover */}
-          {showMasqueradePicker && (
-            <MasqueradeUserPicker onClose={() => setShowMasqueradePicker(false)} />
-          )}
-
-          {/* Masquerade trigger — only for real ADMIN+ */}
-          {realIsAdmin && (
-            <button
-              onClick={() => setShowMasqueradePicker((v) => !v)}
-              className="w-full flex items-center justify-center gap-1.5 rounded px-2 py-1.5 mb-1 transition-colors"
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: isMasquerading ? "#7c3aed" : "var(--text-muted)",
-                background: isMasquerading ? "rgba(124,58,237,0.08)" : "transparent",
-                border: "none",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                if (!isMasquerading) e.currentTarget.style.background = "var(--hover-bg)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = isMasquerading ? "rgba(124,58,237,0.08)" : "transparent";
-              }}
-              title={isMasquerading ? "Change or exit step-in" : "Step in as another user"}
-            >
-              {collapsed ? (
-                <VenetianMask size={16} />
-              ) : (
-                <>
-                  <VenetianMask size={12} />
-                  {isMasquerading ? "Stepped In" : "Step In"}
-                </>
-              )}
-            </button>
-          )}
-
           {/* Account avatar trigger */}
           <button
             onClick={handleAvatarClick}
@@ -856,10 +800,8 @@ export default function SimpleSidebarNav({
           </button>
         </div>
         </div>
-        </div>
-        {/* End: Navigation panel */}
       </div>
-      {/* End: Sliding container */}
+      {/* End: Navigation panel */}
 
       {/* Backdrop: click anywhere on main content to close account panel */}
       {showAccountPanel && (

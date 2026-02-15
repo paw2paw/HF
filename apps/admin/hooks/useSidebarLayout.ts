@@ -200,8 +200,10 @@ const SIDEBAR_ROLE_LEVEL: Record<string, number> = {
   SUPERADMIN: 5,
   ADMIN: 4,
   OPERATOR: 3,
+  EDUCATOR: 3,
   SUPER_TESTER: 2,
   TESTER: 1,
+  STUDENT: 1,
   DEMO: 0,
   VIEWER: 1, // @deprecated alias
 };
@@ -275,7 +277,7 @@ export function useSidebarLayout({
 
   // Filter baseSections by requiredRole (hard gate) and apply defaultHiddenFor
   const { roleSections, roleDefaultHidden } = useMemo(() => {
-    const userLevel = SIDEBAR_ROLE_LEVEL[userRole || "OPERATOR"] ?? 3;
+    const userLevel = SIDEBAR_ROLE_LEVEL[userRole || "OPERATOR"] ?? 0;
 
     // Hard gate: remove sections the user's role can't see
     const filtered = baseSections.filter((section) => {
@@ -434,13 +436,16 @@ export function useSidebarLayout({
       }
     }
 
-    // Build final sections with custom titles
+    // Build final sections with custom titles, filtering items by visibleFor
     return orderedSections.map((section) => ({
       ...section,
       title: sectionTitles?.[section.id] ?? section.title,
-      items: sectionItems[section.id] || [],
+      items: (sectionItems[section.id] || []).filter((item) => {
+        if (!item.visibleFor || item.visibleFor.length === 0) return true;
+        return item.visibleFor.includes(userRole || "");
+      }),
     }));
-  }, [roleSections, state.layout]);
+  }, [roleSections, state.layout, userRole]);
 
   // Filter visible sections (exclude both hidden and deleted)
   const hiddenSectionIds = useMemo(

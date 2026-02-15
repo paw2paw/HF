@@ -136,7 +136,7 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       message: "Joined classroom",
-      redirect: "/x/sim",
+      redirect: "/x/student/progress",
     });
   }
 
@@ -147,7 +147,7 @@ export async function POST(
         email: email.trim().toLowerCase(),
         name: `${firstName.trim()} ${lastName.trim()}`,
         displayName: firstName.trim(),
-        role: "TESTER",
+        role: "STUDENT",
         emailVerified: new Date(),
         isActive: true,
         assignedDomainId: cohort.domainId,
@@ -195,7 +195,7 @@ export async function POST(
   const response = NextResponse.json({
     ok: true,
     message: "Welcome! You've joined the classroom.",
-    redirect: "/x/sim",
+    redirect: "/x/student/progress",
   });
 
   const isProduction = process.env.NODE_ENV === "production";

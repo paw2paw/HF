@@ -24,6 +24,7 @@ const ROLE_LEVEL: Record<UserRole, number> = {
   EDUCATOR: 3, // Same level as OPERATOR — scoped to own cohorts + students
   SUPER_TESTER: 2,
   TESTER: 1,
+  STUDENT: 1, // Same level as TESTER — scoped to own data via student-access.ts
   DEMO: 0,
   VIEWER: 1, // @deprecated — alias for TESTER level
 };

@@ -26,7 +26,7 @@ function parseRule(rule: string) {
 describe("ENTITY_ACCESS_V1 Contract", () => {
   it("has all expected roles", () => {
     expect(contract.roles).toEqual([
-      "SUPERADMIN", "ADMIN", "OPERATOR", "EDUCATOR", "SUPER_TESTER", "TESTER", "DEMO",
+      "SUPERADMIN", "ADMIN", "OPERATOR", "EDUCATOR", "SUPER_TESTER", "TESTER", "STUDENT", "DEMO",
     ]);
   });
 
@@ -51,7 +51,7 @@ describe("ENTITY_ACCESS_V1 Contract", () => {
     expect(entities).toContain("invites");
   });
 
-  it("every entity has rules for all 6 roles", () => {
+  it("every entity has rules for all roles", () => {
     const roles = contract.roles as string[];
     for (const [entity, roleMap] of Object.entries(matrix)) {
       for (const role of roles) {
@@ -127,7 +127,7 @@ describe("ENTITY_ACCESS_V1 Contract", () => {
 
   describe("ai_config is SUPERADMIN-only", () => {
     it("only SUPERADMIN has access to ai_config", () => {
-      const roles = ["ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"];
+      const roles = ["ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "STUDENT", "DEMO"];
       for (const role of roles) {
         const rule = (matrix["ai_config"] as Record<string, string>)[role];
         const { scope } = parseRule(rule);
@@ -138,12 +138,46 @@ describe("ENTITY_ACCESS_V1 Contract", () => {
 
   describe("settings is SUPERADMIN-only", () => {
     it("only SUPERADMIN has access to settings", () => {
-      const roles = ["ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"];
+      const roles = ["ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "STUDENT", "DEMO"];
       for (const role of roles) {
         const rule = (matrix["settings"] as Record<string, string>)[role];
         const { scope } = parseRule(rule);
         expect(scope, `${role} should have NONE on settings`).toBe("NONE");
       }
+    });
+  });
+
+  describe("STUDENT access", () => {
+    it("has OWN scope on callers, calls, cohorts, goals, sim", () => {
+      for (const entity of ["callers", "calls", "cohorts", "goals", "sim"]) {
+        const rule = (matrix[entity] as Record<string, string>)["STUDENT"];
+        const { scope } = parseRule(rule);
+        expect(scope, `STUDENT should have OWN scope on ${entity}`).toBe("OWN");
+      }
+    });
+
+    it("has no access to system config", () => {
+      for (const entity of ["ai_config", "settings", "pipeline", "users", "domains", "playbooks", "specs", "parameters", "metering", "content", "invites"]) {
+        const rule = (matrix[entity] as Record<string, string>)["STUDENT"];
+        const { scope } = parseRule(rule);
+        expect(scope, `STUDENT should have NONE on ${entity}`).toBe("NONE");
+      }
+    });
+
+    it("has read-only access on own data (no create/update/delete on calls)", () => {
+      const rule = (matrix["calls"] as Record<string, string>)["STUDENT"];
+      const { operations } = parseRule(rule);
+      expect(operations.has("R")).toBe(true);
+      expect(operations.has("C")).toBe(false);
+      expect(operations.has("U")).toBe(false);
+      expect(operations.has("D")).toBe(false);
+    });
+
+    it("has CRUD on sim (can practice)", () => {
+      const rule = (matrix["sim"] as Record<string, string>)["STUDENT"];
+      const { operations } = parseRule(rule);
+      expect(operations.has("C")).toBe(true);
+      expect(operations.has("R")).toBe(true);
     });
   });
 

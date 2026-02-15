@@ -13,6 +13,7 @@ const ROLE_LABELS: Record<string, string> = {
   EDUCATOR: "Educator",
   SUPER_TESTER: "Super Tester",
   TESTER: "Tester",
+  STUDENT: "Student",
   DEMO: "Demo",
   VIEWER: "Viewer",
 };

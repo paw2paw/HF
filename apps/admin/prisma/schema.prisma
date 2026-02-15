@@ -629,6 +629,7 @@ enum UserRole {
   EDUCATOR // Level 3 — educator portal, own cohorts + students only
   SUPER_TESTER // Level 2 — enhanced testing, domain-scoped data
   TESTER // Level 1 — basic testing, own data only
+  STUDENT // Level 1 — student portal, own data only
   DEMO // Level 0 — guided demo experience, read-only subset
   VIEWER // @deprecated — alias for TESTER (kept for data migration compat)
 }

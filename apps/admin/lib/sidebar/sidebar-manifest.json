@@ -1,6 +1,7 @@
 [
   {
     "id": "home",
+    "defaultHiddenFor": ["STUDENT"],
     "items": [
       { "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
       { "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" }
@@ -10,7 +11,7 @@
     "id": "calls",
     "title": "Callers & Calls",
     "href": "/x/callers",
-    "defaultHiddenFor": ["TESTER", "DEMO", "EDUCATOR"],
+    "defaultHiddenFor": ["TESTER", "STUDENT", "DEMO", "EDUCATOR"],
     "items": [
       { "href": "/x/callers", "label": "Callers", "icon": "User" },
       { "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
@@ -33,14 +34,16 @@
   {
     "id": "educator",
     "title": "My School",
-    "href": "/x/educator",
     "defaultHiddenFor": ["SUPERADMIN", "ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
     "items": [
-      { "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap" },
-      { "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "roleVariants": { "EDUCATOR": { "label": "Classrooms", "href": "/x/educator/classrooms", "icon": "School" } } },
-      { "href": "/x/educator/students", "label": "Students", "icon": "User" },
-      { "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle" },
-      { "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp" }
+      { "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR"] },
+      { "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "visibleFor": ["EDUCATOR"], "roleVariants": { "EDUCATOR": { "label": "Classrooms", "href": "/x/educator/classrooms", "icon": "School" } } },
+      { "href": "/x/educator/students", "label": "Students", "icon": "User", "visibleFor": ["EDUCATOR"] },
+      { "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR"] },
+      { "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR"] },
+      { "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT"] },
+      { "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT"] },
+      { "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "visibleFor": ["STUDENT"] }
     ]
   },
   {

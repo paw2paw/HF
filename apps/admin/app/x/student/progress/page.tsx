@@ -1,0 +1,202 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { TrendingUp, Target, Phone } from "lucide-react";
+
+interface ProgressData {
+  profile: {
+    parameterValues: Record<string, number>;
+    lastUpdated: string | null;
+    callsAnalyzed: number;
+  } | null;
+  goals: {
+    id: string;
+    name: string;
+    type: string;
+    progress: number;
+    description: string | null;
+  }[];
+  totalCalls: number;
+  classroom: string | null;
+  domain: string | null;
+}
+
+export default function StudentProgressPage() {
+  const [data, setData] = useState<ProgressData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/student/progress")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) setData(d);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 rounded bg-[var(--surface-secondary)]" />
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 rounded-lg bg-[var(--surface-secondary)]" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="p-6">
+        <p style={{ color: "var(--text-muted)" }}>Unable to load progress data.</p>
+      </div>
+    );
+  }
+
+  const paramEntries = data.profile
+    ? Object.entries(data.profile.parameterValues).sort(([, a], [, b]) => b - a)
+    : [];
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>
+        My Progress
+      </h1>
+      {data.classroom && (
+        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+          {data.classroom}{data.domain ? ` \u2014 ${data.domain}` : ""}
+        </p>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <StatCard icon={Phone} label="Total Calls" value={data.totalCalls} />
+        <StatCard icon={Target} label="Active Goals" value={data.goals.length} />
+        <StatCard
+          icon={TrendingUp}
+          label="Calls Analyzed"
+          value={data.profile?.callsAnalyzed ?? 0}
+        />
+      </div>
+
+      {/* Goals */}
+      {data.goals.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+            Active Goals
+          </h2>
+          <div className="space-y-3">
+            {data.goals.map((goal) => (
+              <div
+                key={goal.id}
+                className="rounded-lg border p-4"
+                style={{
+                  borderColor: "var(--border-default)",
+                  background: "var(--surface-primary)",
+                }}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-sm" style={{ color: "var(--text-primary)" }}>
+                    {goal.name}
+                  </span>
+                  <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                    {Math.round(goal.progress * 100)}%
+                  </span>
+                </div>
+                {goal.description && (
+                  <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                    {goal.description}
+                  </p>
+                )}
+                <div
+                  className="h-1.5 rounded-full overflow-hidden"
+                  style={{ background: "var(--surface-secondary)" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.round(goal.progress * 100)}%`,
+                      background: "var(--accent-primary)",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Personality Profile */}
+      {paramEntries.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+            Learning Profile
+          </h2>
+          <div
+            className="rounded-lg border p-4"
+            style={{
+              borderColor: "var(--border-default)",
+              background: "var(--surface-primary)",
+            }}
+          >
+            <div className="space-y-3">
+              {paramEntries.map(([key, value]) => (
+                <div key={key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                      {key.replace(/_/g, " ")}
+                    </span>
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {typeof value === "number" ? value.toFixed(2) : String(value)}
+                    </span>
+                  </div>
+                  <div
+                    className="h-1 rounded-full overflow-hidden"
+                    style={{ background: "var(--surface-secondary)" }}
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, Number(value) * 100))}%`,
+                        background: "#06b6d4",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {data.profile?.lastUpdated && (
+              <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+                Last updated: {new Date(data.profile.lastUpdated).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: number }) {
+  return (
+    <div
+      className="rounded-lg border p-4"
+      style={{
+        borderColor: "var(--border-default)",
+        background: "var(--surface-primary)",
+      }}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <Icon size={14} style={{ color: "var(--text-muted)" }} />
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
+      </div>
+      <span className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
