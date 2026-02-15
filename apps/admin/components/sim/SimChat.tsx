@@ -23,6 +23,7 @@ export interface SimChatProps {
   pastCalls?: { transcript: string; createdAt: string }[];
   mode: 'standalone' | 'embedded';
   onCallEnd?: () => void;
+  onNewCall?: () => void;
   onBack?: () => void;
 }
 
@@ -84,6 +85,7 @@ export function SimChat({
   pastCalls,
   mode,
   onCallEnd,
+  onNewCall,
   onBack,
 }: SimChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -97,9 +99,16 @@ export function SimChat({
   const [error, setError] = useState<string | null>(null);
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [actions, setActions] = useState<any[]>([]);
+  const [callEnded, setCallEnded] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const callIdRef = useRef<string | null>(null);
+
+  // Abort in-flight stream on unmount (prevents orphaned fetches during key-based remount)
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
   // Parse past calls into grouped history (computed once)
   const historyGroups: HistoryGroup[] = useMemo(() => {
@@ -170,13 +179,59 @@ export function SimChat({
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // Initialize: compose prompt, create call, AI greets
+  // Initialize: resume active call if one exists, otherwise compose prompt + create call + AI greets
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
       try {
-        // Compose a fresh prompt for this caller
+        // Check for an existing active sim call (non-ended, within last 2 hours)
+        let activeCall: { id: string } | null = null;
+        try {
+          const activeRes = await fetch(`/api/callers/${callerId}/calls?active=true`);
+          if (activeRes.ok) {
+            const activeData = await activeRes.json();
+            if (activeData.ok && activeData.call) {
+              activeCall = activeData.call;
+            }
+          } else {
+            console.warn('[sim] Active call check returned', activeRes.status);
+          }
+        } catch (e) {
+          console.warn('[sim] Active call check failed:', e);
+        }
+
+        if (!cancelled && activeCall) {
+          // Resume the active call — load its messages
+          console.log('[sim] Resuming active call:', activeCall.id);
+          callIdRef.current = activeCall.id;
+          setCallId(activeCall.id);
+
+          const msgsRes = await fetch(`/api/calls/${activeCall.id}/messages`);
+          const msgsData = await msgsRes.json();
+
+          if (!cancelled && msgsData.ok && msgsData.messages?.length > 0) {
+            const restored: Message[] = msgsData.messages.map((m: any) => ({
+              id: m.id,
+              role: m.role as 'user' | 'assistant' | 'teacher',
+              content: m.content,
+              timestamp: new Date(m.createdAt),
+              senderName: m.senderName,
+            }));
+            setMessages(restored);
+            console.log(`[sim] Restored ${restored.length} messages from active call`);
+          } else if (!cancelled) {
+            // Active call exists but has no messages (e.g. greeting was aborted) — re-send greeting
+            console.log('[sim] Active call has no messages, sending greeting');
+            await streamAIResponse(
+              'The user just opened the chat. Greet them warmly as if answering a phone call. Be brief and natural.',
+              []
+            );
+          }
+          return; // Don't create a new call
+        }
+
+        // No active call — compose a fresh prompt and start new conversation
         let usedPromptId: string | null = null;
         const composeRes = await fetch(`/api/callers/${callerId}/compose-prompt`, {
           method: 'POST',
@@ -199,6 +254,7 @@ export function SimChat({
         const callData = await callRes.json();
         if (!cancelled && callData.ok) {
           console.log('[sim] Call created:', callData.call.id);
+          callIdRef.current = callData.call.id;
           setCallId(callData.call.id);
         } else if (!cancelled) {
           console.error('[sim] Failed to create call:', callData.error || callRes.status);
@@ -241,6 +297,8 @@ export function SimChat({
 
     setMessages(prev => [...prev, assistantMsg]);
 
+    let fullContent = '';
+
     try {
       abortRef.current = new AbortController();
 
@@ -267,7 +325,6 @@ export function SimChat({
       if (!reader) throw new Error('No stream');
 
       const decoder = new TextDecoder();
-      let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -286,15 +343,27 @@ export function SimChat({
       }
 
       // Relay assistant message to server for observers (fire-and-forget)
-      if (callId && fullContent) {
-        fetch(`/api/calls/${callId}/messages`, {
+      const currentCallId = callIdRef.current;
+      if (currentCallId && fullContent) {
+        fetch(`/api/calls/${currentCallId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: 'assistant', content: fullContent }),
         }).catch(() => {});
       }
     } catch (e: any) {
-      if (e.name === 'AbortError') return;
+      if (e.name === 'AbortError') {
+        // Stream was aborted (e.g. component unmount) — save any partial content
+        const currentCallId = callIdRef.current;
+        if (currentCallId && fullContent) {
+          fetch(`/api/calls/${currentCallId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'assistant', content: fullContent }),
+          }).catch(() => {});
+        }
+        return;
+      }
       setMessages(prev =>
         prev.map(m =>
           m.id === assistantMsgId
@@ -325,8 +394,8 @@ export function SimChat({
     setInput('');
 
     // Relay user message to server for observers (fire-and-forget)
-    if (callId) {
-      fetch(`/api/calls/${callId}/messages`, {
+    if (callIdRef.current) {
+      fetch(`/api/calls/${callIdRef.current}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'user', content: input.trim() }),
@@ -417,6 +486,11 @@ export function SimChat({
 
       showToast(runPipeline ? 'Call saved — analysis running in background' : 'Call saved');
 
+      // Transition to post-call state
+      setShowEndSheet(false);
+      setIsEnding(false);
+      setCallEnded(true);
+
       // Notify parent (refresh data, etc.)
       onCallEnd?.();
 
@@ -440,7 +514,7 @@ export function SimChat({
         subtitle={domainName}
         onBack={onBack}
         onEndCall={() => setShowEndSheet(true)}
-        callActive={messages.length > 0}
+        callActive={messages.length > 0 && !callEnded}
         avatarColor={hashColor(callerId)}
       />
 
@@ -582,12 +656,42 @@ export function SimChat({
       )}
 
       {/* Input */}
-      <MessageInput
-        value={input}
-        onChange={setInput}
-        onSend={handleSend}
-        disabled={isStreaming}
-      />
+      {!callEnded && (
+        <MessageInput
+          value={input}
+          onChange={setInput}
+          onSend={handleSend}
+          disabled={isStreaming}
+        />
+      )}
+
+      {/* Post-call: start new call (embedded mode only) */}
+      {callEnded && onNewCall && (
+        <div style={{
+          padding: '16px 20px',
+          borderTop: '1px solid #E9EDEF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--surface-primary, #fff)',
+        }}>
+          <button
+            onClick={onNewCall}
+            style={{
+              padding: '10px 24px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#25D366',
+              color: 'white',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Start New Call
+          </button>
+        </div>
+      )}
 
       {/* End call confirmation sheet */}
       {showEndSheet && (
