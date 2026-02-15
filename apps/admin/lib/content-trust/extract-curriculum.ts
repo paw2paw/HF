@@ -57,6 +57,30 @@ function repairJSON(raw: string): string {
   return s;
 }
 
+/** Close unclosed brackets/braces in truncated JSON */
+function closeTruncatedJSON(json: string): string {
+  let inString = false;
+  let escape = false;
+  const stack: string[] = [];
+
+  for (const ch of json) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+
+  // If we ended inside a string, close it
+  if (inString) json += '"';
+  // Remove trailing comma before closing
+  json = json.replace(/,\s*$/, "");
+  // Close all open brackets/braces
+  return json + stack.reverse().join("");
+}
+
 /** Parse JSON with repair fallback — uses error-position insertion for remaining issues */
 function parseAIJSON(content: string): any {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -77,8 +101,16 @@ function parseAIJSON(content: string): any {
     try {
       return JSON.parse(json);
     } catch (e: any) {
-      const posMatch = e.message?.match(/position (\d+)/);
-      if (!posMatch || !e.message.includes("Expected ','")) throw e;
+      const msg = e.message || "";
+      const posMatch = msg.match(/position (\d+)/);
+
+      if (msg.includes("Unexpected end of JSON")) {
+        // Truncated response — close open brackets/braces and retry
+        json = closeTruncatedJSON(json);
+        continue;
+      }
+
+      if (!posMatch || !msg.includes("Expected ','")) throw e;
       const pos = parseInt(posMatch[1]);
       json = json.slice(0, pos) + "," + json.slice(pos);
     }
@@ -176,6 +208,7 @@ Generate a structured curriculum from these assertions.`;
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
+      maxTokens: 8000,
     });
 
     const content = response.content || "";
@@ -292,6 +325,7 @@ Generate a structured curriculum for this subject.`;
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
+      maxTokens: 8000,
     });
 
     const content = response.content || "";
