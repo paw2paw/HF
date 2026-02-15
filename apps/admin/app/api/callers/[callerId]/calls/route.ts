@@ -50,8 +50,6 @@ export async function GET(
       },
     });
 
-    console.log("[GET calls] callerId:", callerId, "activeOnly:", activeOnly, "found:", call?.id ?? "null", "endedAt:", call?.endedAt ?? "N/A");
-
     return NextResponse.json({ ok: true, call: call || null });
   } catch (error: any) {
     console.error("GET /api/callers/[callerId]/calls error:", error);
