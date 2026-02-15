@@ -32,11 +32,11 @@ type ApiResponse = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  identity: "#7c3aed",
+  identity: "#4338ca",
   voice: "#0891b2",
   content: "#059669",
   pedagogy: "#d97706",
-  adaptation: "#dc2626",
+  adaptation: "#8b5cf6",
   targets: "#2563eb",
   orchestration: "#6366f1",
   guardrails: "#be185d",

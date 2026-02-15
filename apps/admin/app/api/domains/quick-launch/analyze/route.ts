@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
   }
 
   const subjectName = formData.get("subjectName") as string | null;
+  const brief = formData.get("brief") as string | null;
   const persona = formData.get("persona") as string | null;
   const mode = (formData.get("mode") as string | null) || "upload";
   const file = formData.get("file") as File | null;
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
         data: {
           slug,
           name: subjectName.trim(),
-          description: `Quick-launched domain for ${subjectName.trim()}`,
+          description: brief?.trim() || `Quick-launched domain for ${subjectName.trim()}`,
           isActive: true,
         },
       });
@@ -177,6 +178,7 @@ export async function POST(req: NextRequest) {
           mode: "generate",
           input: {
             subjectName: subjectName.trim(),
+            brief: brief?.trim() || undefined,
             persona: persona.trim(),
             learningGoals,
             qualificationRef: qualificationRef?.trim() || undefined,
@@ -208,6 +210,7 @@ export async function POST(req: NextRequest) {
             preview,
             input: {
               subjectName: subjectName.trim(),
+              brief: brief?.trim() || undefined,
               persona: persona.trim(),
               learningGoals,
             },
@@ -286,6 +289,7 @@ export async function POST(req: NextRequest) {
         mode: "upload",
         input: {
           subjectName: subjectName.trim(),
+          brief: brief?.trim() || undefined,
           persona: persona.trim(),
           learningGoals,
           qualificationRef: qualificationRef?.trim() || undefined,

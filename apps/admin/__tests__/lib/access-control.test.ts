@@ -26,7 +26,7 @@ function parseRule(rule: string) {
 describe("ENTITY_ACCESS_V1 Contract", () => {
   it("has all expected roles", () => {
     expect(contract.roles).toEqual([
-      "SUPERADMIN", "ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "DEMO",
+      "SUPERADMIN", "ADMIN", "OPERATOR", "EDUCATOR", "SUPER_TESTER", "TESTER", "DEMO",
     ]);
   });
 

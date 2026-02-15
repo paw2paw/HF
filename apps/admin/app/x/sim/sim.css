@@ -87,6 +87,23 @@
   box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
 }
 
+.wa-bubble-teacher {
+  background: #fffbeb;
+  align-self: center;
+  border-radius: 10px;
+  border: 1px solid #fcd34d;
+  margin-left: 24px;
+  margin-right: 24px;
+  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .wa-bubble-teacher {
+    background: #451a03;
+    border-color: #92400e;
+  }
+}
+
 .wa-bubble-time {
   font-size: 11px;
   color: var(--wa-text-muted);

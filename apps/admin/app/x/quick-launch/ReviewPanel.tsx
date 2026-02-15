@@ -9,6 +9,7 @@ import type { GeneratedIdentityConfig } from "@/lib/domain/generate-identity";
 interface ReviewPanelProps {
   input: {
     subjectName: string;
+    brief?: string;
     persona: string;
     personaName?: string;
     goals: string[];
@@ -392,12 +393,19 @@ export default function ReviewPanel({
           <ColumnHeader label="Your Input" />
           <SectionCard>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Subject</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Name</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{input.subjectName}</div>
             </div>
 
+            {input.brief && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Brief</div>
+                <div style={{ fontSize: 14, fontWeight: 400, color: "var(--text-secondary)", lineHeight: 1.5 }}>{input.brief}</div>
+              </div>
+            )}
+
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Teaching Style</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Persona</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
                 {input.personaName || input.persona}
               </div>
@@ -428,7 +436,7 @@ export default function ReviewPanel({
 
             <div style={{ marginBottom: input.qualificationRef ? 16 : 0 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                {input.mode === "generate" ? "Curriculum Source" : "Course Material"}
+                {input.mode === "generate" ? "Content Source" : "Source Material"}
               </div>
               {input.mode === "generate" ? (
                 <div style={{ fontSize: 14, fontWeight: 500, color: "var(--accent-primary)" }}>
@@ -468,10 +476,10 @@ export default function ReviewPanel({
             {input.mode === "generate" ? (
               <>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  AI-Generated Curriculum
+                  AI-Generated Content
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                  Curriculum will be generated during the create step based on your subject and{" "}
+                  Content will be generated during the create step based on your description and{" "}
                   {input.goals.length > 0
                     ? `${input.goals.length} learning goal${input.goals.length !== 1 ? "s" : ""}`
                     : "AI-inferred goals"
@@ -486,7 +494,7 @@ export default function ReviewPanel({
                   color: "var(--text-secondary)",
                   fontWeight: 500,
                 }}>
-                  Modules will be created from foundational to advanced, with learning outcomes and assessment criteria.
+                  Modules will be structured progressively, with outcomes and assessment criteria tailored to your goals.
                 </div>
               </>
             ) : (
@@ -631,13 +639,13 @@ export default function ReviewPanel({
           <ColumnHeader label="What We'll Create" sublabel="Click any field to edit" />
           <SectionCard style={{ marginBottom: 16 }}>
             <EditableField
-              label="Domain Name"
+              label="Agent Name"
               value={effectiveDomainName}
               onChange={(v) => updateOverride("domainName", v)}
             />
 
             <EditableField
-              label="Domain Slug"
+              label="Agent Slug"
               value={effectiveDomainSlug}
               onChange={(v) => updateOverride("domainSlug", v)}
             />

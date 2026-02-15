@@ -9,7 +9,7 @@ import { useEntityContext } from "@/contexts/EntityContext";
 import { DomainPill, PlaybookPill, StatusBadge, GoalPill, SpecPill } from "@/src/components/shared/EntityPill";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
-import { FileText as FileTextIcon, FileSearch, Brain, MessageCircle, Smartphone, User, TrendingUp, BookMarked, PlayCircle, BarChart3, Target, ClipboardCheck, GitBranch } from "lucide-react";
+import { FileText as FileTextIcon, FileSearch, Brain, MessageCircle, Smartphone, User, TrendingUp, BookMarked, PlayCircle, BarChart3, Target, ClipboardCheck, GitBranch, Send, BookOpen, CheckSquare, ArrowRight, Bell, Plus } from "lucide-react";
 import { SectionSelector, useSectionVisibility } from "@/components/shared/SectionSelector";
 import { CallerDomainSection } from "@/components/callers/CallerDomainSection";
 import { ArtifactCard } from "@/components/sim/ArtifactCard";
@@ -198,6 +198,7 @@ type CallerData = {
     targets: number;
     measurements: number;
     artifacts?: number;
+    actions?: number;
     curriculumModules?: number;
     curriculumCompleted?: number;
     goals?: number;
@@ -639,7 +640,7 @@ export default function CallerDetailPage() {
     { id: "calls", label: "Calls", icon: <Smartphone size={13} />, count: data.counts.calls, group: "history" },
     { id: "profile", label: "Profile", icon: <User size={13} />, count: (data.counts.memories || 0) + (data.counts.observations || 0), group: "caller" },
     { id: "progress", label: "Progress", icon: <TrendingUp size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + (data.counts.targets || 0) + (data.counts.measurements || 0), group: "shared" },
-    { id: "artifacts", label: "Artifacts", icon: <BookMarked size={13} />, count: data.counts.artifacts || 0, group: "shared" },
+    { id: "artifacts", label: "Artifacts & Actions", icon: <BookMarked size={13} />, count: (data.counts.artifacts || 0) + (data.counts.actions || 0), group: "shared" },
     { id: "ai-call", label: "Call", icon: <PlayCircle size={13} />, special: true, group: "action" },
   ];
 
@@ -2395,6 +2396,7 @@ function CallsSection({
             {isExpanded && (
               <CallDetailPanel
                 call={call}
+                callerId={callerId}
                 details={callDetails[call.id]}
                 loading={loadingDetails[call.id]}
               />
@@ -2409,17 +2411,26 @@ function CallsSection({
 // Call Detail Panel - shows scores, memories, measurements when expanded
 function CallDetailPanel({
   call,
+  callerId,
   details,
   loading,
 }: {
   call: Call;
+  callerId: string;
   details: any;
   loading: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"transcript" | "extraction" | "measurements" | "prompt">("transcript");
   const [extractionVis, toggleExtractionVis] = useSectionVisibility("call-extraction", {
-    memories: true, traits: true, scores: true,
+    memories: true, traits: true, scores: true, actions: true,
   });
+  const [callActions, setCallActions] = useState<any[]>([]);
+  useEffect(() => {
+    fetch(`/api/callers/${callerId}/actions?callId=${call.id}&limit=50`)
+      .then((r) => r.json())
+      .then((result) => { if (result.ok) setCallActions(result.actions || []); })
+      .catch(() => {});
+  }, [call.id, callerId]);
 
   if (loading) {
     return (
@@ -2485,6 +2496,7 @@ function CallDetailPanel({
                 { id: "memories", label: "Memories", icon: <MessageCircle size={13} />, count: memories.length },
                 { id: "traits", label: "Traits", icon: <Brain size={13} />, count: personalityObservation ? 1 : 0 },
                 { id: "scores", label: "Scores", icon: <BarChart3 size={13} />, count: scores.length },
+                { id: "actions", label: "Actions", icon: <ClipboardCheck size={13} />, count: callActions.length },
               ]}
               visible={extractionVis}
               onToggle={toggleExtractionVis}
@@ -2492,6 +2504,22 @@ function CallDetailPanel({
             {extractionVis.memories !== false && <MemoriesTab memories={memories} />}
             {extractionVis.traits !== false && <CallTraitsTab observation={personalityObservation} />}
             {extractionVis.scores !== false && <ScoresTab scores={scores} />}
+            {extractionVis.actions !== false && callActions.length > 0 && (
+              <div style={{ padding: "12px 16px" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-default)", marginBottom: 8 }}>Actions from this call</div>
+                {callActions.map((action) => {
+                  const colors = ASSIGNEE_COLORS[action.assignee] || ASSIGNEE_COLORS.CALLER;
+                  return (
+                    <div key={action.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                      <div style={{ color: "var(--text-muted)" }}>{ACTION_TYPE_ICONS[action.type] || <CheckSquare size={14} />}</div>
+                      <span style={{ fontSize: 12, flex: 1 }}>{action.title}</span>
+                      <span style={{ padding: "1px 6px", fontSize: 10, borderRadius: 8, fontWeight: 500, background: colors.bg, color: colors.text }}>{action.assignee}</span>
+                      <span style={{ fontSize: 10, color: "var(--text-muted)", padding: "1px 6px", borderRadius: 8, background: "var(--bg-secondary)" }}>{action.status}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
 
@@ -7881,13 +7909,20 @@ function SlugVariableNode({ variable }: { variable: SlugNode }) {
   );
 }
 
-// Artifacts Section - shows content delivered to the caller
+// Artifacts & Actions Section - shows content delivered to the caller + actionable items
 function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProcessing?: boolean }) {
   const [artifacts, setArtifacts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [actions, setActions] = useState<any[]>([]);
+  const [actionCounts, setActionCounts] = useState<{ pending: number; completed: number; total: number }>({ pending: 0, completed: 0, total: 0 });
+  const [loadingArtifacts, setLoadingArtifacts] = useState(true);
+  const [loadingActions, setLoadingActions] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [sectionVis, toggleSectionVis] = useSectionVisibility("caller-artifacts", {
+    artifacts: true, actions: true,
+  });
 
+  // Load artifacts
   useEffect(() => {
     fetch(`/api/callers/${callerId}/artifacts?limit=200`)
       .then((r) => r.json())
@@ -7895,10 +7930,26 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
         if (result.ok) setArtifacts(result.artifacts || []);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingArtifacts(false));
   }, [callerId]);
 
-  // Auto-poll when processing to pick up new artifacts
+  // Load actions
+  const loadActions = useCallback(() => {
+    fetch(`/api/callers/${callerId}/actions?limit=200`)
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.ok) {
+          setActions(result.actions || []);
+          setActionCounts(result.counts || { pending: 0, completed: 0, total: 0 });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingActions(false));
+  }, [callerId]);
+
+  useEffect(() => { loadActions(); }, [loadActions]);
+
+  // Auto-poll when processing to pick up new artifacts/actions
   useEffect(() => {
     if (!isProcessing) return;
     const interval = setInterval(() => {
@@ -7908,18 +7959,69 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
           if (result.ok) setArtifacts(result.artifacts || []);
         })
         .catch(() => {});
+      loadActions();
     }, 5000);
     return () => clearInterval(interval);
-  }, [isProcessing, callerId]);
+  }, [isProcessing, callerId, loadActions]);
 
-  if (loading) return <div style={{ padding: 20, color: "var(--text-muted)" }}>Loading artifacts...</div>;
-  if (artifacts.length === 0 && isProcessing) return <ProcessingNotice message="Artifacts will appear here once the pipeline finishes processing the latest call." />;
+  const loading = loadingArtifacts || loadingActions;
+  if (loading) return <div style={{ padding: 20, color: "var(--text-muted)" }}>Loading...</div>;
+
+  const hasContent = artifacts.length > 0 || actions.length > 0;
+  if (!hasContent && isProcessing) return <ProcessingNotice message="Artifacts and actions will appear here once the pipeline finishes processing the latest call." />;
+
+  return (
+    <div>
+      <SectionSelector
+        storageKey="caller-artifacts"
+        sections={[
+          { id: "artifacts", label: "Artifacts", icon: <BookMarked size={13} />, count: artifacts.length },
+          { id: "actions", label: "Actions", icon: <ClipboardCheck size={13} />, count: actionCounts.pending || actionCounts.total },
+        ]}
+        visible={sectionVis}
+        onToggle={toggleSectionVis}
+      />
+
+      {sectionVis.artifacts !== false && (
+        <ArtifactsSubSection
+          artifacts={artifacts}
+          typeFilter={typeFilter}
+          statusFilter={statusFilter}
+          setTypeFilter={setTypeFilter}
+          setStatusFilter={setStatusFilter}
+        />
+      )}
+
+      {sectionVis.actions !== false && (
+        <ActionsSubSection
+          callerId={callerId}
+          actions={actions}
+          counts={actionCounts}
+          onRefresh={loadActions}
+        />
+      )}
+    </div>
+  );
+}
+
+// Artifacts sub-section (extracted from original ArtifactsSection)
+function ArtifactsSubSection({
+  artifacts,
+  typeFilter,
+  statusFilter,
+  setTypeFilter,
+  setStatusFilter,
+}: {
+  artifacts: any[];
+  typeFilter: string | null;
+  statusFilter: string | null;
+  setTypeFilter: (v: string | null) => void;
+  setStatusFilter: (v: string | null) => void;
+}) {
   if (artifacts.length === 0) return <div style={{ padding: 20, color: "var(--text-placeholder)" }}>No artifacts delivered yet</div>;
 
-  // Get unique types and statuses for filters
   const types = [...new Set(artifacts.map((a) => a.type))].sort();
   const statuses = [...new Set(artifacts.map((a) => a.status))].sort();
-
   const filtered = artifacts.filter((a) => {
     if (typeFilter && a.type !== typeFilter) return false;
     if (statusFilter && a.status !== statusFilter) return false;
@@ -7927,8 +8029,7 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
   });
 
   return (
-    <div>
-      {/* Filter chips */}
+    <div style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
         <span style={{ fontSize: 11, color: "var(--text-muted)", alignSelf: "center", marginRight: 4 }}>Type:</span>
         <button
@@ -7980,7 +8081,6 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
         )}
       </div>
 
-      {/* Artifact cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map((artifact) => (
           <ArtifactCard key={artifact.id} artifact={artifact} />
@@ -7988,6 +8088,295 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
         {filtered.length === 0 && (
           <div style={{ padding: 20, color: "var(--text-placeholder)", textAlign: "center" }}>
             No artifacts match the current filters
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Action type icons
+const ACTION_TYPE_ICONS: Record<string, React.ReactNode> = {
+  SEND_MEDIA: <Send size={14} />,
+  HOMEWORK: <BookOpen size={14} />,
+  TASK: <CheckSquare size={14} />,
+  FOLLOWUP: <ArrowRight size={14} />,
+  REMINDER: <Bell size={14} />,
+};
+
+// Assignee badge colors
+const ASSIGNEE_COLORS: Record<string, { bg: string; text: string }> = {
+  CALLER: { bg: "color-mix(in srgb, #22c55e 15%, transparent)", text: "#16a34a" },
+  OPERATOR: { bg: "color-mix(in srgb, #f59e0b 15%, transparent)", text: "#d97706" },
+  AGENT: { bg: "color-mix(in srgb, #4338ca 15%, transparent)", text: "#4338ca" },
+};
+
+// Actions sub-section
+function ActionsSubSection({
+  callerId,
+  actions,
+  counts,
+  onRefresh,
+}: {
+  callerId: string;
+  actions: any[];
+  counts: { pending: number; completed: number; total: number };
+  onRefresh: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Form state
+  const [formType, setFormType] = useState("TASK");
+  const [formTitle, setFormTitle] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formAssignee, setFormAssignee] = useState("CALLER");
+  const [formPriority, setFormPriority] = useState("MEDIUM");
+
+  const filtered = actions.filter((a) => {
+    if (assigneeFilter && a.assignee !== assigneeFilter) return false;
+    if (statusFilter && a.status !== statusFilter) return false;
+    return true;
+  });
+
+  const handleCreate = async () => {
+    if (!formTitle.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/callers/${callerId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: formType,
+          title: formTitle.trim(),
+          description: formDescription.trim() || undefined,
+          assignee: formAssignee,
+          priority: formPriority,
+        }),
+      });
+      if (res.ok) {
+        setFormTitle("");
+        setFormDescription("");
+        setShowForm(false);
+        onRefresh();
+      }
+    } catch {}
+    setSubmitting(false);
+  };
+
+  const handleToggleStatus = async (actionId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "COMPLETED" ? "PENDING" : "COMPLETED";
+    try {
+      await fetch(`/api/callers/${callerId}/actions/${actionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      onRefresh();
+    } catch {}
+  };
+
+  return (
+    <div>
+      {/* Header with New Action button */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {/* Assignee filter chips */}
+          {["CALLER", "OPERATOR", "AGENT"].map((a) => {
+            const count = actions.filter((act) => act.assignee === a).length;
+            if (count === 0) return null;
+            const colors = ASSIGNEE_COLORS[a];
+            return (
+              <button
+                key={a}
+                onClick={() => setAssigneeFilter(assigneeFilter === a ? null : a)}
+                style={{
+                  padding: "3px 8px", fontSize: 11, borderRadius: 12, border: "1px solid var(--border-default)", cursor: "pointer",
+                  background: assigneeFilter === a ? colors.bg : "transparent",
+                  color: assigneeFilter === a ? colors.text : "var(--text-muted)",
+                  fontWeight: assigneeFilter === a ? 600 : 400,
+                }}
+              >
+                {a} ({count})
+              </button>
+            );
+          })}
+          {/* Status filter */}
+          {counts.completed > 0 && (
+            <>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", alignSelf: "center", margin: "0 4px" }}>|</span>
+              <button
+                onClick={() => setStatusFilter(statusFilter === "COMPLETED" ? null : "COMPLETED")}
+                style={{
+                  padding: "3px 8px", fontSize: 11, borderRadius: 12, border: "1px solid var(--border-default)", cursor: "pointer",
+                  background: statusFilter === "COMPLETED" ? "var(--status-info-bg)" : "transparent",
+                  color: statusFilter === "COMPLETED" ? "var(--button-primary-bg)" : "var(--text-muted)",
+                  fontWeight: statusFilter === "COMPLETED" ? 600 : 400,
+                }}
+              >
+                Completed ({counts.completed})
+              </button>
+            </>
+          )}
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          style={{
+            display: "flex", alignItems: "center", gap: 4,
+            padding: "5px 10px", fontSize: 11, borderRadius: 6,
+            border: "1px solid var(--border-default)", cursor: "pointer",
+            background: showForm ? "var(--status-info-bg)" : "var(--bg-primary)",
+            color: showForm ? "var(--button-primary-bg)" : "var(--text-default)",
+            fontWeight: 500,
+          }}
+        >
+          <Plus size={12} /> New Action
+        </button>
+      </div>
+
+      {/* Inline creation form */}
+      {showForm && (
+        <div style={{
+          padding: 16, marginBottom: 16, borderRadius: 8,
+          border: "1px solid var(--border-default)", background: "var(--bg-secondary)",
+        }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <select value={formType} onChange={(e) => setFormType(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)" }}>
+              <option value="TASK">Task</option>
+              <option value="HOMEWORK">Homework</option>
+              <option value="SEND_MEDIA">Send Media</option>
+              <option value="FOLLOWUP">Follow-up</option>
+              <option value="REMINDER">Reminder</option>
+            </select>
+            <select value={formAssignee} onChange={(e) => setFormAssignee(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)" }}>
+              <option value="CALLER">Caller</option>
+              <option value="OPERATOR">Operator</option>
+              <option value="AGENT">Agent</option>
+            </select>
+            <select value={formPriority} onChange={(e) => setFormPriority(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)" }}>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select>
+          </div>
+          <input
+            type="text"
+            placeholder="Action title..."
+            value={formTitle}
+            onChange={(e) => setFormTitle(e.target.value)}
+            style={{ width: "100%", padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)", marginBottom: 8 }}
+          />
+          <textarea
+            placeholder="Description (optional)..."
+            value={formDescription}
+            onChange={(e) => setFormDescription(e.target.value)}
+            rows={2}
+            style={{ width: "100%", padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)", resize: "vertical", marginBottom: 8 }}
+          />
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button onClick={() => setShowForm(false)} style={{ padding: "5px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-default)", cursor: "pointer", background: "var(--bg-primary)" }}>Cancel</button>
+            <button onClick={handleCreate} disabled={submitting || !formTitle.trim()} style={{ padding: "5px 12px", fontSize: 11, borderRadius: 4, border: "none", cursor: "pointer", background: "var(--button-primary-bg)", color: "var(--button-primary-text)", opacity: submitting || !formTitle.trim() ? 0.5 : 1, fontWeight: 500 }}>
+              {submitting ? "Creating..." : "Create"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Action cards */}
+      {actions.length === 0 && !showForm && (
+        <div style={{ padding: 20, color: "var(--text-placeholder)", textAlign: "center" }}>
+          No actions yet. Click &quot;New Action&quot; to create one, or actions will be extracted from calls automatically.
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {filtered.map((action) => {
+          const colors = ASSIGNEE_COLORS[action.assignee] || ASSIGNEE_COLORS.CALLER;
+          const isCompleted = action.status === "COMPLETED";
+          return (
+            <div
+              key={action.id}
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
+                borderRadius: 6, border: "1px solid var(--border-default)",
+                background: isCompleted ? "var(--bg-secondary)" : "var(--bg-primary)",
+                opacity: isCompleted ? 0.7 : 1,
+              }}
+            >
+              {/* Checkbox */}
+              <button
+                onClick={() => handleToggleStatus(action.id, action.status)}
+                style={{
+                  width: 18, height: 18, borderRadius: 4, border: "1.5px solid var(--border-default)",
+                  background: isCompleted ? "var(--button-primary-bg)" : "transparent",
+                  cursor: "pointer", flexShrink: 0, marginTop: 1,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: isCompleted ? "var(--button-primary-text)" : "transparent",
+                  fontSize: 11,
+                }}
+                title={isCompleted ? "Mark as pending" : "Mark as completed"}
+              >
+                {isCompleted ? "✓" : ""}
+              </button>
+
+              {/* Type icon */}
+              <div style={{ flexShrink: 0, color: "var(--text-muted)", marginTop: 1 }}>
+                {ACTION_TYPE_ICONS[action.type] || <CheckSquare size={14} />}
+              </div>
+
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{
+                    fontSize: 13, fontWeight: 500,
+                    textDecoration: isCompleted ? "line-through" : "none",
+                    color: isCompleted ? "var(--text-muted)" : "var(--text-default)",
+                  }}>
+                    {action.title}
+                  </span>
+                  {/* Assignee badge */}
+                  <span style={{
+                    padding: "1px 6px", fontSize: 10, borderRadius: 8, fontWeight: 500,
+                    background: colors.bg, color: colors.text,
+                  }}>
+                    {action.assignee}
+                  </span>
+                  {/* Priority badge (only for HIGH/URGENT) */}
+                  {(action.priority === "HIGH" || action.priority === "URGENT") && (
+                    <span style={{
+                      padding: "1px 6px", fontSize: 10, borderRadius: 8, fontWeight: 500,
+                      background: action.priority === "URGENT"
+                        ? "color-mix(in srgb, #ef4444 15%, transparent)"
+                        : "color-mix(in srgb, #f59e0b 15%, transparent)",
+                      color: action.priority === "URGENT" ? "#dc2626" : "#d97706",
+                    }}>
+                      {action.priority}
+                    </span>
+                  )}
+                  {/* Source badge */}
+                  {action.source === "EXTRACTED" && (
+                    <span style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>extracted</span>
+                  )}
+                </div>
+                {action.description && (
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>
+                    {action.description.length > 120 ? action.description.slice(0, 120) + "..." : action.description}
+                  </div>
+                )}
+                <div style={{ fontSize: 10, color: "var(--text-placeholder)", marginTop: 4 }}>
+                  {action.type.replace(/_/g, " ")} · {new Date(action.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  {action.dueAt && ` · due ${new Date(action.dueAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
+                  {isCompleted && action.completedAt && ` · done ${new Date(action.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && actions.length > 0 && (
+          <div style={{ padding: 20, color: "var(--text-placeholder)", textAlign: "center" }}>
+            No actions match the current filters
           </div>
         )}
       </div>

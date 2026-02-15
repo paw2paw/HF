@@ -84,6 +84,19 @@ export interface LoadedDataContext {
   onboardingSession?: any;
   /** Curriculum assertions (approved teaching points) from ContentAssertion table */
   curriculumAssertions?: CurriculumAssertionData[];
+  /** Open actions (pending/in-progress) for prompt awareness */
+  openActions?: OpenActionData[];
+}
+
+/** Open action data loaded for voice prompt integration */
+export interface OpenActionData {
+  type: string;
+  title: string;
+  description: string | null;
+  assignee: string;
+  priority: string;
+  dueAt: Date | null;
+  createdAt: Date;
 }
 
 /** ContentAssertion data loaded for teaching content */
@@ -206,6 +219,11 @@ export interface CallerData {
     onboardingDefaultTargets?: unknown;
   } | null;
   domainId?: string | null;
+  cohortGroup?: {
+    id: string;
+    name: string;
+    owner: { id: string; name: string | null };
+  } | null;
 }
 
 export interface MemoryData {

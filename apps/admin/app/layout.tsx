@@ -4,23 +4,24 @@ import React, { Suspense, useEffect, useState, useRef, useCallback } from 'react
 import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
-import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript } from '@/contexts';
+import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding } from '@/contexts';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
 import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
-import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
+import EnvironmentBanner, { envSidebarColor, envLabel } from '@/components/shared/EnvironmentBanner';
+import MasqueradeBanner, { MASQUERADE_BANNER_HEIGHT, MASQUERADE_COLOR } from '@/components/shared/MasqueradeBanner';
 import { GuidanceBridge } from '@/src/components/shared/GuidanceBridge';
 import { useResponsive } from '@/hooks/useResponsive';
-import { Menu } from 'lucide-react';
+import { Menu, PanelLeft } from 'lucide-react';
 import './globals.css';
 
 const SIDEBAR_WIDTH_KEY = 'hf.sidebar.width';
 const DEFAULT_SIDEBAR_WIDTH = 180;
 const MIN_SIDEBAR_WIDTH = 140;
 const MAX_SIDEBAR_WIDTH = 320;
-const COLLAPSED_WIDTH = 56;
+const COLLAPSED_WIDTH = 0;
 
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,8 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const { isOpen, chatLayout } = useChatContext();
   const { isMobile, showDesktop } = useResponsive();
+  const { isMasquerading } = useMasquerade();
+  const { branding } = useBranding();
 
   // Embed mode - render without sidebar/chrome (for iframes)
   const isEmbed = searchParams.get('embed') === '1';
@@ -141,15 +144,24 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Sidebar width config
   const effectiveSidebarWidth = collapsed ? COLLAPSED_WIDTH : sidebarWidth;
 
+  // Height accounts for fixed banners (MasqueradeBanner only — env banner removed)
+  const bannerHeight = isMasquerading ? MASQUERADE_BANNER_HEIGHT : 0;
+  const layoutHeight = bannerHeight > 0 ? `calc(100vh - ${bannerHeight}px)` : '100vh';
+
   // Auth pages, embed mode, and sim pages render without sidebar/chrome
   if (isAuthPage || isEmbed || isSimPage) {
     return <>{children}</>;
   }
 
+  // Masquerade border — visible purple frame around the viewport
+  const masqueradeBorderStyle: React.CSSProperties = isMasquerading
+    ? { boxShadow: `inset 0 0 0 3px ${MASQUERADE_COLOR}` }
+    : {};
+
   // Mobile layout (< 768px, not forced desktop mode)
   if (isMobile && !showDesktop) {
     return (
-      <div className="h-full flex flex-col">
+      <div className="flex flex-col" style={{ height: layoutHeight, ...masqueradeBorderStyle }}>
         {/* Mobile header with hamburger */}
         <header
           className="h-14 border-b flex items-center px-4 gap-3 flex-shrink-0"
@@ -165,9 +177,13 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           >
             <Menu className="w-5 h-5" style={{ color: 'var(--text-primary)' }} />
           </button>
-          <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
-            HumanFirst
-          </span>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={branding.name} style={{ height: 28 }} />
+          ) : (
+            <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+              {branding.name}
+            </span>
+          )}
         </header>
 
         {/* Mobile sidebar overlay */}
@@ -184,6 +200,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               style={{
                 background: 'var(--surface-primary)',
                 borderRight: '1px solid var(--border-default)',
+                borderLeft: envSidebarColor ? `3px solid ${envSidebarColor}` : undefined,
               }}
             >
               <div className="h-full px-2 py-4">
@@ -209,14 +226,41 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Desktop layout (current grid)
   return (
     <div
-      className="grid h-full"
+      className="grid relative"
       style={{
+        height: layoutHeight,
         gridTemplateColumns: `${effectiveSidebarWidth}px 1fr`,
-        transition: isResizing ? 'none' : 'grid-template-columns 150ms ease-out',
+        gridTemplateRows: '1fr',
+        transition: isResizing ? 'none' : 'grid-template-columns 200ms ease-out',
+        ...masqueradeBorderStyle,
       }}
     >
+      {/* Floating sidebar open button when fully hidden */}
+      {collapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          className="absolute top-4 left-3 z-30 flex h-8 w-8 items-center justify-center rounded-md transition-all hover:bg-[var(--hover-bg)]"
+          style={{
+            background: 'var(--surface-primary)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+          }}
+          aria-label="Open sidebar"
+          title="Open sidebar"
+        >
+          <PanelLeft className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+        </button>
+      )}
+
       {/* Sidebar */}
-      <aside className="relative h-full overflow-hidden border-r bg-[var(--surface-primary)]" style={{ borderColor: "var(--border-subtle)" }}>
+      <aside
+        className="relative h-full overflow-hidden"
+        style={{
+          background: 'var(--surface-primary)',
+          borderRight: collapsed ? 'none' : '1px solid var(--border-subtle)',
+          borderLeft: envSidebarColor ? `3px solid ${envSidebarColor}` : undefined,
+        }}
+      >
         <div className="h-full px-2 py-4">
           <SimpleSidebarNav
             collapsed={collapsed}
@@ -244,13 +288,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className="flex h-full min-w-0 flex-col transition-all duration-200"
+        className="h-full min-w-0 overflow-auto transition-all duration-200"
         style={getMainStyle()}
       >
-        <div className="flex-1 overflow-auto">
-          <div className="px-8 py-6">
-            {children}
-          </div>
+        <div className="py-6" style={{ paddingLeft: collapsed ? 56 : 32, paddingRight: 32 }}>
+          {children}
         </div>
       </main>
     </div>
@@ -270,33 +312,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased flex flex-col">
+      <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased">
         <EnvironmentBanner />
-        <div className="flex-1 min-h-0">
-          <ThemeProvider>
-            <PaletteProvider>
-              <SessionProvider>
-                <EntityProvider>
-                  <GuidanceProvider>
-                    <ChatProvider>
-                      <GlobalAssistantProvider>
-                        <ContentJobQueueProvider>
-                          <GuidanceBridge />
-                          <Suspense fallback={null}>
-                            <LayoutInner>{children}</LayoutInner>
-                          </Suspense>
-                          {/* New Unified AI Assistant (Cmd+K) - includes search & all features */}
-                          <GlobalAssistant />
-                          <ContentJobQueue />
-                        </ContentJobQueueProvider>
-                      </GlobalAssistantProvider>
-                    </ChatProvider>
-                  </GuidanceProvider>
-                </EntityProvider>
-              </SessionProvider>
-            </PaletteProvider>
-          </ThemeProvider>
-        </div>
+        <ThemeProvider>
+          <PaletteProvider>
+            <SessionProvider>
+              <BrandingProvider>
+              <MasqueradeProvider>
+              <MasqueradeBanner />
+              <EntityProvider>
+                <GuidanceProvider>
+                  <ChatProvider>
+                    <GlobalAssistantProvider>
+                      <ContentJobQueueProvider>
+                        <GuidanceBridge />
+                        <Suspense fallback={null}>
+                          <LayoutInner>{children}</LayoutInner>
+                        </Suspense>
+                        {/* New Unified AI Assistant (Cmd+K) - includes search & all features */}
+                        <GlobalAssistant />
+                        <ContentJobQueue />
+                      </ContentJobQueueProvider>
+                    </GlobalAssistantProvider>
+                  </ChatProvider>
+                </GuidanceProvider>
+              </EntityProvider>
+              </MasqueradeProvider>
+              </BrandingProvider>
+            </SessionProvider>
+          </PaletteProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

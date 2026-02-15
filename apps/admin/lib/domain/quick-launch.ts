@@ -38,6 +38,7 @@ export interface LaunchStep {
 
 export interface QuickLaunchInput {
   subjectName: string;
+  brief?: string;
   persona: string;
   learningGoals: string[];
   file?: File;
@@ -126,7 +127,7 @@ const stepExecutors: Record<string, StepExecutor> = {
    * Step 1: Create Domain + Subject + link them
    */
   create_domain: async (ctx) => {
-    const { subjectName, qualificationRef } = ctx.input;
+    const { subjectName, brief, qualificationRef } = ctx.input;
 
     // Generate slug from subject name
     const slug = subjectName
@@ -141,7 +142,7 @@ const stepExecutors: Record<string, StepExecutor> = {
         data: {
           slug,
           name: subjectName,
-          description: `Quick-launched domain for ${subjectName}`,
+          description: brief || `Quick-launched domain for ${subjectName}`,
           isActive: true,
         },
       });

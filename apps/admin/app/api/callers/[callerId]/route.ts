@@ -5,6 +5,7 @@ import { getLearnerProfile } from "@/lib/learner/profile";
 import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 import { deleteCallerData } from "@/lib/gdpr/delete-caller-data";
 import { auditLog, AuditAction } from "@/lib/audit";
+import type { CallerRole } from "@prisma/client";
 
 /**
  * @api GET /api/callers/:callerId
@@ -39,14 +40,30 @@ export async function GET(
           email: true,
           phone: true,
           externalId: true,
+          role: true,
           createdAt: true,
           domainId: true,
+          cohortGroupId: true,
           archivedAt: true,
           domain: {
             select: {
               id: true,
               slug: true,
               name: true,
+            },
+          },
+          cohortGroup: {
+            select: {
+              id: true,
+              name: true,
+              owner: { select: { id: true, name: true } },
+            },
+          },
+          ownedCohorts: {
+            select: {
+              id: true,
+              name: true,
+              _count: { select: { members: true } },
             },
           },
         },
@@ -303,7 +320,7 @@ export async function GET(
     }
 
     // Get counts
-    const [callCount, memoryCount, observationCount, measurementsCount, artifactCount] = await Promise.all([
+    const [callCount, memoryCount, observationCount, measurementsCount, artifactCount, actionsPendingCount] = await Promise.all([
       prisma.call.count({ where: { callerId: callerId } }),
       prisma.callerMemory.count({
         where: {
@@ -324,6 +341,7 @@ export async function GET(
         select: { parameterId: true },
       }).then(results => results.length),
       prisma.conversationArtifact.count({ where: { callerId: callerId } }),
+      prisma.callAction.count({ where: { callerId: callerId, status: { in: ["PENDING", "IN_PROGRESS"] } } }),
     ]);
 
     // Get behavior targets count for this caller
@@ -486,6 +504,7 @@ export async function GET(
         callerTargets: callerTargets.length,
         measurements: measurementsCount,
         artifacts: artifactCount,
+        actions: actionsPendingCount,
         curriculumModules: curriculum?.totalModules || 0,
         curriculumCompleted: curriculum?.completedCount || 0,
         goals: goals.length,
@@ -513,6 +532,7 @@ export async function GET(
  * @body email string - Caller email
  * @body phone string - Caller phone number
  * @body domainId string - New domain ID (triggers domain switch if different)
+ * @body role string - Caller role (LEARNER, TEACHER, TUTOR, PARENT, MENTOR)
  * @body archive boolean - Set true to archive, false to unarchive
  * @response 200 { ok: true, caller: object, goalsCreated?: string[] }
  * @response 400 { ok: false, error: "Domain not found" }
@@ -531,7 +551,7 @@ export async function PATCH(
     const body = await req.json();
 
     // Allowed fields to update
-    const { name, email, phone, domainId, archive } = body;
+    const { name, email, phone, domainId, role, archive } = body;
 
     // Check if domain is changing (for domain-switch logic)
     const currentCaller = await prisma.caller.findUnique({
@@ -553,6 +573,7 @@ export async function PATCH(
       name?: string | null;
       email?: string | null;
       phone?: string | null;
+      role?: CallerRole;
       domainId?: string | null;
       previousDomainId?: string | null;
       domainSwitchCount?: number;
@@ -562,6 +583,7 @@ export async function PATCH(
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
+    if (role !== undefined) updateData.role = role;
     if (domainId !== undefined) updateData.domainId = domainId;
     if (archive !== undefined) updateData.archivedAt = archive ? new Date() : null;
 
@@ -593,6 +615,7 @@ export async function PATCH(
         email: true,
         phone: true,
         externalId: true,
+        role: true,
         createdAt: true,
         domainId: true,
         previousDomainId: true,

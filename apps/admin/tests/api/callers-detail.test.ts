@@ -104,6 +104,9 @@ const mockPrisma = {
   analysisSpec: {
     findFirst: vi.fn(),
   },
+  callAction: {
+    count: vi.fn(),
+  },
   $transaction: vi.fn(),
 };
 
@@ -211,6 +214,7 @@ function setupGetMocks(callerData: any) {
   mockPrisma.composedPrompt.findMany.mockResolvedValue([]);
   mockPrisma.goal.findMany.mockResolvedValue([]);
   mockPrisma.playbook.findFirst.mockResolvedValue(null);
+  mockPrisma.callAction.count.mockResolvedValue(0);
 }
 
 // =====================================================
@@ -234,9 +238,13 @@ describe("/api/callers/[callerId]", () => {
         email: "john@example.com",
         phone: "+123",
         externalId: "ext-1",
+        role: "LEARNER",
         createdAt: new Date("2026-01-01"),
         domainId: "domain-1",
+        cohortGroupId: null,
         domain: { id: "domain-1", slug: "test", name: "Test" },
+        cohortGroup: null,
+        ownedCohorts: [],
       };
 
       setupGetMocks(callerData);
@@ -276,9 +284,13 @@ describe("/api/callers/[callerId]", () => {
         email: null,
         phone: null,
         externalId: "ext-1",
+        role: "LEARNER",
         createdAt: new Date(),
         domainId: null,
+        cohortGroupId: null,
         domain: null,
+        cohortGroup: null,
+        ownedCohorts: [],
       };
 
       setupGetMocks(callerData);

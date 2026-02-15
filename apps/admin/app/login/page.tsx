@@ -207,7 +207,7 @@ export default function LoginPage() {
         )}
 
         <div className="mt-6 border-t border-neutral-700 pt-4 text-center text-xs text-neutral-500">
-          Default password for new users: <code className="text-neutral-400">admin123</code>
+          Use your invite credentials or magic link to sign in.
         </div>
       </div>
     </div>

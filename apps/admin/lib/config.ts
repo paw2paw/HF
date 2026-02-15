@@ -85,6 +85,33 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // Security
+  // ---------------------------------------------------------------------------
+  security: {
+    /**
+     * Internal API secret for server-to-server calls.
+     * REQUIRED in production. In dev, falls back to a deterministic value
+     * derived from DATABASE_URL so it works without manual setup.
+     */
+    get internalApiSecret(): string {
+      const envVal = process.env.INTERNAL_API_SECRET;
+      if (envVal) return envVal;
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          "INTERNAL_API_SECRET is required in production.\n" +
+            "Generate with: openssl rand -hex 32"
+        );
+      }
+      return "dev-internal-" + (process.env.DATABASE_URL?.slice(-8) || "local");
+    },
+    /** CORS allowed origins (comma-separated). Empty = no cross-origin allowed. */
+    get corsAllowedOrigins(): string[] {
+      const origins = process.env.CORS_ALLOWED_ORIGINS;
+      return origins ? origins.split(",").map((o) => o.trim()).filter(Boolean) : [];
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // AI Services
   // ---------------------------------------------------------------------------
   ai: {
@@ -304,6 +331,16 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // Actions (Call Actions sub-system)
+  // ---------------------------------------------------------------------------
+  actions: {
+    /** Whether action extraction is enabled in the pipeline */
+    get enabled(): boolean {
+      return optionalBool("ACTIONS_ENABLED", true);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // Data Retention (GDPR)
   // ---------------------------------------------------------------------------
   retention: {
@@ -314,6 +351,40 @@ export const config = {
     /** Days to retain audit log entries. Default: 365. */
     get auditLogDays(): number {
       return optionalInt("RETENTION_AUDIT_LOG_DAYS", 365);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Seed Mode
+  // ---------------------------------------------------------------------------
+  seed: {
+    /**
+     * SEED_MODE controls what data gets seeded.
+     *   "full" (default) — All specs, demo fixtures, transcripts (dev)
+     *   "prod"           — Infrastructure + measurement specs only, no demo data
+     */
+    get mode(): "full" | "prod" {
+      const val = optional("SEED_MODE", "full");
+      if (val !== "full" && val !== "prod") {
+        console.warn(`Invalid SEED_MODE "${val}", defaulting to "full"`);
+        return "full";
+      }
+      return val;
+    },
+    /** Whether running in prod seed mode */
+    get isProd(): boolean {
+      return this.mode === "prod";
+    },
+    /**
+     * Spec featureIds to exclude in prod mode.
+     * These are dev-only identity overlays and domain-specific content.
+     */
+    get excludedSpecs(): string[] {
+      return [
+        "FS-TEST-99",      // Food Safety exam prep — dev only
+        "TUT-WNF-001",     // WNF session tutor overlay — dev only
+        "TUT-QM-001",      // QM session tutor overlay — dev only
+      ];
     },
   },
 
@@ -353,6 +424,11 @@ export function validateConfig(): void {
   }
   if (!process.env.HF_SUPERADMIN_TOKEN) {
     errors.push("HF_SUPERADMIN_TOKEN is required");
+  }
+
+  // Check internal API secret in production
+  if (config.app.isProduction && !process.env.INTERNAL_API_SECRET) {
+    errors.push("INTERNAL_API_SECRET is required in production (generate with: openssl rand -hex 32)");
   }
 
   // Warn if no AI keys

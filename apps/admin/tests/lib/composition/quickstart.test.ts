@@ -228,4 +228,34 @@ describe("computeQuickStart transform", () => {
     const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
     expect(result.first_line).toContain("ease into this");
   });
+
+  it("includes cohort_context when caller has a cohort group", () => {
+    const ctx = makeContext({
+      loadedData: {
+        ...makeContext().loadedData,
+        caller: {
+          id: "c1",
+          name: "Alice",
+          email: null,
+          phone: null,
+          externalId: null,
+          domain: null,
+          cohortGroup: {
+            id: "cg-1",
+            name: "Year 10 Science",
+            owner: { id: "t-1", name: "Mr Smith" },
+          },
+        },
+      },
+    });
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.cohort_context).toContain("Year 10 Science");
+    expect(result.cohort_context).toContain("Mr Smith");
+  });
+
+  it("returns null cohort_context when caller has no cohort", () => {
+    const ctx = makeContext();
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.cohort_context).toBeNull();
+  });
 });

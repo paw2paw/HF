@@ -123,6 +123,10 @@ export async function POST(req: NextRequest) {
           phase: "error",
           message: err.message || "Commit failed",
         });
+        // Mark task as completed so it doesn't block future resume
+        if (taskId) {
+          completeTask(taskId).catch(() => {});
+        }
       } finally {
         controller.close();
       }

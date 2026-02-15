@@ -42,6 +42,9 @@ import {
   FileJson,
   FileSearch,
   Layers,
+  GraduationCap,
+  School,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -89,4 +92,7 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   FileJson,
   FileSearch,
   Layers,
+  GraduationCap,
+  School,
+  Building2,
 };

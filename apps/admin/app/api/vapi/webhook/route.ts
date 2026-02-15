@@ -160,7 +160,7 @@ async function triggerPipeline(callId: string, callerId: string) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-internal-secret": process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret",
+      "x-internal-secret": config.security.internalApiSecret,
     },
     body: JSON.stringify({ callerId }),
   });

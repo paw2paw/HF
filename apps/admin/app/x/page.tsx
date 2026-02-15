@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import SuperadminDashboard from "./_dashboards/SuperadminDashboard";
 import AdminDashboard from "./_dashboards/AdminDashboard";
 import TesterDashboard from "./_dashboards/TesterDashboard";
@@ -13,6 +14,8 @@ export default async function XDashboardPage() {
       return <SuperadminDashboard />;
     case "ADMIN":
       return <AdminDashboard />;
+    case "EDUCATOR":
+      redirect("/x/educator");
     case "SUPER_TESTER":
       return <TesterDashboard enhanced />;
     case "TESTER":

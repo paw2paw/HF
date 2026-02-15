@@ -51,6 +51,7 @@ export async function loadAllData(
     onboardingSession,
     subjectSources,
     curriculumAssertions,
+    openActions,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
     loaderRegistry.get("memories")!(callerId, { limit: memoriesLimit }),
@@ -68,6 +69,7 @@ export async function loadAllData(
     loaderRegistry.get("onboardingSession")!(callerId),
     loaderRegistry.get("subjectSources")!(callerId),
     loaderRegistry.get("curriculumAssertions")!(callerId),
+    loaderRegistry.get("openActions")!(callerId),
   ]);
 
   return {
@@ -87,6 +89,7 @@ export async function loadAllData(
     onboardingSession: onboardingSession || null,
     subjectSources: subjectSources || null,
     curriculumAssertions: curriculumAssertions || [],
+    openActions: openActions || [],
   };
 }
 
@@ -124,6 +127,13 @@ registerLoader("caller", async (callerId) => {
               name: true,
             },
           },
+        },
+      },
+      cohortGroup: {
+        select: {
+          id: true,
+          name: true,
+          owner: { select: { id: true, name: true } },
         },
       },
     },
@@ -603,4 +613,28 @@ registerLoader("curriculumAssertions", async (callerId) => {
     sourceName: a.source.name,
     sourceTrustLevel: a.source.trustLevel,
   }));
+});
+
+/**
+ * Open actions — pending/in-progress actions for this caller.
+ * Fed into voice prompt so the AI agent can reference them.
+ */
+registerLoader("openActions", async (callerId) => {
+  return prisma.callAction.findMany({
+    where: {
+      callerId,
+      status: { in: ["PENDING", "IN_PROGRESS"] },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: {
+      type: true,
+      title: true,
+      description: true,
+      assignee: true,
+      priority: true,
+      dueAt: true,
+      createdAt: true,
+    },
+  });
 });

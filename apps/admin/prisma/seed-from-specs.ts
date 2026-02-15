@@ -74,7 +74,7 @@ export interface SeedSpecResult {
 /**
  * Load all .spec.json files from the bdd-specs folder
  */
-export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; rawJson: any }[] {
+export function loadSpecFiles(excludeFeatureIds?: string[]): { filename: string; content: JsonFeatureSpec; rawJson: any }[] {
   const specs: { filename: string; content: JsonFeatureSpec; rawJson: any }[] = [];
   const specsFolder = getSpecsFolder();
 
@@ -90,6 +90,8 @@ export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; r
   );
   console.log(`   Found ${files.length} spec files in ${specsFolder}`);
 
+  const excludeSet = new Set(excludeFeatureIds || []);
+
   for (const filename of files) {
     const filePath = path.join(specsFolder, filename);
     try {
@@ -98,6 +100,11 @@ export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; r
       const parseResult = parseJsonSpec(content);
 
       if (parseResult.success) {
+        const featureId = parseResult.data.id;
+        if (excludeSet.has(featureId)) {
+          console.log(`   ⊘ ${filename} (${featureId}) — excluded by SEED_MODE`);
+          continue;
+        }
         specs.push({ filename, content: parseResult.data, rawJson });
       } else {
         console.log(`   Warning: Failed to parse ${filename}: ${parseResult.errors.join(", ")}`);
@@ -1591,7 +1598,7 @@ export async function seedFallbacks(): Promise<{ seeded: number; skipped: number
 /**
  * Main function - seed from all spec files
  */
-export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<SeedSpecResult[]> {
+export async function seedFromSpecs(options?: { specIds?: string[]; excludeFeatureIds?: string[] }): Promise<SeedSpecResult[]> {
   console.log("\n📋 SEEDING FROM BDD SPEC FILES\n");
   console.log("━".repeat(60));
 
@@ -1608,7 +1615,7 @@ export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<S
   // Load contracts from DB for spec validation
   await ensureContractsLoaded();
 
-  let specFiles = loadSpecFiles();
+  let specFiles = loadSpecFiles(options?.excludeFeatureIds);
 
   // Filter to specific specs if requested
   if (options?.specIds?.length) {

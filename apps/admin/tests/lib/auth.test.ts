@@ -270,7 +270,7 @@ describe("lib/auth", () => {
       expect(result).toBeNull();
     });
 
-    it("accepts default password 'admin123' for users without passwordHash", async () => {
+    it("rejects any password for users without passwordHash", async () => {
       const user = makeUser({ passwordHash: null });
       mockPrisma.user.findUnique.mockResolvedValue(user);
 
@@ -279,22 +279,16 @@ describe("lib/auth", () => {
         password: "admin123",
       });
 
-      expect(result).toEqual({
-        id: "user-1",
-        email: "test@example.com",
-        name: "Test User",
-        role: "OPERATOR",
-        assignedDomainId: null,
-      });
+      expect(result).toBeNull();
     });
 
-    it("rejects non-default password for users without passwordHash", async () => {
+    it("rejects all passwords for users without passwordHash", async () => {
       const user = makeUser({ passwordHash: null });
       mockPrisma.user.findUnique.mockResolvedValue(user);
 
       const result = await authorize({
         email: "test@example.com",
-        password: "notadmin123",
+        password: "anypassword",
       });
 
       expect(result).toBeNull();
@@ -302,14 +296,15 @@ describe("lib/auth", () => {
 
     it("includes assignedDomainId in returned user object", async () => {
       const user = makeUser({
-        passwordHash: null,
+        passwordHash: "$2a$10$hashedvalue",
         assignedDomainId: "domain-42",
       });
       mockPrisma.user.findUnique.mockResolvedValue(user);
+      (bcrypt.compare as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
       const result = await authorize({
         email: "test@example.com",
-        password: "admin123",
+        password: "correctpassword",
       });
 
       expect(result).toEqual(

@@ -1,53 +1,43 @@
 'use client';
 
 /**
- * Thin environment indicator banner.
- * Hidden in LIVE — visible in DEV (blue) and STG (amber).
- * Also prefixes the browser tab title.
+ * Environment indicator — no visible banner.
+ * Prefixes the browser tab title for DEV/STG.
+ * Exports sidebar color for the layout to apply as a left-edge strip.
  */
 
 import { useEffect } from 'react';
 
-const ENV = process.env.NEXT_PUBLIC_APP_ENV ?? 'DEV';
+const ENV = process.env.NEXT_PUBLIC_APP_ENV ?? (process.env.NODE_ENV === 'production' ? 'LIVE' : 'DEV');
 
-const BANNER_STYLES: Record<string, { bg: string; text: string; border: string } | null> = {
-  DEV:  { bg: '#3b82f6', text: '#ffffff', border: '#2563eb' },
-  STG:  { bg: '#f59e0b', text: '#1c1917', border: '#d97706' },
-  LIVE: null, // hidden in production
+/** @deprecated Banner removed — kept at 0 for any remaining references */
+export const ENV_BANNER_HEIGHT = 0;
+
+const ENV_COLORS: Record<string, { sidebar: string; label: string } | null> = {
+  DEV:  { sidebar: '#3b82f6', label: 'DEV' },
+  STG:  { sidebar: '#f59e0b', label: 'STG' },
+  LIVE: null,
 };
 
-export default function EnvironmentBanner() {
-  const style = BANNER_STYLES[ENV.toUpperCase()] ?? BANNER_STYLES.DEV;
+/** Whether a non-production environment is active */
+export const showEnvBanner = ENV_COLORS[ENV.toUpperCase()] != null;
 
-  // Prefix browser tab title
+/** Sidebar accent color for current environment (null in production) */
+export const envSidebarColor = ENV_COLORS[ENV.toUpperCase()]?.sidebar ?? null;
+
+/** Short label for the environment (null in production) */
+export const envLabel = ENV_COLORS[ENV.toUpperCase()]?.label ?? null;
+
+/**
+ * Invisible component — only prefixes the browser tab title.
+ * The sidebar uses `envSidebarColor` for a visual indicator.
+ */
+export default function EnvironmentBanner() {
   useEffect(() => {
     if (ENV.toUpperCase() === 'LIVE') return;
     const base = document.title.replace(/^\[(DEV|STG|LIVE)\]\s*/, '');
     document.title = `[${ENV.toUpperCase()}] ${base || 'HF Admin'}`;
   }, []);
 
-  if (!style) return null;
-
-  return (
-    <div
-      role="status"
-      aria-label={`${ENV} environment`}
-      style={{
-        background: style.bg,
-        color: style.text,
-        borderBottom: `1px solid ${style.border}`,
-        fontSize: '11px',
-        fontWeight: 600,
-        letterSpacing: '0.05em',
-        textAlign: 'center',
-        padding: '2px 0',
-        lineHeight: '16px',
-        userSelect: 'none',
-        zIndex: 9999,
-        position: 'relative',
-      }}
-    >
-      {ENV.toUpperCase()} ENVIRONMENT
-    </div>
-  );
+  return null;
 }

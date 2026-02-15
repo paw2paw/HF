@@ -16,8 +16,10 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { seedFromSpecs, loadSpecFiles } from "./seed-from-specs";
+import { config } from "../lib/config";
 
 const prisma = new PrismaClient();
 
@@ -96,10 +98,13 @@ async function clearDatabase() {
 // =============================================================================
 
 async function loadSpecs() {
+  const isProd = config.seed.isProd;
+  const excludeIds = isProd ? config.seed.excludedSpecs : undefined;
+
   console.log("\n📋 LOADING BDD SPECS\n");
   console.log(`   Source: ${BDD_SPECS_DIR}`);
 
-  const specFiles = loadSpecFiles();
+  const specFiles = loadSpecFiles(excludeIds);
   console.log(`   Found: ${specFiles.length} spec files\n`);
 
   if (specFiles.length === 0) {
@@ -114,7 +119,7 @@ async function loadSpecs() {
 
   console.log("\n   Activating specs...\n");
 
-  const results = await seedFromSpecs();
+  const results = await seedFromSpecs({ excludeFeatureIds: excludeIds });
 
   console.log("\n   ✅ Specs loaded and activated\n");
   console.log(`      Parameters: ${results.reduce((sum, r) => sum + r.parametersCreated, 0)} created`);
@@ -281,6 +286,8 @@ async function createInfrastructure() {
 
   // Ensure default admin user exists (needed for login, e2e tests, screenshot capture)
   const adminEmail = "admin@test.com";
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
+  const passwordHash = await bcrypt.hash(seedPassword, 10);
   const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (!existing) {
     await prisma.user.create({
@@ -289,12 +296,17 @@ async function createInfrastructure() {
         name: "Admin",
         role: "SUPERADMIN",
         isActive: true,
-        // No passwordHash — auth.ts accepts "admin123" as default
+        passwordHash,
       },
     });
-    console.log(`   ✓ Created admin user: ${adminEmail}`);
+    console.log(`   ✓ Created admin user: ${adminEmail} (password from SEED_ADMIN_PASSWORD or default)`);
   } else {
-    console.log(`   ✓ Admin user exists: ${adminEmail}`);
+    // Update passwordHash on existing admin to match current seed password
+    await prisma.user.update({
+      where: { email: adminEmail },
+      data: { passwordHash },
+    });
+    console.log(`   ✓ Admin user exists: ${adminEmail} (passwordHash updated)`);
   }
 
   // NOTE: Default domain and playbook creation removed
@@ -313,27 +325,41 @@ async function createInfrastructure() {
 async function main() {
   const args = process.argv.slice(2);
   const shouldReset = args.includes("--reset") || args.includes("-r");
+  const seedMode = config.seed.mode;
+  const isProd = config.seed.isProd;
 
   console.log("\n" + "═".repeat(60));
-  console.log("  🌱 CLEAN SEED - Single Source of Truth");
+  console.log(`  🌱 CLEAN SEED - ${isProd ? "PROD" : "FULL"} mode`);
   console.log("═".repeat(60));
-  console.log("\n  Data Sources:");
-  console.log("  • docs-archive/bdd-specs/*.spec.json  → Specs, Parameters, Anchors");
-  console.log("  • transcripts/           → Real caller/call data");
+
+  if (isProd) {
+    console.log("\n  🔒 SEED_MODE=prod — infrastructure specs + domains only");
+    console.log("  Skipping: demo fixtures, transcripts, dev-only specs");
+    console.log(`  Excluded specs: ${config.seed.excludedSpecs.join(", ")}`);
+  } else {
+    console.log("\n  Data Sources:");
+    console.log("  • docs-archive/bdd-specs/*.spec.json  → Specs, Parameters, Anchors");
+    console.log("  • transcripts/           → Real caller/call data");
+  }
   console.log("\n  NO hardcoded data. NO mock callers. NO inline specs.\n");
 
   if (shouldReset) {
     await clearDatabase();
   }
 
-  // 1. Load all BDD specs
+  // 1. Load BDD specs (prod mode excludes dev-only specs)
   await loadSpecs();
 
   // 2. Create minimal infrastructure (domain, playbook)
   await createInfrastructure();
 
-  // 3. Load real transcripts
-  await loadTranscripts();
+  // 3. Load real transcripts (skip in prod — real data arrives via VAPI)
+  if (isProd) {
+    console.log("\n📞 SKIPPING TRANSCRIPTS (SEED_MODE=prod)\n");
+    console.log("   Real caller data will arrive via VAPI webhook.\n");
+  } else {
+    await loadTranscripts();
+  }
 
   // Summary
   const specCount = await prisma.analysisSpec.count();

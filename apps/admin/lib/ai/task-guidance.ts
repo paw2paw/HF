@@ -92,6 +92,8 @@ export async function startTaskTracking(
 
 /**
  * Update task progress.
+ * Context is deep-merged (top-level keys) so callers can update
+ * individual fields without losing the rest of the saved state.
  */
 export async function updateTaskProgress(
   taskId: string,
@@ -102,15 +104,25 @@ export async function updateTaskProgress(
     context?: Record<string, any>;
   }
 ): Promise<void> {
+  // Build the data payload, only setting fields that were provided
+  const data: Record<string, any> = { updatedAt: new Date() };
+  if (updates.currentStep !== undefined) data.currentStep = updates.currentStep;
+  if (updates.completedSteps !== undefined) data.completedSteps = updates.completedSteps;
+  if (updates.blockers !== undefined) data.blockers = updates.blockers;
+
+  // Deep-merge context: read existing, spread new on top
+  if (updates.context !== undefined) {
+    const existing = await prisma.userTask.findUnique({
+      where: { id: taskId },
+      select: { context: true },
+    });
+    const existingCtx = (existing?.context as Record<string, any>) ?? {};
+    data.context = { ...existingCtx, ...updates.context };
+  }
+
   await prisma.userTask.update({
     where: { id: taskId },
-    data: {
-      currentStep: updates.currentStep,
-      completedSteps: updates.completedSteps as any,
-      blockers: updates.blockers as any,
-      context: updates.context as any,
-      updatedAt: new Date(),
-    },
+    data,
   });
 }
 

@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   const subjectName = formData.get("subjectName") as string | null;
+  const brief = formData.get("brief") as string | null;
   const persona = formData.get("persona") as string | null;
   const file = formData.get("file") as File | null;
   const goalsRaw = formData.get("learningGoals") as string | null;
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
         const result = await quickLaunch(
           {
             subjectName: subjectName.trim(),
+            brief: brief?.trim() || undefined,
             persona: persona.trim(),
             learningGoals,
             file,

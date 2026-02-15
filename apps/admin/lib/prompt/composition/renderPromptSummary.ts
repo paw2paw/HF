@@ -17,6 +17,7 @@ interface LLMPrompt {
   };
   _quickStart?: {
     this_caller?: string;
+    cohort_context?: string | null;
     this_session?: string;
     you_are?: string;
     key_memory?: string;
@@ -188,6 +189,7 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
   // --- THIS CALLER ---
   parts.push("[THIS CALLER]");
   if (qs?.this_caller) parts.push(qs.this_caller);
+  if (qs?.cohort_context) parts.push(qs.cohort_context);
   if (qs?.this_session) parts.push(qs.this_session);
   const callNum = llmPrompt.callHistory?.totalCalls;
   if (callNum) parts.push(`Call #${callNum}`);

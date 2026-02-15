@@ -56,6 +56,11 @@ registerTransform("computeQuickStart", (
 
     this_caller: `${caller?.name || "Unknown"} (call #${loadedData.callCount + 1})`,
 
+    cohort_context: caller?.cohortGroup
+      ? `Part of ${caller.cohortGroup.name}` +
+        (caller.cohortGroup.owner?.name ? ` (teacher: ${caller.cohortGroup.owner.name})` : "")
+      : null,
+
     this_session: (() => {
       if (isFirstCall && modules[0]) {
         return `First session - introduce ${modules[0].name}`;

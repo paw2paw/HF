@@ -90,12 +90,45 @@ vi.mock('@prisma/client', () => {
       update: vi.fn(),
       count: vi.fn(),
     },
+    callAction: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    cohortGroup: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
     inboundMessage: {
       findMany: vi.fn(),
       create: vi.fn(),
     },
     contentAssertion: {
       findMany: vi.fn(),
+    },
+    institution: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      upsert: vi.fn(),
+    },
+    user: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      count: vi.fn(),
     },
     $disconnect: vi.fn(),
   };
@@ -171,6 +204,41 @@ vi.mock('@prisma/client', () => {
       IMAGE: 'IMAGE',
       AUDIO: 'AUDIO',
       DOCUMENT: 'DOCUMENT',
+    },
+    CallerRole: {
+      LEARNER: 'LEARNER',
+      TEACHER: 'TEACHER',
+      TUTOR: 'TUTOR',
+      PARENT: 'PARENT',
+      MENTOR: 'MENTOR',
+    },
+    CallActionType: {
+      SEND_MEDIA: 'SEND_MEDIA',
+      HOMEWORK: 'HOMEWORK',
+      TASK: 'TASK',
+      FOLLOWUP: 'FOLLOWUP',
+      REMINDER: 'REMINDER',
+    },
+    CallActionAssignee: {
+      CALLER: 'CALLER',
+      OPERATOR: 'OPERATOR',
+      AGENT: 'AGENT',
+    },
+    CallActionStatus: {
+      PENDING: 'PENDING',
+      IN_PROGRESS: 'IN_PROGRESS',
+      COMPLETED: 'COMPLETED',
+      CANCELLED: 'CANCELLED',
+    },
+    CallActionPriority: {
+      LOW: 'LOW',
+      MEDIUM: 'MEDIUM',
+      HIGH: 'HIGH',
+      URGENT: 'URGENT',
+    },
+    CallActionSource: {
+      EXTRACTED: 'EXTRACTED',
+      MANUAL: 'MANUAL',
     },
   };
 });

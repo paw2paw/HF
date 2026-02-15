@@ -33,6 +33,7 @@ const PUBLIC_ROUTES = new Set([
   "app/api/vapi/knowledge/route.ts",         // VAPI webhook (webhook-secret auth)
   "app/api/vapi/tools/route.ts",             // VAPI webhook (webhook-secret auth)
   "app/api/vapi/webhook/route.ts",           // VAPI webhook (webhook-secret auth)
+  "app/api/join/[token]/route.ts",           // Public magic join link (token-based, no session)
 ]);
 
 // =====================================================
@@ -85,7 +86,8 @@ describe("Route auth coverage", () => {
       // Check for requireAuth or requireEntityAccess import and call
       const hasRequireAuth =
         content.includes("requireAuth") ||
-        content.includes("requireEntityAccess");
+        content.includes("requireEntityAccess") ||
+        content.includes("requireEducator");
 
       if (!hasRequireAuth) {
         missing.push(relative);

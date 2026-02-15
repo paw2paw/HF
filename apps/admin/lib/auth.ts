@@ -74,12 +74,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
         } else {
-          // No password set - for bootstrapped users, accept the default password
-          // This allows first login before setting a real password
-          if (credentials.password !== "admin123") {
-            console.log("[Auth] Default password check failed");
-            return null;
-          }
+          // No password set — password auth unavailable for this user.
+          // Use magic link or set SEED_ADMIN_PASSWORD in seed script.
+          console.log("[Auth] No passwordHash set, password auth unavailable");
+          return null;
         }
 
         console.log("[Auth] Success, returning user");

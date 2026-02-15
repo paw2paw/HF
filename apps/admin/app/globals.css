@@ -125,6 +125,20 @@
   --badge-cyan-text: #06b6d4;
   --badge-indigo-text: #4f46e5;
 
+  /* Trust level badge colors (L0-L5) */
+  --trust-l5-text: #D4AF37;
+  --trust-l5-bg: #FDF6E3;
+  --trust-l4-text: #8B8B8B;
+  --trust-l4-bg: #F5F5F5;
+  --trust-l3-text: #4A90D9;
+  --trust-l3-bg: #EBF3FC;
+  --trust-l2-text: #2E7D32;
+  --trust-l2-bg: #E8F5E9;
+  --trust-l1-text: #FF8F00;
+  --trust-l1-bg: #FFF3E0;
+  --trust-l0-text: #B71C1C;
+  --trust-l0-bg: #FFEBEE;
+
   /* Personality trait colors */
   --trait-openness: #3b82f6;
   --trait-conscientiousness: #10b981;
@@ -320,6 +334,20 @@ html.dark {
   --badge-cyan-text: #22d3ee;
   --badge-indigo-text: #818cf8;
 
+  /* Trust level badge colors (L0-L5) */
+  --trust-l5-text: #E8C84A;
+  --trust-l5-bg: #3D3200;
+  --trust-l4-text: #A8A8A8;
+  --trust-l4-bg: #2A2A2A;
+  --trust-l3-text: #6BB3F0;
+  --trust-l3-bg: #1A2F4A;
+  --trust-l2-text: #66BB6A;
+  --trust-l2-bg: #1B3B1E;
+  --trust-l1-text: #FFB74D;
+  --trust-l1-bg: #3D2500;
+  --trust-l0-text: #EF5350;
+  --trust-l0-bg: #3B1010;
+
   /* Personality trait colors */
   --trait-openness: #60a5fa;
   --trait-conscientiousness: #34d399;
@@ -508,6 +536,20 @@ html.dark {
     --badge-pink-border: #9d174d;
     --badge-cyan-text: #22d3ee;
     --badge-indigo-text: #818cf8;
+
+    /* Trust level badge colors (L0-L5) */
+    --trust-l5-text: #E8C84A;
+    --trust-l5-bg: #3D3200;
+    --trust-l4-text: #A8A8A8;
+    --trust-l4-bg: #2A2A2A;
+    --trust-l3-text: #6BB3F0;
+    --trust-l3-bg: #1A2F4A;
+    --trust-l2-text: #66BB6A;
+    --trust-l2-bg: #1B3B1E;
+    --trust-l1-text: #FFB74D;
+    --trust-l1-bg: #3D2500;
+    --trust-l0-text: #EF5350;
+    --trust-l0-bg: #3B1010;
 
     /* Personality trait colors */
     --trait-openness: #60a5fa;

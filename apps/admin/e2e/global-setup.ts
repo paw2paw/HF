@@ -22,7 +22,7 @@ async function globalSetup(config: FullConfig) {
 
     // Fill in credentials (using default admin user)
     await page.locator('#email').fill('admin@test.com');
-    await page.locator('#password').fill('admin123');
+    await page.locator('#password').fill(process.env.SEED_ADMIN_PASSWORD || 'admin123');
 
     // Submit login form
     await page.locator('button[type="submit"]').click();

@@ -10,25 +10,54 @@ const publicRoutes = ["/login", "/login/verify", "/login/error", "/invite"];
 const apiTokenRoutes = ["/api/auth", "/api/vapi", "/api/webhook", "/api/invite", "/api/health", "/api/ready", "/api/system/readiness"];
 
 // Internal API secret for server-to-server calls (bypasses session check)
-const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret";
+// No fallback — if unset, internal-secret bypass is disabled (fail-closed)
+const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET;
+
+// CORS: allowed origins from env (comma-separated), empty = no cross-origin allowed
+const CORS_ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+/** Add CORS headers to a response if the origin is in the allow-list */
+function withCors(response: NextResponse, origin: string | null): NextResponse {
+  if (origin && CORS_ALLOWED_ORIGINS.includes(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+  }
+  return response;
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const origin = request.headers.get("origin");
+
+  // --- CORS preflight for API routes ---
+  if (pathname.startsWith("/api/") && request.method === "OPTIONS") {
+    const headers: Record<string, string> = {
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-internal-secret",
+      "Access-Control-Max-Age": "86400",
+    };
+    if (origin && CORS_ALLOWED_ORIGINS.includes(origin)) {
+      headers["Access-Control-Allow-Origin"] = origin;
+    }
+    return new NextResponse(null, { status: 204, headers });
+  }
 
   // Allow public routes
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.next();
+    return withCors(NextResponse.next(), origin);
   }
 
   // Allow API routes with their own auth
   if (apiTokenRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.next();
+    return withCors(NextResponse.next(), origin);
   }
 
   // Allow internal server-to-server API calls with secret header
   const internalSecret = request.headers.get("x-internal-secret");
-  if (internalSecret === INTERNAL_API_SECRET) {
-    return NextResponse.next();
+  if (INTERNAL_API_SECRET && internalSecret === INTERNAL_API_SECRET) {
+    return withCors(NextResponse.next(), origin);
   }
 
   // Check for session cookie (JWT or database session)
@@ -47,7 +76,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Session cookie exists - allow (full validation in server components)
-  return NextResponse.next();
+  return withCors(NextResponse.next(), origin);
 }
 
 export const config = {

@@ -28,6 +28,7 @@ import { trackGoalProgress } from "@/lib/goals/track-progress";
 import { extractGoals } from "@/lib/goals/extract-goals";
 import { extractArtifacts } from "@/lib/artifacts/extract-artifacts";
 import { deliverArtifacts } from "@/lib/artifacts/deliver-artifacts";
+import { extractActions } from "@/lib/actions/extract-actions";
 import { config as appConfig } from "@/lib/config";
 import { updateCurriculumProgress, getCurriculumProgress, completeModule } from "@/lib/curriculum/track-progress";
 import { ContractRegistry } from "@/lib/contracts/registry";
@@ -2050,6 +2051,17 @@ const stageExecutors: Record<string, StageExecutor> = {
       ctx.log.warn(`Artifact extraction failed (non-blocking): ${err.message}`);
     }
 
+    // Extract call actions (non-blocking — errors logged but don't fail the stage)
+    let actionsExtracted = 0;
+    try {
+      if (appConfig.actions.enabled) {
+        const actionResult = await extractActions(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+        actionsExtracted = actionResult.actionsCreated;
+      }
+    } catch (err: any) {
+      ctx.log.warn(`Action extraction failed (non-blocking): ${err.message}`);
+    }
+
     return {
       playbookUsed: callerResult.playbookUsed,
       scoresCreated: callerResult.scoresCreated,
@@ -2057,6 +2069,7 @@ const stageExecutors: Record<string, StageExecutor> = {
       deltasComputed: deltaResult.deltasComputed,
       curriculumUpdated,
       artifactsExtracted,
+      actionsExtracted,
       learningAssessment: callerResult.learningAssessment ? {
         moduleId: callerResult.learningAssessment.moduleId,
         mastery: callerResult.learningAssessment.overallMastery,

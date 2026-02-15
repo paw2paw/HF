@@ -7,7 +7,7 @@
     "specRoles": ["CONSTRAIN"],
     "domains": ["admin", "system"]
   },
-  "roles": ["SUPERADMIN", "ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
+  "roles": ["SUPERADMIN", "ADMIN", "OPERATOR", "EDUCATOR", "SUPER_TESTER", "TESTER", "DEMO"],
   "scopes": {
     "ALL": "Unrestricted access to all records",
     "DOMAIN": "Access limited to records within user's assignedDomainId",
@@ -21,23 +21,24 @@
     "D": "Delete"
   },
   "matrix": {
-    "callers":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:CR", "TESTER": "OWN:R",    "DEMO": "OWN:R"    },
-    "calls":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "OWN:R"    },
-    "domains":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
-    "playbooks":  { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
-    "specs":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
-    "parameters": { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
-    "goals":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "NONE"     },
-    "users":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
-    "pipeline":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
-    "ai_config":  { "SUPERADMIN": "ALL:CRUD", "ADMIN": "NONE",     "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
-    "settings":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "NONE",     "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
-    "analytics":  { "SUPERADMIN": "ALL:R",    "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "NONE"     },
-    "metering":   { "SUPERADMIN": "ALL:R",    "ADMIN": "ALL:R",    "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
-    "messages":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "ALL:CRU",   "TESTER": "OWN:CRU",  "DEMO": "NONE"     },
-    "content":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
-    "sim":        { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "SUPER_TESTER": "DOMAIN:CRUD","TESTER": "OWN:CRUD", "DEMO": "OWN:CR"   },
-    "invites":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "NONE",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     }
+    "callers":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:CR",     "SUPER_TESTER": "DOMAIN:CR", "TESTER": "OWN:R",    "DEMO": "OWN:R"    },
+    "calls":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:R",      "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "OWN:R"    },
+    "cohorts":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:CRUD",   "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "NONE"     },
+    "domains":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "EDUCATOR": "OWN:R",      "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
+    "playbooks":  { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "EDUCATOR": "NONE",       "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
+    "specs":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "parameters": { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "goals":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:R",      "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "NONE"     },
+    "users":      { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "NONE",     "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "pipeline":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "ai_config":  { "SUPERADMIN": "ALL:CRUD", "ADMIN": "NONE",     "OPERATOR": "NONE",     "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "settings":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "NONE",     "OPERATOR": "NONE",     "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "analytics":  { "SUPERADMIN": "ALL:R",    "ADMIN": "ALL:R",    "OPERATOR": "ALL:R",    "EDUCATOR": "OWN:R",      "SUPER_TESTER": "DOMAIN:R",  "TESTER": "OWN:R",    "DEMO": "NONE"     },
+    "metering":   { "SUPERADMIN": "ALL:R",    "ADMIN": "ALL:R",    "OPERATOR": "NONE",     "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     },
+    "messages":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:CRU",    "SUPER_TESTER": "ALL:CRU",   "TESTER": "OWN:CRU",  "DEMO": "NONE"     },
+    "content":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "EDUCATOR": "NONE",       "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "DEMO": "NONE"     },
+    "sim":        { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:CRUD",   "SUPER_TESTER": "DOMAIN:CRUD","TESTER": "OWN:CRUD", "DEMO": "OWN:CR"   },
+    "invites":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "NONE",     "EDUCATOR": "OWN:CR",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "DEMO": "NONE"     }
   },
   "metadata": {
     "gdprReady": {

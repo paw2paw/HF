@@ -6,12 +6,14 @@ import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { MessageInput } from './MessageInput';
 import { ArtifactCard } from './ArtifactCard';
+import { ActionCard } from './ActionCard';
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'teacher';
   content: string;
   timestamp: Date;
+  senderName?: string;
 }
 
 export interface SimChatProps {
@@ -94,6 +96,7 @@ export function SimChat({
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [artifacts, setArtifacts] = useState<any[]>([]);
+  const [actions, setActions] = useState<any[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -130,7 +133,36 @@ export function SimChat({
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isStreaming, artifacts]);
+  }, [messages, isStreaming, artifacts, actions]);
+
+  // Poll for teacher interjections
+  const lastInterjectionCheck = useRef(new Date().toISOString());
+  useEffect(() => {
+    if (!callId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/calls/${callId}/messages?after=${lastInterjectionCheck.current}&role=teacher`
+        );
+        const data = await res.json();
+        if (data.ok && data.messages?.length > 0) {
+          lastInterjectionCheck.current = new Date().toISOString();
+          for (const msg of data.messages) {
+            setMessages(prev => [...prev, {
+              id: msg.id,
+              role: 'teacher' as const,
+              content: msg.content,
+              timestamp: new Date(msg.createdAt),
+              senderName: msg.senderName,
+            }]);
+          }
+        }
+      } catch {
+        // Silently ignore polling errors
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [callId]);
 
   // Show toast then auto-hide
   const showToast = useCallback((msg: string) => {
@@ -252,6 +284,15 @@ export function SimChat({
           )
         );
       }
+
+      // Relay assistant message to server for observers (fire-and-forget)
+      if (callId && fullContent) {
+        fetch(`/api/calls/${callId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'assistant', content: fullContent }),
+        }).catch(() => {});
+      }
     } catch (e: any) {
       if (e.name === 'AbortError') return;
       setMessages(prev =>
@@ -282,6 +323,15 @@ export function SimChat({
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput('');
+
+    // Relay user message to server for observers (fire-and-forget)
+    if (callId) {
+      fetch(`/api/calls/${callId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', content: input.trim() }),
+      }).catch(() => {});
+    }
 
     const history = updatedMessages.map(m => ({
       role: m.role,
@@ -315,7 +365,7 @@ export function SimChat({
       const patchRes = await fetch(`/api/calls/${callId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify({ transcript, endedAt: new Date().toISOString() }),
       });
 
       if (!patchRes.ok) {
@@ -344,16 +394,22 @@ export function SimChat({
             if (!data.ok) console.error('[sim] Pipeline failed:', data.error, data.logs);
             else {
               console.log('[sim] Pipeline complete:', data.message);
-              // Fetch artifacts after pipeline completes
-              fetch(`/api/callers/${callerId}/artifacts?callId=${callId}`)
-                .then(r => r.json())
-                .then(d => {
-                  if (d.ok && d.artifacts?.length > 0) {
-                    setArtifacts(d.artifacts);
-                    showToast(`${d.artifacts.length} artifact${d.artifacts.length > 1 ? 's' : ''} shared`);
-                  }
-                })
-                .catch(() => {});
+              // Fetch artifacts + actions after pipeline completes
+              Promise.all([
+                fetch(`/api/callers/${callerId}/artifacts?callId=${callId}`).then(r => r.json()).catch(() => null),
+                fetch(`/api/callers/${callerId}/actions?callId=${callId}`).then(r => r.json()).catch(() => null),
+              ]).then(([artData, actData]) => {
+                const artCount = artData?.ok && artData.artifacts?.length > 0 ? artData.artifacts.length : 0;
+                const actCount = actData?.ok && actData.actions?.length > 0 ? actData.actions.length : 0;
+                if (artCount > 0) setArtifacts(artData.artifacts);
+                if (actCount > 0) setActions(actData.actions);
+                if (artCount + actCount > 0) {
+                  const parts = [];
+                  if (artCount > 0) parts.push(`${artCount} artifact${artCount > 1 ? 's' : ''}`);
+                  if (actCount > 0) parts.push(`${actCount} action${actCount > 1 ? 's' : ''}`);
+                  showToast(`${parts.join(' & ')} shared`);
+                }
+              });
             }
           })
           .catch(e => console.error('[sim] Pipeline error:', e));
@@ -477,6 +533,7 @@ export function SimChat({
             role={msg.role}
             content={msg.content}
             timestamp={msg.timestamp}
+            senderName={msg.senderName}
           />
         ))}
 
@@ -484,8 +541,8 @@ export function SimChat({
           <TypingIndicator />
         )}
 
-        {/* Artifacts — appear after pipeline processes the call */}
-        {artifacts.length > 0 && (
+        {/* Post-call content — artifacts & actions from pipeline */}
+        {(artifacts.length > 0 || actions.length > 0) && (
           <>
             <div style={{
               alignSelf: 'center',
@@ -501,6 +558,9 @@ export function SimChat({
             </div>
             {artifacts.map((a) => (
               <ArtifactCard key={a.id} artifact={a} />
+            ))}
+            {actions.map((a) => (
+              <ActionCard key={a.id} action={a} />
             ))}
           </>
         )}

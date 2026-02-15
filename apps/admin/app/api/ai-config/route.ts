@@ -72,6 +72,14 @@ export const AI_CALL_POINTS = [
     defaultTranscriptLimit: 4000,
   },
   {
+    callPoint: "pipeline.actions",
+    label: "Pipeline - Action Extraction",
+    description: "Extracts actionable items (homework, follow-ups, tasks, reminders) from call transcripts",
+    defaultProvider: "claude",
+    defaultModel: "claude-3-haiku-20240307",
+    defaultTranscriptLimit: 4000,
+  },
+  {
     callPoint: "compose.prompt",
     label: "Prompt Composition",
     description: "Generates personalized agent guidance prompts",
@@ -231,6 +239,13 @@ export const AI_CALL_POINTS = [
     description: "Generates structured curriculum from subject + persona + learning goals (no document upload)",
     defaultProvider: "claude",
     defaultModel: "claude-sonnet-4-20250514",
+  },
+  {
+    callPoint: "quick-launch.suggest-name",
+    label: "Quick Launch - Suggest Name",
+    description: "Suggests a short course name from a free-text brief",
+    defaultProvider: "claude",
+    defaultModel: "claude-haiku-4-5-20251001",
   },
   {
     callPoint: "quick-launch.identity",

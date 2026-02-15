@@ -483,7 +483,13 @@ export default function QuickLaunchPage() {
   const [taskId, setTaskId] = useState<string | null>(null);
 
   // Form state
+  const [brief, setBrief] = useState("");
   const [subjectName, setSubjectName] = useState("");
+  const [nameLoading, setNameLoading] = useState(false);
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
+  const [suggestedName, setSuggestedName] = useState<string | null>(null);
+  const [suggestedPersona, setSuggestedPersona] = useState<string | null>(null);
+  const [suggestedGoals, setSuggestedGoals] = useState<string[] | null>(null);
   const [persona, setPersona] = useState("");
   const [goalInput, setGoalInput] = useState("");
   const [goals, setGoals] = useState<string[]>([]);
@@ -567,6 +573,8 @@ export default function QuickLaunchPage() {
     // Restore input state
     if (ctx.input) {
       setSubjectName(ctx.input.subjectName || "");
+      setBrief(ctx.input.brief || "");
+      if (ctx.input.subjectName) setNameManuallyEdited(true);
       setPersona(ctx.input.persona || "");
       setGoals(ctx.input.learningGoals || []);
       setQualificationRef(ctx.input.qualificationRef || "");
@@ -638,6 +646,77 @@ export default function QuickLaunchPage() {
       autosaveOverrides(o);
     },
     [autosaveOverrides]
+  );
+
+  // ── AI field suggestions (fires on blur of brief textarea) ──
+
+  const suggestAbort = useRef<AbortController | null>(null);
+
+  const suggestFields = useCallback(
+    async (text: string) => {
+      if (text.trim().length < 20) return;
+
+      // Abort any in-flight request
+      suggestAbort.current?.abort();
+      const controller = new AbortController();
+      suggestAbort.current = controller;
+
+      // Hard timeout — 10s max
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+
+      setNameLoading(true);
+      try {
+        const res = await fetch("/api/domains/suggest-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            brief: text.trim(),
+            personaSlugs: personas.map((p) => p.slug),
+          }),
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!data.ok) return;
+
+        // Name: apply directly if empty, otherwise show as suggestion
+        if (data.name && !nameManuallyEdited) {
+          if (!subjectName.trim()) {
+            setSubjectName(data.name);
+          } else {
+            setSuggestedName(data.name);
+          }
+        }
+
+        // Persona: suggest if user hasn't picked one yet, or show chip
+        if (data.persona && personas.some((p) => p.slug === data.persona)) {
+          if (!persona) {
+            setPersona(data.persona);
+          } else if (data.persona !== persona) {
+            setSuggestedPersona(data.persona);
+          }
+        }
+
+        // Goals: suggest if user hasn't added any, or show chips
+        if (data.goals?.length) {
+          if (goals.length === 0) {
+            setGoals(data.goals);
+          } else {
+            const newGoals = data.goals.filter(
+              (g: string) => !goals.some((existing) => existing.toLowerCase() === g.toLowerCase())
+            );
+            if (newGoals.length > 0) {
+              setSuggestedGoals(newGoals);
+            }
+          }
+        }
+      } catch {
+        // Silently fail — user can fill fields manually
+      } finally {
+        clearTimeout(timeout);
+        setNameLoading(false);
+      }
+    },
+    [nameManuallyEdited, subjectName, persona, goals, personas]
   );
 
   // ── Goal chips ─────────────────────────────────────
@@ -764,7 +843,7 @@ export default function QuickLaunchPage() {
     };
   }, [extractionJobId, extractionSourceId, analysisComplete, taskId]);
 
-  // ── Build My Tutor (Analyze) ─────────────────────
+  // ── Build (Analyze) ─────────────────────────────
 
   const canLaunch = subjectName.trim() && persona && (launchMode === "generate" || !!file) && phase === "form";
 
@@ -777,12 +856,15 @@ export default function QuickLaunchPage() {
     setOverrides({});
     setAnalysisComplete(false);
     setAnalysisProgress(5);
-    setAnalysisLabel("Setting up domain...");
+    setAnalysisLabel("Setting up agent...");
 
     const formData = new FormData();
     formData.append("subjectName", subjectName.trim());
     formData.append("persona", persona);
     formData.append("mode", launchMode);
+    if (brief.trim()) {
+      formData.append("brief", brief.trim());
+    }
     if (launchMode === "upload" && file) {
       formData.append("file", file);
     }
@@ -861,6 +943,7 @@ export default function QuickLaunchPage() {
           overrides,
           input: {
             subjectName: subjectName.trim(),
+            brief: brief.trim() || undefined,
             persona,
             learningGoals: overrides.learningGoals ?? goals,
             qualificationRef: qualificationRef.trim() || undefined,
@@ -973,6 +1056,91 @@ export default function QuickLaunchPage() {
     setAnalysisProgress(0);
   };
 
+  // ── Result screen state (inline editing + classroom) ──
+
+  const [editDomainName, setEditDomainName] = useState("");
+  const [editWelcome, setEditWelcome] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [savingWelcome, setSavingWelcome] = useState(false);
+  const [classroom, setClassroom] = useState<{ cohortId: string; joinToken: string; joinUrl: string } | null>(null);
+  const [creatingClassroom, setCreatingClassroom] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Fetch onboarding data when result screen appears
+  useEffect(() => {
+    if (phase === "result" && result) {
+      setEditDomainName(result.domainName);
+      fetch(`/api/domains/${result.domainId}/onboarding`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            setEditWelcome(data.domain?.onboardingWelcome || "");
+          }
+        })
+        .catch(() => {});
+    }
+  }, [phase, result]);
+
+  const handleSaveDomainName = async (name: string) => {
+    if (!result || name === result.domainName) return;
+    setSavingName(true);
+    try {
+      await fetch(`/api/domains/${result.domainId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+    } catch {
+      // silent — the edit is still reflected locally
+    }
+    setSavingName(false);
+  };
+
+  const handleSaveWelcome = async (welcome: string) => {
+    if (!result) return;
+    setSavingWelcome(true);
+    try {
+      await fetch(`/api/domains/${result.domainId}/onboarding`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onboardingWelcome: welcome }),
+      });
+    } catch {
+      // silent
+    }
+    setSavingWelcome(false);
+  };
+
+  const handleCreateClassroom = async () => {
+    if (!result) return;
+    setCreatingClassroom(true);
+    try {
+      const res = await fetch(`/api/domains/${result.domainId}/classroom`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `${editDomainName} Classroom` }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setClassroom({
+          cohortId: data.cohort.id,
+          joinToken: data.joinToken,
+          joinUrl: `${window.location.origin}/join/${data.joinToken}`,
+        });
+      }
+    } catch {
+      // silent
+    }
+    setCreatingClassroom(false);
+  };
+
+  const handleCopyJoinLink = () => {
+    if (!classroom) return;
+    navigator.clipboard.writeText(classroom.joinUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // ── Reset all ─────────────────────────────────────
 
   const handleReset = () => {
@@ -981,6 +1149,10 @@ export default function QuickLaunchPage() {
     setCommitTimeline([]);
     setFile(null);
     setSubjectName("");
+    setSuggestedName(null);
+    setSuggestedPersona(null);
+    setSuggestedGoals(null);
+    setNameManuallyEdited(false);
     setGoals([]);
     setPreview({});
     setOverrides({});
@@ -988,6 +1160,10 @@ export default function QuickLaunchPage() {
     setAnalysisProgress(0);
     setTaskId(null);
     setError(null);
+    setClassroom(null);
+    setCopied(false);
+    setEditDomainName("");
+    setEditWelcome("");
   };
 
   // ── Form completion ───────────────────────────────
@@ -1048,11 +1224,11 @@ export default function QuickLaunchPage() {
             lineHeight: 1.5,
           }}
         >
-          {phase === "form" && "Upload your course material and get a working AI tutor in one click."}
-          {phase === "building" && "Building your AI tutor..."}
+          {phase === "form" && "Describe what you want to build and launch a working AI agent in one click."}
+          {phase === "building" && "Building your agent..."}
           {phase === "review" && "Review what AI created and customize before finalizing."}
-          {phase === "committing" && "Creating your tutor domain..."}
-          {phase === "result" && "Your AI tutor is ready!"}
+          {phase === "committing" && "Creating your agent..."}
+          {phase === "result" && "Your agent is ready!"}
         </p>
       </div>
 
@@ -1099,7 +1275,13 @@ export default function QuickLaunchPage() {
               Resume
             </button>
             <button
-              onClick={() => setResumeTask(null)}
+              onClick={() => {
+                // Abandon old task so it doesn't resurface
+                if (resumeTask?.id) {
+                  fetch(`/api/tasks?taskId=${resumeTask.id}`, { method: "DELETE" }).catch(() => {});
+                }
+                setResumeTask(null);
+              }}
               style={{
                 padding: "10px 20px",
                 borderRadius: 10,
@@ -1144,6 +1326,7 @@ export default function QuickLaunchPage() {
         <ReviewPanel
           input={{
             subjectName: subjectName.trim(),
+            brief: brief.trim() || undefined,
             persona,
             personaName: selectedPersona?.name,
             goals,
@@ -1182,7 +1365,7 @@ export default function QuickLaunchPage() {
               letterSpacing: "-0.01em",
             }}
           >
-            Creating your tutor...
+            Creating your agent...
           </div>
           {commitTimeline.map((step, i) => (
             <div
@@ -1259,73 +1442,87 @@ export default function QuickLaunchPage() {
 
       {/* ── Phase: Result ── */}
       {phase === "result" && result && (
-        <div
-          style={{
-            padding: 32,
-            borderRadius: 16,
-            background: "linear-gradient(135deg, var(--status-success-bg), #ecfdf5)",
-            border: "2px solid var(--status-success-border)",
-            marginBottom: 32,
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* ── Success Banner ── */}
           <div
             style={{
-              fontSize: 22,
-              fontWeight: 700,
-              marginBottom: 10,
-              color: "var(--status-success-text)",
+              padding: 32,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, var(--status-success-bg), #ecfdf5)",
+              border: "2px solid var(--status-success-border)",
             }}
           >
-            Ready to test
-          </div>
-          <div
-            style={{
-              fontSize: 15,
-              color: "var(--text-secondary)",
-              marginBottom: 20,
-              lineHeight: 1.6,
-            }}
-          >
-            <strong>{result.domainName}</strong> domain created with{" "}
-            {result.assertionCount} teaching points
-            {result.moduleCount > 0 && `, ${result.moduleCount} curriculum modules`}
-            {result.goalCount > 0 && `, ${result.goalCount} learning goals`}.
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              onClick={() => router.push(`/x/domains?selected=${result.domainId}`)}
+            <div
               style={{
-                padding: "12px 24px",
-                borderRadius: 10,
-                background: "var(--accent-primary)",
-                color: "white",
-                border: "none",
-                fontSize: 15,
+                fontSize: 22,
                 fontWeight: 700,
-                cursor: "pointer",
-                letterSpacing: "-0.01em",
+                marginBottom: 10,
+                color: "var(--status-success-text)",
               }}
             >
-              View Domain
-            </button>
-            <button
-              onClick={() => router.push(`/x/callers/${result.callerId}`)}
+              Ready to test
+            </div>
+
+            {/* ── Editable domain name ── */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 6 }}>
+                Agent Name {savingName && <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— saving...</span>}
+              </div>
+              <input
+                type="text"
+                value={editDomainName}
+                onChange={(e) => setEditDomainName(e.target.value)}
+                onBlur={() => handleSaveDomainName(editDomainName)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  background: "var(--surface-primary)",
+                  color: "var(--text-primary)",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--accent-primary)")}
+              />
+            </div>
+
+            <div
               style={{
-                padding: "12px 24px",
-                borderRadius: 10,
-                background: "var(--surface-primary)",
-                border: "2px solid var(--border-default)",
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: "pointer",
+                fontSize: 14,
+                color: "var(--text-secondary)",
+                marginBottom: 20,
+                lineHeight: 1.6,
               }}
             >
-              View Test Caller
-            </button>
-            {result.identitySpecId && (
+              {result.assertionCount} teaching points
+              {result.moduleCount > 0 && `, ${result.moduleCount} curriculum modules`}
+              {result.goalCount > 0 && `, ${result.goalCount} learning goals`}
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
-                onClick={() => router.push(`/x/specs/${result.identitySpecId}`)}
+                onClick={() => router.push(`/x/domains?selected=${result.domainId}`)}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  background: "var(--accent-primary)",
+                  color: "white",
+                  border: "none",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                View Agent
+              </button>
+              <button
+                onClick={() => router.push(`/x/callers/${result.callerId}`)}
                 style={{
                   padding: "12px 24px",
                   borderRadius: 10,
@@ -1336,23 +1533,208 @@ export default function QuickLaunchPage() {
                   cursor: "pointer",
                 }}
               >
-                Edit Identity
+                View Test Caller
               </button>
+              {result.identitySpecId && (
+                <button
+                  onClick={() => router.push(`/x/specs/${result.identitySpecId}`)}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: 10,
+                    background: "var(--surface-primary)",
+                    border: "2px solid var(--border-default)",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Edit Identity
+                </button>
+              )}
+            </div>
+
+            {result.warnings.length > 0 && (
+              <div style={{ marginTop: 16, fontSize: 13, color: "var(--text-muted)" }}>
+                {result.warnings.map((w, i) => (
+                  <div key={i}>Note: {w}</div>
+                ))}
+              </div>
             )}
           </div>
 
-          {result.warnings.length > 0 && (
-            <div style={{ marginTop: 16, fontSize: 13, color: "var(--text-muted)" }}>
-              {result.warnings.map((w, i) => (
-                <div key={i}>Note: {w}</div>
-              ))}
+          {/* ── Onboarding Welcome ── */}
+          <div
+            style={{
+              padding: 24,
+              borderRadius: 14,
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 6 }}>
+              Onboarding Welcome {savingWelcome && <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— saving...</span>}
             </div>
-          )}
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>
+              This message is shown to learners when they join.
+            </div>
+            <textarea
+              value={editWelcome}
+              onChange={(e) => setEditWelcome(e.target.value)}
+              onBlur={() => handleSaveWelcome(editWelcome)}
+              placeholder="e.g. Welcome! Let's get started with your learning journey."
+              rows={2}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid var(--border-default)",
+                fontSize: 14,
+                fontWeight: 500,
+                background: "var(--surface-secondary)",
+                color: "var(--text-primary)",
+                outline: "none",
+                resize: "vertical",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+                transition: "border-color 0.15s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--accent-primary)")}
+            />
+          </div>
 
+          {/* ── Get Learners In ── */}
+          <div
+            style={{
+              padding: 24,
+              borderRadius: 14,
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>
+              Get Learners In
+            </div>
+
+            {/* 3-step visual explainer */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 20,
+                padding: "14px 16px",
+                background: "var(--surface-secondary)",
+                borderRadius: 10,
+                fontSize: 13,
+                color: "var(--text-secondary)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 16 }}>&#128279;</span>
+                <span>Share link</span>
+              </div>
+              <span style={{ color: "var(--text-muted)" }}>&rarr;</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 16 }}>&#9997;</span>
+                <span>They enter name</span>
+              </div>
+              <span style={{ color: "var(--text-muted)" }}>&rarr;</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 16 }}>&#9989;</span>
+                <span>They&apos;re in</span>
+              </div>
+            </div>
+
+            {!classroom ? (
+              <button
+                onClick={handleCreateClassroom}
+                disabled={creatingClassroom}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  background: creatingClassroom ? "var(--border-default)" : "var(--accent-primary)",
+                  color: creatingClassroom ? "var(--text-muted)" : "white",
+                  border: "none",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: creatingClassroom ? "not-allowed" : "pointer",
+                  letterSpacing: "-0.01em",
+                  transition: "all 0.2s",
+                }}
+              >
+                {creatingClassroom ? "Creating..." : "Create Classroom"}
+              </button>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 14px",
+                    background: "var(--surface-secondary)",
+                    borderRadius: 8,
+                    border: "1px solid var(--border-default)",
+                  }}
+                >
+                  <code
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      color: "var(--text-primary)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {classroom.joinUrl}
+                  </code>
+                  <button
+                    onClick={handleCopyJoinLink}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "6px 12px",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 6,
+                      background: "var(--surface-primary)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: copied ? "#10b981" : "var(--text-secondary)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "color 0.2s",
+                    }}
+                  >
+                    {copied ? "\u2713 Copied" : "Copy"}
+                  </button>
+                </div>
+                <button
+                  onClick={() => window.open(classroom.joinUrl, "_blank")}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid var(--border-default)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: "var(--text-secondary)",
+                    alignSelf: "flex-start",
+                    transition: "border-color 0.15s",
+                  }}
+                >
+                  Open Preview
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Launch Another ── */}
           <button
             onClick={handleReset}
             style={{
-              marginTop: 20,
               padding: "10px 20px",
               borderRadius: 8,
               background: "transparent",
@@ -1360,6 +1742,7 @@ export default function QuickLaunchPage() {
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
+              alignSelf: "flex-start",
             }}
           >
             Launch Another
@@ -1370,27 +1753,33 @@ export default function QuickLaunchPage() {
       {/* ── Phase: Form ── */}
       {phase === "form" && (
         <>
-          {/* Step 1: Subject Name */}
+          {/* Step 1: Describe what you're building */}
           <FormCard>
-            <StepMarker number={1} label="What are you teaching?" completed={!!subjectName.trim()} />
-            <input
-              id="subject"
-              type="text"
-              value={subjectName}
-              onChange={(e) => setSubjectName(e.target.value)}
-              placeholder="e.g. Food Safety Level 2, Quantum Mechanics, Financial Planning"
+            <StepMarker number={1} label="Describe what you're building" completed={!!subjectName.trim()} />
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+              Tell us what you&apos;re creating &mdash; a tutor, coach, support agent, or anything else.
+            </div>
+            <textarea
+              id="brief"
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              placeholder="e.g. An AI tutor for 11+ Creative Comprehension, a sales coaching agent, or a customer support assistant"
+              rows={3}
               style={{
                 width: "100%",
                 padding: "16px 20px",
                 borderRadius: 12,
                 border: "2px solid var(--input-border)",
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: 500,
                 background: "var(--input-bg)",
                 color: "var(--text-primary)",
                 outline: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 boxSizing: "border-box",
+                resize: "vertical",
+                fontFamily: "inherit",
+                lineHeight: 1.5,
               }}
               onFocus={(e) => {
                 e.target.style.borderColor = "var(--accent-primary)";
@@ -1399,25 +1788,211 @@ export default function QuickLaunchPage() {
               onBlur={(e) => {
                 e.target.style.borderColor = "var(--input-border)";
                 e.target.style.boxShadow = "none";
+                suggestFields(e.target.value);
               }}
             />
+
+            {/* Agent name — AI-suggested or manually entered */}
+            <div style={{ marginTop: 16 }}>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8,
+              }}>
+                <label
+                  htmlFor="subject"
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  Agent name
+                </label>
+                {nameLoading && (
+                  <span style={{
+                    fontSize: 12,
+                    color: "var(--accent-primary)",
+                    fontWeight: 500,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}>
+                    <span style={{
+                      display: "inline-block",
+                      width: 12,
+                      height: 12,
+                      border: "2px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                      borderTopColor: "var(--accent-primary)",
+                      borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite",
+                    }} />
+                    Suggesting...
+                  </span>
+                )}
+                {!nameLoading && subjectName && !nameManuallyEdited && !suggestedName && (
+                  <span style={{
+                    fontSize: 11,
+                    color: "var(--text-muted)",
+                    fontWeight: 500,
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    background: "var(--surface-secondary)",
+                  }}>
+                    AI suggested
+                  </span>
+                )}
+              </div>
+              <input
+                id="subject"
+                type="text"
+                value={subjectName}
+                onChange={(e) => {
+                  setSubjectName(e.target.value);
+                  setNameManuallyEdited(true);
+                  setSuggestedName(null);
+                }}
+                placeholder={brief.trim().length >= 20 ? "Generating name..." : "e.g. Creative Comprehension, Sales Coaching"}
+                style={{
+                  width: "100%",
+                  padding: "14px 18px",
+                  borderRadius: 12,
+                  border: "2px solid var(--input-border)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  background: "var(--input-bg)",
+                  color: "var(--text-primary)",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--accent-primary)";
+                  e.target.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "var(--input-border)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+              {suggestedName && suggestedName !== subjectName && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubjectName(suggestedName);
+                    setSuggestedName(null);
+                    setNameManuallyEdited(false);
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 8,
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    border: "1px solid var(--accent-primary)",
+                    background: "var(--status-info-bg)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>Suggestion:</span>
+                  {suggestedName}
+                  <span style={{
+                    fontSize: 11,
+                    color: "var(--accent-primary)",
+                    fontWeight: 600,
+                    marginLeft: 4,
+                  }}>
+                    Use
+                  </span>
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); setSuggestedName(null); }}
+                    style={{
+                      fontSize: 15,
+                      color: "var(--text-muted)",
+                      fontWeight: 700,
+                      marginLeft: 2,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                    }}
+                  >
+                    &times;
+                  </span>
+                </button>
+              )}
+              {!brief.trim() && !subjectName.trim() && !suggestedName && (
+                <div style={{
+                  fontSize: 13,
+                  color: "var(--text-muted)",
+                  marginTop: 6,
+                  fontStyle: "italic",
+                }}>
+                  Describe what you&apos;re building above and we&apos;ll suggest a name
+                </div>
+              )}
+            </div>
           </FormCard>
 
-          {/* Step 2: Teaching Style */}
+          {/* Step 2: Persona */}
           <FormCard>
-            <StepMarker number={2} label="Choose a teaching style" completed={!!persona} />
+            <StepMarker number={2} label="Choose a persona" completed={!!persona} />
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+              The personality and interaction style your AI will use with callers.
+            </div>
             <FancySelect
               options={personas.map((p) => ({ value: p.slug, label: p.name, description: p.description }))}
               value={persona}
-              onChange={setPersona}
-              placeholder="Pick a teaching style..."
+              onChange={(v) => { setPersona(v); setSuggestedPersona(null); }}
+              placeholder="Pick a persona..."
               loading={personasLoading}
             />
+            {suggestedPersona && suggestedPersona !== persona && (() => {
+              const sp = personas.find((p) => p.slug === suggestedPersona);
+              if (!sp) return null;
+              return (
+                <button
+                  type="button"
+                  onClick={() => { setPersona(suggestedPersona); setSuggestedPersona(null); }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 8,
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    border: "1px solid var(--accent-primary)",
+                    background: "var(--status-info-bg)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>Suggestion:</span>
+                  {sp.name}
+                  <span style={{ fontSize: 11, color: "var(--accent-primary)", fontWeight: 600, marginLeft: 4 }}>Use</span>
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); setSuggestedPersona(null); }}
+                    style={{ fontSize: 15, color: "var(--text-muted)", fontWeight: 700, marginLeft: 2, lineHeight: 1, cursor: "pointer" }}
+                  >
+                    &times;
+                  </span>
+                </button>
+              );
+            })()}
           </FormCard>
 
           {/* Step 3: Learning Goals */}
           <FormCard>
-            <StepMarker number={3} label="Learning goals" completed={goals.length > 0} />
+            <StepMarker number={3} label="Goals" completed={goals.length > 0} />
             <div
               style={{
                 fontSize: 13,
@@ -1426,7 +2001,7 @@ export default function QuickLaunchPage() {
                 marginTop: -6,
               }}
             >
-              Optional &mdash; what should your learners achieve?
+              Optional &mdash; what should users achieve?
             </div>
             <div style={{ display: "flex", gap: 10, marginBottom: goals.length > 0 ? 12 : 0 }}>
               <input
@@ -1439,7 +2014,7 @@ export default function QuickLaunchPage() {
                     addGoal();
                   }
                 }}
-                placeholder="e.g. Pass the exam, Understand key concepts"
+                placeholder="e.g. Pass the certification, Close more deals, Resolve tickets faster"
                 style={{
                   flex: 1,
                   padding: "14px 18px",
@@ -1517,15 +2092,60 @@ export default function QuickLaunchPage() {
                 ))}
               </div>
             )}
+            {suggestedGoals && suggestedGoals.length > 0 && (
+              <div style={{ marginTop: goals.length > 0 ? 10 : 0 }}>
+                <div style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 600, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  Suggestions
+                  <span
+                    role="button"
+                    onClick={() => setSuggestedGoals(null)}
+                    style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 700, cursor: "pointer", lineHeight: 1 }}
+                  >
+                    &times;
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {suggestedGoals.map((g, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setGoals((prev) => [...prev, g]);
+                        setSuggestedGoals((prev) => prev ? prev.filter((_, j) => j !== i) : null);
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "7px 12px",
+                        borderRadius: 18,
+                        border: "1px dashed var(--accent-primary)",
+                        background: "var(--status-info-bg)",
+                        cursor: "pointer",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "var(--text-primary)",
+                        transition: "background 0.15s",
+                      }}
+                    >
+                      + {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </FormCard>
 
           {/* Step 4: Curriculum Source */}
           <FormCard>
             <StepMarker
               number={4}
-              label="Curriculum source"
+              label="Content source"
               completed={launchMode === "generate" || !!file}
             />
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+              Where the knowledge for your AI comes from &mdash; generate it or upload your own material.
+            </div>
 
             {/* Mode toggle */}
             <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
@@ -1546,7 +2166,7 @@ export default function QuickLaunchPage() {
                   Generate with AI
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
-                  AI creates your syllabus
+                  AI generates content from your description
                 </div>
               </button>
               <button
@@ -1582,13 +2202,21 @@ export default function QuickLaunchPage() {
                 }}
               >
                 <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>
-                  We&apos;ll build a course for:
+                  We&apos;ll build an agent for:
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {brief.trim() && (
+                    <div style={{ display: "flex", gap: 8, fontSize: 14, alignItems: "flex-start" }}>
+                      <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70, paddingTop: 1 }}>Brief</span>
+                      <span style={{ color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.4 }}>
+                        {brief.trim().length > 120 ? brief.trim().slice(0, 120) + "..." : brief.trim()}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
-                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Subject</span>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Name</span>
                     <span style={{ color: subjectName.trim() ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
-                      {subjectName.trim() || "enter subject above"}
+                      {subjectName.trim() || "enter agent name above"}
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
@@ -1633,7 +2261,7 @@ export default function QuickLaunchPage() {
                     color: "var(--text-secondary)",
                     fontWeight: 500,
                   }}>
-                    Adding learning goals helps AI create a more tailored syllabus
+                    Adding goals helps AI create a more tailored experience
                   </div>
                 )}
               </div>
@@ -1793,7 +2421,7 @@ export default function QuickLaunchPage() {
                   : "none",
               }}
             >
-              Build My Tutor
+              Build It
             </button>
 
             {/* Progress bar showing form completion */}
@@ -1811,11 +2439,11 @@ export default function QuickLaunchPage() {
                 {!canLaunch && (
                   <span>
                     {!subjectName.trim()
-                      ? "Enter a subject name"
+                      ? "Enter an agent name"
                       : !persona
-                        ? "Select a teaching style"
+                        ? "Select a persona"
                         : launchMode === "upload" && !file
-                          ? "Upload course material"
+                          ? "Upload material"
                           : ""}
                   </span>
                 )}
@@ -1851,7 +2479,7 @@ export default function QuickLaunchPage() {
                 lineHeight: 1.5,
               }}
             >
-              Creates domain, extracts teaching points, builds curriculum, and sets up a test caller.
+              Creates an agent, extracts content, configures the persona, and sets up a test caller.
             </p>
           </div>
         </>

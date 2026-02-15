@@ -5,6 +5,8 @@ export type NavItem = {
   label: string;
   icon?: string;
   highlighted?: boolean;
+  /** Role-specific overrides for label, href, and icon */
+  roleVariants?: Record<string, { label?: string; href?: string; icon?: string }>;
 };
 
 export type NavSection = {

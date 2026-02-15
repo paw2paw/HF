@@ -9,3 +9,8 @@ export type { ThemePreference, ResolvedTheme } from "./ThemeContext";
 
 export { PaletteProvider, usePalette, palettePresets, darkPalettePresets } from "./PaletteContext";
 export type { PalettePreset } from "./PaletteContext";
+
+export { MasqueradeProvider, useMasquerade } from "./MasqueradeContext";
+export type { MasqueradeState } from "./MasqueradeContext";
+
+export { BrandingProvider, useBranding } from "./BrandingContext";

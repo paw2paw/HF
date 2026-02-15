@@ -46,7 +46,7 @@ const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 
 // Login credentials (same as e2e/global-setup.ts)
 const LOGIN_EMAIL = "admin@test.com";
-const LOGIN_PASSWORD = "admin123";
+const LOGIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "admin123";
 
 // Fallback entity defaults (used when DB + CLI don't specify)
 const FALLBACK_DEFAULTS = {

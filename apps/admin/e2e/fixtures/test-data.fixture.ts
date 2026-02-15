@@ -3,22 +3,24 @@
  * Provides standard test users and entities
  */
 
+const seedPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+
 export const TestUsers = {
   ADMIN: {
     email: 'admin@test.com',
-    password: 'admin123',
+    password: seedPassword,
     role: 'ADMIN',
     name: 'Admin User',
   },
   ALICE: {
     email: 'alice@test.com',
-    password: 'admin123',
+    password: seedPassword,
     role: 'USER',
     name: 'Alice Test',
   },
   BOB: {
     email: 'bob@test.com',
-    password: 'admin123',
+    password: seedPassword,
     role: 'USER',
     name: 'Bob Test',
   },

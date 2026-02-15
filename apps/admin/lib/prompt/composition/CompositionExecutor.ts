@@ -36,6 +36,7 @@ import "./transforms/simple";
 import "./transforms/trust";
 import "./transforms/teaching-content";
 import "./transforms/activities";
+import "./transforms/actions";
 
 /**
  * Execute the full composition pipeline.
