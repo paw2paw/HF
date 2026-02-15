@@ -114,9 +114,9 @@ export default function EducatorDashboard() {
         }}
       >
         {[
-          { label: "Students", value: stats.totalStudents, color: "#ec4899" },
-          { label: "Active This Week", value: stats.activeThisWeek, color: "#10b981" },
-          { label: "Classrooms", value: stats.classroomCount, color: "#3b82f6" },
+          { label: "Students", value: stats.totalStudents, color: "var(--button-primary-bg)" },
+          { label: "Active This Week", value: stats.activeThisWeek, color: "var(--status-success-text)" },
+          { label: "Classrooms", value: stats.classroomCount, color: "var(--accent-primary)" },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -181,25 +181,25 @@ export default function EducatorDashboard() {
               title: "Create Classroom",
               description: "Set up a new learning group",
               href: "/x/educator/classrooms/new",
-              accent: "#3b82f6",
+              accent: "var(--accent-primary)",
             },
             {
               title: "View Students",
               description: "Track progress across all classrooms",
               href: "/x/educator/students",
-              accent: "#ec4899",
+              accent: "var(--button-primary-bg)",
             },
             {
               title: "Try a Call",
               description: "Experience what your students will",
               href: "/x/educator/try",
-              accent: "#8b5cf6",
+              accent: "var(--badge-purple-text)",
             },
             {
               title: "View Reports",
               description: "Analytics and engagement data",
               href: "/x/educator/reports",
-              accent: "#10b981",
+              accent: "var(--status-success-text)",
             },
           ].map((action) => (
             <Link
@@ -247,7 +247,7 @@ export default function EducatorDashboard() {
               textAlign: "left",
               cursor: "pointer",
               transition: "all 0.2s",
-              borderLeft: "3px solid #f59e0b",
+              borderLeft: "3px solid var(--status-warning-text)",
             }}
             className="home-stat-card"
           >
@@ -299,7 +299,7 @@ export default function EducatorDashboard() {
                 padding: "8px 20px",
                 borderRadius: 6,
                 border: "none",
-                background: "#f59e0b",
+                background: "var(--status-warning-text)",
                 color: "white",
                 fontSize: 14,
                 fontWeight: 600,
@@ -315,7 +315,7 @@ export default function EducatorDashboard() {
                   width: "100%",
                   fontSize: 13,
                   padding: "6px 0",
-                  color: inviteResult.ok ? "#059669" : "#dc2626",
+                  color: inviteResult.ok ? "var(--status-success-text)" : "var(--status-error-text)",
                 }}
               >
                 {inviteResult.message}

@@ -162,7 +162,7 @@ export default function StudentProgressPage() {
                       className="h-full rounded-full"
                       style={{
                         width: `${Math.min(100, Math.max(0, Number(value) * 100))}%`,
-                        background: "#06b6d4",
+                        background: "var(--accent-primary)",
                       }}
                     />
                   </div>

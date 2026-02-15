@@ -9,6 +9,7 @@ import { DraggableTabs } from "@/components/shared/DraggableTabs";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 import { ReadinessBadge } from "@/components/shared/ReadinessBadge";
+import { EditableTitle } from "@/components/shared/EditableTitle";
 import { BookOpen, Users, FileText, Rocket, Layers } from "lucide-react";
 
 type DomainListItem = {
@@ -936,7 +937,21 @@ export default function DomainsPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{domain.name}</h2>
+                    <EditableTitle
+                      value={domain.name}
+                      as="h2"
+                      onSave={async (newName) => {
+                        const res = await fetch(`/api/domains/${domain.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ name: newName }),
+                        });
+                        const data = await res.json();
+                        if (!data.ok) throw new Error(data.error);
+                        setDomain((prev) => prev ? { ...prev, name: newName } : prev);
+                        fetchDomains();
+                      }}
+                    />
                     {domain.isDefault && (
                       <span style={{ padding: "4px 8px", fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 4 }}>
                         Default

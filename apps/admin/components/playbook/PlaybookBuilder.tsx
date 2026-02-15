@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
+import { EditableTitle } from "@/components/shared/EditableTitle";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 import { DraggableTabs, TabDefinition } from "@/components/shared/DraggableTabs";
 import { useEntityContext } from "@/contexts/EntityContext";
@@ -1997,7 +1998,23 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </>
       )}
       <SourcePageHeader
-        title={playbook.name}
+        title={
+          <EditableTitle
+            value={playbook.name}
+            as="h1"
+            disabled={playbook.status === "PUBLISHED"}
+            onSave={async (newName) => {
+              const res = await fetch(`/api/playbooks/${playbookId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newName }),
+              });
+              const data = await res.json();
+              if (!data.ok) throw new Error(data.error);
+              setPlaybook((prev: any) => prev ? { ...prev, name: newName } : prev);
+            }}
+          />
+        }
         description={`${playbook.domain.name} — v${playbook.version}`}
         dataNodeId="playbooks"
         actions={
