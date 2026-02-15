@@ -232,6 +232,9 @@ export function SimChat({
         }
 
         // No active call — compose a fresh prompt and start new conversation
+        // Bail early if cancelled (prevents ghost calls from React strict mode double-mount)
+        if (cancelled) return;
+
         let usedPromptId: string | null = null;
         const composeRes = await fetch(`/api/callers/${callerId}/compose-prompt`, {
           method: 'POST',
@@ -246,6 +249,7 @@ export function SimChat({
         }
 
         // Create a new call record, linked to the composed prompt
+        if (cancelled) return;
         const callRes = await fetch(`/api/callers/${callerId}/calls`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
