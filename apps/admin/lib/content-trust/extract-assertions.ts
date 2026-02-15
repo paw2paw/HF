@@ -213,10 +213,14 @@ async function extractFromChunk(
       { response: `Extracted assertions`, success: true }
     );
 
-    // Parse JSON response
+    // Parse JSON response (with repair for common AI mistakes)
     const text = result.content.trim();
     // Handle potential markdown code fences
-    const jsonStr = text.startsWith("[") ? text : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
+    let jsonStr = text.startsWith("[") || text.startsWith("{") ? text : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
+    // Remove trailing commas before ] or }
+    jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
+    // Fix missing commas between }{ patterns
+    jsonStr = jsonStr.replace(/\}(\s*)\{/g, "},$1{");
     const raw = JSON.parse(jsonStr);
 
     if (!Array.isArray(raw)) return [];

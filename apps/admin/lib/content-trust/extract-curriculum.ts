@@ -39,6 +39,55 @@ export interface ExtractedCurriculum {
 }
 
 // ------------------------------------------------------------------
+// JSON repair helpers
+// ------------------------------------------------------------------
+
+/** Strip markdown code fences and attempt common JSON repairs */
+function repairJSON(raw: string): string {
+  let s = raw.trim();
+  // Strip markdown fences: ```json ... ``` or ``` ... ```
+  s = s.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  // Remove trailing commas before ] or }
+  s = s.replace(/,\s*([\]}])/g, "$1");
+  // Fix missing commas between } { or ] [ in arrays (e.g. "}\n  {" → "},\n  {")
+  s = s.replace(/\}(\s*)\{/g, "},$1{");
+  s = s.replace(/\](\s*)\[/g, "],$1[");
+  // Fix missing commas between "value" "key" patterns (e.g. `"foo"\n  "bar"`)
+  s = s.replace(/"(\s*\n\s*)"/g, '",$1"');
+  return s;
+}
+
+/** Parse JSON with repair fallback — uses error-position insertion for remaining issues */
+function parseAIJSON(content: string): any {
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+
+  // Try direct parse first
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    // noop — fall through to repairs
+  }
+
+  // Apply regex-based bulk repairs
+  let json = repairJSON(jsonMatch[0]);
+
+  // Iteratively fix remaining missing commas using the parser's error position
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      return JSON.parse(json);
+    } catch (e: any) {
+      const posMatch = e.message?.match(/position (\d+)/);
+      if (!posMatch || !e.message.includes("Expected ','")) throw e;
+      const pos = parseInt(posMatch[1]);
+      json = json.slice(0, pos) + "," + json.slice(pos);
+    }
+  }
+
+  return JSON.parse(json);
+}
+
+// ------------------------------------------------------------------
 // AI extraction
 // ------------------------------------------------------------------
 
@@ -131,9 +180,9 @@ Generate a structured curriculum from these assertions.`;
 
     const content = response.content || "";
 
-    // Parse JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    // Parse JSON from response (with repair fallback for common AI mistakes)
+    const parsed = parseAIJSON(content);
+    if (!parsed) {
       return {
         ok: false,
         name: subjectName,
@@ -144,8 +193,6 @@ Generate a structured curriculum from these assertions.`;
         error: "AI did not return valid JSON",
       };
     }
-
-    const parsed = JSON.parse(jsonMatch[0]);
 
     return {
       ok: true,
@@ -249,8 +296,8 @@ Generate a structured curriculum for this subject.`;
 
     const content = response.content || "";
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const parsed = parseAIJSON(content);
+    if (!parsed) {
       return {
         ok: false,
         name: subjectName,
@@ -261,8 +308,6 @@ Generate a structured curriculum for this subject.`;
         error: "AI did not return valid JSON",
       };
     }
-
-    const parsed = JSON.parse(jsonMatch[0]);
 
     if (learningGoals.length === 0) {
       warnings.push("No goals provided — curriculum is based on AI inference for this subject");
