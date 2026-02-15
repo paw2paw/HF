@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         assistant: {
           model: {
             provider: "openai",
-            model: "gpt-4o",
+            model: config.ai.openai.model,
             messages: [
               {
                 role: "system",
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         assistant: {
           model: {
             provider: "openai",
-            model: "gpt-4o",
+            model: config.ai.openai.model,
             messages: [
               {
                 role: "system",

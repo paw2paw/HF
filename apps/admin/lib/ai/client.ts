@@ -10,6 +10,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { config } from "@/lib/config";
 
 export type AIEngine = "mock" | "claude" | "openai";
 
@@ -70,7 +71,7 @@ function getOpenAIClient(): OpenAI {
  * Get AI completion from the specified engine
  */
 export async function getAICompletion(options: AICompletionOptions): Promise<AICompletionResult> {
-  const { engine, messages, maxTokens = 1024, temperature = 0.7, model } = options;
+  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model } = options;
 
   switch (engine) {
     case "claude":
@@ -102,8 +103,8 @@ async function callClaude(
       content: m.content,
     }));
 
-  // Use provided model or default
-  const modelId = model || "claude-sonnet-4-20250514";
+  // Use provided model or default from config
+  const modelId = model || config.ai.claude.model;
 
   const response = await client.messages.create({
     model: modelId,
@@ -134,8 +135,8 @@ async function callOpenAI(
 ): Promise<AICompletionResult> {
   const client = getOpenAIClient();
 
-  // Use provided model or default
-  const modelId = model || "gpt-4o";
+  // Use provided model or default from config
+  const modelId = model || config.ai.openai.model;
 
   const response = await client.chat.completions.create({
     model: modelId,
@@ -281,7 +282,7 @@ export interface AIStreamOptions {
 export async function getAICompletionStream(
   options: AIStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
-  const { engine, messages, maxTokens = 1024, temperature = 0.7, model } = options;
+  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model } = options;
 
   switch (engine) {
     case "claude":
@@ -311,8 +312,8 @@ async function streamClaude(
       content: m.content,
     }));
 
-  // Use provided model or default
-  const modelId = model || "claude-sonnet-4-20250514";
+  // Use provided model or default from config
+  const modelId = model || config.ai.claude.model;
 
   const stream = client.messages.stream({
     model: modelId,
@@ -351,8 +352,8 @@ async function streamOpenAI(
 ): Promise<ReadableStream<Uint8Array>> {
   const client = getOpenAIClient();
 
-  // Use provided model or default
-  const modelId = model || "gpt-4o";
+  // Use provided model or default from config
+  const modelId = model || config.ai.openai.model;
 
   const stream = await client.chat.completions.create({
     model: modelId,
@@ -445,15 +446,15 @@ export async function getConfiguredAICompletion(
   const { callPoint, messages, maxTokens, temperature, engineOverride } = options;
 
   // Load config from database
-  const config = await getAIConfig(callPoint);
+  const aiConfig = await getAIConfig(callPoint);
 
   // Use override if provided, otherwise use config
-  const engine = engineOverride ?? config.provider;
-  const model = config.model;
+  const engine = engineOverride ?? aiConfig.provider;
+  const model = aiConfig.model;
 
-  // Merge config values with explicit options (explicit wins)
-  const finalMaxTokens = maxTokens ?? config.maxTokens ?? 1024;
-  const finalTemperature = temperature ?? config.temperature ?? 0.7;
+  // Merge: explicit options > DB config > app config defaults
+  const finalMaxTokens = maxTokens ?? aiConfig.maxTokens ?? config.ai.defaults.maxTokens;
+  const finalTemperature = temperature ?? aiConfig.temperature ?? config.ai.defaults.temperature;
 
   return getAICompletion({
     engine,
@@ -477,15 +478,15 @@ export async function getConfiguredAICompletionStream(
   const { callPoint, messages, maxTokens, temperature, engineOverride } = options;
 
   // Load config from database
-  const config = await getAIConfig(callPoint);
+  const aiConfig = await getAIConfig(callPoint);
 
   // Use override if provided, otherwise use config
-  const engine = engineOverride ?? config.provider;
-  const model = config.model;
+  const engine = engineOverride ?? aiConfig.provider;
+  const model = aiConfig.model;
 
-  // Merge config values with explicit options
-  const finalMaxTokens = maxTokens ?? config.maxTokens ?? 1024;
-  const finalTemperature = temperature ?? config.temperature ?? 0.7;
+  // Merge: explicit options > DB config > app config defaults
+  const finalMaxTokens = maxTokens ?? aiConfig.maxTokens ?? config.ai.defaults.maxTokens;
+  const finalTemperature = temperature ?? aiConfig.temperature ?? config.ai.defaults.temperature;
 
   return getAICompletionStream({
     engine,

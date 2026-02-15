@@ -10,6 +10,7 @@
  */
 
 import { getSystemSetting } from "@/lib/system-settings";
+import { config } from "@/lib/config";
 
 // ── Generic accessor ──────────────────────────────────────
 
@@ -189,31 +190,31 @@ export interface FallbackAIModelConfig {
 }
 
 export const DEFAULT_AI_MODEL_CONFIGS: Record<string, FallbackAIModelConfig> = {
-  "pipeline.measure": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.learn": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.score_agent": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.adapt": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "compose.prompt": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "pipeline.measure": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.learn": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.adapt": { provider: "claude", model: config.ai.claude.model },
+  "compose.prompt": { provider: "claude", model: config.ai.claude.model },
   "analysis.measure": { provider: "claude", model: "claude-3-haiku-20240307" },
   "analysis.learn": { provider: "claude", model: "claude-3-haiku-20240307" },
   "parameter.enrich": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "bdd.parse": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.stream": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.assistant": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.view": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "bdd.parse": { provider: "claude", model: config.ai.claude.model },
+  "chat.stream": { provider: "claude", model: config.ai.claude.model },
+  "spec.assistant": { provider: "claude", model: config.ai.claude.model },
+  "spec.view": { provider: "claude", model: config.ai.claude.model },
+  "spec.extract": { provider: "claude", model: config.ai.claude.model },
   "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "chat.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.call": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.tasks": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "content-trust.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "workflow.classify": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "workflow.step": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "chat.chat": { provider: "claude", model: config.ai.claude.model },
+  "chat.data": { provider: "claude", model: config.ai.claude.model },
+  "chat.spec": { provider: "claude", model: config.ai.claude.model },
+  "chat.call": { provider: "claude", model: config.ai.claude.model },
+  "assistant.chat": { provider: "claude", model: config.ai.claude.model },
+  "assistant.tasks": { provider: "claude", model: config.ai.claude.model },
+  "assistant.data": { provider: "claude", model: config.ai.claude.model },
+  "assistant.spec": { provider: "claude", model: config.ai.claude.model },
+  "content-trust.extract": { provider: "claude", model: config.ai.claude.model },
+  "workflow.classify": { provider: "claude", model: config.ai.claude.model },
+  "workflow.step": { provider: "claude", model: config.ai.claude.model },
 };
 
 export async function getAIModelConfigsFallback(): Promise<Record<string, FallbackAIModelConfig>> {

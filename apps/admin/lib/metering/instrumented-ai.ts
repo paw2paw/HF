@@ -5,6 +5,7 @@
  * Use these functions instead of the raw AI client to track costs.
  */
 
+import { config } from "@/lib/config";
 import {
   getAICompletion,
   getAICompletionStream,
@@ -84,7 +85,7 @@ export async function getMeteredAICompletionStream(
 
     logAIUsage({
       engine: options.engine as "claude" | "openai",
-      model: options.engine === "claude" ? "claude-sonnet-4-20250514" : "gpt-4o",
+      model: options.engine === "claude" ? config.ai.claude.model : config.ai.openai.model,
       inputTokens: estimatedInputTokens,
       outputTokens: estimatedOutputTokens,
       userId: context?.userId,
@@ -139,7 +140,7 @@ export function createMeteredStream(
 
             logAIUsage({
               engine: engine as "claude" | "openai",
-              model: engine === "claude" ? "claude-sonnet-4-20250514" : "gpt-4o",
+              model: engine === "claude" ? config.ai.claude.model : config.ai.openai.model,
               inputTokens: estimatedInputTokens,
               outputTokens: estimatedOutputTokens,
               userId: context?.userId,
