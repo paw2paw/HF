@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { PrismaClient, AnalysisOutputType, MemoryCategory } from "@prisma/client";
-import Anthropic from "@anthropic-ai/sdk";
+import { MemoryCategory } from "@prisma/client";
 import { calculateAdaptScores, AdaptCalculationResult } from "@/lib/analysis/AdaptCalculator";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { getConfiguredMeteredAICompletion } from "@/lib/metering";
 
 export const runtime = "nodejs";
 
@@ -41,7 +40,6 @@ export async function POST(req: Request) {
       specs: specSlugs,
       domains,
       outputTypes,
-      model = "claude-3-haiku-20240307",
       storeResults = false,
     } = body;
 
@@ -49,15 +47,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { ok: false, error: "transcript is required" },
         { status: 400 }
-      );
-    }
-
-    // Check for API key
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { ok: false, error: "ANTHROPIC_API_KEY not configured" },
-        { status: 500 }
       );
     }
 
@@ -118,13 +107,12 @@ export async function POST(req: Request) {
     const measurePrompt = measureSpecs.length > 0 ? buildMeasurePrompt(measureSpecs, transcript) : null;
     const learnPrompt = learnSpecs.length > 0 ? buildLearnPrompt(learnSpecs, transcript) : null;
 
-    const anthropic = new Anthropic({ apiKey });
     const startTime = Date.now();
 
     // Run both analyses in parallel if needed
     const [measureResult, learnResult] = await Promise.all([
-      measurePrompt ? runMeasureAnalysis(anthropic, model, measurePrompt) : null,
-      learnPrompt ? runLearnAnalysis(anthropic, model, learnPrompt) : null,
+      measurePrompt ? runMeasureAnalysis(measurePrompt, callId, callerId) : null,
+      learnPrompt ? runLearnAnalysis(learnPrompt, callId, callerId) : null,
     ]);
 
     const analysisTime = Date.now() - startTime;
@@ -170,7 +158,7 @@ export async function POST(req: Request) {
       ok: true,
       callId,
       callerId,
-      model,
+      model: measureResult?.model || learnResult?.model || "unknown",
       analysisTime,
       usage: {
         measureTokens: measureResult?.usage || null,
@@ -363,33 +351,38 @@ function buildLearnPrompt(specs: any[], transcript: string): string {
 }
 
 /**
- * Run MEASURE analysis
+ * Run MEASURE analysis via metered AI wrapper
  */
+// @ai-call analysis.measure — Score behavioral parameters from transcript | config: /x/ai-config
 async function runMeasureAnalysis(
-  anthropic: Anthropic,
-  model: string,
-  prompt: string
-): Promise<{ measures: Record<string, number>; evidence: Record<string, string>; usage: any } | null> {
+  prompt: string,
+  callId?: string,
+  callerId?: string,
+): Promise<{ measures: Record<string, number>; evidence: Record<string, string>; usage: any; model: string } | null> {
   try {
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
-    });
+    const result = await getConfiguredMeteredAICompletion(
+      {
+        callPoint: "analysis.measure",
+        messages: [{ role: "user", content: prompt }],
+        maxTokens: 2048,
+      },
+      { callId, callerId, sourceOp: "analysis:measure" }
+    );
 
-    const responseText = response.content[0].type === "text" ? response.content[0].text : "";
+    const responseText = result.content;
 
     // Extract JSON
     const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-    const result = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(responseText);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(responseText);
 
     return {
-      measures: result.measures || {},
-      evidence: result.evidence || {},
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
+      measures: parsed.measures || {},
+      evidence: parsed.evidence || {},
+      usage: result.usage ? {
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+      } : null,
+      model: result.model,
     };
   } catch (error) {
     console.error("Measure analysis error:", error);
@@ -398,32 +391,37 @@ async function runMeasureAnalysis(
 }
 
 /**
- * Run LEARN analysis
+ * Run LEARN analysis via metered AI wrapper
  */
+// @ai-call analysis.learn — Extract learned facts from transcript | config: /x/ai-config
 async function runLearnAnalysis(
-  anthropic: Anthropic,
-  model: string,
-  prompt: string
-): Promise<{ learned: any[]; usage: any } | null> {
+  prompt: string,
+  callId?: string,
+  callerId?: string,
+): Promise<{ learned: any[]; usage: any; model: string } | null> {
   try {
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
-    });
+    const result = await getConfiguredMeteredAICompletion(
+      {
+        callPoint: "analysis.learn",
+        messages: [{ role: "user", content: prompt }],
+        maxTokens: 2048,
+      },
+      { callId, callerId, sourceOp: "analysis:learn" }
+    );
 
-    const responseText = response.content[0].type === "text" ? response.content[0].text : "";
+    const responseText = result.content;
 
     // Extract JSON
     const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-    const result = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(responseText);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(responseText);
 
     return {
-      learned: result.learned || [],
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
+      learned: parsed.learned || [],
+      usage: result.usage ? {
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+      } : null,
+      model: result.model,
     };
   } catch (error) {
     console.error("Learn analysis error:", error);

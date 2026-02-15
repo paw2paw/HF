@@ -10,12 +10,35 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { config } from "@/lib/config";
 
 export type AIEngine = "mock" | "claude" | "openai";
 
+// Content block types for tool calling (Anthropic SDK format)
+export type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: Record<string, any> }
+  | { type: "tool_result"; tool_use_id: string; content: string };
+
 export interface AIMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ContentBlock[];
+}
+
+export interface AITool {
+  name: string;
+  description: string;
+  input_schema: {
+    type: "object";
+    properties: Record<string, any>;
+    required?: string[];
+  };
+}
+
+export interface AIToolUse {
+  id: string;
+  name: string;
+  input: Record<string, any>;
 }
 
 export interface AICompletionOptions {
@@ -27,6 +50,8 @@ export interface AICompletionOptions {
   model?: string;
   /** Optional: call point for loading config from database */
   callPoint?: string;
+  /** Optional: tool definitions for function calling */
+  tools?: AITool[];
 }
 
 export interface AICompletionResult {
@@ -37,6 +62,21 @@ export interface AICompletionResult {
     inputTokens: number;
     outputTokens: number;
   };
+  /** Why the model stopped generating */
+  stopReason?: "end_turn" | "tool_use" | "max_tokens" | "stop_sequence";
+  /** Tool calls requested by the model */
+  toolUses?: AIToolUse[];
+  /** Raw content blocks from the response (for feeding back into tool loop) */
+  rawContentBlocks?: ContentBlock[];
+}
+
+/** Extract string content from an AIMessage (handles both string and content block formats) */
+export function getTextContent(msg: AIMessage): string {
+  if (typeof msg.content === "string") return msg.content;
+  return msg.content
+    .filter((b): b is { type: "text"; text: string } => b.type === "text")
+    .map((b) => b.text)
+    .join("\n");
 }
 
 // Lazy-initialized clients
@@ -70,11 +110,11 @@ function getOpenAIClient(): OpenAI {
  * Get AI completion from the specified engine
  */
 export async function getAICompletion(options: AICompletionOptions): Promise<AICompletionResult> {
-  const { engine, messages, maxTokens = 1024, temperature = 0.7, model } = options;
+  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model, tools } = options;
 
   switch (engine) {
     case "claude":
-      return callClaude(messages, maxTokens, temperature, model);
+      return callClaude(messages, maxTokens, temperature, model, tools);
 
     case "openai":
       return callOpenAI(messages, maxTokens, temperature, model);
@@ -89,7 +129,8 @@ async function callClaude(
   messages: AIMessage[],
   maxTokens: number,
   temperature: number,
-  model?: string
+  model?: string,
+  tools?: AITool[],
 ): Promise<AICompletionResult> {
   const client = getAnthropicClient();
 
@@ -99,30 +140,55 @@ async function callClaude(
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content,
+      content: m.content as any, // Content blocks or string — Anthropic SDK accepts both
     }));
 
-  // Use provided model or default
-  const modelId = model || "claude-sonnet-4-20250514";
+  // Use provided model or default from config
+  const modelId = model || config.ai.claude.model;
 
-  const response = await client.messages.create({
+  const createParams: any = {
     model: modelId,
     max_tokens: maxTokens,
     temperature,
-    system: systemMessage?.content,
+    system: typeof systemMessage?.content === "string" ? systemMessage.content : undefined,
     messages: chatMessages,
+  };
+  if (tools && tools.length > 0) {
+    createParams.tools = tools;
+  }
+
+  const response = await client.messages.create(createParams);
+
+  // Extract text content
+  const textBlocks = response.content.filter((c: any) => c.type === "text");
+  const textContent = textBlocks.map((c: any) => c.text).join("\n");
+
+  // Extract tool_use blocks
+  const toolUseBlocks = response.content.filter((c: any) => c.type === "tool_use");
+  const toolUses: AIToolUse[] = toolUseBlocks.map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    input: c.input,
+  }));
+
+  // Build raw content blocks for feeding back into tool loop
+  const rawContentBlocks: ContentBlock[] = response.content.map((c: any) => {
+    if (c.type === "text") return { type: "text" as const, text: c.text };
+    if (c.type === "tool_use") return { type: "tool_use" as const, id: c.id, name: c.name, input: c.input };
+    return { type: "text" as const, text: "" };
   });
 
-  const textContent = response.content.find((c) => c.type === "text");
-
   return {
-    content: textContent?.text || "",
+    content: textContent,
     engine: "claude",
     model: response.model,
     usage: {
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
     },
+    stopReason: response.stop_reason as AICompletionResult["stopReason"],
+    toolUses: toolUses.length > 0 ? toolUses : undefined,
+    rawContentBlocks: toolUses.length > 0 ? rawContentBlocks : undefined,
   };
 }
 
@@ -134,8 +200,8 @@ async function callOpenAI(
 ): Promise<AICompletionResult> {
   const client = getOpenAIClient();
 
-  // Use provided model or default
-  const modelId = model || "gpt-4o";
+  // Use provided model or default from config
+  const modelId = model || config.ai.openai.model;
 
   const response = await client.chat.completions.create({
     model: modelId,
@@ -143,7 +209,7 @@ async function callOpenAI(
     temperature,
     messages: messages.map((m) => ({
       role: m.role,
-      content: m.content,
+      content: getTextContent(m),
     })),
   });
 
@@ -165,10 +231,12 @@ async function callOpenAI(
 function mockCompletion(messages: AIMessage[]): AICompletionResult {
   // For mock mode, return a structured response based on the last message
   const lastMessage = messages[messages.length - 1];
-  const content = lastMessage?.content || "";
+  const content = lastMessage ? getTextContent(lastMessage) : "";
+
+  const contentLower = content.toLowerCase();
 
   // Generate mock scores if the prompt seems to be asking for scoring
-  if (content.toLowerCase().includes("score") || content.toLowerCase().includes("rate")) {
+  if (contentLower.includes("score") || contentLower.includes("rate")) {
     return {
       content: JSON.stringify({
         score: 0.5 + Math.random() * 0.3,
@@ -181,7 +249,7 @@ function mockCompletion(messages: AIMessage[]): AICompletionResult {
   }
 
   // Generate mock memories if the prompt seems to be asking for extraction
-  if (content.toLowerCase().includes("extract") || content.toLowerCase().includes("memory")) {
+  if (contentLower.includes("extract") || contentLower.includes("memory")) {
     return {
       content: JSON.stringify({
         memories: [
@@ -194,7 +262,7 @@ function mockCompletion(messages: AIMessage[]): AICompletionResult {
   }
 
   // Generate mock prompt if this is a compose/generation request
-  if (content.toLowerCase().includes("compose") || content.toLowerCase().includes("generate") || content.toLowerCase().includes("agent guidance")) {
+  if (contentLower.includes("compose") || contentLower.includes("generate") || contentLower.includes("agent guidance")) {
     return {
       content: `# Agent Guidance Prompt (MOCK)
 
@@ -281,7 +349,7 @@ export interface AIStreamOptions {
 export async function getAICompletionStream(
   options: AIStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
-  const { engine, messages, maxTokens = 1024, temperature = 0.7, model } = options;
+  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model } = options;
 
   switch (engine) {
     case "claude":
@@ -308,17 +376,17 @@ async function streamClaude(
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content,
+      content: m.content as any, // String or content blocks
     }));
 
-  // Use provided model or default
-  const modelId = model || "claude-sonnet-4-20250514";
+  // Use provided model or default from config
+  const modelId = model || config.ai.claude.model;
 
   const stream = client.messages.stream({
     model: modelId,
     max_tokens: maxTokens,
     temperature,
-    system: systemMessage?.content,
+    system: systemMessage ? getTextContent(systemMessage) : undefined,
     messages: chatMessages,
   });
 
@@ -351,8 +419,8 @@ async function streamOpenAI(
 ): Promise<ReadableStream<Uint8Array>> {
   const client = getOpenAIClient();
 
-  // Use provided model or default
-  const modelId = model || "gpt-4o";
+  // Use provided model or default from config
+  const modelId = model || config.ai.openai.model;
 
   const stream = await client.chat.completions.create({
     model: modelId,
@@ -361,7 +429,7 @@ async function streamOpenAI(
     stream: true,
     messages: messages.map((m) => ({
       role: m.role,
-      content: m.content,
+      content: getTextContent(m),
     })),
   });
 
@@ -387,15 +455,17 @@ async function streamOpenAI(
 function mockStream(messages: AIMessage[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const lastMessage = messages[messages.length - 1];
+  const lastContent = lastMessage ? getTextContent(lastMessage) : "";
+  const lastLower = lastContent.toLowerCase();
 
   // Generate a mock response based on the message
   let response = "This is a mock response. ";
-  if (lastMessage?.content.toLowerCase().includes("help")) {
+  if (lastLower.includes("help")) {
     response = "Available commands:\n• /help - Show this help\n• /context - Show current context\n• /clear - Clear chat history\n• /memories - Show caller memories\n• /buildprompt - Build composed prompt";
-  } else if (lastMessage?.content.toLowerCase().includes("hello") || lastMessage?.content.toLowerCase().includes("hi")) {
+  } else if (lastLower.includes("hello") || lastLower.includes("hi")) {
     response = "Hello! I'm your AI assistant. How can I help you today?";
   } else {
-    response = `I received your message: "${lastMessage?.content?.slice(0, 50)}..."\n\nThis is a mock response since no AI engine is configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable real responses.`;
+    response = `I received your message: "${lastContent.slice(0, 50)}..."\n\nThis is a mock response since no AI engine is configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable real responses.`;
   }
 
   const words = response.split(" ");
@@ -429,6 +499,8 @@ export interface ConfiguredAIOptions {
   temperature?: number;
   /** Override the configured engine (for testing) */
   engineOverride?: AIEngine;
+  /** Optional: tool definitions for function calling */
+  tools?: AITool[];
 }
 
 /**
@@ -442,18 +514,18 @@ export interface ConfiguredAIOptions {
 export async function getConfiguredAICompletion(
   options: ConfiguredAIOptions
 ): Promise<AICompletionResult> {
-  const { callPoint, messages, maxTokens, temperature, engineOverride } = options;
+  const { callPoint, messages, maxTokens, temperature, engineOverride, tools } = options;
 
   // Load config from database
-  const config = await getAIConfig(callPoint);
+  const aiConfig = await getAIConfig(callPoint);
 
   // Use override if provided, otherwise use config
-  const engine = engineOverride ?? config.provider;
-  const model = config.model;
+  const engine = engineOverride ?? aiConfig.provider;
+  const model = aiConfig.model;
 
-  // Merge config values with explicit options (explicit wins)
-  const finalMaxTokens = maxTokens ?? config.maxTokens ?? 1024;
-  const finalTemperature = temperature ?? config.temperature ?? 0.7;
+  // Merge: explicit options > DB config > app config defaults
+  const finalMaxTokens = maxTokens ?? aiConfig.maxTokens ?? config.ai.defaults.maxTokens;
+  const finalTemperature = temperature ?? aiConfig.temperature ?? config.ai.defaults.temperature;
 
   return getAICompletion({
     engine,
@@ -461,6 +533,7 @@ export async function getConfiguredAICompletion(
     maxTokens: finalMaxTokens,
     temperature: finalTemperature,
     model,
+    tools,
   });
 }
 
@@ -477,15 +550,15 @@ export async function getConfiguredAICompletionStream(
   const { callPoint, messages, maxTokens, temperature, engineOverride } = options;
 
   // Load config from database
-  const config = await getAIConfig(callPoint);
+  const aiConfig = await getAIConfig(callPoint);
 
   // Use override if provided, otherwise use config
-  const engine = engineOverride ?? config.provider;
-  const model = config.model;
+  const engine = engineOverride ?? aiConfig.provider;
+  const model = aiConfig.model;
 
-  // Merge config values with explicit options
-  const finalMaxTokens = maxTokens ?? config.maxTokens ?? 1024;
-  const finalTemperature = temperature ?? config.temperature ?? 0.7;
+  // Merge: explicit options > DB config > app config defaults
+  const finalMaxTokens = maxTokens ?? aiConfig.maxTokens ?? config.ai.defaults.maxTokens;
+  const finalTemperature = temperature ?? aiConfig.temperature ?? config.ai.defaults.temperature;
 
   return getAICompletionStream({
     engine,

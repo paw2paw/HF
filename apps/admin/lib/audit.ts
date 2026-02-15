@@ -39,6 +39,14 @@ export const AuditAction = {
   // Settings
   UPDATED_SETTING: "updated_setting",
   TOGGLED_AUDIT: "toggled_audit",
+
+  // GDPR
+  EXPORTED_CALLER_DATA: "exported_caller_data",
+  RETENTION_CLEANUP: "retention_cleanup",
+
+  // Masquerade
+  MASQUERADE_START: "masquerade_start",
+  MASQUERADE_STOP: "masquerade_stop",
 } as const;
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];

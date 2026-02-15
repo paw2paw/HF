@@ -16,7 +16,7 @@ export type AuthFixture = {
 
 export const test = base.extend<AuthFixture>({
   loginAs: async ({ page }, use) => {
-    const login = async (email: string, password = 'admin123') => {
+    const login = async (email: string, password = process.env.SEED_ADMIN_PASSWORD || 'admin123') => {
       await page.goto('/login');
       await page.waitForLoadState('domcontentloaded');
 
@@ -44,7 +44,7 @@ export const test = base.extend<AuthFixture>({
   },
 
   createAuthenticatedContext: async ({ browser }, use) => {
-    const createContext = async (email: string, password = 'admin123') => {
+    const createContext = async (email: string, password = process.env.SEED_ADMIN_PASSWORD || 'admin123') => {
       const context = await browser.newContext();
       const page = await context.newPage();
 

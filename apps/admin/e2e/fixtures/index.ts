@@ -9,5 +9,6 @@ export {
   TestCallers,
   TestDomains,
   StorageKeys,
+  CloudTestData,
   generateTestId,
 } from './test-data.fixture';

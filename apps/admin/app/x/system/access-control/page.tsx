@@ -68,6 +68,11 @@ function rulesToGrid(
     const config = rules.sections[sectionId];
     grid[sectionId] = {};
     for (const role of ROLES) {
+      // SUPERADMIN always has full access — never blocked or hidden
+      if (role === "SUPERADMIN") {
+        grid[sectionId][role] = "visible";
+        continue;
+      }
       if (config?.requiredRole) {
         const requiredLevel = ROLE_LEVEL[config.requiredRole] ?? 0;
         const roleLevel = ROLE_LEVEL[role] ?? 0;
@@ -514,20 +519,21 @@ export default function AccessControlPage() {
                                 onClick={() => cycleVisibility(sectionId, role)}
                                 disabled={isSuperadmin || isAutoBlocked}
                                 title={
-                                  isSuperadmin ? "SUPERADMIN always has access"
+                                  isSuperadmin ? "SUPERADMIN — always full access"
                                     : isAutoBlocked ? "Blocked because a higher role is blocked"
                                     : `Click to change (currently: ${vs.label})`
                                 }
                                 style={{
                                   width: 32, height: 32, borderRadius: 7, border: "none",
                                   display: "inline-flex", alignItems: "center", justifyContent: "center",
-                                  background: vs.bg, color: vs.color,
-                                  cursor: isSuperadmin || isAutoBlocked ? "not-allowed" : "pointer",
-                                  opacity: isSuperadmin || isAutoBlocked ? 0.5 : 1,
+                                  background: isSuperadmin ? "#dcfce7" : vs.bg,
+                                  color: isSuperadmin ? "#22c55e" : vs.color,
+                                  cursor: isSuperadmin || isAutoBlocked ? "default" : "pointer",
+                                  opacity: isAutoBlocked ? 0.5 : 1,
                                   transition: "all 0.1s ease",
                                 }}
                               >
-                                <Icon size={14} strokeWidth={2.5} />
+                                {isSuperadmin ? <Check size={14} strokeWidth={2.5} /> : <Icon size={14} strokeWidth={2.5} />}
                               </button>
                             </td>
                           );

@@ -11,6 +11,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getLearnerProfile } from "@/lib/learner/profile";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 // === Condition Interface (backward-compatible) ===
 
@@ -133,7 +134,7 @@ export async function runAdaptSpecs(callerId: string): Promise<{
     // Pre-load parameterValues for conditions that use that data source
     let parameterValues: Record<string, number> = {};
     const needsParamValues = adaptSpecs.some((spec) => {
-      const config = spec.config as any;
+      const config = spec.config as SpecConfig;
       const parameters: AdaptParameter[] = config?.parameters || [];
       return parameters.some((p) =>
         p.config?.adaptationRules?.some(
@@ -153,7 +154,7 @@ export async function runAdaptSpecs(callerId: string): Promise<{
     // Run each ADAPT spec
     for (const spec of adaptSpecs) {
       try {
-        const config = spec.config as any;
+        const config = spec.config as SpecConfig;
         const parameters: AdaptParameter[] = config?.parameters || [];
         // Read confidence from spec config (not hardcoded)
         const defaultConfidence = config?.defaultAdaptConfidence ?? 0.8;

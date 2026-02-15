@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
-import { GeneralImportWizard } from "./GeneralImportWizard";
+import { MessageCircle, ClipboardList } from "lucide-react";
 
 type ImportTab = "transcripts" | "specs";
 
@@ -117,7 +117,7 @@ export default function ImportPage() {
   const [conflictResolutions, setConflictResolutions] = useState<Record<string, "merge" | "create_new" | "skip">>({});
 
   // Spec state
-  const [specImportMode, setSpecImportMode] = useState<"schema" | "general">("schema");
+  const specImportMode = "schema";
   const [specFiles, setSpecFiles] = useState<File[]>([]);
   const [specImporting, setSpecImporting] = useState(false);
   const [specResult, setSpecResult] = useState<SpecResult | null>(null);
@@ -125,17 +125,6 @@ export default function ImportPage() {
   const [autoActivate, setAutoActivate] = useState(true);
   const specFileInputRef = useRef<HTMLInputElement>(null);
 
-  // General Import wizard state
-  const [generalImportStep, setGeneralImportStep] = useState<1 | 2 | 3 | 4>(1);
-  const [generalFile, setGeneralFile] = useState<File | null>(null);
-  const [generalRawText, setGeneralRawText] = useState("");
-  const [generalParsing, setGeneralParsing] = useState(false);
-  const [generalDetectedType, setGeneralDetectedType] = useState<string | null>(null);
-  const [generalSelectedType, setGeneralSelectedType] = useState<string>("CURRICULUM");
-  const [generalExtracting, setGeneralExtracting] = useState(false);
-  const [generalExtractedSpec, setGeneralExtractedSpec] = useState<any>(null);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const generalFileInputRef = useRef<HTMLInputElement>(null);
 
   // Transcript handlers
   const handleTranscriptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,8 +326,8 @@ export default function ImportPage() {
       <DraggableTabs
         storageKey="import-tabs"
         tabs={[
-          { id: "transcripts", label: "📞 Transcripts" },
-          { id: "specs", label: "📋 BDD Specs" },
+          { id: "transcripts", label: "Transcripts", icon: <MessageCircle size={14} /> },
+          { id: "specs", label: "BDD Specs", icon: <ClipboardList size={14} /> },
         ]}
         activeTab={activeTab}
         onTabChange={(id) => setActiveTab(id as ImportTab)}
@@ -727,67 +716,6 @@ export default function ImportPage() {
       {activeTab === "specs" && (
         <div>
           {/* Mode Toggle */}
-          <div style={{
-            display: "flex",
-            gap: 8,
-            marginBottom: 24,
-            padding: 4,
-            background: "var(--surface-tertiary)",
-            borderRadius: 12,
-            width: "fit-content",
-          }}>
-            <button
-              onClick={() => {
-                setSpecImportMode("schema");
-                setGeneralFile(null);
-                setGeneralRawText("");
-                setGeneralExtractedSpec(null);
-                setGeneralError(null);
-                setGeneralImportStep(1);
-              }}
-              style={{
-                padding: "10px 20px",
-                fontSize: 14,
-                fontWeight: 600,
-                borderRadius: 8,
-                border: "none",
-                cursor: "pointer",
-                background: specImportMode === "schema" ? "var(--surface-primary)" : "transparent",
-                color: specImportMode === "schema" ? "var(--text-primary)" : "var(--text-muted)",
-                boxShadow: specImportMode === "schema" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                transition: "all 0.15s",
-              }}
-            >
-              Schema Ready
-            </button>
-            <button
-              onClick={() => {
-                setSpecImportMode("general");
-                setSpecFiles([]);
-                setSpecResult(null);
-                setSpecError(null);
-              }}
-              style={{
-                padding: "10px 20px",
-                fontSize: 14,
-                fontWeight: 600,
-                borderRadius: 8,
-                border: "none",
-                cursor: "pointer",
-                background: specImportMode === "general" ? "var(--surface-primary)" : "transparent",
-                color: specImportMode === "general" ? "var(--accent-primary)" : "var(--text-muted)",
-                boxShadow: specImportMode === "general" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                transition: "all 0.15s",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <span style={{ fontSize: 16 }}>✨</span>
-              General Import
-            </button>
-          </div>
-
           {/* Schema Ready Mode */}
           {specImportMode === "schema" && (
             <>
@@ -961,36 +889,6 @@ export default function ImportPage() {
             </>
           )}
 
-          {/* General Import Mode */}
-          {specImportMode === "general" && (
-            <GeneralImportWizard
-              step={generalImportStep}
-              setStep={setGeneralImportStep}
-              file={generalFile}
-              setFile={setGeneralFile}
-              rawText={generalRawText}
-              setRawText={setGeneralRawText}
-              parsing={generalParsing}
-              setParsing={setGeneralParsing}
-              detectedType={generalDetectedType}
-              setDetectedType={setGeneralDetectedType}
-              selectedType={generalSelectedType}
-              setSelectedType={setGeneralSelectedType}
-              extracting={generalExtracting}
-              setExtracting={setGeneralExtracting}
-              extractedSpec={generalExtractedSpec}
-              setExtractedSpec={setGeneralExtractedSpec}
-              error={generalError}
-              setError={setGeneralError}
-              fileInputRef={generalFileInputRef}
-              autoActivate={autoActivate}
-              setAutoActivate={setAutoActivate}
-              onImportComplete={(result) => {
-                setSpecResult(result);
-                setSpecImportMode("schema");
-              }}
-            />
-          )}
         </div>
       )}
     </div>

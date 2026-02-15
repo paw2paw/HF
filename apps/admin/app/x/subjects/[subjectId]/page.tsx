@@ -2,18 +2,34 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
+
+// ------------------------------------------------------------------
+// Media types
+// ------------------------------------------------------------------
+
+type MediaAsset = {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  title: string | null;
+  tags: string[];
+  trustLevel: string;
+  createdAt: string;
+};
 
 // ------------------------------------------------------------------
 // Trust level config
 // ------------------------------------------------------------------
 
 const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory", color: "#D4AF37", bg: "#FDF6E3" },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited", color: "#8B8B8B", bg: "#F5F5F5" },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published", color: "#4A90D9", bg: "#EBF3FC" },
-  { value: "EXPERT_CURATED", label: "L2 Expert", color: "#2E7D32", bg: "#E8F5E9" },
-  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "#FF8F00", bg: "#FFF3E0" },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "#B71C1C", bg: "#FFEBEE" },
+  { value: "REGULATORY_STANDARD", label: "L5 Regulatory", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
+  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited", color: "var(--trust-l4-text)", bg: "var(--trust-l4-bg)" },
+  { value: "PUBLISHED_REFERENCE", label: "L3 Published", color: "var(--trust-l3-text)", bg: "var(--trust-l3-bg)" },
+  { value: "EXPERT_CURATED", label: "L2 Expert", color: "var(--trust-l2-text)", bg: "var(--trust-l2-bg)" },
+  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "var(--trust-l1-text)", bg: "var(--trust-l1-bg)" },
+  { value: "UNVERIFIED", label: "L0 Unverified", color: "var(--trust-l0-text)", bg: "var(--trust-l0-bg)" },
 ];
 
 const SOURCE_TAGS = [
@@ -24,7 +40,7 @@ const SOURCE_TAGS = [
 function TrustBadge({ level }: { level: string }) {
   const config = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];
   return (
-    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, color: config.color, backgroundColor: config.bg, border: `1px solid ${config.color}33` }}>
+    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, color: config.color, backgroundColor: config.bg, border: `1px solid color-mix(in srgb, ${config.color} 20%, transparent)` }}>
       {config.label}
     </span>
   );
@@ -106,6 +122,7 @@ type CurriculumModule = {
 export default function SubjectDetailPage() {
   const { subjectId } = useParams<{ subjectId: string }>();
   const router = useRouter();
+  const { addExtractionJob, addCurriculumJob, jobs } = useBackgroundTaskQueue();
 
   const [subject, setSubject] = useState<Subject | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,8 +137,17 @@ export default function SubjectDetailPage() {
 
   // Curriculum state
   const [curriculum, setCurriculum] = useState<any>(null);
-  const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
+  const [curriculumTaskId, setCurriculumTaskId] = useState<string | null>(null);
   const [curriculumPreview, setCurriculumPreview] = useState<any>(null);
+
+  // Derived: check if there's an active curriculum generation for this subject
+  const activeCurriculumJob = jobs.find(
+    (j) => j.taskType === "curriculum_generation" && j.subjectId === subjectId && j.progress.status === "in_progress"
+  );
+  const activeExtractionJobs = jobs.filter(
+    (j) => j.taskType === "extraction" && j.subjectId === subjectId && j.progress.status === "in_progress"
+  );
+  const generatingCurriculum = !!activeCurriculumJob;
 
   // Domain linking state
   const [allDomains, setAllDomains] = useState<Array<{ id: string; slug: string; name: string }>>([]);
@@ -133,11 +159,20 @@ export default function SubjectDetailPage() {
   const [editingDesc, setEditingDesc] = useState(false);
   const [editDesc, setEditDesc] = useState("");
 
+  // Media library state
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
+  const [mediaUploading, setMediaUploading] = useState(false);
+  const [mediaDragging, setMediaDragging] = useState(false);
+  const mediaFileRef = useRef<HTMLInputElement>(null);
+
   // Load subject
   useEffect(() => {
     loadSubject();
     loadCurriculum();
     loadDomains();
+    loadMedia();
   }, [subjectId]);
 
   async function loadSubject() {
@@ -171,6 +206,65 @@ export default function SubjectDetailPage() {
       setAllDomains(data.domains || []);
     } catch {}
   }
+
+  // ------------------------------------------------------------------
+  // Media library
+  // ------------------------------------------------------------------
+
+  async function loadMedia() {
+    setMediaLoading(true);
+    try {
+      const typeParam = mediaTypeFilter !== "all" ? `&type=${mediaTypeFilter}` : "";
+      const res = await fetch(`/api/subjects/${subjectId}/media?limit=100${typeParam}`);
+      const data = await res.json();
+      if (data.ok) setMediaAssets(data.media || []);
+    } catch {} finally {
+      setMediaLoading(false);
+    }
+  }
+
+  async function handleMediaUpload(files: File[]) {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf", "audio/mpeg", "audio/wav", "audio/ogg"];
+    const valid = files.filter((f) => allowed.includes(f.type));
+    if (valid.length === 0) {
+      setError("No valid files. Supported: JPG, PNG, WebP, PDF, MP3, WAV, OGG");
+      return;
+    }
+    setMediaUploading(true);
+    try {
+      for (const file of valid) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("subjectId", subjectId);
+        const res = await fetch("/api/media/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!data.ok) setError(`Upload failed: ${data.error}`);
+      }
+      loadMedia();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setMediaUploading(false);
+    }
+  }
+
+  async function unlinkMedia(mediaId: string) {
+    try {
+      await fetch(`/api/subjects/${subjectId}/media`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaId }),
+      });
+      setMediaAssets((prev) => prev.filter((m) => m.id !== mediaId));
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  // Reload media when filter changes
+  useEffect(() => {
+    if (subjectId) loadMedia();
+  }, [mediaTypeFilter]);
 
   // ------------------------------------------------------------------
   // Subject editing
@@ -240,12 +334,12 @@ export default function SubjectDetailPage() {
 
     setUploadResults([]);
 
-    for (const file of validFiles) {
+    // Upload all files in parallel — each returns immediately with a background job
+    const uploads = validFiles.map(async (file) => {
       setUploadingFiles((prev) => [...prev, file.name]);
       try {
         const fd = new FormData();
         fd.append("file", file);
-        fd.append("mode", "import");
         fd.append("tags", "content");
 
         const res = await fetch(`/api/subjects/${subjectId}/upload`, {
@@ -253,15 +347,33 @@ export default function SubjectDetailPage() {
           body: fd,
         });
         const data = await res.json();
-        setUploadResults((prev) => [...prev, { fileName: file.name, ...data }]);
+
+        // Add to global job queue for background tracking
+        if (data.ok && data.jobId) {
+          addExtractionJob(
+            data.jobId,
+            data.source.id,
+            data.source.name,
+            file.name,
+            subjectId
+          );
+          setUploadResults((prev) => [
+            ...prev,
+            { fileName: file.name, ok: true, message: "Extraction started in background" },
+          ]);
+        } else {
+          setUploadResults((prev) => [...prev, { fileName: file.name, ...data }]);
+        }
       } catch (err: any) {
         setUploadResults((prev) => [...prev, { fileName: file.name, ok: false, error: err.message }]);
       } finally {
         setUploadingFiles((prev) => prev.filter((n) => n !== file.name));
       }
-    }
+    });
 
-    // Refresh subject data
+    await Promise.all(uploads);
+
+    // Refresh subject data (new sources will show even before extraction completes)
     loadSubject();
   }
 
@@ -344,7 +456,6 @@ export default function SubjectDetailPage() {
   // ------------------------------------------------------------------
 
   async function generateCurriculum() {
-    setGeneratingCurriculum(true);
     setCurriculumPreview(null);
     try {
       const res = await fetch(`/api/subjects/${subjectId}/curriculum`, {
@@ -354,26 +465,55 @@ export default function SubjectDetailPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setCurriculumPreview(data.curriculum);
+      // Async — add to background queue and poll for completion
+      if (data.taskId) {
+        setCurriculumTaskId(data.taskId);
+        addCurriculumJob(data.taskId, subjectId, subject?.name || "Subject");
+      }
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setGeneratingCurriculum(false);
     }
   }
+
+  // Poll for curriculum task completion
+  useEffect(() => {
+    const taskId = curriculumTaskId || activeCurriculumJob?.taskId;
+    if (!taskId) return;
+
+    // Check if the task just completed in the job queue
+    const job = jobs.find((j) => j.taskId === taskId);
+    if (job && job.progress.status === "completed") {
+      // Fetch the preview
+      fetch(`/api/subjects/${subjectId}/curriculum/preview?taskId=${taskId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok && data.curriculum) {
+            setCurriculumPreview(data.curriculum);
+            setCurriculumTaskId(null);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [jobs, curriculumTaskId, activeCurriculumJob?.taskId, subjectId]);
 
   async function saveCurriculum() {
     setSaving(true);
     try {
+      const taskId = curriculumTaskId || activeCurriculumJob?.taskId;
       const res = await fetch(`/api/subjects/${subjectId}/curriculum`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "save" }),
+        body: JSON.stringify({
+          mode: "save",
+          taskId,
+          curriculum: curriculumPreview,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCurriculum(data.curriculum);
       setCurriculumPreview(null);
+      setCurriculumTaskId(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -574,7 +714,9 @@ export default function SubjectDetailPage() {
                 }}
               >
                 {r.ok
-                  ? `${r.fileName}: ${r.created} assertions extracted (${r.duplicatesSkipped} duplicates skipped)`
+                  ? r.message
+                    ? `${r.fileName}: ${r.message}`
+                    : `${r.fileName}: ${r.created} assertions extracted (${r.duplicatesSkipped} duplicates skipped)`
                   : `${r.fileName}: ${r.error}`}
               </div>
             ))}
@@ -633,7 +775,12 @@ export default function SubjectDetailPage() {
       <section style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Curriculum</h2>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {generatingCurriculum && (
+              <span style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 600 }}>
+                Generating in background...
+              </span>
+            )}
             {totalAssertions > 0 && (
               <button
                 onClick={generateCurriculum}
@@ -645,15 +792,35 @@ export default function SubjectDetailPage() {
                   background: "var(--bg)",
                   fontWeight: 600,
                   fontSize: 13,
-                  cursor: generatingCurriculum ? "wait" : "pointer",
+                  cursor: generatingCurriculum ? "not-allowed" : "pointer",
                   opacity: generatingCurriculum ? 0.6 : 1,
                 }}
               >
-                {generatingCurriculum ? "Generating..." : hasSyllabus ? "Generate from Syllabus" : "Generate from All Sources"}
+                {generatingCurriculum
+                  ? "Generating..."
+                  : curriculum
+                  ? "Regenerate"
+                  : hasSyllabus
+                  ? "Generate from Syllabus"
+                  : "Generate from All Sources"}
               </button>
             )}
           </div>
         </div>
+
+        {/* Auto-trigger notice */}
+        {activeExtractionJobs.length > 0 && !generatingCurriculum && (
+          <div style={{
+            padding: "8px 12px",
+            borderRadius: 6,
+            background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            marginBottom: 12,
+          }}>
+            {activeExtractionJobs.length} extraction{activeExtractionJobs.length > 1 ? "s" : ""} running &mdash; curriculum will generate automatically when complete.
+          </div>
+        )}
 
         {/* Curriculum preview (unsaved) */}
         {curriculumPreview && (

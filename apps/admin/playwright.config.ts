@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const AUTH_FILE = '.playwright/auth.json';
+const isCloud = !!process.env.CLOUD_E2E;
 
 /**
  * Playwright Configuration for E2E Testing
@@ -19,11 +20,14 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
 
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Retry — cloud gets more retries due to network variability */
+  retries: isCloud ? 3 : process.env.CI ? 2 : 0,
 
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
+
+  /* Cloud tests get longer timeouts for AI calls + network latency */
+  timeout: isCloud ? 120_000 : 30_000,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
@@ -47,8 +51,11 @@ export default defineConfig({
     /* Video on failure */
     video: 'retain-on-failure',
 
-    /* Maximum time each action can take */
-    actionTimeout: 10000,
+    /* Maximum time each action can take — cloud gets more time */
+    actionTimeout: isCloud ? 30_000 : 10_000,
+
+    /* Navigation timeout for cloud latency */
+    navigationTimeout: isCloud ? 60_000 : 30_000,
   },
 
   /* Configure projects for major browsers */
@@ -56,7 +63,7 @@ export default defineConfig({
     /* Authenticated tests - run with pre-established session */
     {
       name: 'authenticated',
-      testMatch: /tests\/.+\.spec\.ts/,
+      testMatch: /tests\/(?!cloud\/).+\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: AUTH_FILE,
@@ -76,9 +83,19 @@ export default defineConfig({
     /* Mobile viewport tests */
     {
       name: 'mobile',
-      testMatch: /tests\/.+\.spec\.ts/,
+      testMatch: /tests\/(?!cloud\/).+\.spec\.ts/,
       use: {
         ...devices['Pixel 5'],
+        storageState: AUTH_FILE,
+      },
+    },
+
+    /* Cloud E2E tests — full system flow against cloud environment */
+    {
+      name: 'cloud',
+      testMatch: /tests\/cloud\/.+\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
         storageState: AUTH_FILE,
       },
     },

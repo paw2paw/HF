@@ -29,7 +29,7 @@ type RunFeedback = {
 };
 
 export interface SourcePageHeaderProps {
-  title: string;
+  title: string | React.ReactNode;
   description: string;
   /** Data node ID for fetching related agents (optional - if omitted, agents bar won't show) */
   dataNodeId?: string;

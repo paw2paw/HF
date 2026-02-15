@@ -5,6 +5,7 @@
 
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext } from "../types";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 /**
  * Compute voice-specific guidance for VAPI/voice AI.
@@ -18,7 +19,7 @@ registerTransform("computeVoiceGuidance", (
   const personality = context.loadedData.personality;
   const { thresholds } = context.sharedState;
 
-  const voiceConfig = voiceSpec?.config as any;
+  const voiceConfig = voiceSpec?.config as SpecConfig;
 
   const responseLengthConfig = voiceConfig?.response_length || null;
   const pacingConfig = voiceConfig?.pacing || null;

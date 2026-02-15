@@ -159,7 +159,7 @@ export async function POST(
       specRole === SpecRole.IDENTITY ||
       specRole === SpecRole.CONTENT ||
       specRole === SpecRole.VOICE ||
-      specRole === SpecRole.GUARDRAIL ||
+      (specRole as string) === "GUARDRAIL" ||
       outputType === AnalysisOutputType.LEARN ||
       outputType === AnalysisOutputType.COMPOSE;
 
@@ -456,7 +456,7 @@ export async function POST(
         config.sessionStructure = rawSpecData.sessionStructure;
         config.assessmentStrategy = rawSpecData.assessmentStrategy;
       }
-    } else if (specRole === SpecRole.BOOTSTRAP) {
+    } else if ((specRole as string) === "BOOTSTRAP") {
       config = {
         parameters: compiledParams.map(p => ({
           id: p.id || p.parameterId,
@@ -531,7 +531,7 @@ export async function POST(
     }
 
     // 6. Create PromptSlugs for BOOTSTRAP specs (personas, welcome messages, phase instructions)
-    if (specRole === SpecRole.BOOTSTRAP && rawSpecData?.personas) {
+    if ((specRole as string) === "BOOTSTRAP" && rawSpecData?.personas) {
       const personaKeys = Object.keys(rawSpecData.personas).filter(k => !k.startsWith("_") && k !== "defaultPersona");
 
       for (const personaSlug of personaKeys) {

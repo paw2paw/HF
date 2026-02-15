@@ -12,6 +12,7 @@
  *   trust.*         — Content trust weights
  *   ai_learning.*   — AI pattern learning rates
  *   cache.*         — Cache TTL tuning
+ *   email.*         — Email template text blocks
  */
 
 import { prisma } from "@/lib/prisma";
@@ -178,6 +179,35 @@ export async function getGoalSettings(): Promise<GoalSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 3b. ARTIFACTS
+// ═══════════════════════════════════════════════════════
+
+export interface ArtifactSettings {
+  confidenceThreshold: number;
+  similarityThreshold: number;
+  transcriptMinChars: number;
+  transcriptLimitChars: number;
+}
+
+export const ARTIFACT_DEFAULTS: ArtifactSettings = {
+  confidenceThreshold: 0.6,
+  similarityThreshold: 0.8,
+  transcriptMinChars: 100,
+  transcriptLimitChars: 4000,
+};
+
+const ARTIFACT_KEYS: Record<keyof ArtifactSettings, string> = {
+  confidenceThreshold: "artifacts.confidence_threshold",
+  similarityThreshold: "artifacts.similarity_threshold",
+  transcriptMinChars: "artifacts.transcript_min_chars",
+  transcriptLimitChars: "artifacts.transcript_limit_chars",
+};
+
+export async function getArtifactSettings(): Promise<ArtifactSettings> {
+  return loadGroup(ARTIFACT_KEYS, ARTIFACT_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // 4. CONTENT TRUST
 // ═══════════════════════════════════════════════════════
 
@@ -303,6 +333,62 @@ export async function getDemoCaptureSettings(): Promise<DemoCaptureSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 8. EMAIL TEMPLATES
+// ═══════════════════════════════════════════════════════
+
+export interface EmailTemplateSettings {
+  magicLinkSubject: string;
+  magicLinkHeading: string;
+  magicLinkBody: string;
+  magicLinkButtonText: string;
+  magicLinkFooter: string;
+  inviteSubject: string;
+  inviteHeading: string;
+  inviteBody: string;
+  inviteButtonText: string;
+  inviteFooter: string;
+  sharedFromName: string;
+  sharedBrandColorStart: string;
+  sharedBrandColorEnd: string;
+}
+
+export const EMAIL_TEMPLATE_DEFAULTS: EmailTemplateSettings = {
+  magicLinkSubject: "Sign in to HF Admin",
+  magicLinkHeading: "Sign In",
+  magicLinkBody: "Click the button below to sign in to your account. No password needed.",
+  magicLinkButtonText: "Sign In",
+  magicLinkFooter: "This link expires in 24 hours. If you didn't request this, ignore this email.",
+  inviteSubject: "You're invited to test HF — {{domainName}}",
+  inviteHeading: "You're Invited",
+  inviteBody: "{{greeting}} {{context}}",
+  inviteButtonText: "Accept Invitation",
+  inviteFooter: "This invitation expires in 7 days.",
+  sharedFromName: "HF Admin",
+  sharedBrandColorStart: "#3b82f6",
+  sharedBrandColorEnd: "#9333ea",
+};
+
+const EMAIL_TEMPLATE_KEYS: Record<keyof EmailTemplateSettings, string> = {
+  magicLinkSubject: "email.magic_link.subject",
+  magicLinkHeading: "email.magic_link.heading",
+  magicLinkBody: "email.magic_link.body",
+  magicLinkButtonText: "email.magic_link.button_text",
+  magicLinkFooter: "email.magic_link.footer",
+  inviteSubject: "email.invite.subject",
+  inviteHeading: "email.invite.heading",
+  inviteBody: "email.invite.body",
+  inviteButtonText: "email.invite.button_text",
+  inviteFooter: "email.invite.footer",
+  sharedFromName: "email.shared.from_name",
+  sharedBrandColorStart: "email.shared.brand_color_start",
+  sharedBrandColorEnd: "email.shared.brand_color_end",
+};
+
+export async function getEmailTemplateSettings(): Promise<EmailTemplateSettings> {
+  return loadGroup(EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -310,7 +396,7 @@ export interface SettingDef {
   key: string;
   label: string;
   description: string;
-  type: "int" | "float" | "bool" | "text";
+  type: "int" | "float" | "bool" | "text" | "textarea";
   default: number | boolean | string;
   min?: number;
   max?: number;
@@ -418,6 +504,30 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "demo.default_domain", label: "Default domain", description: "Domain slug used for entity screenshots", type: "text", default: "qm-tutor", placeholder: "e.g. qm-tutor" },
       { key: "demo.default_playbook", label: "Default playbook", description: "Playbook name (leave empty for first available)", type: "text", default: "", placeholder: "e.g. QM Adaptive v1" },
       { key: "demo.default_spec", label: "Default spec", description: "Spec slug for spec-related screenshots", type: "text", default: "PERS-001", placeholder: "e.g. PERS-001" },
+    ],
+  },
+  {
+    id: "email",
+    label: "Email Templates",
+    icon: "Mail",
+    description: "Customise the text and branding of system emails (magic link sign-in and invitations)",
+    settings: [
+      // ── Shared branding ──
+      { key: "email.shared.from_name", label: "Sender name", description: "The 'from' name shown in recipients' inboxes", type: "text", default: "HF Admin", placeholder: "e.g. HF Admin" },
+      { key: "email.shared.brand_color_start", label: "Brand gradient start", description: "Hex colour for the header gradient (left/top)", type: "text", default: "#3b82f6", placeholder: "#3b82f6" },
+      { key: "email.shared.brand_color_end", label: "Brand gradient end", description: "Hex colour for the header gradient (right/bottom)", type: "text", default: "#9333ea", placeholder: "#9333ea" },
+      // ── Magic link email ──
+      { key: "email.magic_link.subject", label: "Magic link — Subject", description: "Email subject line for magic link sign-in", type: "text", default: "Sign in to HF Admin", placeholder: "Sign in to HF Admin" },
+      { key: "email.magic_link.heading", label: "Magic link — Heading", description: "Heading text shown in the email header", type: "text", default: "Sign In", placeholder: "Sign In" },
+      { key: "email.magic_link.body", label: "Magic link — Body", description: "Main body text above the sign-in button", type: "textarea", default: "Click the button below to sign in to your account. No password needed." },
+      { key: "email.magic_link.button_text", label: "Magic link — Button", description: "Call-to-action button label", type: "text", default: "Sign In", placeholder: "Sign In" },
+      { key: "email.magic_link.footer", label: "Magic link — Footer", description: "Footer text below the button", type: "textarea", default: "This link expires in 24 hours. If you didn't request this, ignore this email." },
+      // ── Invite email ──
+      { key: "email.invite.subject", label: "Invite — Subject", description: "Use {{domainName}} for the domain. E.g. \"Join HF — {{domainName}}\"", type: "text", default: "You're invited to test HF — {{domainName}}", placeholder: "You're invited to test HF — {{domainName}}" },
+      { key: "email.invite.heading", label: "Invite — Heading", description: "Heading text shown in the email header", type: "text", default: "You're Invited", placeholder: "You're Invited" },
+      { key: "email.invite.body", label: "Invite — Body", description: "Use {{greeting}} and {{context}} for dynamic content", type: "textarea", default: "{{greeting}} {{context}}" },
+      { key: "email.invite.button_text", label: "Invite — Button", description: "Call-to-action button label", type: "text", default: "Accept Invitation", placeholder: "Accept Invitation" },
+      { key: "email.invite.footer", label: "Invite — Footer", description: "Footer text below the button", type: "textarea", default: "This invitation expires in 7 days." },
     ],
   },
 ];

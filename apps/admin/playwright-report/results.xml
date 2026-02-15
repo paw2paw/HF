@@ -1,5 +1,5 @@
-<testsuites id="" name="" tests="249" failures="0" skipped="249" errors="0" time="0.05199699999999996">
-<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuites id="" name="" tests="115" failures="0" skipped="115" errors="0" time="0.11048099999999977">
+<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Authentication › Login Flow › should display login page with email and password fields" classname="tests/auth/login.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -37,7 +37,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/callers/callers-list.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/callers/callers-list.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Callers List › should display callers list page" classname="tests/callers/callers-list.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -75,7 +75,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/components/draggable-tabs.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/components/draggable-tabs.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Draggable Tabs › Tab Display › should display tabs on pipeline page" classname="tests/components/draggable-tabs.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -113,7 +113,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/components/fancy-select.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/components/fancy-select.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="FancySelect Component › Dropdown Behavior › should open dropdown on click" classname="tests/components/fancy-select.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -151,7 +151,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/navigation/sidebar.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testsuite name="tests/navigation/sidebar.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="18" failures="0" skipped="18" time="0" errors="0">
 <testcase name="Sidebar Navigation › Navigation Links › should display sidebar on dashboard" classname="tests/navigation/sidebar.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -225,7 +225,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/pipeline/pipeline-page.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/pipeline/pipeline-page.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Pipeline › Pipeline List › should display pipeline page at /x/pipeline" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -263,7 +263,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/playbooks/playbook-crud.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testsuite name="tests/playbooks/playbook-crud.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
 <testcase name="Playbook Management › Playbook List › should display playbooks list at /x/playbooks" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -305,7 +305,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/playground/playground.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="11" failures="0" skipped="11" time="0" errors="0">
+<testsuite name="tests/playground/playground.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="11" failures="0" skipped="11" time="0" errors="0">
 <testcase name="Playground › Playground Page › should display playground at /x/playground" classname="tests/playground/playground.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -351,7 +351,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/settings/theme.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testsuite name="tests/settings/theme.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
 <testcase name="Theme Settings › Theme Toggle › should display theme toggle" classname="tests/settings/theme.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -389,7 +389,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/specs/specs-page.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="12" failures="0" skipped="12" time="0" errors="0">
+<testsuite name="tests/specs/specs-page.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="12" failures="0" skipped="12" time="0" errors="0">
 <testcase name="Specs Management › Specs List › should display specs list at /x/specs" classname="tests/specs/specs-page.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -439,7 +439,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="tests/user-preferences/isolation.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testsuite name="tests/user-preferences/isolation.spec.ts" timestamp="2026-02-14T15:52:27.830Z" hostname="authenticated" tests="10" failures="0" skipped="10" time="0" errors="0">
 <testcase name="User Preferences Isolation › Multi-User Isolation › Alice preferences should not affect Bob" classname="tests/user-preferences/isolation.spec.ts" time="0">
 <skipped>
 </skipped>
@@ -477,572 +477,6 @@
 </skipped>
 </testcase>
 <testcase name="User Preferences Isolation › Anonymous Users › should allow preferences for anonymous users" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="unauthenticated" tests="9" failures="0" skipped="9" time="0" errors="0">
-<testcase name="Authentication › Login Flow › should display login page with email and password fields" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should login with valid credentials" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should show error for invalid password" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should disable submit button when fields are empty" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should switch to magic link mode" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should redirect to callbackUrl after login" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Route Protection › should redirect unauthenticated users to login" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Route Protection › should protect all /x/* routes" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Route Protection › should allow access to login page" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/auth/login.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
-<testcase name="Authentication › Login Flow › should display login page with email and password fields" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should login with valid credentials" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should show error for invalid password" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should disable submit button when fields are empty" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should switch to magic link mode" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Login Flow › should redirect to callbackUrl after login" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Route Protection › should redirect unauthenticated users to login" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Route Protection › should protect all /x/* routes" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication › Route Protection › should allow access to login page" classname="tests/auth/login.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/callers/callers-list.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
-<testcase name="Callers List › should display callers list page" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Callers List › should navigate to callers via sidebar" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Callers List › should display caller cards or table" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Callers List › should have search functionality" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Callers List › should navigate to caller detail on click" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Callers List › should display domain filter" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Caller Detail › should display caller profile when navigating to detail" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Caller Detail › should display tabs on caller detail page" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Caller Detail › should switch between tabs" classname="tests/callers/callers-list.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/components/draggable-tabs.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
-<testcase name="Draggable Tabs › Tab Display › should display tabs on pipeline page" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Tab Display › should highlight active tab" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Tab Display › should switch tabs on click" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Drag and Drop › should have draggable tabs" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Drag and Drop › should reorder tabs via drag-drop" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Persistence › should persist tab order to localStorage" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Persistence › should restore tab order on page load" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Reset Button › should show reset button when order is customized" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Draggable Tabs › Reset Button › should restore default order on reset" classname="tests/components/draggable-tabs.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/components/fancy-select.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
-<testcase name="FancySelect Component › Dropdown Behavior › should open dropdown on click" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Dropdown Behavior › should close dropdown on click outside" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Dropdown Behavior › should close dropdown on Escape key" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Search Filtering › should filter options by search text" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Search Filtering › should show no results message when search has no matches" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Keyboard Navigation › should navigate options with arrow keys" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Keyboard Navigation › should select option with Enter key" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Selection › should display selected value" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="FancySelect Component › Selection › should have clear button when value selected" classname="tests/components/fancy-select.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/navigation/sidebar.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="18" failures="0" skipped="18" time="0" errors="0">
-<testcase name="Sidebar Navigation › Navigation Links › should display sidebar on dashboard" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Callers page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Playbooks page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Pipeline page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Playground page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Specs page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Domains page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Taxonomy page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Dictionary page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Navigation Links › should navigate to Metering page" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Active State › should highlight current route" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Active State › should update active state on navigation" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Sidebar Sections › should display organized sections" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Sidebar Sections › should collapse/expand sections" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Responsive Behavior › should be visible on desktop" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Sidebar Navigation › Responsive Behavior › should handle sidebar collapse" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Page Layout › should display header on all pages" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Page Layout › should display main content area" classname="tests/navigation/sidebar.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/pipeline/pipeline-page.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
-<testcase name="Pipeline › Pipeline List › should display pipeline page at /x/pipeline" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Pipeline List › should navigate to pipeline via sidebar" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Pipeline List › should display run history" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Tabs › should display tabs on pipeline page" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Tabs › should switch between tabs" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Run Inspector › should display run inspector panel" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Run Inspector › should show run details when run selected" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Blueprint › should display blueprint tab" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Pipeline › Run Actions › should have run/execute button" classname="tests/pipeline/pipeline-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/playbooks/playbook-crud.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="10" failures="0" skipped="10" time="0" errors="0">
-<testcase name="Playbook Management › Playbook List › should display playbooks list at /x/playbooks" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Playbook List › should navigate to playbooks via sidebar" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Playbook List › should display playbook cards or table" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Playbook List › should have create playbook button" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Playbook Detail › should navigate to playbook detail" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Playbook Detail › should display playbook builder" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Playbook Detail › should display spec list in playbook" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Playbook Status › should display playbook status badge" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Spec Management › should display available specs to add" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playbook Management › Spec Management › should have save button" classname="tests/playbooks/playbook-crud.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/playground/playground.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="11" failures="0" skipped="11" time="0" errors="0">
-<testcase name="Playground › Playground Page › should display playground at /x/playground" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Playground Page › should navigate to playground via sidebar" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Caller Selection › should have caller picker" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Caller Selection › should allow selecting a caller" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Prompt Generation › should have generate prompt button" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Prompt Generation › should display prompt output area" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Draft Spec › should have draft spec panel" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Draft Spec › should allow pasting spec JSON" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Draft Spec › should validate spec JSON format" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Modes › should display mode tabs" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Playground › Modes › should switch between modes" classname="tests/playground/playground.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/settings/theme.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="9" failures="0" skipped="9" time="0" errors="0">
-<testcase name="Theme Settings › Theme Toggle › should display theme toggle" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › Theme Toggle › should have light, dark, and system options" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › Theme Toggle › should switch to dark theme" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › Theme Toggle › should switch to light theme" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › Theme Persistence › should persist theme across page navigation" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › Theme Persistence › should persist theme across sessions" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › Color Palette › should save light mode palette" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › Color Palette › should save dark mode palette" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Theme Settings › CSS Variables › should update CSS variables when theme changes" classname="tests/settings/theme.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/specs/specs-page.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="12" failures="0" skipped="12" time="0" errors="0">
-<testcase name="Specs Management › Specs List › should display specs list at /x/specs" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Specs Management › Specs List › should navigate to specs via sidebar" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Specs Management › Specs List › should display spec items" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Specs Management › Specs List › should have create new spec button" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Specs Management › Sync Badge › should show sync badge when unimported specs exist" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Specs Management › Sync Badge › should navigate to spec sync page" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Specs Management › Spec Detail › should navigate to spec detail on click" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Spec Sync › should display spec sync page" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Spec Sync › should show synced, unseeded, and orphaned sections" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Spec Sync › should display summary counts" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Spec Sync › should have seed button" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Spec Sync › should allow selecting specs for import" classname="tests/specs/specs-page.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="tests/user-preferences/isolation.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="mobile" tests="10" failures="0" skipped="10" time="0" errors="0">
-<testcase name="User Preferences Isolation › Multi-User Isolation › Alice preferences should not affect Bob" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Multi-User Isolation › preferences persist across sessions for same user" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Tab Order Persistence › should save tab order to localStorage" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Tab Order Persistence › should restore tab order from localStorage" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Sidebar Order Persistence › should save sidebar section order" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Theme Persistence › should save theme preference" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Theme Persistence › should persist theme across page navigation" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Error Handling › should handle localStorage errors gracefully" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Error Handling › should use defaults for corrupted stored data" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="User Preferences Isolation › Anonymous Users › should allow preferences for anonymous users" classname="tests/user-preferences/isolation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="_archived/01-navigation.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="legacy" tests="4" failures="0" skipped="4" time="0" errors="0">
-<testcase name="Navigation › should load homepage successfully" classname="_archived/01-navigation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Navigation › should navigate to callers page" classname="_archived/01-navigation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Navigation › should navigate to playbooks page" classname="_archived/01-navigation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Navigation › should navigate to transcripts page" classname="_archived/01-navigation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="_archived/02-caller-workflow.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="legacy" tests="3" failures="0" skipped="3" time="0" errors="0">
-<testcase name="Caller Management › should view caller list" classname="_archived/02-caller-workflow.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Caller Management › should view caller details" classname="_archived/02-caller-workflow.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Caller Management › should open chat panel from caller page" classname="_archived/02-caller-workflow.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-</testsuite>
-<testsuite name="_archived/03-call-simulation.spec.ts" timestamp="2026-02-12T15:47:14.945Z" hostname="legacy" tests="3" failures="0" skipped="3" time="0" errors="0">
-<testcase name="Call Simulation › should start a simulated call" classname="_archived/03-call-simulation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Call Simulation › should send messages during call" classname="_archived/03-call-simulation.spec.ts" time="0">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Call Simulation › should end a call" classname="_archived/03-call-simulation.spec.ts" time="0">
 <skipped>
 </skipped>
 </testcase>

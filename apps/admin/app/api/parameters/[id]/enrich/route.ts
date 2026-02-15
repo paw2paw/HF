@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import Anthropic from "@anthropic-ai/sdk";
+import { prisma } from "@/lib/prisma";
+import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-
-const prisma = new PrismaClient();
 
 export const runtime = "nodejs";
 
@@ -16,7 +14,6 @@ export const runtime = "nodejs";
  * @description AI-powered enrichment of a parameter's high/low interpretations. Searches knowledge base chunks and uses Claude to expand definitions with deeper behavioral context.
  * @pathParam id string - Parameter UUID or parameterId
  * @body searchTerms string[] - Optional additional search terms
- * @body model string - Claude model (default: claude-3-haiku-20240307)
  * @body dryRun boolean - If true, returns enrichment without saving (default: false)
  * @response 200 { ok: true, parameterId, name, original: { interpretationHigh, interpretationLow }, enriched: { enrichedHigh, enrichedLow }, chunksUsed: [], usage: { inputTokens, outputTokens }, saved: boolean }
  * @response 404 { ok: false, error: "Parameter not found" }
@@ -35,7 +32,6 @@ export async function POST(
     const body = await req.json();
     const {
       searchTerms = [],
-      model = "claude-3-haiku-20240307",
       dryRun = false,
     } = body;
 
@@ -73,25 +69,15 @@ export async function POST(
     // Build enrichment prompt
     const enrichmentPrompt = buildEnrichmentPrompt(parameter, chunks);
 
-    // Check for API key
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { ok: false, error: "ANTHROPIC_API_KEY not configured" },
-        { status: 500 }
-      );
-    }
-
-    const anthropic = new Anthropic({ apiKey });
-
-    // Call Claude to generate enriched definitions
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: 2048,
+    // @ai-call parameter.enrich — AI-powered enrichment of parameter interpretations | config: /x/ai-config
+    const response = await getConfiguredMeteredAICompletion({
+      callPoint: "parameter.enrich",
       messages: [{ role: "user", content: enrichmentPrompt }],
+      temperature: 0.3,
+      maxTokens: 2048,
     });
 
-    const responseText = response.content[0].type === "text" ? response.content[0].text : "";
+    const responseText = response.content || "";
 
     // Parse response
     const enrichment = parseEnrichmentResponse(responseText);
@@ -135,10 +121,10 @@ export async function POST(
         docId: c.docId,
         relevance: c.relevance,
       })),
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
+      usage: response.usage ? {
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+      } : undefined,
       saved: !dryRun,
     });
   } catch (error: any) {

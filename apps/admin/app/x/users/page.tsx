@@ -89,7 +89,7 @@ export default function UsersPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Audit logging state
   const [auditEnabled, setAuditEnabled] = useState(false);
@@ -282,37 +282,11 @@ export default function UsersPage() {
     }
   };
 
-  const handleChangeRole = async (user: User, newRole: UserRole) => {
-    try {
-      await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, role: newRole }),
-      });
-      fetchData();
-    } catch (err) {
-      console.error("Failed to update role:", err);
-    }
-  };
-
-  const handleChangeDomain = async (user: User, domainId: string) => {
-    try {
-      await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, assignedDomainId: domainId }),
-      });
-      fetchData();
-    } catch (err) {
-      console.error("Failed to update domain:", err);
-    }
-  };
 
   const handleDeleteUser = async (userId: string) => {
     try {
       const res = await fetch(`/api/admin/users?id=${userId}`, { method: "DELETE" });
       if (res.ok) {
-        setConfirmDelete(null);
         fetchData();
       }
     } catch (err) {
@@ -320,18 +294,6 @@ export default function UsersPage() {
     }
   };
 
-  const handleUpdateProfile = async (userId: string, updates: { name?: string; displayName?: string }) => {
-    try {
-      await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: userId, ...updates }),
-      });
-      fetchData();
-    } catch (err) {
-      console.error("Failed to update profile:", err);
-    }
-  };
 
   if (loading) {
     return (
@@ -346,7 +308,7 @@ export default function UsersPage() {
     );
   }
 
-  const isAdmin = session?.user?.role === "ADMIN";
+  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN";
   const activeUsers = users.filter((u) => u.isActive);
   const inactiveUsers = users.filter((u) => !u.isActive);
   const pendingInvites = invites.filter((i) => !i.usedAt);
@@ -718,17 +680,7 @@ export default function UsersPage() {
                 user={user}
                 isCurrentUser={user.id === session?.user?.id}
                 isAdmin={isAdmin}
-                domains={domains}
-                roleOptions={contractRoles}
-                domainScopableRoles={domainScopableRoles}
-                confirmDelete={confirmDelete}
-                onToggleActive={() => handleToggleActive(user)}
-                onChangeRole={(role) => handleChangeRole(user, role)}
-                onChangeDomain={(domainId) => handleChangeDomain(user, domainId)}
-                onDelete={() => handleDeleteUser(user.id)}
-                onConfirmDelete={() => setConfirmDelete(user.id)}
-                onCancelDelete={() => setConfirmDelete(null)}
-                onUpdateProfile={(updates) => handleUpdateProfile(user.id, updates)}
+                onOpen={() => setSelectedUser(user)}
               />
             ))}
           </div>
@@ -748,21 +700,31 @@ export default function UsersPage() {
                 user={user}
                 isCurrentUser={user.id === session?.user?.id}
                 isAdmin={isAdmin}
-                domains={domains}
-                roleOptions={contractRoles}
-                domainScopableRoles={domainScopableRoles}
-                confirmDelete={confirmDelete}
-                onToggleActive={() => handleToggleActive(user)}
-                onChangeRole={(role) => handleChangeRole(user, role)}
-                onChangeDomain={(domainId) => handleChangeDomain(user, domainId)}
-                onDelete={() => handleDeleteUser(user.id)}
-                onConfirmDelete={() => setConfirmDelete(user.id)}
-                onCancelDelete={() => setConfirmDelete(null)}
-                onUpdateProfile={(updates) => handleUpdateProfile(user.id, updates)}
+                onOpen={() => setSelectedUser(user)}
               />
             ))}
           </div>
         </div>
+      )}
+
+      {/* User Editor Modal */}
+      {selectedUser && (
+        <UserEditorModal
+          user={selectedUser}
+          isCurrentUser={selectedUser.id === session?.user?.id}
+          domains={domains}
+          roleOptions={contractRoles}
+          domainScopableRoles={domainScopableRoles}
+          onToggleActive={async () => {
+            await handleToggleActive(selectedUser);
+            setSelectedUser(null);
+          }}
+          onDelete={async () => {
+            await handleDeleteUser(selectedUser.id);
+            setSelectedUser(null);
+          }}
+          onClose={() => { setSelectedUser(null); fetchData(); }}
+        />
       )}
 
       {/* Admin Settings */}
@@ -876,46 +838,24 @@ function UserCard({
   user,
   isCurrentUser,
   isAdmin,
-  domains,
-  roleOptions,
-  domainScopableRoles,
-  confirmDelete,
-  onToggleActive,
-  onChangeRole,
-  onChangeDomain,
-  onDelete,
-  onConfirmDelete,
-  onCancelDelete,
-  onUpdateProfile,
+  onOpen,
 }: {
   user: User;
   isCurrentUser: boolean;
   isAdmin: boolean;
-  domains: Domain[];
-  roleOptions: string[];
-  domainScopableRoles: Set<string>;
-  confirmDelete: string | null;
-  onToggleActive: () => void;
-  onChangeRole: (role: UserRole) => void;
-  onChangeDomain: (domainId: string) => void;
-  onDelete: () => void;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
-  onUpdateProfile: (updates: { name?: string; displayName?: string }) => void;
+  onOpen: () => void;
 }) {
   const colors = ROLE_COLORS[user.role];
-  const isConfirming = confirmDelete === user.id;
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState(user.name || "");
-  const [editDisplayName, setEditDisplayName] = useState(user.displayName || "");
 
   return (
     <div
+      onClick={onOpen}
       style={{
         padding: 20, borderRadius: 12, position: "relative",
         background: "var(--surface-primary)",
         border: `1px solid ${user.isActive ? "var(--border-default)" : "#ef444433"}`,
         opacity: user.isActive ? 1 : 0.6,
+        cursor: "pointer",
         transition: "box-shadow 0.2s, border-color 0.2s",
       }}
       onMouseEnter={(e) => {
@@ -928,7 +868,7 @@ function UserCard({
       }}
     >
       {/* Top row: avatar + name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <div style={{
           width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
           background: getAvatarGradient(user.id),
@@ -948,201 +888,30 @@ function UserCard({
             {user.email}
           </div>
         </div>
-        {isCurrentUser && !editing && (
-          <button
-            onClick={() => setEditing(true)}
-            style={{
-              padding: "4px 10px", fontSize: 11, fontWeight: 500, borderRadius: 6,
-              border: "1px solid var(--border-default)", background: "transparent",
-              color: "var(--text-muted)", cursor: "pointer",
-            }}
-          >
-            Edit
-          </button>
-        )}
       </div>
-
-      {/* Editable profile fields (current user only) */}
-      {isCurrentUser && editing && (
-        <div style={{
-          padding: 12, marginBottom: 16, borderRadius: 8,
-          background: "var(--surface-secondary, var(--surface-primary))",
-          border: "1px solid var(--border-default)",
-          display: "flex", flexDirection: "column", gap: 10,
-        }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-              Full Name
-            </label>
-            <input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              placeholder="First Last"
-              style={{
-                width: "100%", padding: "6px 10px", fontSize: 13, borderRadius: 6,
-                border: "1px solid var(--border-default)", background: "var(--surface-primary)",
-                color: "var(--text-primary)", outline: "none",
-              }}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-              Display Name (what the system calls you)
-            </label>
-            <input
-              value={editDisplayName}
-              onChange={(e) => setEditDisplayName(e.target.value)}
-              placeholder="e.g. Paul"
-              style={{
-                width: "100%", padding: "6px 10px", fontSize: 13, borderRadius: 6,
-                border: "1px solid var(--border-default)", background: "var(--surface-primary)",
-                color: "var(--text-primary)", outline: "none",
-              }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
-              onClick={() => setEditing(false)}
-              style={{
-                padding: "5px 12px", fontSize: 12, borderRadius: 6,
-                border: "1px solid var(--border-default)", background: "transparent",
-                color: "var(--text-muted)", cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                onUpdateProfile({
-                  name: editName || undefined,
-                  displayName: editDisplayName || undefined,
-                });
-                setEditing(false);
-              }}
-              style={{
-                padding: "5px 12px", fontSize: 12, fontWeight: 600, borderRadius: 6,
-                border: "none", background: "var(--button-primary-bg)",
-                color: "#fff", cursor: "pointer",
-              }}
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Role + meta */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        {isAdmin && !isCurrentUser ? (
-          <select
-            value={user.role}
-            onChange={(e) => onChangeRole(e.target.value as UserRole)}
-            style={{
-              padding: "3px 8px", fontSize: 12, fontWeight: 600, borderRadius: 999,
-              background: colors.bg, color: colors.text,
-              border: "none", cursor: "pointer", appearance: "auto",
-            }}
-          >
-            {roleOptions.map((role) => (
-              <option key={role} value={role}>{role}</option>
-            ))}
-          </select>
-        ) : (
-          <span style={{
-            padding: "3px 10px", fontSize: 12, fontWeight: 600, borderRadius: 999,
-            background: colors.bg, color: colors.text,
-          }}>
-            {user.role}
-          </span>
-        )}
-        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          Joined {new Date(user.createdAt).toLocaleDateString()}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{
+          padding: "3px 10px", fontSize: 12, fontWeight: 600, borderRadius: 999,
+          background: colors.bg, color: colors.text,
+        }}>
+          {formatRoleLabel(user.role)}
         </span>
-      </div>
-
-      {/* Domain assignment (shown for scoped roles — derived from ENTITY_ACCESS_V1 contract) */}
-      {isAdmin && !isCurrentUser && (domainScopableRoles.has(user.role) || user.assignedDomainId) && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>Domain:</span>
-          <select
-            value={user.assignedDomainId || ""}
-            onChange={(e) => onChangeDomain(e.target.value)}
-            style={{
-              flex: 1, padding: "4px 8px", fontSize: 12, borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-secondary, var(--surface-primary))",
-              color: "var(--text-primary)", cursor: "pointer",
-            }}
-          >
-            <option value="">All domains</option>
-            {domains.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Domain badge (read-only for non-admins or self) */}
-      {user.assignedDomain && !(isAdmin && !isCurrentUser && (domainScopableRoles.has(user.role) || user.assignedDomainId)) && (
-        <div style={{ marginBottom: 12 }}>
-          <span style={{
-            padding: "2px 8px", fontSize: 11, borderRadius: 4,
-            background: "var(--surface-tertiary)", color: "var(--text-secondary)",
-          }}>
-            {user.assignedDomain.name}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {user.assignedDomain && (
+            <span style={{
+              padding: "2px 8px", fontSize: 11, borderRadius: 4,
+              background: "var(--border-default)", color: "var(--text-secondary)",
+            }}>
+              {user.assignedDomain.name}
+            </span>
+          )}
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {new Date(user.createdAt).toLocaleDateString()}
           </span>
         </div>
-      )}
-
-      {/* Actions */}
-      {isAdmin && !isCurrentUser && (
-        <div style={{ display: "flex", gap: 8, borderTop: "1px solid var(--border-default)", paddingTop: 12 }}>
-          <button
-            onClick={onToggleActive}
-            style={{
-              flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 500, borderRadius: 6,
-              border: "1px solid var(--border-default)", background: "transparent",
-              color: user.isActive ? "#f59e0b" : "#22c55e", cursor: "pointer",
-            }}
-          >
-            {user.isActive ? "Deactivate" : "Reactivate"}
-          </button>
-          {!isConfirming ? (
-            <button
-              onClick={onConfirmDelete}
-              style={{
-                padding: "6px 12px", fontSize: 12, fontWeight: 500, borderRadius: 6,
-                border: "1px solid #ef444444", background: "transparent",
-                color: "#ef4444", cursor: "pointer",
-              }}
-            >
-              Delete
-            </button>
-          ) : (
-            <div style={{ display: "flex", gap: 4 }}>
-              <button
-                onClick={onDelete}
-                style={{
-                  padding: "6px 10px", fontSize: 12, fontWeight: 600, borderRadius: 6,
-                  border: "none", background: "#ef4444", color: "#fff", cursor: "pointer",
-                }}
-              >
-                Confirm
-              </button>
-              <button
-                onClick={onCancelDelete}
-                style={{
-                  padding: "6px 10px", fontSize: 12, fontWeight: 500, borderRadius: 6,
-                  border: "1px solid var(--border-default)", background: "transparent",
-                  color: "var(--text-muted)", cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      </div>
 
       {/* Inactive badge */}
       {!user.isActive && (
@@ -1154,6 +923,322 @@ function UserCard({
           INACTIVE
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── User Editor Modal ── */
+function UserEditorModal({
+  user,
+  isCurrentUser,
+  domains,
+  roleOptions,
+  domainScopableRoles,
+  onToggleActive,
+  onDelete,
+  onClose,
+}: {
+  user: User;
+  isCurrentUser: boolean;
+  domains: Domain[];
+  roleOptions: string[];
+  domainScopableRoles: Set<string>;
+  onToggleActive: () => Promise<void>;
+  onDelete: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [editName, setEditName] = useState(user.name || "");
+  const [editDisplayName, setEditDisplayName] = useState(user.displayName || "");
+  const [editRole, setEditRole] = useState<UserRole>(user.role);
+  const [editDomainId, setEditDomainId] = useState(user.assignedDomainId || "");
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const colors = ROLE_COLORS[editRole] || ROLE_COLORS.VIEWER;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const handleSaveAll = async () => {
+    setSaving(true);
+    try {
+      // Batch: save names first, then role, then domain
+      const nameChanged = editName !== (user.name || "") || editDisplayName !== (user.displayName || "");
+      const roleChanged = editRole !== user.role;
+      const domainChanged = editDomainId !== (user.assignedDomainId || "");
+
+      if (nameChanged) {
+        // Use the PATCH endpoint directly for all fields at once
+        await fetch("/api/admin/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: user.id,
+            ...(nameChanged ? { name: editName || null, displayName: editDisplayName || null } : {}),
+            ...(roleChanged && !isCurrentUser ? { role: editRole } : {}),
+            ...(domainChanged && !isCurrentUser ? { assignedDomainId: editDomainId || null } : {}),
+          }),
+        });
+      } else if (roleChanged || domainChanged) {
+        await fetch("/api/admin/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: user.id,
+            ...(roleChanged && !isCurrentUser ? { role: editRole } : {}),
+            ...(domainChanged && !isCurrentUser ? { assignedDomainId: editDomainId || null } : {}),
+          }),
+        });
+      }
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "var(--surface-primary)", borderRadius: 16, padding: 32,
+          boxShadow: "0 24px 48px rgba(0,0,0,0.3)", border: "1px solid var(--border-default)",
+          width: 480, maxWidth: "90vw", maxHeight: "90vh", overflow: "auto",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
+            background: getAvatarGradient(user.id),
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, fontWeight: 700, color: "#fff",
+          }}>
+            {(user.displayName || user.name || user.email)[0].toUpperCase()}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>
+              {user.displayName || user.name || user.email.split("@")[0]}
+              {isCurrentUser && (
+                <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>(you)</span>
+              )}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{user.email}</div>
+          </div>
+          <span style={{
+            padding: "4px 12px", fontSize: 12, fontWeight: 600, borderRadius: 999,
+            background: colors.bg, color: colors.text,
+          }}>
+            {formatRoleLabel(editRole)}
+          </span>
+        </div>
+
+        {/* Form */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Full Name */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+              Full Name
+            </label>
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="First Last"
+              style={{
+                width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-secondary, var(--surface-primary))",
+                color: "var(--text-primary)", outline: "none",
+              }}
+            />
+          </div>
+
+          {/* Display Name */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+              Display Name
+            </label>
+            <input
+              value={editDisplayName}
+              onChange={(e) => setEditDisplayName(e.target.value)}
+              placeholder="What the system calls this user"
+              style={{
+                width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-secondary, var(--surface-primary))",
+                color: "var(--text-primary)", outline: "none",
+              }}
+            />
+          </div>
+
+          {/* Role */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+              Role
+            </label>
+            <select
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value as UserRole)}
+              disabled={isCurrentUser}
+              style={{
+                width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-secondary, var(--surface-primary))",
+                color: "var(--text-primary)", cursor: isCurrentUser ? "not-allowed" : "pointer",
+                opacity: isCurrentUser ? 0.5 : 1,
+              }}
+            >
+              {roleOptions.map((role) => (
+                <option key={role} value={role}>{formatRoleLabel(role)}</option>
+              ))}
+            </select>
+            {isCurrentUser && (
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                You cannot change your own role
+              </div>
+            )}
+          </div>
+
+          {/* Domain */}
+          {(domainScopableRoles.has(editRole) || editDomainId) && (
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                Domain
+              </label>
+              <select
+                value={editDomainId}
+                onChange={(e) => setEditDomainId(e.target.value)}
+                disabled={isCurrentUser}
+                style={{
+                  width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-secondary, var(--surface-primary))",
+                  color: "var(--text-primary)", cursor: isCurrentUser ? "not-allowed" : "pointer",
+                  opacity: isCurrentUser ? 0.5 : 1,
+                }}
+              >
+                <option value="">All domains</option>
+                {domains.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Status */}
+          {!isCurrentUser && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Status</div>
+                <div style={{ fontSize: 13, color: user.isActive ? "#22c55e" : "#ef4444", fontWeight: 500 }}>
+                  {user.isActive ? "Active" : "Inactive"}
+                </div>
+              </div>
+              <button
+                onClick={onToggleActive}
+                style={{
+                  padding: "6px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8,
+                  border: "1px solid var(--border-default)", background: "transparent",
+                  color: user.isActive ? "#f59e0b" : "#22c55e", cursor: "pointer",
+                }}
+              >
+                {user.isActive ? "Deactivate" : "Reactivate"}
+              </button>
+            </div>
+          )}
+
+          {/* Meta info */}
+          <div style={{
+            display: "flex", gap: 16, padding: "8px 0",
+            borderTop: "1px solid var(--border-default)", fontSize: 12, color: "var(--text-muted)",
+          }}>
+            <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>
+              {user.id.slice(0, 8)}...
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 24 }}>
+          {/* Delete */}
+          <div>
+            {!isCurrentUser && (
+              !confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  style={{
+                    padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8,
+                    border: "1px solid #ef444444", background: "transparent",
+                    color: "#ef4444", cursor: "pointer",
+                  }}
+                >
+                  Delete User
+                </button>
+              ) : (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={onDelete}
+                    style={{
+                      padding: "8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                      border: "none", background: "#ef4444", color: "#fff", cursor: "pointer",
+                    }}
+                  >
+                    Confirm Delete
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    style={{
+                      padding: "8px 14px", fontSize: 13, borderRadius: 8,
+                      border: "1px solid var(--border-default)", background: "transparent",
+                      color: "var(--text-muted)", cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Save / Cancel */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: "8px 20px", fontSize: 14, borderRadius: 8,
+                border: "1px solid var(--border-default)", background: "transparent",
+                color: "var(--text-muted)", cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveAll}
+              disabled={saving}
+              style={{
+                padding: "8px 24px", fontSize: 14, fontWeight: 600, borderRadius: 8,
+                border: "none", background: "var(--button-primary-bg)",
+                color: "#fff", cursor: saving ? "wait" : "pointer",
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -252,7 +252,7 @@ export default function CreateSpecPage() {
 
   // Track AI-updated fields for visual feedback
   const [aiUpdatedFields, setAiUpdatedFields] = useState<Set<string>>(new Set());
-  const aiUpdateTimeoutRef = useRef<NodeJS.Timeout>();
+  const aiUpdateTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [showAiUpdateNotification, setShowAiUpdateNotification] = useState(false);
 
   // Task tracking & flash sidebar

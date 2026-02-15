@@ -13,6 +13,8 @@ function mem(overrides: Partial<MemoryData> = {}): MemoryData {
     value: "London",
     confidence: 0.8,
     evidence: null,
+    extractedAt: null,
+    decayFactor: 1.0,
     ...overrides,
   };
 }
@@ -100,6 +102,50 @@ describe("computeMemoryRelevance", () => {
       const m = mem({ category: "FACT" });
       const score = computeMemoryRelevance(m, {}, {});
       expect(score).toBe(0);
+    });
+  });
+
+  describe("recency boost", () => {
+    it("boosts recently extracted memories", () => {
+      const recent = mem({ extractedAt: new Date() }); // today
+      const old = mem({ extractedAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000) }); // 120 days ago
+
+      const recentScore = computeMemoryRelevance(recent, { currentModule: "London guide" });
+      const oldScore = computeMemoryRelevance(old, { currentModule: "London guide" });
+
+      // Both have same keyword overlap, but recent gets a boost
+      expect(recentScore).toBeGreaterThan(oldScore);
+    });
+
+    it("gives no boost when extractedAt is null", () => {
+      const noDate = mem({ extractedAt: null });
+      const withDate = mem({ extractedAt: new Date() });
+
+      const noDateScore = computeMemoryRelevance(noDate, { currentModule: "London guide" });
+      const withDateScore = computeMemoryRelevance(withDate, { currentModule: "London guide" });
+
+      expect(withDateScore).toBeGreaterThan(noDateScore);
+    });
+
+    it("recency boost decays over 90 days", () => {
+      const fresh = mem({ extractedAt: new Date() });
+      const midAge = mem({ extractedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000) }); // 45 days
+      const stale = mem({ extractedAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }); // 90 days
+
+      const freshScore = computeMemoryRelevance(fresh, { currentModule: "London guide" });
+      const midScore = computeMemoryRelevance(midAge, { currentModule: "London guide" });
+      const staleScore = computeMemoryRelevance(stale, { currentModule: "London guide" });
+
+      expect(freshScore).toBeGreaterThan(midScore);
+      expect(midScore).toBeGreaterThanOrEqual(staleScore);
+    });
+
+    it("recency boost is capped at 0.2", () => {
+      // Memory with no keyword overlap, no category boost, only recency
+      const recent = mem({ key: "pet", value: "dog", extractedAt: new Date() });
+      const score = computeMemoryRelevance(recent, {}); // no context → only recency
+      expect(score).toBeLessThanOrEqual(0.2);
+      expect(score).toBeGreaterThan(0);
     });
   });
 

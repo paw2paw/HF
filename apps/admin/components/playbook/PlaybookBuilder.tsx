@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
+import { EditableTitle } from "@/components/shared/EditableTitle";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 import { DraggableTabs, TabDefinition } from "@/components/shared/DraggableTabs";
 import { useEntityContext } from "@/contexts/EntityContext";
 import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
 import { SpecRoleBadge } from "@/components/shared/SpecRoleBadge";
+import { ClipboardList, Layers, Target, GitBranch, Settings, Zap, Orbit } from "lucide-react";
 
 type ScoringAnchor = {
   id: string;
@@ -1996,7 +1998,23 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </>
       )}
       <SourcePageHeader
-        title={playbook.name}
+        title={
+          <EditableTitle
+            value={playbook.name}
+            as="h1"
+            disabled={playbook.status === "PUBLISHED"}
+            onSave={async (newName) => {
+              const res = await fetch(`/api/playbooks/${playbookId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newName }),
+              });
+              const data = await res.json();
+              if (!data.ok) throw new Error(data.error);
+              setPlaybook((prev: any) => prev ? { ...prev, name: newName } : prev);
+            }}
+          />
+        }
         description={`${playbook.domain.name} — v${playbook.version}`}
         dataNodeId="playbooks"
         actions={
@@ -2126,13 +2144,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       <DraggableTabs
         storageKey="playbook-builder-tabs"
         tabs={[
-          { id: "grid", label: `📋 Specs (${items.length})`, title: "4-column grid view of all specs" },
-          { id: "explorer", label: "📂 Explorer", title: "Browse specs with tree navigation and inline toggles" },
-          { id: "targets", label: `🎚️ Targets ${targetsData ? `(${targetsData.counts.total})` : ""}`, title: "Configure playbook targets and thresholds" },
-          { id: "slugs", label: `🔗 Slugs ${slugsData ? `(${slugsData.counts.total})` : ""}`, title: "URL slug mappings for playbook routing" },
-          { id: "parameters", label: `🔢 Parameters ${parametersData ? `(${parametersData.counts.parameters})` : ""}`, title: "Parameter definitions and configuration" },
-          { id: "triggers", label: `⚡ Triggers ${triggersData ? `(${triggersData.counts.triggers})` : ""}`, title: "Trigger configurations and rules" },
-          { id: "visualizer", label: "🌌 Visualizer", title: "Interactive graph visualization of playbook structure" },
+          { id: "grid", label: "Specs", icon: <ClipboardList size={14} />, count: items.length, title: "4-column grid view of all specs" },
+          { id: "explorer", label: "Explorer", icon: <Layers size={14} />, title: "Browse specs with tree navigation and inline toggles" },
+          { id: "targets", label: "Targets", icon: <Target size={14} />, count: targetsData?.counts.total ?? null, title: "Configure playbook targets and thresholds" },
+          { id: "slugs", label: "Slugs", icon: <GitBranch size={14} />, count: slugsData?.counts.total ?? null, title: "URL slug mappings for playbook routing" },
+          { id: "parameters", label: "Parameters", icon: <Settings size={14} />, count: parametersData?.counts.parameters ?? null, title: "Parameter definitions and configuration" },
+          { id: "triggers", label: "Triggers", icon: <Zap size={14} />, count: triggersData?.counts.triggers ?? null, title: "Trigger configurations and rules" },
+          { id: "visualizer", label: "Visualizer", icon: <Orbit size={14} />, title: "Interactive graph visualization of playbook structure" },
         ]}
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as typeof activeTab)}

@@ -8,6 +8,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 const prisma = new PrismaClient();
 
@@ -75,27 +76,27 @@ async function loadSlugSelectConfig(): Promise<SlugSelectConfig> {
     return DEFAULT_SLUG_SELECT_CONFIG;
   }
 
-  const config = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   return {
     thresholds: {
-      highNeuroticism: config.thresholds?.highNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highNeuroticism,
-      moderateNeuroticism: config.thresholds?.moderateNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.moderateNeuroticism,
-      lowOpenness: config.thresholds?.lowOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.lowOpenness,
-      highAgreeableness: config.thresholds?.highAgreeableness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highAgreeableness,
-      highExtraversion: config.thresholds?.highExtraversion ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highExtraversion,
-      highConscientiousness: config.thresholds?.highConscientiousness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highConscientiousness,
-      highOpenness: config.thresholds?.highOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highOpenness,
+      highNeuroticism: specConfig.thresholds?.highNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highNeuroticism,
+      moderateNeuroticism: specConfig.thresholds?.moderateNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.moderateNeuroticism,
+      lowOpenness: specConfig.thresholds?.lowOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.lowOpenness,
+      highAgreeableness: specConfig.thresholds?.highAgreeableness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highAgreeableness,
+      highExtraversion: specConfig.thresholds?.highExtraversion ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highExtraversion,
+      highConscientiousness: specConfig.thresholds?.highConscientiousness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highConscientiousness,
+      highOpenness: specConfig.thresholds?.highOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.thresholds.highOpenness,
     },
     confidences: {
-      highNeuroticism: config.confidences?.highNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highNeuroticism,
-      moderateNeuroticism: config.confidences?.moderateNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.moderateNeuroticism,
-      memoryNarrative: config.confidences?.memoryNarrative ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.memoryNarrative,
-      highExtraversion: config.confidences?.highExtraversion ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highExtraversion,
-      highConscientiousness: config.confidences?.highConscientiousness ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highConscientiousness,
-      highOpenness: config.confidences?.highOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highOpenness,
-      fallback: config.confidences?.fallback ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.fallback,
+      highNeuroticism: specConfig.confidences?.highNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highNeuroticism,
+      moderateNeuroticism: specConfig.confidences?.moderateNeuroticism ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.moderateNeuroticism,
+      memoryNarrative: specConfig.confidences?.memoryNarrative ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.memoryNarrative,
+      highExtraversion: specConfig.confidences?.highExtraversion ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highExtraversion,
+      highConscientiousness: specConfig.confidences?.highConscientiousness ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highConscientiousness,
+      highOpenness: specConfig.confidences?.highOpenness ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.highOpenness,
+      fallback: specConfig.confidences?.fallback ?? DEFAULT_SLUG_SELECT_CONFIG.confidences.fallback,
     },
-    maxRecentSlugs: config.maxRecentSlugs ?? DEFAULT_SLUG_SELECT_CONFIG.maxRecentSlugs,
+    maxRecentSlugs: specConfig.maxRecentSlugs ?? DEFAULT_SLUG_SELECT_CONFIG.maxRecentSlugs,
   };
 }
 
@@ -479,7 +480,7 @@ export async function savePromptSlugSelection(
       promptSlug: selection.promptSlug,
       confidence: selection.confidence,
       reasoning: selection.reasoning,
-      personalitySnapshot: selection.personalitySnapshot as any,
+      personalitySnapshot: selection.personalitySnapshot as unknown as Record<string, any>,
       recentSlugs: [], // Will be populated by next selection
       selectionMethod: "rule-based",
     },

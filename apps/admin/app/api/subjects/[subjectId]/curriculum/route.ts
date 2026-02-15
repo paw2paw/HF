@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { extractCurriculumFromAssertions } from "@/lib/content-trust/extract-curriculum";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { startCurriculumGeneration } from "@/lib/jobs/curriculum-runner";
 
 type Params = { params: Promise<{ subjectId: string }> };
 
 /**
- * GET /api/subjects/:subjectId/curriculum
- * Get the curriculum for this subject (most recent)
+ * @api GET /api/subjects/:subjectId/curriculum
+ * @visibility public
+ * @scope subjects:read
+ * @auth VIEWER
+ * @tags subjects, curriculum
+ * @description Get the most recent curriculum for this subject.
+ * @response 200 { curriculum: Curriculum | null }
  */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
@@ -34,14 +39,23 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 /**
- * POST /api/subjects/:subjectId/curriculum
- * Generate curriculum from the syllabus source's assertions using AI
- * Body: { mode: "generate" | "save" }
+ * @api POST /api/subjects/:subjectId/curriculum
+ * @visibility public
+ * @scope subjects:write
+ * @auth OPERATOR
+ * @tags subjects, curriculum
+ * @description Generate or save curriculum.
+ *   - mode=generate: Start async AI generation, return 202 + taskId for polling.
+ *   - mode=save: Save curriculum to DB (reads preview from taskId if provided, otherwise from body).
+ * @body { mode: "generate" | "save", taskId?: string, curriculum?: object }
+ * @response 202 { ok, taskId } (generate mode)
+ * @response 200 { ok, mode: "save", curriculum } (save mode)
  */
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const authResult = await requireAuth("OPERATOR");
     if (isAuthError(authResult)) return authResult.error;
+    const userId = authResult.session.user.id;
 
     const { subjectId } = await params;
     const body = await req.json();
@@ -55,109 +69,137 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Subject not found" }, { status: 404 });
     }
 
-    // Find ALL sources tagged "syllabus" (for curriculum structure)
-    const syllabusSources = await prisma.subjectSource.findMany({
-      where: { subjectId, tags: { has: "syllabus" } },
-      select: { sourceId: true },
-    });
+    // ── Generate mode — async, return 202 ──
+    if (mode === "generate") {
+      // Quick validation: check sources exist
+      const sourceCount = await prisma.subjectSource.count({
+        where: { subjectId },
+      });
+      if (sourceCount === 0) {
+        return NextResponse.json(
+          { error: "No sources attached to this subject. Upload documents first." },
+          { status: 400 }
+        );
+      }
 
-    // If no syllabus-tagged sources, fall back to all sources
-    const sourceIds = syllabusSources.length > 0
-      ? syllabusSources.map((s) => s.sourceId)
-      : (
-          await prisma.subjectSource.findMany({
+      const assertionCount = await prisma.contentAssertion.count({
+        where: {
+          source: {
+            subjects: { some: { subjectId } },
+          },
+        },
+      });
+      if (assertionCount === 0) {
+        return NextResponse.json(
+          { error: "No assertions found. Import documents and extract assertions first." },
+          { status: 400 }
+        );
+      }
+
+      // Check for existing active curriculum generation
+      const active = await prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(*) as count FROM "UserTask"
+        WHERE "taskType" = 'curriculum_generation'
+          AND "status" = 'in_progress'
+          AND "context"->>'subjectId' = ${subjectId}
+      `;
+
+      if (Number(active[0]?.count ?? 0) > 0) {
+        return NextResponse.json(
+          { error: "Curriculum generation already in progress for this subject." },
+          { status: 409 }
+        );
+      }
+
+      const taskId = await startCurriculumGeneration(subjectId, subject.name, userId);
+
+      return NextResponse.json(
+        { ok: true, taskId },
+        { status: 202 }
+      );
+    }
+
+    // ── Save mode — persist curriculum to DB ──
+    if (mode === "save") {
+      let result = body.curriculum;
+
+      // If taskId provided, read preview from the completed task
+      if (body.taskId && !result) {
+        const task = await prisma.userTask.findUnique({
+          where: { id: body.taskId },
+          select: { context: true, status: true },
+        });
+        if (!task) {
+          return NextResponse.json({ error: "Task not found" }, { status: 404 });
+        }
+        const ctx = task.context as Record<string, any>;
+        result = ctx?.preview;
+        if (!result) {
+          return NextResponse.json(
+            { error: "No curriculum preview found in task. Generate first." },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (!result) {
+        return NextResponse.json(
+          { error: "No curriculum data provided. Pass curriculum in body or taskId to read from." },
+          { status: 400 }
+        );
+      }
+
+      // Find primary source
+      const syllabusSources = await prisma.subjectSource.findMany({
+        where: { subjectId, tags: { has: "syllabus" } },
+        select: { sourceId: true },
+      });
+      const allSources = syllabusSources.length > 0
+        ? syllabusSources
+        : await prisma.subjectSource.findMany({
             where: { subjectId },
             select: { sourceId: true },
-          })
-        ).map((s) => s.sourceId);
+          });
+      const primarySourceId = allSources[0]?.sourceId;
 
-    if (sourceIds.length === 0) {
-      return NextResponse.json(
-        { error: "No sources attached to this subject. Upload documents first." },
-        { status: 400 }
-      );
-    }
+      const slug = `${subject.slug}-curriculum`;
 
-    // Load assertions from the relevant sources
-    const assertions = await prisma.contentAssertion.findMany({
-      where: { sourceId: { in: sourceIds } },
-      select: {
-        assertion: true,
-        category: true,
-        chapter: true,
-        section: true,
-        tags: true,
-      },
-      orderBy: [{ chapter: "asc" }, { section: "asc" }, { createdAt: "asc" }],
-    });
+      const curriculum = await prisma.curriculum.upsert({
+        where: { slug },
+        create: {
+          slug,
+          name: result.name,
+          description: result.description,
+          subjectId,
+          primarySourceId,
+          trustLevel: subject.defaultTrustLevel,
+          qualificationBody: subject.qualificationBody,
+          qualificationNumber: subject.qualificationRef,
+          qualificationLevel: subject.qualificationLevel,
+          notableInfo: { modules: result.modules } as unknown as Prisma.InputJsonValue,
+          coreArgument: Prisma.JsonNull,
+          deliveryConfig: result.deliveryConfig as unknown as Prisma.InputJsonValue,
+          version: "1.0",
+        },
+        update: {
+          name: result.name,
+          description: result.description,
+          primarySourceId,
+          trustLevel: subject.defaultTrustLevel,
+          notableInfo: { modules: result.modules } as unknown as Prisma.InputJsonValue,
+          deliveryConfig: result.deliveryConfig as unknown as Prisma.InputJsonValue,
+          updatedAt: new Date(),
+        },
+      });
 
-    if (assertions.length === 0) {
-      return NextResponse.json(
-        { error: "No assertions found. Import documents and extract assertions first." },
-        { status: 400 }
-      );
-    }
-
-    // Generate curriculum using AI
-    const result = await extractCurriculumFromAssertions(
-      assertions,
-      subject.name,
-      subject.qualificationRef || undefined,
-    );
-
-    if (!result.ok) {
-      return NextResponse.json(
-        { ok: false, error: result.error, warnings: result.warnings },
-        { status: 422 }
-      );
-    }
-
-    // Generate mode — return without saving
-    if (mode === "generate") {
       return NextResponse.json({
         ok: true,
-        mode: "generate",
-        curriculum: result,
+        mode: "save",
+        curriculum,
       });
     }
 
-    // Save mode — upsert curriculum record
-    const slug = `${subject.slug}-curriculum`;
-    const primarySourceId = syllabusSources[0]?.sourceId || sourceIds[0];
-
-    const curriculum = await prisma.curriculum.upsert({
-      where: { slug },
-      create: {
-        slug,
-        name: result.name,
-        description: result.description,
-        subjectId,
-        primarySourceId,
-        trustLevel: subject.defaultTrustLevel,
-        qualificationBody: subject.qualificationBody,
-        qualificationNumber: subject.qualificationRef,
-        qualificationLevel: subject.qualificationLevel,
-        notableInfo: { modules: result.modules } as unknown as Prisma.InputJsonValue,
-        coreArgument: Prisma.JsonNull,
-        deliveryConfig: result.deliveryConfig as unknown as Prisma.InputJsonValue,
-        version: "1.0",
-      },
-      update: {
-        name: result.name,
-        description: result.description,
-        primarySourceId,
-        trustLevel: subject.defaultTrustLevel,
-        notableInfo: { modules: result.modules } as unknown as Prisma.InputJsonValue,
-        deliveryConfig: result.deliveryConfig as unknown as Prisma.InputJsonValue,
-        updatedAt: new Date(),
-      },
-    });
-
-    return NextResponse.json({
-      ok: true,
-      mode: "save",
-      curriculum,
-    });
+    return NextResponse.json({ error: `Invalid mode: ${mode}` }, { status: 400 });
   } catch (error: any) {
     console.error("[subjects/:id/curriculum] POST error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -165,8 +207,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 }
 
 /**
- * PATCH /api/subjects/:subjectId/curriculum
- * Update curriculum (user edits to modules, delivery config, etc.)
+ * @api PATCH /api/subjects/:subjectId/curriculum
+ * @visibility public
+ * @scope subjects:write
+ * @auth OPERATOR
+ * @tags subjects, curriculum
+ * @description Update curriculum (user edits to modules, delivery config, etc.)
+ * @body { name?: string, description?: string, modules?: object[], deliveryConfig?: object }
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {

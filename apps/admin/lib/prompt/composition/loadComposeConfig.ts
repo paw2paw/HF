@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { getDefaultSections } from "./CompositionExecutor";
 import type { CompositionSectionDef } from "./types";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 export interface ComposeConfig {
   specSlug: string | null;
@@ -41,11 +42,11 @@ export async function loadComposeConfig(overrides?: {
     },
   });
 
-  const specConfig = (composeSpec?.config as any) || {};
-  const specParameters: Array<{ id: string; config?: any }> = specConfig.parameters || [];
+  const specConfig = (composeSpec?.config as SpecConfig) || {};
+  const specParameters = (specConfig.parameters as Array<{ id: string; config?: Record<string, any> }>) || [];
 
-  const getParamConfig = (paramId: string): any => {
-    const param = specParameters.find((p: any) => p.id === paramId);
+  const getParamConfig = (paramId: string): Record<string, any> => {
+    const param = specParameters.find((p) => p.id === paramId);
     return param?.config || {};
   };
 

@@ -3,16 +3,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sun, Moon, Monitor, Check, Info, Shield, X, Save,
-  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Lock, Camera,
+  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Lock, Camera, Mail, Eye, EyeOff,
 } from "lucide-react";
 import { useTheme, usePalette, type ThemePreference } from "@/contexts";
-import { type SettingGroup, type SettingDef, SETTINGS_REGISTRY } from "@/lib/system-settings";
+import { type SettingGroup, type SettingDef, SETTINGS_REGISTRY, EMAIL_TEMPLATE_DEFAULTS } from "@/lib/system-settings";
 import { FALLBACK_SETTINGS_REGISTRY } from "@/lib/fallback-settings";
+import { renderEmailHtml } from "@/lib/email-render";
+import { ChannelsPanel } from "@/components/settings/ChannelsPanel";
 
 // ── Icon map for setting groups ─────────────────────
 
 const GROUP_ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
-  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Shield, Camera,
+  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Shield, Camera, Mail,
 };
 
 // ── Theme helpers ───────────────────────────────────
@@ -74,6 +76,36 @@ function SettingInput({
               (default: {String(setting.default)})
             </span>
           ) : null}
+        </p>
+      </div>
+    );
+  }
+
+  if (setting.type === "textarea") {
+    return (
+      <div style={{ padding: "12px 0", borderBottom: "1px solid var(--border-default)" }}>
+        <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4, display: "block" }}>
+          {setting.label}
+        </label>
+        <textarea
+          value={String(value ?? setting.default)}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          style={{
+            width: "100%",
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid var(--border-default)",
+            background: "var(--surface-secondary)",
+            color: "var(--text-primary)",
+            fontSize: 13,
+            fontFamily: "inherit",
+            resize: "vertical",
+            lineHeight: 1.5,
+          }}
+        />
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+          {setting.description}
         </p>
       </div>
     );
@@ -164,6 +196,7 @@ function SettingInput({
 const TABS = [
   { id: "appearance", label: "Appearance" },
   ...SETTINGS_REGISTRY.map((g) => ({ id: g.id, label: g.label })),
+  { id: "channels", label: "Channels" },
   { id: "security", label: "Security" },
   { id: "fallbacks", label: "Fallback Defaults" },
 ];
@@ -173,6 +206,10 @@ const TABS = [
 export default function SettingsPage() {
   const { preference, setPreference, resolvedTheme } = useTheme();
   const { lightPalette, darkPalette, setLightPalette, setDarkPalette, lightPresets, darkPresets } = usePalette();
+
+  // Prevent hydration mismatch — theme/palette state differs server vs client
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // Tab state from URL hash
   const [activeTab, setActiveTab] = useState("appearance");
@@ -190,6 +227,10 @@ export default function SettingsPage() {
   const [values, setValues] = useState<Record<string, number | boolean | string>>({});
   const [loaded, setLoaded] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Email preview toggles
+  const [showMagicLinkPreview, setShowMagicLinkPreview] = useState(false);
+  const [showInvitePreview, setShowInvitePreview] = useState(false);
 
   // Access matrix state
   const [accessMatrix, setAccessMatrix] = useState<{
@@ -287,10 +328,10 @@ export default function SettingsPage() {
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap",
           gap: 4,
           marginBottom: 24,
           borderBottom: "1px solid var(--border-default)",
-          overflowX: "auto",
         }}
       >
         {TABS.map((tab) => (
@@ -298,7 +339,7 @@ export default function SettingsPage() {
             key={tab.id}
             onClick={() => switchTab(tab.id)}
             style={{
-              padding: "10px 16px",
+              padding: "8px 12px",
               fontSize: 13,
               fontWeight: activeTab === tab.id ? 600 : 400,
               color: activeTab === tab.id ? "var(--accent-primary)" : "var(--text-muted)",
@@ -336,7 +377,7 @@ export default function SettingsPage() {
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
               {themeOptions.map((option) => {
-                const isSelected = preference === option.value;
+                const isSelected = mounted && preference === option.value;
                 return (
                   <button
                     key={option.value}
@@ -384,8 +425,8 @@ export default function SettingsPage() {
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>Background tones for light mode</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {lightPresets.map((preset) => {
-                  const isSelected = lightPalette === preset.id;
-                  const isActive = resolvedTheme === "light" && isSelected;
+                  const isSelected = mounted && lightPalette === preset.id;
+                  const isActive = mounted && resolvedTheme === "light" && isSelected;
                   return (
                     <button key={preset.id} onClick={() => setLightPalette(preset.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)", background: preset.light.surfacePrimary, cursor: "pointer", transition: "all 0.15s ease" }}>
                       <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
@@ -397,8 +438,8 @@ export default function SettingsPage() {
                         <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{preset.name}</div>
                         <div style={{ fontSize: 11, color: "#6b7280" }}>{preset.description}</div>
                       </div>
-                      {isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)" }} title="Currently active" />}
-                      {isSelected && !isActive && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--accent-primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={14} strokeWidth={2.5} /></div>}
+                      {mounted && isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)" }} title="Currently active" />}
+                      {mounted && isSelected && !isActive && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--accent-primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={14} strokeWidth={2.5} /></div>}
                     </button>
                   );
                 })}
@@ -414,8 +455,8 @@ export default function SettingsPage() {
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>Background tones for dark mode</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {darkPresets.map((preset) => {
-                  const isSelected = darkPalette === preset.id;
-                  const isActive = resolvedTheme === "dark" && isSelected;
+                  const isSelected = mounted && darkPalette === preset.id;
+                  const isActive = mounted && resolvedTheme === "dark" && isSelected;
                   const colors = preset.dark!;
                   return (
                     <button key={preset.id} onClick={() => setDarkPalette(preset.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: isSelected ? "2px solid var(--accent-primary)" : "1px solid #3f3f46", background: colors.surfacePrimary, cursor: "pointer", transition: "all 0.15s ease" }}>
@@ -428,8 +469,8 @@ export default function SettingsPage() {
                         <div style={{ fontSize: 13, fontWeight: 500, color: "#e5e7eb" }}>{preset.name}</div>
                         <div style={{ fontSize: 11, color: "#9ca3af" }}>{preset.description}</div>
                       </div>
-                      {isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)" }} title="Currently active" />}
-                      {isSelected && !isActive && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--accent-primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={14} strokeWidth={2.5} /></div>}
+                      {mounted && isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)" }} title="Currently active" />}
+                      {mounted && isSelected && !isActive && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--accent-primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={14} strokeWidth={2.5} /></div>}
                     </button>
                   );
                 })}
@@ -479,6 +520,147 @@ export default function SettingsPage() {
             )}
           </div>
         ) : null
+      )}
+
+      {/* Email Preview — shown when email tab is active */}
+      {activeTab === "email" && loaded && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 16 }}>
+          {/* Magic Link Preview */}
+          <div style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 16,
+            padding: 24,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+                Magic Link Email Preview
+              </h3>
+              <button
+                onClick={() => setShowMagicLinkPreview((v) => !v)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "6px 12px", borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  background: showMagicLinkPreview ? "var(--accent-primary)" : "var(--surface-secondary)",
+                  color: showMagicLinkPreview ? "white" : "var(--text-primary)",
+                  fontSize: 12, fontWeight: 500, cursor: "pointer",
+                }}
+              >
+                {showMagicLinkPreview ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showMagicLinkPreview ? "Hide" : "Preview"}
+              </button>
+            </div>
+            {showMagicLinkPreview && (
+              <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--border-default)" }}>
+                <div style={{ padding: "8px 12px", background: "var(--surface-secondary)", fontSize: 11, color: "var(--text-muted)" }}>
+                  Subject: <strong style={{ color: "var(--text-primary)" }}>
+                    {String(values["email.magic_link.subject"] ?? EMAIL_TEMPLATE_DEFAULTS.magicLinkSubject)}
+                  </strong>
+                </div>
+                <iframe
+                  title="Magic link email preview"
+                  sandbox=""
+                  style={{ width: "100%", height: 500, border: "none", background: "#f5f5f5" }}
+                  srcDoc={renderEmailHtml({
+                    heading: String(values["email.magic_link.heading"] ?? EMAIL_TEMPLATE_DEFAULTS.magicLinkHeading),
+                    bodyHtml: `<p style="font-size:16px;margin:0 0 16px;">${String(values["email.magic_link.body"] ?? EMAIL_TEMPLATE_DEFAULTS.magicLinkBody)}</p>`,
+                    buttonText: String(values["email.magic_link.button_text"] ?? EMAIL_TEMPLATE_DEFAULTS.magicLinkButtonText),
+                    buttonUrl: "https://example.com/auth/verify?token=abc123",
+                    footer: String(values["email.magic_link.footer"] ?? EMAIL_TEMPLATE_DEFAULTS.magicLinkFooter),
+                    brandColorStart: String(values["email.shared.brand_color_start"] ?? EMAIL_TEMPLATE_DEFAULTS.sharedBrandColorStart),
+                    brandColorEnd: String(values["email.shared.brand_color_end"] ?? EMAIL_TEMPLATE_DEFAULTS.sharedBrandColorEnd),
+                  })}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Invite Preview */}
+          <div style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 16,
+            padding: 24,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+                Invite Email Preview
+              </h3>
+              <button
+                onClick={() => setShowInvitePreview((v) => !v)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "6px 12px", borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  background: showInvitePreview ? "var(--accent-primary)" : "var(--surface-secondary)",
+                  color: showInvitePreview ? "white" : "var(--text-primary)",
+                  fontSize: 12, fontWeight: 500, cursor: "pointer",
+                }}
+              >
+                {showInvitePreview ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showInvitePreview ? "Hide" : "Preview"}
+              </button>
+            </div>
+            {showInvitePreview && (() => {
+              const exampleVars: Record<string, string> = {
+                greeting: "Hi Alex,",
+                context: "You've been invited to test the <strong>Quality Management</strong> experience.",
+                firstName: "Alex",
+                domainName: "Quality Management",
+              };
+              const replaceVars = (t: string) => t.replace(/\{\{(\w+)\}\}/g, (_, k: string) => exampleVars[k] ?? `{{${k}}}`);
+              const rawBody = String(values["email.invite.body"] ?? EMAIL_TEMPLATE_DEFAULTS.inviteBody);
+              const bodyHtml = replaceVars(rawBody)
+                .split("\n")
+                .map((line: string) => `<p style="font-size:16px;margin:0 0 16px;">${line}</p>`)
+                .join("\n");
+              const subject = replaceVars(String(values["email.invite.subject"] ?? EMAIL_TEMPLATE_DEFAULTS.inviteSubject));
+
+              return (
+                <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--border-default)" }}>
+                  <div style={{ padding: "8px 12px", background: "var(--surface-secondary)", fontSize: 11, color: "var(--text-muted)" }}>
+                    Subject: <strong style={{ color: "var(--text-primary)" }}>{subject}</strong>
+                    <span style={{ marginLeft: 12, fontStyle: "italic" }}>(example: Alex invited to Quality Management)</span>
+                  </div>
+                  <iframe
+                    title="Invite email preview"
+                    sandbox=""
+                    style={{ width: "100%", height: 500, border: "none", background: "#f5f5f5" }}
+                    srcDoc={renderEmailHtml({
+                      heading: replaceVars(String(values["email.invite.heading"] ?? EMAIL_TEMPLATE_DEFAULTS.inviteHeading)),
+                      bodyHtml,
+                      buttonText: replaceVars(String(values["email.invite.button_text"] ?? EMAIL_TEMPLATE_DEFAULTS.inviteButtonText)),
+                      buttonUrl: "https://example.com/invite/accept?token=xyz789",
+                      footer: replaceVars(String(values["email.invite.footer"] ?? EMAIL_TEMPLATE_DEFAULTS.inviteFooter)),
+                      brandColorStart: String(values["email.shared.brand_color_start"] ?? EMAIL_TEMPLATE_DEFAULTS.sharedBrandColorStart),
+                      brandColorEnd: String(values["email.shared.brand_color_end"] ?? EMAIL_TEMPLATE_DEFAULTS.sharedBrandColorEnd),
+                    })}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Channels Tab — Delivery Channel Config */}
+      {activeTab === "channels" && (
+        <div
+          style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 16,
+            padding: 24,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+              Delivery Channels
+            </h2>
+          </div>
+          <ChannelsPanel />
+        </div>
       )}
 
       {/* Security Tab — Access Matrix Viewer */}
@@ -534,9 +716,9 @@ export default function SettingsPage() {
           {/* Scope legend */}
           <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
             {[
-              { scope: "ALL", desc: "All records", bg: "#dbeafe", text: "#1e40af" },
-              { scope: "DOMAIN", desc: "Same domain only", bg: "#d1fae5", text: "#065f46" },
-              { scope: "OWN", desc: "Own records only", bg: "#fef3c7", text: "#92400e" },
+              { scope: "ALL", desc: "All records", bg: "var(--status-info-bg)", text: "var(--status-info-text)" },
+              { scope: "DOMAIN", desc: "Same domain only", bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
+              { scope: "OWN", desc: "Own records only", bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
             ].map((s) => (
               <span key={s.scope} style={{
                 padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
@@ -587,9 +769,9 @@ export default function SettingsPage() {
                         const isNone = scope === "NONE";
 
                         const scopeColors: Record<string, { bg: string; text: string }> = {
-                          ALL: { bg: "#dbeafe", text: "#1e40af" },
-                          DOMAIN: { bg: "#d1fae5", text: "#065f46" },
-                          OWN: { bg: "#fef3c7", text: "#92400e" },
+                          ALL: { bg: "var(--status-info-bg)", text: "var(--status-info-text)" },
+                          DOMAIN: { bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
+                          OWN: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)" },
                           NONE: { bg: "transparent", text: "var(--text-muted)" },
                         };
                         const sc = scopeColors[scope] || scopeColors.NONE;
@@ -806,7 +988,7 @@ export default function SettingsPage() {
                 padding: 16,
                 borderRadius: 10,
                 border: jsonModalError
-                  ? "2px solid var(--status-error, #ef4444)"
+                  ? "2px solid var(--status-error-text)"
                   : "1px solid var(--border-default)",
                 background: "var(--surface-secondary)",
                 color: "var(--text-primary)",
@@ -818,7 +1000,7 @@ export default function SettingsPage() {
             />
 
             {jsonModalError && (
-              <div style={{ fontSize: 12, color: "var(--status-error, #ef4444)", marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--status-error-text)", marginTop: 8 }}>
                 {jsonModalError}
               </div>
             )}

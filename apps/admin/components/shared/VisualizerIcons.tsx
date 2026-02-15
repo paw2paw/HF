@@ -144,14 +144,15 @@ function renderIconElements(ctx: CanvasRenderingContext2D, elements: IconElement
   }
 }
 
-/** Draw a lucide icon node on 2D canvas with background disc */
+/** Draw a lucide icon node on 2D canvas with background disc and optional ring */
 export function drawIconNode(
   ctx: CanvasRenderingContext2D,
   type: string,
   x: number,
   y: number,
   size: number,
-  color: string
+  color: string,
+  ring?: { color: string; width: number }
 ) {
   const elements = visualizerIcons[type];
   if (!elements) return;
@@ -171,6 +172,15 @@ export function drawIconNode(
   ctx.fill();
   ctx.globalAlpha /= 0.15;
 
+  // Ring (drawn on top of disc, behind icon)
+  if (ring) {
+    ctx.beginPath();
+    ctx.arc(12, 12, 13, 0, Math.PI * 2);
+    ctx.strokeStyle = ring.color;
+    ctx.lineWidth = ring.width;
+    ctx.stroke();
+  }
+
   // Icon stroke
   ctx.strokeStyle = color;
   ctx.fillStyle = "none";
@@ -184,7 +194,12 @@ export function drawIconNode(
 }
 
 /** Render icon to offscreen canvas for 3D sprite textures */
-export function renderIconToCanvas(type: string, color: string, resolution = 64): HTMLCanvasElement {
+export function renderIconToCanvas(
+  type: string,
+  color: string,
+  resolution = 64,
+  ring?: { color: string; width: number }
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = resolution;
   const ctx = canvas.getContext("2d")!;
@@ -201,6 +216,15 @@ export function renderIconToCanvas(type: string, color: string, resolution = 64)
   ctx.globalAlpha = 0.2;
   ctx.fill();
   ctx.globalAlpha = 1;
+
+  // Ring
+  if (ring) {
+    ctx.beginPath();
+    ctx.arc(12, 12, 13, 0, Math.PI * 2);
+    ctx.strokeStyle = ring.color;
+    ctx.lineWidth = ring.width;
+    ctx.stroke();
+  }
 
   // Icon stroke
   ctx.strokeStyle = color;

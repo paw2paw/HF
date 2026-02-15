@@ -38,12 +38,12 @@ type ContentSource = {
 };
 
 const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "#D4AF37", bg: "#FDF6E3" },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "#8B8B8B", bg: "#F5F5F5" },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "#4A90D9", bg: "#EBF3FC" },
-  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "#2E7D32", bg: "#E8F5E9" },
-  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "#FF8F00", bg: "#FFF3E0" },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "#B71C1C", bg: "#FFEBEE" },
+  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
+  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "var(--trust-l4-text)", bg: "var(--trust-l4-bg)" },
+  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "var(--trust-l3-text)", bg: "var(--trust-l3-bg)" },
+  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "var(--trust-l2-text)", bg: "var(--trust-l2-bg)" },
+  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "var(--trust-l1-text)", bg: "var(--trust-l1-bg)" },
+  { value: "UNVERIFIED", label: "L0 Unverified", color: "var(--trust-l0-text)", bg: "var(--trust-l0-bg)" },
 ];
 
 function TrustBadge({ level }: { level: string }) {
@@ -58,7 +58,7 @@ function TrustBadge({ level }: { level: string }) {
         fontWeight: 600,
         color: config.color,
         backgroundColor: config.bg,
-        border: `1px solid ${config.color}33`,
+        border: `1px solid color-mix(in srgb, ${config.color} 20%, transparent)`,
       }}
     >
       {config.label}

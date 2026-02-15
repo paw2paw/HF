@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
 
 /**
  * @api GET /api/invite/verify
@@ -13,6 +14,9 @@ import { prisma } from "@/lib/prisma";
  * @response 404 { ok: false, error: "Invite not found, expired, or already used" }
  */
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(getClientIP(request), "invite-verify");
+  if (!rl.ok) return rl.error;
+
   const { searchParams } = new URL(request.url);
   const token = searchParams.get("token");
 
@@ -41,9 +45,10 @@ export async function GET(request: NextRequest) {
   });
 
   if (existingUser) {
+    // Same error shape as "not found" to prevent email enumeration
     return NextResponse.json(
-      { ok: false, error: "An account already exists with this email. Please sign in instead." },
-      { status: 400 }
+      { ok: false, error: "Invite not found, expired, or already used", redirect: "/login" },
+      { status: 404 }
     );
   }
 

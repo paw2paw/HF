@@ -56,6 +56,7 @@ export interface ExtractionOptions {
  */
 export async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pages: number }> {
   // Dynamic import to avoid bundling issues
+  // @ts-expect-error — no @types/pdf-parse installed
   const pdfParse = (await import("pdf-parse")).default;
   const data = await pdfParse(buffer);
   return { text: data.text, pages: data.numpages };
@@ -212,10 +213,14 @@ async function extractFromChunk(
       { response: `Extracted assertions`, success: true }
     );
 
-    // Parse JSON response
+    // Parse JSON response (with repair for common AI mistakes)
     const text = result.content.trim();
     // Handle potential markdown code fences
-    const jsonStr = text.startsWith("[") ? text : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
+    let jsonStr = text.startsWith("[") || text.startsWith("{") ? text : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
+    // Remove trailing commas before ] or }
+    jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
+    // Fix missing commas between }{ patterns
+    jsonStr = jsonStr.replace(/\}(\s*)\{/g, "},$1{");
     const raw = JSON.parse(jsonStr);
 
     if (!Array.isArray(raw)) return [];

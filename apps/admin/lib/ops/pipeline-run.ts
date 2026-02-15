@@ -19,7 +19,7 @@
  * prompt-ready caller profiles with adaptive learning.
  */
 
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { processTranscripts } from "./transcripts-process";
 import { analyzePersonality } from "./personality-analyze";
 import { extractMemories } from "./memory-extract";

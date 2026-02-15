@@ -7,6 +7,10 @@ export type TabDefinition = {
   id: string;
   label: React.ReactNode;
   title?: string;
+  icon?: React.ReactNode;
+  count?: number | null;
+  /** Optional accent color for this tab (CSS color value) */
+  accentColor?: string;
 };
 
 type DraggableTabsProps = {
@@ -140,6 +144,8 @@ export function DraggableTabs({
         const isActive = activeTab === tab.id;
         const isDragging = draggedTab === tab.id;
         const isDragOver = dragOverTab === tab.id;
+        const accent = tab.accentColor;
+        const activeColor = accent || "var(--button-primary-bg)";
 
         return (
           <button
@@ -157,12 +163,12 @@ export function DraggableTabs({
               fontSize: 14,
               fontWeight: 500,
               background: isActive ? "var(--surface-primary)" : "transparent",
-              color: isActive ? "var(--button-primary-bg)" : "var(--text-muted)",
+              color: isActive ? activeColor : accent ? `color-mix(in srgb, ${accent} 60%, var(--text-muted))` : "var(--text-muted)",
               border: "none",
               borderBottom: isActive
-                ? "2px solid var(--button-primary-bg)"
+                ? `2px solid ${activeColor}`
                 : "2px solid transparent",
-              borderLeft: isDragOver ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
+              borderLeft: isDragOver ? `2px solid ${activeColor}` : "2px solid transparent",
               cursor: isDragging ? "grabbing" : "grab",
               marginBottom: -1,
               opacity: isDragging ? 0.5 : 1,
@@ -170,7 +176,29 @@ export function DraggableTabs({
               userSelect: "none",
             }}
           >
-            {tab.label}
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {tab.icon}
+              {tab.label}
+              {tab.count != null && tab.count > 0 && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    lineHeight: "16px",
+                    minWidth: 18,
+                    textAlign: "center",
+                    padding: "1px 6px",
+                    borderRadius: 10,
+                    background: isActive
+                      ? `color-mix(in srgb, ${activeColor} 15%, transparent)`
+                      : "var(--surface-tertiary)",
+                    color: isActive ? activeColor : "var(--text-secondary)",
+                  }}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </span>
           </button>
         );
       })}

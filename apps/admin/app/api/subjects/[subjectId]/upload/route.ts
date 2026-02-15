@@ -3,20 +3,32 @@ import { prisma } from "@/lib/prisma";
 import {
   extractText,
   extractAssertions,
+  chunkText,
   type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
+import {
+  createExtractionTask,
+  updateJob,
+} from "@/lib/content-trust/extraction-jobs";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { checkAutoTriggerCurriculum } from "@/lib/jobs/auto-trigger";
 
 /**
- * POST /api/subjects/:subjectId/upload
- * Drag-drop endpoint: upload a document, auto-create ContentSource, attach to subject, extract assertions.
+ * @api POST /api/subjects/:subjectId/upload
+ * @visibility public
+ * @scope subjects:write
+ * @auth OPERATOR
+ * @tags subjects, content-trust
+ * @description Drag-drop endpoint: upload a document, auto-create ContentSource,
+ *   attach to subject, and start background extraction.
+ *   Returns immediately with source + jobId for progress polling.
  *
- * FormData:
- *   file: File (PDF, TXT, MD, JSON)
- *   mode: "preview" | "import" (default: preview)
- *   role: "syllabus" | "textbook" | "reference" | "supplementary" (default: reference)
- *   sourceName: optional display name (defaults to filename)
- *   trustLevel: optional override (defaults to subject's defaultTrustLevel)
+ * @body file File (PDF, TXT, MD, JSON)
+ * @body tags string — comma-separated tags (default: "content")
+ * @body sourceName string — optional display name (defaults to filename)
+ * @body trustLevel string — optional override (defaults to subject's defaultTrustLevel)
+ *
+ * @response 202 { ok, source, jobId, totalChunks }
  */
 export async function POST(
   req: NextRequest,
@@ -25,6 +37,7 @@ export async function POST(
   try {
     const authResult = await requireAuth("OPERATOR");
     if (isAuthError(authResult)) return authResult.error;
+    const userId = authResult.session.user.id;
 
     const { subjectId } = await params;
 
@@ -39,7 +52,6 @@ export async function POST(
     // Parse form data
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const mode = (formData.get("mode") as string) || "preview";
     const tagsRaw = (formData.get("tags") as string) || "content";
     const tags = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
     const sourceName = (formData.get("sourceName") as string) || null;
@@ -59,8 +71,9 @@ export async function POST(
       );
     }
 
-    // Extract text from document
-    const { text, pages, fileType } = await extractText(file);
+    // ── Extract text (fast, no AI) ──
+
+    const { text } = await extractText(file);
     if (!text.trim()) {
       return NextResponse.json(
         { ok: false, error: "Could not extract text from document" },
@@ -68,48 +81,16 @@ export async function POST(
       );
     }
 
-    // Run AI extraction
-    const result = await extractAssertions(text, {
-      sourceSlug: subject.slug,
-      qualificationRef: subject.qualificationRef || undefined,
-      maxAssertions: 500,
-    });
+    // ── Create ContentSource (sync, fast) ──
 
-    if (!result.ok) {
-      return NextResponse.json(
-        { ok: false, error: result.error, warnings: result.warnings },
-        { status: 422 }
-      );
-    }
-
-    // Preview mode — return assertions without saving anything
-    if (mode === "preview") {
-      return NextResponse.json({
-        ok: true,
-        mode: "preview",
-        subjectSlug: subject.slug,
-        fileName: file.name,
-        fileType,
-        pages: pages || null,
-        textLength: text.length,
-        assertions: result.assertions,
-        total: result.assertions.length,
-        warnings: result.warnings,
-      });
-    }
-
-    // Import mode — create ContentSource, attach to subject, save assertions
-
-    // Generate slug from filename
     const baseSlug = file.name
-      .replace(/\.[^/.]+$/, "") // remove extension
+      .replace(/\.[^/.]+$/, "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
     const sourceSlug = `${subject.slug}-${baseSlug}`;
     const displayName = sourceName || file.name.replace(/\.[^/.]+$/, "");
 
-    // Create ContentSource
     const trustLevel = trustLevelOverride || subject.defaultTrustLevel;
     let source;
     try {
@@ -122,7 +103,6 @@ export async function POST(
       });
     } catch (err: any) {
       if (err.code === "P2002") {
-        // Slug conflict — append timestamp
         source = await prisma.contentSource.create({
           data: {
             slug: `${sourceSlug}-${Date.now()}`,
@@ -145,69 +125,132 @@ export async function POST(
       },
     });
 
-    // Dedup and save assertions
-    const existingHashes = new Set(
-      (
-        await prisma.contentAssertion.findMany({
-          where: { sourceId: source.id },
-          select: { contentHash: true },
-        })
-      )
-        .map((a) => a.contentHash)
-        .filter(Boolean)
-    );
+    // ── Start background extraction ──
 
-    const toCreate: ExtractedAssertion[] = [];
-    let duplicatesSkipped = 0;
+    const chunks = chunkText(text);
+    const job = await createExtractionTask(userId, source.id, file.name, subjectId, subject.name);
+    await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
-    for (const assertion of result.assertions) {
-      if (existingHashes.has(assertion.contentHash)) {
-        duplicatesSkipped++;
-        continue;
+    // Fire-and-forget background extraction
+    runBackgroundExtraction(
+      job.id,
+      source.id,
+      subjectId,
+      subject.name,
+      userId,
+      text,
+      {
+        sourceSlug: subject.slug,
+        qualificationRef: subject.qualificationRef || undefined,
+        maxAssertions: 500,
       }
-      toCreate.push(assertion);
-    }
-
-    if (toCreate.length > 0) {
-      await prisma.contentAssertion.createMany({
-        data: toCreate.map((a) => ({
-          sourceId: source.id,
-          assertion: a.assertion,
-          category: a.category,
-          chapter: a.chapter || null,
-          section: a.section || null,
-          tags: a.tags,
-          examRelevance: a.examRelevance ?? null,
-          learningOutcomeRef: a.learningOutcomeRef || null,
-          validUntil: a.validUntil ? new Date(a.validUntil) : null,
-          taxYear: a.taxYear || null,
-          contentHash: a.contentHash,
-        })),
-      });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      mode: "import",
-      subjectSlug: subject.slug,
-      source: {
-        id: source.id,
-        slug: source.slug,
-        name: source.name,
-        trustLevel: source.trustLevel,
-      },
-      tags,
-      fileName: file.name,
-      created: toCreate.length,
-      duplicatesSkipped,
-      total: result.assertions.length,
-      warnings: result.warnings,
+    ).catch(async (err) => {
+      console.error(`[subjects/:id/upload] Background job ${job.id} error:`, err);
+      await updateJob(job.id, { status: "error", error: err.message || "Extraction failed" });
     });
+
+    // ── Return immediately ──
+
+    return NextResponse.json(
+      {
+        ok: true,
+        source: {
+          id: source.id,
+          slug: source.slug,
+          name: source.name,
+          trustLevel: source.trustLevel,
+        },
+        tags,
+        fileName: file.name,
+        jobId: job.id,
+        totalChunks: chunks.length,
+      },
+      { status: 202 }
+    );
   } catch (error: any) {
     console.error("[subjects/:id/upload] POST error:", error);
     return NextResponse.json(
       { ok: false, error: error.message || "Upload failed" },
       { status: 500 }
     );
+  }
+}
+
+// ── Background extraction + save ──
+
+async function runBackgroundExtraction(
+  jobId: string,
+  sourceId: string,
+  subjectId: string,
+  subjectName: string,
+  userId: string,
+  text: string,
+  opts: { sourceSlug: string; qualificationRef?: string; maxAssertions: number },
+) {
+  const result = await extractAssertions(text, {
+    ...opts,
+    onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
+      updateJob(jobId, {
+        currentChunk: chunkIndex + 1,
+        totalChunks,
+        extractedCount: extractedSoFar,
+      });
+    },
+  });
+
+  if (!result.ok) {
+    updateJob(jobId, {
+      status: "error",
+      error: result.error || "Extraction failed",
+      warnings: result.warnings,
+    });
+    return;
+  }
+
+  // Save to DB
+  updateJob(jobId, { status: "importing", extractedCount: result.assertions.length, warnings: result.warnings });
+
+  const existingHashes = new Set(
+    (await prisma.contentAssertion.findMany({
+      where: { sourceId },
+      select: { contentHash: true },
+    }))
+      .map((a) => a.contentHash)
+      .filter(Boolean)
+  );
+
+  const toCreate = result.assertions.filter((a) => !existingHashes.has(a.contentHash));
+  const duplicatesSkipped = result.assertions.length - toCreate.length;
+
+  if (toCreate.length > 0) {
+    await prisma.contentAssertion.createMany({
+      data: toCreate.map((a) => ({
+        sourceId,
+        assertion: a.assertion,
+        category: a.category,
+        chapter: a.chapter || null,
+        section: a.section || null,
+        tags: a.tags,
+        examRelevance: a.examRelevance ?? null,
+        learningOutcomeRef: a.learningOutcomeRef || null,
+        validUntil: a.validUntil ? new Date(a.validUntil) : null,
+        taxYear: a.taxYear || null,
+        contentHash: a.contentHash,
+      })),
+    });
+  }
+
+  await updateJob(jobId, {
+    status: "done",
+    importedCount: toCreate.length,
+    duplicatesSkipped,
+    extractedCount: result.assertions.length,
+  });
+
+  // Auto-trigger curriculum generation if all extractions for this subject are done
+  try {
+    await checkAutoTriggerCurriculum(subjectId, userId);
+  } catch (err) {
+    console.error(`[subjects/:id/upload] Auto-trigger error for subject ${subjectId}:`, err);
   }
 }

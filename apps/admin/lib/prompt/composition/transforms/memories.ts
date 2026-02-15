@@ -52,9 +52,16 @@ export function computeMemoryRelevance(
   (sessionContext.upcomingTopics || []).forEach(addTokens);
   (sessionContext.learnerGoals || []).forEach(addTokens);
 
+  // Recency boost — recently extracted memories get a small edge (max 0.2)
+  const recencyBoost = (() => {
+    if (!memory.extractedAt) return 0;
+    const daysSince = (Date.now() - new Date(memory.extractedAt).getTime()) / (1000 * 60 * 60 * 24);
+    return Math.max(0, 1 - (daysSince / 90)) * 0.2;
+  })();
+
   if (contextTokens.size === 0) {
-    // No session context → pure category boost (or 0)
-    return Math.min(1, Math.max(0, weights[memory.category] || 0));
+    // No session context → category boost + recency (or 0)
+    return Math.min(1, Math.max(0, (weights[memory.category] || 0) + recencyBoost));
   }
 
   // Compute keyword overlap
@@ -70,15 +77,49 @@ export function computeMemoryRelevance(
     ? Math.min(1, matches / Math.min(memoryTokens.length, 3))
     : 0;
 
-  // Add category boost (capped at 1.0 total)
+  // Add category boost
   const categoryBoost = weights[memory.category] || 0;
-  return Math.min(1, overlapScore + categoryBoost);
+
+  return Math.min(1, overlapScore + categoryBoost + recencyBoost);
+}
+
+/**
+ * Default decay rates by memory category. Used when decayFactor is 1.0
+ * (DB default = not explicitly set). Expressed as monthly decay multiplier:
+ *   - 1.0 = no decay (stable facts)
+ *   - 0.95 = ~5% confidence loss per 30 days
+ *   - 0.85 = ~15% confidence loss per 30 days
+ */
+const CATEGORY_DECAY_DEFAULTS: Record<string, number> = {
+  FACT: 1.0,          // "They live in London" — stable until contradicted
+  PREFERENCE: 1.0,    // "They prefer visual learning" — stable
+  RELATIONSHIP: 1.0,  // "They have 2 children" — stable
+  TOPIC: 0.95,        // "They're interested in budgeting" — slowly fades
+  EVENT: 0.90,        // "They mentioned an upcoming exam" — time-sensitive
+  CONTEXT: 0.85,      // "They seemed stressed today" — fades quickly
+};
+
+/**
+ * Apply decayFactor to confidence.
+ *
+ * When decayFactor is explicitly set (< 1.0), use it directly.
+ * When decayFactor is 1.0 (DB default), apply category-based decay instead.
+ *   effectiveConfidence = confidence * decay^(daysSinceExtraction / 30)
+ */
+function applyDecay(m: MemoryData): number {
+  if (!m.extractedAt) return m.confidence;
+  const decay = m.decayFactor < 1.0
+    ? m.decayFactor
+    : (CATEGORY_DECAY_DEFAULTS[m.category] ?? 1.0);
+  if (decay >= 1.0) return m.confidence;
+  const daysSince = (Date.now() - new Date(m.extractedAt).getTime()) / (1000 * 60 * 60 * 24);
+  return m.confidence * Math.pow(decay, daysSince / 30);
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: Deduplicate by normalized key (highest confidence wins)
+// Step 1: Deduplicate by normalized key (highest effective confidence wins)
 // Input:  MemoryData[]
-// Output: MemoryData[]
+// Output: MemoryData[] (with confidence adjusted by decayFactor)
 // ---------------------------------------------------------------------------
 registerTransform("deduplicateMemories", (
   rawData: MemoryData[],
@@ -86,8 +127,10 @@ registerTransform("deduplicateMemories", (
   _sectionDef: CompositionSectionDef,
 ) => {
   const memories = rawData || [];
+  // Apply decay to confidence before deduplication
+  const decayed = memories.map((m) => ({ ...m, confidence: applyDecay(m) }));
   const seen = new Map<string, MemoryData>();
-  for (const m of memories) {
+  for (const m of decayed) {
     const normalizedKey = `${m.category}:${m.key.toLowerCase().replace(/\s+/g, "_")}`;
     const existing = seen.get(normalizedKey);
     if (!existing || m.confidence > existing.confidence) {
@@ -109,7 +152,7 @@ registerTransform("scoreMemoryRelevance", (
 ) => {
   const memories = rawData || [];
   const memConfig = sectionDef.config || {};
-  const alpha: number = memConfig.relevanceAlpha ?? context.specConfig.relevanceAlpha ?? 1.0;
+  const alpha: number = memConfig.relevanceAlpha ?? context.specConfig.relevanceAlpha ?? 0.6;
   const categoryWeights: Record<string, number> = memConfig.categoryRelevanceWeights ?? {};
 
   const sessionContext = {
@@ -184,9 +227,10 @@ registerTransform("deduplicateAndGroupMemories", (
   const memoriesPerCategory = sectionDef.config?.memoriesPerCategory || context.specConfig.memoriesPerCategory || 5;
   const memoriesLimit = sectionDef.config?.memoriesLimit || context.specConfig.memoriesLimit || 50;
 
-  // Step 1: Deduplicate
+  // Step 1: Apply decay + deduplicate
+  const decayed = memories.map((m) => ({ ...m, confidence: applyDecay(m) }));
   const seen = new Map<string, MemoryData>();
-  for (const m of memories) {
+  for (const m of decayed) {
     const normalizedKey = `${m.category}:${m.key.toLowerCase().replace(/\s+/g, "_")}`;
     const existing = seen.get(normalizedKey);
     if (!existing || m.confidence > existing.confidence) {
@@ -197,7 +241,7 @@ registerTransform("deduplicateAndGroupMemories", (
 
   // Step 2: Score + sort
   const memConfig = sectionDef.config || {};
-  const alpha: number = memConfig.relevanceAlpha ?? context.specConfig.relevanceAlpha ?? 1.0;
+  const alpha: number = memConfig.relevanceAlpha ?? context.specConfig.relevanceAlpha ?? 0.6;
   const categoryWeights: Record<string, number> = memConfig.categoryRelevanceWeights ?? {};
 
   const sessionContext = {

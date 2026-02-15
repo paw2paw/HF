@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useGlobalAssistant } from "@/contexts/AssistantContext";
 import { useGuidance } from "@/contexts/GuidanceContext";
+import { useMasquerade } from "@/contexts/MasqueradeContext";
+import { useBranding } from "@/contexts/BrandingContext";
 import { useSidebarLayout } from "@/hooks/useSidebarLayout";
 import { ICON_MAP } from "@/lib/sidebar/icons";
 import type { NavSection } from "@/lib/sidebar/types";
@@ -13,18 +15,17 @@ import sidebarManifest from "@/lib/sidebar/sidebar-manifest.json";
 import {
   MoreVertical,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Settings,
-  RotateCcw,
-  Save,
-  Eye,
+  PanelLeft,
   EyeOff,
   Trash2,
   PenLine,
   Bot,
   Home,
 } from "lucide-react";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import { AccountPanel } from "@/components/shared/AccountPanel";
+import { envSidebarColor } from "@/components/shared/EnvironmentBanner";
+import { MASQUERADE_BANNER_HEIGHT } from "@/components/shared/MasqueradeBanner";
 
 // ============================================================================
 // Icon Helper
@@ -148,8 +149,16 @@ export default function SimpleSidebarNav({
   const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  const userRole = session?.user?.role as string | undefined;
-  const isAdmin = userRole === "ADMIN" || userRole === "SUPERADMIN";
+  const realRole = session?.user?.role as string | undefined;
+  const realIsAdmin = realRole === "ADMIN" || realRole === "SUPERADMIN";
+
+  // Branding: institution name + logo
+  const { branding } = useBranding();
+
+  // Masquerade: override sidebar role filtering to match masqueraded user
+  const { isMasquerading, effectiveRole } = useMasquerade();
+  const userRole = isMasquerading ? effectiveRole : realRole;
+  const isAdmin = realIsAdmin; // Keep admin features (layout save, masquerade trigger) based on real role
 
   // ── DB-backed visibility rules (overrides manifest requiredRole/defaultHiddenFor) ──
   const [visibilityRules, setVisibilityRules] = useState<Record<
@@ -211,6 +220,29 @@ export default function SimpleSidebarNav({
     return () => clearInterval(interval);
   }, [userId]);
 
+  // Student artifact notification badge
+  const [studentUnreadCount, setStudentUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId || userRole !== "STUDENT") return;
+
+    const fetchStudentUnread = async () => {
+      try {
+        const res = await fetch("/api/student/notifications");
+        const data = await res.json();
+        if (data.ok) {
+          setStudentUnreadCount(data.unreadCount || 0);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+
+    fetchStudentUnread();
+    const interval = setInterval(fetchStudentUnread, 30000);
+    return () => clearInterval(interval);
+  }, [userId, userRole]);
+
   // Collapse state
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = externalCollapsed ?? internalCollapsed;
@@ -238,9 +270,6 @@ export default function SimpleSidebarNav({
 
   // UI state
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
-  const [savingDefault, setSavingDefault] = useState(false);
-  const [savingPersonal, setSavingPersonal] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [deleteToast, setDeleteToast] = useState<{
@@ -248,7 +277,13 @@ export default function SimpleSidebarNav({
     sectionTitle: string;
     timeoutId: ReturnType<typeof setTimeout>;
   } | null>(null);
+  const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
+
+  // Auto-close account panel on navigation
+  useEffect(() => {
+    setShowAccountPanel(false);
+  }, [pathname]);
 
   // Collapsed sections state (persisted to localStorage)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -295,19 +330,7 @@ export default function SimpleSidebarNav({
   }, []);
 
   const navRef = useRef<HTMLElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-
-  // Close layout menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowLayoutMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Focus edit input when editing
   useEffect(() => {
@@ -317,16 +340,20 @@ export default function SimpleSidebarNav({
     }
   }, [editingSectionId]);
 
-  // Flatten items for keyboard navigation
+  // Flatten items for keyboard navigation (with role variants resolved)
   const flatNavItems = useMemo(() => {
     const items: { href: string; label: string }[] = [];
     for (const section of visibleSections) {
       for (const item of section.items) {
-        items.push({ href: item.href, label: item.label });
+        const variant = item.roleVariants?.[userRole || ""] ?? {};
+        items.push({
+          href: variant.href ?? item.href,
+          label: variant.label ?? item.label,
+        });
       }
     }
     return items;
-  }, [visibleSections]);
+  }, [visibleSections, userRole]);
 
   // Active state
   const isActive = useCallback(
@@ -418,30 +445,59 @@ export default function SimpleSidebarNav({
     setDeleteToast(null);
   }, [deleteToast, undoDeleteSection]);
 
-  // Handle set as default for all
-  const handleSetAsDefault = useCallback(async () => {
-    setSavingDefault(true);
-    await setAsDefault();
-    setSavingDefault(false);
-    setShowLayoutMenu(false);
-  }, [setAsDefault]);
-
-  // Handle set as personal default
-  const handleSavePersonalDefault = useCallback(async () => {
-    setSavingPersonal(true);
-    await setAsPersonalDefault();
-    setSavingPersonal(false);
-    setShowLayoutMenu(false);
-  }, [setAsPersonalDefault]);
-
-  // Handle reset
-  const handleReset = useCallback(() => {
-    resetLayout();
-    setShowLayoutMenu(false);
-  }, [resetLayout]);
+  // Handle account panel toggle
+  const handleAvatarClick = useCallback(() => {
+    if (showAccountPanel) {
+      setShowAccountPanel(false);
+      return;
+    }
+    if (collapsed && onToggle) {
+      onToggle();
+    }
+    setShowAccountPanel(true);
+  }, [collapsed, onToggle, showAccountPanel]);
 
   return (
-    <div className="relative flex h-full flex-col p-2 overflow-hidden" style={{ color: "var(--text-primary)" }}>
+    <div className="relative flex h-full flex-col" style={{ color: "var(--text-primary)", zIndex: 50 }}>
+      {/* Fixed flyout: Account panel */}
+      {showAccountPanel && (
+        <div
+          style={{
+            position: "fixed",
+            top: isMasquerading ? MASQUERADE_BANNER_HEIGHT : 0,
+            left: envSidebarColor ? 3 : 0,
+            bottom: 0,
+            width: 280,
+            zIndex: 55,
+            background: "var(--surface-primary)",
+            borderRight: "1px solid var(--border-subtle)",
+            boxShadow: "4px 0 24px rgba(0,0,0,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          <AccountPanel
+            onClose={() => setShowAccountPanel(false)}
+            onNavigate={onNavigate}
+            unreadCount={unreadCount}
+            layoutOptions={{
+              isAdmin,
+              hasCustomLayout,
+              hiddenSections: hiddenSectionIds.map((id) => ({
+                id,
+                title: BASE_SECTIONS.find((s) => s.id === id)?.title || id,
+              })),
+              onSavePersonalDefault: setAsPersonalDefault,
+              onSaveGlobalDefault: setAsDefault,
+              onResetLayout: resetLayout,
+              onShowSection: showSection,
+            }}
+            masqueradeOptions={realIsAdmin ? { isRealAdmin: true } : undefined}
+          />
+        </div>
+      )}
+
+      {/* Navigation panel */}
+      <div className="flex h-full flex-col p-2">
       {/* Header */}
       {collapsed ? (
         <div className="mb-2 flex flex-col items-center gap-1">
@@ -452,7 +508,7 @@ export default function SimpleSidebarNav({
             title="Expand sidebar"
             className="w-full h-5 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] transition-colors mb-0.5"
           >
-            <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+            <PanelLeft className="w-3.5 h-3.5 text-[var(--text-muted)]" />
           </button>
           <Link
             href="/x"
@@ -477,12 +533,18 @@ export default function SimpleSidebarNav({
         </div>
       ) : (
         <div className="mb-3 flex items-center justify-between gap-2">
-          <Link
-            href="/x"
-            className="text-[13px] font-bold tracking-tight hover:text-[var(--accent-primary)] transition-colors"
-          >
-            HumanFirst
-          </Link>
+          {branding.logoUrl ? (
+            <Link href="/x" className="flex items-center">
+              <img src={branding.logoUrl} alt={branding.name} style={{ height: 22 }} />
+            </Link>
+          ) : (
+            <Link
+              href="/x"
+              className="text-[13px] font-bold tracking-tight hover:text-[var(--accent-primary)] transition-colors"
+            >
+              {branding.name}
+            </Link>
+          )}
 
           <div className="flex items-center gap-0.5">
             {/* AI assistant toggle */}
@@ -500,100 +562,6 @@ export default function SimpleSidebarNav({
               <Bot className="w-4.5 h-4.5" />
             </button>
 
-            {/* Layout menu */}
-            {isLoaded && (
-              <div className="relative" ref={menuRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowLayoutMenu((prev) => !prev)}
-                  title="Layout options"
-                  className={
-                    "relative w-9 h-9 flex items-center justify-center rounded-md transition-colors " +
-                    (showLayoutMenu
-                      ? "bg-[var(--surface-tertiary)] text-[var(--text-primary)]"
-                      : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]")
-                  }
-                >
-                  <Settings className="w-4 h-4" />
-                  {hasCustomLayout && !hasPersonalDefault && (
-                    <span
-                      className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full"
-                      style={{ background: "var(--accent-primary)" }}
-                    />
-                  )}
-                </button>
-                {showLayoutMenu && (
-                  <div className="absolute left-0 top-8 z-50 w-52 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] shadow-lg py-1">
-                    {/* Save as personal default */}
-                    <button
-                      type="button"
-                      onClick={handleSavePersonalDefault}
-                      disabled={savingPersonal}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] disabled:opacity-50 transition-colors"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      {savingPersonal ? "Saving..." : "Set as Default for Me"}
-                    </button>
-
-                    {/* Set as default for all (admin only) */}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={handleSetAsDefault}
-                        disabled={savingDefault}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-medium text-[var(--accent-primary)] hover:bg-[var(--hover-bg)] disabled:opacity-50 transition-colors"
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                        {savingDefault ? "Saving..." : "Set as Default for All"}
-                      </button>
-                    )}
-
-                    {/* Reset */}
-                    {hasCustomLayout && (
-                      <>
-                        <div className="my-1 border-t border-[var(--border-subtle)]" />
-                        <button
-                          type="button"
-                          onClick={handleReset}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Reset to Default
-                        </button>
-                      </>
-                    )}
-
-                    {/* Show hidden sections (NOT deleted) */}
-                    {hiddenSectionIds.length > 0 && (
-                      <>
-                        <div className="my-1 border-t border-[var(--border-subtle)]" />
-                        <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                          Hidden
-                        </div>
-                        {hiddenSectionIds.map((id) => {
-                          const section = BASE_SECTIONS.find((s) => s.id === id);
-                          return (
-                            <button
-                              key={id}
-                              type="button"
-                              onClick={() => {
-                                showSection(id);
-                                setShowLayoutMenu(false);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              Show {section?.title || id}
-                            </button>
-                          );
-                        })}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Collapse toggle */}
             <button
               type="button"
@@ -601,7 +569,7 @@ export default function SimpleSidebarNav({
               aria-label="Collapse sidebar"
               className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <PanelLeft className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -640,15 +608,15 @@ export default function SimpleSidebarNav({
                 }
                 style={{ cursor: collapsed ? "default" : dragState.draggedItem ? "default" : "grab" }}
               >
-                {/* Section divider */}
+                {/* Section divider — slightly more breathing room */}
                 {section.title && !collapsed && (
-                  <div className="mx-2 border-t border-[var(--border-subtle)]" />
+                  <div className="mx-2 mt-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />
                 )}
 
                 {/* Section title with kebab menu */}
                 {section.title && !collapsed && (
                   <div
-                    className="flex items-center justify-between px-2 pb-0.5 pt-1"
+                    className="flex items-center justify-between px-2 pb-0.5 pt-2"
                     onMouseEnter={() => setHoveredSectionId(section.id)}
                     onMouseLeave={() => setHoveredSectionId(null)}
                   >
@@ -666,7 +634,7 @@ export default function SimpleSidebarNav({
                             setEditingTitle("");
                           }
                         }}
-                        className="w-full text-[11px] font-medium tracking-wide bg-transparent border-b border-[var(--accent-primary)] outline-none"
+                        className="w-full text-[10px] font-semibold tracking-widest uppercase bg-transparent border-b border-[var(--accent-primary)] outline-none"
                         style={{ color: "var(--text-secondary)" }}
                       />
                     ) : (
@@ -687,20 +655,20 @@ export default function SimpleSidebarNav({
                         {section.href ? (
                           <Link
                             href={section.href}
-                            className="group flex items-center text-[11px] font-medium tracking-wide transition-colors"
+                            className="group flex items-center text-[10px] font-semibold tracking-widest uppercase transition-colors"
                             style={{
                               color: isActive(section.href) ? "var(--accent-primary)" : "var(--text-muted)",
                               textDecoration: "none",
                             }}
                           >
                             <span>{section.title}</span>
-                            <span className="opacity-0 group-hover:opacity-60 transition-opacity text-[9px] ml-0.5">{"\u2192"}</span>
+                            <span className="opacity-0 group-hover:opacity-60 transition-opacity text-[9px] ml-1">{"\u203A"}</span>
                           </Link>
                         ) : (
                           <button
                             type="button"
                             onClick={() => toggleSectionCollapse(section.id)}
-                            className="text-[11px] font-medium tracking-wide transition-colors"
+                            className="text-[10px] font-semibold tracking-widest uppercase transition-colors"
                             style={{ color: "var(--text-muted)" }}
                           >
                             {section.title}
@@ -730,7 +698,15 @@ export default function SimpleSidebarNav({
                     opacity: section.title && collapsedSections.has(section.id) ? 0 : 1,
                   }}
                 >
-                  {section.items.map((item) => {
+                  {section.items.map((rawItem) => {
+                    // Resolve role-specific overrides
+                    const variant = rawItem.roleVariants?.[userRole || ""] ?? {};
+                    const item = {
+                      ...rawItem,
+                      label: variant.label ?? rawItem.label,
+                      href: variant.href ?? rawItem.href,
+                      icon: variant.icon ?? rawItem.icon,
+                    };
                     const active = isActive(item.href);
                     const itemIndex = flatNavItems.findIndex((fi) => fi.href === item.href);
                     const isFocused = itemIndex === focusedIndex;
@@ -765,29 +741,27 @@ export default function SimpleSidebarNav({
                         className={
                           baseClass +
                           highlightClass +
-                          "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 " +
+                          "flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 " +
                           (isDraggingItem ? "opacity-50 " : "") +
                           (isDragOverThisItem ? "border-t-2 border-[var(--accent-primary)] " : "") +
                           (active
-                            ? "bg-[var(--accent-primary)]/8 font-semibold"
+                            ? "font-semibold"
                             : isFocused
                               ? "bg-[var(--hover-bg)] font-medium"
-                              : "font-medium hover:bg-[var(--hover-bg)] hover:shadow-[inset_2px_0_0_var(--accent-primary)]")
+                              : "font-medium hover:bg-[var(--hover-bg)]")
                         }
                         style={{
                           cursor: collapsed ? "default" : "grab",
                           color: active ? "var(--accent-primary)" : "var(--text-primary)",
+                          background: active ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : undefined,
                         }}
                       >
                         {item.icon && (
-                          <span className={
-                            "flex items-center justify-center w-6 h-6 flex-shrink-0 rounded-md transition-colors " +
-                            (active ? "bg-[var(--accent-primary)]/10" : "")
-                          }>
+                          <span className="flex items-center justify-center w-6 h-6 flex-shrink-0 rounded-md transition-colors">
                             <NavIcon
                               name={item.icon}
                               className={
-                                "w-4 h-4 " +
+                                "w-[16px] h-[16px] " +
                                 (active ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]")
                               }
                             />
@@ -805,6 +779,17 @@ export default function SimpleSidebarNav({
                             {unreadCount}
                           </span>
                         )}
+                        {!collapsed && item.href === "/x/student/stuff" && studentUnreadCount > 0 && (
+                          <span
+                            className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
+                            style={{
+                              background: active ? "var(--accent-primary)" : "var(--accent-primary)",
+                              opacity: active ? 0.8 : 1,
+                            }}
+                          >
+                            {studentUnreadCount}
+                          </span>
+                        )}
                       </Link>
                     );
                   })}
@@ -814,12 +799,56 @@ export default function SimpleSidebarNav({
           })}
         </nav>
 
-        <div className="mt-auto pt-2">
-          <div className="text-center text-[10px]" style={{ color: "var(--text-muted)" }}>
-            HumanFirst Studio
-          </div>
+        <div className="mt-auto pt-2" style={{ position: "relative" }}>
+          {/* Account avatar trigger */}
+          <button
+            onClick={handleAvatarClick}
+            className="relative flex w-full items-center justify-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--hover-bg)]"
+            title="Account"
+            style={{ border: "none", background: "transparent", cursor: "pointer" }}
+          >
+            <div className="relative flex-shrink-0">
+              <UserAvatar
+                name={session?.user?.name || session?.user?.email || "?"}
+                role={session?.user?.role}
+                size={collapsed ? 28 : 24}
+              />
+              {unreadCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
+                  style={{
+                    background: "var(--accent-primary)",
+                    borderColor: "var(--surface-primary)",
+                  }}
+                />
+              )}
+            </div>
+            {!collapsed && (
+              <span
+                className="truncate text-[11px] font-medium"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {(session?.user as any)?.displayName || session?.user?.name || session?.user?.email}
+              </span>
+            )}
+          </button>
+        </div>
         </div>
       </div>
+      {/* End: Navigation panel */}
+
+      {/* Backdrop: click anywhere on main content to close account panel */}
+      {showAccountPanel && (
+        <div
+          onClick={() => setShowAccountPanel(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 40,
+            cursor: "default",
+          }}
+        />
+      )}
 
       {/* Undo delete toast */}
       {deleteToast && (

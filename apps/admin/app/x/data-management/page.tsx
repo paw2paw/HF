@@ -150,7 +150,7 @@ export default function DataManagementPage() {
   async function loadSyncStatus() {
     setLoadingSyncStatus(true);
     try {
-      const res = await fetch("/api/x/sync-specs");
+      const res = await fetch("/api/admin/spec-sync");
       const data = await res.json();
       if (data.ok) {
         setSyncStatus({
@@ -172,7 +172,7 @@ export default function DataManagementPage() {
     setOperationResults((prev) => ({ ...prev, "sync-specs": {} }));
 
     try {
-      const res = await fetch("/api/x/sync-specs", {
+      const res = await fetch("/api/admin/spec-sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

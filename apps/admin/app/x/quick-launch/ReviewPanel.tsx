@@ -9,12 +9,14 @@ import type { GeneratedIdentityConfig } from "@/lib/domain/generate-identity";
 interface ReviewPanelProps {
   input: {
     subjectName: string;
+    brief?: string;
     persona: string;
     personaName?: string;
     goals: string[];
-    fileName: string;
-    fileSize: number;
+    fileName?: string;
+    fileSize?: number;
     qualificationRef?: string;
+    mode?: "upload" | "generate";
   };
   /** Partial preview — fills progressively as SSE events arrive */
   preview: Partial<AnalysisPreview>;
@@ -391,12 +393,19 @@ export default function ReviewPanel({
           <ColumnHeader label="Your Input" />
           <SectionCard>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Subject</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Name</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{input.subjectName}</div>
             </div>
 
+            {input.brief && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Brief</div>
+                <div style={{ fontSize: 14, fontWeight: 400, color: "var(--text-secondary)", lineHeight: 1.5 }}>{input.brief}</div>
+              </div>
+            )}
+
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Teaching Style</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Persona</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
                 {input.personaName || input.persona}
               </div>
@@ -426,13 +435,25 @@ export default function ReviewPanel({
             )}
 
             <div style={{ marginBottom: input.qualificationRef ? 16 : 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Course Material</div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
-                {input.fileName}
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                {input.mode === "generate" ? "Content Source" : "Source Material"}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {(input.fileSize / 1024).toFixed(0)} KB
-              </div>
+              {input.mode === "generate" ? (
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--accent-primary)" }}>
+                  AI-generated from goals
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                    {input.fileName}
+                  </div>
+                  {input.fileSize != null && (
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {(input.fileSize / 1024).toFixed(0)} KB
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {input.qualificationRef && (
@@ -450,56 +471,84 @@ export default function ReviewPanel({
         <div>
           <ColumnHeader label="AI Understood" sublabel={analysisComplete ? "Analysis complete" : "Analyzing..."} />
 
-          {/* Content Extraction */}
+          {/* Content Extraction (upload mode) or Generation info (generate mode) */}
           <SectionCard style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Content Extraction
-            </div>
-            {summary ? (
+            {input.mode === "generate" ? (
               <>
-                <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>
-                  {preview.assertionCount} teaching points
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  AI-Generated Content
                 </div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
-                  from {summary.chapters.length} chapter{summary.chapters.length !== 1 ? "s" : ""}
+                <div style={{ fontSize: 15, fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                  Content will be generated during the create step based on your description and{" "}
+                  {input.goals.length > 0
+                    ? `${input.goals.length} learning goal${input.goals.length !== 1 ? "s" : ""}`
+                    : "AI-inferred goals"
+                  }.
                 </div>
-
-                {/* Category breakdown */}
-                <div style={{ marginBottom: 16 }}>
-                  {Object.entries(summary.categoryBreakdown)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([cat, count]) => (
-                      <CategoryBar key={cat} label={cat} count={count} maxCount={maxCategoryCount} />
-                    ))}
+                <div style={{
+                  marginTop: 14,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "var(--surface-secondary)",
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  fontWeight: 500,
+                }}>
+                  Modules will be structured progressively, with outcomes and assessment criteria tailored to your goals.
                 </div>
-
-                {/* Top chapters */}
-                {summary.chapters.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Top Chapters
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Content Extraction
+                </div>
+                {summary && "categoryBreakdown" in summary ? (
+                  <>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>
+                      {preview.assertionCount} teaching points
                     </div>
-                    {summary.chapters.slice(0, 6).map((ch, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
-                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{ch.name}</span>
-                        <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{ch.count}</span>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
+                      from {(summary as any).chapters?.length ?? 0} chapter{(summary as any).chapters?.length !== 1 ? "s" : ""}
+                    </div>
+
+                    {/* Category breakdown */}
+                    <div style={{ marginBottom: 16 }}>
+                      {Object.entries((summary as any).categoryBreakdown || {})
+                        .sort(([, a], [, b]) => (b as number) - (a as number))
+                        .map(([cat, count]) => (
+                          <CategoryBar key={cat} label={cat} count={count as number} maxCount={maxCategoryCount} />
+                        ))}
+                    </div>
+
+                    {/* Top chapters */}
+                    {(summary as any).chapters?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          Top Chapters
+                        </div>
+                        {(summary as any).chapters.slice(0, 6).map((ch: any, i: number) => (
+                          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
+                            <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{ch.name}</span>
+                            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{ch.count}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+                  </>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <Skeleton height={24} width="60%" />
+                    <Skeleton height={14} width="40%" />
+                    <div style={{ marginTop: 8 }}>
+                      <Skeleton height={8} />
+                      <div style={{ height: 6 }} />
+                      <Skeleton height={8} width="80%" />
+                      <div style={{ height: 6 }} />
+                      <Skeleton height={8} width="60%" />
+                    </div>
                   </div>
                 )}
               </>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <Skeleton height={24} width="60%" />
-                <Skeleton height={14} width="40%" />
-                <div style={{ marginTop: 8 }}>
-                  <Skeleton height={8} />
-                  <div style={{ height: 6 }} />
-                  <Skeleton height={8} width="80%" />
-                  <div style={{ height: 6 }} />
-                  <Skeleton height={8} width="60%" />
-                </div>
-              </div>
             )}
           </SectionCard>
 
@@ -590,13 +639,13 @@ export default function ReviewPanel({
           <ColumnHeader label="What We'll Create" sublabel="Click any field to edit" />
           <SectionCard style={{ marginBottom: 16 }}>
             <EditableField
-              label="Domain Name"
+              label="Agent Name"
               value={effectiveDomainName}
               onChange={(v) => updateOverride("domainName", v)}
             />
 
             <EditableField
-              label="Domain Slug"
+              label="Agent Slug"
               value={effectiveDomainSlug}
               onChange={(v) => updateOverride("domainSlug", v)}
             />

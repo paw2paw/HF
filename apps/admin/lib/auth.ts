@@ -4,6 +4,7 @@ import EmailProvider from "next-auth/providers/email";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import { sendMagicLinkEmail } from "./email";
 import type { UserRole } from "@prisma/client";
 import type { Adapter } from "next-auth/adapters";
 
@@ -73,12 +74,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
         } else {
-          // No password set - for bootstrapped users, accept the default password
-          // This allows first login before setting a real password
-          if (credentials.password !== "admin123") {
-            console.log("[Auth] Default password check failed");
-            return null;
-          }
+          // No password set — password auth unavailable for this user.
+          // Use magic link or set SEED_ADMIN_PASSWORD in seed script.
+          console.log("[Auth] No passwordHash set, password auth unavailable");
+          return null;
         }
 
         console.log("[Auth] Success, returning user");
@@ -102,6 +101,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
       },
       from: process.env.EMAIL_FROM || "HF Admin <noreply@example.com>",
+      sendVerificationRequest: async ({ identifier: email, url }) => {
+        await sendMagicLinkEmail({ to: email, url });
+      },
     }),
   ],
   callbacks: {

@@ -5,6 +5,10 @@ export type NavItem = {
   label: string;
   icon?: string;
   highlighted?: boolean;
+  /** Role-specific overrides for label, href, and icon */
+  roleVariants?: Record<string, { label?: string; href?: string; icon?: string }>;
+  /** If set, only these roles see this item. Omit to show to all roles that can see the section. */
+  visibleFor?: string[];
 };
 
 export type NavSection = {

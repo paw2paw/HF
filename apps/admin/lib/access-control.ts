@@ -25,6 +25,7 @@ import type { Session } from "next-auth";
 export type EntityName =
   | "callers"
   | "calls"
+  | "cohorts"
   | "domains"
   | "playbooks"
   | "specs"

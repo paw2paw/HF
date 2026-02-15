@@ -64,7 +64,7 @@ test.describe('Draggable Tabs', () => {
 
         // Check for drag handle or draggable attribute
         const isDraggable = await firstTab.evaluate((el) => {
-          return el.draggable || el.getAttribute('data-draggable') === 'true';
+          return (el as HTMLElement).draggable || el.getAttribute('data-draggable') === 'true';
         });
 
         // May have custom drag implementation

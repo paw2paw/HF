@@ -16,6 +16,7 @@
 import { prisma } from "@/lib/prisma";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { CURRICULUM_REQUIRED_FIELDS } from "@/lib/curriculum/constants";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 interface CurriculumMetadata {
   type: 'sequential' | 'branching' | 'open-ended';
@@ -166,7 +167,7 @@ export async function composeContentSection(
  * Throws error if required metadata is missing
  */
 async function extractCurriculumMetadata(spec: any): Promise<CurriculumMetadata> {
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   const meta = specConfig?.metadata?.curriculum;
 
   if (!meta) {
@@ -186,7 +187,7 @@ async function extractCurriculumMetadata(spec: any): Promise<CurriculumMetadata>
   for (const field of CURRICULUM_REQUIRED_FIELDS) {
     if (meta[field] === undefined) {
       // Check if contract has a default
-      const fieldDef = contractMetadata[field as keyof typeof contractMetadata] as any;
+      const fieldDef = contractMetadata[field as keyof typeof contractMetadata] as Record<string, any> | undefined;
       if (!fieldDef?.default) {
         missingFields.push(field);
       }
@@ -218,7 +219,7 @@ function extractModulesFromSpec(
   spec: any,
   metadata: CurriculumMetadata
 ): CurriculumModule[] {
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   const params = specConfig?.parameters || [];
 
   // Parse selector (e.g., "section=content" → filter by section="content")

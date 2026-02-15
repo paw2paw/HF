@@ -5,10 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PrismaClient } from '@prisma/client';
-
-// Helper to access the mocked prisma instance
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 describe('personality-analyze', () => {
   beforeEach(() => {
@@ -42,10 +39,7 @@ describe('personality-analyze', () => {
       expect(result.specsUsed).toBe(0);
     });
 
-    // TODO: This test requires dependency injection refactoring to properly mock Prisma
-    // The module creates its own PrismaClient instance, so vi.mocked() doesn't work
-    // Use integration tests to verify this functionality instead
-    it.skip('should process calls with mock scoring when specs exist', async () => {
+    it('should process calls with mock scoring when specs exist', async () => {
       const mockSpec = {
         id: 'spec-1',
         slug: 'big-five-openness',
@@ -75,10 +69,10 @@ describe('personality-analyze', () => {
 
       const mockCall = {
         id: 'call-1',
-        userId: 'user-1',
+        callerId: 'caller-1',
         transcript: 'Customer: I am really curious about new products. I love exploring different options.',
         createdAt: new Date(),
-        user: { id: 'user-1', name: 'Test User' },
+        caller: { id: 'caller-1', name: 'Test User' },
       };
 
       vi.mocked(prisma.analysisSpec.findMany).mockResolvedValue([mockSpec] as any);

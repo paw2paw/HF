@@ -16,7 +16,12 @@ export default function AskAISearchBar({
   const { openPanel, sendMessage, isOpen } = useChatContext();
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [isMac, setIsMac] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsMac(/Mac/.test(navigator.platform));
+  }, []);
 
   // If user types and hits enter, open panel and send message
   const handleSubmit = (e: React.FormEvent) => {
@@ -87,8 +92,8 @@ export default function AskAISearchBar({
             </button>
           ) : (
             <>
-              <kbd className="px-1.5 py-0.5 text-[10px] font-medium bg-neutral-100 dark:bg-neutral-700 rounded border border-neutral-200 dark:border-neutral-600">
-                {typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl"}
+              <kbd suppressHydrationWarning className="px-1.5 py-0.5 text-[10px] font-medium bg-neutral-100 dark:bg-neutral-700 rounded border border-neutral-200 dark:border-neutral-600">
+                {isMac ? "⌘" : "Ctrl"}
               </kbd>
               <kbd className="px-1.5 py-0.5 text-[10px] font-medium bg-neutral-100 dark:bg-neutral-700 rounded border border-neutral-200 dark:border-neutral-600">
                 K

@@ -129,10 +129,10 @@ export async function extractGoals(
       return result;
     }
 
-    // @ai-call pipeline.learn — Extract learner goals from transcript | config: /x/ai-config
+    // @ai-call pipeline.extract_goals — Extract learner goals from transcript | config: /x/ai-config
     const aiResult = await getConfiguredMeteredAICompletion(
       {
-        callPoint: "pipeline.learn",
+        callPoint: "pipeline.extract_goals",
         engineOverride: engine,
         messages: [
           {

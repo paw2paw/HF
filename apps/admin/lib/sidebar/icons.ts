@@ -40,6 +40,14 @@ import {
   BookA,
   Beaker,
   FileJson,
+  FileSearch,
+  Layers,
+  GraduationCap,
+  School,
+  Building2,
+  Phone,
+  Presentation,
+  Backpack,
   type LucideIcon,
 } from "lucide-react";
 
@@ -85,4 +93,12 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   BookA,
   Beaker,
   FileJson,
+  FileSearch,
+  Layers,
+  GraduationCap,
+  School,
+  Building2,
+  Phone,
+  Presentation,
+  Backpack,
 };
