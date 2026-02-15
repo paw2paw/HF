@@ -27,17 +27,19 @@ export async function GET(
 
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
+    const where = {
+      callerId,
+      ...(activeOnly
+        ? {
+            endedAt: null,
+            source: { contains: "sim" },
+            createdAt: { gte: twoHoursAgo },
+          }
+        : {}),
+    };
+
     const call = await prisma.call.findFirst({
-      where: {
-        callerId,
-        ...(activeOnly
-          ? {
-              endedAt: null,
-              source: { contains: "sim" },
-              createdAt: { gte: twoHoursAgo },
-            }
-          : {}),
-      },
+      where,
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -47,6 +49,8 @@ export async function GET(
         endedAt: true,
       },
     });
+
+    console.log("[GET calls] callerId:", callerId, "activeOnly:", activeOnly, "found:", call?.id ?? "null", "endedAt:", call?.endedAt ?? "N/A");
 
     return NextResponse.json({ ok: true, call: call || null });
   } catch (error: any) {
