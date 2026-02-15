@@ -9,6 +9,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { executeComposition, loadComposeConfig, persistComposedPrompt } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
@@ -243,7 +244,7 @@ export async function runSimulation(options: SimRunnerOptions): Promise<SimRunne
 
     try {
       // Call the end-call pipeline endpoint internally
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const baseUrl = config.app.url;
       const pipelineRes = await fetch(`${baseUrl}/api/calls/${call.id}/pipeline`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

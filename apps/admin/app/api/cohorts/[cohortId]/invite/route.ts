@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 import {
   requireCohortOwnership,
@@ -159,7 +160,7 @@ export async function POST(
     });
 
     // Send invite emails
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000";
+    const baseUrl = config.app.url;
     let sent = 0;
 
     // Fetch the created invites to get their tokens

@@ -3102,6 +3102,67 @@ Returns a hierarchical tree structure of ALL specs grouped by Domain > Scope > O
 
 ## Subjects
 
+### `GET` /api/v1/subjects/:subjectId/curriculum
+
+Get the most recent curriculum for this subject.
+
+**Auth**: VIEWER · **Scope**: `subjects:read`
+
+**Response** `200`
+```json
+{ curriculum: Curriculum | null }
+```
+
+---
+
+### `PATCH` /api/v1/subjects/:subjectId/curriculum
+
+Update curriculum (user edits to modules, delivery config, etc.)
+
+**Auth**: OPERATOR · **Scope**: `subjects:write`
+
+---
+
+### `POST` /api/v1/subjects/:subjectId/curriculum
+
+Generate or save curriculum.
+
+**Auth**: OPERATOR · **Scope**: `subjects:write`
+
+**Response** `202`
+```json
+{ ok, taskId } (generate mode)
+```
+
+**Response** `200`
+```json
+{ ok, mode: "save", curriculum } (save mode)
+```
+
+---
+
+### `GET` /api/v1/subjects/:subjectId/curriculum/preview?taskId=xxx
+
+Get the generated curriculum preview from a completed generation task.
+
+**Auth**: VIEWER · **Scope**: `subjects:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| taskId | query | string | No | The curriculum_generation task ID |
+
+**Response** `200`
+```json
+{ ok, curriculum, taskStatus }
+```
+
+**Response** `404`
+```json
+{ error } if task not found or no preview available
+```
+
+---
+
 ### `POST` /api/v1/subjects/:subjectId/upload
 
 Drag-drop endpoint: upload a document, auto-create ContentSource,

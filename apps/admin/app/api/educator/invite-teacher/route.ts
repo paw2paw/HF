@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
 import { randomUUID } from "crypto";
 
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = config.app.url;
   const inviteUrl = `${baseUrl}/invite/accept?token=${invite.token}`;
 
   return NextResponse.json({

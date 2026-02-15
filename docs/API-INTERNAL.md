@@ -2387,6 +2387,24 @@ List conversation artifacts for a caller. Optionally filter by callId or status.
 
 ---
 
+### `GET` /api/callers/:callerId/calls
+
+Get the most recent active sim call for a caller (endedAt is null, source is sim, within last 2 hours).
+
+**Auth**: Session · **Scope**: `callers:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| callerId | path | string | Yes | The caller ID |
+| active | query | boolean | No | If "true", only return active (non-ended) calls |
+
+**Response** `200`
+```json
+{ ok: true, call: { id, callSequence, source, createdAt } | null }
+```
+
+---
+
 ### `POST` /api/callers/:callerId/calls
 
 Create a new call record for a caller. Auto-determines call sequence number if not provided. Links to previous call for chain tracking.
@@ -6630,7 +6648,6 @@ AI-powered enrichment of a parameter's high/low interpretations. Searches knowle
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
 | id | path | string | Yes | Parameter UUID or parameterId |
-| model | body | string | No | Claude model (default: claude-3-haiku-20240307) |
 | dryRun | body | boolean | No | If true, returns enrichment without saving (default: false) |
 
 **Response** `200`
@@ -8479,6 +8496,67 @@ Returns a hierarchical tree structure of ALL specs grouped by Domain > Scope > O
 
 ## Subjects
 
+### `GET` /api/subjects/:subjectId/curriculum
+
+Get the most recent curriculum for this subject.
+
+**Auth**: VIEWER · **Scope**: `subjects:read`
+
+**Response** `200`
+```json
+{ curriculum: Curriculum | null }
+```
+
+---
+
+### `PATCH` /api/subjects/:subjectId/curriculum
+
+Update curriculum (user edits to modules, delivery config, etc.)
+
+**Auth**: OPERATOR · **Scope**: `subjects:write`
+
+---
+
+### `POST` /api/subjects/:subjectId/curriculum
+
+Generate or save curriculum.
+
+**Auth**: OPERATOR · **Scope**: `subjects:write`
+
+**Response** `202`
+```json
+{ ok, taskId } (generate mode)
+```
+
+**Response** `200`
+```json
+{ ok, mode: "save", curriculum } (save mode)
+```
+
+---
+
+### `GET` /api/subjects/:subjectId/curriculum/preview?taskId=xxx
+
+Get the generated curriculum preview from a completed generation task.
+
+**Auth**: VIEWER · **Scope**: `subjects:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| taskId | query | string | No | The curriculum_generation task ID |
+
+**Response** `200`
+```json
+{ ok, curriculum, taskStatus }
+```
+
+**Response** `404`
+```json
+{ error } if task not found or no preview available
+```
+
+---
+
 ### `POST` /api/subjects/:subjectId/upload
 
 Drag-drop endpoint: upload a document, auto-create ContentSource,
@@ -9451,16 +9529,15 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 245 |
-| Files with annotations | 238 |
-| Files missing annotations | 7 |
-| Coverage | 97.1% |
+| Route files found | 246 |
+| Files with annotations | 240 |
+| Files missing annotations | 6 |
+| Coverage | 97.6% |
 
 ### Files missing `@api` annotations
 
 - `app/api/content-fragments/route.ts`
 - `app/api/content-sources/route.ts`
-- `app/api/subjects/[subjectId]/curriculum/route.ts`
 - `app/api/subjects/[subjectId]/domains/route.ts`
 - `app/api/subjects/[subjectId]/route.ts`
 - `app/api/subjects/[subjectId]/sources/route.ts`
