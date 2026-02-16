@@ -604,7 +604,7 @@ Return JSON:
         outcome: "failure",
         metadata: { action: "score", entityType: "parameter", entityId: parameter.parameterId },
       });
-    }).catch(() => {});
+    }).catch((e) => console.warn("[personality-analyze] Failed to log AI interaction:", e));
     return mockScoreParameter(transcript, parameter);
   }
 }

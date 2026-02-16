@@ -335,7 +335,7 @@ export default function DomainsPage() {
             setAvailableSpecs(data.specs || []);
           }
         })
-        .catch(() => {});
+        .catch((e) => console.warn("[Domains] Failed to load specs:", e));
     }
   }, [activeTab, availableSpecs.length]);
 

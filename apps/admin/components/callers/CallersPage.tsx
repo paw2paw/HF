@@ -137,7 +137,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           setDomains(data.domains || []);
         }
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[Callers] Failed to load domains:", e));
   }, [showArchived]);
 
   // Auto-clear success message

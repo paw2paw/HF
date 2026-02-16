@@ -280,7 +280,7 @@ export default function SettingsPage() {
         setValues(map);
         setFallbackValues(fbMap);
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Settings] Failed to load settings:", e))
       .finally(() => setLoaded(true));
   }, []);
 

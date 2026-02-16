@@ -76,3 +76,87 @@ export async function embedTexts(
 export function toVectorLiteral(embedding: number[]): string {
   return `[${embedding.join(",")}]`;
 }
+
+/**
+ * Embed all un-embedded ContentAssertions for a given source.
+ * Idempotent — skips rows that already have embeddings.
+ */
+export async function embedAssertionsForSource(sourceId: string): Promise<{ embedded: number; skipped: number }> {
+  const { prisma } = await import("@/lib/prisma");
+  const { Prisma } = await import("@prisma/client");
+
+  // Find assertions without embeddings
+  const rows = await prisma.$queryRaw<Array<{ id: string; assertion: string }>>(
+    Prisma.sql`SELECT id, assertion FROM "ContentAssertion" WHERE "sourceId" = ${sourceId} AND embedding IS NULL`
+  );
+
+  if (rows.length === 0) return { embedded: 0, skipped: 0 };
+
+  const texts = rows.map((r) => r.assertion);
+  const embeddings = await embedTexts(texts);
+
+  let embedded = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const emb = embeddings[i];
+    if (!emb || emb.length === 0) continue;
+
+    await prisma.$executeRaw(
+      Prisma.sql`UPDATE "ContentAssertion" SET embedding = ${toVectorLiteral(emb)}::vector WHERE id = ${rows[i].id}`
+    );
+    embedded++;
+  }
+
+  return { embedded, skipped: rows.length - embedded };
+}
+
+/**
+ * Embed all un-embedded KnowledgeChunks for a given doc.
+ * Creates VectorEmbedding records with the native vector column.
+ * Idempotent — skips chunks that already have VectorEmbedding with embedding set.
+ */
+export async function embedChunksForDoc(docId: string): Promise<{ embedded: number; skipped: number }> {
+  const { prisma } = await import("@/lib/prisma");
+  const { Prisma } = await import("@prisma/client");
+
+  // Find chunks without vector embeddings
+  const rows = await prisma.$queryRaw<Array<{ id: string; content: string }>>(
+    Prisma.sql`
+      SELECT c.id, c.content FROM "KnowledgeChunk" c
+      LEFT JOIN "VectorEmbedding" v ON c.id = v."chunkId" AND v.embedding IS NOT NULL
+      WHERE c."docId" = ${docId} AND v.id IS NULL
+    `
+  );
+
+  if (rows.length === 0) return { embedded: 0, skipped: 0 };
+
+  const texts = rows.map((r) => r.content);
+  const embeddings = await embedTexts(texts);
+
+  let embedded = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const emb = embeddings[i];
+    if (!emb || emb.length === 0) continue;
+
+    // Upsert VectorEmbedding: create if missing, update embedding if exists
+    const existing = await prisma.vectorEmbedding.findUnique({ where: { chunkId: rows[i].id } });
+    if (existing) {
+      await prisma.$executeRaw(
+        Prisma.sql`UPDATE "VectorEmbedding" SET embedding = ${toVectorLiteral(emb)}::vector WHERE "chunkId" = ${rows[i].id}`
+      );
+    } else {
+      const ve = await prisma.vectorEmbedding.create({
+        data: {
+          chunkId: rows[i].id,
+          model: DEFAULT_MODEL,
+          dimensions: emb.length,
+        },
+      });
+      await prisma.$executeRaw(
+        Prisma.sql`UPDATE "VectorEmbedding" SET embedding = ${toVectorLiteral(emb)}::vector WHERE id = ${ve.id}`
+      );
+    }
+    embedded++;
+  }
+
+  return { embedded, skipped: rows.length - embedded };
+}

@@ -201,7 +201,7 @@ export default function RunInspector() {
           setAllRecentRuns(data.runs);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[RunInspector] Failed to load recent runs:", e))
       .finally(() => setLoadingRecent(false));
   }, []);
 

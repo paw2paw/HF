@@ -71,7 +71,7 @@ export function CallerPicker({
           setCallers(data.callers || []);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[CallerPicker] Failed to load callers:", e))
       .finally(() => setLoading(false));
   }, []);
 

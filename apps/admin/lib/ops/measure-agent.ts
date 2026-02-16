@@ -421,7 +421,7 @@ export async function measureAgent(
                 outcome: "failure",
                 metadata: { action: "measure", entityType: "parameter", entityId: parameterId },
               });
-            }).catch(() => {});
+            }).catch((e) => console.warn("[measure-agent] Failed to log AI interaction:", e));
             measurement = mockScoreBehavior(parameterId, call.transcript, config);
           }
         }

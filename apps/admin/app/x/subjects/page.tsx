@@ -87,7 +87,7 @@ export default function SubjectsPage() {
       .then((data) => {
         if (data.ok) setDomains(data.domains || []);
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[Subjects] Failed to load domains:", e));
   }, []);
 
   async function loadSubjects() {

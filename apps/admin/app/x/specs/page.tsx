@@ -258,7 +258,7 @@ function SourceAuthorityPanel({
       .then((d) => {
         if (d.ok) setAvailableSources(d.sources || []);
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Specs] Failed to load content sources:", e))
       .finally(() => setLoadingSources(false));
   }, []);
 
@@ -944,7 +944,7 @@ export default function SpecsPage() {
           }
         }
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[Specs] Failed to load freshness data:", e));
   }, []);
 
   // Fetch detail when selectedId changes

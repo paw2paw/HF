@@ -54,7 +54,7 @@ export function ConversationList() {
           setConversations(data.conversations);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[ConversationList] Failed to load conversations:", e))
       .finally(() => {
         setLoading(false);
         setRefreshing(false);

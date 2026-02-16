@@ -693,7 +693,7 @@ Return JSON array:
           outcome: "failure",
           metadata: { action: "extract", entityType: "spec", entityId: spec.slug },
         });
-      }).catch(() => {});
+      }).catch((e) => console.warn("[memory-extract] Failed to log AI interaction:", e));
       return extractMemoriesFromPatterns(transcript, verbose);
     }
 
@@ -722,7 +722,7 @@ Return JSON array:
         outcome: "failure",
         metadata: { action: "extract", entityType: "spec", entityId: spec.slug },
       });
-    }).catch(() => {});
+    }).catch((e) => console.warn("[memory-extract] Failed to log AI interaction:", e));
     return extractMemoriesFromPatterns(transcript, verbose);
   }
 }

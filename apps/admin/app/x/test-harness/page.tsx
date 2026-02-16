@@ -314,7 +314,7 @@ export default function TestHarnessPage() {
       .then((data) => {
         if (data.ok) setDomains(data.domains || []);
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[TestHarness] Failed to load domains:", e))
       .finally(() => setDomainsLoading(false));
   }, []);
 

@@ -491,7 +491,7 @@ export default function FlowsPage() {
           setSpecs(data);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Flows] Failed to load orchestrate specs:", e))
       .finally(() => setLoading(false));
   }, []);
 
@@ -535,7 +535,7 @@ export default function FlowsPage() {
           }));
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Flows] Failed to load spec detail:", e))
       .finally(() => setDetailLoading(false));
   }, [selectedTabId, specDetails]);
 

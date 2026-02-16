@@ -516,7 +516,7 @@ export default function CallerDetailPage() {
           setDomains(result.domains || []);
         }
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[CallerDetail] Failed to load domains:", e));
 
     // Fetch prompts for count pill (lightweight, just need the count)
     fetch(`/api/callers/${callerId}/compose-prompt?limit=3`)
@@ -526,7 +526,7 @@ export default function CallerDetailPage() {
           setComposedPrompts(result.prompts || []);
         }
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[CallerDetail] Failed to load prompts:", e));
 
     // Fetch dynamic parameter display configuration (NO HARDCODING)
     fetch("/api/parameters/display-config")
@@ -577,7 +577,7 @@ export default function CallerDetailPage() {
             setData({ ...result, personality: result.personalityProfile || null });
           }
         })
-        .catch(() => {});
+        .catch((e) => console.warn("[CallerDetail] Polling fetch failed:", e));
     }, 5000);
     return () => clearInterval(interval);
   }, [isProcessing, callerId]);
@@ -2445,7 +2445,7 @@ function CallDetailPanel({
     fetch(`/api/callers/${callerId}/actions?callId=${call.id}&limit=50`)
       .then((r) => r.json())
       .then((result) => { if (result.ok) setCallActions(result.actions || []); })
-      .catch(() => {});
+      .catch((e) => console.warn("[CallerDetail] Failed to load call actions:", e));
   }, [call.id, callerId]);
 
   if (loading) {
@@ -8096,7 +8096,7 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
       .then((result) => {
         if (result.ok) setArtifacts(result.artifacts || []);
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[CallerDetail] Failed to load artifacts:", e))
       .finally(() => setLoadingArtifacts(false));
   }, [callerId]);
 
@@ -8110,7 +8110,7 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
           setActionCounts(result.counts || { pending: 0, completed: 0, total: 0 });
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[CallerDetail] Failed to load actions:", e))
       .finally(() => setLoadingActions(false));
   }, [callerId]);
 
@@ -8125,7 +8125,7 @@ function ArtifactsSection({ callerId, isProcessing }: { callerId: string; isProc
         .then((result) => {
           if (result.ok) setArtifacts(result.artifacts || []);
         })
-        .catch(() => {});
+        .catch((e) => console.warn("[CallerDetail] Artifact poll failed:", e));
       loadActions();
     }, 5000);
     return () => clearInterval(interval);
