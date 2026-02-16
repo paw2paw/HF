@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 interface Student {
@@ -19,14 +20,17 @@ interface ActiveCall {
 }
 
 export default function StudentsPage() {
+  const searchParams = useSearchParams();
+  const institutionId = searchParams.get("institutionId");
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCalls, setActiveCalls] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
+    const instQuery = institutionId ? `?institutionId=${institutionId}` : "";
     Promise.all([
-      fetch("/api/educator/students").then((r) => r.json()),
+      fetch(`/api/educator/students${instQuery}`).then((r) => r.json()),
       fetch("/api/educator/active-calls").then((r) => r.json()),
     ])
       .then(([studentsRes, callsRes]: [{ ok: boolean; students: Student[] }, { ok: boolean; activeCalls: ActiveCall[] }]) => {

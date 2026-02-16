@@ -183,6 +183,13 @@ export async function POST(
       mediaId = media.id;
     }
 
+    // Link media to subject via SubjectMedia (so content pickers can find it)
+    await prisma.subjectMedia.upsert({
+      where: { subjectId_mediaId: { subjectId, mediaId } },
+      update: {},
+      create: { subjectId, mediaId },
+    });
+
     // ── Return immediately (no extraction started) ──
 
     return NextResponse.json(

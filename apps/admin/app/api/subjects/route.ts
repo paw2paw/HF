@@ -8,10 +8,10 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @scope subjects:read
  * @auth session
  * @tags subjects
- * @description List all subjects with source, domain, and curriculum counts.
+ * @description List all subjects with source, domain, curriculum counts, and lesson plan session counts.
  * @query activeOnly string - "false" to include inactive (default: true)
  * @query domainId string - Filter to subjects linked to this domain
- * @response 200 { subjects: [...] }
+ * @response 200 { subjects: [...{ ..., lessonPlanSessions: number }] }
  * @response 500 { error: "..." }
  */
 export async function GET(req: NextRequest) {
@@ -40,11 +40,27 @@ export async function GET(req: NextRequest) {
         domains: {
           include: { domain: { select: { id: true, name: true, slug: true } } },
         },
+        curricula: {
+          select: { id: true, deliveryConfig: true },
+        },
       },
       orderBy: [{ name: "asc" }],
     });
 
-    return NextResponse.json({ subjects });
+    // Compute lesson plan session counts from curriculum JSON
+    const subjectsWithCounts = subjects.map((s) => {
+      let lessonPlanSessions = 0;
+      for (const c of s.curricula) {
+        const dc = c.deliveryConfig as Record<string, any> | null;
+        if (dc?.lessonPlan?.entries?.length) {
+          lessonPlanSessions += dc.lessonPlan.entries.length;
+        }
+      }
+      const { curricula: _curricula, ...rest } = s;
+      return { ...rest, lessonPlanSessions };
+    });
+
+    return NextResponse.json({ subjects: subjectsWithCounts });
   } catch (error: any) {
     console.error("[subjects] GET error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

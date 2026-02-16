@@ -44,13 +44,21 @@ Print a compact dashboard.
 
 ### If "Start dev server" selected (always run LAST):
 
-Start dev server via nohup (survives SSH disconnects):
+**Step A:** Kill stale processes (use `pgrep` + `kill`, NOT `pkill -f` which can match and kill the SSH session itself):
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f 'node.*next' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; nohup bash -c 'cd ~/HF/apps/admin && npm run dev' > /tmp/hf-dev.log 2>&1 & echo STARTED"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- 'pids=$(pgrep -f "next-server" 2>/dev/null); [ -n "$pids" ] && kill -9 $pids; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED'
 ```
 
-Then open tunnel in the background:
+Wait 5 seconds for IAP cooldown.
+
+**Step B:** Start dev server via nohup (survives SSH disconnects):
+
+```bash
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "nohup bash -c 'cd ~/HF/apps/admin && npm run dev' > /tmp/hf-dev.log 2>&1 & echo STARTED"
+```
+
+Wait 5 seconds, then open tunnel in the background:
 
 ```bash
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- -L 3000:localhost:3000 -N

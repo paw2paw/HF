@@ -189,6 +189,7 @@ export default function EducatorDashboard() {
   const viewingSchoolName = selectedInstitutionId
     ? institutions.find((i) => i.id === selectedInstitutionId)?.name
     : null;
+  const instQuery = selectedInstitutionId ? `?institutionId=${selectedInstitutionId}` : "";
 
   return (
     <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
@@ -308,25 +309,25 @@ export default function EducatorDashboard() {
             {
               title: `Create ${terms.cohort}`,
               description: `Set up a new ${lower("cohort")}`,
-              href: "/x/educator/classrooms/new",
+              href: `/x/educator/classrooms/new${instQuery}`,
               accent: "var(--accent-primary)",
             },
             {
               title: `View ${plural("learner")}`,
               description: `Track progress across all ${lowerPlural("cohort")}`,
-              href: "/x/educator/students",
+              href: `/x/educator/students${instQuery}`,
               accent: "var(--button-primary-bg)",
             },
             {
               title: "Try a Call",
               description: `Experience what your ${lowerPlural("learner")} will`,
-              href: "/x/educator/try",
+              href: `/x/educator/try${instQuery}`,
               accent: "var(--badge-purple-text)",
             },
             {
               title: "View Reports",
               description: "Analytics and engagement data",
-              href: "/x/educator/reports",
+              href: `/x/educator/reports${instQuery}`,
               accent: "var(--status-success-text)",
             },
           ].map((action) => (

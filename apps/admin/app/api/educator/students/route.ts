@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
 
 /**
@@ -8,16 +9,28 @@ import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
  * @scope educator:read
  * @auth bearer
  * @tags educator, students
- * @description List all students across the educator's active classrooms, including classroom assignment, call counts, and last activity.
+ * @query institutionId - Optional institution ID for ADMIN+ users to view all students in an institution
+ * @description List all students across the educator's active classrooms, including classroom assignment, call counts, and last activity. ADMIN+ users can pass ?institutionId= to view all students in an institution.
  * @response 200 { ok: true, students: [{ id, name, email, classroom, totalCalls, lastCallAt, joinedAt }] }
  */
-export async function GET() {
-  const auth = await requireEducator();
-  if (isEducatorAuthError(auth)) return auth.error;
+export async function GET(request: NextRequest) {
+  const institutionId = request.nextUrl.searchParams.get("institutionId");
+
+  let cohortFilter: Record<string, unknown>;
+
+  if (institutionId) {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+    cohortFilter = { institutionId, isActive: true };
+  } else {
+    const auth = await requireEducator();
+    if (isEducatorAuthError(auth)) return auth.error;
+    cohortFilter = { ownerId: auth.callerId, isActive: true };
+  }
 
   const students = await prisma.caller.findMany({
     where: {
-      cohortGroup: { ownerId: auth.callerId, isActive: true },
+      cohortGroup: cohortFilter,
       role: "LEARNER",
     },
     select: {

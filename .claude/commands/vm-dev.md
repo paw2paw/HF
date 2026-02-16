@@ -6,21 +6,27 @@ Start the Next.js dev server on the hf-dev GCP VM with an SSH tunnel forwarding 
 
 The dev server runs via **nohup** so it survives SSH disconnects (laptop sleep, network blips). Logs go to `/tmp/hf-dev.log` on the VM. The tunnel is a separate connection that can be re-opened with `/vm-tunnel`.
 
-## Step 1: Kill stale processes and start dev server
+## Step 1: Kill stale processes
+
+**IMPORTANT:** Do NOT use `pkill -f 'node.*next'` — the pattern can match the SSH session itself and kill the connection (exit 255). Instead, use `pgrep` to find PIDs first, then `kill` them separately:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f 'node.*next' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; nohup bash -c 'cd ~/HF/apps/admin && npm run dev' > /tmp/hf-dev.log 2>&1 & echo STARTED"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- 'pids=$(pgrep -f "next-server" 2>/dev/null); [ -n "$pids" ] && kill -9 $pids; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED'
 ```
 
-This command:
-1. Kills any existing Next.js processes
-2. Removes stale lock files
-3. Starts the dev server via nohup (survives SSH disconnect)
-4. Logs output to `/tmp/hf-dev.log`
+Wait 5 seconds for IAP cooldown before the next SSH connection.
 
-Wait ~3 seconds for the server to start, then proceed to step 2.
+## Step 2: Start dev server
 
-## Step 2: Open tunnel
+```bash
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "nohup bash -c 'cd ~/HF/apps/admin && npm run dev' > /tmp/hf-dev.log 2>&1 & echo STARTED"
+```
+
+This starts the dev server via nohup (survives SSH disconnect), logging to `/tmp/hf-dev.log`.
+
+Wait ~5 seconds for the server to start, then proceed to step 3.
+
+## Step 3: Open tunnel
 
 Run this in the background:
 

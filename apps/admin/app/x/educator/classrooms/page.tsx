@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTerminology } from "@/contexts/TerminologyContext";
 
@@ -17,18 +18,21 @@ interface Classroom {
 }
 
 export default function ClassroomsPage() {
+  const searchParams = useSearchParams();
+  const institutionId = searchParams.get("institutionId");
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
   const { terms, plural, lower, lowerPlural } = useTerminology();
 
   useEffect(() => {
-    fetch("/api/educator/classrooms")
+    const instQuery = institutionId ? `?institutionId=${institutionId}` : "";
+    fetch(`/api/educator/classrooms${instQuery}`)
       .then((r) => r.json())
       .then((res: { ok: boolean; classrooms: Classroom[] }) => {
         if (res?.ok) setClassrooms(res.classrooms);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [institutionId]);
 
   if (loading) {
     return (

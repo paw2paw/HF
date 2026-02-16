@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   mediaAssetFindUnique: vi.fn(),
   mediaAssetCreate: vi.fn(),
   mediaAssetUpdate: vi.fn(),
+  subjectMediaUpsert: vi.fn(),
   computeContentHash: vi.fn(),
   getStorageAdapter: vi.fn(),
 }));
@@ -62,6 +63,7 @@ vi.mock("@/lib/prisma", () => ({
       create: mocks.mediaAssetCreate,
       update: mocks.mediaAssetUpdate,
     },
+    subjectMedia: { upsert: mocks.subjectMediaUpsert },
   },
 }));
 
@@ -144,6 +146,7 @@ describe("POST /api/subjects/:subjectId/upload", () => {
     mocks.getStorageAdapter.mockReturnValue(MOCK_STORAGE);
     mocks.mediaAssetFindUnique.mockResolvedValue(null); // No duplicate
     mocks.mediaAssetCreate.mockResolvedValue({ id: "media-1" });
+    mocks.subjectMediaUpsert.mockResolvedValue({ id: "sm-1", subjectId: "sub-1", mediaId: "media-1" });
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -240,6 +243,14 @@ describe("POST /api/subjects/:subjectId/upload", () => {
       })
     );
 
+    // Verify SubjectMedia link was created
+    expect(mocks.subjectMediaUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { subjectId_mediaId: { subjectId: "sub-1", mediaId: "media-1" } },
+        create: { subjectId: "sub-1", mediaId: "media-1" },
+      })
+    );
+
     // Verify classifyDocument was called with truncated text sample
     expect(mocks.classifyDocument).toHaveBeenCalledWith(
       extractedText.substring(0, MOCK_EXTRACTION_CONFIG.classification.sampleSize),
@@ -308,6 +319,14 @@ describe("POST /api/subjects/:subjectId/upload", () => {
     // Should NOT upload a new file
     expect(MOCK_STORAGE.upload).not.toHaveBeenCalled();
     expect(mocks.mediaAssetCreate).not.toHaveBeenCalled();
+
+    // Should create SubjectMedia link for reused media
+    expect(mocks.subjectMediaUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { subjectId_mediaId: { subjectId: "sub-1", mediaId: "existing-media" } },
+        create: { subjectId: "sub-1", mediaId: "existing-media" },
+      })
+    );
 
     // Should update existing media to link to new source
     expect(mocks.mediaAssetUpdate).toHaveBeenCalledWith(

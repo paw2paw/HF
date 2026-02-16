@@ -13,6 +13,7 @@ import { EditableTitle } from "@/components/shared/EditableTitle";
 import { BookOpen, Users, FileText, Rocket, Layers } from "lucide-react";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 import { SortableList } from "@/components/shared/SortableList";
+import { reorderItems } from "@/lib/sortable/reorder";
 
 type DomainListItem = {
   id: string;
@@ -237,6 +238,7 @@ export default function DomainsPage() {
   const [flowPhasesMode, setFlowPhasesMode] = useState<"visual" | "json">("visual");
   const [defaultTargetsMode, setDefaultTargetsMode] = useState<"visual" | "json">("visual");
   const [structuredPhases, setStructuredPhases] = useState<Array<{
+    _id: string;
     phase: string;
     duration: string;
     goals: string[];
@@ -384,7 +386,7 @@ export default function DomainsPage() {
 
             // Parse structured data
             if (onboardingData.onboardingFlowPhases?.phases) {
-              setStructuredPhases(onboardingData.onboardingFlowPhases.phases);
+              setStructuredPhases(onboardingData.onboardingFlowPhases.phases.map((p: any) => ({ ...p, _id: p._id || crypto.randomUUID() })));
             } else {
               setStructuredPhases([]);
             }
@@ -450,9 +452,9 @@ export default function DomainsPage() {
       let defaultTargets = null;
 
       if (flowPhasesMode === "visual") {
-        // Use structured phases
+        // Use structured phases (strip transient _id before saving)
         if (structuredPhases.length > 0) {
-          flowPhases = { phases: structuredPhases };
+          flowPhases = { phases: structuredPhases.map(({ _id, ...rest }) => rest) };
         }
       } else {
         // Parse JSON
@@ -1733,113 +1735,39 @@ export default function DomainsPage() {
                         </div>
 
                         {flowPhasesMode === "visual" ? (
-                          /* Visual Editor */
+                          /* Visual Editor — uses shared SortableList */
                           <div>
-                            {structuredPhases.map((phase, index) => (
-                              <div
-                                key={index}
-                                style={{
-                                  display: "flex",
-                                  gap: 8,
-                                  marginBottom: 12,
-                                  padding: 16,
-                                  background: "var(--surface-primary)",
-                                  border: "2px solid var(--border-default)",
-                                  borderRadius: 8,
-                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                }}
-                              >
-                                {/* Drag Handle & Reorder */}
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 4 }}>
-                                  <button
-                                    onClick={() => {
-                                      if (index === 0) return;
-                                      const newPhases = [...structuredPhases];
-                                      [newPhases[index - 1], newPhases[index]] = [newPhases[index], newPhases[index - 1]];
-                                      setStructuredPhases(newPhases);
-                                    }}
-                                    disabled={index === 0}
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      padding: 0,
-                                      fontSize: 14,
-                                      background: index === 0 ? "var(--surface-tertiary)" : "var(--surface-secondary)",
-                                      border: "1px solid var(--border-default)",
-                                      borderRadius: 4,
-                                      cursor: index === 0 ? "not-allowed" : "pointer",
-                                      opacity: index === 0 ? 0.3 : 1,
-                                    }}
-                                    title="Move up"
-                                  >
-                                    ↑
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (index === structuredPhases.length - 1) return;
-                                      const newPhases = [...structuredPhases];
-                                      [newPhases[index], newPhases[index + 1]] = [newPhases[index + 1], newPhases[index]];
-                                      setStructuredPhases(newPhases);
-                                    }}
-                                    disabled={index === structuredPhases.length - 1}
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      padding: 0,
-                                      fontSize: 14,
-                                      background: index === structuredPhases.length - 1 ? "var(--surface-tertiary)" : "var(--surface-secondary)",
-                                      border: "1px solid var(--border-default)",
-                                      borderRadius: 4,
-                                      cursor: index === structuredPhases.length - 1 ? "not-allowed" : "pointer",
-                                      opacity: index === structuredPhases.length - 1 ? 0.3 : 1,
-                                    }}
-                                    title="Move down"
-                                  >
-                                    ↓
-                                  </button>
-                                </div>
-
-                                {/* Phase Content */}
+                            <SortableList
+                              items={structuredPhases}
+                              getItemId={(p) => p._id}
+                              onReorder={(from, to) => setStructuredPhases(reorderItems(structuredPhases, from, to))}
+                              onRemove={(index) => setStructuredPhases(structuredPhases.filter((_, i) => i !== index))}
+                              onAdd={() => setStructuredPhases([...structuredPhases, { _id: crypto.randomUUID(), phase: "", duration: "", goals: [] }])}
+                              addLabel="+ Add Phase"
+                              emptyLabel="No phases defined. Add one to configure the onboarding flow."
+                              renderCard={(phase, index) => (
                                 <div style={{ flex: 1 }}>
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <div style={{
-                                        width: 28,
-                                        height: 28,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        background: "var(--accent-primary)",
-                                        color: "white",
-                                        borderRadius: "50%",
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                      }}>
-                                        {index + 1}
-                                      </div>
-                                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
-                                        Phase {index + 1}
-                                      </span>
+                                  {/* Phase header */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                    <div style={{
+                                      width: 24,
+                                      height: 24,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      background: "var(--accent-primary)",
+                                      color: "white",
+                                      borderRadius: "50%",
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                    }}>
+                                      {index + 1}
                                     </div>
-                                    <button
-                                      onClick={() => {
-                                        const newPhases = structuredPhases.filter((_, i) => i !== index);
-                                        setStructuredPhases(newPhases);
-                                      }}
-                                      style={{
-                                        padding: "4px 12px",
-                                        fontSize: 11,
-                                        fontWeight: 500,
-                                        background: "var(--status-error-bg)",
-                                        color: "var(--status-error-text)",
-                                        border: "none",
-                                        borderRadius: 4,
-                                        cursor: "pointer",
-                                      }}
-                                    >
-                                      × Remove
-                                    </button>
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+                                      Phase {index + 1}
+                                    </span>
                                   </div>
+                                  {/* Phase Name + Duration */}
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 10, marginBottom: 10 }}>
                                     <div>
                                       <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
@@ -1849,9 +1777,9 @@ export default function DomainsPage() {
                                         type="text"
                                         value={phase.phase}
                                         onChange={(e) => {
-                                          const newPhases = [...structuredPhases];
-                                          newPhases[index].phase = e.target.value;
-                                          setStructuredPhases(newPhases);
+                                          const updated = [...structuredPhases];
+                                          updated[index] = { ...updated[index], phase: e.target.value };
+                                          setStructuredPhases(updated);
                                         }}
                                         placeholder="e.g., welcome, orient, discover"
                                         style={{
@@ -1872,9 +1800,9 @@ export default function DomainsPage() {
                                         type="text"
                                         value={phase.duration}
                                         onChange={(e) => {
-                                          const newPhases = [...structuredPhases];
-                                          newPhases[index].duration = e.target.value;
-                                          setStructuredPhases(newPhases);
+                                          const updated = [...structuredPhases];
+                                          updated[index] = { ...updated[index], duration: e.target.value };
+                                          setStructuredPhases(updated);
                                         }}
                                         placeholder="e.g., 2min"
                                         style={{
@@ -1888,6 +1816,7 @@ export default function DomainsPage() {
                                       />
                                     </div>
                                   </div>
+                                  {/* Goals */}
                                   <div>
                                     <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
                                       Goals (one per line)
@@ -1895,9 +1824,9 @@ export default function DomainsPage() {
                                     <textarea
                                       value={phase.goals.join("\n")}
                                       onChange={(e) => {
-                                        const newPhases = [...structuredPhases];
-                                        newPhases[index].goals = e.target.value.split("\n").filter(g => g.trim());
-                                        setStructuredPhases(newPhases);
+                                        const updated = [...structuredPhases];
+                                        updated[index] = { ...updated[index], goals: e.target.value.split("\n").filter(g => g.trim()) };
+                                        setStructuredPhases(updated);
                                       }}
                                       placeholder="Enter goals for this phase..."
                                       style={{
@@ -1913,8 +1842,7 @@ export default function DomainsPage() {
                                       }}
                                     />
                                   </div>
-
-                                  {/* Phase Content — media to share during this phase */}
+                                  {/* Content to Share */}
                                   <div style={{ marginTop: 10 }}>
                                     <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
                                       Content to Share
@@ -1937,11 +1865,11 @@ export default function DomainsPage() {
                                             type="text"
                                             value={ref.instruction || ""}
                                             onChange={(e) => {
-                                              const newPhases = [...structuredPhases];
-                                              const contentArr = [...(newPhases[index].content || [])];
+                                              const updated = [...structuredPhases];
+                                              const contentArr = [...(updated[index].content || [])];
                                               contentArr[ci] = { ...contentArr[ci], instruction: e.target.value };
-                                              newPhases[index].content = contentArr;
-                                              setStructuredPhases(newPhases);
+                                              updated[index] = { ...updated[index], content: contentArr };
+                                              setStructuredPhases(updated);
                                             }}
                                             placeholder="Instruction (e.g. Share at start of phase)"
                                             style={{
@@ -1952,9 +1880,9 @@ export default function DomainsPage() {
                                           />
                                           <button
                                             onClick={() => {
-                                              const newPhases = [...structuredPhases];
-                                              newPhases[index].content = (newPhases[index].content || []).filter((_, i) => i !== ci);
-                                              setStructuredPhases(newPhases);
+                                              const updated = [...structuredPhases];
+                                              updated[index] = { ...updated[index], content: (updated[index].content || []).filter((_, i) => i !== ci) };
+                                              setStructuredPhases(updated);
                                             }}
                                             style={{
                                               padding: "2px 8px", fontSize: 11, color: "var(--status-error-text)",
@@ -1971,11 +1899,11 @@ export default function DomainsPage() {
                                         value=""
                                         onChange={(e) => {
                                           if (!e.target.value) return;
-                                          const newPhases = [...structuredPhases];
-                                          const existing = newPhases[index].content || [];
+                                          const updated = [...structuredPhases];
+                                          const existing = updated[index].content || [];
                                           if (existing.some(c => c.mediaId === e.target.value)) return;
-                                          newPhases[index].content = [...existing, { mediaId: e.target.value }];
-                                          setStructuredPhases(newPhases);
+                                          updated[index] = { ...updated[index], content: [...existing, { mediaId: e.target.value }] };
+                                          setStructuredPhases(updated);
                                         }}
                                         style={{
                                           width: "100%", padding: "6px 8px", fontSize: 12,
@@ -2001,26 +1929,8 @@ export default function DomainsPage() {
                                     )}
                                   </div>
                                 </div>
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => {
-                                setStructuredPhases([...structuredPhases, { phase: "", duration: "", goals: [] }]);
-                              }}
-                              style={{
-                                width: "100%",
-                                padding: 10,
-                                fontSize: 14,
-                                fontWeight: 500,
-                                background: "var(--surface-secondary)",
-                                color: "var(--text-primary)",
-                                border: "1px dashed var(--border-default)",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                              }}
-                            >
-                              + Add Phase
-                            </button>
+                              )}
+                            />
                             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
                               Define the onboarding flow phases (leave empty to use defaults)
                             </div>

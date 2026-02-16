@@ -18,7 +18,7 @@ import {
 import {
   generateIdentityFromAssertions,
 } from "@/lib/domain/generate-identity";
-import { startTaskTracking, updateTaskProgress } from "@/lib/ai/task-guidance";
+import { startTaskTracking, updateTaskProgress, completeTask } from "@/lib/ai/task-guidance";
 
 /**
  * @api POST /api/domains/quick-launch/analyze
@@ -329,6 +329,13 @@ export async function POST(req: NextRequest) {
     ).catch(async (err) => {
       console.error(`[quick-launch:analyze] Background job ${job.id} unhandled error:`, err);
       await updateJob(job.id, { status: "error", error: err.message || "Unknown error" });
+      // Mark task as completed so it doesn't stay in_progress forever
+      if (taskId) {
+        await updateTaskProgress(taskId, {
+          context: { error: err.message || "Unknown error", phase: "failed" },
+        }).catch(() => {});
+        completeTask(taskId).catch(() => {});
+      }
     });
 
     // Return immediately
@@ -398,6 +405,13 @@ async function runQuickLaunchBackground(
       error: result.error || "Extraction failed",
       warnings: result.warnings,
     });
+    // Mark task as completed so it doesn't stay in_progress forever
+    if (taskId) {
+      await updateTaskProgress(taskId, {
+        context: { error: result.error || "Extraction failed", phase: "failed" },
+      });
+      completeTask(taskId).catch(() => {});
+    }
     return;
   }
 
