@@ -5,6 +5,7 @@ import { Info } from "lucide-react";
 import { useViewMode } from "@/contexts";
 import {
   type SettingsPanel,
+  type SettingsCategory,
   type PanelProps,
   buildPanelRegistry,
   registerCustomPanel,
@@ -23,6 +24,7 @@ import { AppearancePanel } from "@/components/settings/AppearancePanel";
 import { ChannelsPanel } from "@/components/settings/ChannelsPanel";
 import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { FallbacksPanel } from "@/components/settings/FallbacksPanel";
+import { PanelLayoutPanel } from "@/components/settings/PanelLayoutPanel";
 
 // ── Build the unified panel registry ────────────────
 
@@ -56,43 +58,21 @@ const CUSTOM_PANELS: SettingsPanel[] = [
     "developer", FallbacksPanel,
     ["fallback", "defaults", "json", "identity template", "onboarding personas", "flow phases", "transcript limits", "AI model defaults"],
   ),
+  registerCustomPanel(
+    "panel_layout", "Panel Layout", "LayoutGrid",
+    "Assign settings panels to sidebar categories",
+    "developer", PanelLayoutPanel,
+    ["panel layout", "category", "sidebar", "organize", "reassign"],
+  ),
 ];
-
-const ALL_PANELS = buildPanelRegistry(CUSTOM_PANELS);
 
 // ── Main component ──────────────────────────────────
 
 export default function SettingsPage() {
   const { isAdvanced } = useViewMode();
 
-  // Filter panels by view mode
-  const visiblePanels = useMemo(
-    () => isAdvanced ? ALL_PANELS : ALL_PANELS.filter((p) => !p.advancedOnly),
-    [isAdvanced],
-  );
-
-  // Active panel state with URL hash persistence
-  const [activeId, setActiveId] = useState("appearance");
-
-  useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (hash && ALL_PANELS.some((p) => p.id === hash)) setActiveId(hash);
-  }, []);
-
-  // Reset if active panel hidden by view mode change
-  useEffect(() => {
-    if (!visiblePanels.some((p) => p.id === activeId)) {
-      setActiveId("appearance");
-      window.history.replaceState(null, "", "#appearance");
-    }
-  }, [isAdvanced]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const navigate = useCallback((id: string) => {
-    setActiveId(id);
-    window.history.replaceState(null, "", `#${id}`);
-  }, []);
-
   // ── Settings data ─────────────────────────────────
+  // (hoisted above panel registry so overrides are available)
 
   const [values, setValues] = useState<Record<string, number | boolean | string>>({});
   const [fallbackValues, setFallbackValues] = useState<Record<string, unknown>>({});
@@ -141,6 +121,44 @@ export default function SettingsPage() {
 
   const updateFallback = useCallback((key: string, value: unknown) => {
     setFallbackValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  // ── Build panel registry (reactive to category overrides) ──
+
+  const categoryOverridesRaw = values["settings.panel_categories"];
+  const allPanels = useMemo(() => {
+    let overrides: Record<string, SettingsCategory> | undefined;
+    if (categoryOverridesRaw && typeof categoryOverridesRaw === "string") {
+      try { overrides = JSON.parse(categoryOverridesRaw); } catch { /* ignore */ }
+    }
+    return buildPanelRegistry(CUSTOM_PANELS, overrides);
+  }, [categoryOverridesRaw]);
+
+  // Filter panels by view mode
+  const visiblePanels = useMemo(
+    () => isAdvanced ? allPanels : allPanels.filter((p) => !p.advancedOnly),
+    [isAdvanced, allPanels],
+  );
+
+  // Active panel state with URL hash persistence
+  const [activeId, setActiveId] = useState("appearance");
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash && allPanels.some((p) => p.id === hash)) setActiveId(hash);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset if active panel hidden by view mode change
+  useEffect(() => {
+    if (!visiblePanels.some((p) => p.id === activeId)) {
+      setActiveId("appearance");
+      window.history.replaceState(null, "", "#appearance");
+    }
+  }, [isAdvanced]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const navigate = useCallback((id: string) => {
+    setActiveId(id);
+    window.history.replaceState(null, "", `#${id}`);
   }, []);
 
   // ── Search ────────────────────────────────────────
