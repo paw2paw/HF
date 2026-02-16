@@ -52,8 +52,10 @@ const ROLE_COLORS: Record<UserRole, { bg: string; text: string; darkBg: string; 
   SUPERADMIN: { bg: "#fef3c7", text: "#b45309", darkBg: "#78350f", darkText: "#fcd34d" },
   ADMIN: { bg: "#f3e8ff", text: "#7c3aed", darkBg: "#4c1d95", darkText: "#c4b5fd" },
   OPERATOR: { bg: "#dbeafe", text: "#2563eb", darkBg: "#1e3a5f", darkText: "#93c5fd" },
+  EDUCATOR: { bg: "#dbeafe", text: "#1d4ed8", darkBg: "#1e3a5f", darkText: "#93c5fd" },
   SUPER_TESTER: { bg: "#d1fae5", text: "#059669", darkBg: "#064e3b", darkText: "#6ee7b7" },
   TESTER: { bg: "#ecfdf5", text: "#10b981", darkBg: "#065f46", darkText: "#a7f3d0" },
+  STUDENT: { bg: "#e0f2fe", text: "#0284c7", darkBg: "#0c4a6e", darkText: "#7dd3fc" },
   DEMO: { bg: "#fef9c3", text: "#a16207", darkBg: "#713f12", darkText: "#fef08a" },
   VIEWER: { bg: "#f3f4f6", text: "#4b5563", darkBg: "#374151", darkText: "#d1d5db" },
 };
@@ -847,7 +849,7 @@ function UserCard({
   isAdmin: boolean;
   onOpen: () => void;
 }) {
-  const colors = ROLE_COLORS[user.role];
+  const colors = ROLE_COLORS[user.role] || ROLE_COLORS.VIEWER;
 
   return (
     <div
