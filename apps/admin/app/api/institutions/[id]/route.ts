@@ -108,10 +108,18 @@ export async function PATCH(
         isActive: institution.isActive,
       },
     });
-  } catch {
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2025") {
+      return NextResponse.json(
+        { ok: false, error: "Institution not found" },
+        { status: 404 }
+      );
+    }
+    console.error("[PATCH /api/institutions/[id]]", e);
+    const message = e instanceof Error ? e.message : "Update failed";
     return NextResponse.json(
-      { ok: false, error: "Institution not found" },
-      { status: 404 }
+      { ok: false, error: message },
+      { status: 500 }
     );
   }
 }
@@ -137,10 +145,18 @@ export async function DELETE(
     });
 
     return NextResponse.json({ ok: true, message: "Institution deactivated" });
-  } catch {
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2025") {
+      return NextResponse.json(
+        { ok: false, error: "Institution not found" },
+        { status: 404 }
+      );
+    }
+    console.error("[DELETE /api/institutions/[id]]", e);
+    const message = e instanceof Error ? e.message : "Delete failed";
     return NextResponse.json(
-      { ok: false, error: "Institution not found" },
-      { status: 404 }
+      { ok: false, error: message },
+      { status: 500 }
     );
   }
 }

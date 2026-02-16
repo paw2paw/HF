@@ -182,6 +182,35 @@ describe("Institution CRUD API", () => {
       const res = await PATCH(request as any, { params: Promise.resolve({ id: "inst-1" }) });
       expect(res.status).toBe(400);
     });
+
+    it("returns 404 for missing institution (P2025)", async () => {
+      const p2025 = Object.assign(new Error("Record not found"), { code: "P2025" });
+      (prisma.institution.update as any).mockRejectedValue(p2025);
+
+      const request = new Request("http://localhost", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "Test" }),
+      });
+
+      const res = await PATCH(request as any, { params: Promise.resolve({ id: "missing" }) });
+      expect(res.status).toBe(404);
+      const body = await res.json();
+      expect(body.error).toBe("Institution not found");
+    });
+
+    it("returns 500 for unexpected errors", async () => {
+      (prisma.institution.update as any).mockRejectedValue(new Error("Connection refused"));
+
+      const request = new Request("http://localhost", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "Test" }),
+      });
+
+      const res = await PATCH(request as any, { params: Promise.resolve({ id: "inst-1" }) });
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error).toBe("Connection refused");
+    });
   });
 
   // ── DELETE /api/institutions/[id] ──
