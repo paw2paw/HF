@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useBranding } from "@/contexts/BrandingContext";
 
 interface InviteDetails {
   email: string;
@@ -11,10 +12,33 @@ interface InviteDetails {
   expiresAt: string;
 }
 
+function AuthPageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="login-bg relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      {/* Ambient gold glow */}
+      <div
+        className="login-glow pointer-events-none absolute"
+        style={{
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, color-mix(in srgb, var(--login-gold) 15%, transparent) 0%, transparent 70%)",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+      <div className="relative z-10">{children}</div>
+    </div>
+  );
+}
+
 export default function InviteAcceptPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const { branding } = useBranding();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -79,56 +103,98 @@ export default function InviteAcceptPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
-        <div className="flex items-center gap-3 text-neutral-400">
+      <AuthPageShell>
+        <div className="flex items-center gap-3" style={{ color: "var(--login-blue)" }}>
           <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           Loading invite...
         </div>
-      </div>
+      </AuthPageShell>
     );
   }
 
   // Error state (no invite loaded)
   if (error && !invite) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="rounded-2xl border border-neutral-700 bg-neutral-800/50 p-8 shadow-xl backdrop-blur-sm">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/20 text-red-400">
-              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+      <AuthPageShell>
+        <div className="login-card w-full max-w-md text-center">
+          <div
+            className="rounded-2xl p-8 shadow-2xl backdrop-blur-xl"
+            style={{
+              background: "color-mix(in srgb, var(--login-navy) 70%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--login-blue) 20%, transparent)",
+            }}
+          >
+            <div
+              className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
+              style={{ background: "color-mix(in srgb, #ef4444 15%, transparent)" }}
+            >
+              <svg
+                className="h-7 w-7"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                style={{ color: "#fca5a5" }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
             </div>
             <h1 className="mb-2 text-xl font-semibold text-white">
               Invite Not Valid
             </h1>
-            <p className="mb-6 text-neutral-400">{error}</p>
+            <p style={{ color: "var(--login-blue)" }} className="mb-6">
+              {error}
+            </p>
             <a
               href="/login"
-              className="inline-block rounded-lg bg-neutral-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-neutral-600"
+              className="inline-block rounded-lg px-6 py-2.5 text-sm font-medium transition-colors"
+              style={{
+                background: "color-mix(in srgb, var(--login-blue) 15%, transparent)",
+                color: "var(--login-blue)",
+              }}
             >
               Go to Login
             </a>
           </div>
         </div>
-      </div>
+      </AuthPageShell>
     );
   }
 
   // Accept form
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-      <div className="w-full max-w-md">
+    <AuthPageShell>
+      <div className="login-card w-full max-w-md">
         {/* Brand */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white shadow-lg">
-            HF
-          </div>
-          <h1 className="text-2xl font-semibold text-white">Welcome to HF</h1>
-          <p className="mt-2 text-neutral-400">
+          {branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.name}
+              className="mx-auto mb-4 h-14"
+            />
+          ) : (
+            <div
+              className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden"
+              style={{
+                background: "var(--login-navy-light)",
+                boxShadow: "0 4px 24px color-mix(in srgb, var(--login-gold) 20%, transparent)",
+              }}
+            >
+              <img src="/icons/icon.svg" alt="HF" className="h-10 w-10 rounded-lg" />
+            </div>
+          )}
+          <h1 className="text-2xl font-semibold tracking-tight text-white">
+            Welcome to {branding.name}
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--login-blue)" }}>
             {invite?.domainName
               ? `You're invited to test ${invite.domainName}`
               : "You're invited to test our AI system"}
@@ -136,22 +202,39 @@ export default function InviteAcceptPage() {
         </div>
 
         {/* Form */}
-        <div className="rounded-2xl border border-neutral-700 bg-neutral-800/50 p-8 shadow-xl backdrop-blur-sm">
+        <div
+          className="rounded-2xl p-8 shadow-2xl backdrop-blur-xl"
+          style={{
+            background: "color-mix(in srgb, var(--login-navy) 70%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--login-blue) 20%, transparent)",
+          }}
+        >
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-300">
+              <label
+                className="mb-2 block text-sm font-medium"
+                style={{ color: "var(--login-blue)" }}
+              >
                 Email
               </label>
               <input
                 type="email"
                 value={invite?.email || ""}
                 disabled
-                className="w-full rounded-lg border border-neutral-600 bg-neutral-700/30 px-4 py-3 text-neutral-400"
+                className="w-full rounded-lg px-4 py-3"
+                style={{
+                  background: "color-mix(in srgb, var(--login-navy-light) 60%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--login-blue) 10%, transparent)",
+                  color: "color-mix(in srgb, var(--login-blue) 70%, transparent)",
+                }}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-300">
+              <label
+                className="mb-2 block text-sm font-medium"
+                style={{ color: "var(--login-blue)" }}
+              >
                 First Name
               </label>
               <input
@@ -161,12 +244,19 @@ export default function InviteAcceptPage() {
                 placeholder="Your first name"
                 required
                 autoFocus={!invite?.firstName}
-                className="w-full rounded-lg border border-neutral-600 bg-neutral-700/50 px-4 py-3 text-white placeholder-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="login-input w-full rounded-lg px-4 py-3 text-white placeholder-neutral-500 transition-colors"
+                style={{
+                  background: "color-mix(in srgb, var(--login-navy-light) 80%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--login-blue) 15%, transparent)",
+                }}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-300">
+              <label
+                className="mb-2 block text-sm font-medium"
+                style={{ color: "var(--login-blue)" }}
+              >
                 Last Name
               </label>
               <input
@@ -175,12 +265,23 @@ export default function InviteAcceptPage() {
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Your last name"
                 required
-                className="w-full rounded-lg border border-neutral-600 bg-neutral-700/50 px-4 py-3 text-white placeholder-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="login-input w-full rounded-lg px-4 py-3 text-white placeholder-neutral-500 transition-colors"
+                style={{
+                  background: "color-mix(in srgb, var(--login-navy-light) 80%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--login-blue) 15%, transparent)",
+                }}
               />
             </div>
 
             {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+              <div
+                className="rounded-lg p-3 text-sm"
+                style={{
+                  background: "color-mix(in srgb, #ef4444 10%, transparent)",
+                  border: "1px solid color-mix(in srgb, #ef4444 20%, transparent)",
+                  color: "#fca5a5",
+                }}
+              >
                 {error}
               </div>
             )}
@@ -188,7 +289,12 @@ export default function InviteAcceptPage() {
             <button
               type="submit"
               disabled={submitting || !firstName.trim() || !lastName.trim()}
-              className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3 font-medium text-white shadow-lg transition-all hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="login-btn w-full rounded-lg px-4 py-3 font-semibold transition-all"
+              style={{
+                background: branding.primaryColor || "var(--login-gold)",
+                color: "var(--login-navy)",
+                boxShadow: "0 0 20px color-mix(in srgb, var(--login-gold) 25%, transparent)",
+              }}
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -204,11 +310,17 @@ export default function InviteAcceptPage() {
             </button>
           </form>
 
-          <div className="mt-6 border-t border-neutral-700 pt-4 text-center text-xs text-neutral-500">
-            You&apos;ll get instant access to the HF call simulator
+          <div
+            className="mt-6 pt-4 text-center text-xs"
+            style={{
+              borderTop: "1px solid color-mix(in srgb, var(--login-blue) 15%, transparent)",
+              color: "color-mix(in srgb, var(--login-blue) 60%, transparent)",
+            }}
+          >
+            You&apos;ll get instant access to the call simulator
           </div>
         </div>
       </div>
-    </div>
+    </AuthPageShell>
   );
 }

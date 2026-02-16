@@ -756,3 +756,69 @@ html.light {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Login & Auth Page Styling
+   - Brand colors from humanfirstfoundation.com
+   - Ambient animations for premium login experience
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --login-gold: #F5B856;
+  --login-gold-hover: #E5A840;
+  --login-navy: #1F1B4A;
+  --login-navy-light: #2A2560;
+  --login-blue: #9FB5ED;
+}
+
+@keyframes login-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes login-card-appear {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes login-glow-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.login-bg {
+  background: linear-gradient(
+    135deg,
+    #0f0a2e 0%,
+    #1F1B4A 25%,
+    #15123a 50%,
+    #1a1640 75%,
+    #0f0a2e 100%
+  );
+  background-size: 300% 300%;
+  animation: login-gradient-shift 60s ease-in-out infinite;
+}
+
+.login-card {
+  animation: login-card-appear 0.5s ease-out;
+}
+
+.login-glow {
+  animation: login-glow-pulse 4s ease-in-out infinite;
+}
+
+.login-input:focus {
+  border-color: var(--login-gold) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--login-gold) 20%, transparent);
+  outline: none;
+}
+
+.login-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--login-gold) 40%, transparent);
+}
+
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,14 +1,26 @@
-// Login layout - just a wrapper, no html/body (those come from root layout)
-// The login pages bypass the sidebar via conditional in root layout
-
 export default function LoginLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 p-4">
-      {children}
+    <div className="login-bg relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      {/* Ambient gold glow behind the card */}
+      <div
+        className="login-glow pointer-events-none absolute"
+        style={{
+          width: 500,
+          height: 500,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--login-gold) 15%, transparent) 0%, transparent 70%)',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 }
