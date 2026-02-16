@@ -11,6 +11,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { getFlowPhasesFallback } from "@/lib/fallback-settings";
 
 // ── Types ──────────────────────────────────────────────
@@ -74,7 +75,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
 
   if (!identitySpec) {
     // Build overlay config: only domain-specific parameters, not a full standalone spec.
-    // At prompt composition time, mergeIdentitySpec() merges this overlay with the TUT-001 base.
+    // At prompt composition time, mergeIdentitySpec() merges this overlay with the base archetype.
     const overlayConfig = options?.identityConfig
       ? JSON.parse(JSON.stringify(options.identityConfig))
       : {
@@ -104,7 +105,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
         isActive: true,
         isDirty: false,
         isDeletable: true,
-        extendsAgent: "TUT-001",
+        extendsAgent: config.specs.defaultArchetype,
         config: overlayConfig,
         triggers: {
           create: [

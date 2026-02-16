@@ -132,7 +132,7 @@ export async function PATCH(
     if (isActive !== undefined) updateData.isActive = isActive;
     if (supersededById !== undefined) updateData.supersededById = supersededById || null;
 
-    // Document type change
+    // Document type change — track correction signal for classifier learning
     if (documentType !== undefined) {
       if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
         return NextResponse.json(
@@ -142,6 +142,12 @@ export async function PATCH(
       }
       updateData.documentType = documentType;
       updateData.documentTypeSource = "admin:manual";
+
+      // If AI previously classified this, track whether admin corrected it
+      if (existing.aiClassification) {
+        const [aiType] = existing.aiClassification.split(":");
+        updateData.classificationCorrected = aiType !== documentType;
+      }
     }
 
     // Trust level change — requires validation and audit

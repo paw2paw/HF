@@ -4,7 +4,7 @@ import {
   extractTextFromBuffer,
 } from "@/lib/content-trust/extract-assertions";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { classifyDocument } from "@/lib/content-trust/classify-document";
+import { classifyDocument, fetchFewShotExamples } from "@/lib/content-trust/classify-document";
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 import { getStorageAdapter, computeContentHash } from "@/lib/storage";
 import { config } from "@/lib/config";
@@ -84,10 +84,26 @@ export async function POST(
     // ── Classify document type (AI, ~1-2 sec) ──
 
     const extractionConfig = await resolveExtractionConfig();
+    const fewShotConfig = extractionConfig.classification.fewShot;
+
+    // Resolve domain from subject for domain-aware few-shot examples
+    let domainId: string | undefined;
+    try {
+      const subjectWithDomains = await prisma.subject.findUnique({
+        where: { id: subjectId },
+        select: { domains: { select: { domainId: true }, take: 1 } },
+      });
+      domainId = subjectWithDomains?.domains?.[0]?.domainId;
+    } catch { /* best-effort */ }
+
+    const examples = fewShotConfig?.enabled !== false
+      ? await fetchFewShotExamples({ domainId }, fewShotConfig)
+      : [];
     const classification = await classifyDocument(
       text.substring(0, extractionConfig.classification.sampleSize),
       file.name,
       extractionConfig,
+      examples,
     );
 
     // Auto-set tags: CURRICULUM → add "syllabus"
@@ -115,6 +131,8 @@ export async function POST(
           trustLevel: trustLevel as any,
           documentType: classification.documentType as any,
           documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+          textSample: text.substring(0, 1000),
+          aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
         },
       });
     } catch (err: any) {
@@ -126,6 +144,8 @@ export async function POST(
             trustLevel: trustLevel as any,
             documentType: classification.documentType as any,
             documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+            textSample: text.substring(0, 1000),
+            aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
           },
         });
       } else {

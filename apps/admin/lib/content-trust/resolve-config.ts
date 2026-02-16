@@ -35,6 +35,12 @@ export interface ClassificationConfig {
   systemPrompt: string;
   llmConfig: { temperature: number; maxTokens: number };
   sampleSize: number;
+  fewShot: {
+    enabled: boolean;
+    maxExamples: number;
+    exampleSampleSize: number;
+    domainAware: boolean;
+  };
 }
 
 export interface TypeOverride {
@@ -182,6 +188,12 @@ Return a JSON object:
 Return ONLY valid JSON (no markdown code fences).`,
     llmConfig: { temperature: 0.1, maxTokens: 500 },
     sampleSize: 2000,
+    fewShot: {
+      enabled: true,
+      maxExamples: 5,
+      exampleSampleSize: 500,
+      domainAware: true,
+    },
   },
   typeOverrides: {
     CURRICULUM: {

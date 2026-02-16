@@ -62,8 +62,7 @@ interface RecommendedActivity {
  */
 function findActivitySpec(systemSpecs: SystemSpecData[]): SystemSpecData | null {
   return systemSpecs.find(
-    (s) => s.slug?.toUpperCase().includes("ACTIVITY") ||
-           (s.slug === "ACTIVITY-001"),
+    (s) => s.slug?.toUpperCase().includes("ACTIVITY"),
   ) || null;
 }
 

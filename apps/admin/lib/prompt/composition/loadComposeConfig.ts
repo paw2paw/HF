@@ -63,8 +63,25 @@ export async function loadComposeConfig(overrides?: {
   const maxTokens = historyConfig.maxTokens || specConfig.maxTokens || 1500;
   const temperature = historyConfig.temperature || specConfig.temperature || 0.7;
 
+  // Require COMPOSE spec to exist (same pattern as PIPELINE-001)
+  if (!composeSpec) {
+    throw new Error(
+      `COMPOSE spec not found. Expected slug "${config.specs.compose}" or any active COMPOSE/SYSTEM spec. ` +
+      `Run db:seed to create the spec.`
+    );
+  }
+
+  // Warn loudly if spec has no sections[] — using hardcoded defaults
+  const sections = specConfig.sections as CompositionSectionDef[] | undefined;
+  if (!sections || sections.length === 0) {
+    console.warn(
+      `[loadComposeConfig] COMPOSE spec "${composeSpec.slug}" has no sections[] in config. ` +
+      `Using hardcoded defaults — add sections to the spec to remove this warning.`
+    );
+  }
+
   return {
-    specSlug: composeSpec?.slug || null,
+    specSlug: composeSpec.slug,
     fullSpecConfig: {
       ...specConfig,
       thresholds,
@@ -76,6 +93,6 @@ export async function loadComposeConfig(overrides?: {
       targetOverrides: overrides?.targetOverrides || {},
       playbookIds: overrides?.playbookIds || undefined,
     },
-    sections: specConfig.sections || getDefaultSections(),
+    sections: sections && sections.length > 0 ? sections : getDefaultSections(),
   };
 }

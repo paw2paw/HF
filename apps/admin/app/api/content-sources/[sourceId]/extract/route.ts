@@ -25,7 +25,7 @@ import type { DocumentType } from "@/lib/content-trust/resolve-config";
  *   Reads documentType from the source record and uses type-specific extraction config.
  *
  * @pathParam sourceId string - ContentSource UUID
- * @body subjectId string - Subject UUID (for auto-trigger curriculum check)
+ * @body subjectId string - Optional Subject UUID (for auto-trigger curriculum check; omit for orphan sources)
  * @body text string - Optional pre-extracted text (if not provided, downloads from linked media asset)
  *
  * @response 202 { ok, jobId, totalChunks }
@@ -77,17 +77,10 @@ export async function POST(
     }
 
     const body = await request.json().catch(() => ({}));
-    const subjectId = body.subjectId || source.subjects[0]?.subjectId;
+    const subjectId = body.subjectId || source.subjects[0]?.subjectId || undefined;
     const subjectSlug = source.subjects[0]?.subject?.slug || source.slug;
     const subjectName = source.subjects[0]?.subject?.name || source.name;
     const qualificationRef = source.subjects[0]?.subject?.qualificationRef || undefined;
-
-    if (!subjectId) {
-      return NextResponse.json(
-        { ok: false, error: "Source is not linked to any subject. Provide subjectId in request body." },
-        { status: 400 },
-      );
-    }
 
     // Get text — either from body or from linked media asset
     let text = body.text as string | undefined;
@@ -162,7 +155,7 @@ export async function POST(
 async function runBackgroundExtraction(
   jobId: string,
   sourceId: string,
-  subjectId: string,
+  subjectId: string | undefined,
   userId: string,
   text: string,
   opts: {
@@ -234,9 +227,11 @@ async function runBackgroundExtraction(
   });
 
   // Auto-trigger curriculum generation if all extractions for this subject are done
-  try {
-    await checkAutoTriggerCurriculum(subjectId, userId);
-  } catch (err) {
-    console.error(`[content-sources/:id/extract] Auto-trigger error for subject ${subjectId}:`, err);
+  if (subjectId) {
+    try {
+      await checkAutoTriggerCurriculum(subjectId, userId);
+    } catch (err) {
+      console.error(`[content-sources/:id/extract] Auto-trigger error for subject ${subjectId}:`, err);
+    }
   }
 }

@@ -2,14 +2,33 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import AskAISearchBar from "@/components/shared/AskAISearchBar";
 
+const TASK_LABELS: Record<string, string> = {
+  quick_launch: "Quick Launch",
+  content_wizard: "Content Wizard",
+  create_spec: "Create Spec",
+  configure_caller: "Configure Caller",
+  extraction: "Extraction",
+  curriculum_generation: "Curriculum",
+};
+
+const RESUME_PATHS: Record<string, (ctx: Record<string, any>) => string> = {
+  quick_launch: () => "/x/quick-launch",
+  content_wizard: (ctx) => `/x/content-wizard${ctx.subjectId ? `?subjectId=${ctx.subjectId}` : ""}`,
+  create_spec: () => "/x/specs",
+  configure_caller: (ctx) => ctx.callerId ? `/x/callers/${ctx.callerId}` : "/x/callers",
+  extraction: (ctx) => ctx.subjectId ? `/x/subjects/${ctx.subjectId}` : "/x/subjects",
+  curriculum_generation: (ctx) => ctx.subjectId ? `/x/subjects/${ctx.subjectId}` : "/x/subjects",
+};
+
 export default async function AdminDashboard() {
   let domainsCount = 0,
     playbooksCount = 0,
     callersCount = 0;
   let recentCalls: Array<{ id: string; createdAt: Date; caller: { id: string; name: string | null } | null }> = [];
+  let pendingTasks: Array<{ id: string; taskType: string; currentStep: number; totalSteps: number; context: any; updatedAt: Date }> = [];
 
   try {
-    const [counts, calls] = await Promise.all([
+    const [counts, calls, tasks] = await Promise.all([
       Promise.all([
         prisma.domain.count().catch(() => 0),
         prisma.playbook.count().catch(() => 0),
@@ -24,9 +43,16 @@ export default async function AdminDashboard() {
           caller: { select: { id: true, name: true } },
         },
       }).catch(() => []),
+      prisma.userTask.findMany({
+        where: { status: "in_progress" },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        select: { id: true, taskType: true, currentStep: true, totalSteps: true, context: true, updatedAt: true },
+      }).catch(() => []),
     ]);
     [domainsCount, playbooksCount, callersCount] = counts;
     recentCalls = calls;
+    pendingTasks = tasks;
   } catch (error) {
     console.warn("Database not fully initialized - showing 0 counts");
   }
@@ -88,6 +114,66 @@ export default async function AdminDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Setup Tasks */}
+      {pendingTasks.length > 0 && (
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ marginBottom: 12 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Setup Tasks</h2>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Tasks in progress — pick up where you left off</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {pendingTasks.map((task) => {
+              const ctx = (task.context || {}) as Record<string, any>;
+              const label = TASK_LABELS[task.taskType] || task.taskType;
+              const name = ctx.subjectName || ctx.domainName || ctx.name || "";
+              const resumeUrl = RESUME_PATHS[task.taskType]?.(ctx) || "/x/tasks";
+              return (
+                <Link
+                  key={task.id}
+                  href={resumeUrl}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 16px",
+                    background: "var(--surface-primary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 10,
+                    textDecoration: "none",
+                    transition: "all 0.15s",
+                  }}
+                  className="home-recent-row"
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11, fontWeight: 700, flexShrink: 0,
+                      background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
+                      color: "var(--accent-primary)",
+                      border: "2px solid var(--accent-primary)",
+                    }}>
+                      {task.currentStep}/{task.totalSteps}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                        {label}{name ? ` — ${name}` : ""}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        Step {task.currentStep} of {task.totalSteps}
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 13, color: "var(--accent-primary)", fontWeight: 600 }}>
+                    Resume →
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
         {sections.map((section) => (

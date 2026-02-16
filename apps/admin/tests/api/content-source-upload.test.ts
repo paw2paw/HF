@@ -38,6 +38,7 @@ vi.mock("@/lib/content-trust/extract-assertions", () => ({
 
 vi.mock("@/lib/content-trust/classify-document", () => ({
   classifyDocument: mocks.classifyDocument,
+  fetchFewShotExamples: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/content-trust/resolve-config", () => ({

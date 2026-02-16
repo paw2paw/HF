@@ -7,9 +7,13 @@ import {
   type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
 import type { DocumentType } from "@/lib/content-trust/resolve-config";
+import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
+import { classifyDocument, fetchFewShotExamples } from "@/lib/content-trust/classify-document";
 import { createJob, getJob, updateJob } from "@/lib/content-trust/extraction-jobs";
 // Note: createJob/getJob/updateJob now delegate to UserTask DB storage
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { getStorageAdapter, computeContentHash } from "@/lib/storage";
+import { config } from "@/lib/config";
 
 /**
  * @api POST /api/content-sources/:sourceId/import
@@ -18,13 +22,15 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @auth session
  * @tags content-trust
  * @description Upload a document (PDF, text, markdown) and extract ContentAssertions linked to this source.
+ *   - mode=classify: Classify document type (AI) + store file, no extraction (user reviews before extracting)
  *   - mode=preview: Extract and return assertions without saving (dry run)
  *   - mode=import: Extract and save assertions to database
  *   - mode=background: Start extraction + import in background, return job ID for polling
  * @body file File - The document to parse (multipart/form-data)
- * @body mode "preview" | "import" | "background" - Whether to preview, save, or run in background (default: preview)
+ * @body mode "classify" | "preview" | "import" | "background" - Whether to classify-only, preview, save, or run in background (default: preview)
  * @body focusChapters string - Comma-separated chapter names to focus on (optional)
  * @body maxAssertions number - Max assertions to extract (default: 500)
+ * @response 200 { ok: true, mode: "classify", classification, mediaId } (classify mode)
  * @response 200 { ok: true, assertions: ExtractedAssertion[], created: number, duplicatesSkipped: number, warnings: string[] }
  * @response 202 { ok: true, jobId: string } (background mode)
  */
@@ -41,7 +47,7 @@ export async function POST(
     // Verify source exists
     const source = await prisma.contentSource.findUnique({
       where: { id: sourceId },
-      select: { id: true, slug: true, name: true, trustLevel: true, qualificationRef: true, documentType: true },
+      select: { id: true, slug: true, name: true, trustLevel: true, qualificationRef: true, documentType: true, documentTypeSource: true },
     });
 
     if (!source) {
@@ -72,6 +78,90 @@ export async function POST(
     const focusChapters = focusChaptersRaw?.split(",").map((s) => s.trim()).filter(Boolean);
     const maxAssertions = maxAssertionsRaw ? parseInt(maxAssertionsRaw, 10) : 500;
 
+    // ── Classify mode: classify + store file, no extraction ──
+    if (mode === "classify") {
+      const { text } = await extractText(file);
+      if (!text.trim()) {
+        return NextResponse.json(
+          { ok: false, error: "Could not extract text from document" },
+          { status: 422 }
+        );
+      }
+
+      // Classify document type via AI (with few-shot learning from corrections)
+      const extractionConfig = await resolveExtractionConfig(source.id);
+      const fewShotConfig = extractionConfig.classification.fewShot;
+      const examples = fewShotConfig?.enabled !== false
+        ? await fetchFewShotExamples({ sourceId: source.id }, fewShotConfig)
+        : [];
+      const classification = await classifyDocument(
+        text.substring(0, extractionConfig.classification.sampleSize),
+        file.name,
+        extractionConfig,
+        examples,
+      );
+
+      await prisma.contentSource.update({
+        where: { id: sourceId },
+        data: {
+          documentType: classification.documentType,
+          documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+          textSample: text.substring(0, 1000),
+          aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
+        },
+      });
+
+      // Store file as MediaAsset
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const contentHash = computeContentHash(buffer);
+      const storage = getStorageAdapter();
+      const existingMedia = await prisma.mediaAsset.findUnique({ where: { contentHash } });
+      let mediaId: string;
+
+      if (existingMedia) {
+        mediaId = existingMedia.id;
+        await prisma.mediaAsset.update({
+          where: { id: existingMedia.id },
+          data: { sourceId },
+        });
+      } else {
+        const mimeType = file.type || "application/octet-stream";
+        const { storageKey } = await storage.upload(buffer, {
+          fileName: file.name,
+          mimeType,
+          contentHash,
+        });
+        const media = await prisma.mediaAsset.create({
+          data: {
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType,
+            contentHash,
+            storageKey,
+            storageType: config.storage.backend,
+            uploadedBy: authResult.session.user.id,
+            sourceId,
+            trustLevel: source.trustLevel as any,
+          },
+        });
+        mediaId = media.id;
+      }
+
+      console.log(`[import] Classified "${file.name}" as ${classification.documentType} (confidence: ${classification.confidence}) — stored as media ${mediaId}`);
+
+      return NextResponse.json({
+        ok: true,
+        mode: "classify",
+        classification: {
+          documentType: classification.documentType,
+          confidence: classification.confidence,
+          reasoning: classification.reasoning,
+        },
+        mediaId,
+        textLength: text.length,
+      });
+    }
+
     // ── Background mode: return immediately, extract in background ──
     if (mode === "background") {
       // Extract text synchronously (fast) so we can validate the file
@@ -84,6 +174,33 @@ export async function POST(
       }
 
       const chunks = chunkText(text);
+
+      // Auto-classify document type if not explicitly set (documentTypeSource is null = schema default)
+      let documentType = source.documentType as DocumentType;
+      if (!source.documentTypeSource) {
+        try {
+          const extractionConfig = await resolveExtractionConfig(source.id);
+          const fewShotConfig = extractionConfig.classification.fewShot;
+          const examples = fewShotConfig?.enabled !== false
+            ? await fetchFewShotExamples({ sourceId: source.id }, fewShotConfig)
+            : [];
+          const classification = await classifyDocument(text, file.name, extractionConfig, examples);
+          documentType = classification.documentType;
+          await prisma.contentSource.update({
+            where: { id: sourceId },
+            data: {
+              documentType: classification.documentType,
+              documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+              textSample: text.substring(0, 1000),
+              aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
+            },
+          });
+          console.log(`[import] Auto-classified "${file.name}" as ${classification.documentType} (confidence: ${classification.confidence}, examples: ${examples.length})`);
+        } catch (classifyErr: any) {
+          console.warn(`[import] Auto-classification failed, proceeding with default:`, classifyErr?.message);
+        }
+      }
+
       const job = await createJob(sourceId, file.name);
       await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
@@ -91,7 +208,7 @@ export async function POST(
       runBackgroundExtraction(job.id, source, text, file.name, fileType, pages, {
         sourceSlug: source.slug,
         sourceId: source.id,
-        documentType: (source.documentType as DocumentType) || undefined,
+        documentType,
         qualificationRef: source.qualificationRef || undefined,
         focusChapters,
         maxAssertions,
@@ -101,7 +218,7 @@ export async function POST(
       });
 
       return NextResponse.json(
-        { ok: true, jobId: job.id, totalChunks: chunks.length },
+        { ok: true, jobId: job.id, totalChunks: chunks.length, documentType },
         { status: 202 }
       );
     }
@@ -116,10 +233,35 @@ export async function POST(
       );
     }
 
+    // Auto-classify document type if not explicitly set
+    let syncDocumentType = source.documentType as DocumentType;
+    if (!source.documentTypeSource) {
+      try {
+        const extractionConfig = await resolveExtractionConfig(source.id);
+        const fewShotConfig = extractionConfig.classification.fewShot;
+        const examples = fewShotConfig?.enabled !== false
+          ? await fetchFewShotExamples({ sourceId: source.id }, fewShotConfig)
+          : [];
+        const classification = await classifyDocument(text, file.name, extractionConfig, examples);
+        syncDocumentType = classification.documentType;
+        await prisma.contentSource.update({
+          where: { id: sourceId },
+          data: {
+            documentType: classification.documentType,
+            documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+            textSample: text.substring(0, 1000),
+            aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
+          },
+        });
+      } catch {
+        // proceed with default
+      }
+    }
+
     const result = await extractAssertions(text, {
       sourceSlug: source.slug,
       sourceId: source.id,
-      documentType: (source.documentType as DocumentType) || undefined,
+      documentType: syncDocumentType,
       qualificationRef: source.qualificationRef || undefined,
       focusChapters,
       maxAssertions,

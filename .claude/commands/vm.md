@@ -44,10 +44,10 @@ Print a compact dashboard.
 
 ### If "Start dev server" selected (always run LAST):
 
-**Step A:** Kill stale processes (use `pgrep` + `kill`, NOT `pkill -f` which can match and kill the SSH session itself):
+**Step A:** Kill stale processes (use `[b]racket` trick in pkill patterns so the regex doesn't match the SSH session's own command string):
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- 'pids=$(pgrep -f "next-server" 2>/dev/null); [ -n "$pids" ] && kill -9 $pids; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED'
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f '[n]ext dev' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED"
 ```
 
 Wait 5 seconds for IAP cooldown.

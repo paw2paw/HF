@@ -136,10 +136,18 @@ export async function GET(request: NextRequest) {
       const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 50, 100) : 50;
       const offset = offsetParam ? parseInt(offsetParam, 10) || 0 : 0;
 
-      const where = {
-        userId: session.user.id,
-        status: status as any,
-      };
+      // "archived" is a virtual status — filter completed tasks with archivedAt set
+      const where: any = { userId: session.user.id };
+      if (status === "archived") {
+        where.status = "completed";
+        where.archivedAt = { not: null };
+      } else {
+        where.status = status;
+        // For completed, exclude archived tasks
+        if (status === "completed") {
+          where.archivedAt = null;
+        }
+      }
 
       const [tasks, total] = await Promise.all([
         prisma.userTask.findMany({
@@ -166,6 +174,58 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("Get task guidance error:", error);
+    return NextResponse.json(
+      { ok: false, error: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * @api PATCH /api/tasks
+ * @visibility internal
+ * @scope tasks:archive
+ * @auth session
+ * @tags tasks
+ * @description Archives or unarchives completed tasks in bulk.
+ * @body taskIds string[] - Array of task IDs to archive/unarchive (required)
+ * @body action "archive" | "unarchive" - Whether to archive or unarchive (default: "archive")
+ * @response 200 { ok: true, count: number }
+ * @response 400 { ok: false, error: "..." }
+ * @response 500 { ok: false, error: "..." }
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
+
+    const body = await request.json();
+    const { taskIds, action = "archive" } = body;
+
+    if (!Array.isArray(taskIds) || taskIds.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "taskIds array is required" },
+        { status: 400 }
+      );
+    }
+
+    const { prisma } = await import("@/lib/prisma");
+
+    const result = await prisma.userTask.updateMany({
+      where: {
+        id: { in: taskIds },
+        userId: session.user.id,
+        status: "completed",
+      },
+      data: {
+        archivedAt: action === "unarchive" ? null : new Date(),
+      },
+    });
+
+    return NextResponse.json({ ok: true, count: result.count });
+  } catch (error) {
+    console.error("Archive task error:", error);
     return NextResponse.json(
       { ok: false, error: (error as Error).message },
       { status: 500 }

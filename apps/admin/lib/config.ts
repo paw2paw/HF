@@ -124,6 +124,10 @@ export const config = {
       get model(): string {
         return optional("OPENAI_MODEL_ID", "gpt-4o");
       },
+      /** OpenAI embedding model ID */
+      get embeddingModel(): string {
+        return optional("OPENAI_EMBEDDING_MODEL_ID", "text-embedding-3-small");
+      },
       /** Check if OpenAI is configured */
       get isConfigured(): boolean {
         return !!(process.env.OPENAI_HF_MVP_KEY || process.env.OPENAI_API_KEY);
@@ -253,6 +257,15 @@ export const config = {
      */
     get contentExtract(): string {
       return optional("SPEC_CONTENT_EXTRACT", "CONTENT-EXTRACT-001");
+    },
+
+    /**
+     * Default Archetype Spec (default: TUT-001)
+     * The base archetype used when scaffolding new domain overlays.
+     * Can be overridden via DEFAULT_ARCHETYPE_SLUG env var.
+     */
+    get defaultArchetype(): string {
+      return optional("DEFAULT_ARCHETYPE_SLUG", "TUT-001");
     },
   },
 

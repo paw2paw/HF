@@ -293,7 +293,7 @@ export default function ContentSourcesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [uploadSourceId, setUploadSourceId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [dropStatus, setDropStatus] = useState<{ phase: "idle" | "creating" | "extracting" | "done" | "error"; message: string }>({ phase: "idle", message: "" });
+  const [dropStatus, setDropStatus] = useState<{ phase: "idle" | "creating" | "classifying" | "done" | "error"; message: string }>({ phase: "idle", message: "" });
 
   async function fetchSources() {
     setLoading(true);
@@ -346,28 +346,28 @@ export default function ContentSourcesPage() {
 
       const sourceId = createData.source.id;
 
-      // Step 2: Start background extraction (auto-classifies document type)
-      setDropStatus({ phase: "extracting", message: `Classifying & extracting from "${file.name}"...` });
+      // Step 2: Classify document type + store file (no extraction yet)
+      setDropStatus({ phase: "classifying", message: `Classifying "${file.name}"...` });
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("mode", "background");
-      formData.append("maxAssertions", "500");
-      const uploadRes = await fetch(`/api/content-sources/${sourceId}/import`, {
+      formData.append("mode", "classify");
+      const classifyRes = await fetch(`/api/content-sources/${sourceId}/import`, {
         method: "POST",
         body: formData,
       });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData.error || "Failed to start extraction");
+      const classifyData = await classifyRes.json();
+      if (!classifyRes.ok) throw new Error(classifyData.error || "Failed to classify document");
 
-      const detectedType = uploadData.documentType
-        ? DOCUMENT_TYPES.find((d) => d.value === uploadData.documentType)
+      const detectedType = classifyData.classification?.documentType
+        ? DOCUMENT_TYPES.find((d) => d.value === classifyData.classification.documentType)
         : null;
-      const typeMsg = detectedType ? ` Detected as ${detectedType.icon} ${detectedType.label}.` : "";
-      setDropStatus({ phase: "done", message: `Source created.${typeMsg} Extraction running in background.` });
+      const pct = classifyData.classification?.confidence
+        ? Math.round(classifyData.classification.confidence * 100)
+        : 0;
+      const typeMsg = detectedType ? ` Classified as ${detectedType.icon} ${detectedType.label} (${pct}%).` : "";
+      setDropStatus({ phase: "done", message: `Source created.${typeMsg} Review the type, then extract.` });
       fetchSources();
-      // Auto-expand the upload row to show progress
-      setUploadSourceId(sourceId);
-      setTimeout(() => setDropStatus({ phase: "idle", message: "" }), 4000);
+      setTimeout(() => setDropStatus({ phase: "idle", message: "" }), 5000);
     } catch (err: any) {
       setDropStatus({ phase: "error", message: err.message });
       setTimeout(() => setDropStatus({ phase: "idle", message: "" }), 5000);
@@ -424,7 +424,7 @@ export default function ContentSourcesPage() {
           }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
-              Drop to create source & extract
+              Drop to create source & classify
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
               PDF, TXT, MD, JSON
@@ -450,7 +450,7 @@ export default function ContentSourcesPage() {
               ? { background: "#E8F5E9", color: "#2E7D32", border: "1px solid #C8E6C9" }
               : { background: "#EBF3FC", color: "#1565C0", border: "1px solid #BBDEFB" }),
         }}>
-          {dropStatus.phase === "creating" || dropStatus.phase === "extracting" ? (
+          {dropStatus.phase === "creating" || dropStatus.phase === "classifying" ? (
             <span style={{
               width: 8, height: 8, borderRadius: "50%",
               background: "currentColor",
@@ -467,7 +467,7 @@ export default function ContentSourcesPage() {
           Content Sources
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-          Authoritative sources for teaching content. Drag & drop a PDF to create a source and extract assertions automatically.
+          Authoritative sources for teaching content. Drag & drop a PDF to classify and store it, then extract assertions after reviewing the type.
         </p>
       </div>
 
@@ -585,6 +585,7 @@ export default function ContentSourcesPage() {
                   isUploading={uploadSourceId === s.id}
                   onToggleUpload={() => setUploadSourceId(uploadSourceId === s.id ? null : s.id)}
                   onUploadDone={() => { setUploadSourceId(null); fetchSources(); }}
+                  onRefresh={fetchSources}
                 />
               ))}
             </tbody>
@@ -602,15 +603,64 @@ function SourceRow({
   isUploading,
   onToggleUpload,
   onUploadDone,
+  onRefresh,
 }: {
   source: ContentSource;
   isUploading: boolean;
   onToggleUpload: () => void;
   onUploadDone: () => void;
+  onRefresh: () => void;
 }) {
+  const [extracting, setExtracting] = useState(false);
+  const [changingType, setChangingType] = useState(false);
+
+  const awaiting = s._count.assertions === 0 && s.documentTypeSource?.startsWith("ai:");
+  const confidence = s.documentTypeSource?.startsWith("ai:")
+    ? Math.round(parseFloat(s.documentTypeSource.split(":")[1]) * 100)
+    : null;
+
+  async function handleExtract() {
+    setExtracting(true);
+    try {
+      const res = await fetch(`/api/content-sources/${s.id}/extract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      // Extraction started in background — the ActiveJobsBanner will pick it up
+      onRefresh();
+    } catch {
+      // Error handled by banner
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function handleChangeType(newType: string) {
+    setChangingType(true);
+    try {
+      const res = await fetch(`/api/content-sources/${s.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentType: newType }),
+      });
+      if (!res.ok) return;
+      onRefresh();
+    } finally {
+      setChangingType(false);
+    }
+  }
+
+  const hasExpandedRow = isUploading || awaiting;
+
   return (
     <>
-      <tr style={{ borderBottom: isUploading ? "none" : "1px solid var(--border-subtle)" }}>
+      <tr style={{
+        borderBottom: hasExpandedRow ? "none" : "1px solid var(--border-subtle)",
+        ...(awaiting ? { background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)" } : {}),
+      }}>
         <td style={{ padding: "10px 12px" }}>
           <Link href={`/x/content-sources/${s.id}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{s.name}</Link>
           <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
@@ -669,6 +719,63 @@ function SourceRow({
           </button>
         </td>
       </tr>
+      {/* Classification review row — awaiting user confirmation */}
+      {awaiting && !isUploading && (
+        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+          <td colSpan={9} style={{ padding: "0 12px 12px" }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 16px",
+              borderRadius: 8,
+              border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+              background: "color-mix(in srgb, var(--accent-primary) 4%, transparent)",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>
+                Classified{confidence !== null ? ` (${confidence}%)` : ""}
+              </span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Type:</span>
+              <select
+                value={s.documentType}
+                onChange={(e) => handleChangeType(e.target.value)}
+                disabled={changingType}
+                style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-primary)",
+                }}
+              >
+                {DOCUMENT_TYPES.map((d) => (
+                  <option key={d.value} value={d.value}>{d.icon} {d.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleExtract}
+                disabled={extracting}
+                style={{
+                  padding: "4px 14px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "var(--accent-primary)",
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: extracting ? "not-allowed" : "pointer",
+                  opacity: extracting ? 0.6 : 1,
+                }}
+              >
+                {extracting ? "Starting..." : "Extract Assertions"}
+              </button>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+                Confirm type before extracting
+              </span>
+            </div>
+          </td>
+        </tr>
+      )}
       {isUploading && (
         <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
           <td colSpan={9} style={{ padding: "0 12px 16px" }}>

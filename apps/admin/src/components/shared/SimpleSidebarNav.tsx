@@ -196,7 +196,7 @@ export default function SimpleSidebarNav({
           setVisibilityRules(data.rules.sections);
         }
       })
-      .catch(() => {}); // Fall back to manifest defaults silently
+      .catch((e) => console.warn("[Sidebar] Failed to load visibility rules, using manifest defaults:", e));
   }, [isAdmin]);
 
   const BASE_SECTIONS = useMemo(() => {

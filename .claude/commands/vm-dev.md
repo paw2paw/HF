@@ -8,10 +8,10 @@ The dev server runs via **nohup** so it survives SSH disconnects (laptop sleep, 
 
 ## Step 1: Kill stale processes
 
-**IMPORTANT:** Do NOT use `pkill -f 'node.*next'` — the pattern can match the SSH session itself and kill the connection (exit 255). Instead, use `pgrep` to find PIDs first, then `kill` them separately:
+**IMPORTANT:** Use the `[b]racket` trick in `pkill -f` patterns — without it, the pattern matches the SSH session's own command string and kills the connection (exit 255). `[n]ext` matches "next" but not the literal string "[n]ext" in the command line.
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- 'pids=$(pgrep -f "next-server" 2>/dev/null); [ -n "$pids" ] && kill -9 $pids; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED'
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f '[n]ext dev' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED"
 ```
 
 Wait 5 seconds for IAP cooldown before the next SSH connection.

@@ -223,7 +223,7 @@ async function runCommand(
     cmd: spec.cmd,
     cwd,
     dryRun,
-    risk: opSpec.risk ?? "safe",
+    risk: opSpec.risk ?? "unknown",
     effects: opSpec.effects ?? {},
     args: body,
   };

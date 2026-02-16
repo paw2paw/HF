@@ -1294,9 +1294,10 @@ model VectorEmbedding {
   id      String @id @default(uuid())
   chunkId String @unique
 
-  // Vector data (stored as bytes, converted to/from float[] in app)
-  // In production, use pgvector extension: Unsupported("vector(1536)")
-  embeddingData Bytes // Serialized float32 array
+  // Vector data — pgvector native column for similarity search
+  embedding     Unsupported("vector(1536)")?
+  // Legacy BYTEA column (nullable, kept for backward compat during transition)
+  embeddingData Bytes?
 
   // Embedding metadata
   model      String // "text-embedding-3-small", "text-embedding-3-large"
@@ -3479,6 +3480,7 @@ model UserTask {
   // Timestamps
   startedAt   DateTime  @default(now())
   completedAt DateTime?
+  archivedAt  DateTime?
   updatedAt   DateTime  @updatedAt
 
   @@index([userId])
@@ -3507,8 +3509,11 @@ model ContentSource {
   trustLevel  ContentTrustLevel @default(UNVERIFIED)
 
   // Document classification
-  documentType       DocumentType @default(TEXTBOOK)
-  documentTypeSource String?  // "ai:0.92" or "admin:manual" — provenance of classification
+  documentType            DocumentType @default(TEXTBOOK)
+  documentTypeSource      String?  // "ai:0.92" or "admin:manual" — provenance of classification
+  textSample              String?  @db.Text  // First ~1000 chars for few-shot classification learning
+  aiClassification        String?            // Original AI guess "TYPE:confidence" (never mutated after set)
+  classificationCorrected Boolean  @default(false) // True when admin overrode AI's classification
 
   // Publisher / authority chain
   publisherOrg    String?  // "Chartered Insurance Institute", "Highfield Publications"
@@ -3555,6 +3560,7 @@ model ContentSource {
   @@index([qualificationRef])
   @@index([validUntil])
   @@index([isActive])
+  @@index([classificationCorrected])
 }
 
 // An atomic trusted teaching point with full provenance
@@ -3599,6 +3605,9 @@ model ContentAssertion {
   children   ContentAssertion[] @relation("AssertionHierarchy")
   orderIndex Int      @default(0) // Sort order among siblings
   topicSlug  String?  // Stable topic identifier (e.g., "temperature-control")
+
+  // Vector embedding for semantic search (pgvector)
+  embedding Unsupported("vector(1536)")?
 
   // Review chain
   createdBy  String? // User ID or "system:import"

@@ -37,7 +37,7 @@ async function loadTrustWeights() {
 
 // Preload trust weights from system settings on module import.
 // Uses cached 30s TTL — defaults apply until loaded.
-loadTrustWeights().catch(() => {});
+loadTrustWeights().catch((e) => console.warn("[trust] Failed to preload trust weights, using defaults:", e));
 
 interface SourceRef {
   sourceSlug: string;

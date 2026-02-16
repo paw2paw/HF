@@ -7,10 +7,14 @@
  * Types: CURRICULUM, TEXTBOOK, WORKSHEET, EXAMPLE, ASSESSMENT, REFERENCE
  *
  * The classification prompt is spec-driven via CONTENT-EXTRACT-001 config.
+ *
+ * **Few-shot learning:** When admin corrections exist, they are injected as
+ * examples in the prompt so the classifier improves over time.
  */
 
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
+import { prisma } from "@/lib/prisma";
 import type { ExtractionConfig, DocumentType } from "./resolve-config";
 
 // ------------------------------------------------------------------
@@ -23,9 +27,125 @@ export interface ClassificationResult {
   reasoning: string;
 }
 
+export interface ClassificationExample {
+  textSample: string;
+  fileName: string;
+  documentType: DocumentType;
+  reasoning: string;
+}
+
 const VALID_TYPES: DocumentType[] = [
   "CURRICULUM", "TEXTBOOK", "WORKSHEET", "EXAMPLE", "ASSESSMENT", "REFERENCE",
 ];
+
+// ------------------------------------------------------------------
+// Few-shot example retrieval
+// ------------------------------------------------------------------
+
+/**
+ * Fetch few-shot examples from admin-corrected classifications.
+ *
+ * Strategy:
+ * 1. Prefer corrections from the same domain (via source → subject → domain)
+ * 2. Fill remaining slots with global corrections
+ * 3. Respect maxExamples from config
+ *
+ * Returns empty array when no corrections exist (cold start — no regression).
+ */
+export async function fetchFewShotExamples(
+  options?: { sourceId?: string; domainId?: string },
+  config?: ExtractionConfig["classification"]["fewShot"],
+): Promise<ClassificationExample[]> {
+  const maxExamples = config?.maxExamples ?? 5;
+  const exampleSampleSize = config?.exampleSampleSize ?? 500;
+
+  // Resolve domain from source if available
+  let domainId = options?.domainId ?? null;
+  if (!domainId && options?.sourceId) {
+    try {
+      const subjectSources = await prisma.subjectSource.findMany({
+        where: { sourceId: options.sourceId },
+        select: {
+          subject: {
+            select: {
+              domains: { select: { domainId: true }, take: 1 },
+            },
+          },
+        },
+        take: 1,
+      });
+      domainId = subjectSources[0]?.subject?.domains?.[0]?.domainId ?? null;
+    } catch {
+      // Domain resolution is best-effort
+    }
+  }
+
+  const corrections: Array<{
+    name: string;
+    textSample: string | null;
+    documentType: string;
+    aiClassification: string | null;
+  }> = [];
+
+  // Query domain-specific corrections first
+  if (domainId && config?.domainAware !== false) {
+    const domainCorrections = await prisma.contentSource.findMany({
+      where: {
+        classificationCorrected: true,
+        textSample: { not: null },
+        subjects: {
+          some: {
+            subject: {
+              domains: { some: { domainId } },
+            },
+          },
+        },
+      },
+      select: {
+        name: true,
+        textSample: true,
+        documentType: true,
+        aiClassification: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: maxExamples,
+    });
+    corrections.push(...domainCorrections);
+  }
+
+  // Fill remaining slots with global corrections
+  if (corrections.length < maxExamples) {
+    const existingNames = new Set(corrections.map((c) => c.name));
+    const global = await prisma.contentSource.findMany({
+      where: {
+        classificationCorrected: true,
+        textSample: { not: null },
+        ...(existingNames.size > 0 ? { name: { notIn: [...existingNames] } } : {}),
+      },
+      select: {
+        name: true,
+        textSample: true,
+        documentType: true,
+        aiClassification: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: maxExamples - corrections.length,
+    });
+    corrections.push(...global);
+  }
+
+  return corrections.map((c) => {
+    const [aiType] = (c.aiClassification ?? "").split(":");
+    return {
+      textSample: (c.textSample ?? "").substring(0, exampleSampleSize),
+      fileName: c.name,
+      documentType: c.documentType as DocumentType,
+      reasoning: aiType
+        ? `Originally classified as ${aiType}, corrected to ${c.documentType}`
+        : `Classified as ${c.documentType} by admin`,
+    };
+  });
+}
 
 // ------------------------------------------------------------------
 // Classification
@@ -37,17 +157,42 @@ const VALID_TYPES: DocumentType[] = [
  * Examines a text sample and filename to determine the pedagogical role
  * of the document. Returns the classified type with confidence score.
  *
+ * When fewShotExamples are provided, they are appended to the user prompt
+ * so the AI can learn from past admin corrections.
+ *
  * Falls back to TEXTBOOK with confidence 0.0 on any error.
  */
 export async function classifyDocument(
   textSample: string,
   fileName: string,
   extractionConfig: ExtractionConfig,
+  fewShotExamples?: ClassificationExample[],
 ): Promise<ClassificationResult> {
   const { classification } = extractionConfig;
   const sample = textSample.substring(0, classification.sampleSize);
 
+  // Build few-shot section if examples are available
+  const fewShotSection = fewShotExamples?.length
+    ? [
+        "",
+        "Here are examples of correctly classified documents (learn from these):",
+        "",
+        ...fewShotExamples.flatMap((ex, i) => [
+          `--- EXAMPLE ${i + 1} ---`,
+          `Filename: ${ex.fileName}`,
+          `Text: ${ex.textSample}`,
+          `Correct classification: ${ex.documentType}`,
+          `Note: ${ex.reasoning}`,
+          `--- END EXAMPLE ${i + 1} ---`,
+          "",
+        ]),
+        "Now classify the following document:",
+        "",
+      ].join("\n")
+    : "";
+
   const userPrompt = [
+    fewShotSection,
     `Filename: ${fileName}`,
     "",
     "--- TEXT SAMPLE ---",
@@ -73,8 +218,8 @@ export async function classifyDocument(
     logAssistantCall(
       {
         callPoint: "content-trust.classify",
-        userMessage: `Classify ${fileName} (${sample.length} chars sample)`,
-        metadata: { fileName },
+        userMessage: `Classify ${fileName} (${sample.length} chars sample, ${fewShotExamples?.length ?? 0} examples)`,
+        metadata: { fileName, fewShotCount: fewShotExamples?.length ?? 0 },
       },
       { response: "Classification complete", success: true },
     );

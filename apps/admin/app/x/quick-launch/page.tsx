@@ -29,6 +29,7 @@ type LaunchResult = {
   domainId: string;
   domainSlug: string;
   domainName: string;
+  subjectId?: string;
   callerId: string;
   callerName: string;
   assertionCount: number;
@@ -1551,6 +1552,26 @@ export default function QuickLaunchPage() {
                   Edit Identity
                 </button>
               )}
+              <button
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (result.domainId) params.set("domainId", result.domainId);
+                  if (result.subjectId) params.set("subjectId", result.subjectId);
+                  router.push(`/x/content-wizard?${params.toString()}`);
+                }}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                  border: "2px solid var(--accent-primary)",
+                  color: "var(--accent-primary)",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Add Content →
+              </button>
             </div>
 
             {result.warnings.length > 0 && (

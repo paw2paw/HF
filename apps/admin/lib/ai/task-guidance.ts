@@ -110,14 +110,19 @@ export async function updateTaskProgress(
   if (updates.completedSteps !== undefined) data.completedSteps = updates.completedSteps;
   if (updates.blockers !== undefined) data.blockers = updates.blockers;
 
-  // Deep-merge context: read existing, spread new on top
+  // Deep-merge context atomically to avoid race conditions
+  // (concurrent calls like autosave + extraction progress could lose data)
   if (updates.context !== undefined) {
-    const existing = await prisma.userTask.findUnique({
-      where: { id: taskId },
-      select: { context: true },
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.userTask.findUnique({
+        where: { id: taskId },
+        select: { context: true },
+      });
+      const existingCtx = (existing?.context as Record<string, any>) ?? {};
+      data.context = { ...existingCtx, ...updates.context };
+      await tx.userTask.update({ where: { id: taskId }, data });
     });
-    const existingCtx = (existing?.context as Record<string, any>) ?? {};
-    data.context = { ...existingCtx, ...updates.context };
+    return;
   }
 
   await prisma.userTask.update({
@@ -231,6 +236,21 @@ async function generateSuggestions(task: TaskContext): Promise<GuidanceSuggestio
         type: "tip",
         message: "Curriculum generation runs in the background — you'll be notified when it's ready to review",
       });
+      break;
+
+    case "content_wizard":
+      if (task.currentStep === 1) {
+        suggestions.push({
+          type: "tip",
+          message: "Upload PDF, TXT, or MD documents — the AI will extract teaching points automatically",
+        });
+      }
+      if (task.currentStep === 3) {
+        suggestions.push({
+          type: "best-practice",
+          message: "Pick a template or enter a custom session count. AI will distribute onboarding, teaching, review, and assessment phases.",
+        });
+      }
       break;
   }
 
@@ -506,6 +526,28 @@ const TASK_STEP_MAPS: Record<string, Record<number, TaskStep>> = {
     3: {
       title: "Complete",
       description: "Curriculum ready for review",
+    },
+  },
+  content_wizard: {
+    1: {
+      title: "Add Content",
+      description: "Upload documents or select existing sources for your subject",
+      estimated: "2 min",
+    },
+    2: {
+      title: "Extract",
+      description: "AI extracts teaching points from your documents",
+      estimated: "1-3 min",
+    },
+    3: {
+      title: "Plan Lessons",
+      description: "Set session count and generate a lesson plan",
+      estimated: "2 min",
+    },
+    4: {
+      title: "Attach to Domains",
+      description: "Link the subject to domains where it will be taught",
+      estimated: "1 min",
     },
   },
 };

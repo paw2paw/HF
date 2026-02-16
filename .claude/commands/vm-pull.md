@@ -23,7 +23,13 @@ Options:
 If yes, start dev server via nohup (survives disconnects):
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f 'node.*next' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; nohup bash -c 'cd ~/HF/apps/admin && npm run dev' > /tmp/hf-dev.log 2>&1 & echo STARTED"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f '[n]ext dev' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED"
+```
+
+Wait 5 seconds for IAP cooldown, then start the server:
+
+```bash
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "nohup bash -c 'cd ~/HF/apps/admin && npm run dev' > /tmp/hf-dev.log 2>&1 & echo STARTED"
 ```
 
 Then open tunnel in the background:

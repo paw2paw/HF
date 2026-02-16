@@ -103,7 +103,7 @@ export async function deliverArtifacts(
       await prisma.conversationArtifact.update({
         where: { id: artifact.id },
         data: { status: ArtifactStatus.FAILED },
-      }).catch(() => {}); // Best effort status update
+      }).catch((e) => console.error("[deliver-artifacts] Failed to update artifact status to FAILED:", e));
 
       result.failed++;
       result.errors.push(`Artifact "${artifact.title}": ${err.message}`);
