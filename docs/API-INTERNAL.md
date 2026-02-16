@@ -6776,6 +6776,14 @@ Get resolved terminology for the current user's institution.
 
 ---
 
+### `PATCH` /api/institution/terminology
+
+Update terminology config for the current user's institution.
+
+**Auth**: ADMIN (institution admin)
+
+---
+
 ### `GET` /api/institutions
 
 List all institutions with user/cohort counts.

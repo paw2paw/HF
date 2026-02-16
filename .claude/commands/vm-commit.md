@@ -7,7 +7,7 @@ Commit changes on the hf-dev GCP VM. First show the status, then commit with the
 ## 1. Check status
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a -- "cd ~/HF && git status --short"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git status --short"
 ```
 
 Show the user what's changed. If there are no changes, tell them and stop.
@@ -19,7 +19,7 @@ Ask the user for a commit message using AskUserQuestion if none was provided as 
 Then run:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a -- "cd ~/HF && git add -A && git commit -m '<message>'"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git add -A && git commit -m '<message>'"
 ```
 
 Report the result. Suggest `/vm-push` to push to remote.

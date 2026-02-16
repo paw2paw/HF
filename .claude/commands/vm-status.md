@@ -21,7 +21,7 @@ gcloud compute disks describe hf-dev --zone=europe-west2-a --project=hf-admin-pr
 Then SSH in to check live stats:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a -- "echo '=== MEMORY ===' && free -h && echo '=== DISK ===' && df -h / && echo '=== LOAD ===' && uptime && echo '=== NODE PROCESSES ===' && pgrep -af node 2>/dev/null || echo 'No node processes running'"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "echo '=== MEMORY ===' && free -h && echo '=== DISK ===' && df -h / && echo '=== LOAD ===' && uptime && echo '=== TMUX ===' && tmux list-sessions 2>/dev/null || echo 'No tmux sessions' && echo '=== NODE PROCESSES ===' && pgrep -af node 2>/dev/null || echo 'No node processes running'"
 ```
 
 ## Output
@@ -35,6 +35,7 @@ vCPUs:     4
 RAM:       16 GB (XX% used)
 Disk:      200 GB SSD (XX% used)
 Load:      X.XX
+Tmux:      hf (running) / No sessions
 Node:      Running / Not running
 ```
 

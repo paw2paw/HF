@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import {
   type TerminologyProfile,
   type TerminologyPresetId,
@@ -22,6 +22,8 @@ interface TerminologyContextValue {
   lower: (key: keyof TerminologyProfile) => string;
   /** Lowercase + plural (e.g. lowerPlural("learner") → "students") */
   lowerPlural: (key: keyof TerminologyProfile) => string;
+  /** Re-fetch terminology from API (e.g., after saving changes) */
+  refresh: () => Promise<void>;
 }
 
 const TerminologyContext = createContext<TerminologyContextValue | null>(null);
@@ -35,31 +37,31 @@ export function TerminologyProvider({
   const [preset, setPreset] = useState<TerminologyPresetId>("school");
   const [loading, setLoading] = useState(true);
 
+  const fetchTerminology = useCallback(async () => {
+    try {
+      const r = await fetch("/api/institution/terminology");
+      if (!r.ok) return;
+      const res = await r.json();
+      if (res.ok && res.terminology) {
+        setTerms(res.terminology);
+        if (res.preset) setPreset(res.preset);
+      }
+    } catch {
+      // Fallback to current values
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
-    fetch("/api/institution/terminology")
-      .then((r) => {
-        if (!r.ok) throw new Error("fetch failed");
-        return r.json();
-      })
-      .then((res) => {
-        if (!cancelled && res.ok && res.terminology) {
-          setTerms(res.terminology);
-          if (res.preset) setPreset(res.preset);
-        }
-      })
-      .catch(() => {
-        // Fallback to defaults (e.g. on public pages where auth fails)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    fetchTerminology().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchTerminology]);
 
   const value: TerminologyContextValue = {
     terms,
@@ -68,6 +70,7 @@ export function TerminologyProvider({
     plural: (key) => pluralize(terms[key]),
     lower: (key) => lc(terms[key]),
     lowerPlural: (key) => lc(pluralize(terms[key])),
+    refresh: fetchTerminology,
   };
 
   return (
@@ -87,6 +90,7 @@ export function useTerminology(): TerminologyContextValue {
       plural: (key) => pluralize(DEFAULT_TERMINOLOGY[key]),
       lower: (key) => lc(DEFAULT_TERMINOLOGY[key]),
       lowerPlural: (key) => lc(pluralize(DEFAULT_TERMINOLOGY[key])),
+      refresh: async () => {},
     };
   }
   return context;

@@ -45,6 +45,7 @@
       { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "learner_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["ADMIN", "SUPERADMIN"] },
       { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "SUPERADMIN"] },
       { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "SUPERADMIN"] },
       { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "SUPERADMIN"] },

@@ -7,7 +7,7 @@ Open an SSH tunnel to the hf-dev GCP VM, forwarding port 3000 to localhost. Does
 Run this Bash command in the background:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a -- -L 3000:localhost:3000 -N
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- -L 3000:localhost:3000 -N
 ```
 
 The `-N` flag means no remote command — just the tunnel.
