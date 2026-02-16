@@ -17,3 +17,6 @@ export { BrandingProvider, useBranding } from "./BrandingContext";
 
 export { ViewModeProvider, useViewMode } from "./ViewModeContext";
 export type { ViewModePreference } from "./ViewModeContext";
+
+export { ErrorCaptureProvider, useErrorCapture } from "./ErrorCaptureContext";
+export type { CapturedError } from "./ErrorCaptureContext";

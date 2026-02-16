@@ -14,9 +14,57 @@ import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/Co
 import EnvironmentBanner, { envSidebarColor, envLabel } from '@/components/shared/EnvironmentBanner';
 import MasqueradeBanner, { MASQUERADE_BANNER_HEIGHT, MASQUERADE_COLOR } from '@/components/shared/MasqueradeBanner';
 import { TourOverlay } from '@/src/components/shared/TourOverlay';
+import { ErrorCaptureProvider } from '@/contexts/ErrorCaptureContext';
+import { BugReportButton } from '@/components/shared/BugReportButton';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Menu, PanelLeft } from 'lucide-react';
 import './globals.css';
+
+/** Error boundary to catch page-level crashes while keeping floating widgets alive */
+class PageErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, textAlign: "center" }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>
+            Something went wrong
+          </h2>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
+            {this.state.error.message}
+          </p>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            Try again
+          </button>
+          <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 12 }}>
+            Use the Bug Report button to send this error to Claude for diagnosis.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const SIDEBAR_WIDTH_KEY = 'hf.sidebar.width';
 const DEFAULT_SIDEBAR_WIDTH = 180;
@@ -319,6 +367,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased">
         <EnvironmentBanner />
+        <ErrorCaptureProvider>
         <ThemeProvider>
           <PaletteProvider>
             <SessionProvider>
@@ -333,12 +382,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <GlobalAssistantProvider>
                       <ContentJobQueueProvider>
                         <TourOverlay />
-                        <Suspense fallback={null}>
-                          <LayoutInner>{children}</LayoutInner>
-                        </Suspense>
-                        {/* New Unified AI Assistant (Cmd+K) - includes search & all features */}
+                        <PageErrorBoundary>
+                          <Suspense fallback={null}>
+                            <LayoutInner>{children}</LayoutInner>
+                          </Suspense>
+                        </PageErrorBoundary>
+                        {/* Floating widgets — outside PageErrorBoundary so they survive page crashes */}
                         <GlobalAssistant />
                         <ContentJobQueue />
+                        <BugReportButton />
                       </ContentJobQueueProvider>
                     </GlobalAssistantProvider>
                   </ChatProvider>
@@ -351,6 +403,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </SessionProvider>
           </PaletteProvider>
         </ThemeProvider>
+        </ErrorCaptureProvider>
       </body>
     </html>
   );

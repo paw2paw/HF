@@ -3014,15 +3014,16 @@ List call scores across all calls, ordered by most recent. Includes parameter de
 
 ### `POST` /api/chat
 
-Sends a message to the AI chat assistant. Supports DATA mode (tool calling for database queries and spec updates) and CALL mode (voice call simulation with content sharing). Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
+Sends a message to the AI chat assistant. Supports DATA mode (tool calling for database queries and spec updates), CALL mode (voice call simulation with content sharing), and BUG mode (bug diagnosis with source code awareness). Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
 
 **Auth**: Session · **Scope**: `chat:send`
 
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
 | message | body | string | No | User message text (required) |
-| mode | body | string | No | Chat mode: "DATA" | "CALL" |
+| mode | body | string | No | Chat mode: "DATA" | "CALL" | "BUG" |
 | engine | body | string | No | AI engine to use (optional, uses default if not specified) |
+| bugContext | body | object | No | Bug report context for BUG mode (url, errors, browser, viewport, timestamp) |
 
 **Response** `200`
 ```json
@@ -4554,7 +4555,7 @@ List active calls across the educator's students. Active = endedAt is null AND c
 
 ### `GET` /api/educator/classrooms
 
-List all classrooms (cohort groups) owned by the educator, including domain info, member counts, and last activity timestamps.
+List all classrooms (cohort groups) owned by the educator, including domain info, member counts, and last activity timestamps. ADMIN+ users can pass ?institutionId= to view all classrooms in an institution.
 
 **Auth**: Bearer token · **Scope**: `educator:read`
 
@@ -4795,7 +4796,7 @@ Aggregated analytics across all classrooms or filtered to a specific one. Includ
 
 ### `GET` /api/educator/students
 
-List all students across the educator's active classrooms, including classroom assignment, call counts, and last activity.
+List all students across the educator's active classrooms, including classroom assignment, call counts, and last activity. ADMIN+ users can pass ?institutionId= to view all students in an institution.
 
 **Auth**: Bearer token · **Scope**: `educator:read`
 
@@ -9119,7 +9120,7 @@ Returns a hierarchical tree structure of ALL specs grouped by Domain > Scope > O
 
 ### `GET` /api/subjects
 
-List all subjects with source, domain, and curriculum counts.
+List all subjects with source, domain, curriculum counts, and lesson plan session counts.
 
 **Auth**: Session · **Scope**: `subjects:read`
 
@@ -9130,7 +9131,7 @@ List all subjects with source, domain, and curriculum counts.
 
 **Response** `200`
 ```json
-{ subjects: [...] }
+{ subjects: [...{ ..., lessonPlanSessions: number }] }
 ```
 
 **Response** `500`

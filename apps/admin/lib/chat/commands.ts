@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { MemoryCategory } from "@prisma/client";
 
-type ChatMode = "DATA" | "CALL";
+type ChatMode = "DATA" | "CALL" | "BUG";
 
 interface EntityBreadcrumb {
   type: string;

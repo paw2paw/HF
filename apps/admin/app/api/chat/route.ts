@@ -13,13 +13,28 @@ import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
 
 export const runtime = "nodejs";
 
-type ChatMode = "DATA" | "CALL";
+type ChatMode = "DATA" | "CALL" | "BUG";
 
 interface EntityBreadcrumb {
   type: string;
   id: string;
   label: string;
   data?: Record<string, unknown>;
+}
+
+interface BugContextPayload {
+  url: string;
+  errors: Array<{
+    message: string;
+    source?: string;
+    timestamp: number;
+    status?: number;
+    stack?: string;
+    url?: string;
+  }>;
+  browser: string;
+  viewport: string;
+  timestamp: number;
 }
 
 interface ChatRequest {
@@ -30,6 +45,7 @@ interface ChatRequest {
   isCommand?: boolean;
   engine?: AIEngine;
   callId?: string; // Active call ID for media message creation in CALL mode
+  bugContext?: BugContextPayload; // Bug report context for BUG mode
 }
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -40,12 +56,13 @@ const MAX_TOOL_ITERATIONS = 5;
  * @scope chat:send
  * @auth session
  * @tags chat
- * @description Sends a message to the AI chat assistant. Supports DATA mode (tool calling for database queries and spec updates) and CALL mode (voice call simulation with content sharing). Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
+ * @description Sends a message to the AI chat assistant. Supports DATA mode (tool calling for database queries and spec updates), CALL mode (voice call simulation with content sharing), and BUG mode (bug diagnosis with source code awareness). Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
  * @body message string - User message text (required)
- * @body mode string - Chat mode: "DATA" | "CALL"
+ * @body mode string - Chat mode: "DATA" | "CALL" | "BUG"
  * @body entityContext EntityBreadcrumb[] - Current UI context breadcrumbs
  * @body conversationHistory object[] - Previous conversation messages
  * @body engine string - AI engine to use (optional, uses default if not specified)
+ * @body bugContext object - Bug report context for BUG mode (url, errors, browser, viewport, timestamp)
  * @response 200 text/plain (streaming response)
  * @response 400 { ok: false, error: "Message is required" }
  * @response 500 { ok: false, error: "...", errorCode: "BILLING" | "AUTH" | "RATE_LIMIT" | ... }
@@ -57,7 +74,7 @@ export async function POST(request: NextRequest) {
     const userRole = authResult.session.user.role;
 
     const body: ChatRequest = await request.json();
-    const { message, mode, entityContext, conversationHistory = [], engine, callId: requestCallId } = body;
+    const { message, mode, entityContext, conversationHistory = [], engine, callId: requestCallId, bugContext } = body;
 
     if (!message?.trim()) {
       return NextResponse.json({ ok: false, error: "Message is required" }, { status: 400 });
@@ -71,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build mode-specific system prompt
-    const systemPrompt = await buildSystemPrompt(mode, entityContext);
+    const systemPrompt = await buildSystemPrompt(mode, entityContext, bugContext);
 
     // Prepare messages with conversation history
     const lastHistoryMessage = conversationHistory[conversationHistory.length - 1];
@@ -131,7 +148,35 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Should not reach here — DATA and CALL are the only valid modes
+    // BUG mode: streaming diagnosis, no tool calling
+    if (mode === "BUG") {
+      // @ai-call chat.bug — Bug diagnosis with code context | config: /x/ai-config
+      const callPoint = "chat.bug";
+
+      const { stream: meteredStream } = await getConfiguredMeteredAICompletionStream(
+        {
+          callPoint,
+          engineOverride: engine,
+          messages,
+          maxTokens: 2000,
+          temperature: 0.3,
+        },
+        { sourceOp: callPoint }
+      );
+
+      logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext);
+
+      return new Response(meteredStream, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+          "X-Chat-Mode": mode,
+          "X-AI-Engine": selectedEngine,
+        },
+      });
+    }
+
+    // Should not reach here
     return NextResponse.json({ ok: false, error: "Invalid chat mode" }, { status: 400 });
   } catch (error) {
     console.error("Chat API error:", error);

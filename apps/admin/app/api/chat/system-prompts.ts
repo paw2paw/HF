@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
 import type { PlaybookConfig } from "@/lib/types/json-fields";
+import { resolveSourceFiles, getClaudeMdContext, type BugContext } from "@/lib/chat/bug-context";
 
-type ChatMode = "DATA" | "CALL";
+type ChatMode = "DATA" | "CALL" | "BUG";
 
 interface EntityBreadcrumb {
   type: string;
@@ -16,7 +17,8 @@ interface EntityBreadcrumb {
  */
 export async function buildSystemPrompt(
   mode: ChatMode,
-  entityContext: EntityBreadcrumb[]
+  entityContext: EntityBreadcrumb[],
+  bugContext?: BugContext
 ): Promise<string> {
   const baseContext = await buildEntityContext(entityContext);
 
@@ -25,6 +27,8 @@ export async function buildSystemPrompt(
       return DATA_SYSTEM_PROMPT + `\n\n${baseContext}`;
     case "CALL":
       return await buildCallSimPrompt(entityContext);
+    case "BUG":
+      return await buildBugDiagnosisPrompt(entityContext, bugContext);
   }
 }
 
@@ -758,4 +762,105 @@ No composed prompt found — run "Compose Prompt" for this caller first for the 
 Keep responses short (1-3 sentences) and conversational.
 Be helpful, warm, and natural.`;
   }
+}
+
+const BUG_SYSTEM_PROMPT = `You are a BUG DIAGNOSIS ASSISTANT for the HumanFirst Admin application (Next.js 16).
+
+You have been given:
+1. The project's architecture documentation (CLAUDE.md)
+2. Source code for the page the user is currently viewing
+3. Recent errors captured from the browser
+4. The user's description of the bug
+
+Your job is to:
+1. **Diagnose** — Identify the likely root cause based on the source code, error context, and architecture
+2. **Locate** — Point to the specific file(s) and line(s) where the bug likely lives
+3. **Explain** — Describe WHY the bug occurs (race condition, missing null check, wrong API call, etc.)
+4. **Fix** — Suggest a concrete fix with code snippets
+
+## Response Format
+
+### Diagnosis
+[1-2 sentence summary of the root cause]
+
+### Location
+[File path(s) and approximate line numbers]
+
+### Explanation
+[Detailed explanation of why this happens]
+
+### Suggested Fix
+\\\`\\\`\\\`typescript
+// The fix
+\\\`\\\`\\\`
+
+## Known Gotchas (from project docs)
+- TDZ shadowing: Never \`const config = ...\` when \`config\` is imported — use \`specConfig\`
+- CSS alpha: Never \`\${cssVar}99\` — use \`color-mix()\`
+- Missing await: All ContractRegistry methods are async
+- Hardcoded slugs: Use \`config.specs.*\` — all env-overridable
+- Unmetered AI: All AI calls must go through metered wrappers
+- Auth: Every route needs \`requireAuth("ROLE")\` from \`lib/permissions.ts\`
+
+Be specific and actionable. Reference actual file paths and code from the context provided.`;
+
+/**
+ * Build BUG mode prompt with source code awareness and error context.
+ */
+async function buildBugDiagnosisPrompt(
+  entityContext: EntityBreadcrumb[],
+  bugContext?: BugContext
+): Promise<string> {
+  const parts: string[] = [BUG_SYSTEM_PROMPT];
+
+  // Architecture context from CLAUDE.md
+  const claudeMd = await getClaudeMdContext();
+  if (claudeMd) {
+    parts.push("\n## Project Architecture\n" + claudeMd);
+  }
+
+  // Source code for current page
+  if (bugContext?.url) {
+    const sourceCtx = await resolveSourceFiles(bugContext.url);
+    if (sourceCtx.pageFile) {
+      parts.push("\n## Current Page Source\n```tsx\n" + sourceCtx.pageFile + "\n```");
+    }
+    if (sourceCtx.directoryTree) {
+      parts.push("\n## Directory Structure\n```\n" + sourceCtx.directoryTree + "\n```");
+    }
+    if (sourceCtx.apiRoutes.length > 0) {
+      parts.push("\n## Related API Routes\n" + sourceCtx.apiRoutes.map(r => `- \`${r}\``).join("\n"));
+    }
+  }
+
+  // Error context from client
+  if (bugContext?.errors?.length) {
+    parts.push(
+      "\n## Recent Errors Captured\n" +
+        bugContext.errors
+          .map(
+            (e) =>
+              `- [${new Date(e.timestamp).toISOString()}] ${e.message}` +
+              (e.source ? ` (${e.source})` : "") +
+              (e.status ? ` HTTP ${e.status}` : "") +
+              (e.stack ? `\n  Stack: ${e.stack.slice(0, 200)}` : "")
+          )
+          .join("\n")
+    );
+  }
+
+  // Browser/environment
+  if (bugContext) {
+    parts.push(
+      `\n## Environment\n- URL: ${bugContext.url}\n- Browser: ${bugContext.browser}\n- Viewport: ${bugContext.viewport}\n- Reported: ${new Date(bugContext.timestamp).toISOString()}`
+    );
+  }
+
+  // Entity context (what page/entity user is looking at)
+  const baseContext = await buildEntityContext(entityContext);
+  if (baseContext) {
+    parts.push("\n" + baseContext);
+  }
+
+  return parts.join("\n\n");
 }
