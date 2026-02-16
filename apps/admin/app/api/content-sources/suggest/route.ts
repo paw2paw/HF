@@ -78,7 +78,8 @@ Rules:
     let parsed: Record<string, any>;
     try {
       parsed = JSON.parse(raw);
-    } catch {
+    } catch (parseErr) {
+      console.error("[content-sources/suggest] Failed to parse AI response:", raw);
       return NextResponse.json(
         { ok: false, error: "Failed to parse AI response" },
         { status: 502 }

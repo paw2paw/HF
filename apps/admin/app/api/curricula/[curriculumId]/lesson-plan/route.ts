@@ -309,7 +309,8 @@ Total modules: ${modules.length}`;
       // Strip markdown fences if present
       const cleaned = content.replace(/^```(?:json)?\s*/m, "").replace(/```\s*$/m, "").trim();
       parsed = JSON.parse(cleaned);
-    } catch {
+    } catch (parseErr) {
+      console.error("[lesson-plan] Failed to parse AI response:", content?.slice(0, 200));
       return NextResponse.json(
         { ok: false, error: "AI did not return valid JSON. Try again." },
         { status: 500 },

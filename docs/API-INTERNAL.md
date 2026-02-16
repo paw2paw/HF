@@ -6877,6 +6877,12 @@ Accept a classroom join link. Creates User + Caller + sets session.
 
 ---
 
+### `GET` /api/system/ini
+
+**Auth**: SUPERADMIN
+
+---
+
 ## Parameters
 
 ### `GET` /api/parameters
@@ -10421,7 +10427,7 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 262 |
-| Files with annotations | 262 |
+| Route files found | 263 |
+| Files with annotations | 263 |
 | Files missing annotations | 0 |
 | Coverage | 100.0% |

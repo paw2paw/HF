@@ -21,7 +21,8 @@ const CORS_ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || "")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
 
 /** Add CORS headers to a response if the origin is in the allow-list */
 function withCors(response: NextResponse, origin: string | null): NextResponse {
@@ -50,6 +51,7 @@ function getSessionCookie(request: NextRequest) {
 
 /** Decode JWT to extract role — fail-open on decode errors (fall through to auth()) */
 async function getRoleFromToken(tokenValue: string, cookieName: string): Promise<string | null> {
+  if (!AUTH_SECRET) return null; // No secret configured — skip decode, let auth() handle it
   try {
     const token = await decode({
       token: tokenValue,

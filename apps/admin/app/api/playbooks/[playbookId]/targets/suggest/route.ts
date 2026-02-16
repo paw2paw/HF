@@ -134,7 +134,8 @@ export async function POST(
     let parsed: { pills: RawPill[]; interpretation: string };
     try {
       parsed = JSON.parse(raw);
-    } catch {
+    } catch (parseErr) {
+      console.error("[targets/suggest] Failed to parse AI response:", raw);
       return NextResponse.json(
         { ok: false, error: "Failed to parse AI response" },
         { status: 502 }

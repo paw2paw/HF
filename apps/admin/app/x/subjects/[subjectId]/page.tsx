@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { AdvancedSection } from "@/components/shared/AdvancedSection";
+import { SortableList } from "@/components/shared/SortableList";
+import { reorderItems } from "@/lib/sortable/reorder";
 
 // ------------------------------------------------------------------
 // Media types
@@ -250,7 +252,7 @@ export default function SubjectDetailPage() {
         // Load lesson plan for this curriculum
         loadLessonPlan(data.curriculum.id);
       }
-    } catch {}
+    } catch (err) { console.error("[subjects] Failed to load subject:", err); }
   }
 
   async function loadLessonPlan(curriculumId: string) {
@@ -261,7 +263,7 @@ export default function SubjectDetailPage() {
       if (data.ok && data.plan) {
         setLessonPlan(data.plan);
       }
-    } catch {}
+    } catch (err) { console.error("[subjects] Failed to load lesson plan:", err); }
     setLessonPlanLoading(false);
   }
 
@@ -318,7 +320,7 @@ export default function SubjectDetailPage() {
       const res = await fetch("/api/domains");
       const data = await res.json();
       setAllDomains(data.domains || []);
-    } catch {}
+    } catch (err) { console.error("[subjects] Failed to load domains:", err); }
   }
 
   // ------------------------------------------------------------------
@@ -332,7 +334,7 @@ export default function SubjectDetailPage() {
       const res = await fetch(`/api/subjects/${subjectId}/media?limit=100${typeParam}`);
       const data = await res.json();
       if (data.ok) setMediaAssets(data.media || []);
-    } catch {} finally {
+    } catch (err) { console.error("[subjects] Failed to load media:", err); } finally {
       setMediaLoading(false);
     }
   }
@@ -650,7 +652,7 @@ export default function SubjectDetailPage() {
             setCurriculumTaskId(null);
           }
         })
-        .catch(() => {});
+        .catch((err) => console.error("[subjects] Failed to fetch curriculum preview:", err));
     }
   }, [jobs, curriculumTaskId, activeCurriculumJob?.taskId, subjectId]);
 
@@ -1533,32 +1535,11 @@ function LessonPlanEditor({
   onCancel: () => void;
   saving: boolean;
 }) {
+  const renumber = (list: any[]) => list.map((e, i) => ({ ...e, session: i + 1 }));
+
   const updateEntry = (index: number, patch: any) => {
     const next = entries.map((e, i) => (i === index ? { ...e, ...patch } : e));
     onChange(next);
-  };
-
-  const removeEntry = (index: number) => {
-    const next = entries.filter((_, i) => i !== index).map((e, i) => ({ ...e, session: i + 1 }));
-    onChange(next);
-  };
-
-  const addEntry = () => {
-    onChange([...entries, {
-      session: entries.length + 1,
-      type: "introduce",
-      moduleId: null,
-      moduleLabel: "",
-      label: "",
-    }]);
-  };
-
-  const moveEntry = (index: number, dir: -1 | 1) => {
-    const newIndex = index + dir;
-    if (newIndex < 0 || newIndex >= entries.length) return;
-    const next = [...entries];
-    [next[index], next[newIndex]] = [next[newIndex], next[index]];
-    onChange(next.map((e, i) => ({ ...e, session: i + 1 })));
   };
 
   const inputStyle: React.CSSProperties = {
@@ -1568,113 +1549,92 @@ function LessonPlanEditor({
 
   return (
     <div>
-      <div style={{ display: "grid", gap: 4, marginBottom: 12 }}>
-        {entries.map((e, i) => (
-          <div key={i} style={{
-            display: "flex", alignItems: "center", gap: 6, padding: "6px 8px",
-            borderRadius: 6, background: "var(--surface-primary)", border: "1px solid var(--border-secondary)",
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 20, textAlign: "right" }}>
-              {i + 1}
-            </span>
-
-            {/* Move buttons */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              <button
-                onClick={() => moveEntry(i, -1)}
-                disabled={i === 0}
-                style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", fontSize: 10, padding: 0, color: i === 0 ? "var(--text-muted)" : "var(--text-secondary)", opacity: i === 0 ? 0.3 : 1 }}
+      <div style={{ marginBottom: 12 }}>
+        <SortableList
+          items={entries}
+          getItemId={(e) => `session-${e.session}-${e.label}`}
+          onReorder={(from, to) => {
+            const reordered = reorderItems(entries, from, to);
+            onChange(renumber(reordered));
+          }}
+          onRemove={(index) => {
+            const next = entries.filter((_, i) => i !== index);
+            onChange(renumber(next));
+          }}
+          onAdd={() => {
+            onChange([...entries, {
+              session: entries.length + 1,
+              type: "introduce",
+              moduleId: null,
+              moduleLabel: "",
+              label: "",
+            }]);
+          }}
+          addLabel="+ Add Session"
+          emptyLabel="No sessions. Click + Add Session to begin."
+          renderCard={(e, index) => (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 20, textAlign: "right" }}>
+                {index + 1}
+              </span>
+              <input
+                value={e.label}
+                onChange={(ev) => updateEntry(index, { label: ev.target.value })}
+                onClick={(ev) => ev.stopPropagation()}
+                placeholder="Session label"
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <select
+                value={e.type}
+                onChange={(ev) => updateEntry(index, { type: ev.target.value })}
+                onClick={(ev) => ev.stopPropagation()}
+                style={{ ...inputStyle, width: 110 }}
               >
-                ▲
-              </button>
-              <button
-                onClick={() => moveEntry(i, 1)}
-                disabled={i === entries.length - 1}
-                style={{ background: "none", border: "none", cursor: i === entries.length - 1 ? "default" : "pointer", fontSize: 10, padding: 0, color: i === entries.length - 1 ? "var(--text-muted)" : "var(--text-secondary)", opacity: i === entries.length - 1 ? 0.3 : 1 }}
+                {SESSION_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+              <select
+                value={e.moduleId || ""}
+                onChange={(ev) => {
+                  const mod = modules.find((m) => m.id === ev.target.value);
+                  updateEntry(index, {
+                    moduleId: ev.target.value || null,
+                    moduleLabel: mod?.title || "",
+                  });
+                }}
+                onClick={(ev) => ev.stopPropagation()}
+                style={{ ...inputStyle, width: 160 }}
               >
-                ▼
-              </button>
+                <option value="">No module</option>
+                {modules.map((m) => (
+                  <option key={m.id} value={m.id}>{m.title}</option>
+                ))}
+              </select>
             </div>
-
-            {/* Label */}
-            <input
-              value={e.label}
-              onChange={(ev) => updateEntry(i, { label: ev.target.value })}
-              placeholder="Session label"
-              style={{ ...inputStyle, flex: 1 }}
-            />
-
-            {/* Type */}
-            <select
-              value={e.type}
-              onChange={(ev) => updateEntry(i, { type: ev.target.value })}
-              style={{ ...inputStyle, width: 110 }}
-            >
-              {SESSION_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-
-            {/* Module */}
-            <select
-              value={e.moduleId || ""}
-              onChange={(ev) => {
-                const mod = modules.find((m) => m.id === ev.target.value);
-                updateEntry(i, {
-                  moduleId: ev.target.value || null,
-                  moduleLabel: mod?.title || "",
-                });
-              }}
-              style={{ ...inputStyle, width: 160 }}
-            >
-              <option value="">No module</option>
-              {modules.map((m) => (
-                <option key={m.id} value={m.id}>{m.title}</option>
-              ))}
-            </select>
-
-            {/* Remove */}
-            <button
-              onClick={() => removeEntry(i)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#B71C1C", padding: "2px 4px" }}
-              title="Remove session"
-            >
-              ×
-            </button>
-          </div>
-        ))}
+          )}
+        />
       </div>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+        <button onClick={onCancel} style={{
+          padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-primary)",
+          background: "var(--surface-primary)", fontSize: 13, cursor: "pointer",
+        }}>
+          Cancel
+        </button>
         <button
-          onClick={addEntry}
+          onClick={onSave}
+          disabled={saving || entries.length === 0}
           style={{
-            padding: "5px 12px", borderRadius: 6, border: "1px dashed var(--border-primary)",
-            background: "transparent", fontSize: 12, cursor: "pointer", color: "var(--text-secondary)",
+            padding: "6px 14px", borderRadius: 6, border: "none",
+            background: "var(--accent-primary)", color: "#fff", fontSize: 13,
+            fontWeight: 600, cursor: saving ? "not-allowed" : "pointer",
+            opacity: saving || entries.length === 0 ? 0.6 : 1,
           }}
         >
-          + Add Session
+          {saving ? "Saving..." : `Save Plan (${entries.length} sessions)`}
         </button>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button onClick={onCancel} style={{
-            padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-primary)",
-            background: "var(--surface-primary)", fontSize: 13, cursor: "pointer",
-          }}>
-            Cancel
-          </button>
-          <button
-            onClick={onSave}
-            disabled={saving || entries.length === 0}
-            style={{
-              padding: "6px 14px", borderRadius: 6, border: "none",
-              background: "var(--accent-primary)", color: "#fff", fontSize: 13,
-              fontWeight: 600, cursor: saving ? "not-allowed" : "pointer",
-              opacity: saving || entries.length === 0 ? 0.6 : 1,
-            }}
-          >
-            {saving ? "Saving..." : `Save Plan (${entries.length} sessions)`}
-          </button>
-        </div>
       </div>
     </div>
   );

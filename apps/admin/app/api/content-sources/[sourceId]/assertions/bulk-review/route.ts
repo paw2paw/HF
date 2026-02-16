@@ -56,7 +56,10 @@ export async function POST(
       );
     }
 
-    const userId = auth.session.user?.id || "unknown";
+    if (!auth.session.user?.id) {
+      return NextResponse.json({ ok: false, error: "Session user ID missing" }, { status: 401 });
+    }
+    const userId = auth.session.user.id;
     const now = new Date();
 
     const result = await prisma.contentAssertion.updateMany({

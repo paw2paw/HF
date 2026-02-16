@@ -223,20 +223,20 @@ export async function getConfiguredMeteredAICompletionStream(
 ): Promise<{ stream: ReadableStream<Uint8Array>; model: string }> {
   // Import config loader to get the model info
   const { getAIConfig } = await import("@/lib/ai/config-loader");
-  const config = await getAIConfig(options.callPoint);
+  const aiConfig = await getAIConfig(options.callPoint);
 
   const stream = await getConfiguredAICompletionStream(options);
 
   // Wrap with metering
   const meteredStream = createMeteredStreamWithModel(
     stream,
-    config.provider,
-    config.model,
+    aiConfig.provider,
+    aiConfig.model,
     options.messages,
     { ...context, sourceOp: context?.sourceOp || options.callPoint }
   );
 
-  return { stream: meteredStream, model: config.model };
+  return { stream: meteredStream, model: aiConfig.model };
 }
 
 /**

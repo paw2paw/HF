@@ -118,7 +118,10 @@ export async function PATCH(
 
     // Mark as reviewed
     if (body.markReviewed) {
-      updates.reviewedBy = auth.session.user?.id || "unknown";
+      if (!auth.session.user?.id) {
+        return NextResponse.json({ ok: false, error: "Session user ID missing" }, { status: 401 });
+      }
+      updates.reviewedBy = auth.session.user.id;
       updates.reviewedAt = new Date();
     }
 

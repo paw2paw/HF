@@ -233,7 +233,7 @@ export default function SimpleSidebarNav({
         const res = await fetch("/api/tasks/counts");
         const data = await res.json();
         if (data.ok) {
-          setTaskActiveCount(data.counts?.processing || 0);
+          setTaskActiveCount(data.counts?.processing ?? 0);
         }
       } catch {
         // Silent fail
@@ -265,6 +265,29 @@ export default function SimpleSidebarNav({
 
     fetchStudentUnread();
     const interval = setInterval(fetchStudentUnread, 30000);
+    return () => clearInterval(interval);
+  }, [userId, userRole]);
+
+  // System health RAG dot (SUPERADMIN/ADMIN only)
+  const [systemHealthRag, setSystemHealthRag] = useState<"green" | "amber" | "red" | null>(null);
+
+  useEffect(() => {
+    const roleLevel: Record<string, number> = { SUPERADMIN: 5, ADMIN: 4 };
+    if (!userId || (roleLevel[userRole || ""] ?? 0) < 4) return;
+
+    const fetchHealth = async () => {
+      try {
+        const res = await fetch("/api/system/ini");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok) setSystemHealthRag(data.status);
+      } catch {
+        // Silent fail
+      }
+    };
+
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 120000);
     return () => clearInterval(interval);
   }, [userId, userRole]);
 
@@ -825,6 +848,20 @@ export default function SimpleSidebarNav({
                           >
                             {studentUnreadCount}
                           </span>
+                        )}
+                        {item.href === "/x/system" && systemHealthRag && (
+                          <span
+                            className="ml-auto inline-flex items-center justify-center w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{
+                              background:
+                                systemHealthRag === "green"
+                                  ? "#10b981"
+                                  : systemHealthRag === "amber"
+                                    ? "#f59e0b"
+                                    : "#dc2626",
+                            }}
+                            title={`System: ${systemHealthRag}`}
+                          />
                         )}
                       </Link>
                     );

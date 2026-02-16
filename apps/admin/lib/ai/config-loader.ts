@@ -52,25 +52,25 @@ export interface AIConfigResult {
   isCustomized: boolean;
 }
 
-// Default configurations per call point — uses config.ai.claude.model for flagship,
-// keeping explicit haiku model IDs for lightweight tasks.
+// Default configurations per call point — uses config.ai.claude.model for flagship
+// and config.ai.claude.lightModel for fast/cheap tasks. All env-overridable.
 // These match the definitions in /api/ai-config/route.ts
 const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "pipeline.measure": { provider: "claude", model: config.ai.claude.model },
   "pipeline.learn": { provider: "claude", model: config.ai.claude.model },
   "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model },
-  "pipeline.adapt": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "pipeline.extract_goals": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "pipeline.adapt": { provider: "claude", model: config.ai.claude.lightModel },
+  "pipeline.extract_goals": { provider: "claude", model: config.ai.claude.lightModel },
   "compose.prompt": { provider: "claude", model: config.ai.claude.model },
-  "analysis.measure": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "analysis.learn": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "parameter.enrich": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "analysis.measure": { provider: "claude", model: config.ai.claude.lightModel },
+  "analysis.learn": { provider: "claude", model: config.ai.claude.lightModel },
+  "parameter.enrich": { provider: "claude", model: config.ai.claude.lightModel },
   "bdd.parse": { provider: "claude", model: config.ai.claude.model },
   "chat.stream": { provider: "claude", model: config.ai.claude.model },
   "spec.assistant": { provider: "claude", model: config.ai.claude.model },
   "spec.view": { provider: "claude", model: config.ai.claude.model },
   "spec.extract": { provider: "claude", model: config.ai.claude.model },
-  "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "spec.parse": { provider: "claude", model: config.ai.claude.lightModel },
   "chat.data": { provider: "claude", model: config.ai.claude.model },
   "chat.call": { provider: "claude", model: config.ai.claude.model },
   "assistant.chat": { provider: "claude", model: config.ai.claude.model },
@@ -85,8 +85,8 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "test-harness.system": { provider: "claude", model: config.ai.claude.model },
   "test-harness.caller": { provider: "claude", model: config.ai.claude.model },
   "test-harness.greeting": { provider: "claude", model: config.ai.claude.model },
-  "targets.suggest": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "content-sources.suggest": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "targets.suggest": { provider: "claude", model: config.ai.claude.lightModel },
+  "content-sources.suggest": { provider: "claude", model: config.ai.claude.lightModel },
 };
 
 // In-memory cache with TTL

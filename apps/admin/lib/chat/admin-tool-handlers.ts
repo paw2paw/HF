@@ -10,6 +10,7 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { UserRole } from "@prisma/client";
 import { startCurriculumGeneration } from "@/lib/jobs/curriculum-runner";
+import { runIniChecks } from "@/lib/system-ini";
 
 const MAX_RESULT_LENGTH = 3000;
 
@@ -25,6 +26,8 @@ const TOOL_MIN_ROLE: Record<string, UserRole> = {
   add_content_assertions: "OPERATOR",
   link_subject_to_domain: "OPERATOR",
   generate_curriculum: "OPERATOR",
+  // System diagnostics
+  system_ini_check: "SUPERADMIN",
 };
 
 // Role hierarchy for comparison (mirrors lib/permissions.ts)
@@ -98,7 +101,14 @@ export async function executeAdminTool(
         result = await handleLinkSubjectToDomain(input);
         break;
       case "generate_curriculum":
-        result = await handleGenerateCurriculum(input, context?.userId || "unknown");
+        if (!context?.userId) {
+          return JSON.stringify({ error: "userId is required for curriculum generation" });
+        }
+        result = await handleGenerateCurriculum(input, context.userId);
+        break;
+      // System diagnostics
+      case "system_ini_check":
+        result = await runIniChecks();
         break;
       default:
         result = { error: `Unknown tool: ${name}` };
