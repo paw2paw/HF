@@ -16,6 +16,7 @@
       "currentModule": "current_module",
       "mastery": "mastery:{moduleId}",
       "lastAccessed": "last_accessed",
+      "currentSession": "current_session",
       "startedAt": "started_at",
       "completedAt": "completed_at"
     }
@@ -37,6 +38,11 @@
       "description": "ISO8601 timestamp of last curriculum access",
       "required": false,
       "pattern": "ISO8601"
+    },
+    "currentSession": {
+      "type": "number",
+      "description": "Current lesson plan session number (1-based). Session 1 is onboarding, session 2+ follow the lesson plan.",
+      "required": false
     },
     "startedAt": {
       "type": "string",

@@ -65,6 +65,7 @@ const CURRICULUM_STORAGE_KEYS = {
   currentModule: 'current_module',
   mastery: 'mastery:{moduleId}',
   lastAccessed: 'last_accessed',
+  currentSession: 'current_session',
 };
 
 function setupContractMocks() {
@@ -263,6 +264,61 @@ describe('track-progress.ts', () => {
       mockGetKeyPattern.mockResolvedValue(null);
 
       await expect(getActiveCurricula('caller-1')).rejects.toThrow('CURRICULUM_PROGRESS_V1 contract not loaded');
+    });
+  });
+
+  describe('currentSession tracking', () => {
+    it('stores currentSession as NUMBER via contract key pattern', async () => {
+      await updateCurriculumProgress('caller-1', 'FS-L2-001', {
+        currentSession: 3,
+      });
+
+      const upsertCall = mockPrisma.callerAttribute.upsert.mock.calls[0][0];
+      expect(upsertCall.where.callerId_key_scope.key).toBe('curriculum:FS-L2-001:current_session');
+      expect(upsertCall.where.callerId_key_scope.scope).toBe('CURRICULUM');
+      expect(upsertCall.create.valueType).toBe('NUMBER');
+      expect(upsertCall.create.numberValue).toBe(3);
+    });
+
+    it('reads currentSession from progress attributes', async () => {
+      mockPrisma.callerAttribute.findMany.mockResolvedValue([
+        { key: 'curriculum:FS-L2-001:current_module', stringValue: 'mod-2', numberValue: null },
+        { key: 'curriculum:FS-L2-001:current_session', stringValue: null, numberValue: 4 },
+        { key: 'curriculum:FS-L2-001:mastery:mod-1', stringValue: null, numberValue: 0.85 },
+      ]);
+
+      const progress = await getCurriculumProgress('caller-1', 'FS-L2-001');
+
+      expect(progress.currentSession).toBe(4);
+      expect(progress.currentModuleId).toBe('mod-2');
+      expect(progress.modulesMastery).toEqual({ 'mod-1': 0.85 });
+    });
+
+    it('returns null currentSession when not set', async () => {
+      mockPrisma.callerAttribute.findMany.mockResolvedValue([
+        { key: 'curriculum:FS-L2-001:current_module', stringValue: 'mod-1', numberValue: null },
+      ]);
+
+      const progress = await getCurriculumProgress('caller-1', 'FS-L2-001');
+
+      expect(progress.currentSession).toBeNull();
+    });
+
+    it('updates currentSession alongside other fields', async () => {
+      await updateCurriculumProgress('caller-1', 'FS-L2-001', {
+        currentSession: 5,
+        currentModuleId: 'mod-3',
+        lastAccessedAt: new Date('2026-02-16T12:00:00Z'),
+      });
+
+      // Should have 3 upsert calls: currentModule, currentSession, lastAccessed
+      expect(mockPrisma.callerAttribute.upsert).toHaveBeenCalledTimes(3);
+
+      const sessionCall = mockPrisma.callerAttribute.upsert.mock.calls.find(
+        (c: any) => c[0].where.callerId_key_scope.key.includes('current_session')
+      );
+      expect(sessionCall).toBeDefined();
+      expect(sessionCall![0].create.numberValue).toBe(5);
     });
   });
 });

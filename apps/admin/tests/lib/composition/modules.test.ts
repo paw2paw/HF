@@ -413,6 +413,148 @@ describe("computeSharedState", () => {
       expect(result.reviewType).toBe("quick_recall");
     });
   });
+
+  describe("lesson plan session tracking", () => {
+    const subjectSourcesWithPlan = {
+      subjects: [{
+        id: "s-1", slug: "food-safety", name: "Food Safety",
+        defaultTrustLevel: "ACCREDITED_MATERIAL", qualificationRef: null, sources: [],
+        curriculum: {
+          id: "c-1", slug: "CURR-FS", name: "FS Curriculum", description: null,
+          notableInfo: {
+            modules: [
+              { id: "MOD-1", title: "Introduction", sortOrder: 0, learningOutcomes: [] },
+              { id: "MOD-2", title: "Hazards", sortOrder: 1, learningOutcomes: [] },
+              { id: "MOD-3", title: "Temperature", sortOrder: 2, learningOutcomes: [] },
+            ],
+          },
+          deliveryConfig: {
+            lessonPlan: {
+              estimatedSessions: 6,
+              entries: [
+                { session: 1, type: "onboarding", moduleId: null, moduleLabel: "Onboarding", label: "Welcome & orientation" },
+                { session: 2, type: "introduce", moduleId: "MOD-1", moduleLabel: "Introduction", label: "First exposure" },
+                { session: 3, type: "deepen", moduleId: "MOD-1", moduleLabel: "Introduction", label: "Deepen basics" },
+                { session: 4, type: "introduce", moduleId: "MOD-2", moduleLabel: "Hazards", label: "Hazard types" },
+                { session: 5, type: "review", moduleId: null, moduleLabel: "Review", label: "Review session" },
+                { session: 6, type: "assess", moduleId: null, moduleLabel: "Assessment", label: "Final check" },
+              ],
+            },
+          },
+          trustLevel: "L4", qualificationBody: null,
+          qualificationNumber: null, qualificationLevel: null,
+        },
+      }],
+    };
+
+    it("does NOT use lesson plan when onboarding is incomplete", () => {
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesWithPlan,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: false, completedPhases: [], currentPhase: "welcome" },
+        callerAttributes: [
+          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 2, scope: "CURRICULUM" }),
+        ],
+      });
+      const specs = makeResolvedSpecs();
+      const result = computeSharedState(data, specs, {});
+
+      // Should use mastery-based selection, not lesson plan
+      expect(result.lessonPlanSessionType).toBeNull();
+      expect(result.lessonPlanEntry).toBeNull();
+    });
+
+    it("uses lesson plan when onboarding is complete and currentSession is set", () => {
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesWithPlan,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
+        callerAttributes: [
+          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 2, scope: "CURRICULUM" }),
+        ],
+      });
+      const specs = makeResolvedSpecs();
+      const result = computeSharedState(data, specs, {});
+
+      expect(result.currentSessionNumber).toBe(2);
+      expect(result.lessonPlanSessionType).toBe("introduce");
+      expect(result.lessonPlanEntry).toBeDefined();
+      expect(result.lessonPlanEntry!.moduleId).toBe("MOD-1");
+      expect(result.lessonPlanEntry!.moduleLabel).toBe("Introduction");
+    });
+
+    it("overrides nextModule to match lesson plan entry", () => {
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesWithPlan,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
+        callerAttributes: [
+          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 4, scope: "CURRICULUM" }),
+        ],
+      });
+      const specs = makeResolvedSpecs();
+      const result = computeSharedState(data, specs, {});
+
+      // Session 4 is "introduce MOD-2"
+      expect(result.nextModule).toBeDefined();
+      expect(result.nextModule!.id).toBe("MOD-2");
+      expect(result.lessonPlanSessionType).toBe("introduce");
+    });
+
+    it("handles cross-module sessions (review, assess) with null moduleId", () => {
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesWithPlan,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
+        callerAttributes: [
+          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 5, scope: "CURRICULUM" }),
+        ],
+      });
+      const specs = makeResolvedSpecs();
+      const result = computeSharedState(data, specs, {});
+
+      // Session 5 is "review" with no moduleId
+      expect(result.lessonPlanSessionType).toBe("review");
+      expect(result.lessonPlanEntry!.moduleId).toBeNull();
+    });
+
+    it("falls back to mastery-based selection when no lesson plan", () => {
+      const subjectSourcesNoLP = {
+        subjects: [{
+          ...subjectSourcesWithPlan.subjects[0],
+          curriculum: {
+            ...subjectSourcesWithPlan.subjects[0].curriculum,
+            deliveryConfig: null,
+          },
+        }],
+      };
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesNoLP,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
+      });
+      const specs = makeResolvedSpecs();
+      const result = computeSharedState(data, specs, {});
+
+      expect(result.lessonPlanSessionType).toBeNull();
+      expect(result.lessonPlanEntry).toBeNull();
+      expect(result.currentSessionNumber).toBeNull();
+    });
+
+    it("returns null fields when currentSession not in callerAttributes", () => {
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesWithPlan,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
+        callerAttributes: [], // no currentSession
+      });
+      const specs = makeResolvedSpecs();
+      const result = computeSharedState(data, specs, {});
+
+      expect(result.currentSessionNumber).toBeNull();
+      expect(result.lessonPlanSessionType).toBeNull();
+    });
+  });
 });
 
 describe("computeModuleProgress transform", () => {

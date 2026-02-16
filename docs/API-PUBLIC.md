@@ -1708,7 +1708,7 @@ Trigger extraction for a classified content source.
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
 | sourceId | path | string | Yes | ContentSource UUID |
-| subjectId | body | string | No | Subject UUID (for auto-trigger curriculum check) |
+| subjectId | body | string | No | Optional Subject UUID (for auto-trigger curriculum check; omit for orphan sources) |
 | text | body | string | No | Optional pre-extracted text (if not provided, downloads from linked media asset) |
 
 **Response** `202`
@@ -1739,6 +1739,11 @@ Upload a document (PDF, text, markdown) and extract ContentAssertions linked to 
 | file | body | File | No | The document to parse (multipart/form-data) |
 | focusChapters | body | string | No | Comma-separated chapter names to focus on (optional) |
 | maxAssertions | body | number | No | Max assertions to extract (default: 500) |
+
+**Response** `200`
+```json
+{ ok: true, mode: "classify", classification, mediaId } (classify mode)
+```
 
 **Response** `200`
 ```json

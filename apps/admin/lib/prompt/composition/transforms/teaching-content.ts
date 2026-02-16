@@ -297,7 +297,17 @@ registerTransform("renderTeachingContent", (
   }
 
   // Filter assertions to current module's learning outcomes if available
-  const currentModule = context.sharedState?.nextModule || context.sharedState?.moduleToReview;
+  // Priority: lesson plan entry module > nextModule > moduleToReview
+  let currentModule = null;
+  const lpEntry = context.sharedState?.lessonPlanEntry;
+  if (lpEntry?.moduleId && context.sharedState?.modules) {
+    currentModule = context.sharedState.modules.find(
+      (m: any) => (m.id || m.slug) === lpEntry.moduleId
+    ) || null;
+  }
+  if (!currentModule) {
+    currentModule = context.sharedState?.nextModule || context.sharedState?.moduleToReview;
+  }
   let assertions = allAssertions;
 
   if (currentModule?.learningOutcomes?.length && allAssertions.length > 0) {

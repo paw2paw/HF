@@ -23,6 +23,8 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
       playbooks: [],
       systemSpecs: [],
       onboardingSpec: null,
+      onboardingSession: null,
+      subjectSources: null,
     },
     sections: {},
     resolvedSpecs: { identitySpec: null, contentSpec: null, voiceSpec: null },
@@ -32,6 +34,7 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
         { slug: "m2", name: "Advanced", description: "Second module" },
       ],
       isFirstCall: false,
+      isFirstCallInDomain: false,
       daysSinceLastCall: 3,
       completedModules: new Set(["m1"]),
       estimatedProgress: 0.5,
@@ -41,6 +44,9 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
       reviewType: "quick_recall",
       reviewReason: "Last session covered Introduction",
       thresholds: { high: 0.65, low: 0.35 },
+      currentSessionNumber: null,
+      lessonPlanSessionType: null,
+      lessonPlanEntry: null,
     },
     specConfig: {},
     ...overrides,
@@ -289,6 +295,100 @@ describe("computeSessionPedagogy transform", () => {
       result.flow.forEach((step: string) => {
         expect(step).not.toContain("[Content:");
       });
+    });
+  });
+
+  describe("LESSON PLAN session-type flows", () => {
+    function makeLessonPlanContext(sessionType: string, moduleLabel: string = "Module A"): AssembledContext {
+      return makeContext({
+        sharedState: {
+          ...makeContext().sharedState,
+          isFirstCall: false,
+          isFirstCallInDomain: false,
+          lessonPlanSessionType: sessionType,
+          currentSessionNumber: 3,
+          lessonPlanEntry: {
+            session: 3,
+            type: sessionType,
+            moduleId: sessionType === "review" || sessionType === "assess" || sessionType === "consolidate" ? null : "MOD-1",
+            moduleLabel,
+            label: `${sessionType} session`,
+          },
+        },
+      });
+    }
+
+    it("uses INTRODUCE session type with preview-oriented flow", () => {
+      const ctx = makeLessonPlanContext("introduce", "Hazards");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.sessionType).toBe("INTRODUCE");
+      expect(result.flow.some((s: string) => s.includes("Hazards"))).toBe(true);
+      expect(result.newMaterial).toBeDefined();
+      expect(result.newMaterial.module).toBe("Hazards");
+      expect(result.lessonPlanSession).toBeDefined();
+      expect(result.lessonPlanSession.type).toBe("introduce");
+    });
+
+    it("uses DEEPEN session type with practice-oriented flow", () => {
+      const ctx = makeLessonPlanContext("deepen", "Temperature Control");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.sessionType).toBe("DEEPEN");
+      expect(result.flow.some((s: string) => s.includes("edge cases") || s.includes("Deepen"))).toBe(true);
+      expect(result.newMaterial).toBeDefined();
+      expect(result.newMaterial.approach).toContain("Temperature Control");
+    });
+
+    it("uses REVIEW session type with spaced retrieval", () => {
+      const ctx = makeLessonPlanContext("review");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.sessionType).toBe("REVIEW");
+      expect(result.flow.some((s: string) => s.includes("retrieval") || s.includes("recall"))).toBe(true);
+    });
+
+    it("uses ASSESS session type — no new material", () => {
+      const ctx = makeLessonPlanContext("assess");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.sessionType).toBe("ASSESS");
+      expect(result.flow.some((s: string) => s.includes("NO new material") || s.includes("Diagnostic"))).toBe(true);
+      expect(result.newMaterial).toBeUndefined();
+    });
+
+    it("uses CONSOLIDATE session type with synthesis focus", () => {
+      const ctx = makeLessonPlanContext("consolidate");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.sessionType).toBe("CONSOLIDATE");
+      expect(result.flow.some((s: string) => s.includes("Synthesize") || s.includes("Big picture"))).toBe(true);
+    });
+
+    it("includes lessonPlanSession metadata in output", () => {
+      const ctx = makeLessonPlanContext("introduce", "Hazards");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.lessonPlanSession).toEqual({
+        number: 3,
+        type: "introduce",
+        label: "introduce session",
+      });
+    });
+
+    it("falls back to generic flow for unknown session type", () => {
+      const ctx = makeLessonPlanContext("mystery-type");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.sessionType).toBe("MYSTERY-TYPE");
+      expect(result.flow.length).toBeGreaterThan(0);
+    });
+
+    it("still includes universal pedagogy principles", () => {
+      const ctx = makeLessonPlanContext("deepen");
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+
+      expect(result.principles.some((p: string) => p.includes("Review BEFORE"))).toBe(true);
     });
   });
 });

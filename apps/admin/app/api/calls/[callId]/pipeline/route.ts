@@ -1520,6 +1520,185 @@ async function trackCurriculumAfterCall(
   return updated;
 }
 
+/**
+ * Track onboarding completion after first call.
+ * Marks OnboardingSession as complete and initializes lesson plan session tracking.
+ */
+async function trackOnboardingAfterCall(
+  callerId: string,
+  callId: string,
+  log: PipelineLogger,
+): Promise<boolean> {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return false;
+
+  // Check if onboarding session exists and is incomplete
+  const onboardingSession = await prisma.onboardingSession.findUnique({
+    where: { callerId_domainId: { callerId, domainId: caller.domainId } },
+  });
+
+  if (!onboardingSession || onboardingSession.isComplete) return false;
+
+  // Only complete onboarding on first call in this domain
+  const callCount = await prisma.call.count({
+    where: { callerId, caller: { domainId: caller.domainId } },
+  });
+  if (callCount !== 1) return false;
+
+  // Mark onboarding complete
+  await prisma.onboardingSession.update({
+    where: { id: onboardingSession.id },
+    data: {
+      isComplete: true,
+      completedAt: new Date(),
+      firstCallId: callId,
+    },
+  });
+  log.info("Onboarding completed", { callerId, domainId: caller.domainId });
+
+  // Initialize lesson plan session tracking for Subject-based curricula
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    include: {
+      subject: {
+        include: {
+          curricula: {
+            orderBy: { updatedAt: "desc" },
+            take: 1,
+            select: { slug: true, deliveryConfig: true },
+          },
+        },
+      },
+    },
+  });
+
+  for (const sd of subjectDomains) {
+    const curriculum = sd.subject.curricula[0];
+    if (!curriculum) continue;
+
+    const dc = curriculum.deliveryConfig as Record<string, any> | null;
+    const lessonPlan = dc?.lessonPlan;
+    if (!lessonPlan?.entries?.length || lessonPlan.entries.length < 2) continue;
+
+    // Find first non-onboarding session number
+    const firstLessonEntry = lessonPlan.entries.find((e: any) => e.type !== "onboarding");
+    const firstLessonSession = firstLessonEntry?.session ?? 2;
+
+    await updateCurriculumProgress(callerId, curriculum.slug, {
+      currentSession: firstLessonSession,
+      lastAccessedAt: new Date(),
+    });
+    log.info(`Initialized lesson plan session tracking for ${curriculum.slug}`, {
+      currentSession: firstLessonSession,
+    });
+    break; // Only process first curriculum
+  }
+
+  return true;
+}
+
+/**
+ * Advance lesson plan session after a call.
+ * Called after mastery tracking — advances to next session based on session type.
+ */
+async function advanceLessonPlanSession(
+  callerId: string,
+  log: PipelineLogger,
+  learningAssessment?: {
+    specSlug: string;
+    moduleId: string;
+    overallMastery: number;
+    masteryThreshold: number;
+  } | null,
+): Promise<boolean> {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return false;
+
+  // Find Subject curricula with lesson plans
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    include: {
+      subject: {
+        include: {
+          curricula: {
+            orderBy: { updatedAt: "desc" },
+            take: 1,
+            select: { slug: true, deliveryConfig: true },
+          },
+        },
+      },
+    },
+  });
+
+  let advanced = false;
+
+  for (const sd of subjectDomains) {
+    const curriculum = sd.subject.curricula[0];
+    if (!curriculum) continue;
+
+    const dc = curriculum.deliveryConfig as Record<string, any> | null;
+    const lessonPlan = dc?.lessonPlan;
+    if (!lessonPlan?.entries?.length) continue;
+
+    // Get current session
+    const progress = await getCurriculumProgress(callerId, curriculum.slug);
+    const currentSession = progress.currentSession;
+    if (!currentSession) continue;
+
+    const currentEntry = lessonPlan.entries.find((e: any) => e.session === currentSession);
+    if (!currentEntry) continue;
+
+    // Determine whether to advance
+    let shouldAdvance = false;
+
+    if (["review", "assess", "consolidate"].includes(currentEntry.type)) {
+      // Cross-module sessions always advance after the call
+      shouldAdvance = true;
+    } else if (currentEntry.moduleId && learningAssessment) {
+      // Module-specific sessions advance if mastery met
+      if (
+        learningAssessment.moduleId === currentEntry.moduleId &&
+        learningAssessment.overallMastery >= learningAssessment.masteryThreshold
+      ) {
+        shouldAdvance = true;
+      }
+    } else if (currentEntry.type === "onboarding") {
+      // Onboarding session — should have been advanced by trackOnboardingAfterCall
+      shouldAdvance = true;
+    }
+
+    if (shouldAdvance) {
+      const nextSession = currentSession + 1;
+      if (nextSession <= lessonPlan.estimatedSessions) {
+        await updateCurriculumProgress(callerId, curriculum.slug, {
+          currentSession: nextSession,
+          lastAccessedAt: new Date(),
+        });
+        log.info(`Advanced to lesson plan session ${nextSession} for ${curriculum.slug}`, {
+          previousSession: currentSession,
+          previousType: currentEntry.type,
+          previousModule: currentEntry.moduleId,
+        });
+        advanced = true;
+      } else {
+        log.info(`Lesson plan complete for ${curriculum.slug}`, {
+          totalSessions: lessonPlan.estimatedSessions,
+        });
+      }
+    }
+
+    break; // Only process first curriculum
+  }
+
+  return advanced;
+}
+
 // =====================================================
 // SPEC-DRIVEN PIPELINE EXECUTION
 // =====================================================
@@ -1576,6 +1755,22 @@ const stageExecutors: Record<string, StageExecutor> = {
       ctx.log.warn(`Curriculum progress tracking failed (non-blocking): ${err.message}`);
     }
 
+    // Track onboarding completion on first call (non-blocking)
+    let onboardingCompleted = false;
+    try {
+      onboardingCompleted = await trackOnboardingAfterCall(ctx.callerId, ctx.callId, ctx.log);
+    } catch (err: any) {
+      ctx.log.warn(`Onboarding tracking failed (non-blocking): ${err.message}`);
+    }
+
+    // Advance lesson plan session if applicable (non-blocking)
+    let sessionAdvanced = false;
+    try {
+      sessionAdvanced = await advanceLessonPlanSession(ctx.callerId, ctx.log, callerResult.learningAssessment);
+    } catch (err: any) {
+      ctx.log.warn(`Lesson plan session advancement failed (non-blocking): ${err.message}`);
+    }
+
     // Extract conversation artifacts (non-blocking — errors logged but don't fail the stage)
     let artifactsExtracted = 0;
     try {
@@ -1608,6 +1803,8 @@ const stageExecutors: Record<string, StageExecutor> = {
       memoriesCreated: callerResult.memoriesCreated,
       deltasComputed: deltaResult.deltasComputed,
       curriculumUpdated,
+      onboardingCompleted,
+      sessionAdvanced,
       artifactsExtracted,
       actionsExtracted,
       learningAssessment: callerResult.learningAssessment ? {

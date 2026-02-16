@@ -191,6 +191,18 @@ export interface SharedComputedState {
   curriculumSpecSlug?: string;
   /** Whether first call in current domain (for domain-switch re-onboarding) */
   isFirstCallInDomain?: boolean;
+  /** Current lesson plan session number (1-based), null if no lesson plan */
+  currentSessionNumber?: number | null;
+  /** Session type from lesson plan entry (introduce, deepen, review, assess, consolidate) */
+  lessonPlanSessionType?: string | null;
+  /** Full lesson plan entry for current session */
+  lessonPlanEntry?: {
+    session: number;
+    type: string;
+    moduleId: string | null;
+    moduleLabel: string;
+    label: string;
+  } | null;
 }
 
 export interface ModuleData {
