@@ -40,6 +40,7 @@ export async function GET(
       primaryColor: institution.primaryColor,
       secondaryColor: institution.secondaryColor,
       welcomeMessage: institution.welcomeMessage,
+      terminology: institution.terminology,
       isActive: institution.isActive,
       userCount: institution._count.users,
       cohortCount: institution._count.cohortGroups,
@@ -62,7 +63,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, logoUrl, primaryColor, secondaryColor, welcomeMessage, isActive } = body;
+  const { name, logoUrl, primaryColor, secondaryColor, welcomeMessage, isActive, terminology } = body;
 
   // Build update object from provided fields only
   const updates: Record<string, unknown> = {};
@@ -72,6 +73,13 @@ export async function PATCH(
   if (secondaryColor !== undefined) updates.secondaryColor = secondaryColor?.trim() || null;
   if (welcomeMessage !== undefined) updates.welcomeMessage = welcomeMessage?.trim() || null;
   if (isActive !== undefined) updates.isActive = Boolean(isActive);
+  if (terminology !== undefined) {
+    if (terminology === null) {
+      updates.terminology = null;
+    } else if (terminology?.preset && typeof terminology.preset === "string") {
+      updates.terminology = terminology;
+    }
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json(
@@ -96,6 +104,7 @@ export async function PATCH(
         primaryColor: institution.primaryColor,
         secondaryColor: institution.secondaryColor,
         welcomeMessage: institution.welcomeMessage,
+        terminology: institution.terminology,
         isActive: institution.isActive,
       },
     });

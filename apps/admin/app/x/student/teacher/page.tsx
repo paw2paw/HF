@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GraduationCap, School, Building2 } from "lucide-react";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 interface TeacherData {
   teacher: {
@@ -19,6 +20,7 @@ interface TeacherData {
 export default function StudentTeacherPage() {
   const [data, setData] = useState<TeacherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { terms } = useTerminology();
 
   useEffect(() => {
     fetch("/api/student/teacher")
@@ -51,7 +53,7 @@ export default function StudentTeacherPage() {
   return (
     <div className="p-6 max-w-4xl">
       <h1 className="text-xl font-bold mb-6" style={{ color: "var(--text-primary)" }}>
-        My Teacher
+        {terms.supervisor}
       </h1>
 
       <div className="space-y-4">
@@ -94,7 +96,7 @@ export default function StudentTeacherPage() {
           <div className="flex items-center gap-2 mb-3">
             <School size={14} style={{ color: "var(--text-muted)" }} />
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-              Classroom
+              {terms.cohort}
             </span>
           </div>
           <p className="font-medium" style={{ color: "var(--text-primary)" }}>
@@ -117,7 +119,7 @@ export default function StudentTeacherPage() {
             <div className="flex items-center gap-2 mb-3">
               <Building2 size={14} style={{ color: "var(--text-muted)" }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                Institution
+                {terms.institution}
               </span>
             </div>
             <div className="flex items-center gap-3">

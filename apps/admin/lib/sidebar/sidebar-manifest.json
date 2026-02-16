@@ -37,18 +37,19 @@
   {
     "id": "educator",
     "title": "My School",
-    "defaultHiddenFor": ["SUPERADMIN", "ADMIN", "OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
+    "terminologySectionTitle": "institution",
+    "defaultHiddenFor": ["OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
     "items": [
-      { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR"] },
-      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "visibleFor": ["EDUCATOR"], "roleVariants": { "EDUCATOR": { "label": "Classrooms", "href": "/x/educator/classrooms", "icon": "School" } } },
-      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "visibleFor": ["EDUCATOR"] },
-      { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR"] },
-      { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR"] },
-      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT"] },
-      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT"] },
-      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT"] },
-      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT"] },
-      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "visibleFor": ["STUDENT"] }
+      { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms", "icon": "School" } } },
+      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "learner_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "SUPERADMIN"] },
+      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "SUPERADMIN"] },
+      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "SUPERADMIN"] },
+      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "SUPERADMIN"] },
+      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "SUPERADMIN"] }
     ]
   },
   {
@@ -66,7 +67,8 @@
       { "id": "taxonomy-graph", "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" },
       { "id": "flows", "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
       { "id": "content-explorer", "href": "/x/content-explorer", "label": "Content Explorer", "icon": "FileSearch" },
-      { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download" }
+      { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download" },
+      { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" }
     ]
   },
   {
@@ -113,8 +115,7 @@
       { "id": "seed-data", "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" },
       { "id": "test-harness", "href": "/x/test-harness", "label": "Test Harness", "icon": "Beaker" },
       { "id": "spec-schema", "href": "/x/spec-schema", "label": "Spec Schema", "icon": "FileJson" },
-      { "id": "responsive-viewer", "href": "/x/sidebar", "label": "Responsive Viewer", "icon": "Smartphone" },
-      { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" }
+      { "id": "responsive-viewer", "href": "/x/sidebar", "label": "Responsive Viewer", "icon": "Smartphone" }
     ]
   }
 ]

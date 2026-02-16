@@ -4,21 +4,21 @@ description: Deploy to production — guided menu for build, migrate, seed, and 
 
 Interactive deployment guide for GCP Cloud Run.
 
-Read `docs/CLOUD-DEPLOYMENT.md` for full context, then present this menu:
+Read `docs/CLOUD-DEPLOYMENT.md` for full context, then ask the user using AskUserQuestion:
 
-## Deployment Menu
+**Question:** "What deploy action do you need?"
+**Header:** "Deploy"
+**multiSelect:** false
 
-Ask the user what they want to do:
-
-1. **Quick deploy** — Code-only change, no schema or spec changes
-2. **Deploy with migrations** — Schema changed, need to run migrations first
-3. **Deploy with new specs** — Spec JSON files added/changed, need to re-seed
-4. **Full deploy** — Schema + specs + code (migrate → seed → deploy)
-5. **Rollback** — Revert to a previous Cloud Run revision
-6. **Smoke test** — Verify the live instance is healthy
-7. **Check status** — Show current Cloud Run revision and Cloud SQL status
+Options:
+1. **Pre-flight check** — Build, env vars, schema, Docker, auth coverage — verify readiness
+2. **Quick deploy** — Code-only change, no schema or spec changes
+3. **Full deploy** — Schema + specs + code (migrate → seed → deploy)
+4. **Rollback** — Revert to a previous Cloud Run revision
 
 Based on the user's choice, walk them through the exact commands step by step. Always confirm before executing any command.
+
+**Note:** If the user picks "Quick deploy" or "Full deploy", automatically run smoke tests after. If they pick something not listed (via "Other"), map it to the closest option or ask for clarification. "Check status" is still available via "Other" — show revision info and deploy drift.
 
 ## Reference
 
@@ -29,7 +29,41 @@ Based on the user's choice, walk them through the exact commands step by step. A
 - **Cloud Run jobs**: `hf-migrate`, `hf-seed`
 - **Dockerfile**: `apps/admin/Dockerfile` (targets: `runner`, `seed`, `migrate`)
 
-## Quick Deploy Steps (option 1)
+## Pre-flight Check Steps (option 1)
+
+### 1. Build
+```bash
+cd apps/admin && npm run build
+```
+Report: PASS or list of build errors.
+
+### 2. Prisma Schema
+```bash
+cd apps/admin && npx prisma validate
+```
+Report: PASS or validation errors.
+
+### 3. Migration Status
+```bash
+cd apps/admin && npx prisma migrate status
+```
+Report: any pending migrations.
+
+### 4. Seed Scripts
+Verify seed files exist: `prisma/seed-clean.ts`, `prisma/seed-domains.ts`.
+
+### 5. Docker
+Check Dockerfile exists and has the 3 targets: `runner`, `seed`, `migrate`.
+
+### 6. Auth Coverage
+```bash
+cd apps/admin && npm run test -- tests/lib/route-auth-coverage.test.ts
+```
+All routes must be protected before deploying.
+
+Report: `Deploy Check: READY (6/6)` or list blockers with fix instructions.
+
+## Quick Deploy Steps (option 2)
 
 ```bash
 cd apps/admin
@@ -42,7 +76,7 @@ gcloud run deploy hf-admin \
   --region=europe-west2
 ```
 
-## Deploy with Migrations Steps (option 2)
+## Deploy with Migrations Steps (option 3 — part of Full deploy)
 
 ```bash
 cd apps/admin
@@ -63,7 +97,7 @@ gcloud run deploy hf-admin \
   --region=europe-west2
 ```
 
-## Deploy with New Specs Steps (option 3)
+## Deploy with New Specs Steps (option 3 — part of Full deploy)
 
 ```bash
 cd apps/admin
@@ -84,7 +118,7 @@ gcloud run deploy hf-admin \
   --region=europe-west2
 ```
 
-## Rollback Steps (option 5)
+## Rollback Steps (option 4)
 
 ```bash
 gcloud run revisions list --service=hf-admin --region=europe-west2
@@ -94,7 +128,7 @@ gcloud run services update-traffic hf-admin \
   --region=europe-west2
 ```
 
-## Smoke Test Steps (option 6)
+## Smoke Test Steps (auto after deploy)
 
 ```bash
 APP_URL="https://hf-admin-311250123759.europe-west2.run.app"
@@ -103,7 +137,7 @@ curl -f "$APP_URL/api/ready"
 curl -f "$APP_URL/api/system/readiness"
 ```
 
-## Check Status Steps (option 7)
+## Check Status Steps (via "Other")
 
 ```bash
 # Cloud Run status

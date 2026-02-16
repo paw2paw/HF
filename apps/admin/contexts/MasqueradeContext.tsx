@@ -54,11 +54,14 @@ function readMasqueradeCookie(): MasqueradeState | null {
 export function MasqueradeProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const [masquerade, setMasquerade] = useState<MasqueradeState | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
-  // Initialize from cookie on mount
+  // Initialize from cookie on mount — deferred to avoid hydration mismatch
+  // (server has no cookie access, so always renders masquerade=null)
   useEffect(() => {
     setMasquerade(readMasqueradeCookie());
+    setHydrated(true);
   }, []);
 
   // Cross-tab sync via BroadcastChannel
@@ -114,11 +117,15 @@ export function MasqueradeProvider({ children }: { children: React.ReactNode }) 
   const realRole = session?.user?.role ?? "VIEWER";
   const realUserId = session?.user?.id ?? "";
 
+  // Gate all masquerade-derived values on hydration to prevent SSR mismatch.
+  // Before hydration, all consumers see isMasquerading=false regardless of cookie.
+  const active = hydrated ? masquerade : null;
+
   const value: MasqueradeContextValue = {
-    masquerade,
-    isMasquerading: masquerade !== null,
-    effectiveRole: masquerade?.role ?? realRole,
-    effectiveUserId: masquerade?.userId ?? realUserId,
+    masquerade: active,
+    isMasquerading: active !== null,
+    effectiveRole: active?.role ?? realRole,
+    effectiveUserId: active?.userId ?? realUserId,
     startMasquerade,
     stopMasquerade,
   };

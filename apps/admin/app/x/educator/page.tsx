@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 interface DashboardData {
   classrooms: {
@@ -29,9 +30,21 @@ interface DashboardData {
   }[];
 }
 
+interface DomainOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export default function EducatorDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { terms, plural, lower, lowerPlural } = useTerminology();
+
+  // School picker for ADMIN users without an educator profile
+  const [needsSchoolPicker, setNeedsSchoolPicker] = useState(false);
+  const [domains, setDomains] = useState<DomainOption[]>([]);
+  const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
 
   // Invite teacher state
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -63,30 +76,145 @@ export default function EducatorDashboard() {
     }
   }, [inviteEmail]);
 
-  useEffect(() => {
-    fetch("/api/educator/dashboard")
-      .then((r) => r.json())
-      .then((res: DashboardData & { ok: boolean }) => {
-        if (res?.ok) setData(res);
-      })
-      .finally(() => setLoading(false));
+  const loadDashboard = useCallback(async (domainId?: string) => {
+    setLoading(true);
+    try {
+      const url = domainId
+        ? `/api/educator/dashboard?domainId=${domainId}`
+        : "/api/educator/dashboard";
+      const res = await fetch(url);
+
+      if (res.status === 403 && !domainId) {
+        // ADMIN user without educator profile — show picker
+        const domainsRes = await fetch("/api/domains");
+        const domainsData = await domainsRes.json();
+        if (domainsData?.domains) {
+          setDomains(domainsData.domains.map((d: { id: string; name: string; slug: string }) => ({
+            id: d.id, name: d.name, slug: d.slug,
+          })));
+        }
+        setNeedsSchoolPicker(true);
+        return;
+      }
+
+      const body = await res.json();
+      if (body?.ok) {
+        setData(body);
+        setNeedsSchoolPicker(false);
+      }
+    } catch {
+      // Network error — leave in loading/empty state
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const handleSelectSchool = useCallback((domainId: string) => {
+    setSelectedDomainId(domainId);
+    loadDashboard(domainId);
+  }, [loadDashboard]);
 
   if (loading) {
     return (
       <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading your school...</div>
+        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading your {lower("institution")}...</div>
+      </div>
+    );
+  }
+
+  // Picker for ADMIN users
+  if (needsSchoolPicker && !loading) {
+    return (
+      <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+            Select a {terms.institution}
+          </h1>
+          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
+            As an admin, choose which {lower("institution")} dashboard to view.
+          </p>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+            gap: 16,
+          }}
+        >
+          {domains.map((domain) => (
+            <button
+              key={domain.id}
+              onClick={() => handleSelectSchool(domain.id)}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                padding: 20,
+                background: selectedDomainId === domain.id
+                  ? "var(--surface-active)"
+                  : "var(--surface-primary)",
+                border: selectedDomainId === domain.id
+                  ? "2px solid var(--accent-primary)"
+                  : "1px solid var(--border-default)",
+                borderRadius: 12,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.2s",
+              }}
+              className="home-stat-card"
+            >
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                {domain.name}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                {domain.slug}
+              </div>
+            </button>
+          ))}
+        </div>
+        {domains.length === 0 && (
+          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16 }}>
+            No {lowerPlural("institution")} found. Create a domain first.
+          </p>
+        )}
       </div>
     );
   }
 
   const stats = data?.stats ?? { classroomCount: 0, totalStudents: 0, activeThisWeek: 0 };
   const hasClassrooms = stats.classroomCount > 0;
+  const viewingSchoolName = selectedDomainId
+    ? domains.find((d) => d.id === selectedDomainId)?.name
+    : null;
 
   return (
     <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
       {/* Welcome Header */}
       <div style={{ marginBottom: 32 }}>
+        {viewingSchoolName && (
+          <button
+            onClick={() => { setNeedsSchoolPicker(true); setData(null); }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "4px 10px",
+              fontSize: 12,
+              fontWeight: 500,
+              color: "var(--text-muted)",
+              background: "var(--surface-secondary)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 6,
+              cursor: "pointer",
+              marginBottom: 12,
+            }}
+          >
+            &larr; Change {terms.institution}
+          </button>
+        )}
         <h1
           style={{
             fontSize: 28,
@@ -95,12 +223,12 @@ export default function EducatorDashboard() {
             marginBottom: 8,
           }}
         >
-          My School
+          {viewingSchoolName ?? `My ${terms.institution}`}
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
           {hasClassrooms
-            ? `${stats.totalStudents} student${stats.totalStudents !== 1 ? "s" : ""} across ${stats.classroomCount} classroom${stats.classroomCount !== 1 ? "s" : ""}`
-            : "Get started by creating your first classroom"}
+            ? `${stats.totalStudents} ${stats.totalStudents !== 1 ? lowerPlural("learner") : lower("learner")} across ${stats.classroomCount} ${stats.classroomCount !== 1 ? lowerPlural("cohort") : lower("cohort")}`
+            : `Get started by creating your first ${lower("cohort")}`}
         </p>
       </div>
 
@@ -114,9 +242,9 @@ export default function EducatorDashboard() {
         }}
       >
         {[
-          { label: "Students", value: stats.totalStudents, color: "var(--button-primary-bg)" },
+          { label: plural("learner"), value: stats.totalStudents, color: "var(--button-primary-bg)" },
           { label: "Active This Week", value: stats.activeThisWeek, color: "var(--status-success-text)" },
-          { label: "Classrooms", value: stats.classroomCount, color: "var(--accent-primary)" },
+          { label: plural("cohort"), value: stats.classroomCount, color: "var(--accent-primary)" },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -178,20 +306,20 @@ export default function EducatorDashboard() {
         >
           {[
             {
-              title: "Create Classroom",
-              description: "Set up a new learning group",
+              title: `Create ${terms.cohort}`,
+              description: `Set up a new ${lower("cohort")}`,
               href: "/x/educator/classrooms/new",
               accent: "var(--accent-primary)",
             },
             {
-              title: "View Students",
-              description: "Track progress across all classrooms",
+              title: `View ${plural("learner")}`,
+              description: `Track progress across all ${lowerPlural("cohort")}`,
               href: "/x/educator/students",
               accent: "var(--button-primary-bg)",
             },
             {
               title: "Try a Call",
-              description: "Experience what your students will",
+              description: `Experience what your ${lowerPlural("learner")} will`,
               href: "/x/educator/try",
               accent: "var(--badge-purple-text)",
             },
@@ -252,7 +380,7 @@ export default function EducatorDashboard() {
             className="home-stat-card"
           >
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-              Invite a Teacher
+              Invite a {terms.instructor}
             </div>
             <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
               Bring a colleague onto the platform
@@ -277,7 +405,7 @@ export default function EducatorDashboard() {
           >
             <input
               type="email"
-              placeholder="colleague@school.org"
+              placeholder="colleague@example.com"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleInviteTeacher()}
@@ -376,7 +504,7 @@ export default function EducatorDashboard() {
           </h3>
           {(!data?.recentCalls || data.recentCalls.length === 0) ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              No calls yet. Invite students to get started.
+              No calls yet. Invite {lowerPlural("learner")} to get started.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -440,7 +568,7 @@ export default function EducatorDashboard() {
             </h3>
             {(!data?.needsAttention || data.needsAttention.length === 0) ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                All students are active. Great work!
+                All {lowerPlural("learner")} are active. Great work!
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -498,8 +626,8 @@ export default function EducatorDashboard() {
           }}
         >
           <div style={{ fontSize: 48, marginBottom: 16 }}>
-            <span role="img" aria-label="school">
-              🏫
+            <span role="img" aria-label="welcome">
+              👋
             </span>
           </div>
           <h3
@@ -510,7 +638,7 @@ export default function EducatorDashboard() {
               marginBottom: 8,
             }}
           >
-            Welcome to your school
+            Welcome to your {lower("institution")}
           </h3>
           <p
             style={{
@@ -521,7 +649,7 @@ export default function EducatorDashboard() {
               margin: "0 auto 20px",
             }}
           >
-            Create your first classroom, invite students, and start tracking
+            Create your first {lower("cohort")}, invite {lowerPlural("learner")}, and start tracking
             their learning journey.
           </p>
           <Link
@@ -537,7 +665,7 @@ export default function EducatorDashboard() {
               fontWeight: 600,
             }}
           >
-            Create Classroom
+            Create {terms.cohort}
           </Link>
         </div>
       )}

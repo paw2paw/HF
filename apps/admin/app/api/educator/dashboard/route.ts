@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
 
 /**
@@ -8,52 +9,71 @@ import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
  * @scope educator:read
  * @auth bearer
  * @tags educator, dashboard
- * @description Educator dashboard overview with classroom list, aggregate stats (total students, active this week), recent calls, and students needing attention (no calls in 7+ days).
+ * @query domainId - Optional domain ID for ADMIN+ users to view a specific school
+ * @description Educator dashboard overview with classroom list, aggregate stats (total students, active this week), recent calls, and students needing attention (no calls in 7+ days). ADMIN+ users can pass ?domainId= to view any school.
  * @response 200 { ok: true, classrooms: [...], stats: { classroomCount, totalStudents, activeThisWeek }, recentCalls: [...], needsAttention: [...] }
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const domainId = request.nextUrl.searchParams.get("domainId");
+
+  // ADMIN+ with domainId: view any school's dashboard (all cohorts in that domain)
+  if (domainId) {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+    return buildDashboardForDomain(domainId);
+  }
+
+  // Educator path: scoped to own cohorts
   const auth = await requireEducator();
   if (isEducatorAuthError(auth)) return auth.error;
 
-  const { callerId } = auth;
+  return buildDashboardForEducator(auth.callerId);
+}
 
+// ── Shared dashboard builder ────────────────────────────────────
+
+function buildCohortFilter(mode: { educatorCallerId: string } | { domainId: string }) {
+  if ("educatorCallerId" in mode) {
+    return { ownerId: mode.educatorCallerId, isActive: true };
+  }
+  return { domainId: mode.domainId, isActive: true };
+}
+
+async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>) {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   const [classrooms, totalStudents, activeStudents, recentCalls, needsAttention] =
     await Promise.all([
-      // Classrooms owned by this educator
       prisma.cohortGroup.findMany({
-        where: { ownerId: callerId, isActive: true },
+        where: cohortWhere,
         include: {
           domain: { select: { id: true, name: true, slug: true } },
+          owner: { select: { id: true, name: true } },
           _count: { select: { members: true } },
         },
         orderBy: { createdAt: "desc" },
       }),
 
-      // Total students across all owned cohorts
       prisma.caller.count({
         where: {
-          cohortGroup: { ownerId: callerId, isActive: true },
+          cohortGroup: cohortWhere,
           role: "LEARNER",
         },
       }),
 
-      // Students active in the last 7 days (have calls created recently)
       prisma.caller.count({
         where: {
-          cohortGroup: { ownerId: callerId, isActive: true },
+          cohortGroup: cohortWhere,
           role: "LEARNER",
           calls: { some: { createdAt: { gte: sevenDaysAgo } } },
         },
       }),
 
-      // Recent calls across all cohort students (last 10)
       prisma.call.findMany({
         where: {
           caller: {
-            cohortGroup: { ownerId: callerId, isActive: true },
+            cohortGroup: cohortWhere,
             role: "LEARNER",
           },
         },
@@ -64,18 +84,13 @@ export async function GET() {
         take: 10,
       }),
 
-      // Students with no calls in 7+ days
       prisma.caller.findMany({
         where: {
-          cohortGroup: { ownerId: callerId, isActive: true },
+          cohortGroup: cohortWhere,
           role: "LEARNER",
           OR: [
             { calls: { none: {} } },
-            {
-              calls: {
-                every: { createdAt: { lt: sevenDaysAgo } },
-              },
-            },
+            { calls: { every: { createdAt: { lt: sevenDaysAgo } } } },
           ],
         },
         include: {
@@ -91,6 +106,7 @@ export async function GET() {
       id: c.id,
       name: c.name,
       domain: c.domain,
+      owner: c.owner,
       memberCount: c._count.members,
       createdAt: c.createdAt,
     })),
@@ -111,4 +127,12 @@ export async function GET() {
       classroom: s.cohortGroup?.name ?? "Unknown",
     })),
   });
+}
+
+async function buildDashboardForEducator(callerId: string) {
+  return buildDashboard({ ownerId: callerId, isActive: true });
+}
+
+async function buildDashboardForDomain(domainId: string) {
+  return buildDashboard({ domainId, isActive: true });
 }

@@ -5,7 +5,10 @@ import {
   requireCohortOwnership,
   isCohortOwnershipError,
 } from "@/lib/cohort-access";
-import { randomUUID } from "crypto";
+import { randomBytes } from "crypto";
+
+/** 30-day default expiry for join tokens */
+const JOIN_TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * @api GET /api/cohorts/:cohortId/join-link
@@ -45,10 +48,10 @@ export async function GET(
 
     // Generate if none exists
     if (!joinToken) {
-      joinToken = randomUUID().replace(/-/g, "").slice(0, 12);
+      joinToken = randomBytes(16).toString("hex");
       await prisma.cohortGroup.update({
         where: { id: cohortId },
-        data: { joinToken },
+        data: { joinToken, joinTokenExp: new Date(Date.now() + JOIN_TOKEN_EXPIRY_MS) },
       });
     }
 
@@ -90,10 +93,10 @@ export async function POST(
     );
     if (isCohortOwnershipError(ownershipResult)) return ownershipResult.error;
 
-    const joinToken = randomUUID().replace(/-/g, "").slice(0, 12);
+    const joinToken = randomBytes(16).toString("hex");
     await prisma.cohortGroup.update({
       where: { id: cohortId },
-      data: { joinToken },
+      data: { joinToken, joinTokenExp: new Date(Date.now() + JOIN_TOKEN_EXPIRY_MS) },
     });
 
     return NextResponse.json({ ok: true, joinToken });

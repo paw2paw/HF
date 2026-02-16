@@ -286,6 +286,11 @@ async function createInfrastructure() {
 
   // Ensure default admin user exists (needed for login, e2e tests, screenshot capture)
   const adminEmail = "admin@test.com";
+  if (process.env.NODE_ENV === "production" && !process.env.SEED_ADMIN_PASSWORD) {
+    throw new Error(
+      "SEED_ADMIN_PASSWORD must be set in production. Refusing to seed with default password."
+    );
+  }
   const seedPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
   const passwordHash = await bcrypt.hash(seedPassword, 10);
   const existing = await prisma.user.findUnique({ where: { email: adminEmail } });

@@ -5,7 +5,10 @@ import {
   isEducatorAuthError,
   requireEducatorCohortOwnership,
 } from "@/lib/educator-access";
-import { randomUUID } from "crypto";
+import { randomBytes } from "crypto";
+
+/** 30-day default expiry for join tokens */
+const JOIN_TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * @api GET /api/educator/classrooms/[id]/invite-link
@@ -32,10 +35,10 @@ export async function GET(
 
   // Generate token if none exists
   if (!joinToken) {
-    joinToken = randomUUID().replace(/-/g, "").slice(0, 12);
+    joinToken = randomBytes(16).toString("hex"); // 32 hex chars = 128 bits
     await prisma.cohortGroup.update({
       where: { id },
-      data: { joinToken },
+      data: { joinToken, joinTokenExp: new Date(Date.now() + JOIN_TOKEN_EXPIRY_MS) },
     });
   }
 
@@ -66,10 +69,10 @@ export async function POST(
   const ownership = await requireEducatorCohortOwnership(id, auth.callerId);
   if ("error" in ownership) return ownership.error;
 
-  const joinToken = randomUUID().replace(/-/g, "").slice(0, 12);
+  const joinToken = randomBytes(16).toString("hex"); // 32 hex chars = 128 bits
   await prisma.cohortGroup.update({
     where: { id },
-    data: { joinToken },
+    data: { joinToken, joinTokenExp: new Date(Date.now() + JOIN_TOKEN_EXPIRY_MS) },
   });
 
   return NextResponse.json({

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { SendArtifactModal } from "@/components/educator/SendArtifactModal";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
@@ -38,6 +39,7 @@ type Tab = "roster" | "settings";
 export default function ClassroomDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { terms, plural, lower, lowerPlural } = useTerminology();
 
   const [classroom, setClassroom] = useState<ClassroomDetail | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -109,7 +111,7 @@ export default function ClassroomDetailPage() {
   };
 
   const handleArchive = async () => {
-    if (!confirm("Archive this classroom? Students will no longer be tracked.")) return;
+    if (!confirm(`Archive this ${lower("cohort")}? ${plural("learner")} will no longer be tracked.`)) return;
     const res = await fetchApi(`/api/educator/classrooms/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ isActive: false }),
@@ -157,7 +159,7 @@ export default function ClassroomDetailPage() {
   if (loading) {
     return (
       <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading classroom...</div>
+        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading {lower("cohort")}...</div>
       </div>
     );
   }
@@ -165,7 +167,7 @@ export default function ClassroomDetailPage() {
   if (!classroom) {
     return (
       <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Classroom not found.</div>
+        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>{terms.cohort} not found.</div>
       </div>
     );
   }
@@ -180,7 +182,7 @@ export default function ClassroomDetailPage() {
           href="/x/educator/classrooms"
           style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none" }}
         >
-          &larr; Classrooms
+          &larr; {plural("cohort")}
         </Link>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
           <div>
@@ -188,7 +190,7 @@ export default function ClassroomDetailPage() {
               {classroom.name}
             </h1>
             <div style={{ display: "flex", gap: 12, fontSize: 13, color: "var(--text-muted)" }}>
-              <span>{classroom.memberCount} student{classroom.memberCount !== 1 ? "s" : ""}</span>
+              <span>{classroom.memberCount} {classroom.memberCount !== 1 ? lowerPlural("learner") : lower("learner")}</span>
               <span
                 style={{
                   padding: "1px 8px",
@@ -298,7 +300,7 @@ export default function ClassroomDetailPage() {
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-              Invite Students
+              Invite {plural("learner")}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
@@ -351,7 +353,7 @@ export default function ClassroomDetailPage() {
                 fontSize: 14,
               }}
             >
-              No students yet. Share the invite link or send email invites above.
+              No {lowerPlural("learner")} yet. Share the invite link or send email invites above.
             </div>
           ) : (
             <div
@@ -469,7 +471,7 @@ export default function ClassroomDetailPage() {
                               padding: "4px 8px",
                               borderRadius: 4,
                             }}
-                            title="Remove student"
+                            title={`Remove ${lower("learner")}`}
                           >
                             Remove
                           </button>
@@ -498,7 +500,7 @@ export default function ClassroomDetailPage() {
             <label
               style={{ display: "block", fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}
             >
-              Classroom Name
+              {terms.cohort} Name
             </label>
             <input
               type="text"
@@ -571,7 +573,7 @@ export default function ClassroomDetailPage() {
                 cursor: "pointer",
               }}
             >
-              Archive Classroom
+              Archive {terms.cohort}
             </button>
           </div>
         </div>

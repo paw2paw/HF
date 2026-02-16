@@ -88,7 +88,7 @@ export async function requireEducatorCohortOwnership(
   if (!cohort) {
     return {
       error: NextResponse.json(
-        { ok: false, error: "Classroom not found" },
+        { ok: false, error: "Cohort not found" },
         { status: 404 }
       ),
     };
@@ -126,7 +126,7 @@ export async function requireEducatorStudentAccess(
   if (!student) {
     return {
       error: NextResponse.json(
-        { ok: false, error: "Student not found" },
+        { ok: false, error: "Learner not found" },
         { status: 404 }
       ),
     };

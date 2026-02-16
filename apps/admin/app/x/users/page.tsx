@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
-type UserRole = "SUPERADMIN" | "ADMIN" | "OPERATOR" | "SUPER_TESTER" | "TESTER" | "DEMO" | "VIEWER";
+type UserRole = "SUPERADMIN" | "ADMIN" | "OPERATOR" | "EDUCATOR" | "SUPER_TESTER" | "TESTER" | "STUDENT" | "DEMO" | "VIEWER";
 
 interface User {
   id: string;

@@ -4,6 +4,9 @@ import { encode } from "next-auth/jwt";
 import { validateBody, joinPostSchema } from "@/lib/validation";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
 
+/** Separate rate-limit key for GET (token probing) vs POST (account creation) */
+const RATE_LIMIT_KEY_VERIFY = "join-verify";
+
 /**
  * @api GET /api/join/[token]
  * @visibility public
@@ -11,14 +14,21 @@ import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
  * @description Verify a classroom join token. Returns classroom info if valid.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  const rl = checkRateLimit(getClientIP(request), RATE_LIMIT_KEY_VERIFY);
+  if (!rl.ok) return rl.error;
+
   const { token } = await params;
 
   const cohort = await prisma.cohortGroup.findUnique({
     where: { joinToken: token },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      joinTokenExp: true,
       domain: { select: { name: true, onboardingWelcome: true } },
       owner: { select: { name: true } },
       institution: {
@@ -41,8 +51,8 @@ export async function GET(
     );
   }
 
-  // Check expiry if set
-  if ((cohort as any).joinTokenExp && new Date((cohort as any).joinTokenExp) < new Date()) {
+  // Check expiry
+  if (cohort.joinTokenExp && new Date(cohort.joinTokenExp) < new Date()) {
     return NextResponse.json(
       { ok: false, error: "This join link has expired" },
       { status: 410 }
@@ -89,7 +99,12 @@ export async function POST(
 
   const cohort = await prisma.cohortGroup.findUnique({
     where: { joinToken: token },
-    include: {
+    select: {
+      id: true,
+      isActive: true,
+      joinTokenExp: true,
+      domainId: true,
+      institutionId: true,
       domain: { select: { id: true } },
     },
   });
@@ -98,6 +113,14 @@ export async function POST(
     return NextResponse.json(
       { ok: false, error: "Invalid or expired join link" },
       { status: 404 }
+    );
+  }
+
+  // Check expiry
+  if (cohort.joinTokenExp && new Date(cohort.joinTokenExp) < new Date()) {
+    return NextResponse.json(
+      { ok: false, error: "This join link has expired" },
+      { status: 410 }
     );
   }
 
@@ -113,9 +136,8 @@ export async function POST(
     });
 
     if (existingCaller) {
-      // Generic message — still helpful for the user but doesn't confirm email existence to attackers
       return NextResponse.json(
-        { ok: false, error: "This email is already associated with this classroom", redirect: "/login" },
+        { ok: false, error: "An account with this email already exists. Please sign in instead.", redirect: "/login" },
         { status: 409 }
       );
     }

@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  type TerminologyPresetId,
+  type TerminologyConfig,
+  type TerminologyOverrides,
+  TERMINOLOGY_PRESETS,
+  PRESET_OPTIONS,
+  resolveTerminology,
+} from "@/lib/terminology/types";
 
 interface InstitutionDetail {
   id: string;
@@ -11,6 +19,7 @@ interface InstitutionDetail {
   primaryColor: string | null;
   secondaryColor: string | null;
   welcomeMessage: string | null;
+  terminology: TerminologyConfig | null;
   isActive: boolean;
   userCount: number;
   cohortCount: number;
@@ -23,6 +32,7 @@ export default function InstitutionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [fetchError, setFetchError] = useState<"forbidden" | "not-found" | null>(null);
 
   const [name, setName] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -30,11 +40,28 @@ export default function InstitutionDetailPage() {
   const [secondaryColor, setSecondaryColor] = useState("#3b82f6");
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
+  // Terminology state
+  const [termPreset, setTermPreset] = useState<TerminologyPresetId>("school");
+  const [termOverrides, setTermOverrides] = useState<TerminologyOverrides>({});
+  const [showTermCustomize, setShowTermCustomize] = useState(false);
+
+  const resolvedTerms = resolveTerminology({ preset: termPreset, overrides: termOverrides });
+
   useEffect(() => {
     fetch(`/api/institutions/${id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 403) {
+          setFetchError("forbidden");
+          return null;
+        }
+        if (r.status === 404) {
+          setFetchError("not-found");
+          return null;
+        }
+        return r.json();
+      })
       .then((res) => {
-        if (res.ok) {
+        if (res?.ok) {
           const inst = res.institution;
           setInstitution(inst);
           setName(inst.name);
@@ -42,6 +69,12 @@ export default function InstitutionDetailPage() {
           setPrimaryColor(inst.primaryColor || "#4f46e5");
           setSecondaryColor(inst.secondaryColor || "#3b82f6");
           setWelcomeMessage(inst.welcomeMessage || "");
+          if (inst.terminology) {
+            setTermPreset(inst.terminology.preset || "school");
+            setTermOverrides(inst.terminology.overrides || {});
+          }
+        } else if (res && !res.ok) {
+          setFetchError("not-found");
         }
       })
       .finally(() => setLoading(false));
@@ -50,6 +83,11 @@ export default function InstitutionDetailPage() {
   const handleSave = async () => {
     setSaving(true);
     setMessage("");
+
+    const terminologyConfig: TerminologyConfig = {
+      preset: termPreset,
+      ...(Object.keys(termOverrides).length > 0 ? { overrides: termOverrides } : {}),
+    };
 
     const res = await fetch(`/api/institutions/${id}`, {
       method: "PATCH",
@@ -60,6 +98,7 @@ export default function InstitutionDetailPage() {
         primaryColor: primaryColor || null,
         secondaryColor: secondaryColor || null,
         welcomeMessage: welcomeMessage || null,
+        terminology: terminologyConfig,
       }),
     });
 
@@ -76,6 +115,29 @@ export default function InstitutionDetailPage() {
 
   if (loading) {
     return <div style={{ padding: 32, color: "var(--text-muted)", fontSize: 14 }}>Loading...</div>;
+  }
+
+  if (fetchError === "forbidden") {
+    return (
+      <div style={{ padding: 32 }}>
+        <p style={{ color: "var(--status-error-text)", fontSize: 14, marginBottom: 12 }}>
+          You don&apos;t have permission to view this institution.
+        </p>
+        <button
+          onClick={() => router.push("/x")}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--accent-primary)",
+            cursor: "pointer",
+            fontSize: 13,
+            padding: 0,
+          }}
+        >
+          &larr; Go to dashboard
+        </button>
+      </div>
+    );
   }
 
   if (!institution) {
@@ -166,11 +228,11 @@ export default function InstitutionDetailPage() {
       </div>
 
       {/* Edit Form */}
-      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 24 }}>
+      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 24, marginBottom: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div>
             <label style={labelStyle}>Name</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="School name" style={inputStyle} />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Institution name" style={inputStyle} />
           </div>
 
           <div>
@@ -214,31 +276,134 @@ export default function InstitutionDetailPage() {
               style={{ ...inputStyle, resize: "vertical" }}
             />
           </div>
+        </div>
+      </div>
 
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
+      {/* Terminology Profile */}
+      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 24, marginBottom: 24 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+          Terminology Profile
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+          Choose how your institution labels key concepts. This affects sidebar navigation and dashboard labels for all users in this institution.
+        </p>
+
+        {/* Preset Picker */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 16 }}>
+          {PRESET_OPTIONS.map((opt) => (
             <button
-              onClick={handleSave}
-              disabled={saving || !name.trim()}
+              key={opt.id}
+              onClick={() => { setTermPreset(opt.id); setTermOverrides({}); setShowTermCustomize(false); }}
               style={{
-                padding: "12px 24px",
-                background: saving || !name.trim() ? "var(--border-default)" : "var(--button-primary-bg)",
-                color: saving || !name.trim() ? "var(--text-muted)" : "var(--button-primary-text)",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: saving || !name.trim() ? "not-allowed" : "pointer",
+                display: "flex",
+                flexDirection: "column",
+                padding: "12px 14px",
+                background: termPreset === opt.id ? "var(--surface-active)" : "var(--surface-secondary)",
+                border: termPreset === opt.id ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                borderRadius: 10,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.15s",
               }}
             >
-              {saving ? "Saving..." : "Save Changes"}
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>
+                {opt.label}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {opt.description}
+              </div>
             </button>
-            {message && (
-              <span style={{ fontSize: 13, color: message === "Saved" ? "var(--status-success-text)" : "var(--status-error-text)" }}>
-                {message}
-              </span>
-            )}
+          ))}
+        </div>
+
+        {/* Preview Table */}
+        <div style={{ background: "var(--surface-secondary)", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+            Preview
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "4px 12px", fontSize: 13 }}>
+            {(["institution", "cohort", "learner", "instructor", "supervisor"] as const).map((key) => (
+              <div key={key} style={{ display: "contents" }}>
+                <span style={{ color: "var(--text-muted)", textTransform: "capitalize" }}>{key}</span>
+                <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>
+                  {resolvedTerms[key]}
+                  {termOverrides[key] && (
+                    <span style={{ fontSize: 11, color: "var(--badge-purple-text)", marginLeft: 6 }}>custom</span>
+                  )}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Customize Toggle */}
+        <button
+          onClick={() => setShowTermCustomize(!showTermCustomize)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--accent-primary)",
+            cursor: "pointer",
+            fontSize: 13,
+            padding: 0,
+            fontWeight: 500,
+          }}
+        >
+          {showTermCustomize ? "Hide customization" : "Customize individual terms"}
+        </button>
+
+        {/* Customize Fields */}
+        {showTermCustomize && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+            {(["institution", "cohort", "learner", "instructor", "supervisor"] as const).map((key) => (
+              <div key={key}>
+                <label style={{ ...labelStyle, textTransform: "capitalize" }}>{key}</label>
+                <input
+                  type="text"
+                  value={termOverrides[key] ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTermOverrides((prev) => {
+                      if (!val.trim()) {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      }
+                      return { ...prev, [key]: val };
+                    });
+                  }}
+                  placeholder={TERMINOLOGY_PRESETS[termPreset][key]}
+                  style={inputStyle}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Save Button */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <button
+          onClick={handleSave}
+          disabled={saving || !name.trim()}
+          style={{
+            padding: "12px 24px",
+            background: saving || !name.trim() ? "var(--border-default)" : "var(--button-primary-bg)",
+            color: saving || !name.trim() ? "var(--text-muted)" : "var(--button-primary-text)",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: saving || !name.trim() ? "not-allowed" : "pointer",
+          }}
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+        {message && (
+          <span style={{ fontSize: 13, color: message === "Saved" ? "var(--status-success-text)" : "var(--status-error-text)" }}>
+            {message}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -53,7 +53,7 @@ test.describe('Cloud Smoke', () => {
     await page.goto('/x/quick-launch');
     await page.waitForLoadState('domcontentloaded');
     await expect(page).toHaveURL(/\/x\/quick-launch/);
-    await expect(page.getByText('Quick Launch')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Quick Launch' })).toBeVisible();
   });
 
   test('should load Settings page', async ({ page }) => {
@@ -66,13 +66,13 @@ test.describe('Cloud Smoke', () => {
     const response = await page.request.get('/api/health');
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
-    expect(body.status).toBe('ok');
+    expect(body.ok).toBe(true);
   });
 
   test('ready API should confirm specs loaded', async ({ page }) => {
     const response = await page.request.get('/api/ready');
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
-    expect(body.ready).toBe(true);
+    expect(body.ok).toBe(true);
   });
 });

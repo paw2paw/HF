@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth, isAuthError } from "@/lib/permissions";
+import { requireAuth, isAuthError, ROLE_LEVEL } from "@/lib/permissions";
 import { randomUUID } from "crypto";
 import { sendInviteEmail } from "@/lib/email";
 import { config } from "@/lib/config";
+import type { UserRole } from "@prisma/client";
+
+/** Roles that are valid targets for invite creation */
+const INVITABLE_ROLES: Set<UserRole> = new Set([
+  "ADMIN", "OPERATOR", "EDUCATOR", "SUPER_TESTER", "TESTER", "STUDENT", "DEMO", "VIEWER",
+]);
 
 /**
  * @api GET /api/invites
@@ -63,6 +69,24 @@ export async function POST(req: NextRequest) {
 
   if (!email || typeof email !== "string") {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+
+  // Validate role is a valid enum value and is invitable (never SUPERADMIN via invite)
+  if (!INVITABLE_ROLES.has(role as UserRole)) {
+    return NextResponse.json(
+      { error: `Invalid role: ${role}. Cannot create invites for this role.` },
+      { status: 400 }
+    );
+  }
+
+  // Prevent privilege escalation: invite role must not exceed creator's role level
+  const creatorLevel = ROLE_LEVEL[session.user.role] ?? 0;
+  const requestedLevel = ROLE_LEVEL[role as UserRole] ?? 0;
+  if (requestedLevel >= creatorLevel) {
+    return NextResponse.json(
+      { error: "Cannot create invites for a role equal to or above your own" },
+      { status: 403 }
+    );
   }
 
   // Check if user already exists

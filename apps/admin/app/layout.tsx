@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
 import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding, ViewModeProvider } from '@/contexts';
+import { TerminologyProvider } from '@/contexts/TerminologyContext';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
@@ -36,6 +37,10 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const { isMobile, showDesktop } = useResponsive();
   const { isMasquerading } = useMasquerade();
   const { branding } = useBranding();
+
+  // Hydration guard is now centralized in MasqueradeContext — isMasquerading
+  // is always false until after mount, so all consumers are automatically safe.
+  const showMasqueradeChrome = isMasquerading;
 
   // Embed mode - render without sidebar/chrome (for iframes)
   const isEmbed = searchParams.get('embed') === '1';
@@ -145,7 +150,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const effectiveSidebarWidth = collapsed ? COLLAPSED_WIDTH : sidebarWidth;
 
   // Height accounts for fixed banners (MasqueradeBanner only — env banner removed)
-  const bannerHeight = isMasquerading ? MASQUERADE_BANNER_HEIGHT : 0;
+  const bannerHeight = showMasqueradeChrome ? MASQUERADE_BANNER_HEIGHT : 0;
   const layoutHeight = bannerHeight > 0 ? `calc(100vh - ${bannerHeight}px)` : '100vh';
 
   // Auth pages, embed mode, and sim pages render without sidebar/chrome
@@ -154,7 +159,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   // Masquerade border — visible purple frame around the viewport
-  const masqueradeBorderStyle: React.CSSProperties = isMasquerading
+  const masqueradeBorderStyle: React.CSSProperties = showMasqueradeChrome
     ? { boxShadow: `inset 0 0 0 3px ${MASQUERADE_COLOR}` }
     : {};
 
@@ -318,6 +323,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PaletteProvider>
             <SessionProvider>
               <BrandingProvider>
+              <TerminologyProvider>
               <MasqueradeProvider>
               <ViewModeProvider>
               <MasqueradeBanner />
@@ -340,6 +346,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </EntityProvider>
               </ViewModeProvider>
               </MasqueradeProvider>
+              </TerminologyProvider>
               </BrandingProvider>
             </SessionProvider>
           </PaletteProvider>

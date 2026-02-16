@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 interface Domain {
   id: string;
@@ -19,6 +20,7 @@ async function fetchApi(url: string, options?: RequestInit) {
 
 export default function NewClassroomPage() {
   const router = useRouter();
+  const { terms, plural, lower, lowerPlural } = useTerminology();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setName] = useState("");
@@ -62,7 +64,7 @@ export default function NewClassroomPage() {
       });
       setStep(3);
     } else {
-      setError(res?.error ?? "Failed to create classroom");
+      setError(res?.error ?? `Failed to create ${lower("cohort")}`);
     }
 
     setCreating(false);
@@ -97,10 +99,10 @@ export default function NewClassroomPage() {
           marginBottom: 8,
         }}
       >
-        Create Classroom
+        Create {terms.cohort}
       </h1>
       <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 32 }}>
-        Set up a learning group for your students.
+        Set up a new {lower("cohort")} for your {lowerPlural("learner")}.
       </p>
 
       {/* Step indicators */}
@@ -159,7 +161,7 @@ export default function NewClassroomPage() {
                 marginBottom: 6,
               }}
             >
-              Classroom Name *
+              {terms.cohort} Name *
             </label>
             <input
               type="text"
@@ -195,7 +197,7 @@ export default function NewClassroomPage() {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="A short note about this classroom..."
+              placeholder={`A short note about this ${lower("cohort")}...`}
               rows={3}
               style={{
                 width: "100%",
@@ -377,7 +379,7 @@ export default function NewClassroomPage() {
                 cursor: creating ? "not-allowed" : "pointer",
               }}
             >
-              {creating ? "Creating..." : "Create Classroom"}
+              {creating ? "Creating..." : `Create ${terms.cohort}`}
             </button>
           </div>
         </div>
@@ -403,7 +405,7 @@ export default function NewClassroomPage() {
               marginBottom: 8,
             }}
           >
-            Classroom Created!
+            {terms.cohort} Created!
           </h2>
           <p
             style={{
@@ -412,7 +414,7 @@ export default function NewClassroomPage() {
               marginBottom: 24,
             }}
           >
-            Share this link with your students to join:
+            Share this link with your {lowerPlural("learner")} to join:
           </p>
 
           <div
@@ -473,7 +475,7 @@ export default function NewClassroomPage() {
                 cursor: "pointer",
               }}
             >
-              Go to Classroom
+              Go to {terms.cohort}
             </button>
             <button
               onClick={() => {

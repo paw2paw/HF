@@ -13,6 +13,8 @@ export type NavItem = {
   visibleFor?: string[];
   /** Hidden when user is in simple view mode (view-mode gate) */
   advancedOnly?: boolean;
+  /** If set, label is replaced with the resolved terminology term at runtime (e.g. "cohort_plural") */
+  terminologyLabel?: string;
 };
 
 export type NavSection = {
@@ -28,6 +30,8 @@ export type NavSection = {
   defaultHiddenFor?: string[];
   /** Hidden when user is in simple view mode (view-mode gate) */
   advancedOnly?: boolean;
+  /** If set, section title is replaced with "My {term}" at runtime (e.g. "institution") */
+  terminologySectionTitle?: string;
 };
 
 // Persisted layout configuration

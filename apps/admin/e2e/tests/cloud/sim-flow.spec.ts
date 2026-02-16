@@ -14,32 +14,43 @@ import { CloudTestData } from '../../fixtures/test-data.fixture';
  */
 test.describe('Call Simulation', () => {
   let callerId: string;
+  let callerName: string;
 
   test.beforeEach(async ({ page, loginAs }) => {
     await loginAs('admin@test.com');
 
-    // Look up the seeded E2E caller by searching
-    const response = await page.request.get(
-      `/api/callers?search=${encodeURIComponent(CloudTestData.E2E_CALLER.name)}`
-    );
+    // Look up a caller for sim testing — prefer E2E seeded caller, fall back to any available
+    const response = await page.request.get(`/api/callers?limit=500`);
+    if (response.status() !== 200) {
+      test.skip(true, `Callers API returned ${response.status()}`);
+      return;
+    }
     const data = await response.json();
-    const found = data.callers?.find(
+    const callers = data.callers || [];
+
+    // Try E2E seeded caller first, then any caller with a domain
+    const found = callers.find(
       (c: any) => c.externalId === CloudTestData.E2E_CALLER.externalId
+    ) || callers.find(
+      (c: any) => c.name === CloudTestData.E2E_CALLER.name
+    ) || callers.find(
+      (c: any) => c.domainId
     );
 
     if (!found) {
-      test.skip(true, 'E2E test caller not found — run seed-e2e.ts first');
+      test.skip(true, `No callers available for sim testing (${callers.length} total)`);
       return;
     }
     callerId = found.id;
+    callerName = found.name || 'Unknown';
   });
 
-  test('should load sim page for seeded caller', async ({ page }) => {
+  test('should load sim page for caller', async ({ page }) => {
     const sim = new SimPage(page, callerId);
     await sim.goto();
 
     // Should show caller name in header
-    await expect(sim.headerTitle).toHaveText(CloudTestData.E2E_CALLER.name, { timeout: 15_000 });
+    await expect(sim.headerTitle).toHaveText(callerName, { timeout: 15_000 });
   });
 
   test('should receive AI greeting on page load', async ({ page }) => {

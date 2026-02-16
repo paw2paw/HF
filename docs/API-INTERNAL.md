@@ -4737,7 +4737,7 @@ Cohort progress stats including calls-per-day trend (30 days), engagement breakd
 
 ### `GET` /api/educator/dashboard
 
-Educator dashboard overview with classroom list, aggregate stats (total students, active this week), recent calls, and students needing attention (no calls in 7+ days).
+Educator dashboard overview with classroom list, aggregate stats (total students, active this week), recent calls, and students needing attention (no calls in 7+ days). ADMIN+ users can pass ?domainId= to view any school.
 
 **Auth**: Bearer token · **Scope**: `educator:read`
 
@@ -6763,6 +6763,14 @@ Save sidebar visibility rules
 ### `GET` /api/institution/branding
 
 Get branding for the current user's institution.
+
+**Auth**: VIEWER (any authenticated user)
+
+---
+
+### `GET` /api/institution/terminology
+
+Get resolved terminology for the current user's institution.
 
 **Auth**: VIEWER (any authenticated user)
 
@@ -10427,7 +10435,7 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 263 |
-| Files with annotations | 263 |
+| Route files found | 264 |
+| Files with annotations | 264 |
 | Files missing annotations | 0 |
 | Coverage | 100.0% |

@@ -8,10 +8,12 @@ import { useGlobalAssistant } from "@/contexts/AssistantContext";
 import { useGuidance } from "@/contexts/GuidanceContext";
 import { useMasquerade } from "@/contexts/MasqueradeContext";
 import { useBranding } from "@/contexts/BrandingContext";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { useSidebarLayout } from "@/hooks/useSidebarLayout";
 import { ICON_MAP } from "@/lib/sidebar/icons";
 import type { NavSection } from "@/lib/sidebar/types";
+import { pluralize, type TerminologyProfile } from "@/lib/terminology/types";
 import sidebarManifest from "@/lib/sidebar/sidebar-manifest.json";
 import {
   MoreVertical,
@@ -36,6 +38,19 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
   const Icon = ICON_MAP[name];
   if (!Icon) return null;
   return <Icon className={className} />;
+}
+
+// ============================================================================
+// Terminology resolution for sidebar labels
+// ============================================================================
+
+/** Resolve a terminologyLabel key (e.g. "cohort_plural", "supervisor") into a display string */
+function resolveTermLabel(key: string, t: TerminologyProfile): string | null {
+  if (key.endsWith("_plural")) {
+    const baseKey = key.replace("_plural", "") as keyof TerminologyProfile;
+    return baseKey in t ? pluralize(t[baseKey]) : null;
+  }
+  return (t as Record<string, string>)[key] ?? null;
 }
 
 // ============================================================================
@@ -155,6 +170,9 @@ export default function SimpleSidebarNav({
 
   // Branding: institution name + logo
   const { branding } = useBranding();
+
+  // Terminology: institution-specific labels for sidebar items
+  const { terms } = useTerminology();
 
   // Masquerade: override sidebar role filtering to match masqueraded user
   const { isMasquerading, effectiveRole } = useMasquerade();
@@ -388,15 +406,18 @@ export default function SimpleSidebarNav({
     }
   }, [editingSectionId]);
 
-  // Flatten items for keyboard navigation (with role variants resolved)
+  // Flatten items for keyboard navigation (with role variants + terminology resolved)
   const flatNavItems = useMemo(() => {
     const items: { href: string; label: string }[] = [];
     for (const section of visibleSections) {
       for (const item of section.items) {
         const variant = item.roleVariants?.[userRole || ""] ?? {};
+        const termLabel = item.terminologyLabel
+          ? resolveTermLabel(item.terminologyLabel, terms)
+          : null;
         items.push({
           href: variant.href ?? item.href,
-          label: variant.label ?? item.label,
+          label: variant.label ?? termLabel ?? item.label,
         });
       }
     }
@@ -627,6 +648,12 @@ export default function SimpleSidebarNav({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sidebar-scroll">
         <nav ref={navRef} className="flex flex-col gap-3" onKeyDown={handleKeyDown} role="navigation" aria-label="Main navigation">
           {visibleSections.map((section) => {
+            // Resolve terminology for section title (e.g. "institution" → "My Organization")
+            const termSectionKey = (section as NavSection & { terminologySectionTitle?: string }).terminologySectionTitle;
+            const sectionDisplayTitle = termSectionKey
+              ? `My ${(terms as Record<string, string>)[termSectionKey] ?? section.title}`
+              : section.title;
+
             const isDraggingSection = dragState.draggedSection === section.id;
             const isDragOverForSection = dragState.dragOverSection === section.id;
             const isDragOverForItem = dragState.dragOverSectionForItem === section.id && dragState.draggedItem !== null;
@@ -709,7 +736,7 @@ export default function SimpleSidebarNav({
                               textDecoration: "none",
                             }}
                           >
-                            <span>{section.title}</span>
+                            <span>{sectionDisplayTitle}</span>
                             <span className="opacity-0 group-hover:opacity-60 transition-opacity text-[9px] ml-1">{"\u203A"}</span>
                           </Link>
                         ) : (
@@ -719,7 +746,7 @@ export default function SimpleSidebarNav({
                             className="text-[10px] font-semibold tracking-widest uppercase transition-colors"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            {section.title}
+                            {sectionDisplayTitle}
                           </button>
                         )}
                       </div>
@@ -728,7 +755,7 @@ export default function SimpleSidebarNav({
                     {editingSectionId !== section.id && (
                       <SectionKebabMenu
                         sectionId={section.id}
-                        sectionTitle={section.title || section.id}
+                        sectionTitle={sectionDisplayTitle || section.id}
                         visible={hoveredSectionId === section.id}
                         onRename={handleStartRename}
                         onHide={hideSection}
@@ -749,9 +776,13 @@ export default function SimpleSidebarNav({
                   {section.items.map((rawItem) => {
                     // Resolve role-specific overrides
                     const variant = rawItem.roleVariants?.[userRole || ""] ?? {};
+                    // Resolve terminology label (takes priority over manifest default, but not explicit role variant)
+                    const termLabel = rawItem.terminologyLabel
+                      ? resolveTermLabel(rawItem.terminologyLabel, terms)
+                      : null;
                     const item = {
                       ...rawItem,
-                      label: variant.label ?? rawItem.label,
+                      label: variant.label ?? termLabel ?? rawItem.label,
                       href: variant.href ?? rawItem.href,
                       icon: variant.icon ?? rawItem.icon,
                     };

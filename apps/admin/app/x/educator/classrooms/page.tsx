@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 interface Classroom {
   id: string;
@@ -18,6 +19,7 @@ interface Classroom {
 export default function ClassroomsPage() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
+  const { terms, plural, lower, lowerPlural } = useTerminology();
 
   useEffect(() => {
     fetch("/api/educator/classrooms")
@@ -31,7 +33,7 @@ export default function ClassroomsPage() {
   if (loading) {
     return (
       <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading classrooms...</div>
+        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading {lowerPlural("cohort")}...</div>
       </div>
     );
   }
@@ -48,10 +50,10 @@ export default function ClassroomsPage() {
       >
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
-            Classrooms
+            {plural("cohort")}
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-            {classrooms.length} classroom{classrooms.length !== 1 ? "s" : ""}
+            {classrooms.length} {classrooms.length !== 1 ? lowerPlural("cohort") : lower("cohort")}
           </p>
         </div>
         <Link
@@ -66,7 +68,7 @@ export default function ClassroomsPage() {
             fontWeight: 600,
           }}
         >
-          + New Classroom
+          + New {terms.cohort}
         </Link>
       </div>
 
@@ -80,12 +82,12 @@ export default function ClassroomsPage() {
             borderRadius: 12,
           }}
         >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🏫</div>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>👋</div>
           <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-            No classrooms yet
+            No {lowerPlural("cohort")} yet
           </h3>
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20 }}>
-            Create your first classroom to start inviting students.
+            Create your first {lower("cohort")} to start inviting {lowerPlural("learner")}.
           </p>
           <Link
             href="/x/educator/classrooms/new"
@@ -100,7 +102,7 @@ export default function ClassroomsPage() {
               fontWeight: 600,
             }}
           >
-            Create Classroom
+            Create {terms.cohort}
           </Link>
         </div>
       ) : (
@@ -183,7 +185,7 @@ export default function ClassroomsPage() {
                   marginTop: "auto",
                 }}
               >
-                <span>{classroom.memberCount} student{classroom.memberCount !== 1 ? "s" : ""}</span>
+                <span>{classroom.memberCount} {classroom.memberCount !== 1 ? lowerPlural("learner") : lower("learner")}</span>
                 <span
                   style={{
                     padding: "1px 6px",

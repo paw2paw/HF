@@ -617,6 +617,7 @@ model Institution {
   primaryColor   String? // Hex color for accent (e.g., "#4f46e5")
   secondaryColor String? // Hex color for hover/secondary accent
   welcomeMessage String? // Custom welcome text for join pages
+  terminology    Json?   // Per-institution terminology overrides (TerminologyConfig)
   isActive       Boolean @default(true)
 
   createdAt DateTime @default(now())

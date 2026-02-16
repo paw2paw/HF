@@ -19,8 +19,8 @@ test.describe('Quick Launch — Generate Mode', () => {
     const ql = new QuickLaunchPage(page);
     await ql.goto();
 
-    await expect(page.getByText('Quick Launch')).toBeVisible();
-    await expect(ql.subjectInput).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Quick Launch' })).toBeVisible();
+    await expect(ql.briefInput).toBeVisible();
     await expect(ql.buildButton).toBeVisible();
   });
 
@@ -29,18 +29,18 @@ test.describe('Quick Launch — Generate Mode', () => {
     await ql.goto();
 
     // Generate mode is default — summary card should be visible
-    await expect(page.getByText("We'll build a course for:")).toBeVisible();
+    await expect(page.getByText("We'll build an agent for:")).toBeVisible();
   });
 
-  test('should enable Build button when subject is filled', async ({ page }) => {
+  test('should enable Build button when form is filled', async ({ page }) => {
     const ql = new QuickLaunchPage(page);
     await ql.goto();
 
-    // Build should be disabled initially (no subject)
+    // Build should be disabled initially (no input)
     await expect(ql.buildButton).toBeDisabled();
 
-    // Fill subject — persona auto-selects on load
-    await ql.fillSubject('E2E Smoke Test');
+    // Fill both brief and agent name — persona auto-selects on load
+    await ql.fillForm('E2E Smoke Test — teaching basic algebra', 'E2E Smoke Agent');
 
     // Wait for persona to load (auto-selected from API)
     await page.waitForTimeout(1000);
@@ -55,8 +55,11 @@ test.describe('Quick Launch — Generate Mode', () => {
     const ql = new QuickLaunchPage(page);
     await ql.goto();
 
-    const subject = `E2E Test ${Date.now()}`;
-    await ql.fillSubject(subject);
+    const suffix = Date.now();
+    await ql.fillForm(
+      `E2E Test ${suffix} — teaching basic algebra concepts`,
+      `E2E Test Agent ${suffix}`
+    );
     await ql.selectGenerateMode();
 
     // Wait for persona to load
@@ -79,8 +82,11 @@ test.describe('Quick Launch — Generate Mode', () => {
     const ql = new QuickLaunchPage(page);
     await ql.goto();
 
-    const subject = `E2E Full Flow ${Date.now()}`;
-    await ql.fillSubject(subject);
+    const suffix = Date.now();
+    await ql.fillForm(
+      `E2E Full Flow ${suffix} — teaching creative writing fundamentals`,
+      `E2E Full Agent ${suffix}`
+    );
     await ql.selectGenerateMode();
 
     // Wait for persona to load
@@ -100,7 +106,7 @@ test.describe('Quick Launch — Generate Mode', () => {
 
     // Verify result
     await expect(page.getByText('Ready to test')).toBeVisible();
-    await expect(ql.viewDomainButton).toBeVisible();
+    await expect(ql.viewAgentButton).toBeVisible();
     await expect(ql.viewCallerButton).toBeVisible();
     await expect(ql.launchAnotherButton).toBeVisible();
   });

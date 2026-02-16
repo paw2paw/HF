@@ -80,6 +80,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
+        // Password is a one-time bootstrap credential — clear it so future
+        // logins must use magic-link. Fire-and-forget (don't block auth).
+        prisma.user
+          .update({ where: { id: user.id }, data: { passwordHash: null } })
+          .then(() => console.log("[Auth] Cleared passwordHash for", user.email))
+          .catch((e) => console.error("[Auth] Failed to clear passwordHash:", e));
+
         console.log("[Auth] Success, returning user");
         return {
           id: user.id,

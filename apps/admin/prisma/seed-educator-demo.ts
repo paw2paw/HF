@@ -946,6 +946,11 @@ async function createTeachers(
     const fullName = `${t.firstName} ${t.lastName}`;
 
     // Create User with hashed seed password
+    if (process.env.NODE_ENV === "production" && !process.env.SEED_ADMIN_PASSWORD) {
+      throw new Error(
+        "SEED_ADMIN_PASSWORD must be set in production. Refusing to seed with default password."
+      );
+    }
     const seedPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
     const hashedPassword = await bcrypt.hash(seedPassword, 10);
     const user = await prisma.user.create({
@@ -1490,7 +1495,7 @@ async function main() {
   console.log(`  Goals:        ${totalGoals}`);
   console.log(`  Time:         ${elapsed}s`);
   console.log("══════════════════════════════════════════════");
-  console.log(`\n  Login as: j.chen@oakwood.sch.uk / ${process.env.SEED_ADMIN_PASSWORD ? "(SEED_ADMIN_PASSWORD)" : "admin123"}\n`);
+  console.log(`\n  Login as: j.chen@oakwood.sch.uk / (SEED_ADMIN_PASSWORD)\n`);
 }
 
 main()
