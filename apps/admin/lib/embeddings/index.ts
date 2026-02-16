@@ -144,11 +144,13 @@ export async function embedChunksForDoc(docId: string): Promise<{ embedded: numb
         Prisma.sql`UPDATE "VectorEmbedding" SET embedding = ${toVectorLiteral(emb)}::vector WHERE "chunkId" = ${rows[i].id}`
       );
     } else {
+      // embeddingData is nullable after migration; cast needed until Prisma client is regenerated
       const ve = await prisma.vectorEmbedding.create({
         data: {
           chunkId: rows[i].id,
           model: DEFAULT_MODEL,
           dimensions: emb.length,
+          embeddingData: null as any,
         },
       });
       await prisma.$executeRaw(

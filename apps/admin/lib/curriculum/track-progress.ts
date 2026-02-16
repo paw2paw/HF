@@ -399,13 +399,17 @@ export async function computeTrustWeightedProgress(
   let allTotalWeight = 0;
 
   for (const [moduleId, mastery] of Object.entries(moduleMastery)) {
-    const trustLevel = moduleTrustLevels[moduleId] || 'UNVERIFIED';
-    const weight = TRUST_WEIGHTS[trustLevel] ?? 0.05;
+    const trustLevel = moduleTrustLevels[moduleId];
+    if (!trustLevel) {
+      console.warn(`[track-progress] No trust level for module ${moduleId}, defaulting to UNVERIFIED`);
+    }
+    const effectiveTrustLevel = trustLevel || 'UNVERIFIED';
+    const weight = TRUST_WEIGHTS[effectiveTrustLevel] ?? 0.05;
     const countsToCertification = weight >= CERTIFICATION_MIN_WEIGHT;
 
     moduleBreakdown[moduleId] = {
       mastery,
-      trustLevel,
+      trustLevel: effectiveTrustLevel,
       trustWeight: weight,
       countsToCertification,
     };

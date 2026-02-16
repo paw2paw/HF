@@ -15,6 +15,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { embedChunksForDoc } from "@/lib/embeddings";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
@@ -333,6 +334,11 @@ export async function ingestKnowledge(
         });
 
         result.docsUpdated++;
+
+        // Embed chunks in background (non-blocking)
+        embedChunksForDoc(doc.id).catch((err) =>
+          console.error(`[knowledge-ingest] Embedding failed for doc ${doc.id}:`, err)
+        );
 
         logVerbose(`   ✅ Completed (${allChunks.length} total chunks)`);
 

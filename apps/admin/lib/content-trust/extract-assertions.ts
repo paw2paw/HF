@@ -224,8 +224,6 @@ async function extractFromChunk(
             { role: "system", content: extraction.systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: extraction.llmConfig.temperature,
-          maxTokens: extraction.llmConfig.maxTokens,
         },
         { sourceOp: "content-trust:extract" }
       );

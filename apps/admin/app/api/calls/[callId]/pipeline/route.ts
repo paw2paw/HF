@@ -421,8 +421,6 @@ async function runBatchedCallerAnalysis(
           { role: "system", content: "You are an expert behavioral analyst. Always respond with valid JSON." },
           { role: "user", content: prompt },
         ],
-        maxTokens: 2048,
-        temperature: 0.3,
       }, { callId: call.id, callerId, sourceOp: "pipeline:extract" });
 
       logAI("pipeline:extract", prompt, result.content, { usage: result.usage, callId: call.id, callerId });
@@ -666,7 +664,6 @@ async function runBatchedAgentAnalysis(
           { role: "user", content: prompt },
         ],
         maxTokens: estimatedTokens,
-        temperature: 0.3,
       }, { callId: call.id, callerId, sourceOp: "pipeline:score_agent" });
 
       logAI("pipeline:score_agent", prompt, result.content, { usage: result.usage, callId: call.id, callerId });

@@ -207,8 +207,6 @@ Generate a structured curriculum from these assertions.`;
         { role: "system", content: CURRICULUM_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
-      maxTokens: 8000,
     });
 
     const content = response.content || "";
@@ -324,8 +322,6 @@ Generate a structured curriculum for this subject.`;
         { role: "system", content: GOALS_CURRICULUM_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
-      maxTokens: 8000,
     });
 
     const content = response.content || "";

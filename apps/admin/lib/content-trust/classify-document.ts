@@ -209,8 +209,6 @@ export async function classifyDocument(
           { role: "system", content: classification.systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: classification.llmConfig.temperature,
-        maxTokens: classification.llmConfig.maxTokens,
       },
       { sourceOp: "content-trust:classify" },
     );

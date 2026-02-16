@@ -11,6 +11,7 @@ import {
 } from "@/lib/content-trust/extraction-jobs";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { checkAutoTriggerCurriculum } from "@/lib/jobs/auto-trigger";
+import { embedAssertionsForSource } from "@/lib/embeddings";
 import { getStorageAdapter } from "@/lib/storage";
 import type { DocumentType } from "@/lib/content-trust/resolve-config";
 
@@ -225,6 +226,13 @@ async function runBackgroundExtraction(
     duplicatesSkipped,
     extractedCount: result.assertions.length,
   });
+
+  // Embed new assertions in background (non-blocking)
+  if (toCreate.length > 0) {
+    embedAssertionsForSource(sourceId).catch((err) =>
+      console.error(`[extract] Embedding failed for source ${sourceId}:`, err)
+    );
+  }
 
   // Auto-trigger curriculum generation if all extractions for this subject are done
   if (subjectId) {

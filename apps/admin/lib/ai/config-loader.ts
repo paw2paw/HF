@@ -52,13 +52,14 @@ export interface AIConfigResult {
   isCustomized: boolean;
 }
 
-// Default configurations per call point — uses config.ai.claude.model for flagship
-// and config.ai.claude.lightModel for fast/cheap tasks. All env-overridable.
+// Per-call-point defaults: provider, model, and optional temperature/maxTokens.
+// Uses config.ai.claude.model for flagship and config.ai.claude.lightModel for fast/cheap tasks.
+// All env-overridable via config.ai.*. Operators can override per-call-point via /x/ai-config.
 // These match the definitions in /api/ai-config/route.ts
-const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
-  "pipeline.measure": { provider: "claude", model: config.ai.claude.model },
+const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string; temperature?: number; maxTokens?: number }> = {
+  "pipeline.measure": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 2048 },
   "pipeline.learn": { provider: "claude", model: config.ai.claude.model },
-  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model, temperature: 0.3 },
   "pipeline.adapt": { provider: "claude", model: config.ai.claude.lightModel },
   "pipeline.extract_goals": { provider: "claude", model: config.ai.claude.lightModel },
   "compose.prompt": { provider: "claude", model: config.ai.claude.model },
@@ -71,17 +72,21 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "spec.view": { provider: "claude", model: config.ai.claude.model },
   "spec.extract": { provider: "claude", model: config.ai.claude.model },
   "spec.parse": { provider: "claude", model: config.ai.claude.lightModel },
-  "chat.data": { provider: "claude", model: config.ai.claude.model },
-  "chat.call": { provider: "claude", model: config.ai.claude.model },
+  "chat.data": { provider: "claude", model: config.ai.claude.model, temperature: 0.7, maxTokens: 4000 },
+  "chat.call": { provider: "claude", model: config.ai.claude.model, temperature: 0.85, maxTokens: 300 },
+  "chat.bug": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 2000 },
   "assistant.chat": { provider: "claude", model: config.ai.claude.model },
   "assistant.tasks": { provider: "claude", model: config.ai.claude.model },
   "assistant.data": { provider: "claude", model: config.ai.claude.model },
   "assistant.spec": { provider: "claude", model: config.ai.claude.model },
-  "content-trust.extract": { provider: "claude", model: config.ai.claude.model },
-  "content-trust.curriculum": { provider: "claude", model: config.ai.claude.model },
+  "content-trust.extract": { provider: "claude", model: config.ai.claude.model, temperature: 0.1, maxTokens: 4000 },
+  "content-trust.structure": { provider: "claude", model: config.ai.claude.model, temperature: 0.2, maxTokens: 8000 },
+  "content-trust.classify": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 500 },
+  "content-trust.curriculum": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 8000 },
+  "content-trust.curriculum-from-goals": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 8000 },
   "workflow.classify": { provider: "claude", model: config.ai.claude.model },
   "workflow.step": { provider: "claude", model: config.ai.claude.model },
-  "quick-launch.identity": { provider: "claude", model: config.ai.claude.model },
+  "quick-launch.identity": { provider: "claude", model: config.ai.claude.model, temperature: 0.4 },
   "test-harness.system": { provider: "claude", model: config.ai.claude.model },
   "test-harness.caller": { provider: "claude", model: config.ai.claude.model },
   "test-harness.greeting": { provider: "claude", model: config.ai.claude.model },
@@ -190,6 +195,8 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
     const result: AIConfigResult = {
       provider,
       model,
+      maxTokens: defaultConfig.maxTokens,
+      temperature: defaultConfig.temperature,
       isCustomized: false,
     };
     configCache.set(callPoint, { config: result, fetchedAt: Date.now() });

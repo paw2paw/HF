@@ -130,8 +130,6 @@ export async function POST(request: NextRequest) {
           callPoint,
           engineOverride: engine,
           messages,
-          maxTokens: 300,
-          temperature: 0.85,
         },
         { sourceOp: callPoint }
       );
@@ -158,8 +156,6 @@ export async function POST(request: NextRequest) {
           callPoint,
           engineOverride: engine,
           messages,
-          maxTokens: 2000,
-          temperature: 0.3,
         },
         { sourceOp: callPoint }
       );
@@ -215,8 +211,6 @@ async function handleDataModeWithTools(
         callPoint,
         engineOverride: engine,
         messages: loopMessages,
-        maxTokens: 4000,
-        temperature: 0.7,
         tools: ADMIN_TOOLS,
       },
       { sourceOp: `${callPoint}.tools` }
@@ -311,8 +305,6 @@ async function handleCallModeWithTools(
         callPoint,
         engineOverride: engine,
         messages,
-        maxTokens: 300,
-        temperature: 0.85,
       },
       { sourceOp: callPoint }
     );
@@ -348,8 +340,6 @@ async function handleCallModeWithTools(
         callPoint,
         engineOverride: engine,
         messages: loopMessages,
-        maxTokens: 300,
-        temperature: 0.85,
         tools: CHAT_TOOLS,
       },
       { sourceOp: `${callPoint}.tools`, callerId, callId }

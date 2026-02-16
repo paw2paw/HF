@@ -364,8 +364,8 @@ vi.mock('@/lib/system-settings', () => ({
   getAILearningSettings: vi.fn().mockResolvedValue({ initialConfidence: 0.3, confidenceIncrement: 0.05, minOccurrences: 3 }),
   CACHE_DEFAULTS: { systemSettingsTtlMs: 30000, aiConfigTtlMs: 60000, costConfigTtlMs: 300000, dataPathsTtlMs: 5000 },
   getCacheSettings: vi.fn().mockResolvedValue({ systemSettingsTtlMs: 30000, aiConfigTtlMs: 60000, costConfigTtlMs: 300000, dataPathsTtlMs: 5000 }),
-  DEMO_CAPTURE_DEFAULTS: { defaultCaller: 'Paul', defaultDomain: 'qm-tutor', defaultPlaybook: '', defaultSpec: 'PERS-001' },
-  getDemoCaptureSettings: vi.fn().mockResolvedValue({ defaultCaller: 'Paul', defaultDomain: 'qm-tutor', defaultPlaybook: '', defaultSpec: 'PERS-001' }),
+  DEMO_CAPTURE_DEFAULTS: { defaultCaller: 'Paul', defaultDomain: 'qm-tutor', defaultPlaybook: '', defaultSpec: '' },
+  getDemoCaptureSettings: vi.fn().mockResolvedValue({ defaultCaller: 'Paul', defaultDomain: 'qm-tutor', defaultPlaybook: '', defaultSpec: '' }),
   SETTINGS_REGISTRY: [],
 }));
 

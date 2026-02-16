@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
 import { verifyVapiRequest } from "@/lib/vapi/auth";
+import { embedText, toVectorLiteral } from "@/lib/embeddings";
 
 export const runtime = "nodejs";
 
@@ -15,6 +17,7 @@ export const runtime = "nodejs";
  *   Receives conversation history, returns relevant teaching assertions,
  *   knowledge chunks, and caller memories.
  *
+ *   Uses hybrid search: pgvector cosine similarity + keyword fallback.
  *   Target: <50ms response time.
  *
  *   VAPI Custom KB format:
@@ -59,18 +62,29 @@ export async function POST(request: NextRequest) {
       callerId = caller?.id || null;
     }
 
+    // Embed query text for vector search (runs in parallel with DB lookups below)
+    let queryEmbedding: number[] | undefined;
+    try {
+      queryEmbedding = await embedText(queryText);
+    } catch (err) {
+      console.warn("[vapi/knowledge] Embedding failed, falling back to keyword search:", err);
+    }
+
     // Run retrieval strategies in parallel
     const [knowledgeResults, assertionResults, memoryResults] = await Promise.all([
-      // 1. Knowledge chunks (keyword search, vector search when available)
+      // 1. Knowledge chunks (vector + keyword hybrid)
       retrieveKnowledgeForPrompt({
         queryText,
+        queryEmbedding,
         callerId: callerId || undefined,
         limit: 5,
         minRelevance: 0.3,
       }),
 
-      // 2. Teaching assertions (tag + keyword match)
-      searchAssertions(queryText, 5),
+      // 2. Teaching assertions (vector + tag/keyword hybrid)
+      queryEmbedding
+        ? searchAssertionsHybrid(queryText, queryEmbedding, 5)
+        : searchAssertions(queryText, 5),
 
       // 3. Caller memories relevant to current topic
       callerId ? searchCallerMemories(callerId, queryText, 3) : Promise.resolve([]),
@@ -110,7 +124,7 @@ export async function POST(request: NextRequest) {
     const elapsed = Date.now() - startMs;
     console.log(
       `[vapi/knowledge] ${topResults.length} results in ${elapsed}ms ` +
-        `(assertions: ${assertionResults.length}, chunks: ${knowledgeResults.length}, memories: ${memoryResults.length})`,
+        `(assertions: ${assertionResults.length}, chunks: ${knowledgeResults.length}, memories: ${memoryResults.length}, vector: ${!!queryEmbedding})`,
     );
 
     return NextResponse.json({ results: topResults });
@@ -121,13 +135,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Search ContentAssertions by tag and keyword matching.
- */
-async function searchAssertions(
-  queryText: string,
-  limit: number,
-): Promise<Array<{
+type AssertionResult = {
   assertion: string;
   category: string;
   chapter: string | null;
@@ -136,7 +144,96 @@ async function searchAssertions(
   examRelevance: number | null;
   sourceName: string;
   relevanceScore: number;
-}>> {
+};
+
+/**
+ * Hybrid assertion search: runs vector + keyword in parallel, merges by ID, averages scores.
+ */
+async function searchAssertionsHybrid(
+  queryText: string,
+  queryEmbedding: number[],
+  limit: number,
+): Promise<AssertionResult[]> {
+  const [vectorResults, keywordResults] = await Promise.all([
+    searchAssertionsByVector(queryEmbedding, limit * 2),
+    searchAssertions(queryText, limit * 2),
+  ]);
+
+  // Merge by assertion text (dedup), average scores
+  const merged = new Map<string, AssertionResult>();
+
+  for (const r of vectorResults) {
+    merged.set(r.assertion, r);
+  }
+
+  for (const r of keywordResults) {
+    const existing = merged.get(r.assertion);
+    if (existing) {
+      // Average the scores for items found by both methods
+      existing.relevanceScore = (existing.relevanceScore + r.relevanceScore) / 2;
+    } else {
+      merged.set(r.assertion, r);
+    }
+  }
+
+  return Array.from(merged.values())
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, limit);
+}
+
+/**
+ * Search ContentAssertions by vector similarity (pgvector cosine distance).
+ */
+async function searchAssertionsByVector(
+  queryEmbedding: number[],
+  limit: number,
+): Promise<AssertionResult[]> {
+  const vectorLiteral = toVectorLiteral(queryEmbedding);
+
+  const rows = await prisma.$queryRaw<Array<{
+    assertion: string;
+    category: string;
+    chapter: string | null;
+    tags: string[];
+    trustLevel: string | null;
+    examRelevance: number | null;
+    sourceName: string;
+    similarity: number;
+  }>>(
+    Prisma.sql`
+      SELECT a.assertion, a.category, a.chapter, a.tags,
+             a."trustLevel"::text, a."examRelevance",
+             s.name as "sourceName",
+             1 - (a.embedding <=> ${vectorLiteral}::vector) as similarity
+      FROM "ContentAssertion" a
+      JOIN "ContentSource" s ON a."sourceId" = s.id
+      WHERE a.embedding IS NOT NULL
+      ORDER BY a.embedding <=> ${vectorLiteral}::vector
+      LIMIT ${limit}
+    `
+  );
+
+  return rows
+    .filter((r) => r.similarity >= 0.3)
+    .map((r) => ({
+      assertion: r.assertion,
+      category: r.category,
+      chapter: r.chapter,
+      tags: r.tags || [],
+      trustLevel: r.trustLevel,
+      examRelevance: r.examRelevance,
+      sourceName: r.sourceName,
+      relevanceScore: r.similarity,
+    }));
+}
+
+/**
+ * Search ContentAssertions by tag and keyword matching (fallback).
+ */
+async function searchAssertions(
+  queryText: string,
+  limit: number,
+): Promise<AssertionResult[]> {
   // Extract keywords for tag matching
   const words = queryText
     .toLowerCase()

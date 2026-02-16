@@ -19,6 +19,7 @@ import {
   generateIdentityFromAssertions,
 } from "@/lib/domain/generate-identity";
 import { startTaskTracking, updateTaskProgress, completeTask } from "@/lib/ai/task-guidance";
+import { embedAssertionsForSource } from "@/lib/embeddings";
 
 /**
  * @api POST /api/domains/quick-launch/analyze
@@ -446,6 +447,13 @@ async function runQuickLaunchBackground(
         contentHash: a.contentHash,
       })),
     });
+  }
+
+  // Embed new assertions in background (non-blocking)
+  if (toCreate.length > 0) {
+    embedAssertionsForSource(sourceId).catch((err) =>
+      console.error(`[quick-launch:analyze] Embedding failed for source ${sourceId}:`, err)
+    );
   }
 
   // ── Generate identity (optional, best-effort) ──

@@ -184,7 +184,7 @@ const STEPS: PipelineStep[] = [
     phase: "learn",
     icon: "🎯",
     hasAiCall: true,
-    specKeys: ["GOAL-001"],
+    specKeys: ["goal-extract"],
     inputs: ["Call.transcript", "Goal[]"],
     outputs: ["Goal"],
     pseudoCode: [
@@ -206,7 +206,7 @@ const STEPS: PipelineStep[] = [
     phase: "learn",
     icon: "📈",
     hasAiCall: true,
-    specKeys: ["GOAL-001"],
+    specKeys: ["goal-track"],
     inputs: ["Call.transcript", "Goal[]"],
     outputs: ["Goal (updated)"],
     pseudoCode: [

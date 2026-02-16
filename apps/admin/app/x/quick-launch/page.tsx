@@ -536,7 +536,8 @@ export default function QuickLaunchPage() {
           setPersona(data.defaultPersona || data.personas[0].slug);
         }
       })
-      .catch(() => {
+      .catch((e) => {
+        console.warn("[QuickLaunch] Failed to load personas, using fallback:", e);
         setPersonas([{ slug: "tutor", name: "Tutor", description: "Patient teaching expert" }]);
         setPersona("tutor");
       })
@@ -560,7 +561,7 @@ export default function QuickLaunchPage() {
           }
         }
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[QuickLaunch] Failed to check for resumable tasks:", e));
   }, []);
 
   // ── Resume handler ────────────────────────────────
@@ -635,7 +636,7 @@ export default function QuickLaunchPage() {
             taskId,
             updates: { context: { phase: "review", overrides: newOverrides } },
           }),
-        }).catch(() => {});
+        }).catch((e) => console.warn("[QuickLaunch] Failed to save task overrides:", e));
       }, 1000);
     },
     [taskId]
@@ -1078,7 +1079,7 @@ export default function QuickLaunchPage() {
             setEditWelcome(data.domain?.onboardingWelcome || "");
           }
         })
-        .catch(() => {});
+        .catch((e) => console.warn("[QuickLaunch] Failed to load domain welcome:", e));
     }
   }, [phase, result]);
 
@@ -1279,7 +1280,7 @@ export default function QuickLaunchPage() {
               onClick={() => {
                 // Abandon old task so it doesn't resurface
                 if (resumeTask?.id) {
-                  fetch(`/api/tasks?taskId=${resumeTask.id}`, { method: "DELETE" }).catch(() => {});
+                  fetch(`/api/tasks?taskId=${resumeTask.id}`, { method: "DELETE" }).catch((e) => console.warn("[QuickLaunch] Failed to delete old task:", e));
                 }
                 setResumeTask(null);
               }}

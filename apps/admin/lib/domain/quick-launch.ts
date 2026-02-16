@@ -208,7 +208,7 @@ const stepExecutors: Record<string, StepExecutor> = {
 
     // Run AI extraction with progress updates
     const result = await extractAssertions(text, {
-      sourceSlug: ctx.results.subjectSlug || "quick-launch",
+      sourceSlug: ctx.results.subjectSlug || `quick-launch-${Date.now()}`,
       qualificationRef: ctx.input.qualificationRef,
       maxAssertions,
       onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {

@@ -26,6 +26,11 @@ declare module "next-auth" {
   }
 }
 
+// Warn early if email is not configured (magic links will fail silently otherwise)
+if (!process.env.SMTP_PASSWORD && !process.env.RESEND_API_KEY) {
+  console.warn("[auth] No SMTP_PASSWORD or RESEND_API_KEY set — magic link emails will fail. Set one to enable email sign-in.");
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
   session: {

@@ -168,7 +168,6 @@ Generate the identity configuration JSON.`;
         { role: "system", content: IDENTITY_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.4,
     });
 
     const content = response.content || "";

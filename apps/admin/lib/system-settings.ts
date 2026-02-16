@@ -318,7 +318,7 @@ export const DEMO_CAPTURE_DEFAULTS: DemoCaptureSettings = {
   defaultCaller: "Paul",
   defaultDomain: "qm-tutor",
   defaultPlaybook: "",
-  defaultSpec: "PERS-001",
+  defaultSpec: "",
 };
 
 const DEMO_CAPTURE_KEYS: Record<keyof DemoCaptureSettings, string> = {
@@ -503,7 +503,7 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "demo.default_caller", label: "Default caller", description: "Caller name used for entity screenshots", type: "text", default: "Paul", placeholder: "e.g. Paul" },
       { key: "demo.default_domain", label: "Default domain", description: "Domain slug used for entity screenshots", type: "text", default: "qm-tutor", placeholder: "e.g. qm-tutor" },
       { key: "demo.default_playbook", label: "Default playbook", description: "Playbook name (leave empty for first available)", type: "text", default: "", placeholder: "e.g. QM Adaptive v1" },
-      { key: "demo.default_spec", label: "Default spec", description: "Spec slug for spec-related screenshots", type: "text", default: "PERS-001", placeholder: "e.g. PERS-001" },
+      { key: "demo.default_spec", label: "Default spec", description: "Spec slug for spec-related screenshots", type: "text", default: "", placeholder: "e.g. PERS-001" },
     ],
   },
   {

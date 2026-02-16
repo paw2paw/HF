@@ -197,8 +197,6 @@ async function structureWithAI(
           { role: "system", content: structuring.systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: structuring.llmConfig.temperature,
-        maxTokens: structuring.llmConfig.maxTokens,
       },
       { sourceOp: "content-trust:structure" }
     );
