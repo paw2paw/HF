@@ -1,6 +1,7 @@
 import { requirePageAuth } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { SystemHealthPanel } from "@/components/shared/SystemHealthPanel";
 
 export default async function SystemHubPage() {
   await requirePageAuth("ADMIN");
@@ -49,6 +50,9 @@ export default async function SystemHubPage() {
           {usersCount} team members, {activeAIConfigsCount} active AI configs, {pipelineRunsCount} pipeline runs
         </p>
       </div>
+
+      {/* System Health — SUPERADMIN only, client component fetches /api/system/ini */}
+      <SystemHealthPanel />
 
       <div style={{ marginBottom: 40 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>

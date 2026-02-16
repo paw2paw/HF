@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, GripVertical, RotateCcw, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { SortableList } from "@/components/shared/SortableList";
+import { reorderItems } from "@/lib/sortable/reorder";
 
 // ------------------------------------------------------------------
 // Types (mirror resolve-config.ts)
@@ -245,12 +247,9 @@ export default function ExtractionConfigPage() {
     });
   };
 
-  const moveLevel = (index: number, direction: "up" | "down") => {
+  const reorderLevel = (fromIndex: number, toIndex: number) => {
     if (!config) return;
-    const levels = [...config.structuring.levels];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= levels.length) return;
-    [levels[index], levels[targetIndex]] = [levels[targetIndex], levels[index]];
+    const levels = reorderItems(config.structuring.levels, fromIndex, toIndex);
     levels.forEach((l, i) => (l.depth = i));
     setConfig({
       ...config,
@@ -430,20 +429,16 @@ export default function ExtractionConfigPage() {
             </div>
 
             {/* Level editors */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {levels.map((level, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "10px 12px",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    background: "var(--surface-primary)",
-                  }}
-                >
+            <SortableList
+              items={levels}
+              getItemId={(level) => `level-${level.depth}-${level.label}`}
+              onReorder={reorderLevel}
+              onRemove={removeLevel}
+              onAdd={addLevel}
+              addLabel="+ Add Level"
+              minItems={2}
+              renderCard={(level, index) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }} onClick={(e) => e.stopPropagation()}>
                   {/* Depth badge */}
                   <span style={{
                     width: 24,
@@ -458,19 +453,15 @@ export default function ExtractionConfigPage() {
                     color: "var(--text-muted)",
                     flexShrink: 0,
                   }}>
-                    {i}
+                    {index}
                   </span>
 
                   {/* Label */}
                   <input
                     type="text"
                     value={level.label}
-                    onChange={(e) => updateLevel(i, { label: e.target.value })}
-                    style={{
-                      ...inputStyle,
-                      width: 120,
-                      fontWeight: 600,
-                    }}
+                    onChange={(e) => updateLevel(index, { label: e.target.value })}
+                    style={{ ...inputStyle, width: 120, fontWeight: 600 }}
                     placeholder="Level label"
                   />
 
@@ -482,7 +473,7 @@ export default function ExtractionConfigPage() {
                       min={1}
                       max={20}
                       value={level.maxChildren}
-                      onChange={(e) => updateLevel(i, { maxChildren: parseInt(e.target.value) || 1 })}
+                      onChange={(e) => updateLevel(index, { maxChildren: parseInt(e.target.value) || 1 })}
                       style={{ ...inputStyle, width: 50, textAlign: "center" }}
                     />
                   </div>
@@ -490,7 +481,7 @@ export default function ExtractionConfigPage() {
                   {/* Render as */}
                   <select
                     value={level.renderAs}
-                    onChange={(e) => updateLevel(i, { renderAs: e.target.value as PyramidLevel["renderAs"] })}
+                    onChange={(e) => updateLevel(index, { renderAs: e.target.value as PyramidLevel["renderAs"] })}
                     style={{ ...inputStyle, width: 110 }}
                   >
                     {RENDER_AS_OPTIONS.map((opt) => (
@@ -502,50 +493,16 @@ export default function ExtractionConfigPage() {
                   <input
                     type="text"
                     value={level.description || ""}
-                    onChange={(e) => updateLevel(i, { description: e.target.value })}
+                    onChange={(e) => updateLevel(index, { description: e.target.value })}
                     style={{ ...inputStyle, flex: 1 }}
                     placeholder="Description"
                   />
-
-                  {/* Move buttons */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
-                    <button
-                      onClick={() => moveLevel(i, "up")}
-                      disabled={i === 0}
-                      style={iconButtonStyle}
-                      title="Move up"
-                    >
-                      <ChevronUp size={12} />
-                    </button>
-                    <button
-                      onClick={() => moveLevel(i, "down")}
-                      disabled={i === levels.length - 1}
-                      style={iconButtonStyle}
-                      title="Move down"
-                    >
-                      <ChevronDown size={12} />
-                    </button>
-                  </div>
-
-                  {/* Delete */}
-                  <button
-                    onClick={() => removeLevel(i)}
-                    disabled={levels.length <= 2}
-                    style={{ ...iconButtonStyle, color: levels.length <= 2 ? "var(--text-muted)" : "#ef4444" }}
-                    title="Remove level"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            />
 
-            {/* Add level + target children */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-              <button onClick={addLevel} style={secondaryButtonStyle}>
-                <Plus size={14} />
-                Add Level
-              </button>
+            {/* Target children */}
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Target children per node:</span>
                 <input

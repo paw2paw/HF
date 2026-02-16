@@ -89,6 +89,7 @@
     "requiredRole": "ADMIN",
     "advancedOnly": true,
     "items": [
+      { "id": "system-health", "href": "/x/system", "label": "System Health", "icon": "HeartPulse", "requiredRole": "SUPERADMIN" },
       { "id": "access-control", "href": "/x/system/access-control", "label": "Access Control", "icon": "Shield" },
       { "id": "team", "href": "/x/users", "label": "Team", "icon": "Users" },
       { "id": "institutions", "href": "/x/institutions", "label": "Institutions", "icon": "Building2" },

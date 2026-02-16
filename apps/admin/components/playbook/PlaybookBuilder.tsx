@@ -11,6 +11,7 @@ import { useEntityContext } from "@/contexts/EntityContext";
 import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
 import { SpecRoleBadge } from "@/components/shared/SpecRoleBadge";
 import { ClipboardList, Layers, Target, GitBranch, Settings, Zap, Orbit } from "lucide-react";
+import { TypePickerDialog, PickerItem, PickerCategory } from "@/components/shared/TypePickerDialog";
 
 type ScoringAnchor = {
   id: string;
@@ -205,19 +206,11 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [activeTab, setActiveTab] = useState<"grid" | "targets" | "explorer" | "slugs" | "parameters" | "triggers" | "visualizer">("grid");
   const [targetsData, setTargetsData] = useState<TargetsData | null>(null);
   const [specSearch, setSpecSearch] = useState("");
-  const [expandedAddPanels, setExpandedAddPanels] = useState<Set<"agent" | "caller" | "content">>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerDefaultCategory, setPickerDefaultCategory] = useState<string>("agent");
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [showSystemInColumns, setShowSystemInColumns] = useState<Record<string, boolean>>({ agent: true, caller: true, content: true });
   const [systemColumnCollapsed, setSystemColumnCollapsed] = useState(false);
-
-  const toggleAddPanel = (column: "agent" | "caller" | "content") => {
-    setExpandedAddPanels(prev => {
-      const next = new Set(prev);
-      if (next.has(column)) next.delete(column);
-      else next.add(column);
-      return next;
-    });
-  };
 
   // Parameters tab state
   type ParameterCategory = {
@@ -1661,6 +1654,51 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   ) || [];
   const availableContentSpecs = availableItems?.domainSpecs.filter(s => s.specRole === "CONTENT") || [];
 
+  // TypePickerDialog categories and items
+  const pickerCategories: PickerCategory[] = [
+    { key: "agent", label: "Agent / Identity", color: "var(--status-info-text)" },
+    { key: "caller", label: "Caller / Understanding", color: "var(--status-warning-text)" },
+    { key: "content", label: "Content", color: "var(--status-success-text)" },
+  ];
+  const pickerItems: PickerItem[] = [
+    ...availableAgentSpecs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description ? (s.description.length > 80 ? s.description.slice(0, 80) + "..." : s.description) : undefined,
+      category: "agent",
+      meta: s.specRole,
+      disabled: items.some((i) => i.specId === s.id),
+      disabledReason: "Already in playbook",
+    })),
+    ...availableCallerSpecs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description ? (s.description.length > 80 ? s.description.slice(0, 80) + "..." : s.description) : undefined,
+      category: "caller",
+      meta: s.specRole,
+      disabled: items.some((i) => i.specId === s.id),
+      disabledReason: "Already in playbook",
+    })),
+    ...availableContentSpecs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description ? (s.description.length > 80 ? s.description.slice(0, 80) + "..." : s.description) : undefined,
+      category: "content",
+      meta: s.specRole,
+      disabled: items.some((i) => i.specId === s.id),
+      disabledReason: "Already in playbook",
+    })),
+  ];
+
+  const openPicker = (category: "agent" | "caller" | "content") => {
+    setPickerDefaultCategory(category);
+    setPickerOpen(true);
+  };
+
+  const handlePickerSelect = (item: PickerItem) => {
+    addItemFromPalette("spec", item.id);
+  };
+
   // Enabled system specs that belong in each column (read-only references)
   const systemAgentSpecs = (availableItems?.systemSpecs || []).filter(s =>
     (s.specRole === "IDENTITY" || s.specRole === "VOICE") && systemSpecToggles.get(s.id) !== false
@@ -2689,13 +2727,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               )}
               {isEditable && availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
                 <button
-                  onClick={() => toggleAddPanel("agent")}
+                  onClick={() => openPicker("agent")}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: 6,
                     border: "1px solid var(--status-info-border)",
-                    background: expandedAddPanels.has("agent") ? "var(--status-info-bg)" : "var(--surface-primary)",
+                    background: "var(--surface-primary)",
                     color: "var(--status-info-text)",
                     fontSize: 16,
                     fontWeight: 600,
@@ -2707,51 +2745,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   }}
                   title="Add spec"
                 >
-                  {expandedAddPanels.has("agent") ? "−" : "+"}
+                  +
                 </button>
               )}
             </div>
           </div>
 
-          {/* Collapsible add panel for Agent specs */}
-          {isEditable && expandedAddPanels.has("agent") && (
-            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-info-bg)", borderRadius: 8, border: "1px solid var(--status-info-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
-                  <button
-                    key={spec.id}
-                    onClick={() => {
-                      addItemFromPalette("spec", spec.id);
-                      toggleAddPanel("agent");
-                    }}
-                    style={{
-                      padding: "8px 10px",
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>📄</span>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
-                      {spec.description && (
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Agent specs are now added via TypePickerDialog */}
 
           {/* System IDENTITY/VOICE specs shown as read-only references */}
           {showSystemInColumns.agent && filteredSystemAgentSpecs.length > 0 && (
@@ -3248,13 +3248,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               )}
               {isEditable && availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
                 <button
-                  onClick={() => toggleAddPanel("caller")}
+                  onClick={() => openPicker("caller")}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: 6,
                     border: "1px solid var(--status-warning-border)",
-                    background: expandedAddPanels.has("caller") ? "var(--status-warning-bg)" : "var(--surface-primary)",
+                    background: "var(--surface-primary)",
                     color: "var(--status-warning-text)",
                   fontSize: 16,
                   fontWeight: 600,
@@ -3266,51 +3266,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 }}
                 title="Add spec"
               >
-                {expandedAddPanels.has("caller") ? "−" : "+"}
+                +
               </button>
             )}
             </div>
           </div>
 
-          {/* Collapsible add panel for Caller specs */}
-          {isEditable && expandedAddPanels.has("caller") && (
-            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
-                  <button
-                    key={spec.id}
-                    onClick={() => {
-                      addItemFromPalette("spec", spec.id);
-                      toggleAddPanel("caller");
-                    }}
-                    style={{
-                      padding: "8px 10px",
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>📄</span>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
-                      {spec.description && (
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Caller specs are now added via TypePickerDialog */}
 
           {/* System CALLER specs shown as read-only references */}
           {showSystemInColumns.caller && filteredSystemCallerSpecs.length > 0 && (
@@ -3494,13 +3456,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               )}
               {isEditable && availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
                 <button
-                  onClick={() => toggleAddPanel("content")}
+                  onClick={() => openPicker("content")}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: 6,
                     border: "1px solid var(--status-success-border)",
-                    background: expandedAddPanels.has("content") ? "var(--status-success-bg)" : "var(--surface-primary)",
+                    background: "var(--surface-primary)",
                     color: "var(--status-success-text)",
                   fontSize: 16,
                   fontWeight: 600,
@@ -3512,51 +3474,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 }}
                 title="Add spec"
               >
-                {expandedAddPanels.has("content") ? "−" : "+"}
+                +
               </button>
             )}
             </div>
           </div>
 
-          {/* Collapsible add panel for Content specs */}
-          {isEditable && expandedAddPanels.has("content") && (
-            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-success-bg)", borderRadius: 8, border: "1px solid var(--status-success-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-success-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
-                  <button
-                    key={spec.id}
-                    onClick={() => {
-                      addItemFromPalette("spec", spec.id);
-                      toggleAddPanel("content");
-                    }}
-                    style={{
-                      padding: "8px 10px",
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>📄</span>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
-                      {spec.description && (
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Content specs are now added via TypePickerDialog */}
 
           {/* System CONTENT specs shown as read-only references */}
           {showSystemInColumns.content && filteredSystemContentSpecs.length > 0 && (
@@ -5944,6 +5868,18 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           onClose={handleCloseConfigModal}
         />
       )}
+
+      {/* Spec Picker Dialog */}
+      <TypePickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handlePickerSelect}
+        title="Add Spec to Playbook"
+        categories={pickerCategories}
+        items={pickerItems}
+        searchPlaceholder="Search specs..."
+        defaultCategory={pickerDefaultCategory}
+      />
     </div>
   );
 }

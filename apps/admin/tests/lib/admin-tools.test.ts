@@ -49,6 +49,27 @@ vi.mock("@/lib/jobs/curriculum-runner", () => ({
   startCurriculumGeneration: vi.fn().mockResolvedValue("task-123"),
 }));
 
+vi.mock("@/lib/system-ini", () => ({
+  runIniChecks: vi.fn().mockResolvedValue({
+    ok: true,
+    status: "green",
+    summary: { pass: 10, warn: 0, fail: 0, total: 10 },
+    checks: {
+      env_vars: { status: "pass", label: "Environment Variables", severity: "critical", message: "All set" },
+      database: { status: "pass", label: "Database", severity: "critical", message: "Connected" },
+      canonical_specs: { status: "pass", label: "Canonical Specs", severity: "critical", message: "All present" },
+      domains: { status: "pass", label: "Domains", severity: "recommended", message: "2 domains" },
+      contracts: { status: "pass", label: "Contracts", severity: "recommended", message: "All loaded" },
+      admin_user: { status: "pass", label: "Admin User", severity: "critical", message: "1 admin" },
+      parameters: { status: "pass", label: "Parameters", severity: "critical", message: "200 params" },
+      ai_services: { status: "pass", label: "AI Services", severity: "recommended", message: "OpenAI configured" },
+      vapi: { status: "warn", label: "VAPI", severity: "optional", message: "Not configured" },
+      storage: { status: "pass", label: "Storage", severity: "optional", message: "Local backend" },
+    },
+    timestamp: "2026-02-16T00:00:00.000Z",
+  }),
+}));
+
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { prisma } from "@/lib/prisma";
 
@@ -648,5 +669,36 @@ describe("generate_curriculum", () => {
     const parsed = JSON.parse(result);
     expect(parsed.error).toContain("Insufficient permissions");
     expect(mockPrisma.subject.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// System Initialization Check
+// ============================================================
+
+describe("system_ini_check", () => {
+  it("requires SUPERADMIN role", async () => {
+    const result = await executeAdminTool("system_ini_check", {}, "ADMIN" as any);
+    const parsed = JSON.parse(result);
+    expect(parsed.error).toContain("Insufficient permissions");
+    expect(parsed.error).toContain("SUPERADMIN");
+  });
+
+  it("blocks OPERATOR role", async () => {
+    const result = await executeAdminTool("system_ini_check", {}, "OPERATOR" as any);
+    const parsed = JSON.parse(result);
+    expect(parsed.error).toContain("Insufficient permissions");
+  });
+
+  it("returns structured results for SUPERADMIN", async () => {
+    const result = await executeAdminTool("system_ini_check", {}, "SUPERADMIN" as any);
+    const parsed = JSON.parse(result);
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.summary.total).toBe(10);
+    expect(parsed.status).toBe("green");
+    expect(parsed.checks.database.status).toBe("pass");
+    expect(parsed.checks.parameters.status).toBe("pass");
+    expect(parsed.timestamp).toBeDefined();
   });
 });

@@ -12,6 +12,7 @@ import { ReadinessBadge } from "@/components/shared/ReadinessBadge";
 import { EditableTitle } from "@/components/shared/EditableTitle";
 import { BookOpen, Users, FileText, Rocket, Layers } from "lucide-react";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import { SortableList } from "@/components/shared/SortableList";
 
 type DomainListItem = {
   id: string;
@@ -653,17 +654,13 @@ export default function DomainsPage() {
   const sortedPlaybooks = [...(domain?.playbooks || [])].sort((a, b) => a.sortOrder - b.sortOrder);
   const publishedPlaybooks = sortedPlaybooks.filter((p) => p.status === "PUBLISHED");
 
-  const handleReorder = async (playbookId: string, direction: "up" | "down") => {
-    const idx = sortedPlaybooks.findIndex((p) => p.id === playbookId);
-    if (idx === -1) return;
-    if (direction === "up" && idx === 0) return;
-    if (direction === "down" && idx === sortedPlaybooks.length - 1) return;
+  const handleReorder = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const currentPlaybook = sortedPlaybooks[fromIndex];
+    const swapPlaybook = sortedPlaybooks[toIndex];
+    if (!currentPlaybook || !swapPlaybook) return;
 
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    const currentPlaybook = sortedPlaybooks[idx];
-    const swapPlaybook = sortedPlaybooks[swapIdx];
-
-    setReorderingId(playbookId);
+    setReorderingId(currentPlaybook.id);
     try {
       await Promise.all([
         fetch(`/api/playbooks/${currentPlaybook.id}`, {
@@ -1243,62 +1240,20 @@ export default function DomainsPage() {
                       </button>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {sortedPlaybooks.map((playbook, idx) => {
+                    <SortableList
+                      items={sortedPlaybooks}
+                      getItemId={(p) => p.id}
+                      onReorder={handleReorder}
+                      onRemove={(index) => {
+                        const playbook = sortedPlaybooks[index];
+                        if (playbook) setShowRemovePlaybookConfirm(playbook.id);
+                      }}
+                      disabled={!!reorderingId}
+                      renderCard={(playbook) => {
                         const isPublished = playbook.status === "PUBLISHED";
                         const stackPosition = isPublished ? publishedPlaybooks.findIndex((p) => p.id === playbook.id) + 1 : null;
-
                         return (
-                          <div
-                            key={playbook.id}
-                            style={{
-                              background: "var(--surface-primary)",
-                              border: isPublished ? "1px solid var(--status-success-border)" : "1px solid var(--border-default)",
-                              borderRadius: 8,
-                              padding: "12px 16px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12,
-                            }}
-                          >
-                            {/* Reorder buttons */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              <button
-                                onClick={(e) => { e.preventDefault(); handleReorder(playbook.id, "up"); }}
-                                disabled={idx === 0 || reorderingId === playbook.id}
-                                style={{
-                                  width: 24,
-                                  height: 20,
-                                  padding: 0,
-                                  border: "1px solid var(--border-strong)",
-                                  borderRadius: 3,
-                                  background: idx === 0 ? "var(--surface-tertiary)" : "var(--surface-primary)",
-                                  color: idx === 0 ? "var(--text-muted)" : "var(--text-primary)",
-                                  cursor: idx === 0 ? "not-allowed" : "pointer",
-                                  fontSize: 10,
-                                }}
-                              >
-                                ▲
-                              </button>
-                              <button
-                                onClick={(e) => { e.preventDefault(); handleReorder(playbook.id, "down"); }}
-                                disabled={idx === sortedPlaybooks.length - 1 || reorderingId === playbook.id}
-                                style={{
-                                  width: 24,
-                                  height: 20,
-                                  padding: 0,
-                                  border: "1px solid var(--border-strong)",
-                                  borderRadius: 3,
-                                  background: idx === sortedPlaybooks.length - 1 ? "var(--surface-tertiary)" : "var(--surface-primary)",
-                                  color: idx === sortedPlaybooks.length - 1 ? "var(--text-muted)" : "var(--text-primary)",
-                                  cursor: idx === sortedPlaybooks.length - 1 ? "not-allowed" : "pointer",
-                                  fontSize: 10,
-                                }}
-                              >
-                                ▼
-                              </button>
-                            </div>
-
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }} onClick={(e) => e.stopPropagation()}>
                             {/* Stack position badge */}
                             <div style={{
                               width: 28,
@@ -1334,88 +1289,56 @@ export default function DomainsPage() {
                               </div>
                             </Link>
 
-                            {/* Remove + Arrow */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              {showRemovePlaybookConfirm === playbook.id ? (
-                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                  <span style={{ fontSize: 11, color: "#991b1b", whiteSpace: "nowrap" }}>
-                                    {isPublished ? "Archive first" : "Remove?"}
-                                  </span>
-                                  {!isPublished && (
-                                    <button
-                                      onClick={(e) => { e.preventDefault(); handleRemovePlaybook(playbook.id); }}
-                                      disabled={removingPlaybookId === playbook.id}
-                                      style={{
-                                        padding: "3px 8px",
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        background: "#dc2626",
-                                        color: "white",
-                                        border: "none",
-                                        borderRadius: 4,
-                                        cursor: removingPlaybookId === playbook.id ? "not-allowed" : "pointer",
-                                        opacity: removingPlaybookId === playbook.id ? 0.7 : 1,
-                                      }}
-                                    >
-                                      {removingPlaybookId === playbook.id ? "..." : "Yes"}
-                                    </button>
-                                  )}
+                            {/* Remove confirm (inline) */}
+                            {showRemovePlaybookConfirm === playbook.id && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ fontSize: 11, color: "#991b1b", whiteSpace: "nowrap" }}>
+                                  {isPublished ? "Archive first" : "Remove?"}
+                                </span>
+                                {!isPublished && (
                                   <button
-                                    onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(null); }}
+                                    onClick={(e) => { e.preventDefault(); handleRemovePlaybook(playbook.id); }}
+                                    disabled={removingPlaybookId === playbook.id}
                                     style={{
                                       padding: "3px 8px",
                                       fontSize: 11,
-                                      fontWeight: 500,
-                                      background: "var(--surface-secondary)",
-                                      color: "var(--text-muted)",
-                                      border: "1px solid var(--border-default)",
+                                      fontWeight: 600,
+                                      background: "#dc2626",
+                                      color: "white",
+                                      border: "none",
                                       borderRadius: 4,
-                                      cursor: "pointer",
+                                      cursor: removingPlaybookId === playbook.id ? "not-allowed" : "pointer",
+                                      opacity: removingPlaybookId === playbook.id ? 0.7 : 1,
                                     }}
                                   >
-                                    No
+                                    {removingPlaybookId === playbook.id ? "..." : "Yes"}
                                   </button>
-                                </div>
-                              ) : (
+                                )}
                                 <button
-                                  onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(playbook.id); }}
-                                  title="Remove playbook from domain"
+                                  onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(null); }}
                                   style={{
-                                    width: 24,
-                                    height: 24,
-                                    padding: 0,
-                                    background: "transparent",
-                                    color: "var(--text-placeholder)",
-                                    border: "1px solid transparent",
+                                    padding: "3px 8px",
+                                    fontSize: 11,
+                                    fontWeight: 500,
+                                    background: "var(--surface-secondary)",
+                                    color: "var(--text-muted)",
+                                    border: "1px solid var(--border-default)",
                                     borderRadius: 4,
                                     cursor: "pointer",
-                                    fontSize: 14,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = "#fef2f2";
-                                    e.currentTarget.style.color = "#dc2626";
-                                    e.currentTarget.style.borderColor = "#fca5a5";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = "transparent";
-                                    e.currentTarget.style.color = "var(--text-placeholder)";
-                                    e.currentTarget.style.borderColor = "transparent";
                                   }}
                                 >
-                                  ×
+                                  No
                                 </button>
-                              )}
-                              <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none" }}>
-                                →
-                              </Link>
-                            </div>
+                              </div>
+                            )}
+
+                            <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none", flexShrink: 0 }}>
+                              →
+                            </Link>
                           </div>
                         );
-                      })}
-                    </div>
+                      }}
+                    />
                   )}
                 </div>
               )}
