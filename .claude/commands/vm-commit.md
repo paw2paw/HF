@@ -10,7 +10,7 @@ Commit changes on the hf-dev GCP VM. First show the status, then commit with the
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git status --short"
 ```
 
-Show the user what's changed. If there are no changes, tell them and stop.
+Show the user what's changed. If there are no changes, tell them and stop. If the SSH command fails with exit code 255, wait 3 seconds and retry once.
 
 ## 2. Stage and commit
 

@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
 // =====================================================
 // MOCK SETUP
@@ -56,6 +57,14 @@ describe("GET /api/educator/dashboard", () => {
     GET = mod.GET;
   });
 
+  function makeRequest(params?: Record<string, string>) {
+    const url = new URL("http://localhost/api/educator/dashboard");
+    if (params) {
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    }
+    return new NextRequest(url);
+  }
+
   it("returns dashboard stats for authenticated educator", async () => {
     mockPrisma.cohortGroup.findMany.mockResolvedValue([
       {
@@ -82,7 +91,7 @@ describe("GET /api/educator/dashboard", () => {
 
     mockPrisma.caller.findMany.mockResolvedValue([]);
 
-    const res = await GET();
+    const res = await GET(makeRequest());
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -99,7 +108,7 @@ describe("GET /api/educator/dashboard", () => {
     mockPrisma.call.findMany.mockResolvedValue([]);
     mockPrisma.caller.findMany.mockResolvedValue([]);
 
-    const res = await GET();
+    const res = await GET(makeRequest());
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -121,7 +130,7 @@ describe("GET /api/educator/dashboard", () => {
       ),
     });
 
-    const res = await GET();
+    const res = await GET(makeRequest());
     const body = await res.json();
 
     expect(res.status).toBe(403);

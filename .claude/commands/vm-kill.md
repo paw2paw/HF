@@ -2,18 +2,18 @@
 description: Kill stale processes and clean .next on hf-dev VM
 ---
 
-Kill any stale Next.js/node processes, tmux sessions, and clean the `.next` cache on the hf-dev GCP VM.
+Kill any stale Next.js/node processes and clean the `.next` cache on the hf-dev GCP VM.
 
 Run this Bash command:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "tmux kill-session -t hf 2>/dev/null; killall -9 node 2>/dev/null; rm -rf ~/HF/apps/admin/.next"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; rm -rf ~/HF/apps/admin/.next; rm -f /tmp/hf-dev.log; echo CLEANED"
 ```
 
-Report the result. If the SSH connection fails with exit code 255, suggest the user check IAP tunneling with:
+Report the result. If the SSH connection fails with exit code 255, wait 3 seconds and retry once. If still failing, suggest the user check IAP:
 
-```
-gcloud compute ssh hf-dev --project=hf-admin-prod --zone=europe-west2-a --troubleshoot --tunnel-through-iap
-```
+1. Test connectivity: `gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "echo hello"`
+2. Check firewall: `gcloud compute firewall-rules list --filter="name~iap"`
+3. If no rule: `gcloud compute firewall-rules create allow-iap-ssh --direction=INGRESS --action=ALLOW --rules=tcp:22 --source-ranges=35.235.240.0/20 --network=default`
 
 On success, tell the user they can now start the dev server with `/vm-dev`.

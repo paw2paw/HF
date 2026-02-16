@@ -4,11 +4,11 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * @api GET /api/institutions
- * @auth SUPERADMIN
+ * @auth ADMIN
  * @description List all institutions with user/cohort counts.
  */
 export async function GET() {
-  const auth = await requireAuth("SUPERADMIN");
+  const auth = await requireAuth("ADMIN");
   if (isAuthError(auth)) return auth.error;
 
   const institutions = await prisma.institution.findMany({

@@ -8,7 +8,7 @@ Interactive hf-dev VM management. Ask the user what they want to do using AskUse
 
 Options (multiSelect: true):
 1. **Pull latest** — Pull from remote + npm install
-2. **Start dev server** — Kill stale processes, clean .next, start fresh with tunnel
+2. **Start dev server** — Kill stale processes, start fresh with tunnel
 3. **Commit & push** — Stage, commit, and push changes on VM
 4. **Status check** — Show CPU, RAM, disk, running processes
 
@@ -20,7 +20,7 @@ Then execute the selected actions **in this order** (dependencies matter):
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git pull --rebase && cd apps/admin && npm install --prefer-offline"
 ```
 
-Report what changed. If there are merge conflicts, STOP and show them.
+Report what changed. If there are merge conflicts, STOP and show them. If SSH fails with exit code 255, wait 3 seconds and retry once.
 
 ### If "Commit & push" selected:
 
@@ -37,17 +37,17 @@ gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF
 ### If "Status check" selected:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "echo '=== MEMORY ===' && free -h && echo '=== DISK ===' && df -h / && echo '=== LOAD ===' && uptime && echo '=== TMUX ===' && tmux list-sessions 2>/dev/null || echo 'No tmux sessions' && echo '=== NODE PROCESSES ===' && pgrep -af node 2>/dev/null || echo 'No node processes running'"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "echo '=== MEMORY ===' && free -h && echo '=== DISK ===' && df -h / && echo '=== LOAD ===' && uptime && echo '=== NODE PROCESSES ===' && pgrep -af node 2>/dev/null || echo 'No node processes running' && echo '=== DEV LOG (last 5) ===' && tail -5 /tmp/hf-dev.log 2>/dev/null || echo 'No log'"
 ```
 
 Print a compact dashboard.
 
 ### If "Start dev server" selected (always run LAST):
 
-Start dev server in tmux (survives SSH disconnects):
+Start dev server via nohup (survives SSH disconnects):
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "tmux kill-session -t hf 2>/dev/null; pkill -9 -f 'node.*next' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock && tmux new-session -d -s hf 'cd ~/HF/apps/admin && npm run dev'"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f 'node.*next' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; nohup bash -c 'cd ~/HF/apps/admin && npm run dev' > /tmp/hf-dev.log 2>&1 & echo STARTED"
 ```
 
 Then open tunnel in the background:
@@ -59,7 +59,15 @@ gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- -L 3000:
 Tell the user:
 - Server running at `http://localhost:3000`
 - Dev server persists across SSH disconnects — use `/vm-tunnel` to reconnect
-- To see server output: `gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "tmux attach -t hf"`
+- To see server output: `gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "tail -50 /tmp/hf-dev.log"`
+
+### IAP troubleshooting
+
+If SSH fails with exit code 255:
+1. Wait 3-5 seconds and retry (IAP rate-limits rapid connections)
+2. Test: `gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "echo hello"`
+3. Check firewall: `gcloud compute firewall-rules list --filter="name~iap"`
+4. If no rule: `gcloud compute firewall-rules create allow-iap-ssh --direction=INGRESS --action=ALLOW --rules=tcp:22 --source-ranges=35.235.240.0/20 --network=default`
 
 ### Common combo
 

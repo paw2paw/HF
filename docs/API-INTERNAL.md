@@ -4737,7 +4737,7 @@ Cohort progress stats including calls-per-day trend (30 days), engagement breakd
 
 ### `GET` /api/educator/dashboard
 
-Educator dashboard overview with classroom list, aggregate stats (total students, active this week), recent calls, and students needing attention (no calls in 7+ days). ADMIN+ users can pass ?domainId= to view any school.
+Educator dashboard overview with classroom list, aggregate stats (total students, active this week), recent calls, and students needing attention (no calls in 7+ days). ADMIN+ users can pass ?institutionId= to view any school.
 
 **Auth**: Bearer token · **Scope**: `educator:read`
 
@@ -6788,7 +6788,7 @@ Update terminology config for the current user's institution.
 
 List all institutions with user/cohort counts.
 
-**Auth**: SUPERADMIN
+**Auth**: ADMIN
 
 ---
 

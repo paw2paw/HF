@@ -30,7 +30,7 @@ interface DashboardData {
   }[];
 }
 
-interface DomainOption {
+interface InstitutionOption {
   id: string;
   name: string;
   slug: string;
@@ -43,8 +43,8 @@ export default function EducatorDashboard() {
 
   // School picker for ADMIN users without an educator profile
   const [needsSchoolPicker, setNeedsSchoolPicker] = useState(false);
-  const [domains, setDomains] = useState<DomainOption[]>([]);
-  const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
+  const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<string | null>(null);
 
   // Invite teacher state
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -76,21 +76,21 @@ export default function EducatorDashboard() {
     }
   }, [inviteEmail]);
 
-  const loadDashboard = useCallback(async (domainId?: string) => {
+  const loadDashboard = useCallback(async (institutionId?: string) => {
     setLoading(true);
     try {
-      const url = domainId
-        ? `/api/educator/dashboard?domainId=${domainId}`
+      const url = institutionId
+        ? `/api/educator/dashboard?institutionId=${institutionId}`
         : "/api/educator/dashboard";
       const res = await fetch(url);
 
-      if (res.status === 403 && !domainId) {
-        // ADMIN user without educator profile — show picker
-        const domainsRes = await fetch("/api/domains");
-        const domainsData = await domainsRes.json();
-        if (domainsData?.domains) {
-          setDomains(domainsData.domains.map((d: { id: string; name: string; slug: string }) => ({
-            id: d.id, name: d.name, slug: d.slug,
+      if (res.status === 403 && !institutionId) {
+        // ADMIN user without educator profile — show institution picker
+        const instRes = await fetch("/api/institutions");
+        const instData = await instRes.json();
+        if (instData?.institutions) {
+          setInstitutions(instData.institutions.map((i: { id: string; name: string; slug: string }) => ({
+            id: i.id, name: i.name, slug: i.slug,
           })));
         }
         setNeedsSchoolPicker(true);
@@ -113,9 +113,9 @@ export default function EducatorDashboard() {
     loadDashboard();
   }, [loadDashboard]);
 
-  const handleSelectSchool = useCallback((domainId: string) => {
-    setSelectedDomainId(domainId);
-    loadDashboard(domainId);
+  const handleSelectSchool = useCallback((institutionId: string) => {
+    setSelectedInstitutionId(institutionId);
+    loadDashboard(institutionId);
   }, [loadDashboard]);
 
   if (loading) {
@@ -145,18 +145,18 @@ export default function EducatorDashboard() {
             gap: 16,
           }}
         >
-          {domains.map((domain) => (
+          {institutions.map((inst) => (
             <button
-              key={domain.id}
-              onClick={() => handleSelectSchool(domain.id)}
+              key={inst.id}
+              onClick={() => handleSelectSchool(inst.id)}
               style={{
                 display: "flex",
                 flexDirection: "column",
                 padding: 20,
-                background: selectedDomainId === domain.id
+                background: selectedInstitutionId === inst.id
                   ? "var(--surface-active)"
                   : "var(--surface-primary)",
-                border: selectedDomainId === domain.id
+                border: selectedInstitutionId === inst.id
                   ? "2px solid var(--accent-primary)"
                   : "1px solid var(--border-default)",
                 borderRadius: 12,
@@ -167,17 +167,17 @@ export default function EducatorDashboard() {
               className="home-stat-card"
             >
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-                {domain.name}
+                {inst.name}
               </div>
               <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                {domain.slug}
+                {inst.slug}
               </div>
             </button>
           ))}
         </div>
-        {domains.length === 0 && (
+        {institutions.length === 0 && (
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16 }}>
-            No {lowerPlural("institution")} found. Create a domain first.
+            No {lowerPlural("institution")} found. Create an {lower("institution")} first.
           </p>
         )}
       </div>
@@ -186,8 +186,8 @@ export default function EducatorDashboard() {
 
   const stats = data?.stats ?? { classroomCount: 0, totalStudents: 0, activeThisWeek: 0 };
   const hasClassrooms = stats.classroomCount > 0;
-  const viewingSchoolName = selectedDomainId
-    ? domains.find((d) => d.id === selectedDomainId)?.name
+  const viewingSchoolName = selectedInstitutionId
+    ? institutions.find((i) => i.id === selectedInstitutionId)?.name
     : null;
 
   return (

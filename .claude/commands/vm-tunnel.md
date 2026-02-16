@@ -15,4 +15,6 @@ The `-N` flag means no remote command — just the tunnel.
 Tell the user:
 - Tunnel open at `http://localhost:3000`
 - If nothing is running on the VM, use `/vm-dev` to start the dev server
-- Press Ctrl+C to close the tunnel
+- To check what's running: `gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pgrep -af node 2>/dev/null || echo 'No node processes'"`
+
+If the SSH connection fails with exit code 255, wait 3 seconds and retry once. If still failing, check the IAP firewall rule: `gcloud compute firewall-rules list --filter="name~iap"`

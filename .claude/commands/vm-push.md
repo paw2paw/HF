@@ -10,7 +10,7 @@ Push commits from the hf-dev GCP VM to the remote repository.
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git log --oneline origin/\$(git branch --show-current)..\$(git branch --show-current) 2>/dev/null || echo 'No upstream branch yet'"
 ```
 
-Show the user the commits that will be pushed.
+Show the user the commits that will be pushed. If the SSH command fails with exit code 255, wait 3 seconds and retry once.
 
 ## 2. Push
 
