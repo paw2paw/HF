@@ -366,7 +366,18 @@ vi.mock('@/lib/system-settings', () => ({
   getCacheSettings: vi.fn().mockResolvedValue({ systemSettingsTtlMs: 30000, aiConfigTtlMs: 60000, costConfigTtlMs: 300000, dataPathsTtlMs: 5000 }),
   DEMO_CAPTURE_DEFAULTS: { defaultCaller: 'Paul', defaultDomain: 'qm-tutor', defaultPlaybook: '', defaultSpec: '' },
   getDemoCaptureSettings: vi.fn().mockResolvedValue({ defaultCaller: 'Paul', defaultDomain: 'qm-tutor', defaultPlaybook: '', defaultSpec: '' }),
+  KNOWLEDGE_RETRIEVAL_DEFAULTS: { queryMessageCount: 3, topResults: 10, chunkLimit: 5, assertionLimit: 5, memoryLimit: 3, minRelevance: 0.3 },
+  getKnowledgeRetrievalSettings: vi.fn().mockResolvedValue({ queryMessageCount: 3, topResults: 10, chunkLimit: 5, assertionLimit: 5, memoryLimit: 3, minRelevance: 0.3 }),
+  VOICE_CALL_DEFAULTS: { provider: 'openai', model: 'gpt-4o', knowledgePlanEnabled: true, autoPipeline: true, toolLookupTeachingPoint: true, toolCheckMastery: true, toolRecordObservation: true, toolGetPracticeQuestion: true, toolGetNextModule: true, toolLogActivityResult: true, toolSendText: true, toolRequestArtifact: true, unknownCallerPrompt: 'You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name.', noActivePromptFallback: 'You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation.' },
+  getVoiceCallSettings: vi.fn().mockResolvedValue({ provider: 'openai', model: 'gpt-4o', knowledgePlanEnabled: true, autoPipeline: true, toolLookupTeachingPoint: true, toolCheckMastery: true, toolRecordObservation: true, toolGetPracticeQuestion: true, toolGetNextModule: true, toolLogActivityResult: true, toolSendText: true, toolRequestArtifact: true, unknownCallerPrompt: 'You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name.', noActivePromptFallback: 'You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation.' }),
   SETTINGS_REGISTRY: [],
+  EMAIL_TEMPLATE_DEFAULTS: {
+    magicLinkSubject: 'Sign in', magicLinkHeading: 'Sign in', magicLinkBody: 'Click below',
+    magicLinkButtonText: 'Sign In', magicLinkFooter: 'Expires soon',
+    inviteSubject: 'Invitation', inviteHeading: 'Welcome', inviteBody: 'You are invited',
+    inviteButtonText: 'Accept', inviteFooter: 'Expires in 7 days',
+    sharedFromName: 'HF Admin', sharedBrandColorStart: '#3b82f6', sharedBrandColorEnd: '#9333ea',
+  },
 }));
 
 // Mock global fetch

@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
 import { verifyVapiRequest } from "@/lib/vapi/auth";
-import { VAPI_TOOL_DEFINITIONS } from "../tools/route";
+import { getVoiceCallSettings } from "@/lib/system-settings";
+import { VAPI_TOOL_DEFINITIONS, TOOL_SETTING_KEYS } from "../tools/route";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Load voice call settings (30s cache — hot-configurable via Settings UI)
+    const vs = await getVoiceCallSettings();
+
     // Normalize phone (strip spaces, ensure +)
     const normalizedPhone = customerPhone.replace(/\s+/g, "");
 
@@ -62,16 +66,15 @@ export async function POST(request: NextRequest) {
 
     if (!caller) {
       console.warn(`[vapi/assistant-request] No caller found for phone: ***${normalizedPhone.slice(-4)}`);
-      // Return a generic assistant config for unknown callers
       return NextResponse.json({
         assistant: {
           model: {
-            provider: "openai",
-            model: config.ai.openai.model,
+            provider: vs.provider,
+            model: vs.model,
             messages: [
               {
                 role: "system",
-                content: "You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name.",
+                content: vs.unknownCallerPrompt,
               },
             ],
           },
@@ -96,15 +99,16 @@ export async function POST(request: NextRequest) {
 
     if (!composedPrompt?.llmPrompt) {
       console.warn(`[vapi/assistant-request] No active prompt for caller: ${caller.id}`);
+      const callerLabel = caller.name || "a returning caller";
       return NextResponse.json({
         assistant: {
           model: {
-            provider: "openai",
-            model: config.ai.openai.model,
+            provider: vs.provider,
+            model: vs.model,
             messages: [
               {
                 role: "system",
-                content: `You are a helpful voice tutor. The caller is ${caller.name || "a returning caller"}. No personalized prompt is available yet — have a warm, friendly conversation.`,
+                content: `${vs.noActivePromptFallback} The caller is ${callerLabel}.`,
               },
             ],
           },
@@ -118,42 +122,49 @@ export async function POST(request: NextRequest) {
     const firstLine = (composedPrompt.llmPrompt as any)?._quickStart?.first_line;
 
     console.log(
-      `[vapi/assistant-request] Serving prompt for caller ${caller.id}: ${voicePrompt.length} chars`,
+      `[vapi/assistant-request] Serving prompt for caller ${caller.id}: ${voicePrompt.length} chars (provider: ${vs.provider}, model: ${vs.model}, rag: ${vs.knowledgePlanEnabled})`,
     );
 
-    // Build tool definitions with server URL pointing to our tools endpoint
+    // Build tool definitions — only include tools enabled in settings
     const serverUrl = `${config.app.url}/api/vapi`;
-    const tools = VAPI_TOOL_DEFINITIONS.map((tool) => ({
-      ...tool,
-      server: { url: `${serverUrl}/tools` },
-    }));
+    const enabledTools = VAPI_TOOL_DEFINITIONS
+      .filter((tool) => {
+        const settingKey = TOOL_SETTING_KEYS[tool.function.name];
+        return settingKey ? (vs as any)[settingKey] : true;
+      })
+      .map((tool) => ({
+        ...tool,
+        server: { url: `${serverUrl}/tools` },
+      }));
 
-    // Return VAPI assistant configuration
-    // The assistant-request response format: https://docs.vapi.ai/server-url/events
-    return NextResponse.json({
-      assistant: {
-        model: {
-          provider: "openai",
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: voicePrompt,
-            },
-          ],
-          tools,
-        },
-        ...(firstLine ? { firstMessage: firstLine } : {}),
-        serverUrl: `${serverUrl}/webhook`,
-        // Custom Knowledge Base — VAPI calls this per-turn for retrieval
-        knowledgePlan: {
-          provider: "custom-knowledge-base",
-          server: {
-            url: `${serverUrl}/knowledge`,
+    // Build assistant response
+    const assistant: Record<string, any> = {
+      model: {
+        provider: vs.provider,
+        model: vs.model,
+        messages: [
+          {
+            role: "system",
+            content: voicePrompt,
           },
-        },
+        ],
+        ...(enabledTools.length > 0 ? { tools: enabledTools } : {}),
       },
-    });
+      ...(firstLine ? { firstMessage: firstLine } : {}),
+      serverUrl: `${serverUrl}/webhook`,
+    };
+
+    // Per-turn RAG — only include knowledgePlan if enabled in settings
+    if (vs.knowledgePlanEnabled) {
+      assistant.knowledgePlan = {
+        provider: "custom-knowledge-base",
+        server: {
+          url: `${serverUrl}/knowledge`,
+        },
+      };
+    }
+
+    return NextResponse.json({ assistant });
   } catch (error: any) {
     console.error("[vapi/assistant-request] Error:", error);
     return NextResponse.json(

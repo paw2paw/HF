@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { verifyVapiRequest } from "@/lib/vapi/auth";
+import { getVoiceCallSettings } from "@/lib/system-settings";
 
 export const runtime = "nodejs";
 
@@ -136,8 +137,9 @@ async function handleEndOfCallReport(message: any) {
       (callerId ? ` for caller ${callerId}` : ""),
   );
 
-  // Optionally trigger pipeline
-  if (config.vapi.autoPipeline && callerId) {
+  // Optionally trigger pipeline (DB setting overrides env var)
+  const vs = await getVoiceCallSettings();
+  if (vs.autoPipeline && callerId) {
     // Fire-and-forget pipeline trigger
     triggerPipeline(newCall.id, callerId).catch((err) => {
       console.error(`[vapi/webhook] Pipeline trigger failed for call ${newCall.id}:`, err);

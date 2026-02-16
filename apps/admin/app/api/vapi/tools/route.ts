@@ -570,7 +570,22 @@ async function handleRequestArtifact(
 }
 
 /**
- * Tool definitions for VAPI assistant configuration.
+ * Maps tool function name → VoiceCallSettings property key.
+ * Used by assistant-request to filter tools based on settings.
+ */
+export const TOOL_SETTING_KEYS: Record<string, keyof import("@/lib/system-settings").VoiceCallSettings> = {
+  lookup_teaching_point: "toolLookupTeachingPoint",
+  check_mastery: "toolCheckMastery",
+  record_observation: "toolRecordObservation",
+  get_practice_question: "toolGetPracticeQuestion",
+  get_next_module: "toolGetNextModule",
+  log_activity_result: "toolLogActivityResult",
+  send_text_to_caller: "toolSendText",
+  request_artifact: "toolRequestArtifact",
+};
+
+/**
+ * Tool definitions for voice assistant configuration.
  * These are included in the assistant-request response.
  */
 export const VAPI_TOOL_DEFINITIONS = [

@@ -47,6 +47,18 @@ vi.mock("@/lib/knowledge/retriever", () => ({
   retrieveKnowledgeForPrompt: (...args: any[]) => mockRetrieve(...args),
 }));
 
+// ── Mock system settings ─────────────────────────────
+vi.mock("@/lib/system-settings", () => ({
+  getKnowledgeRetrievalSettings: vi.fn().mockResolvedValue({
+    queryMessageCount: 3,
+    topResults: 10,
+    chunkLimit: 5,
+    assertionLimit: 5,
+    memoryLimit: 3,
+    minRelevance: 0.3,
+  }),
+}));
+
 import { POST } from "@/app/api/vapi/knowledge/route";
 
 function makeRequest(messages: Array<{ role: string; content: string }>) {

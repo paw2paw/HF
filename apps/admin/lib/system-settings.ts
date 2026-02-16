@@ -11,6 +11,8 @@
  *   goals.*         — Goal detection thresholds
  *   trust.*         — Content trust weights
  *   ai_learning.*   — AI pattern learning rates
+ *   knowledge.*     — Knowledge retrieval tuning
+ *   voice.*         — Voice call provider, model, tools, RAG
  *   cache.*         — Cache TTL tuning
  *   email.*         — Email template text blocks
  */
@@ -275,7 +277,106 @@ export async function getAILearningSettings(): Promise<AILearningSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
-// 6. PERFORMANCE & CACHING
+// 6. KNOWLEDGE RETRIEVAL
+// ═══════════════════════════════════════════════════════
+
+export interface KnowledgeRetrievalSettings {
+  queryMessageCount: number;
+  topResults: number;
+  chunkLimit: number;
+  assertionLimit: number;
+  memoryLimit: number;
+  minRelevance: number;
+}
+
+export const KNOWLEDGE_RETRIEVAL_DEFAULTS: KnowledgeRetrievalSettings = {
+  queryMessageCount: 3,
+  topResults: 10,
+  chunkLimit: 5,
+  assertionLimit: 5,
+  memoryLimit: 3,
+  minRelevance: 0.3,
+};
+
+const KNOWLEDGE_RETRIEVAL_KEYS: Record<keyof KnowledgeRetrievalSettings, string> = {
+  queryMessageCount: "knowledge.query_message_count",
+  topResults: "knowledge.top_results",
+  chunkLimit: "knowledge.chunk_limit",
+  assertionLimit: "knowledge.assertion_limit",
+  memoryLimit: "knowledge.memory_limit",
+  minRelevance: "knowledge.min_relevance",
+};
+
+export async function getKnowledgeRetrievalSettings(): Promise<KnowledgeRetrievalSettings> {
+  return loadGroup(KNOWLEDGE_RETRIEVAL_KEYS, KNOWLEDGE_RETRIEVAL_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
+// 7. VOICE CALLS (provider-agnostic call service config)
+// ═══════════════════════════════════════════════════════
+
+export interface VoiceCallSettings {
+  // Provider & model (provider-agnostic — works with any call service)
+  provider: string;
+  model: string;
+  // Per-turn knowledge retrieval (automatic RAG every turn)
+  knowledgePlanEnabled: boolean;
+  // Pipeline
+  autoPipeline: boolean;
+  // Tool toggles
+  toolLookupTeachingPoint: boolean;
+  toolCheckMastery: boolean;
+  toolRecordObservation: boolean;
+  toolGetPracticeQuestion: boolean;
+  toolGetNextModule: boolean;
+  toolLogActivityResult: boolean;
+  toolSendText: boolean;
+  toolRequestArtifact: boolean;
+  // Fallback prompts
+  unknownCallerPrompt: string;
+  noActivePromptFallback: string;
+}
+
+export const VOICE_CALL_DEFAULTS: VoiceCallSettings = {
+  provider: "openai",
+  model: "gpt-4o",
+  knowledgePlanEnabled: false,
+  autoPipeline: true,
+  toolLookupTeachingPoint: true,
+  toolCheckMastery: true,
+  toolRecordObservation: true,
+  toolGetPracticeQuestion: true,
+  toolGetNextModule: true,
+  toolLogActivityResult: true,
+  toolSendText: true,
+  toolRequestArtifact: true,
+  unknownCallerPrompt: "You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name.",
+  noActivePromptFallback: "You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation.",
+};
+
+const VOICE_CALL_KEYS: Record<keyof VoiceCallSettings, string> = {
+  provider: "voice.provider",
+  model: "voice.model",
+  knowledgePlanEnabled: "voice.knowledge_plan_enabled",
+  autoPipeline: "voice.auto_pipeline",
+  toolLookupTeachingPoint: "voice.tool_lookup_teaching_point",
+  toolCheckMastery: "voice.tool_check_mastery",
+  toolRecordObservation: "voice.tool_record_observation",
+  toolGetPracticeQuestion: "voice.tool_get_practice_question",
+  toolGetNextModule: "voice.tool_get_next_module",
+  toolLogActivityResult: "voice.tool_log_activity_result",
+  toolSendText: "voice.tool_send_text",
+  toolRequestArtifact: "voice.tool_request_artifact",
+  unknownCallerPrompt: "voice.unknown_caller_prompt",
+  noActivePromptFallback: "voice.no_active_prompt_fallback",
+};
+
+export async function getVoiceCallSettings(): Promise<VoiceCallSettings> {
+  return loadGroup(VOICE_CALL_KEYS, VOICE_CALL_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
+// 8. PERFORMANCE & CACHING (renumbered from 7)
 // ═══════════════════════════════════════════════════════
 
 export interface CacheSettings {
@@ -414,6 +515,28 @@ export interface SettingGroup {
 
 export const SETTINGS_REGISTRY: SettingGroup[] = [
   {
+    id: "voice",
+    label: "Voice Calls",
+    icon: "Phone",
+    description: "Call service provider, model, per-turn RAG, tool enablement, and fallback prompts",
+    settings: [
+      { key: "voice.provider", label: "LLM provider", description: "Which provider serves the voice model (e.g. openai, anthropic, google)", type: "text", default: "openai", placeholder: "openai" },
+      { key: "voice.model", label: "Voice model", description: "Model ID used for the voice assistant (e.g. gpt-4o, claude-sonnet-4-5-20250929)", type: "text", default: "gpt-4o", placeholder: "gpt-4o" },
+      { key: "voice.knowledge_plan_enabled", label: "Per-turn RAG", description: "Automatically retrieve knowledge every conversation turn. Disable to rely on tools + front-loaded prompt instead", type: "bool", default: true },
+      { key: "voice.auto_pipeline", label: "Auto-pipeline", description: "Automatically trigger analysis pipeline when a call ends", type: "bool", default: true },
+      { key: "voice.tool_lookup_teaching_point", label: "Tool: Lookup teaching point", description: "Let the AI look up teaching content mid-call", type: "bool", default: true },
+      { key: "voice.tool_check_mastery", label: "Tool: Check mastery", description: "Let the AI check caller mastery before teaching new material", type: "bool", default: true },
+      { key: "voice.tool_record_observation", label: "Tool: Record observation", description: "Let the AI record caller observations in real-time", type: "bool", default: true },
+      { key: "voice.tool_get_practice_question", label: "Tool: Practice question", description: "Let the AI fetch practice questions for a topic", type: "bool", default: true },
+      { key: "voice.tool_get_next_module", label: "Tool: Next module", description: "Let the AI look up the next curriculum module", type: "bool", default: true },
+      { key: "voice.tool_log_activity_result", label: "Tool: Log activity", description: "Let the AI log activity results (quiz, MCQ, teach-back)", type: "bool", default: true },
+      { key: "voice.tool_send_text", label: "Tool: Send text to caller", description: "Let the AI send SMS during calls (requires text provider config)", type: "bool", default: true },
+      { key: "voice.tool_request_artifact", label: "Tool: Request artifact", description: "Let the AI request study artifacts be sent after the call", type: "bool", default: true },
+      { key: "voice.unknown_caller_prompt", label: "Unknown caller prompt", description: "System prompt used when the caller isn't registered", type: "textarea", default: "You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name." },
+      { key: "voice.no_active_prompt_fallback", label: "No-prompt fallback", description: "System prompt used when a known caller has no active composed prompt", type: "textarea", default: "You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation." },
+    ],
+  },
+  {
     id: "pipeline",
     label: "Pipeline & Scoring",
     icon: "Activity",
@@ -480,6 +603,20 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "ai_learning.initial_confidence", label: "Initial confidence", description: "Starting confidence for newly detected patterns", type: "float", default: 0.3, min: 0, max: 1, step: 0.05 },
       { key: "ai_learning.confidence_increment", label: "Confidence increment", description: "Confidence boost per additional occurrence", type: "float", default: 0.05, min: 0.01, max: 0.2, step: 0.01 },
       { key: "ai_learning.min_occurrences", label: "Min occurrences", description: "Occurrences needed before creating a pattern", type: "int", default: 3, min: 1, max: 20 },
+    ],
+  },
+  {
+    id: "knowledge",
+    label: "Knowledge Retrieval",
+    icon: "Search",
+    description: "Per-turn RAG retrieval for VAPI and sim calls (vector + keyword hybrid)",
+    settings: [
+      { key: "knowledge.query_message_count", label: "Query message count", description: "Number of recent user messages used as search context", type: "int", default: 3, min: 1, max: 10 },
+      { key: "knowledge.top_results", label: "Top results", description: "Max results returned per retrieval turn", type: "int", default: 10, min: 1, max: 30 },
+      { key: "knowledge.chunk_limit", label: "Knowledge chunks", description: "Max knowledge base chunks per retrieval", type: "int", default: 5, min: 1, max: 20 },
+      { key: "knowledge.assertion_limit", label: "Teaching assertions", description: "Max teaching assertions per retrieval", type: "int", default: 5, min: 1, max: 20 },
+      { key: "knowledge.memory_limit", label: "Caller memories", description: "Max caller memories per retrieval", type: "int", default: 3, min: 1, max: 10 },
+      { key: "knowledge.min_relevance", label: "Min relevance score", description: "Minimum similarity score (0–1) to include a result", type: "float", default: 0.3, min: 0, max: 1, step: 0.05 },
     ],
   },
   {

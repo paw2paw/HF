@@ -10,6 +10,15 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
+import { embedText } from "@/lib/embeddings";
+import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
+import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
+import {
+  searchAssertionsHybrid,
+  searchAssertions,
+  searchCallerMemories,
+  formatAssertion,
+} from "@/lib/knowledge/assertions";
 
 export const runtime = "nodejs";
 
@@ -114,9 +123,16 @@ export async function POST(request: NextRequest) {
       return await handleDataModeWithTools(messages, callPoint, engine, selectedEngine, mode, message, entityContext, conversationHistory, userRole, userId);
     }
 
-    // CALL mode with content sharing tools
+    // CALL mode: per-turn knowledge retrieval (matches what VAPI does live)
     if (mode === "CALL") {
       const callerEntity = entityContext.find((e) => e.type === "caller");
+
+      // Retrieve relevant knowledge for this message (fire-and-forget on error)
+      const knowledgeBlock = await retrieveSimKnowledge(message, callerEntity?.id, conversationHistory);
+      if (knowledgeBlock && messages[0]?.role === "system" && typeof messages[0].content === "string") {
+        messages[0].content += knowledgeBlock;
+      }
+
       if (callerEntity && requestCallId) {
         return await handleCallModeWithTools(
           messages, callPoint, engine, selectedEngine, mode, message,
@@ -402,6 +418,89 @@ async function handleCallModeWithTools(
       "X-Tool-Calls": toolCallCount.toString(),
     },
   });
+}
+
+/**
+ * Per-turn knowledge retrieval for sim calls.
+ * Mirrors what VAPI gets via /api/vapi/knowledge on every conversation turn.
+ * Returns a formatted text block to append to the system prompt, or null.
+ */
+async function retrieveSimKnowledge(
+  message: string,
+  callerId: string | undefined,
+  conversationHistory: { role: string; content: string }[],
+): Promise<string | null> {
+  try {
+    // Load retrieval settings (30s cache)
+    const ks = await getKnowledgeRetrievalSettings();
+
+    // Build query from last N user messages (same as VAPI endpoint)
+    const recentUserMessages = conversationHistory
+      .filter((m) => m.role === "user")
+      .slice(-(ks.queryMessageCount - 1))
+      .map((m) => m.content);
+    recentUserMessages.push(message);
+    const queryText = recentUserMessages.join(" ");
+
+    if (!queryText.trim()) return null;
+
+    // Embed query text for vector search
+    let queryEmbedding: number[] | undefined;
+    try {
+      queryEmbedding = await embedText(queryText);
+    } catch {
+      // Fall back to keyword-only — don't block the sim call
+    }
+
+    // Run retrieval strategies in parallel
+    const [knowledgeResults, assertionResults, memoryResults] = await Promise.all([
+      retrieveKnowledgeForPrompt({
+        queryText,
+        queryEmbedding,
+        callerId,
+        limit: ks.chunkLimit,
+        minRelevance: ks.minRelevance,
+      }),
+      queryEmbedding
+        ? searchAssertionsHybrid(queryText, queryEmbedding, ks.assertionLimit, ks.minRelevance)
+        : searchAssertions(queryText, ks.assertionLimit),
+      callerId ? searchCallerMemories(callerId, queryText, ks.memoryLimit) : Promise.resolve([]),
+    ]);
+
+    // Format results
+    const lines: string[] = [];
+
+    for (const a of assertionResults) {
+      lines.push(formatAssertion(a));
+    }
+    for (const k of knowledgeResults) {
+      lines.push(k.title ? `[${k.title}] ${k.content}` : k.content);
+    }
+    for (const m of memoryResults) {
+      lines.push(`[Memory] ${m.key}: ${m.value}`);
+    }
+
+    if (lines.length === 0) return null;
+
+    // Sort by relevance already done in individual searches
+    const allResults = [
+      ...assertionResults.map((a) => ({ text: formatAssertion(a), score: a.relevanceScore })),
+      ...knowledgeResults.map((k) => ({ text: k.title ? `[${k.title}] ${k.content}` : k.content, score: k.relevanceScore })),
+      ...memoryResults.map((m) => ({ text: `[Memory] ${m.key}: ${m.value}`, score: m.relevanceScore })),
+    ];
+    allResults.sort((a, b) => b.score - a.score);
+    const top = allResults.slice(0, ks.topResults);
+
+    console.log(
+      `[sim/knowledge] ${top.length} results ` +
+        `(assertions: ${assertionResults.length}, chunks: ${knowledgeResults.length}, memories: ${memoryResults.length}, vector: ${!!queryEmbedding})`,
+    );
+
+    return `\n\n[RELEVANT TEACHING MATERIAL FOR THIS TURN]\nUse the following content to inform your response. Reference specific facts when relevant.\n${top.map((r) => `- ${r.text}`).join("\n")}`;
+  } catch (err) {
+    console.warn("[sim/knowledge] Retrieval failed, continuing without:", err);
+    return null;
+  }
 }
 
 /**
