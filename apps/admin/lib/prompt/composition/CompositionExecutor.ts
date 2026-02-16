@@ -128,6 +128,17 @@ export async function executeComposition(
         }
         result = transformFn(result, context, sectionDef);
       }
+    } else if (sectionDef.dataSource === "_assembled") {
+      // No transform on _assembled — collect dependent sections to avoid circular ref
+      const deps = sectionDef.dependsOn || [];
+      const collected: Record<string, any> = {};
+      for (const depId of deps) {
+        const depSection = sortedSections.find(s => s.id === depId);
+        if (depSection && context.sections[depSection.outputKey] !== undefined) {
+          collected[depSection.outputKey] = context.sections[depSection.outputKey];
+        }
+      }
+      result = collected;
     } else {
       result = rawData;
     }
