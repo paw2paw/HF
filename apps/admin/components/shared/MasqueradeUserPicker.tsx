@@ -183,7 +183,7 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
         <div
           style={{
             padding: '6px 12px',
-            background: `${MASQUERADE_COLOR}15`,
+            background: `color-mix(in srgb, ${MASQUERADE_COLOR} 10%, transparent)`,
             borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
@@ -231,7 +231,7 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
                   width: '100%',
                   padding: '8px 12px',
                   border: 'none',
-                  background: isCurrentMasquerade ? `${MASQUERADE_COLOR}10` : 'transparent',
+                  background: isCurrentMasquerade ? `color-mix(in srgb, ${MASQUERADE_COLOR} 6%, transparent)` : 'transparent',
                   cursor: isCurrentMasquerade ? 'default' : 'pointer',
                   textAlign: 'left',
                   fontSize: 12,
@@ -242,7 +242,7 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
                   if (!isCurrentMasquerade) e.currentTarget.style.background = 'var(--hover-bg)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isCurrentMasquerade ? `${MASQUERADE_COLOR}10` : 'transparent';
+                  e.currentTarget.style.background = isCurrentMasquerade ? `color-mix(in srgb, ${MASQUERADE_COLOR} 6%, transparent)` : 'transparent';
                 }}
               >
                 {/* Avatar circle */}

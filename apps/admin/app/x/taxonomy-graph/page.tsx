@@ -317,11 +317,11 @@ export default function TaxonomyGraphPage() {
 
       // Theme colors - match app's dark:bg-neutral-900 (#171717)
       const bgColor = isDarkMode ? "#171717" : "#f5f5f5";
-      const tooltipBg = isDarkMode ? "#1f2937" : "#ffffff";
-      const tooltipBorder = isDarkMode ? "#374151" : "#e5e7eb";
-      const tooltipText = isDarkMode ? "#e5e7eb" : "#374151";
-      const tooltipLabel = isDarkMode ? "#9ca3af" : "#6b7280";
-      const tooltipTitle = isDarkMode ? "white" : "#111827";
+      const tooltipBg = "var(--surface-primary)";
+      const tooltipBorder = "var(--border-default)";
+      const tooltipText = "var(--text-secondary)";
+      const tooltipLabel = "var(--text-muted)";
+      const tooltipTitle = "var(--text-primary)";
 
       // Common settings for both 2D and 3D
       const graph = ForceGraph()(containerRef.current!)
@@ -602,8 +602,8 @@ export default function TaxonomyGraphPage() {
                     fontWeight: 500,
                     padding: "2px 8px",
                     borderRadius: 4,
-                    background: is3D ? "rgba(99, 102, 241, 0.1)" : "rgba(16, 185, 129, 0.1)",
-                    color: is3D ? "#6366f1" : "#10b981",
+                    background: is3D ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "color-mix(in srgb, var(--status-success-text) 10%, transparent)",
+                    color: is3D ? "var(--accent-primary)" : "var(--status-success-text)",
                   }}>
                     {is3D ? "3D" : "2D"}
                   </span>
@@ -705,12 +705,12 @@ export default function TaxonomyGraphPage() {
                 : type === "range" ? "Ranges"
                 : `${type}s`;
               const bgColor = isVisible
-                ? `${color}30`
-                : (isDarkMode ? "#262626" : "#f5f5f5");
-              const borderColor = isVisible ? color : (isDarkMode ? "#525252" : "#d4d4d4");
+                ? `color-mix(in srgb, ${color} 19%, transparent)`
+                : "var(--surface-secondary)";
+              const borderColor = isVisible ? color : "var(--border-strong)";
               const textColor = isVisible
-                ? (isDarkMode ? "#fafafa" : "#171717")
-                : (isDarkMode ? "#a3a3a3" : "#737373");
+                ? "var(--text-primary)"
+                : "var(--text-muted)";
               return (
                 <button
                   key={type}
@@ -722,7 +722,7 @@ export default function TaxonomyGraphPage() {
                     opacity: isVisible ? 1 : 0.6,
                   }}
                 >
-                  <NodeIcon type={type} color={isVisible ? color : "#a3a3a3"} size={14} />
+                  <NodeIcon type={type} color={isVisible ? color : "var(--text-muted)"} size={14} />
                   <span className="text-xs font-semibold capitalize" style={{ color: textColor }}>
                     {displayName}
                   </span>

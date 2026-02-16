@@ -148,7 +148,7 @@ export default function SpecSyncPage() {
             style={{
               padding: "8px 16px",
               borderRadius: 6,
-              border: "1px solid var(--border-primary)",
+              border: "1px solid var(--border-default)",
               background: "var(--surface-primary)",
               cursor: loading ? "not-allowed" : "pointer",
               fontSize: 13,
@@ -243,7 +243,7 @@ export default function SpecSyncPage() {
                 Ready to Import
                 <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— spec files not yet loaded into database</span>
               </h2>
-              <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-primary)", borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: "var(--surface-secondary)" }}>
@@ -268,7 +268,7 @@ export default function SpecSyncPage() {
                       <tr
                         key={spec.id}
                         style={{
-                          borderTop: "1px solid var(--border-primary)",
+                          borderTop: "1px solid var(--border-default)",
                           background: selectedSpecs.has(spec.id) ? "var(--status-info-bg)" : "transparent",
                           cursor: "pointer",
                         }}
@@ -289,7 +289,7 @@ export default function SpecSyncPage() {
                           <span style={badgeStyle(spec.specType === "SYSTEM" ? "info" : "success")}>{spec.specType}</span>
                         </td>
                         <td style={{ padding: "10px 12px" }}>
-                          <span style={{ ...badgeStyle("info"), background: "var(--surface-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-primary)" }}>{spec.specRole}</span>
+                          <span style={{ ...badgeStyle("info"), background: "var(--surface-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-default)" }}>{spec.specRole}</span>
                         </td>
                       </tr>
                     ))}
@@ -307,7 +307,7 @@ export default function SpecSyncPage() {
                 DB-Only Specs
                 <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— created via UI or source file removed (this is normal)</span>
               </h2>
-              <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-primary)", borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: "var(--surface-secondary)" }}>
@@ -319,7 +319,7 @@ export default function SpecSyncPage() {
                   </thead>
                   <tbody>
                     {status.orphaned.map((spec) => (
-                      <tr key={spec.dbId} style={{ borderTop: "1px solid var(--border-primary)" }}>
+                      <tr key={spec.dbId} style={{ borderTop: "1px solid var(--border-default)" }}>
                         <td style={{ padding: "10px 12px", fontFamily: "monospace" }}>
                           <Link href={`/x/specs?id=${spec.dbId}`} style={{ color: "var(--text-link)" }}>{spec.slug}</Link>
                         </td>
@@ -345,7 +345,7 @@ export default function SpecSyncPage() {
               Already Imported
               <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-secondary)" }}>— file has been loaded into database</span>
             </summary>
-            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-primary)", borderRadius: 8, overflow: "hidden", marginTop: 12 }}>
+            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden", marginTop: 12 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--surface-secondary)" }}>
@@ -358,7 +358,7 @@ export default function SpecSyncPage() {
                 </thead>
                 <tbody>
                   {status.synced.map((spec) => (
-                    <tr key={spec.id} style={{ borderTop: "1px solid var(--border-primary)" }}>
+                    <tr key={spec.id} style={{ borderTop: "1px solid var(--border-default)" }}>
                       <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 500 }}>{spec.id}</td>
                       <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 12 }}>
                         <Link href={`/x/specs?q=${spec.dbSlug}`} style={{ color: "var(--text-link)" }}>{spec.dbSlug}</Link>
@@ -367,7 +367,7 @@ export default function SpecSyncPage() {
                         <span style={badgeStyle(spec.specType === "SYSTEM" ? "info" : "success")}>{spec.specType}</span>
                       </td>
                       <td style={{ padding: "10px 12px" }}>
-                        <span style={{ ...badgeStyle("info"), background: "var(--surface-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-primary)" }}>{spec.specRole || "—"}</span>
+                        <span style={{ ...badgeStyle("info"), background: "var(--surface-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-default)" }}>{spec.specRole || "—"}</span>
                       </td>
                       <td style={{ padding: "10px 12px", color: "var(--text-secondary)", fontSize: 12 }}>
                         {new Date(spec.dbUpdatedAt).toLocaleString()}

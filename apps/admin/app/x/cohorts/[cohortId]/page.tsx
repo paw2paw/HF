@@ -223,9 +223,9 @@ export default function CohortDashboardPage() {
                   fontSize: 10,
                   padding: "2px 8px",
                   background: cohort.isActive
-                    ? "color-mix(in srgb, #10b981 15%, transparent)"
+                    ? "color-mix(in srgb, var(--status-success-text) 15%, transparent)"
                     : "var(--surface-tertiary)",
-                  color: cohort.isActive ? "#10b981" : "var(--text-muted)",
+                  color: cohort.isActive ? "var(--status-success-text)" : "var(--text-muted)",
                   borderRadius: 4,
                   fontWeight: 600,
                 }}
@@ -452,10 +452,10 @@ function RosterTab({
                 borderRadius: 4,
                 background:
                   sortBy === s
-                    ? "color-mix(in srgb, #4338ca 15%, transparent)"
+                    ? "color-mix(in srgb, var(--accent-primary) 15%, transparent)"
                     : "transparent",
                 color:
-                  sortBy === s ? "#4338ca" : "var(--text-muted)",
+                  sortBy === s ? "var(--accent-primary)" : "var(--text-muted)",
                 cursor: "pointer",
                 fontWeight: sortBy === s ? 600 : 400,
               }}
@@ -727,7 +727,7 @@ function ActivityTab({ cohortId }: { cohortId: string }) {
                 transition: "border-color 0.15s",
               }}
               onMouseOver={(e) =>
-                (e.currentTarget.style.borderColor = "#4338ca")
+                (e.currentTarget.style.borderColor = "var(--accent-primary)")
               }
               onMouseOut={(e) =>
                 (e.currentTarget.style.borderColor = "var(--border-default)")
@@ -974,7 +974,7 @@ function SettingsTab({
             style={{
               fontSize: 13,
               color: message === "Saved"
-                ? "#10b981"
+                ? "var(--status-success-text)"
                 : "var(--status-error-text)",
             }}
           >
@@ -1170,7 +1170,7 @@ function InviteTab({ cohortId }: { cohortId: string }) {
               borderRadius: 4,
               background: "transparent",
               fontSize: 12,
-              color: copied ? "#10b981" : "var(--text-muted)",
+              color: copied ? "var(--status-success-text)" : "var(--text-muted)",
               cursor: "pointer",
               whiteSpace: "nowrap",
             }}
@@ -1314,7 +1314,7 @@ function InviteTab({ cohortId }: { cohortId: string }) {
             style={{
               fontSize: 13,
               color: message.startsWith("Created")
-                ? "#10b981"
+                ? "var(--status-success-text)"
                 : "var(--status-error-text)",
             }}
           >
@@ -1383,8 +1383,8 @@ function InviteTab({ cohortId }: { cohortId: string }) {
                     fontSize: 10,
                     padding: "2px 8px",
                     background:
-                      "color-mix(in srgb, #f59e0b 15%, transparent)",
-                    color: "#f59e0b",
+                      "color-mix(in srgb, var(--status-warning-text) 15%, transparent)",
+                    color: "var(--status-warning-text)",
                     borderRadius: 4,
                     fontWeight: 600,
                   }}

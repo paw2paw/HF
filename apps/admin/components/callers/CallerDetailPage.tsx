@@ -2530,7 +2530,7 @@ function CallDetailPanel({
                       <div style={{ color: "var(--text-muted)" }}>{ACTION_TYPE_ICONS[action.type] || <CheckSquare size={14} />}</div>
                       <span style={{ fontSize: 12, flex: 1 }}>{action.title}</span>
                       <span style={{ padding: "1px 6px", fontSize: 10, borderRadius: 8, fontWeight: 500, background: colors.bg, color: colors.text }}>{action.assignee}</span>
-                      <span style={{ fontSize: 10, color: "var(--text-muted)", padding: "1px 6px", borderRadius: 8, background: "var(--bg-secondary)" }}>{action.status}</span>
+                      <span style={{ fontSize: 10, color: "var(--text-muted)", padding: "1px 6px", borderRadius: 8, background: "var(--surface-secondary)" }}>{action.status}</span>
                     </div>
                   );
                 })}
@@ -8394,7 +8394,7 @@ function ActionsSubSection({
             display: "flex", alignItems: "center", gap: 4,
             padding: "5px 10px", fontSize: 11, borderRadius: 6,
             border: "1px solid var(--border-default)", cursor: "pointer",
-            background: showForm ? "var(--status-info-bg)" : "var(--bg-primary)",
+            background: showForm ? "var(--status-info-bg)" : "var(--surface-primary)",
             color: showForm ? "var(--button-primary-bg)" : "var(--text-default)",
             fontWeight: 500,
           }}
@@ -8407,22 +8407,22 @@ function ActionsSubSection({
       {showForm && (
         <div style={{
           padding: 16, marginBottom: 16, borderRadius: 8,
-          border: "1px solid var(--border-default)", background: "var(--bg-secondary)",
+          border: "1px solid var(--border-default)", background: "var(--surface-secondary)",
         }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <select value={formType} onChange={(e) => setFormType(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)" }}>
+            <select value={formType} onChange={(e) => setFormType(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--surface-primary)" }}>
               <option value="TASK">Task</option>
               <option value="HOMEWORK">Homework</option>
               <option value="SEND_MEDIA">Send Media</option>
               <option value="FOLLOWUP">Follow-up</option>
               <option value="REMINDER">Reminder</option>
             </select>
-            <select value={formAssignee} onChange={(e) => setFormAssignee(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)" }}>
+            <select value={formAssignee} onChange={(e) => setFormAssignee(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--surface-primary)" }}>
               <option value="CALLER">Caller</option>
               <option value="OPERATOR">Operator</option>
               <option value="AGENT">Agent</option>
             </select>
-            <select value={formPriority} onChange={(e) => setFormPriority(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)" }}>
+            <select value={formPriority} onChange={(e) => setFormPriority(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--surface-primary)" }}>
               <option value="LOW">Low</option>
               <option value="MEDIUM">Medium</option>
               <option value="HIGH">High</option>
@@ -8434,17 +8434,17 @@ function ActionsSubSection({
             placeholder="Action title..."
             value={formTitle}
             onChange={(e) => setFormTitle(e.target.value)}
-            style={{ width: "100%", padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)", marginBottom: 8 }}
+            style={{ width: "100%", padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--surface-primary)", marginBottom: 8 }}
           />
           <textarea
             placeholder="Description (optional)..."
             value={formDescription}
             onChange={(e) => setFormDescription(e.target.value)}
             rows={2}
-            style={{ width: "100%", padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--bg-primary)", resize: "vertical", marginBottom: 8 }}
+            style={{ width: "100%", padding: "6px 8px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-default)", background: "var(--surface-primary)", resize: "vertical", marginBottom: 8 }}
           />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button onClick={() => setShowForm(false)} style={{ padding: "5px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-default)", cursor: "pointer", background: "var(--bg-primary)" }}>Cancel</button>
+            <button onClick={() => setShowForm(false)} style={{ padding: "5px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-default)", cursor: "pointer", background: "var(--surface-primary)" }}>Cancel</button>
             <button onClick={handleCreate} disabled={submitting || !formTitle.trim()} style={{ padding: "5px 12px", fontSize: 11, borderRadius: 4, border: "none", cursor: "pointer", background: "var(--button-primary-bg)", color: "var(--button-primary-text)", opacity: submitting || !formTitle.trim() ? 0.5 : 1, fontWeight: 500 }}>
               {submitting ? "Creating..." : "Create"}
             </button>
@@ -8468,7 +8468,7 @@ function ActionsSubSection({
               style={{
                 display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
                 borderRadius: 6, border: "1px solid var(--border-default)",
-                background: isCompleted ? "var(--bg-secondary)" : "var(--bg-primary)",
+                background: isCompleted ? "var(--surface-secondary)" : "var(--surface-primary)",
                 opacity: isCompleted ? 0.7 : 1,
               }}
             >
@@ -8688,7 +8688,7 @@ function PlanProgressSection({
             <div key={e.session} style={{
               display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
               borderRadius: 6,
-              border: e.status === "current" ? "1px solid var(--accent-primary)" : "1px solid var(--border-secondary)",
+              border: e.status === "current" ? "1px solid var(--accent-primary)" : "1px solid var(--border-subtle)",
               background: e.status === "current"
                 ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)"
                 : e.status === "completed"

@@ -73,9 +73,9 @@ export default function ReportsPage() {
           />
         ))}
         {/* Area */}
-        <path d={areaD} fill="color-mix(in srgb, #3b82f6 12%, transparent)" />
+        <path d={areaD} fill="color-mix(in srgb, var(--accent-primary) 12%, transparent)" />
         {/* Line */}
-        <path d={lineD} fill="none" stroke="#3b82f6" strokeWidth={2} />
+        <path d={lineD} fill="none" stroke="var(--accent-primary)" strokeWidth={2} />
         {/* Labels */}
         <text x={padding.left} y={height - 4} fontSize={10} fill="var(--text-muted)">
           {data.callsPerDay[0].date.slice(5)}

@@ -253,7 +253,7 @@ export function SourcePageHeader({
                   style={{
                     fontSize: 9,
                     padding: "2px 6px",
-                    background: `${relInfo.color}15`,
+                    background: `color-mix(in srgb, ${relInfo.color} 10%, transparent)`,
                     color: relInfo.color,
                     borderRadius: 4,
                     fontWeight: 500,

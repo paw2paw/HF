@@ -368,7 +368,7 @@ export function ContentJobQueue() {
 
   const statusColor = (j: QueuedTask) => {
     if (isDone(j)) return "#16a34a";
-    if (isError(j)) return "#B71C1C";
+    if (isError(j)) return "var(--status-error-text)";
     return "var(--accent-primary)";
   };
 
@@ -442,7 +442,7 @@ export function ContentJobQueue() {
             gap: 8,
             padding: "10px 16px",
             borderRadius: 12,
-            border: "1px solid var(--border-primary)",
+            border: "1px solid var(--border-default)",
             background: "var(--surface-primary)",
             boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
             cursor: "pointer",
@@ -474,7 +474,7 @@ export function ContentJobQueue() {
             width: 360,
             maxHeight: 400,
             borderRadius: 12,
-            border: "1px solid var(--border-primary)",
+            border: "1px solid var(--border-default)",
             background: "var(--surface-primary)",
             boxShadow: "0 8px 32px rgba(0,0,0,0.16)",
             overflow: "hidden",
@@ -489,7 +489,7 @@ export function ContentJobQueue() {
               alignItems: "center",
               justifyContent: "space-between",
               padding: "12px 16px",
-              borderBottom: "1px solid var(--border-secondary)",
+              borderBottom: "1px solid var(--border-subtle)",
             }}
           >
             <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
@@ -519,7 +519,7 @@ export function ContentJobQueue() {
                 key={job.taskId}
                 style={{
                   padding: "12px 16px",
-                  borderBottom: "1px solid var(--border-secondary)",
+                  borderBottom: "1px solid var(--border-subtle)",
                   cursor: isDone(job) ? "pointer" : "default",
                 }}
                 onClick={() => handleClick(job)}

@@ -50,14 +50,14 @@ interface BaseGroup {
 // ── Badge Colors ───────────────────────────────────────
 
 const STATUS_COLORS: Record<ParameterStatus, { bg: string; text: string; label: string }> = {
-  INHERITED: { bg: "#dcfce7", text: "#14532d", label: "Inherited" },
-  OVERRIDDEN: { bg: "#fef3c7", text: "#78350f", label: "Overridden" },
-  NEW: { bg: "#dbeafe", text: "#1e3a8a", label: "New" },
+  INHERITED: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", label: "Inherited" },
+  OVERRIDDEN: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", label: "Overridden" },
+  NEW: { bg: "var(--status-info-bg)", text: "var(--status-info-text)", label: "New" },
 };
 
 const SOURCE_COLORS: Record<string, { bg: string; text: string }> = {
-  BASE: { bg: "#e5e7eb", text: "#374151" },
-  OVERLAY: { bg: "#e0e7ff", text: "#4338ca" },
+  BASE: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)" },
+  OVERLAY: { bg: "var(--status-info-bg)", text: "var(--status-info-text)" },
 };
 
 // ── Status Badge ───────────────────────────────────────
@@ -167,8 +167,8 @@ function ParameterCard({
 }) {
   const borderColors: Record<ParameterStatus, string> = {
     INHERITED: "var(--border-default)",
-    OVERRIDDEN: "#f59e0b",
-    NEW: "#3b82f6",
+    OVERRIDDEN: "var(--status-warning-text)",
+    NEW: "var(--status-info-text)",
   };
 
   return (
@@ -265,7 +265,7 @@ function ParameterCard({
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: "#f59e0b",
+                  color: "var(--status-warning-text)",
                   marginBottom: 4,
                   textTransform: "uppercase",
                 }}
@@ -343,7 +343,7 @@ function LayerStack({
             zIndex: 2,
           }}
         >
-          <div style={{ fontSize: 10, fontWeight: 600, color: "#6366f1", textTransform: "uppercase" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--accent-primary)", textTransform: "uppercase" }}>
             Overlay
           </div>
           <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginTop: 2 }}>
@@ -711,9 +711,9 @@ export default function LayersPage() {
               style={{
                 padding: 16,
                 borderRadius: 8,
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#dc2626",
+                background: "var(--status-error-bg)",
+                border: "1px solid var(--status-error-border)",
+                color: "var(--status-error-text)",
                 fontSize: 12,
               }}
             >

@@ -61,9 +61,9 @@ type PlaybookDetail = {
 const STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 
 const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
-  DRAFT: { bg: "#fef3c7", text: "#92400e", icon: "📝", desc: "Work in progress" },
-  PUBLISHED: { bg: "#dcfce7", text: "#166534", icon: "✅", desc: "Active and in use" },
-  ARCHIVED: { bg: "#f3f4f6", text: "#6b7280", icon: "📦", desc: "No longer active" },
+  DRAFT: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", icon: "📝", desc: "Work in progress" },
+  PUBLISHED: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", icon: "✅", desc: "Active and in use" },
+  ARCHIVED: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)", icon: "📦", desc: "No longer active" },
 };
 
 // Map playbook status to StatusBadge status type
@@ -299,7 +299,7 @@ export default function PlaybooksPage() {
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 600,
-        border: isActive ? `1px solid ${colors.text}40` : "1px solid var(--border-default)",
+        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
         borderRadius: 5,
         cursor: "pointer",
         background: isActive ? colors.bg : "var(--surface-secondary)",
@@ -721,8 +721,8 @@ export default function PlaybooksPage() {
                       disabled={publishing}
                       style={{
                         padding: "8px 16px",
-                        background: "#16a34a",
-                        color: "white",
+                        background: "var(--status-success-text)",
+                        color: "var(--accent-primary-text)",
                         border: "none",
                         borderRadius: 6,
                         fontWeight: 500,
@@ -835,8 +835,8 @@ export default function PlaybooksPage() {
                                         fontSize: 9,
                                         padding: "1px 4px",
                                         borderRadius: 3,
-                                        background: outputTypeColors[item.spec.outputType]?.bg || "#e5e7eb",
-                                        color: outputTypeColors[item.spec.outputType]?.text || "#374151",
+                                        background: outputTypeColors[item.spec.outputType]?.bg || "var(--surface-secondary)",
+                                        color: outputTypeColors[item.spec.outputType]?.text || "var(--text-secondary)",
                                       }}
                                     >
                                       {item.spec.outputType}

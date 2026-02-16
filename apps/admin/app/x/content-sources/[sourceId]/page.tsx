@@ -12,6 +12,8 @@ type ContentSource = {
   name: string;
   description: string | null;
   trustLevel: string;
+  documentType: string;
+  documentTypeSource: string | null;
   publisherOrg: string | null;
   accreditingBody: string | null;
   accreditationRef: string | null;
@@ -62,13 +64,40 @@ const TRUST_LEVELS = [
 ];
 
 const CATEGORIES = [
+  // Textbook categories
   { value: "fact", label: "Fact", color: "#2563EB" },
   { value: "definition", label: "Definition", color: "#7C3AED" },
   { value: "threshold", label: "Threshold", color: "#D97706" },
   { value: "rule", label: "Rule", color: "#DC2626" },
   { value: "process", label: "Process", color: "#059669" },
   { value: "example", label: "Example", color: "#6B7280" },
+  // Worksheet categories
+  { value: "question", label: "Question", color: "#2563EB" },
+  { value: "activity", label: "Activity", color: "#059669" },
+  { value: "information", label: "Information", color: "#7C3AED" },
+  { value: "reference", label: "Reference", color: "#D97706" },
+  // Curriculum categories
+  { value: "learning_outcome", label: "Learning Outcome", color: "#2563EB" },
+  { value: "assessment_criterion", label: "Assessment Criterion", color: "#059669" },
+  { value: "range", label: "Range/Scope", color: "#D97706" },
+  // Assessment categories
+  { value: "answer", label: "Answer", color: "#16a34a" },
+  { value: "misconception", label: "Misconception", color: "#DC2626" },
+  // Example categories
+  { value: "concept", label: "Concept", color: "#2563EB" },
+  { value: "observation", label: "Observation", color: "#059669" },
+  { value: "discussion_point", label: "Discussion Point", color: "#7C3AED" },
+  { value: "context", label: "Context", color: "#6B7280" },
 ];
+
+const DOCUMENT_TYPES: Record<string, { label: string; icon: string }> = {
+  TEXTBOOK: { label: "Textbook", icon: "\uD83D\uDCD6" },
+  CURRICULUM: { label: "Curriculum", icon: "\uD83C\uDF93" },
+  WORKSHEET: { label: "Worksheet", icon: "\uD83D\uDCDD" },
+  EXAMPLE: { label: "Example", icon: "\uD83D\uDCC4" },
+  ASSESSMENT: { label: "Assessment", icon: "\u2705" },
+  REFERENCE: { label: "Reference", icon: "\uD83D\uDCD1" },
+};
 
 const PAGE_SIZE = 50;
 
@@ -255,7 +284,7 @@ export default function SourceDetailPage() {
   if (!source) {
     return (
       <div style={{ padding: 24 }}>
-        <p style={{ color: "#B71C1C" }}>Source not found</p>
+        <p style={{ color: "var(--status-error-text)" }}>Source not found</p>
         <Link href="/x/content-sources" style={{ color: "var(--accent-primary)", fontSize: 13 }}>Back to Content Sources</Link>
       </div>
     );
@@ -278,8 +307,31 @@ export default function SourceDetailPage() {
             {source.name}
           </h1>
           <TrustBadge level={source.trustLevel} />
+          {source.documentType && DOCUMENT_TYPES[source.documentType] && (
+            <span
+              title={source.documentTypeSource ? `Classified by: ${source.documentTypeSource}` : "Default"}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: 500,
+                color: "var(--text-secondary)",
+                backgroundColor: "var(--surface-tertiary)",
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              <span style={{ fontSize: 12 }}>{DOCUMENT_TYPES[source.documentType].icon}</span>
+              {DOCUMENT_TYPES[source.documentType].label}
+              {source.documentTypeSource?.startsWith("ai:") && (
+                <span style={{ fontSize: 9, color: "var(--text-muted)", fontStyle: "italic" }}>auto</span>
+              )}
+            </span>
+          )}
           {!source.isActive && (
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#B71C1C", padding: "2px 8px", borderRadius: 4, backgroundColor: "#FFEBEE" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--status-error-text)", padding: "2px 8px", borderRadius: 4, backgroundColor: "var(--status-error-bg)" }}>
               Inactive
             </span>
           )}
@@ -330,7 +382,7 @@ export default function SourceDetailPage() {
           fontSize: 13,
           fontWeight: 500,
           ...(feedback.type === "error"
-            ? { background: "#FFEBEE", color: "#B71C1C", border: "1px solid #FFCDD2" }
+            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid #FFCDD2" }
             : { background: "#E8F5E9", color: "#2E7D32", border: "1px solid #C8E6C9" }),
         }}>
           {feedback.message}
@@ -345,16 +397,16 @@ export default function SourceDetailPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
-            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-primary)",
-            backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, width: 220,
+            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
+            backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: 220,
           }}
         />
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
           style={{
-            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-primary)",
-            backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13,
+            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
+            backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
           }}
         >
           <option value="">All categories</option>
@@ -364,8 +416,8 @@ export default function SourceDetailPage() {
           value={filterReview}
           onChange={(e) => setFilterReview(e.target.value)}
           style={{
-            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-primary)",
-            backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13,
+            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
+            backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
           }}
         >
           <option value="">All review status</option>
@@ -406,7 +458,7 @@ export default function SourceDetailPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid var(--border-primary)" }}>
+                <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
                   <th style={{ width: 36, padding: "8px 4px 8px 8px" }}>
                     <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} />
                   </th>
@@ -522,7 +574,7 @@ function paginationBtnStyle(disabled: boolean): React.CSSProperties {
   return {
     padding: "6px 14px",
     borderRadius: 6,
-    border: "1px solid var(--border-primary)",
+    border: "1px solid var(--border-default)",
     background: disabled ? "transparent" : "var(--surface-primary)",
     color: disabled ? "var(--text-muted)" : "var(--text-primary)",
     fontSize: 12,
@@ -575,7 +627,7 @@ function AssertionRow({
           onToggleExpand();
         }}
         style={{
-          borderBottom: isExpanded ? "none" : "1px solid var(--border-secondary)",
+          borderBottom: isExpanded ? "none" : "1px solid var(--border-subtle)",
           cursor: "pointer",
           background: isSelected
             ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)"
@@ -613,7 +665,7 @@ function AssertionRow({
 
       {/* Expanded detail / edit */}
       {isExpanded && (
-        <tr style={{ borderBottom: "1px solid var(--border-secondary)" }}>
+        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
           <td colSpan={5} style={{ padding: "0 10px 16px 46px" }}>
             {isEditing ? (
               <EditForm
@@ -778,7 +830,7 @@ function DetailView({
 const actionBtnStyle: React.CSSProperties = {
   padding: "5px 14px",
   borderRadius: 6,
-  border: "1px solid var(--border-primary)",
+  border: "1px solid var(--border-default)",
   background: "var(--surface-primary)",
   color: "var(--text-primary)",
   fontSize: 12,
@@ -877,8 +929,8 @@ function EditForm({
   };
 
   const inputStyle: React.CSSProperties = {
-    padding: "5px 8px", borderRadius: 4, border: "1px solid var(--border-primary)",
-    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, width: "100%",
+    padding: "5px 8px", borderRadius: 4, border: "1px solid var(--border-default)",
+    backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: "100%",
   };
   const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 2 };
 
@@ -991,14 +1043,14 @@ function EditForm({
         <div style={{ marginLeft: "auto" }}>
           {confirmDelete ? (
             <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: "#B71C1C" }}>
+              <span style={{ fontSize: 12, color: "var(--status-error-text)" }}>
                 {a._count.children > 0 ? `Has ${a._count.children} children` : "Delete permanently?"}
               </span>
               {a._count.children === 0 && (
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  style={{ ...actionBtnStyle, background: "#B71C1C", color: "#fff", border: "none", fontSize: 11, opacity: deleting ? 0.6 : 1 }}
+                  style={{ ...actionBtnStyle, background: "var(--status-error-text)", color: "#fff", border: "none", fontSize: 11, opacity: deleting ? 0.6 : 1 }}
                 >
                   {deleting ? "..." : "Confirm"}
                 </button>
@@ -1013,7 +1065,7 @@ function EditForm({
           ) : (
             <button
               onClick={() => setConfirmDelete(true)}
-              style={{ ...actionBtnStyle, color: "#B71C1C", borderColor: "#FFCDD2" }}
+              style={{ ...actionBtnStyle, color: "var(--status-error-text)", borderColor: "#FFCDD2" }}
             >
               Delete
             </button>

@@ -281,9 +281,9 @@ export default function CohortsPage() {
                   transition: "border-color 0.15s, box-shadow 0.15s",
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.borderColor = "#4338ca";
+                  e.currentTarget.style.borderColor = "var(--accent-primary)";
                   e.currentTarget.style.boxShadow =
-                    "0 2px 8px color-mix(in srgb, #4338ca 15%, transparent)";
+                    "0 2px 8px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
                 }}
                 onMouseOut={(e) => {
                   e.currentTarget.style.borderColor = "var(--border-default)";
@@ -330,9 +330,9 @@ export default function CohortsPage() {
                       fontSize: 10,
                       padding: "2px 8px",
                       background: cohort.isActive
-                        ? "color-mix(in srgb, #10b981 15%, transparent)"
+                        ? "color-mix(in srgb, var(--status-success-text) 15%, transparent)"
                         : "var(--surface-tertiary)",
-                      color: cohort.isActive ? "#10b981" : "var(--text-muted)",
+                      color: cohort.isActive ? "var(--status-success-text)" : "var(--text-muted)",
                       borderRadius: 4,
                       fontWeight: 600,
                     }}

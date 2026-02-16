@@ -196,7 +196,7 @@ export default function ObserveCallPage() {
             gap: 6,
             fontSize: 13,
             fontWeight: 500,
-            color: callEnded ? "var(--text-muted)" : "#059669",
+            color: callEnded ? "var(--text-muted)" : "var(--status-success-text)",
           }}
         >
           {!callEnded && (
@@ -205,7 +205,7 @@ export default function ObserveCallPage() {
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                background: "#059669",
+                background: "var(--status-success-text)",
                 display: "inline-block",
                 animation: "pulse 2s infinite",
               }}
@@ -257,13 +257,13 @@ export default function ObserveCallPage() {
                 lineHeight: 1.4,
                 ...(isTeacher
                   ? {
-                      background: "#fffbeb",
-                      border: "1px solid #fcd34d",
+                      background: "var(--status-warning-bg)",
+                      border: "1px solid var(--status-warning-border)",
                     }
                   : isUser
                     ? {
-                        background: "#DCF8C6",
-                        color: "#111B21",
+                        background: "var(--status-success-bg)",
+                        color: "var(--text-primary)",
                       }
                     : {
                         background: "var(--surface-primary)",
@@ -277,7 +277,7 @@ export default function ObserveCallPage() {
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#d97706",
+                    color: "var(--status-warning-text)",
                     marginBottom: 2,
                   }}
                 >
@@ -355,8 +355,8 @@ export default function ObserveCallPage() {
               padding: "8px 16px",
               borderRadius: 8,
               border: "none",
-              background: "#f59e0b",
-              color: "white",
+              background: "var(--status-warning-text)",
+              color: "var(--accent-primary-text)",
               fontSize: 14,
               fontWeight: 600,
               cursor: sending ? "wait" : "pointer",

@@ -7,6 +7,9 @@ import { useViewMode } from "@/contexts/ViewModeContext";
 import { AdvancedSection } from "@/components/shared/AdvancedSection";
 import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
+import { theme } from "@/lib/styles/theme";
+import { SessionCountPicker } from "@/components/shared/SessionCountPicker";
+import { ProgressStepper } from "@/components/shared/ProgressStepper";
 
 // ------------------------------------------------------------------
 // Media types
@@ -66,7 +69,7 @@ function TagPills({ tags }: { tags: string[] }) {
         const cfg = SOURCE_TAGS.find((t) => t.value === tag);
         const c = cfg?.color || "#6B7280";
         return (
-          <span key={tag} style={{ display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color: c, backgroundColor: `${c}15`, textTransform: "uppercase" }}>
+          <span key={tag} style={{ display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color: c, backgroundColor: `color-mix(in srgb, ${c} 15%, transparent)`, textTransform: "uppercase" }}>
             {cfg?.label || tag}
           </span>
         );
@@ -191,6 +194,7 @@ export default function SubjectDetailPage() {
   const [lessonPlanGenerating, setLessonPlanGenerating] = useState(false);
   const [lessonPlanDraft, setLessonPlanDraft] = useState<any[]>([]);
   const [lessonPlanReasoning, setLessonPlanReasoning] = useState<string | null>(null);
+  const [sessionCount, setSessionCount] = useState<number | null>(null);
 
   // Derived: check if there's an active curriculum generation for this subject
   const activeCurriculumJob = jobs.find(
@@ -275,7 +279,7 @@ export default function SubjectDetailPage() {
       const res = await fetch(`/api/curricula/${curriculum.id}/lesson-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ totalSessionTarget: sessionCount || undefined }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -686,7 +690,7 @@ export default function SubjectDetailPage() {
   // ------------------------------------------------------------------
 
   if (loading) return <div style={{ padding: 24, color: "var(--text-muted)" }}>Loading...</div>;
-  if (!subject) return <div style={{ padding: 24, color: "#B71C1C" }}>Subject not found</div>;
+  if (!subject) return <div style={{ padding: 24, color: "var(--status-error-text)" }}>Subject not found</div>;
 
   const linkedDomainIds = new Set(subject.domains.map((d) => d.domain.id));
   const availableDomains = allDomains.filter((d) => !linkedDomainIds.has(d.id));
@@ -697,7 +701,7 @@ export default function SubjectDetailPage() {
   const curriculumModules: CurriculumModule[] = curriculum?.notableInfo?.modules || [];
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
+    <div style={theme.page}>
       {/* Back link */}
       <button
         onClick={() => router.push("/x/subjects")}
@@ -708,14 +712,14 @@ export default function SubjectDetailPage() {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 12, borderRadius: 6, background: "#FFEBEE", color: "#B71C1C", marginBottom: 16, fontSize: 13 }}>
+        <div style={{ ...theme.errorAlert, fontSize: 13 }}>
           {error}
-          <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", cursor: "pointer" }}>x</button>
+          <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "var(--status-error-text)" }}>x</button>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
+      <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid var(--border-default)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
           {editingName ? (
             <input
@@ -730,12 +734,12 @@ export default function SubjectDetailPage() {
                 if (e.key === "Escape") { setEditName(subject.name); setEditingName(false); }
               }}
               autoFocus
-              style={{ fontSize: 24, fontWeight: 700, border: "1px solid var(--accent)", borderRadius: 4, padding: "2px 8px", width: 400 }}
+              style={{ fontSize: 28, fontWeight: 700, border: "1px solid var(--accent-primary)", borderRadius: 6, padding: "2px 8px", width: 400, background: "var(--surface-primary)", color: "var(--text-primary)" }}
             />
           ) : (
             <h1
               onClick={() => setEditingName(true)}
-              style={{ fontSize: 24, fontWeight: 700, margin: 0, cursor: "pointer" }}
+              style={{ ...theme.h1, cursor: "pointer" }}
               title="Click to edit"
             >
               {subject.name}
@@ -743,7 +747,7 @@ export default function SubjectDetailPage() {
           )}
           <TrustBadge level={subject.defaultTrustLevel} />
           {subject.qualificationLevel && (
-            <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 4, background: "var(--bg-secondary)", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 4, background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
               {subject.qualificationLevel}
             </span>
           )}
@@ -760,7 +764,7 @@ export default function SubjectDetailPage() {
             }}
             autoFocus
             rows={2}
-            style={{ width: "100%", fontSize: 14, border: "1px solid var(--accent)", borderRadius: 4, padding: 8, resize: "vertical" }}
+            style={{ width: "100%", fontSize: 14, border: "1px solid var(--accent-primary)", borderRadius: 4, padding: 8, resize: "vertical" }}
           />
         ) : (
           <p
@@ -772,14 +776,14 @@ export default function SubjectDetailPage() {
           </p>
         )}
 
-        {/* Trust level selector + stats */}
+        {/* Trust level selector + stats + actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 600 }}>Default trust:</span>
             <select
               value={subject.defaultTrustLevel}
               onChange={(e) => saveSubjectField("defaultTrustLevel", e.target.value)}
-              style={{ fontSize: 12, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border)" }}
+              style={{ fontSize: 12, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-default)" }}
             >
               {TRUST_LEVELS.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -789,12 +793,62 @@ export default function SubjectDetailPage() {
           <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
             {subject.sources.length} sources / {totalAssertions} assertions
           </span>
+          <button
+            onClick={() => {
+              const params = new URLSearchParams({ subjectId });
+              if (subject.domains.length === 1) params.set("domainId", subject.domains[0].domain.id);
+              router.push(`/x/content-wizard?${params.toString()}`);
+            }}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "5px 12px",
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-secondary)",
+              color: "var(--accent-primary)",
+              cursor: "pointer",
+              marginLeft: "auto",
+            }}
+          >
+            Content Wizard
+          </button>
         </div>
       </div>
 
+      {/* === PROGRESS STEPPER === */}
+      <ProgressStepper
+        steps={[
+          {
+            label: "Sources",
+            completed: subject.sources.length > 0,
+            active: subject.sources.length === 0,
+            onClick: () => document.getElementById("section-sources")?.scrollIntoView({ behavior: "smooth" }),
+          },
+          {
+            label: "Curriculum",
+            completed: !!curriculum,
+            active: subject.sources.length > 0 && !curriculum,
+            onClick: () => document.getElementById("section-curriculum")?.scrollIntoView({ behavior: "smooth" }),
+          },
+          {
+            label: "Lesson Plan",
+            completed: !!lessonPlan,
+            active: !!curriculum && !lessonPlan,
+            onClick: () => document.getElementById("section-lesson-plan")?.scrollIntoView({ behavior: "smooth" }),
+          },
+          {
+            label: "Domains",
+            completed: subject.domains.length > 0,
+            active: !!lessonPlan && subject.domains.length === 0,
+            onClick: () => document.getElementById("section-domains")?.scrollIntoView({ behavior: "smooth" }),
+          },
+        ]}
+      />
+
       {/* === SOURCES SECTION === */}
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Sources</h2>
+      <section id="section-sources" style={{ marginBottom: 32 }}>
+        <h2 style={{ ...theme.h2, marginBottom: 12 }}>Sources</h2>
 
         {/* Source cards — unclassified (0 assertions + ai:*) float to top */}
         {subject.sources.length > 0 && (() => {
@@ -812,14 +866,14 @@ export default function SubjectDetailPage() {
                   <div
                     key={ss.id}
                     style={{
-                      padding: 12,
-                      borderRadius: 6,
+                      padding: 16,
+                      borderRadius: 10,
                       border: awaiting
-                        ? "1px solid color-mix(in srgb, var(--accent) 40%, transparent)"
-                        : "1px solid var(--border)",
+                        ? "1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent)"
+                        : "1px solid var(--border-default)",
                       background: awaiting
-                        ? "color-mix(in srgb, var(--accent) 3%, var(--bg))"
-                        : "var(--bg)",
+                        ? "color-mix(in srgb, var(--accent-primary) 3%, var(--surface-primary))"
+                        : "var(--surface-primary)",
                     }}
                   >
                     {/* Row 1: badges + name + stats */}
@@ -846,7 +900,7 @@ export default function SubjectDetailPage() {
                                 fontWeight: 600,
                                 padding: "3px 8px",
                                 borderRadius: 4,
-                                border: `1px solid ${active ? tag.color : "var(--border)"}`,
+                                border: `1px solid ${active ? tag.color : "var(--border-default)"}`,
                                 background: active ? `color-mix(in srgb, ${tag.color} 12%, transparent)` : "transparent",
                                 color: active ? tag.color : "var(--text-muted)",
                                 cursor: "pointer",
@@ -860,7 +914,7 @@ export default function SubjectDetailPage() {
                         })}
                         <button
                           onClick={() => removeSource(ss.sourceId)}
-                          style={{ background: "none", border: "none", color: "#B71C1C", cursor: "pointer", fontSize: 13, padding: "2px 6px" }}
+                          style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", fontSize: 13, padding: "2px 6px" }}
                           title="Remove from subject"
                         >
                           x
@@ -870,12 +924,12 @@ export default function SubjectDetailPage() {
 
                     {/* Row 2: Classification actions (awaiting sources — file stored, ready to extract) */}
                     {isAdvanced && awaiting && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border) 50%, transparent)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Type:</span>
                         <select
                           value={ss.source.documentType}
                           onChange={(e) => changeDocumentType(ss.sourceId, e.target.value)}
-                          style={{ fontSize: 12, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border)" }}
+                          style={{ fontSize: 12, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-default)" }}
                         >
                           {DOCUMENT_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label} — {t.desc}</option>
@@ -885,13 +939,10 @@ export default function SubjectDetailPage() {
                           onClick={() => triggerExtraction(ss.sourceId, ss.source.name)}
                           disabled={isExtracting}
                           style={{
-                            padding: "4px 12px",
-                            borderRadius: 4,
-                            border: "none",
-                            background: "var(--accent)",
-                            color: "#fff",
+                            ...theme.btnSmall,
+                            background: "var(--accent-primary)",
+                            color: "var(--accent-primary-text)",
                             fontWeight: 600,
-                            fontSize: 12,
                             cursor: isExtracting ? "wait" : "pointer",
                             opacity: isExtracting ? 0.6 : 1,
                           }}
@@ -901,12 +952,8 @@ export default function SubjectDetailPage() {
                         <button
                           onClick={() => loadSubject()}
                           style={{
-                            padding: "4px 12px",
-                            borderRadius: 4,
-                            border: "1px solid var(--border)",
-                            background: "var(--bg)",
-                            fontSize: 12,
-                            cursor: "pointer",
+                            ...theme.btnSmall,
+                            border: "1px solid var(--border-default)",
                           }}
                           title="Keep this document for lesson use without extracting assertions"
                         >
@@ -932,8 +979,8 @@ export default function SubjectDetailPage() {
                   borderRadius: 4,
                   marginBottom: 4,
                   fontSize: 13,
-                  background: r.ok ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "#FFEBEE",
-                  color: r.ok ? "var(--text)" : "#B71C1C",
+                  background: r.ok ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : "var(--status-error-bg)",
+                  color: r.ok ? "var(--text-primary)" : "var(--status-error-text)",
                 }}
               >
                 {r.ok
@@ -965,13 +1012,13 @@ export default function SubjectDetailPage() {
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           style={{
-            border: `2px dashed ${isDragging ? "var(--accent)" : "var(--border)"}`,
+            border: `2px dashed ${isDragging ? "var(--accent-primary)" : "var(--border-default)"}`,
             borderRadius: 8,
             padding: 32,
             textAlign: "center",
             cursor: "pointer",
             transition: "all 0.15s",
-            background: isDragging ? "color-mix(in srgb, var(--accent) 5%, transparent)" : "transparent",
+            background: isDragging ? "color-mix(in srgb, var(--accent-primary) 5%, transparent)" : "transparent",
           }}
         >
           <input
@@ -983,7 +1030,7 @@ export default function SubjectDetailPage() {
             style={{ display: "none" }}
           />
           <div style={{ fontSize: 28, marginBottom: 8 }}>{isDragging ? "+" : ""}</div>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: isDragging ? "var(--accent)" : "var(--text)" }}>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: isDragging ? "var(--accent-primary)" : "var(--text-primary)" }}>
             {isDragging ? "Drop files here" : "Drag documents here or click to upload"}
           </p>
           <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
@@ -993,9 +1040,9 @@ export default function SubjectDetailPage() {
       </section>
 
       {/* === CURRICULUM SECTION === */}
-      <section style={{ marginBottom: 32 }}>
+      <section id="section-curriculum" style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Curriculum</h2>
+          <h2 style={{ ...theme.h2 }}>Curriculum</h2>
           {isAdvanced && (
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {generatingCurriculum && (
@@ -1008,12 +1055,8 @@ export default function SubjectDetailPage() {
                   onClick={generateCurriculum}
                   disabled={generatingCurriculum}
                   style={{
-                    padding: "6px 14px",
-                    borderRadius: 6,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg)",
-                    fontWeight: 600,
-                    fontSize: 13,
+                    ...theme.btnSecondary, fontSize: 13, fontWeight: 600,
+                    border: "1px solid var(--border-default)",
                     cursor: generatingCurriculum ? "not-allowed" : "pointer",
                     opacity: generatingCurriculum ? 0.6 : 1,
                   }}
@@ -1035,11 +1078,8 @@ export default function SubjectDetailPage() {
           {/* Auto-trigger notice */}
           {activeExtractionJobs.length > 0 && !generatingCurriculum && (
             <div style={{
-              padding: "8px 12px",
-              borderRadius: 6,
+              ...theme.infoPanel,
               background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
-              fontSize: 13,
-              color: "var(--text-secondary)",
               marginBottom: 12,
             }}>
               {activeExtractionJobs.length} extraction{activeExtractionJobs.length > 1 ? "s" : ""} running &mdash; curriculum will generate automatically when complete.
@@ -1048,20 +1088,20 @@ export default function SubjectDetailPage() {
 
           {/* Curriculum preview (unsaved) */}
           {curriculumPreview && (
-            <div style={{ padding: 16, borderRadius: 8, border: "2px solid var(--accent)", marginBottom: 16, background: "color-mix(in srgb, var(--accent) 3%, transparent)" }}>
+            <div style={{ ...theme.cardHighlight, marginBottom: 16, background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontWeight: 600, fontSize: 14, color: "var(--accent)" }}>Generated Preview</span>
+                <span style={{ fontWeight: 600, fontSize: 14, color: "var(--accent-primary)" }}>Generated Preview</span>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
                     onClick={saveCurriculum}
                     disabled={saving}
-                    style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                    style={{ ...theme.btnPrimary, fontSize: 13 }}
                   >
                     {saving ? "Saving..." : "Save Curriculum"}
                   </button>
                   <button
                     onClick={() => setCurriculumPreview(null)}
-                    style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)", fontSize: 13, cursor: "pointer" }}
+                    style={{ ...theme.btnSecondary, fontSize: 13, border: "1px solid var(--border-default)" }}
                   >
                     Discard
                   </button>
@@ -1092,26 +1132,35 @@ export default function SubjectDetailPage() {
 
       {/* === LESSON PLAN SECTION === */}
       {curriculum && (
-        <section style={{ marginBottom: 32 }}>
+        <section id="section-lesson-plan" style={{ marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Lesson Plan</h2>
+            <h2 style={{ ...theme.h2 }}>Lesson Plan</h2>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {lessonPlanGenerating && (
                 <span style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 600 }}>
                   Generating...
                 </span>
               )}
+            </div>
+          </div>
+
+          {/* Session count picker */}
+          {!lessonPlanEditing && (
+            <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
+          )}
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
               <button
                 onClick={generateLessonPlan}
                 disabled={lessonPlanGenerating}
                 style={{
-                  padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-primary)",
-                  background: "var(--surface-primary)", fontWeight: 600, fontSize: 13,
+                  ...theme.btnSecondary, fontSize: 13, fontWeight: 600,
+                  border: "1px solid var(--border-default)",
                   cursor: lessonPlanGenerating ? "not-allowed" : "pointer",
                   opacity: lessonPlanGenerating ? 0.6 : 1,
                 }}
               >
-                {lessonPlan ? "Regenerate Plan" : "Generate Plan"}
+                {lessonPlan ? "Regenerate Plan" : "Generate Plan"}{sessionCount ? ` (${sessionCount} sessions)` : ""}
               </button>
               {lessonPlan && !lessonPlanEditing && (
                 <button
@@ -1120,22 +1169,21 @@ export default function SubjectDetailPage() {
                     setLessonPlanEditing(true);
                   }}
                   style={{
-                    padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-primary)",
-                    background: "var(--surface-primary)", fontSize: 13, cursor: "pointer",
+                    ...theme.btnSecondary, fontSize: 13,
+                    border: "1px solid var(--border-default)",
                   }}
                 >
                   Edit
                 </button>
               )}
-            </div>
           </div>
 
           {/* AI reasoning */}
           {lessonPlanReasoning && lessonPlanEditing && (
             <div style={{
-              padding: "8px 12px", borderRadius: 6, marginBottom: 12, fontSize: 13,
+              ...theme.infoPanel, marginBottom: 12,
               background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
-              color: "var(--text-secondary)", fontStyle: "italic",
+              fontStyle: "italic",
             }}>
               AI reasoning: {lessonPlanReasoning}
             </div>
@@ -1171,8 +1219,8 @@ export default function SubjectDetailPage() {
       )}
 
       {/* === DOMAINS SECTION === */}
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Domains</h2>
+      <section id="section-domains" style={{ marginBottom: 32 }}>
+        <h2 style={{ ...theme.h2, marginBottom: 12 }}>Domains</h2>
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: -8, marginBottom: 12 }}>
           Link this subject to domains so the AI tutor can teach it to callers in those domains.
         </p>
@@ -1189,15 +1237,15 @@ export default function SubjectDetailPage() {
                   gap: 6,
                   padding: "6px 12px",
                   borderRadius: 6,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-secondary)",
                   fontSize: 13,
                 }}
               >
                 <span style={{ fontWeight: 600 }}>{sd.domain.name}</span>
                 <button
                   onClick={() => unlinkDomain(sd.domain.id)}
-                  style={{ background: "none", border: "none", color: "#B71C1C", cursor: "pointer", fontSize: 12, padding: "0 2px" }}
+                  style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", fontSize: 12, padding: "0 2px" }}
                   title="Unlink domain"
                 >
                   x
@@ -1213,7 +1261,7 @@ export default function SubjectDetailPage() {
             <select
               id="link-domain-select"
               defaultValue=""
-              style={{ fontSize: 13, padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border)" }}
+              style={{ fontSize: 13, padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-default)" }}
             >
               <option value="" disabled>Select domain...</option>
               {availableDomains.map((d) => (
@@ -1227,13 +1275,8 @@ export default function SubjectDetailPage() {
               }}
               disabled={linkingDomain}
               style={{
-                padding: "6px 14px",
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
+                ...theme.btnSecondary, fontSize: 13, fontWeight: 600,
+                border: "1px solid var(--border-default)",
               }}
             >
               {linkingDomain ? "Linking..." : "Link"}
@@ -1252,7 +1295,7 @@ export default function SubjectDetailPage() {
       {/* === MEDIA LIBRARY SECTION === */}
       <section style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Media Library</h2>
+          <h2 style={{ ...theme.h2 }}>Media Library</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {/* Type filter */}
             {["all", "image", "pdf", "audio"].map((f) => (
@@ -1264,9 +1307,9 @@ export default function SubjectDetailPage() {
                   fontWeight: 600,
                   padding: "4px 10px",
                   borderRadius: 4,
-                  border: `1px solid ${mediaTypeFilter === f ? "var(--accent)" : "var(--border)"}`,
-                  background: mediaTypeFilter === f ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent",
-                  color: mediaTypeFilter === f ? "var(--accent)" : "var(--text-muted)",
+                  border: `1px solid ${mediaTypeFilter === f ? "var(--accent-primary)" : "var(--border-default)"}`,
+                  background: mediaTypeFilter === f ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
+                  color: mediaTypeFilter === f ? "var(--accent-primary)" : "var(--text-muted)",
                   cursor: "pointer",
                   textTransform: "capitalize",
                 }}
@@ -1295,15 +1338,15 @@ export default function SubjectDetailPage() {
                 <div
                   key={m.id}
                   style={{
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg)",
+                    borderRadius: 10,
+                    border: "1px solid var(--border-default)",
+                    background: "var(--surface-primary)",
                     overflow: "hidden",
                     position: "relative",
                   }}
                 >
                   {/* Preview */}
-                  <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-secondary)" }}>
+                  <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--surface-secondary)" }}>
                     {isImage ? (
                       <img
                         src={`/api/media/${m.id}`}
@@ -1337,7 +1380,7 @@ export default function SubjectDetailPage() {
                       <TrustBadge level={m.trustLevel} />
                       <button
                         onClick={() => unlinkMedia(m.id)}
-                        style={{ background: "none", border: "none", color: "#B71C1C", cursor: "pointer", fontSize: 11, padding: "2px 4px" }}
+                        style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", fontSize: 11, padding: "2px 4px" }}
                         title="Remove from subject"
                       >
                         Remove
@@ -1367,13 +1410,13 @@ export default function SubjectDetailPage() {
           }}
           onClick={() => mediaFileRef.current?.click()}
           style={{
-            border: `2px dashed ${mediaDragging ? "var(--accent)" : "var(--border)"}`,
+            border: `2px dashed ${mediaDragging ? "var(--accent-primary)" : "var(--border-default)"}`,
             borderRadius: 8,
             padding: 24,
             textAlign: "center",
             cursor: mediaUploading ? "wait" : "pointer",
             transition: "all 0.15s",
-            background: mediaDragging ? "color-mix(in srgb, var(--accent) 5%, transparent)" : "transparent",
+            background: mediaDragging ? "color-mix(in srgb, var(--accent-primary) 5%, transparent)" : "transparent",
             opacity: mediaUploading ? 0.6 : 1,
           }}
         >
@@ -1388,7 +1431,7 @@ export default function SubjectDetailPage() {
             }}
             style={{ display: "none" }}
           />
-          <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: mediaDragging ? "var(--accent)" : "var(--text)" }}>
+          <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: mediaDragging ? "var(--accent-primary)" : "var(--text-primary)" }}>
             {mediaUploading ? "Uploading..." : mediaDragging ? "Drop media here" : "Drag media files here or click to upload"}
           </p>
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
@@ -1415,9 +1458,9 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
       ) : (
         <div style={{ display: "grid", gap: 8 }}>
           {modules.map((mod) => (
-            <div key={mod.id} style={{ padding: 12, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)" }}>
+            <div key={mod.id} style={{ ...theme.card }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", fontFamily: "monospace" }}>{mod.id}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-primary)", fontFamily: "monospace" }}>{mod.id}</span>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{mod.title}</span>
                 {mod.estimatedDurationMinutes && (
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{mod.estimatedDurationMinutes}min</span>
@@ -1433,7 +1476,7 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
                   </span>
                   <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
                     {mod.learningOutcomes.map((lo, i) => (
-                      <li key={i} style={{ marginBottom: 2, color: "var(--text)" }}>{lo}</li>
+                      <li key={i} style={{ marginBottom: 2, color: "var(--text-primary)" }}>{lo}</li>
                     ))}
                   </ul>
                 </div>
@@ -1441,7 +1484,7 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
               {mod.keyTerms && mod.keyTerms.length > 0 && (
                 <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {mod.keyTerms.map((t, i) => (
-                    <span key={i} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-muted)" }}>
+                    <span key={i} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
                       {t}
                     </span>
                   ))}
@@ -1494,7 +1537,7 @@ function LessonPlanView({ entries }: { entries: any[] }) {
           <div key={e.session} style={{
             display: "flex", alignItems: "center", gap: 10, padding: "6px 10px",
             borderRadius: 6, background: "var(--surface-primary)",
-            border: "1px solid var(--border-secondary)",
+            border: "1px solid var(--border-subtle)",
           }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", minWidth: 24, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
               {e.session}.
@@ -1543,8 +1586,8 @@ function LessonPlanEditor({
   };
 
   const inputStyle: React.CSSProperties = {
-    padding: "4px 6px", borderRadius: 4, border: "1px solid var(--border-primary)",
-    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12,
+    padding: "4px 6px", borderRadius: 4, border: "1px solid var(--border-default)",
+    backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 12,
   };
 
   return (
@@ -1618,8 +1661,7 @@ function LessonPlanEditor({
 
       <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
         <button onClick={onCancel} style={{
-          padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-primary)",
-          background: "var(--surface-primary)", fontSize: 13, cursor: "pointer",
+          ...theme.btnSecondary, fontSize: 13, border: "1px solid var(--border-default)",
         }}>
           Cancel
         </button>
@@ -1627,9 +1669,8 @@ function LessonPlanEditor({
           onClick={onSave}
           disabled={saving || entries.length === 0}
           style={{
-            padding: "6px 14px", borderRadius: 6, border: "none",
-            background: "var(--accent-primary)", color: "#fff", fontSize: 13,
-            fontWeight: 600, cursor: saving ? "not-allowed" : "pointer",
+            ...theme.btnPrimary, fontSize: 13,
+            cursor: saving ? "not-allowed" : "pointer",
             opacity: saving || entries.length === 0 ? 0.6 : 1,
           }}
         >

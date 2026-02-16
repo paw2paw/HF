@@ -663,11 +663,11 @@ export default function CallerGraphPage() {
               const color = nodeColors[type];
               const name = displayNames[type];
               const count = graphData?.counts.byType[type] || 0;
-              const bgColor = isVisible ? `${color}30` : (isDarkMode ? "#262626" : "#f5f5f5");
-              const borderColor = isVisible ? color : (isDarkMode ? "#525252" : "#d4d4d4");
+              const bgColor = isVisible ? `color-mix(in srgb, ${color} 19%, transparent)` : "var(--surface-secondary)";
+              const borderColor = isVisible ? color : "var(--border-strong)";
               const textColor = isVisible
-                ? (isDarkMode ? "#fafafa" : "#171717")
-                : (isDarkMode ? "#a3a3a3" : "#737373");
+                ? "var(--text-primary)"
+                : "var(--text-muted)";
               return (
                 <button
                   key={type}

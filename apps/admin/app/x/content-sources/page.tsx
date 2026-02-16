@@ -143,6 +143,8 @@ type ContentSource = {
   name: string;
   description: string | null;
   trustLevel: string;
+  documentType: string;
+  documentTypeSource: string | null;
   publisherOrg: string | null;
   accreditingBody: string | null;
   accreditationRef: string | null;
@@ -170,6 +172,15 @@ type ContentSource = {
     };
   }>;
 };
+
+const DOCUMENT_TYPES = [
+  { value: "TEXTBOOK", label: "Textbook", icon: "\uD83D\uDCD6" },
+  { value: "CURRICULUM", label: "Curriculum", icon: "\uD83C\uDF93" },
+  { value: "WORKSHEET", label: "Worksheet", icon: "\uD83D\uDCDD" },
+  { value: "EXAMPLE", label: "Example", icon: "\uD83D\uDCC4" },
+  { value: "ASSESSMENT", label: "Assessment", icon: "\u2705" },
+  { value: "REFERENCE", label: "Reference", icon: "\uD83D\uDCD1" },
+];
 
 const TRUST_LEVELS = [
   { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
@@ -207,12 +218,40 @@ function FreshnessIndicator({ validUntil }: { validUntil: string | null }) {
   const daysUntil = Math.floor((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   if (daysUntil < 0) {
-    return <span style={{ color: "#B71C1C", fontSize: 12, fontWeight: 600 }}>Expired {Math.abs(daysUntil)}d ago</span>;
+    return <span style={{ color: "var(--status-error-text)", fontSize: 12, fontWeight: 600 }}>Expired {Math.abs(daysUntil)}d ago</span>;
   }
   if (daysUntil <= 60) {
     return <span style={{ color: "#FF8F00", fontSize: 12, fontWeight: 600 }}>Expires in {daysUntil}d</span>;
   }
   return <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Valid until {expiry.toLocaleDateString()}</span>;
+}
+
+function DocumentTypeBadge({ type, source }: { type: string; source?: string | null }) {
+  const dt = DOCUMENT_TYPES.find((d) => d.value === type) || DOCUMENT_TYPES[0];
+  const isAuto = source?.startsWith("ai:");
+  return (
+    <span
+      title={source ? `Set by: ${source}` : "Default (not classified)"}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 8px",
+        borderRadius: 4,
+        fontSize: 11,
+        fontWeight: 500,
+        color: "var(--text-secondary)",
+        backgroundColor: "var(--surface-tertiary)",
+        border: `1px solid var(--border-subtle)`,
+      }}
+    >
+      <span style={{ fontSize: 12 }}>{dt.icon}</span>
+      {dt.label}
+      {isAuto && (
+        <span style={{ fontSize: 9, color: "var(--text-muted)", fontStyle: "italic" }}>auto</span>
+      )}
+    </span>
+  );
 }
 
 function UsedByCell({ subjects }: { subjects: ContentSource["subjects"] }) {
@@ -307,8 +346,8 @@ export default function ContentSourcesPage() {
 
       const sourceId = createData.source.id;
 
-      // Step 2: Start background extraction
-      setDropStatus({ phase: "extracting", message: `Extracting assertions from "${file.name}"...` });
+      // Step 2: Start background extraction (auto-classifies document type)
+      setDropStatus({ phase: "extracting", message: `Classifying & extracting from "${file.name}"...` });
       const formData = new FormData();
       formData.append("file", file);
       formData.append("mode", "background");
@@ -320,7 +359,11 @@ export default function ContentSourcesPage() {
       const uploadData = await uploadRes.json();
       if (!uploadRes.ok) throw new Error(uploadData.error || "Failed to start extraction");
 
-      setDropStatus({ phase: "done", message: `Source created. Extraction running in background.` });
+      const detectedType = uploadData.documentType
+        ? DOCUMENT_TYPES.find((d) => d.value === uploadData.documentType)
+        : null;
+      const typeMsg = detectedType ? ` Detected as ${detectedType.icon} ${detectedType.label}.` : "";
+      setDropStatus({ phase: "done", message: `Source created.${typeMsg} Extraction running in background.` });
       fetchSources();
       // Auto-expand the upload row to show progress
       setUploadSourceId(sourceId);
@@ -402,7 +445,7 @@ export default function ContentSourcesPage() {
           alignItems: "center",
           gap: 8,
           ...(dropStatus.phase === "error"
-            ? { background: "#FFEBEE", color: "#B71C1C", border: "1px solid #FFCDD2" }
+            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid #FFCDD2" }
             : dropStatus.phase === "done"
               ? { background: "#E8F5E9", color: "#2E7D32", border: "1px solid #C8E6C9" }
               : { background: "#EBF3FC", color: "#1565C0", border: "1px solid #BBDEFB" }),
@@ -435,8 +478,8 @@ export default function ContentSourcesPage() {
       {(expired.length > 0 || expiringSoon.length > 0) && (
         <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
           {expired.length > 0 && (
-            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "#FFEBEE", border: "1px solid #FFCDD2", fontSize: 13 }}>
-              <span style={{ fontWeight: 600, color: "#B71C1C" }}>{expired.length} expired</span>
+            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "var(--status-error-bg)", border: "1px solid #FFCDD2", fontSize: 13 }}>
+              <span style={{ fontWeight: 600, color: "var(--status-error-text)" }}>{expired.length} expired</span>
               <span style={{ color: "#C62828" }}> source{expired.length > 1 ? "s" : ""} need{expired.length === 1 ? "s" : ""} updating</span>
             </div>
           )}
@@ -459,8 +502,8 @@ export default function ContentSourcesPage() {
           style={{
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
-            backgroundColor: "var(--bg-secondary)",
+            border: "1px solid var(--border-default)",
+            backgroundColor: "var(--surface-secondary)",
             color: "var(--text-primary)",
             fontSize: 13,
             width: 240,
@@ -472,8 +515,8 @@ export default function ContentSourcesPage() {
           style={{
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
-            backgroundColor: "var(--bg-secondary)",
+            border: "1px solid var(--border-default)",
+            backgroundColor: "var(--surface-secondary)",
             color: "var(--text-primary)",
             fontSize: 13,
           }}
@@ -488,7 +531,7 @@ export default function ContentSourcesPage() {
           style={{
             padding: "8px 16px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
+            border: "1px solid var(--border-default)",
             backgroundColor: "var(--accent-primary)",
             color: "#fff",
             fontSize: 13,
@@ -515,15 +558,16 @@ export default function ContentSourcesPage() {
       {loading ? (
         <p style={{ color: "var(--text-muted)" }}>Loading sources...</p>
       ) : error ? (
-        <p style={{ color: "#B71C1C" }}>Error: {error}</p>
+        <p style={{ color: "var(--status-error-text)" }}>Error: {error}</p>
       ) : filtered.length === 0 ? (
         <p style={{ color: "var(--text-muted)" }}>No content sources found. Add one to get started.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid var(--border-primary)" }}>
+              <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Source</th>
+                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Type</th>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Trust Level</th>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Qualification</th>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Publisher</th>
@@ -566,13 +610,16 @@ function SourceRow({
 }) {
   return (
     <>
-      <tr style={{ borderBottom: isUploading ? "none" : "1px solid var(--border-secondary)" }}>
+      <tr style={{ borderBottom: isUploading ? "none" : "1px solid var(--border-subtle)" }}>
         <td style={{ padding: "10px 12px" }}>
           <Link href={`/x/content-sources/${s.id}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{s.name}</Link>
           <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
           {s.authors.length > 0 && (
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.authors.join(", ")}</div>
           )}
+        </td>
+        <td style={{ padding: "10px 12px" }}>
+          <DocumentTypeBadge type={s.documentType} source={s.documentTypeSource} />
         </td>
         <td style={{ padding: "10px 12px" }}>
           <TrustBadge level={s.trustLevel} />
@@ -610,7 +657,7 @@ function SourceRow({
             style={{
               padding: "4px 12px",
               borderRadius: 6,
-              border: isUploading ? "1px solid var(--accent-primary)" : "1px solid var(--border-primary)",
+              border: isUploading ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
               backgroundColor: isUploading ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
               color: isUploading ? "var(--accent-primary)" : "var(--text-secondary)",
               fontSize: 12,
@@ -623,8 +670,8 @@ function SourceRow({
         </td>
       </tr>
       {isUploading && (
-        <tr style={{ borderBottom: "1px solid var(--border-secondary)" }}>
-          <td colSpan={8} style={{ padding: "0 12px 16px" }}>
+        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+          <td colSpan={9} style={{ padding: "0 12px 16px" }}>
             <InlineUploader sourceId={s.id} sourceName={s.name} onDone={onUploadDone} />
           </td>
         </tr>
@@ -749,8 +796,8 @@ function InlineUploader({
       style={{
         padding: 16,
         borderRadius: 10,
-        border: "1px solid var(--border-primary)",
-        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-default)",
+        background: "var(--surface-secondary)",
         marginTop: 8,
       }}
     >
@@ -769,7 +816,7 @@ function InlineUploader({
             style={{
               padding: "6px 16px",
               borderRadius: 6,
-              border: "1px solid var(--border-primary)",
+              border: "1px solid var(--border-default)",
               background: "var(--surface-primary)",
               color: "var(--text-primary)",
               fontSize: 13,
@@ -800,7 +847,7 @@ function InlineUploader({
           >
             Extract &amp; Import
           </button>
-          {error && <span style={{ fontSize: 12, color: "#B71C1C", width: "100%" }}>{error}</span>}
+          {error && <span style={{ fontSize: 12, color: "var(--status-error-text)", width: "100%" }}>{error}</span>}
         </div>
       )}
 
@@ -910,7 +957,7 @@ function InlineUploader({
       {/* Error */}
       {phase === "error" && (
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 13, color: "#B71C1C", fontWeight: 600 }}>
+          <span style={{ fontSize: 13, color: "var(--status-error-text)", fontWeight: 600 }}>
             Failed: {error}
           </span>
           <button
@@ -919,7 +966,7 @@ function InlineUploader({
               marginLeft: "auto",
               padding: "6px 16px",
               borderRadius: 6,
-              border: "1px solid var(--border-primary)",
+              border: "1px solid var(--border-default)",
               background: "transparent",
               color: "var(--text-secondary)",
               fontSize: 12,
@@ -940,6 +987,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
     name: "",
     description: "",
     trustLevel: "UNVERIFIED",
+    documentType: "",
     publisherOrg: "",
     accreditingBody: "",
     accreditationRef: "",
@@ -981,6 +1029,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
         name: f.name || prev.name,
         description: f.description || prev.description,
         trustLevel: f.trustLevel || prev.trustLevel,
+        documentType: f.documentType || prev.documentType,
         publisherOrg: f.publisherOrg || prev.publisherOrg,
         accreditingBody: f.accreditingBody || prev.accreditingBody,
         accreditationRef: f.accreditationRef || prev.accreditationRef,
@@ -1010,6 +1059,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          documentType: form.documentType || undefined,
           authors: form.authors ? form.authors.split(",").map((a) => a.trim()) : [],
           publicationYear: form.publicationYear ? parseInt(form.publicationYear) : null,
           validFrom: form.validFrom || null,
@@ -1029,8 +1079,8 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
   const inputStyle = {
     padding: "6px 10px",
     borderRadius: 4,
-    border: "1px solid var(--border-primary)",
-    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-default)",
+    backgroundColor: "var(--surface-secondary)",
     color: "var(--text-primary)",
     fontSize: 13,
     width: "100%",
@@ -1048,10 +1098,10 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
       onSubmit={handleSubmit}
       style={{
         padding: 16,
-        border: "1px solid var(--border-primary)",
+        border: "1px solid var(--border-default)",
         borderRadius: 8,
         marginBottom: 16,
-        backgroundColor: "var(--bg-secondary)",
+        backgroundColor: "var(--surface-secondary)",
       }}
     >
       <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>Add Content Source</h3>
@@ -1085,7 +1135,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
               padding: "8px 14px",
               fontSize: 13,
               fontWeight: 500,
-              background: !intentText.trim() || suggesting ? "var(--bg-secondary)" : "var(--accent-primary)",
+              background: !intentText.trim() || suggesting ? "var(--surface-secondary)" : "var(--accent-primary)",
               color: !intentText.trim() || suggesting ? "var(--text-muted)" : "#fff",
               border: "none",
               borderRadius: 4,
@@ -1110,7 +1160,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
           </button>
         </div>
         {suggestError && (
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#B71C1C" }}>{suggestError}</p>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--status-error-text)" }}>{suggestError}</p>
         )}
         {aiInterpretation && (
           <div style={{
@@ -1147,9 +1197,9 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
         )}
       </div>
 
-      {error && <p style={{ color: "#B71C1C", fontSize: 13, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ color: "var(--status-error-text)", fontSize: 13, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
         <div>
           <div style={labelStyle}>Slug *</div>
           <input style={inputStyle} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="e.g., cii-r04-syllabus-2025" required />
@@ -1157,6 +1207,15 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
         <div>
           <div style={labelStyle}>Name *</div>
           <input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., CII R04 Syllabus 2025/26" required />
+        </div>
+        <div>
+          <div style={labelStyle}>Document Type</div>
+          <select style={inputStyle} value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })}>
+            <option value="">Auto-detect</option>
+            {DOCUMENT_TYPES.map((d) => (
+              <option key={d.value} value={d.value}>{d.icon} {d.label}</option>
+            ))}
+          </select>
         </div>
         <div>
           <div style={labelStyle}>Trust Level</div>
@@ -1237,7 +1296,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
           style={{
             padding: "8px 20px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
+            border: "1px solid var(--border-default)",
             backgroundColor: "transparent",
             color: "var(--text-secondary)",
             fontSize: 13,

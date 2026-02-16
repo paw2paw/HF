@@ -151,7 +151,7 @@ export default function GoalsPage() {
                 style={{
                   padding: "12px 16px",
                   background: "var(--surface-primary)",
-                  border: `2px solid ${statusConfig.color}20`,
+                  border: `2px solid color-mix(in srgb, ${statusConfig.color} 12%, transparent)`,
                   borderRadius: 8,
                   textAlign: "center",
                 }}
@@ -250,7 +250,7 @@ export default function GoalsPage() {
                   }}
                   onMouseOver={(e) => {
                     e.currentTarget.style.borderColor = typeConfig.color || "#4f46e5";
-                    e.currentTarget.style.boxShadow = `0 2px 8px ${typeConfig.color}20`;
+                    e.currentTarget.style.boxShadow = `0 2px 8px color-mix(in srgb, ${typeConfig.color} 12%, transparent)`;
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.borderColor = "var(--border-default)";
@@ -264,7 +264,7 @@ export default function GoalsPage() {
                           style={{
                             fontSize: 10,
                             padding: "2px 8px",
-                            background: `${typeConfig.color}15`,
+                            background: `color-mix(in srgb, ${typeConfig.color} 10%, transparent)`,
                             color: typeConfig.color,
                             borderRadius: 4,
                             fontWeight: 600,
@@ -276,7 +276,7 @@ export default function GoalsPage() {
                           style={{
                             fontSize: 10,
                             padding: "2px 8px",
-                            background: `${statusConfig.color}15`,
+                            background: `color-mix(in srgb, ${statusConfig.color} 10%, transparent)`,
                             color: statusConfig.color,
                             borderRadius: 4,
                             fontWeight: 600,

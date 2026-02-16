@@ -738,7 +738,7 @@ export default function DomainsPage() {
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 600,
-        border: isActive ? `1px solid ${colors.text}40` : "1px solid var(--border-default)",
+        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
         borderRadius: 5,
         cursor: "pointer",
         background: isActive ? colors.bg : "var(--surface-secondary)",
@@ -1478,6 +1478,23 @@ export default function DomainsPage() {
                               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
                                 <span>{subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}</span>
                                 <Link
+                                  href={`/x/content-wizard?subjectId=${subj.id}&domainId=${domain.id}`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    padding: "2px 8px",
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: "var(--accent-primary)",
+                                    background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                                    borderRadius: 4,
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Add Content
+                                </Link>
+                                <Link
                                   href={`/x/domains/${domain.id}/extraction`}
                                   style={{
                                     display: "inline-flex",
@@ -1507,7 +1524,7 @@ export default function DomainsPage() {
                                       alignItems: "center",
                                       gap: 12,
                                       padding: "8px 0",
-                                      borderTop: idx > 0 ? "1px solid var(--border-secondary)" : "none",
+                                      borderTop: idx > 0 ? "1px solid var(--border-subtle)" : "none",
                                     }}
                                   >
                                     <span style={{ color: "var(--text-muted)", fontSize: 14, width: 20 }}>

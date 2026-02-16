@@ -225,7 +225,7 @@ export function TourOverlay() {
           className="rounded-xl p-6 shadow-2xl max-w-md mx-4 tour-tooltip"
           style={{
             backgroundColor: "var(--surface-primary)",
-            border: "1px solid var(--border-secondary)",
+            border: "1px solid var(--border-subtle)",
           }}
         >
           <button
@@ -260,7 +260,7 @@ export function TourOverlay() {
                   onClick={() => handleAction(action)}
                   className="flex items-center gap-3 w-full p-3 rounded-lg text-left cursor-pointer tour-action-glow transition-all"
                   style={{
-                    border: "1px solid var(--border-secondary)",
+                    border: "1px solid var(--border-subtle)",
                     backgroundColor: "var(--surface-secondary)",
                   }}
                 >
@@ -300,7 +300,7 @@ export function TourOverlay() {
           className="rounded-xl p-6 shadow-2xl max-w-sm mx-4 tour-tooltip"
           style={{
             backgroundColor: "var(--surface-primary)",
-            border: "1px solid var(--border-secondary)",
+            border: "1px solid var(--border-subtle)",
           }}
         >
           <div className="flex items-center gap-3 mb-3">
@@ -438,7 +438,7 @@ export function TourOverlay() {
         style={{
           ...getTooltipStyle(),
           backgroundColor: "var(--surface-primary)",
-          border: "1px solid var(--border-secondary)",
+          border: "1px solid var(--border-subtle)",
         }}
       >
         {/* Close button */}
@@ -471,7 +471,7 @@ export function TourOverlay() {
                     ? "var(--accent-primary)"
                     : i < currentIndex
                     ? "var(--accent-primary)"
-                    : "var(--border-secondary)",
+                    : "var(--border-subtle)",
                   opacity: i <= currentIndex ? 1 : 0.5,
                 }}
               />
