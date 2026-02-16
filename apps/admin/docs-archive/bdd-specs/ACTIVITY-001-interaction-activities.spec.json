@@ -285,6 +285,83 @@
             }
           },
           {
+            "id": "analogy_builder",
+            "name": "Analogy Builder",
+            "channel": "voice",
+            "category": "deep_learning",
+            "description": "Ask the caller to invent an analogy or comparison for a concept — reveals whether they grasp the underlying structure, not just the surface",
+            "format": {
+              "steps": [
+                "Pick a concept they've covered and set it up: 'If you had to compare [concept] to something from everyday life, what would you pick?'",
+                "Let them think — silence is fine, don't rush",
+                "Listen for structural accuracy: does their analogy capture the RIGHT relationships?",
+                "Affirm what works: 'That's great because it captures [X]'",
+                "Gently probe what's missing: 'The one thing that analogy doesn't quite cover is...'",
+                "If they're stuck, offer a starting point: 'Some people compare it to... but what do you think?'"
+              ],
+              "duration": "2-4 min",
+              "difficulty_range": "synthesis level — requires grasping structure, not just facts"
+            },
+            "triggers": {
+              "when": [
+                "After a concept has been taught and basic recall confirmed",
+                "Caller is struggling to apply an abstract idea — analogy can make it click",
+                "Before moving to a new topic (checks whether the mental model is solid)",
+                "Caller is a verbal or kinesthetic learner who thinks in stories and examples"
+              ],
+              "avoid_when": [
+                "Concept is brand new — they need facts before they can abstract",
+                "Caller is frustrated or time-pressured",
+                "Topic is purely procedural with no structural depth (e.g. 'step 1, step 2')"
+              ]
+            },
+            "personality_adaptations": {
+              "high_openness": "They'll love this — encourage wild or creative analogies",
+              "low_openness": "Keep it grounded: 'Think of something from your work or daily routine'",
+              "high_extraversion": "Let them riff — they'll build the analogy out loud",
+              "low_extraversion": "Give extra think time: 'Take a moment, no rush'"
+            }
+          },
+          {
+            "id": "connection_map",
+            "name": "Connection Map",
+            "channel": "voice",
+            "category": "synthesis",
+            "description": "Ask the caller to explain how two or more previously learned concepts relate to each other — builds integrated understanding rather than isolated facts",
+            "format": {
+              "steps": [
+                "Pick two concepts they've covered in different sessions or topics",
+                "Frame it: 'We've talked about [X] and [Y] separately — how do you think they connect?'",
+                "Let them reason through it — follow their logic, don't redirect too quickly",
+                "If they find a valid connection you didn't expect, celebrate it: 'That's a really interesting link'",
+                "If they miss the key relationship, scaffold toward it: 'What happens to [Y] when [X] changes?'",
+                "Summarise the connection clearly and explain why it matters for the bigger picture"
+              ],
+              "duration": "3-5 min",
+              "difficulty_range": "synthesis level — requires recalling multiple concepts and reasoning about relationships"
+            },
+            "triggers": {
+              "when": [
+                "Caller has covered 3+ concepts and is ready to see the bigger picture",
+                "Bridging between modules or topic areas",
+                "Preparing for an exam that tests understanding across topics",
+                "Caller seems to be learning facts in isolation without connecting them"
+              ],
+              "avoid_when": [
+                "Caller hasn't covered enough material to connect yet",
+                "Concepts are genuinely unrelated (don't force artificial connections)",
+                "Session is focused on mastering one specific topic in depth",
+                "Caller is struggling with basics — connecting adds cognitive load"
+              ]
+            },
+            "personality_adaptations": {
+              "high_openness": "Encourage them to find surprising or non-obvious connections",
+              "low_openness": "Stick to practical, concrete connections: 'In your day-to-day, when would these come together?'",
+              "high_conscientiousness": "They'll want to be thorough — let them map out multiple links",
+              "high_neuroticism": "Reassure: 'There's no single right answer — I'm curious how you see it'"
+            }
+          },
+          {
             "id": "spaced_retrieval_text",
             "name": "Spaced Retrieval (Text)",
             "channel": "text",
@@ -339,15 +416,15 @@
         "session_phase_recommendations": {
           "reconnect": ["pop_quiz", "rapid_fire"],
           "spaced_retrieval": ["pop_quiz", "rapid_fire", "mcq_voice"],
-          "new_material": ["scenario"],
-          "integrate": ["teach_back", "scenario", "mcq_voice"],
-          "close": ["reflection_prompt", "rapid_fire"]
+          "new_material": ["scenario", "analogy_builder"],
+          "integrate": ["teach_back", "scenario", "mcq_voice", "connection_map"],
+          "close": ["reflection_prompt", "rapid_fire", "connection_map"]
         },
         "mastery_level_recommendations": {
           "novice": ["mcq_voice", "pop_quiz"],
-          "developing": ["scenario", "mcq_voice", "mcq_text", "pop_quiz"],
-          "proficient": ["teach_back", "scenario", "rapid_fire"],
-          "mastered": ["teach_back", "scenario"]
+          "developing": ["scenario", "mcq_voice", "mcq_text", "pop_quiz", "analogy_builder"],
+          "proficient": ["teach_back", "scenario", "rapid_fire", "analogy_builder", "connection_map"],
+          "mastered": ["teach_back", "scenario", "connection_map"]
         },
         "max_activities_per_session": 2,
         "max_text_messages_per_week": 2,
