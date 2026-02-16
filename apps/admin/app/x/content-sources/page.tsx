@@ -2,6 +2,140 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+
+// ── Active Jobs Banner (survives navigation) ──────────────
+
+type ActiveJob = {
+  id: string;
+  status: string;
+  context: {
+    sourceId?: string;
+    fileName?: string;
+    currentChunk?: number;
+    totalChunks?: number;
+    extractedCount?: number;
+    importedCount?: number;
+    duplicatesSkipped?: number;
+    warnings?: string[];
+    error?: string;
+  };
+  startedAt: string;
+  updatedAt: string;
+};
+
+function ActiveJobsBanner({ onJobDone }: { onJobDone: () => void }) {
+  const [jobs, setJobs] = useState<ActiveJob[]>([]);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchActiveJobs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks?status=in_progress");
+      const data = await res.json();
+      if (!data.ok) return;
+      const extractionJobs = (data.tasks || []).filter(
+        (t: any) => t.taskType === "extraction"
+      );
+      setJobs(extractionJobs);
+      // If no active jobs, stop polling
+      if (extractionJobs.length === 0 && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveJobs();
+    pollRef.current = setInterval(fetchActiveJobs, 3000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [fetchActiveJobs]);
+
+  // Detect job completion: if a job we were tracking disappears from active list
+  const prevJobIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const currentIds = new Set(jobs.map((j) => j.id));
+    if (prevJobIds.current.size > 0 && prevJobIds.current.size > currentIds.size) {
+      onJobDone();
+    }
+    prevJobIds.current = currentIds;
+  }, [jobs, onJobDone]);
+
+  if (jobs.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+      {jobs.map((job) => {
+        const ctx = job.context || {};
+        const pct = ctx.totalChunks && ctx.totalChunks > 0
+          ? Math.round(((ctx.currentChunk || 0) / ctx.totalChunks) * 100)
+          : 0;
+        const elapsed = Math.floor((Date.now() - new Date(job.startedAt).getTime()) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+        return (
+          <div
+            key={job.id}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 8,
+              background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+              fontSize: 13,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "var(--accent-primary)",
+                  animation: "activejob-pulse 1.5s ease-in-out infinite",
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                Extracting: {ctx.fileName || "document"}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                {ctx.extractedCount || 0} assertions
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 12, marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+                {timeStr}
+              </span>
+            </div>
+            {ctx.totalChunks && ctx.totalChunks > 0 && (
+              <div style={{ height: 3, borderRadius: 2, background: "var(--surface-tertiary)", overflow: "hidden" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    borderRadius: 2,
+                    background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                    width: `${pct}%`,
+                    transition: "width 0.5s ease-out",
+                  }}
+                />
+              </div>
+            )}
+            {ctx.totalChunks && ctx.totalChunks > 0 && (
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>
+                Chunk {ctx.currentChunk || 0}/{ctx.totalChunks} ({pct}%)
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <style>{`@keyframes activejob-pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }`}</style>
+    </div>
+  );
+}
 
 type ContentSource = {
   id: string;
@@ -223,6 +357,7 @@ export default function ContentSourcesPage() {
       onDrop={handleDrop}
       style={{ position: "relative" }}
     >
+      <AdvancedBanner />
       {/* Full-page drop overlay */}
       {dragOver && (
         <div style={{
@@ -292,6 +427,9 @@ export default function ContentSourcesPage() {
           Authoritative sources for teaching content. Drag & drop a PDF to create a source and extract assertions automatically.
         </p>
       </div>
+
+      {/* Active extraction jobs (survives navigation) */}
+      <ActiveJobsBanner onJobDone={fetchSources} />
 
       {/* Freshness alerts */}
       {(expired.length > 0 || expiringSoon.length > 0) && (
@@ -430,7 +568,7 @@ function SourceRow({
     <>
       <tr style={{ borderBottom: isUploading ? "none" : "1px solid var(--border-secondary)" }}>
         <td style={{ padding: "10px 12px" }}>
-          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</div>
+          <Link href={`/x/content-sources/${s.id}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{s.name}</Link>
           <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
           {s.authors.length > 0 && (
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.authors.join(", ")}</div>
@@ -457,8 +595,14 @@ function SourceRow({
         <td style={{ padding: "10px 12px" }}>
           <UsedByCell subjects={s.subjects} />
         </td>
-        <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--text-muted)" }}>
-          {s._count.assertions}
+        <td style={{ padding: "10px 12px", textAlign: "right" }}>
+          {s._count.assertions > 0 ? (
+            <Link href={`/x/content-sources/${s.id}`} style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500 }}>
+              {s._count.assertions}
+            </Link>
+          ) : (
+            <span style={{ color: "var(--text-muted)" }}>0</span>
+          )}
         </td>
         <td style={{ padding: "10px 12px", textAlign: "right" }}>
           <button
@@ -728,22 +872,38 @@ function InlineUploader({
               </span>
             )}
           </div>
-          <button
-            onClick={onDone}
-            style={{
-              marginLeft: "auto",
-              padding: "6px 16px",
-              borderRadius: 6,
-              border: "none",
-              background: "var(--accent-primary)",
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Done
-          </button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <Link
+              href={`/x/content-sources/${sourceId}`}
+              style={{
+                padding: "6px 16px",
+                borderRadius: 6,
+                border: "1px solid var(--accent-primary)",
+                background: "transparent",
+                color: "var(--accent-primary)",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Review Assertions
+            </Link>
+            <button
+              onClick={onDone}
+              style={{
+                padding: "6px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "var(--accent-primary)",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
 
@@ -793,6 +953,52 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [intentText, setIntentText] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
+
+  async function handleSuggest() {
+    if (!intentText.trim() || suggesting) return;
+    setSuggesting(true);
+    setSuggestError(null);
+    setAiInterpretation(null);
+    try {
+      const res = await fetch("/api/content-sources/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: intentText.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setSuggestError(data.error || "Failed to generate suggestions");
+        return;
+      }
+      const f = data.fields || {};
+      setForm((prev) => ({
+        ...prev,
+        slug: f.slug || prev.slug,
+        name: f.name || prev.name,
+        description: f.description || prev.description,
+        trustLevel: f.trustLevel || prev.trustLevel,
+        publisherOrg: f.publisherOrg || prev.publisherOrg,
+        accreditingBody: f.accreditingBody || prev.accreditingBody,
+        accreditationRef: f.accreditationRef || prev.accreditationRef,
+        authors: Array.isArray(f.authors) ? f.authors.join(", ") : prev.authors,
+        isbn: f.isbn || prev.isbn,
+        edition: f.edition || prev.edition,
+        publicationYear: f.publicationYear ? String(f.publicationYear) : prev.publicationYear,
+        qualificationRef: f.qualificationRef || prev.qualificationRef,
+        validFrom: f.validFrom || prev.validFrom,
+        validUntil: f.validUntil || prev.validUntil,
+      }));
+      if (data.interpretation) setAiInterpretation(data.interpretation);
+    } catch (err: any) {
+      setSuggestError(err.message || "Network error");
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -849,6 +1055,97 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
       }}
     >
       <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>Add Content Source</h3>
+
+      {/* Intent Bar */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="text"
+            value={intentText}
+            onChange={(e) => setIntentText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && intentText.trim() && !suggesting) {
+                e.preventDefault();
+                handleSuggest();
+              }
+            }}
+            placeholder='Describe the source... e.g. "CII R04 Insurance Syllabus 2025/26" or paste an ISBN'
+            disabled={suggesting}
+            style={{
+              ...inputStyle,
+              flex: 1,
+              padding: "8px 12px",
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleSuggest}
+            disabled={!intentText.trim() || suggesting}
+            style={{
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              background: !intentText.trim() || suggesting ? "var(--bg-secondary)" : "var(--accent-primary)",
+              color: !intentText.trim() || suggesting ? "var(--text-muted)" : "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: !intentText.trim() || suggesting ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              whiteSpace: "nowrap" as const,
+            }}
+          >
+            {suggesting ? (
+              <>
+                <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                Thinking...
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 14 }}>✨</span>
+                Fill
+              </>
+            )}
+          </button>
+        </div>
+        {suggestError && (
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#B71C1C" }}>{suggestError}</p>
+        )}
+        {aiInterpretation && (
+          <div style={{
+            marginTop: 6,
+            padding: "6px 10px",
+            borderRadius: 4,
+            background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+            fontSize: 12,
+            color: "var(--text-secondary)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}>
+            <span style={{ fontSize: 13 }}>✨</span>
+            {aiInterpretation}
+            <button
+              type="button"
+              onClick={() => setAiInterpretation(null)}
+              style={{
+                marginLeft: "auto",
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                fontSize: 14,
+                padding: 0,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
 
       {error && <p style={{ color: "#B71C1C", fontSize: 13, marginBottom: 8 }}>{error}</p>}
 

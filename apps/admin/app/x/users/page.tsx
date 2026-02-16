@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type UserRole = "SUPERADMIN" | "ADMIN" | "OPERATOR" | "SUPER_TESTER" | "TESTER" | "DEMO" | "VIEWER";
 
@@ -315,6 +316,7 @@ export default function UsersPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>

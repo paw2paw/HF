@@ -1,6 +1,8 @@
 // Sidebar navigation types
 
 export type NavItem = {
+  /** Stable identifier for cross-referencing (e.g. tours, analytics) */
+  id?: string;
   href: string;
   label: string;
   icon?: string;
@@ -9,6 +11,8 @@ export type NavItem = {
   roleVariants?: Record<string, { label?: string; href?: string; icon?: string }>;
   /** If set, only these roles see this item. Omit to show to all roles that can see the section. */
   visibleFor?: string[];
+  /** Hidden when user is in simple view mode (view-mode gate) */
+  advancedOnly?: boolean;
 };
 
 export type NavSection = {
@@ -22,6 +26,8 @@ export type NavSection = {
   requiredRole?: string;
   /** Roles for which this section is hidden by default (soft — user can unhide) */
   defaultHiddenFor?: string[];
+  /** Hidden when user is in simple view mode (view-mode gate) */
+  advancedOnly?: boolean;
 };
 
 // Persisted layout configuration

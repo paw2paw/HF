@@ -54,10 +54,18 @@ registerTransform("computeSessionPedagogy", (
       plan.firstCallPhases = fcFlow.phases;
       plan.successMetrics = fcFlow.successMetrics;
 
-      // Convert phases to flow steps
-      plan.flow = fcFlow.phases.map((phase: any, i: number) =>
-        `${i + 1}. ${phase.phase.charAt(0).toUpperCase() + phase.phase.slice(1)} (${phase.duration}) - ${phase.goals[0]}`
-      );
+      // Convert phases to flow steps, including content references
+      plan.flow = fcFlow.phases.map((phase: any, i: number) => {
+        const label = `${i + 1}. ${phase.phase.charAt(0).toUpperCase() + phase.phase.slice(1)} (${phase.duration}) - ${phase.goals[0]}`;
+        const contentRefs = phase.content as Array<{ mediaId: string; instruction?: string }> | undefined;
+        if (contentRefs?.length) {
+          const contentNote = contentRefs.map((c: { instruction?: string }) =>
+            c.instruction || "Share assigned content with learner"
+          ).join("; ");
+          return `${label} [Content: ${contentNote}]`;
+        }
+        return label;
+      });
 
       console.log(`[pedagogy] Using ${source} first-call flow with ${fcFlow.phases.length} phases`);
     } else {

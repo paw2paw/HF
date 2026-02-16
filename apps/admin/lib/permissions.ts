@@ -17,7 +17,7 @@ import type { Session } from "next-auth";
 import { getMasqueradeState, canMasquerade, isRoleEscalation } from "@/lib/masquerade";
 
 // Role hierarchy: higher number = more access
-const ROLE_LEVEL: Record<UserRole, number> = {
+export const ROLE_LEVEL: Record<UserRole, number> = {
   SUPERADMIN: 5,
   ADMIN: 4,
   OPERATOR: 3,
@@ -108,4 +108,31 @@ export async function requireAuth(
  */
 export function isAuthError(result: AuthResult): result is AuthFailure {
   return "error" in result;
+}
+
+/**
+ * Page-level auth guard for server components.
+ * Checks session and minimum role, redirects to /x if insufficient.
+ * Returns the session on success.
+ *
+ * Usage in server component pages:
+ *   const session = await requirePageAuth("OPERATOR");
+ */
+export async function requirePageAuth(minRole: UserRole = "VIEWER") {
+  // Dynamic import to avoid pulling next/navigation into API route bundles
+  const { redirect } = await import("next/navigation");
+
+  const session = await auth();
+  if (!session?.user) {
+    return redirect("/login") as never;
+  }
+
+  const userLevel = ROLE_LEVEL[session.user.role] ?? 0;
+  const requiredLevel = ROLE_LEVEL[minRole] ?? 0;
+
+  if (userLevel < requiredLevel) {
+    redirect("/x");
+  }
+
+  return session;
 }

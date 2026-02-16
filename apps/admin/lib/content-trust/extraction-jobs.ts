@@ -149,10 +149,21 @@ export async function updateJob(id: string, patch: Partial<ExtractionJob>) {
   if (patch.status === "importing") {
     updates.currentStep = 2;
   } else if (patch.status === "done") {
-    // Complete the task
-    if (Object.keys(contextPatch).length > 0) {
-      await updateTaskProgress(id, { context: contextPatch });
-    }
+    // Read existing context for summary fields
+    const task = await prisma.userTask.findUnique({
+      where: { id },
+      select: { context: true },
+    });
+    const existingCtx = (task?.context as Record<string, any>) ?? {};
+    contextPatch.summary = {
+      source: { id: existingCtx.sourceId ?? "", name: existingCtx.fileName ?? "" },
+      counts: {
+        extracted: contextPatch.extractedCount ?? existingCtx.extractedCount ?? 0,
+        imported: contextPatch.importedCount ?? existingCtx.importedCount ?? 0,
+        duplicates: contextPatch.duplicatesSkipped ?? existingCtx.duplicatesSkipped ?? 0,
+      },
+    };
+    await updateTaskProgress(id, { context: contextPatch });
     await completeTask(id);
     return;
   } else if (patch.status === "error") {

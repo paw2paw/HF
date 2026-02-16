@@ -62,6 +62,12 @@ export class GCSStorageAdapter implements StorageAdapter {
     await bucket.file(storageKey).delete({ ignoreNotFound: true });
   }
 
+  async download(storageKey: string): Promise<Buffer> {
+    const bucket = getBucket();
+    const [contents] = await bucket.file(storageKey).download();
+    return Buffer.from(contents);
+  }
+
   async exists(storageKey: string): Promise<boolean> {
     const bucket = getBucket();
     const [exists] = await bucket.file(storageKey).exists();

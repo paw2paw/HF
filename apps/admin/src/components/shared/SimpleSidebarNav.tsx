@@ -8,6 +8,7 @@ import { useGlobalAssistant } from "@/contexts/AssistantContext";
 import { useGuidance } from "@/contexts/GuidanceContext";
 import { useMasquerade } from "@/contexts/MasqueradeContext";
 import { useBranding } from "@/contexts/BrandingContext";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import { useSidebarLayout } from "@/hooks/useSidebarLayout";
 import { ICON_MAP } from "@/lib/sidebar/icons";
 import type { NavSection } from "@/lib/sidebar/types";
@@ -159,6 +160,7 @@ export default function SimpleSidebarNav({
   const { isMasquerading, effectiveRole } = useMasquerade();
   const userRole = isMasquerading ? effectiveRole : realRole;
   const isAdmin = realIsAdmin; // Keep admin features (layout save, masquerade trigger) based on real role
+  const { isAdvanced } = useViewMode();
 
   // ── DB-backed visibility rules (overrides manifest requiredRole/defaultHiddenFor) ──
   const [visibilityRules, setVisibilityRules] = useState<Record<
@@ -220,6 +222,29 @@ export default function SimpleSidebarNav({
     return () => clearInterval(interval);
   }, [userId]);
 
+  // Active task count badge
+  const [taskActiveCount, setTaskActiveCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchTaskCount = async () => {
+      try {
+        const res = await fetch("/api/tasks/counts");
+        const data = await res.json();
+        if (data.ok) {
+          setTaskActiveCount(data.counts?.processing || 0);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+
+    fetchTaskCount();
+    const interval = setInterval(fetchTaskCount, 10000);
+    return () => clearInterval(interval);
+  }, [userId]);
+
   // Student artifact notification badge
   const [studentUnreadCount, setStudentUnreadCount] = useState(0);
 
@@ -266,7 +291,7 @@ export default function SimpleSidebarNav({
     setAsPersonalDefault,
     sectionDragHandlers,
     itemDragHandlers,
-  } = useSidebarLayout({ userId, userRole, baseSections: BASE_SECTIONS, isAdmin });
+  } = useSidebarLayout({ userId, userRole, baseSections: BASE_SECTIONS, isAdmin, isAdvanced });
 
   // UI state
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -777,6 +802,17 @@ export default function SimpleSidebarNav({
                             }}
                           >
                             {unreadCount}
+                          </span>
+                        )}
+                        {!collapsed && item.href === "/x/tasks" && taskActiveCount > 0 && (
+                          <span
+                            className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
+                            style={{
+                              background: "#2563eb",
+                              opacity: active ? 0.8 : 1,
+                            }}
+                          >
+                            {taskActiveCount}
                           </span>
                         )}
                         {!collapsed && item.href === "/x/student/stuff" && studentUnreadCount > 0 && (

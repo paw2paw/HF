@@ -5,8 +5,15 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 type Params = { params: Promise<{ subjectId: string }> };
 
 /**
- * GET /api/subjects/:subjectId/sources
- * List sources attached to this subject
+ * @api GET /api/subjects/:subjectId/sources
+ * @visibility internal
+ * @scope subjects:read
+ * @auth session
+ * @tags subjects
+ * @description List content sources attached to a subject with assertion counts.
+ * @param subjectId string - Subject ID (path)
+ * @response 200 { sources: [...] }
+ * @response 500 { error: "..." }
  */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
@@ -33,9 +40,24 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 /**
- * POST /api/subjects/:subjectId/sources
- * Attach an existing source or create a new one and attach it
- * Body: { sourceId } to attach existing, or { slug, name, trustLevel?, role? } to create+attach
+ * @api POST /api/subjects/:subjectId/sources
+ * @visibility internal
+ * @scope subjects:update
+ * @auth session
+ * @tags subjects
+ * @description Attach an existing source or create a new one and attach it to a subject.
+ * @param subjectId string - Subject ID (path)
+ * @body sourceId string - Existing source ID to attach
+ * @body slug string - Slug for new source (required if no sourceId)
+ * @body name string - Name for new source (required if no sourceId)
+ * @body trustLevel string - Trust level override
+ * @body tags string[] - Tags (default: ["content"])
+ * @body sortOrder number - Sort order (default: 0)
+ * @response 201 { subjectSource: {...}, source?: {...} }
+ * @response 400 { error: "Provide sourceId to attach existing, or slug+name to create new" }
+ * @response 404 { error: "Subject not found" }
+ * @response 409 { error: "This source is already attached to this subject" }
+ * @response 500 { error: "..." }
  */
 export async function POST(req: NextRequest, { params }: Params) {
   try {
@@ -101,9 +123,17 @@ export async function POST(req: NextRequest, { params }: Params) {
 }
 
 /**
- * DELETE /api/subjects/:subjectId/sources
- * Detach a source from this subject (does not delete the ContentSource itself)
- * Body: { sourceId }
+ * @api DELETE /api/subjects/:subjectId/sources
+ * @visibility internal
+ * @scope subjects:update
+ * @auth session
+ * @tags subjects
+ * @description Detach a source from a subject (does not delete the ContentSource itself).
+ * @param subjectId string - Subject ID (path)
+ * @body sourceId string - Source ID to detach (required)
+ * @response 200 { ok: true }
+ * @response 400 { error: "sourceId is required" }
+ * @response 500 { error: "..." }
  */
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {

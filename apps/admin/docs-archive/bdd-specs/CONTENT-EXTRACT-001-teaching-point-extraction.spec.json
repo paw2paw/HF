@@ -1,0 +1,152 @@
+{
+  "$schema": "./feature-spec-schema.json",
+  "id": "CONTENT-EXTRACT-001",
+  "title": "Teaching Point Extraction & Structuring",
+  "version": "1.0",
+  "status": "Approved",
+  "date": "2026-02-15",
+  "domain": "content-trust",
+  "specType": "SYSTEM",
+  "specRole": "EXTRACT",
+  "outputType": "LEARN",
+  "config": {
+    "extraction": {
+      "systemPrompt": "You are a content extraction specialist. Your job is to parse educational/training material and extract atomic teaching points (assertions).\n\nEach assertion should be:\n- A single, self-contained fact, definition, threshold, rule, process step, or example\n- Specific enough to be independently verifiable against the source\n- Tagged with its category and any relevant metadata\n\nReturn a JSON array of objects with these fields:\n- assertion: string (the teaching point)\n- category: string (one of the configured categories)\n- chapter: string | null (chapter or section heading this comes from)\n- section: string | null (sub-section)\n- tags: string[] (2-5 keywords)\n- examRelevance: number (0.0-1.0, how likely to appear in an exam)\n- learningOutcomeRef: string | null (e.g., \"LO2\", \"AC2.3\" if identifiable)\n- validUntil: string | null (ISO date if time-bound, e.g., tax year figures)\n- taxYear: string | null (e.g., \"2024/25\" if applicable)\n\nIMPORTANT:\n- Extract EVERY distinct teaching point, not just highlights\n- Be precise with numbers, dates, and thresholds\n- If content mentions a tax year or validity period, include it\n- Do NOT invent information not present in the source text\n- Return ONLY valid JSON (no markdown code fences)",
+      "categories": [
+        {
+          "id": "fact",
+          "label": "Factual Statement",
+          "description": "A specific factual statement (e.g., 'The ISA allowance is £20,000')"
+        },
+        {
+          "id": "definition",
+          "label": "Term Definition",
+          "description": "A term definition (e.g., 'An annuity is a series of regular payments')"
+        },
+        {
+          "id": "threshold",
+          "label": "Threshold/Limit",
+          "description": "A numeric limit or boundary (e.g., 'Higher rate tax starts at £50,270')"
+        },
+        {
+          "id": "rule",
+          "label": "Rule/Regulation",
+          "description": "A regulatory or procedural rule (e.g., 'Advisors must check affordability')"
+        },
+        {
+          "id": "process",
+          "label": "Process Step",
+          "description": "A step in a procedure (e.g., 'Step 3: Calculate the net relevant earnings')"
+        },
+        {
+          "id": "example",
+          "label": "Example/Scenario",
+          "description": "An illustrative example (e.g., 'If a client earns £80,000...')"
+        }
+      ],
+      "llmConfig": {
+        "temperature": 0.1,
+        "maxTokens": 4000
+      },
+      "chunkSize": 8000,
+      "maxAssertionsPerDocument": 500,
+      "rules": {
+        "requirePrecision": ["numbers", "dates", "thresholds"],
+        "noInvention": true,
+        "trackTaxYear": false,
+        "trackValidity": true
+      }
+    },
+    "structuring": {
+      "systemPrompt": "You are organizing extracted teaching points into a pedagogical pyramid.\n\nGiven a set of raw teaching points (assertions), create a hierarchical structure following the configured pyramid levels. Each level should branch into approximately the target number of children.\n\nRules:\n- Every existing assertion must appear as a leaf-level detail under exactly one parent\n- Aim for the target child count per node (default: ~3 children)\n- Topic slugs should be kebab-case (e.g., \"temperature-control\")\n- Preserve the exact text of existing assertions at the leaf level\n- Create new synthesized text for all higher levels\n- Higher levels should summarize and frame their children pedagogically\n- Return valid JSON matching the requested schema",
+      "levels": [
+        {
+          "depth": 0,
+          "label": "overview",
+          "maxChildren": 1,
+          "renderAs": "paragraph",
+          "description": "One paragraph framing the entire subject"
+        },
+        {
+          "depth": 1,
+          "label": "topic",
+          "maxChildren": 7,
+          "renderAs": "heading",
+          "description": "Major topic areas (like chapter headings)"
+        },
+        {
+          "depth": 2,
+          "label": "key_point",
+          "maxChildren": 4,
+          "renderAs": "bold",
+          "description": "Key points per topic (the headlines)"
+        },
+        {
+          "depth": 3,
+          "label": "detail",
+          "maxChildren": 4,
+          "renderAs": "bullet",
+          "description": "Specific facts, rules, thresholds (existing assertions)"
+        }
+      ],
+      "targetChildCount": 3,
+      "llmConfig": {
+        "temperature": 0.2,
+        "maxTokens": 8000
+      }
+    },
+    "rendering": {
+      "defaultMaxDepth": 3,
+      "depthAdaptation": {
+        "entryLevel": -1,
+        "fastPace": -1,
+        "advancedPriorKnowledge": -1
+      }
+    }
+  },
+  "story": {
+    "asA": "Content Management System",
+    "iWant": "To extract and structure teaching points from source documents into a pedagogical pyramid",
+    "soThat": "Tutors can teach from a well-organized hierarchy of knowledge rather than flat lists"
+  },
+  "context": {
+    "applies": "All content extraction and structuring operations",
+    "dependsOn": ["TRUST-001"],
+    "assumptions": [
+      "Source documents are uploaded via content-sources API",
+      "Extraction runs per-chunk then structuring runs on the full assertion set",
+      "Domain-level specs can override any config field via deep merge"
+    ]
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-CE-001",
+      "title": "Flat extraction produces categorized assertions",
+      "given": "A document uploaded to a content source",
+      "when": "The extraction pipeline processes the document",
+      "then": "Atomic teaching points are extracted with categories, tags, and metadata"
+    },
+    {
+      "id": "AC-CE-002",
+      "title": "Structuring organizes assertions into a pyramid",
+      "given": "A set of flat assertions for a content source",
+      "when": "The structuring engine runs",
+      "then": "Assertions are organized into a hierarchy with configurable depth and breadth"
+    },
+    {
+      "id": "AC-CE-003",
+      "title": "Pyramid depth is tunable per domain",
+      "given": "A domain with a custom extraction override spec",
+      "when": "Extraction config is resolved",
+      "then": "Domain overrides are deep-merged onto system defaults"
+    },
+    {
+      "id": "AC-CE-004",
+      "title": "Rendering adapts to learner level",
+      "given": "A structured pyramid and a learner profile",
+      "when": "Teaching content is rendered for the LLM prompt",
+      "then": "Depth is adjusted based on learner signals (pace, prior knowledge, qualification level)"
+    }
+  ],
+  "parameters": []
+}

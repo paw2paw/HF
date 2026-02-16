@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         title,
         description,
         tags,
-        uploadedBy: auth.user.id,
+        uploadedBy: auth.session.user?.id || "unknown",
         sourceId,
         trustLevel: trustLevel as any,
       },

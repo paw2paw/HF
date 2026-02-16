@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 interface LearnedPattern {
   pattern: string;
@@ -59,6 +60,7 @@ export default function AIKnowledgePage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--surface-secondary)", padding: 24 }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>

@@ -14,7 +14,7 @@ export async function GET() {
 
   const { callerId } = auth;
 
-  const [profile, goals, callCount, caller] = await Promise.all([
+  const [profile, goals, callCount, caller, memorySummary, keyFactCount] = await Promise.all([
     prisma.callerPersonalityProfile.findUnique({
       where: { callerId },
       select: { parameterValues: true, lastUpdatedAt: true, callsUsed: true },
@@ -43,6 +43,13 @@ export async function GET() {
         },
       },
     }),
+    prisma.callerMemorySummary.findUnique({
+      where: { callerId },
+      select: { topTopics: true, topicCount: true },
+    }),
+    prisma.conversationArtifact.count({
+      where: { callerId, type: "KEY_FACT" },
+    }),
   ]);
 
   return NextResponse.json({
@@ -58,5 +65,8 @@ export async function GET() {
     totalCalls: callCount,
     classroom: caller?.cohortGroup?.name ?? null,
     domain: caller?.cohortGroup?.domain?.name ?? null,
+    topTopics: (memorySummary?.topTopics as Array<{ topic: string; lastMentioned: string }>) ?? [],
+    topicCount: memorySummary?.topicCount ?? 0,
+    keyFactCount,
   });
 }

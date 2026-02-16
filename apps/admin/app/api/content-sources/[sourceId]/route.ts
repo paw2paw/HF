@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ContentTrustLevel } from "@prisma/client";
+import { ContentTrustLevel, DocumentType } from "@prisma/client";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+
+const VALID_DOCUMENT_TYPES: DocumentType[] = [
+  "CURRICULUM", "TEXTBOOK", "WORKSHEET", "EXAMPLE", "ASSESSMENT", "REFERENCE",
+];
 
 // Trust level hierarchy for validation (can only promote, not demote without admin)
 const TRUST_LEVEL_ORDER: ContentTrustLevel[] = [
@@ -104,6 +108,7 @@ export async function PATCH(
     const {
       trustLevel,
       verificationNotes,
+      documentType,
       name,
       description,
       publisherOrg,
@@ -126,6 +131,18 @@ export async function PATCH(
     if (validUntil !== undefined) updateData.validUntil = validUntil ? new Date(validUntil) : null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (supersededById !== undefined) updateData.supersededById = supersededById || null;
+
+    // Document type change
+    if (documentType !== undefined) {
+      if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
+        return NextResponse.json(
+          { ok: false, error: `Invalid document type: ${documentType}` },
+          { status: 400 },
+        );
+      }
+      updateData.documentType = documentType;
+      updateData.documentTypeSource = "admin:manual";
+    }
 
     // Trust level change — requires validation and audit
     let trustChanged = false;

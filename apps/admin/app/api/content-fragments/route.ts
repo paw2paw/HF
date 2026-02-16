@@ -1,23 +1,22 @@
-/**
- * Content Fragments API
- *
- * GET /api/content-fragments
- * Returns all text fragments extracted from AnalysisSpec configs,
- * with category, consumed-by-prompt flag, and search/filter support.
- *
- * Query params:
- *   - category: Filter by category (identity, voice, content, etc.)
- *   - specSlug: Filter by spec slug
- *   - promptOnly: "true" to show only prompt-consumed fragments
- *   - search: Full-text search across fragment values and labels
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { extractFromSpec, computeStats } from "@/lib/content-fragments/extractor";
 import type { ContentFragment } from "@/lib/content-fragments/extractor";
 
+/**
+ * @api GET /api/content-fragments
+ * @visibility internal
+ * @scope content:read
+ * @auth session
+ * @tags content
+ * @description Returns text fragments extracted from AnalysisSpec configs with category, prompt-consumed flag, and search/filter support.
+ * @query category string - Filter by category (identity, voice, content, etc.)
+ * @query specSlug string - Filter by spec slug
+ * @query promptOnly string - "true" to show only prompt-consumed fragments
+ * @query search string - Full-text search across fragment values and labels
+ * @response 200 { fragments: [...], stats: {...}, filters: {...} }
+ */
 export async function GET(req: NextRequest) {
   const authResult = await requireAuth("ADMIN");
   if (isAuthError(authResult)) return authResult.error;

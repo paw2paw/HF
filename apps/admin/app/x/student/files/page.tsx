@@ -1,0 +1,74 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Paperclip } from "lucide-react";
+import { MediaLibrary, type SharedMediaItem } from "@/components/shared/MediaLibrary";
+
+export default function StudentFilesPage() {
+  const [items, setItems] = useState<SharedMediaItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<"date" | "name" | "type">("date");
+  const [order, setOrder] = useState<"asc" | "desc">("desc");
+  const [filter, setFilter] = useState<"all" | "image" | "pdf" | "audio">("all");
+
+  const fetchMedia = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ sort, order, type: filter });
+      const res = await fetch(`/api/student/media?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setItems(data.media || []);
+      }
+    } catch {
+      // Silent
+    } finally {
+      setLoading(false);
+    }
+  }, [sort, order, filter]);
+
+  useEffect(() => {
+    fetchMedia();
+  }, [fetchMedia]);
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>
+        My Files
+      </h1>
+      <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+        Documents, images, and audio shared during your sessions.
+      </p>
+
+      {!loading && items.length === 0 ? (
+        <div
+          className="rounded-lg border p-12 text-center"
+          style={{
+            borderColor: "var(--border-default)",
+            background: "var(--surface-primary)",
+          }}
+        >
+          <Paperclip size={48} style={{ color: "var(--text-muted)", margin: "0 auto 12px" }} />
+          <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            No files yet
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            Files shared during your calls will appear here.
+          </p>
+        </div>
+      ) : (
+        <MediaLibrary
+          items={items}
+          loading={loading}
+          sort={sort}
+          order={order}
+          filter={filter}
+          onSortChange={setSort}
+          onOrderChange={setOrder}
+          onFilterChange={setFilter}
+          emptyMessage="No files match your filters"
+        />
+      )}
+    </div>
+  );
+}

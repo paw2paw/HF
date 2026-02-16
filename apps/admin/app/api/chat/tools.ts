@@ -113,13 +113,18 @@ async function handleShareContent(
 /**
  * Build a list of available teaching materials for the system prompt.
  * Loaded from the caller's domain subjects.
+ *
+ * For first calls, annotates media with phase assignments from the domain's
+ * onboardingFlowPhases config (phases[].content[].mediaId).
  */
 export async function buildContentCatalog(callerId: string): Promise<string | null> {
   const caller = await prisma.caller.findUnique({
     where: { id: callerId },
     select: {
+      domainId: true,
       domain: {
         select: {
+          onboardingFlowPhases: true,
           subjects: { select: { subjectId: true } },
         },
       },
@@ -144,6 +149,27 @@ export async function buildContentCatalog(callerId: string): Promise<string | nu
 
   if (items.length === 0) return null;
 
+  // Check if this is a first call in the domain (no onboarding session or incomplete)
+  let isFirstCallInDomain = false;
+  if (caller.domainId) {
+    const onboardingSession = await prisma.onboardingSession.findUnique({
+      where: { callerId_domainId: { callerId, domainId: caller.domainId } },
+      select: { isComplete: true },
+    });
+    isFirstCallInDomain = !onboardingSession || !onboardingSession.isComplete;
+  }
+
+  // Build phase→mediaId mapping from onboarding flow config
+  const phaseMediaMap = new Map<string, { phase: string; instruction?: string }>();
+  if (isFirstCallInDomain && caller.domain.onboardingFlowPhases) {
+    const flowConfig = caller.domain.onboardingFlowPhases as { phases?: Array<{ phase: string; content?: Array<{ mediaId: string; instruction?: string }> }> };
+    for (const phase of flowConfig.phases || []) {
+      for (const ref of phase.content || []) {
+        phaseMediaMap.set(ref.mediaId, { phase: phase.phase, instruction: ref.instruction });
+      }
+    }
+  }
+
   // Deduplicate
   const seen = new Set<string>();
   const unique = items.filter((i) => {
@@ -157,8 +183,16 @@ export async function buildContentCatalog(callerId: string): Promise<string | nu
     const typeLabel = m.mimeType.startsWith("image/") ? "Image" : m.mimeType === "application/pdf" ? "PDF" : m.mimeType.startsWith("audio/") ? "Audio" : "File";
     const desc = m.description ? ` — ${m.description.slice(0, 80)}` : "";
     const tags = m.tags.length > 0 ? ` [${m.tags.join(", ")}]` : "";
-    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${desc}${tags}`;
+    const phaseRef = phaseMediaMap.get(m.id);
+    const phaseHint = phaseRef ? ` | SHARE DURING: "${phaseRef.phase}" phase${phaseRef.instruction ? ` — ${phaseRef.instruction}` : ""}` : "";
+    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${desc}${tags}${phaseHint}`;
   });
 
-  return `\n## Available Teaching Materials\nYou can share these with the learner using the share_content tool:\n${lines.join("\n")}\n\nWhen discussing content that has a visual component (passage, diagram, worksheet), share it proactively using share_content. After sharing, reference the content naturally (e.g. "Take a look at the passage I just sent you").`;
+  let instructions = "When discussing content that has a visual component (passage, diagram, worksheet), share it proactively using share_content. After sharing, reference the content naturally (e.g. \"Take a look at the passage I just sent you\").";
+
+  if (phaseMediaMap.size > 0) {
+    instructions += "\n\nIMPORTANT: Items marked with \"SHARE DURING\" are assigned to specific onboarding phases. Share them at the indicated point in the session flow.";
+  }
+
+  return `\n## Available Teaching Materials\nYou can share these with the learner using the share_content tool:\n${lines.join("\n")}\n\n${instructions}`;
 }

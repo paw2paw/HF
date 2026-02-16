@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useApiParallel } from "@/hooks/useApi";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 // Category colors
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -304,6 +305,7 @@ export default function MeteringPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Resource Metering</h1>

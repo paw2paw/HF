@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 interface Institution {
   id: string;
@@ -38,6 +39,7 @@ export default function InstitutionsPage() {
 
   return (
     <div style={{ paddingBottom: 40 }}>
+      <AdvancedBanner />
       <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>

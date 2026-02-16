@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -557,6 +558,7 @@ export default function LayersPage() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{

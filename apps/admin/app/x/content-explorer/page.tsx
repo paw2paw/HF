@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type ContentFragment = {
   id: string;
@@ -165,6 +166,7 @@ export default function ContentExplorerPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>

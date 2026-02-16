@@ -5,8 +5,15 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 type Params = { params: Promise<{ subjectId: string }> };
 
 /**
- * GET /api/subjects/:subjectId/domains
- * List domains linked to this subject
+ * @api GET /api/subjects/:subjectId/domains
+ * @visibility internal
+ * @scope subjects:read
+ * @auth session
+ * @tags subjects
+ * @description List domains linked to a subject.
+ * @param subjectId string - Subject ID (path)
+ * @response 200 { domains: [...] }
+ * @response 500 { error: "..." }
  */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
@@ -30,9 +37,18 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 /**
- * POST /api/subjects/:subjectId/domains
- * Link a domain to this subject
- * Body: { domainId }
+ * @api POST /api/subjects/:subjectId/domains
+ * @visibility internal
+ * @scope subjects:update
+ * @auth session
+ * @tags subjects
+ * @description Link a domain to a subject.
+ * @param subjectId string - Subject ID (path)
+ * @body domainId string - Domain ID to link (required)
+ * @response 201 { link: {...} }
+ * @response 400 { error: "domainId is required" }
+ * @response 409 { error: "This domain is already linked to this subject" }
+ * @response 500 { error: "..." }
  */
 export async function POST(req: NextRequest, { params }: Params) {
   try {
@@ -70,9 +86,17 @@ export async function POST(req: NextRequest, { params }: Params) {
 }
 
 /**
- * DELETE /api/subjects/:subjectId/domains
- * Unlink a domain from this subject
- * Body: { domainId }
+ * @api DELETE /api/subjects/:subjectId/domains
+ * @visibility internal
+ * @scope subjects:update
+ * @auth session
+ * @tags subjects
+ * @description Unlink a domain from a subject.
+ * @param subjectId string - Subject ID (path)
+ * @body domainId string - Domain ID to unlink (required)
+ * @response 200 { ok: true }
+ * @response 400 { error: "domainId is required" }
+ * @response 500 { error: "..." }
  */
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {

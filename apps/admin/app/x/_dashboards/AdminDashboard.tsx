@@ -59,7 +59,7 @@ export default async function AdminDashboard() {
   ];
 
   return (
-    <div>
+    <div data-tour="welcome">
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
           <div>

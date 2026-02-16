@@ -110,6 +110,7 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireAuth("VIEWER");
     if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
@@ -127,12 +128,33 @@ export async function GET(request: NextRequest) {
     // If listing tasks by status
     if (status) {
       const { prisma } = await import("@/lib/prisma");
-      const tasks = await prisma.userTask.findMany({
-        where: { status: status as any },
-        orderBy: { startedAt: "desc" },
-        take: 50,
+      const limitParam = searchParams.get("limit");
+      const offsetParam = searchParams.get("offset");
+      const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 50, 100) : 50;
+      const offset = offsetParam ? parseInt(offsetParam, 10) || 0 : 0;
+
+      const where = {
+        userId: session.user.id,
+        status: status as any,
+      };
+
+      const [tasks, total] = await Promise.all([
+        prisma.userTask.findMany({
+          where,
+          orderBy: { startedAt: "desc" },
+          take: limit,
+          skip: offset,
+        }),
+        prisma.userTask.count({ where }),
+      ]);
+
+      return NextResponse.json({
+        ok: true,
+        tasks,
+        count: tasks.length,
+        total,
+        hasMore: offset + tasks.length < total,
       });
-      return NextResponse.json({ ok: true, tasks, count: tasks.length });
     }
 
     return NextResponse.json(

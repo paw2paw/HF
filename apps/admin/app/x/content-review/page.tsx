@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type ContentSource = {
   id: string;
@@ -149,6 +150,7 @@ export default function ContentReviewPage() {
 
   return (
     <div>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{

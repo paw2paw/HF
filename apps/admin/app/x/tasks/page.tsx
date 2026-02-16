@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────
 
@@ -91,26 +92,112 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+// ── Summary Badges ─────────────────────────────────
+
+function CountBadge({ label, count }: { label: string; count: number }) {
+  return (
+    <span
+      className="rounded px-2 py-0.5 text-[11px] font-mono"
+      style={{ background: "var(--surface-secondary)", color: "var(--text-secondary)" }}
+    >
+      {count} {label}
+    </span>
+  );
+}
+
+function EntityLink({ label, name, href }: { label: string; name: string; href: string }) {
+  return (
+    <Link
+      href={href}
+      className="rounded px-2 py-0.5 text-[11px] transition-colors hover:underline"
+      style={{ background: "var(--surface-secondary)", color: "var(--accent-primary)" }}
+    >
+      {label}: {name}
+    </Link>
+  );
+}
+
+function TaskSummary({ task }: { task: UserTask }) {
+  const summary = task.context?.summary;
+  if (!summary) return null;
+
+  if (task.taskType === "quick_launch") {
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+        {summary.domain?.name && (
+          <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains/${summary.domain.id}`} />
+        )}
+        {summary.caller?.name && (
+          <EntityLink label="Caller" name={summary.caller.name} href={`/x/callers/${summary.caller.id}`} />
+        )}
+        {summary.counts?.assertions > 0 && <CountBadge label="assertions" count={summary.counts.assertions} />}
+        {summary.counts?.modules > 0 && <CountBadge label="modules" count={summary.counts.modules} />}
+        {summary.counts?.goals > 0 && <CountBadge label="goals" count={summary.counts.goals} />}
+      </div>
+    );
+  }
+
+  if (task.taskType === "extraction") {
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+        {summary.counts?.extracted > 0 && <CountBadge label="extracted" count={summary.counts.extracted} />}
+        {summary.counts?.imported > 0 && <CountBadge label="imported" count={summary.counts.imported} />}
+        {summary.counts?.duplicates > 0 && (
+          <span
+            className="rounded px-2 py-0.5 text-[11px] font-mono"
+            style={{ background: "var(--surface-tertiary)", color: "var(--text-muted)" }}
+          >
+            {summary.counts.duplicates} duplicates
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (task.taskType === "curriculum_generation") {
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+        {summary.subject?.name && (
+          <EntityLink label="Subject" name={summary.subject.name} href={`/x/subjects/${summary.subject.id}`} />
+        )}
+        {summary.counts?.modules > 0 && <CountBadge label="modules" count={summary.counts.modules} />}
+        {summary.counts?.assertions > 0 && <CountBadge label="assertions" count={summary.counts.assertions} />}
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ── Main Page ──────────────────────────────────────
+
+const COMPLETED_PAGE_SIZE = 20;
 
 export default function TasksPage() {
   const router = useRouter();
   const [activeTasks, setActiveTasks] = useState<UserTask[]>([]);
-  const [recentTasks, setRecentTasks] = useState<UserTask[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<UserTask[]>([]);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadTasks = useCallback(async () => {
     try {
       const [activeRes, completedRes] = await Promise.all([
         fetch("/api/tasks?status=in_progress"),
-        fetch("/api/tasks?status=completed"),
+        fetch(`/api/tasks?status=completed&limit=${COMPLETED_PAGE_SIZE}&offset=0`),
       ]);
 
       const activeData = await activeRes.json();
       const completedData = await completedRes.json();
 
       if (activeData.ok) setActiveTasks(activeData.tasks || []);
-      if (completedData.ok) setRecentTasks((completedData.tasks || []).slice(0, 10));
+      if (completedData.ok) {
+        setCompletedTasks(completedData.tasks || []);
+        setCompletedTotal(completedData.total ?? completedData.count ?? 0);
+        setHasMore(completedData.hasMore ?? false);
+      }
     } catch {
       // Ignore
     } finally {
@@ -120,10 +207,27 @@ export default function TasksPage() {
 
   useEffect(() => {
     loadTasks();
-    // Poll every 10 seconds
     const interval = setInterval(loadTasks, 10000);
     return () => clearInterval(interval);
   }, [loadTasks]);
+
+  const loadMoreCompleted = async () => {
+    setLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/tasks?status=completed&limit=${COMPLETED_PAGE_SIZE}&offset=${completedTasks.length}`
+      );
+      const data = await res.json();
+      if (data.ok) {
+        setCompletedTasks((prev) => [...prev, ...(data.tasks || [])]);
+        setHasMore(data.hasMore ?? false);
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleAbandon = async (taskId: string) => {
     try {
@@ -300,8 +404,8 @@ export default function TasksPage() {
         </section>
       )}
 
-      {/* Recent Completed */}
-      {!loading && recentTasks.length > 0 && (
+      {/* Completed */}
+      {!loading && (
         <section>
           <h2
             style={{
@@ -313,49 +417,80 @@ export default function TasksPage() {
               marginBottom: 16,
             }}
           >
-            Recent
+            Done ({completedTotal})
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {recentTasks.map((task) => (
-              <div
-                key={task.id}
-                className="bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700"
-                style={{
-                  padding: "12px 20px",
-                  borderRadius: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    className="bg-emerald-500 dark:bg-emerald-400"
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      color: "#fff",
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    &#10003;
+
+          {completedTasks.length === 0 ? (
+            <div
+              className="text-neutral-500 dark:text-neutral-400"
+              style={{ fontSize: 14, padding: "16px 0" }}
+            >
+              No completed tasks yet.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {completedTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700"
+                  style={{
+                    padding: "12px 20px",
+                    borderRadius: 10,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        className="bg-emerald-500 dark:bg-emerald-400"
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 11,
+                          color: "#fff",
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        &#10003;
+                      </div>
+                      <div className="text-neutral-900 dark:text-neutral-100" style={{ fontSize: 14, fontWeight: 500 }}>
+                        {getTaskLabel(task)}
+                      </div>
+                    </div>
+                    <div className="text-neutral-500 dark:text-neutral-400" style={{ fontSize: 12, flexShrink: 0, marginLeft: 12 }}>
+                      {task.completedAt ? timeAgo(task.completedAt) : timeAgo(task.updatedAt)}
+                    </div>
                   </div>
-                  <div className="text-neutral-900 dark:text-neutral-100" style={{ fontSize: 14, fontWeight: 500 }}>
-                    {getTaskLabel(task)}
-                  </div>
+                  <TaskSummary task={task} />
                 </div>
-                <div className="text-neutral-500 dark:text-neutral-400" style={{ fontSize: 12 }}>
-                  {task.completedAt ? timeAgo(task.completedAt) : timeAgo(task.updatedAt)}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+
+              {/* Load More */}
+              {hasMore && (
+                <button
+                  onClick={loadMoreCompleted}
+                  disabled={loadingMore}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: 10,
+                    background: "transparent",
+                    border: "1px solid var(--border-default)",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: loadingMore ? "default" : "pointer",
+                    color: "var(--text-secondary)",
+                    marginTop: 4,
+                  }}
+                >
+                  {loadingMore ? "Loading..." : "Load More"}
+                </button>
+              )}
+            </div>
+          )}
         </section>
       )}
     </div>

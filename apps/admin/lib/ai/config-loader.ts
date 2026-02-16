@@ -71,9 +71,7 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "spec.view": { provider: "claude", model: config.ai.claude.model },
   "spec.extract": { provider: "claude", model: config.ai.claude.model },
   "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "chat.chat": { provider: "claude", model: config.ai.claude.model },
   "chat.data": { provider: "claude", model: config.ai.claude.model },
-  "chat.spec": { provider: "claude", model: config.ai.claude.model },
   "chat.call": { provider: "claude", model: config.ai.claude.model },
   "assistant.chat": { provider: "claude", model: config.ai.claude.model },
   "assistant.tasks": { provider: "claude", model: config.ai.claude.model },
@@ -87,6 +85,8 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
   "test-harness.system": { provider: "claude", model: config.ai.claude.model },
   "test-harness.caller": { provider: "claude", model: config.ai.claude.model },
   "test-harness.greeting": { provider: "claude", model: config.ai.claude.model },
+  "targets.suggest": { provider: "claude", model: "claude-3-haiku-20240307" },
+  "content-sources.suggest": { provider: "claude", model: "claude-3-haiku-20240307" },
 };
 
 // In-memory cache with TTL

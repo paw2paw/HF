@@ -26,6 +26,7 @@ import "@/lib/prompt/composition/transforms/teaching-content";
 
 function makeAssertion(overrides: Partial<CurriculumAssertionData> = {}): CurriculumAssertionData {
   return {
+    id: crypto.randomUUID(),
     assertion: "The danger zone is 8°C to 63°C",
     category: "fact",
     chapter: "Chapter 1: Food Safety",
@@ -37,6 +38,10 @@ function makeAssertion(overrides: Partial<CurriculumAssertionData> = {}): Curric
     learningOutcomeRef: null,
     sourceName: "Level 2 Food Hygiene",
     sourceTrustLevel: "ACCREDITED_MATERIAL",
+    depth: null,
+    parentId: null,
+    orderIndex: 0,
+    topicSlug: null,
     ...overrides,
   };
 }
@@ -304,6 +309,205 @@ describe("renderTeachingContent transform", () => {
       const result = transform(null, ctx, sectionDef);
 
       expect(result.highExamRelevanceCount).toBe(2); // 0.9 and 0.8
+    });
+  });
+
+  // =====================================================
+  // PYRAMID RENDERING TESTS
+  // =====================================================
+
+  describe("pyramid rendering (hierarchy mode)", () => {
+    it("renders tree structure when assertions have depth set", () => {
+      const rootId = "root-1";
+      const topicId = "topic-1";
+      const keyPointId = "kp-1";
+      const assertions = [
+        makeAssertion({
+          id: rootId,
+          assertion: "Food Safety Level 2 covers the principles of food hygiene",
+          category: "overview",
+          depth: 0,
+          parentId: null,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: topicId,
+          assertion: "Temperature Control",
+          category: "summary",
+          depth: 1,
+          parentId: rootId,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: keyPointId,
+          assertion: "The Danger Zone",
+          category: "summary",
+          depth: 2,
+          parentId: topicId,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: "detail-1",
+          assertion: "The danger zone is 8°C to 63°C",
+          category: "fact",
+          depth: 3,
+          parentId: keyPointId,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: "detail-2",
+          assertion: "Bacteria can double every 20 minutes",
+          category: "fact",
+          depth: 3,
+          parentId: keyPointId,
+          orderIndex: 1,
+        }),
+      ];
+      const ctx = makeContext({ assertions });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.hasTeachingContent).toBe(true);
+      expect(result.totalAssertions).toBe(5);
+      // Pyramid mode should use "## TEACHING CONTENT" heading
+      expect(result.teachingPoints).toContain("## TEACHING CONTENT");
+      // Overview should be rendered as paragraph
+      expect(result.teachingPoints).toContain("Food Safety Level 2");
+      // Topic should be rendered as heading
+      expect(result.teachingPoints).toContain("### Temperature Control");
+      // Key point rendered as bold
+      expect(result.teachingPoints).toContain("**The Danger Zone**");
+      // Details at max depth (3) rendered as bullets with citations
+      expect(result.teachingPoints).toContain("- The danger zone is 8°C to 63°C");
+      expect(result.teachingPoints).toContain("- Bacteria can double every 20 minutes");
+    });
+
+    it("falls back to flat rendering when no depth set", () => {
+      const assertions = [
+        makeAssertion({ assertion: "Point A", category: "fact", depth: null }),
+        makeAssertion({ assertion: "Point B", category: "definition", depth: null }),
+      ];
+      const ctx = makeContext({ assertions });
+      const result = transform(null, ctx, sectionDef);
+
+      // Flat mode uses "## APPROVED TEACHING POINTS"
+      expect(result.teachingPoints).toContain("## APPROVED TEACHING POINTS");
+      expect(result.teachingPoints).not.toContain("## TEACHING CONTENT");
+    });
+
+    it("respects depth filtering — omits nodes deeper than maxDepth", () => {
+      const rootId = "root-1";
+      const topicId = "topic-1";
+      const keyPointId = "kp-1";
+      const assertions = [
+        makeAssertion({
+          id: rootId,
+          assertion: "Overview text",
+          category: "overview",
+          depth: 0,
+          parentId: null,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: topicId,
+          assertion: "Topic A",
+          category: "summary",
+          depth: 1,
+          parentId: rootId,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: keyPointId,
+          assertion: "Key Point 1",
+          category: "summary",
+          depth: 2,
+          parentId: topicId,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: "deep-detail",
+          assertion: "Very deep detail that should be visible at max depth 3",
+          category: "fact",
+          depth: 3,
+          parentId: keyPointId,
+          orderIndex: 0,
+        }),
+      ];
+      const ctx = makeContext({ assertions });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.teachingPoints).toContain("Overview text");
+      expect(result.teachingPoints).toContain("Topic A");
+      expect(result.teachingPoints).toContain("Key Point 1");
+      // Depth 3 should be visible since maxDepth defaults to max depth seen (3)
+      expect(result.teachingPoints).toContain("Very deep detail");
+    });
+
+    it("includes citations in pyramid bullet items", () => {
+      const rootId = "root-1";
+      const topicId = "topic-1";
+      const kpId = "kp-1";
+      const assertions = [
+        makeAssertion({
+          id: rootId,
+          assertion: "Overview paragraph",
+          category: "overview",
+          depth: 0,
+          parentId: null,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: topicId,
+          assertion: "Chilling Requirements",
+          category: "summary",
+          depth: 1,
+          parentId: rootId,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: kpId,
+          assertion: "Storage temperatures",
+          category: "summary",
+          depth: 2,
+          parentId: topicId,
+          orderIndex: 0,
+        }),
+        makeAssertion({
+          id: "leaf-1",
+          assertion: "Fridges must be 0-5°C",
+          category: "fact",
+          depth: 3,
+          parentId: kpId,
+          orderIndex: 0,
+          sourceName: "Food Safety Guide",
+          pageRef: "p.18",
+        }),
+      ];
+      const ctx = makeContext({ assertions });
+      const result = transform(null, ctx, sectionDef);
+
+      // Leaf-level bullets should include citations
+      expect(result.teachingPoints).toContain("[Food Safety Guide, p.18]");
+    });
+
+    it("skips citations for overview/summary categories", () => {
+      const assertions = [
+        makeAssertion({
+          id: "overview-1",
+          assertion: "This module covers food safety principles",
+          category: "overview",
+          depth: 0,
+          parentId: null,
+          orderIndex: 0,
+          sourceName: "Source",
+          pageRef: "p.1",
+        }),
+      ];
+      const ctx = makeContext({ assertions });
+      const result = transform(null, ctx, sectionDef);
+
+      // Overview should not have citations
+      expect(result.teachingPoints).toContain("This module covers food safety principles");
+      expect(result.teachingPoints).not.toContain("[Source, p.1]");
     });
   });
 });

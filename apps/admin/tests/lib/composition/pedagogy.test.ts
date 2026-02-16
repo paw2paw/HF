@@ -231,5 +231,64 @@ describe("computeSessionPedagogy transform", () => {
       expect(result.newMaterial).toBeDefined();
       expect(result.newMaterial.module).toBe("Introduction");
     });
+
+    it("includes content references in flow steps when phases have content", () => {
+      const ctx = makeContext({
+        loadedData: {
+          ...makeContext().loadedData,
+          caller: {
+            id: "c1", name: "Paul", email: null, phone: null, externalId: null,
+            domain: {
+              id: "d1", slug: "hist", name: "History", description: null,
+              onboardingFlowPhases: {
+                phases: [
+                  { phase: "welcome", duration: "2 min", goals: ["Greet"] },
+                  { phase: "first-topic", duration: "5 min", goals: ["Teach topic"], content: [
+                    { mediaId: "media-1", instruction: "Share the passage at start" },
+                  ]},
+                ],
+              },
+            },
+          },
+        },
+        sharedState: {
+          ...makeContext().sharedState,
+          isFirstCall: true,
+        },
+      });
+
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+      expect(result.flow[0]).not.toContain("[Content:");
+      expect(result.flow[1]).toContain("[Content: Share the passage at start]");
+    });
+
+    it("omits content annotation for phases without content", () => {
+      const ctx = makeContext({
+        loadedData: {
+          ...makeContext().loadedData,
+          caller: {
+            id: "c1", name: "Paul", email: null, phone: null, externalId: null,
+            domain: {
+              id: "d1", slug: "hist", name: "History", description: null,
+              onboardingFlowPhases: {
+                phases: [
+                  { phase: "welcome", duration: "2 min", goals: ["Greet"] },
+                  { phase: "wrap-up", duration: "2 min", goals: ["Summarise"] },
+                ],
+              },
+            },
+          },
+        },
+        sharedState: {
+          ...makeContext().sharedState,
+          isFirstCall: true,
+        },
+      });
+
+      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
+      result.flow.forEach((step: string) => {
+        expect(step).not.toContain("[Content:");
+      });
+    });
   });
 });

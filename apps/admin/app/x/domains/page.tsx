@@ -11,6 +11,7 @@ import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant
 import { ReadinessBadge } from "@/components/shared/ReadinessBadge";
 import { EditableTitle } from "@/components/shared/EditableTitle";
 import { BookOpen, Users, FileText, Rocket, Layers } from "lucide-react";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type DomainListItem = {
   id: string;
@@ -62,6 +63,7 @@ type SubjectSourceItem = {
     slug: string;
     name: string;
     trustLevel: string;
+    documentType?: string;
     _count: { assertions: number };
   };
 };
@@ -147,6 +149,33 @@ function TrustBadge({ level }: { level: string }) {
   );
 }
 
+const DOC_TYPES: Record<string, { label: string; color: string }> = {
+  CURRICULUM: { label: "Curriculum", color: "#4338CA" },
+  TEXTBOOK: { label: "Textbook", color: "#059669" },
+  WORKSHEET: { label: "Worksheet", color: "#D97706" },
+  EXAMPLE: { label: "Example", color: "#7C3AED" },
+  ASSESSMENT: { label: "Assessment", color: "#DC2626" },
+  REFERENCE: { label: "Reference", color: "#6B7280" },
+};
+
+function DocTypeBadge({ type }: { type?: string }) {
+  if (!type) return null;
+  const cfg = DOC_TYPES[type] || { label: type, color: "#6B7280" };
+  return (
+    <span style={{
+      display: "inline-block",
+      padding: "1px 6px",
+      borderRadius: 3,
+      fontSize: 10,
+      fontWeight: 600,
+      color: cfg.color,
+      backgroundColor: `color-mix(in srgb, ${cfg.color} 12%, transparent)`,
+    }}>
+      {cfg.label}
+    </span>
+  );
+}
+
 export default function DomainsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -210,7 +239,9 @@ export default function DomainsPage() {
     phase: string;
     duration: string;
     goals: string[];
+    content?: Array<{ mediaId: string; instruction?: string }>;
   }>>([]);
+  const [domainMedia, setDomainMedia] = useState<Array<{ id: string; title: string | null; fileName: string; mimeType: string }>>([]);
   const [structuredTargets, setStructuredTargets] = useState<Record<string, { value: number; confidence: number }>>({});
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [onboardingSaveError, setOnboardingSaveError] = useState<string | null>(null);
@@ -304,6 +335,32 @@ export default function DomainsPage() {
         .catch(() => {});
     }
   }, [activeTab, availableSpecs.length]);
+
+  // Fetch domain media for onboarding phase content picker
+  useEffect(() => {
+    if (editingOnboarding && domain) {
+      const subjectIds = ((domain as any).subjects || []).map((s: any) => s.subject?.id || s.subjectId);
+      const validIds = subjectIds.filter(Boolean);
+      if (validIds.length === 0) { setDomainMedia([]); return; }
+      Promise.all(
+        validIds.map((sid: string) =>
+          fetch(`/api/subjects/${sid}/media`).then((r) => r.json())
+        )
+      ).then((results) => {
+        const allMedia: Array<{ id: string; title: string | null; fileName: string; mimeType: string }> = [];
+        const seen = new Set<string>();
+        for (const result of results) {
+          for (const item of result.media || []) {
+            if (!seen.has(item.id)) {
+              seen.add(item.id);
+              allMedia.push({ id: item.id, title: item.title, fileName: item.fileName, mimeType: item.mimeType });
+            }
+          }
+        }
+        setDomainMedia(allMedia);
+      }).catch(() => setDomainMedia([]));
+    }
+  }, [editingOnboarding, domain?.id]);
 
   // Populate form when entering edit mode - fetch onboarding data to get identity spec
   useEffect(() => {
@@ -722,6 +779,7 @@ export default function DomainsPage() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{
@@ -1492,8 +1550,25 @@ export default function DomainsPage() {
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                                {subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
+                                <span>{subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}</span>
+                                <Link
+                                  href={`/x/domains/${domain.id}/extraction`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    padding: "2px 8px",
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: "#8b5cf6",
+                                    background: "#ede9fe",
+                                    borderRadius: 4,
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Extraction Config
+                                </Link>
                               </div>
                             </div>
                             {/* Sources list */}
@@ -1527,6 +1602,7 @@ export default function DomainsPage() {
                                         {ss.tags[0]}
                                       </span>
                                     )}
+                                    <DocTypeBadge type={ss.source.documentType} />
                                     <Link
                                       href={`/x/content-sources?highlight=${ss.source.id}`}
                                       style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}
@@ -1913,6 +1989,93 @@ export default function DomainsPage() {
                                         resize: "vertical",
                                       }}
                                     />
+                                  </div>
+
+                                  {/* Phase Content — media to share during this phase */}
+                                  <div style={{ marginTop: 10 }}>
+                                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                      Content to Share
+                                    </label>
+                                    {(phase.content || []).map((ref, ci) => {
+                                      const media = domainMedia.find(m => m.id === ref.mediaId);
+                                      return (
+                                        <div key={ci} style={{
+                                          display: "flex", gap: 8, alignItems: "center", marginBottom: 6,
+                                          padding: "6px 8px", background: "var(--surface-tertiary)", borderRadius: 6,
+                                          border: "1px solid var(--border-default)",
+                                        }}>
+                                          <span style={{ fontSize: 14 }}>
+                                            {media?.mimeType?.startsWith("image/") ? "🖼️" : media?.mimeType === "application/pdf" ? "📄" : media?.mimeType?.startsWith("audio/") ? "🔊" : "📎"}
+                                          </span>
+                                          <span style={{ fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {media?.title || media?.fileName || ref.mediaId}
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={ref.instruction || ""}
+                                            onChange={(e) => {
+                                              const newPhases = [...structuredPhases];
+                                              const contentArr = [...(newPhases[index].content || [])];
+                                              contentArr[ci] = { ...contentArr[ci], instruction: e.target.value };
+                                              newPhases[index].content = contentArr;
+                                              setStructuredPhases(newPhases);
+                                            }}
+                                            placeholder="Instruction (e.g. Share at start of phase)"
+                                            style={{
+                                              flex: 2, padding: "4px 8px", fontSize: 12,
+                                              border: "1px solid var(--border-default)", borderRadius: 4,
+                                              background: "var(--surface-secondary)",
+                                            }}
+                                          />
+                                          <button
+                                            onClick={() => {
+                                              const newPhases = [...structuredPhases];
+                                              newPhases[index].content = (newPhases[index].content || []).filter((_, i) => i !== ci);
+                                              setStructuredPhases(newPhases);
+                                            }}
+                                            style={{
+                                              padding: "2px 8px", fontSize: 11, color: "var(--status-error-text)",
+                                              background: "var(--status-error-bg)", border: "none", borderRadius: 4, cursor: "pointer",
+                                            }}
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                    {domainMedia.length > 0 ? (
+                                      <select
+                                        value=""
+                                        onChange={(e) => {
+                                          if (!e.target.value) return;
+                                          const newPhases = [...structuredPhases];
+                                          const existing = newPhases[index].content || [];
+                                          if (existing.some(c => c.mediaId === e.target.value)) return;
+                                          newPhases[index].content = [...existing, { mediaId: e.target.value }];
+                                          setStructuredPhases(newPhases);
+                                        }}
+                                        style={{
+                                          width: "100%", padding: "6px 8px", fontSize: 12,
+                                          border: "1px dashed var(--border-default)", borderRadius: 4,
+                                          background: "var(--surface-secondary)", color: "var(--text-secondary)",
+                                          cursor: "pointer",
+                                        }}
+                                      >
+                                        <option value="">+ Attach media to this phase...</option>
+                                        {domainMedia
+                                          .filter(m => !(phase.content || []).some(c => c.mediaId === m.id))
+                                          .map(m => (
+                                            <option key={m.id} value={m.id}>
+                                              {m.title || m.fileName} ({m.mimeType.split("/")[1]})
+                                            </option>
+                                          ))
+                                        }
+                                      </select>
+                                    ) : (
+                                      <div style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
+                                        No media uploaded to this domain&apos;s subjects yet
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -2557,6 +2720,25 @@ export default function DomainsPage() {
                                     <li key={gIdx} style={{ marginBottom: 4 }}>{goal}</li>
                                   ))}
                                 </ul>
+                              </div>
+                            )}
+                            {phase.content && phase.content.length > 0 && (
+                              <div style={{ marginTop: 12 }}>
+                                <div style={{
+                                  fontSize: 10, color: "var(--text-muted)", marginBottom: 6,
+                                  fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase",
+                                }}>
+                                  Content
+                                </div>
+                                {phase.content.map((ref: any, cIdx: number) => (
+                                  <div key={cIdx} style={{
+                                    fontSize: 12, padding: "4px 8px", background: "var(--surface-tertiary)",
+                                    borderRadius: 4, marginBottom: 4, display: "flex", alignItems: "center", gap: 6,
+                                  }}>
+                                    <span>📎</span>
+                                    <span style={{ fontWeight: 500 }}>{ref.instruction || "Media attached"}</span>
+                                  </div>
+                                ))}
                               </div>
                             )}
                           </div>

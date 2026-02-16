@@ -240,6 +240,16 @@ export const config = {
     get onboardingSlugPrefix(): string {
       return optional("ONBOARDING_SLUG_PREFIX", "init.");
     },
+
+    /**
+     * Content Extract Spec (default: CONTENT-EXTRACT-001)
+     * Defines teaching point extraction rules, pyramid structuring, and rendering config.
+     * Domain-level override specs deep-merge onto this system spec.
+     * Can be overridden via SPEC_CONTENT_EXTRACT env var.
+     */
+    get contentExtract(): string {
+      return optional("SPEC_CONTENT_EXTRACT", "CONTENT-EXTRACT-001");
+    },
   },
 
   // ---------------------------------------------------------------------------

@@ -138,13 +138,20 @@ async function runCurriculumGeneration(
     return;
   }
 
-  // Step 3: Complete — store preview in context
+  // Step 3: Complete — store preview + summary in context
   await updateTaskProgress(taskId, {
     currentStep: 3,
     context: {
       preview: result,
       moduleCount: result.modules?.length ?? 0,
       warnings: result.warnings,
+      summary: {
+        subject: { id: subjectId, name: subjectName },
+        counts: {
+          modules: result.modules?.length ?? 0,
+          assertions: assertions.length,
+        },
+      },
     },
   });
 

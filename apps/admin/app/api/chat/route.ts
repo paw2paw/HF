@@ -13,7 +13,7 @@ import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
 
 export const runtime = "nodejs";
 
-type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
+type ChatMode = "DATA" | "CALL";
 
 interface EntityBreadcrumb {
   type: string;
@@ -40,9 +40,9 @@ const MAX_TOOL_ITERATIONS = 5;
  * @scope chat:send
  * @auth session
  * @tags chat
- * @description Sends a message to the AI chat assistant. Supports multiple modes (CHAT, DATA, SPEC, CALL) with mode-specific system prompts. DATA mode supports tool calling for database queries and spec updates. Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
+ * @description Sends a message to the AI chat assistant. Supports DATA mode (tool calling for database queries and spec updates) and CALL mode (voice call simulation with content sharing). Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
  * @body message string - User message text (required)
- * @body mode string - Chat mode: "CHAT" | "DATA" | "SPEC" | "CALL"
+ * @body mode string - Chat mode: "DATA" | "CALL"
  * @body entityContext EntityBreadcrumb[] - Current UI context breadcrumbs
  * @body conversationHistory object[] - Previous conversation messages
  * @body engine string - AI engine to use (optional, uses default if not specified)
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth("OPERATOR");
     if (isAuthError(authResult)) return authResult.error;
+    const userRole = authResult.session.user.role;
 
     const body: ChatRequest = await request.json();
     const { message, mode, entityContext, conversationHistory = [], engine, callId: requestCallId } = body;
@@ -85,49 +86,53 @@ export async function POST(request: NextRequest) {
       ...(isUserMessageInHistory ? [] : [{ role: "user" as const, content: message.trim() }]),
     ];
 
-    // @ai-call chat.{chat|data|spec|call} — Streaming chat per mode | config: /x/ai-config
+    // @ai-call chat.{data|call} — Chat per mode (DATA with tools, CALL with voice sim) | config: /x/ai-config
     const callPoint = `chat.${mode.toLowerCase()}`;
     const aiConfig = await getAIConfig(callPoint);
     const selectedEngine = engine || aiConfig.provider;
 
     // DATA mode: use tool calling with non-streaming loop
     if (mode === "DATA") {
-      return await handleDataModeWithTools(messages, callPoint, engine, selectedEngine, mode, message, entityContext, conversationHistory);
+      const userId = authResult.session.user.id;
+      return await handleDataModeWithTools(messages, callPoint, engine, selectedEngine, mode, message, entityContext, conversationHistory, userRole, userId);
     }
 
     // CALL mode with content sharing tools
-    if (mode === "CALL" && requestCallId) {
+    if (mode === "CALL") {
       const callerEntity = entityContext.find((e) => e.type === "caller");
-      if (callerEntity) {
+      if (callerEntity && requestCallId) {
         return await handleCallModeWithTools(
           messages, callPoint, engine, selectedEngine, mode, message,
           entityContext, conversationHistory, callerEntity.id, requestCallId
         );
       }
+
+      // @ai-call chat.call — Streaming CALL mode (no callId) | config: /x/ai-config
+      const { stream: meteredStream } = await getConfiguredMeteredAICompletionStream(
+        {
+          callPoint,
+          engineOverride: engine,
+          messages,
+          maxTokens: 300,
+          temperature: 0.85,
+        },
+        { sourceOp: callPoint }
+      );
+
+      logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext);
+
+      return new Response(meteredStream, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+          "X-Chat-Mode": mode,
+          "X-AI-Engine": selectedEngine,
+        },
+      });
     }
 
-    // Other modes: standard streaming (no tools)
-    const { stream: meteredStream } = await getConfiguredMeteredAICompletionStream(
-      {
-        callPoint,
-        engineOverride: engine,
-        messages,
-        maxTokens: mode === "CALL" ? 300 : 2000,
-        temperature: mode === "CALL" ? 0.85 : 0.7,
-      },
-      { sourceOp: callPoint }
-    );
-
-    logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext);
-
-    return new Response(meteredStream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
-        "X-Chat-Mode": mode,
-        "X-AI-Engine": selectedEngine,
-      },
-    });
+    // Should not reach here — DATA and CALL are the only valid modes
+    return NextResponse.json({ ok: false, error: "Invalid chat mode" }, { status: 400 });
   } catch (error) {
     console.error("Chat API error:", error);
     const errorMessage = parseAIError(error);
@@ -151,6 +156,8 @@ async function handleDataModeWithTools(
   message: string,
   entityContext: EntityBreadcrumb[],
   conversationHistory: { role: string; content: string }[],
+  userRole: string,
+  userId: string,
 ): Promise<Response> {
   const loopMessages: AIMessage[] = [...messages];
   let toolCallCount = 0;
@@ -189,7 +196,7 @@ async function handleDataModeWithTools(
     const toolResultBlocks: ContentBlock[] = [];
     for (const toolUse of response.toolUses) {
       console.log(`[chat-tools] Executing tool: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
-      const result = await executeAdminTool(toolUse.name, toolUse.input);
+      const result = await executeAdminTool(toolUse.name, toolUse.input, userRole as any, { userId });
       toolResultBlocks.push({
         type: "tool_result",
         tool_use_id: toolUse.id,
@@ -253,6 +260,7 @@ async function handleCallModeWithTools(
 
   // No content available — fall back to standard streaming (no tools needed)
   if (!catalog) {
+    // @ai-call chat.call — Streaming CALL mode (no content catalog) | config: /x/ai-config
     const { stream: meteredStream } = await getConfiguredMeteredAICompletionStream(
       {
         callPoint,

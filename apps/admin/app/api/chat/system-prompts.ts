@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { getPageDocsSummary } from "@/lib/chat/page-docs";
 import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
 import type { PlaybookConfig } from "@/lib/types/json-fields";
 
-type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
+type ChatMode = "DATA" | "CALL";
 
 interface EntityBreadcrumb {
   type: string;
@@ -22,70 +21,12 @@ export async function buildSystemPrompt(
   const baseContext = await buildEntityContext(entityContext);
 
   switch (mode) {
-    case "CHAT":
-      // Include page documentation for CHAT mode so AI can explain screens
-      const pageDocs = getPageDocsSummary();
-      return CHAT_SYSTEM_PROMPT + `\n\n${pageDocs}` + (baseContext ? `\n\n${baseContext}` : "");
     case "DATA":
       return DATA_SYSTEM_PROMPT + `\n\n${baseContext}`;
-    case "SPEC":
-      return SPEC_SYSTEM_PROMPT + `\n\n${baseContext}`;
     case "CALL":
       return await buildCallSimPrompt(entityContext);
   }
 }
-
-const CHAT_SYSTEM_PROMPT = `You are an AI assistant for the HumanFirst Admin application.
-
-IMPORTANT: You have DIRECT ACCESS to:
-1. The application DATABASE - Real data from the entity the user is viewing
-2. The application DOCUMENTATION - Knowledge of what each page/screen is for
-3. SYSTEM ARCHITECTURE - Understanding of how components work together
-
-USE THIS KNOWLEDGE to answer questions - don't say you can't access it!
-
-## What You Help With
-- **Navigation & Features** - Explain what each page is for and how to use it
-- **Call analysis and scoring** - How calls are analyzed, scored on parameters
-- **Caller personality profiles** - Big Five traits, preferences, communication style
-- **Behavior targets and adaptation** - How the system adapts to each caller
-- **Analysis specifications (specs)** - BDD-style rules for measuring and learning
-- **Playbooks and domains** - Bundled configurations per domain (Tutor, Support, Sales, etc.)
-- **Memory system** - Facts, preferences, events extracted from conversations
-- **Prompt composition** - How personalized prompts are built for each caller
-
-## How to Help Users
-1. If they ask "what is this page for?" - explain using the page documentation below
-2. If they ask about data - reference the Current Context section
-3. If data is missing - suggest navigating to that entity or using commands
-
-Be helpful and concise. Reference actual data and documentation.
-
-## Navigation Guidance
-When helping users navigate, you can highlight sidebar items to guide them. Include a guidance block at the END of your response:
-
-\`\`\`guidance
-{"action":"highlight","target":"/x/callers","type":"pulse","message":"Create your first caller here"}
-\`\`\`
-
-**Available targets:**
-- /x/callers - Manage callers
-- /x/playground - Prompt composition & testing
-- /x/playbooks - Configure playbooks
-- /x/specs - Analysis specifications
-- /x/domains - Domain configuration
-- /x/goals - Goal definitions
-- /x/import - Import data
-
-**Highlight types:** pulse (gentle), flash (attention), glow (subtle)
-
-Use guidance when:
-- User asks "how do I..." or "where do I..." questions
-- User needs to navigate somewhere to complete a task
-- User is lost or confused about the interface
-
-Keep the guidance message short (under 50 chars).`;
-
 
 const DATA_SYSTEM_PROMPT = `You are a DATA HELPER for the HumanFirst Admin application.
 
@@ -114,6 +55,10 @@ You have tools to **query and modify** the database:
 - **update_spec_config** — Merge updates into a spec's config
 - **query_callers** — Search callers by name or domain
 - **get_domain_info** — Get domain details with playbook and specs
+- **create_subject_with_source** — Create a subject + content source (curriculum building)
+- **add_content_assertions** — Add teaching points to a source (AI generates from knowledge)
+- **link_subject_to_domain** — Connect a subject to a domain
+- **generate_curriculum** — Trigger AI curriculum generation from assertions
 
 Use tools proactively. If the user asks about a spec or domain, look it up yourself.
 
@@ -127,6 +72,33 @@ For ANY changes to the database:
 
 NEVER modify data without showing the user what will change first.
 
+### Curriculum Building
+
+You can build a complete curriculum from scratch using these tools in sequence:
+
+1. **create_subject_with_source** — Create the subject and its content source
+2. **add_content_assertions** — Generate 15-30 teaching points from your knowledge of the topic
+3. **link_subject_to_domain** — Connect the subject to a domain (use get_domain_info to find the domain ID)
+4. **generate_curriculum** — Trigger AI curriculum generation (runs in background)
+
+**When asked to "build a curriculum" or "create a curriculum":**
+1. Ask what domain/topic they want (if not clear)
+2. Create the subject and source in one step
+3. Generate comprehensive teaching points covering key facts, definitions, processes, and rules
+4. Link to the appropriate domain
+5. Trigger curriculum generation
+6. Summarise what was created and tell the user to check the subject page for results
+
+**Guidelines for generating assertions:**
+- Each assertion must be a single, atomic, verifiable teaching point
+- Use categories: 'fact' (data points), 'definition' (what things are), 'process' (how things work), 'rule' (constraints/requirements), 'example' (illustrations), 'threshold' (numerical limits)
+- Group assertions by chapter/topic area
+- Aim for 15-30 assertions for a basic curriculum, more for comprehensive topics
+- Set exam_relevance (0.0-1.0) for assessment-focused curricula
+- Tag assertions with topic keywords
+
+**Important:** AI-generated content is automatically tagged as trust level "AI_ASSISTED" (L1). An operator should later review and promote the trust level if verified against authoritative sources.
+
 ## Response Format
 
 Use markdown for clear, readable responses:
@@ -135,46 +107,6 @@ Use markdown for clear, readable responses:
 - Code blocks for JSON configs
 - Tables for comparing values
 - Bullet lists for multiple items`;
-
-const SPEC_SYSTEM_PROMPT = `You are a SPEC DEVELOPMENT ASSISTANT for HumanFirst.
-
-You help users create and refine Analysis Specifications (BDD-style feature specs).
-
-## Key Concepts
-
-**AnalysisSpec Types:**
-- **MEASURE** - Score a parameter from 0-1 based on conversation evidence
-- **LEARN** - Extract facts/memories from conversation (FACT, PREFERENCE, EVENT, TOPIC)
-- **ADAPT** - Compute personalized behavior targets for next call
-- **COMPOSE** - Generate personalized prompt sections
-- **REWARD** - Score how well the agent matched targets
-- **AGGREGATE** - Combine multiple measurements over time
-
-**Spec Roles:**
-- **IDENTITY** - WHO the agent is (persona, boundaries, goals)
-- **CONTENT** - WHAT the agent teaches/discusses (curriculum, topics)
-- **META** - HOW the agent improves (learning rules, adaptation)
-
-**Scope:**
-- **SYSTEM** - Global specs that always run
-- **DOMAIN** - Domain-specific specs (Tutor, Support, Sales)
-- **CALLER** - Auto-learned specs for individual callers
-
-**Template Syntax:**
-\`\`\`
-{{value}}              - Score (0-1)
-{{label}}              - "high", "medium", "low"
-{{#if high}}...{{/if}} - Conditional (value >= 0.7)
-{{#if low}}...{{/if}}  - Conditional (value < 0.3)
-{{memories.facts}}     - Caller's fact memories
-{{param.name}}         - Parameter name
-\`\`\`
-
-Help users write clear specs with:
-- Good Given/When/Then structure
-- Clear scoring criteria
-- Appropriate output types
-- Valid template syntax`;
 
 /**
  * Build context string from entity breadcrumbs.

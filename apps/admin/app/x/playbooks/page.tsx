@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { EntityPill, DomainPill, PlaybookPill, SpecPill, StatusBadge } from "@/src/components/shared/EntityPill";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type Domain = {
   id: string;
@@ -350,6 +351,7 @@ export default function PlaybooksPage() {
 
   return (
     <div>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{

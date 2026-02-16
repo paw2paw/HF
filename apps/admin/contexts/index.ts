@@ -14,3 +14,6 @@ export { MasqueradeProvider, useMasquerade } from "./MasqueradeContext";
 export type { MasqueradeState } from "./MasqueradeContext";
 
 export { BrandingProvider, useBranding } from "./BrandingContext";
+
+export { ViewModeProvider, useViewMode } from "./ViewModeContext";
+export type { ViewModePreference } from "./ViewModeContext";

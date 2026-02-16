@@ -4,11 +4,17 @@
  * Parses documents (PDF, text, markdown) into atomic ContentAssertions
  * using AI to identify teaching points, facts, thresholds, and definitions.
  *
+ * Extraction config is spec-driven:
+ * - System spec CONTENT-EXTRACT-001 provides defaults
+ * - Domain-level override specs customize per domain
+ * - Resolved via resolveExtractionConfig()
+ *
  * Flow: Document → text extraction → chunking → AI extraction → assertions
  */
 
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
+import { resolveExtractionConfig, type ExtractionConfig, type DocumentType } from "./resolve-config";
 import crypto from "crypto";
 
 // ------------------------------------------------------------------
@@ -17,7 +23,7 @@ import crypto from "crypto";
 
 export interface ExtractedAssertion {
   assertion: string;
-  category: "fact" | "definition" | "threshold" | "rule" | "process" | "example";
+  category: string;
   chapter?: string;
   section?: string;
   pageRef?: string;
@@ -40,6 +46,8 @@ export interface ExtractionResult {
 
 export interface ExtractionOptions {
   sourceSlug: string;
+  sourceId?: string;
+  documentType?: DocumentType;
   qualificationRef?: string;
   focusChapters?: string[];
   maxAssertions?: number;
@@ -87,17 +95,39 @@ export async function extractText(
   return { text, fileType: "text" };
 }
 
+/**
+ * Extract text from a buffer + filename (for files read from storage).
+ */
+export async function extractTextFromBuffer(
+  buffer: Buffer,
+  fileName: string,
+): Promise<{ text: string; pages?: number; fileType: string }> {
+  const name = fileName.toLowerCase();
+
+  if (name.endsWith(".pdf")) {
+    const { text, pages } = await extractTextFromPdf(buffer);
+    return { text, pages, fileType: "pdf" };
+  }
+
+  const text = buffer.toString("utf-8");
+  if (name.endsWith(".md") || name.endsWith(".markdown")) {
+    return { text, fileType: "markdown" };
+  }
+  if (name.endsWith(".json")) {
+    return { text, fileType: "json" };
+  }
+  return { text, fileType: "text" };
+}
+
 // ------------------------------------------------------------------
 // Chunking
 // ------------------------------------------------------------------
-
-const MAX_CHUNK_CHARS = 8000;
 
 /**
  * Split text into manageable chunks for AI processing.
  * Tries to split on paragraph/section boundaries.
  */
-export function chunkText(text: string, maxChars: number = MAX_CHUNK_CHARS): string[] {
+export function chunkText(text: string, maxChars: number = 8000): string[] {
   if (text.length <= maxChars) return [text];
 
   const chunks: string[] = [];
@@ -132,6 +162,12 @@ export function chunkText(text: string, maxChars: number = MAX_CHUNK_CHARS): str
 // AI extraction
 // ------------------------------------------------------------------
 
+/** Max retries per chunk before giving up */
+const MAX_CHUNK_RETRIES = 3;
+
+/** Base delay in ms for exponential backoff (doubles each retry: 2s, 4s, 8s) */
+const RETRY_BASE_DELAY_MS = 2000;
+
 /**
  * Generate a content hash for deduplication.
  */
@@ -139,108 +175,108 @@ function hashAssertion(text: string): string {
   return crypto.createHash("sha256").update(text.trim().toLowerCase()).digest("hex").substring(0, 16);
 }
 
-const EXTRACTION_SYSTEM_PROMPT = `You are a content extraction specialist. Your job is to parse educational/training material and extract atomic teaching points (assertions).
+/**
+ * Sleep for a given number of milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-Each assertion should be:
-- A single, self-contained fact, definition, threshold, rule, process step, or example
-- Specific enough to be independently verifiable against the source
-- Tagged with its category and any relevant metadata
-
-Categories:
-- fact: A specific factual statement (e.g., "The ISA allowance is £20,000")
-- definition: A term definition (e.g., "An annuity is a series of regular payments")
-- threshold: A numeric limit or boundary (e.g., "Higher rate tax starts at £50,270")
-- rule: A regulatory or procedural rule (e.g., "Advisors must check affordability before recommending")
-- process: A step in a procedure (e.g., "Step 3: Calculate the net relevant earnings")
-- example: An illustrative example (e.g., "Example: If a client earns £80,000...")
-
-Return a JSON array of objects with these fields:
-- assertion: string (the teaching point)
-- category: "fact" | "definition" | "threshold" | "rule" | "process" | "example"
-- chapter: string | null (chapter or section heading this comes from)
-- section: string | null (sub-section)
-- tags: string[] (2-5 keywords)
-- examRelevance: number (0.0-1.0, how likely to appear in an exam)
-- learningOutcomeRef: string | null (e.g., "LO2", "AC2.3" if identifiable)
-- validUntil: string | null (ISO date if time-bound, e.g., tax year figures)
-- taxYear: string | null (e.g., "2024/25" if applicable)
-
-IMPORTANT:
-- Extract EVERY distinct teaching point, not just highlights
-- Be precise with numbers, dates, and thresholds
-- If content mentions a tax year or validity period, include it
-- Do NOT invent information not present in the source text
-- Return ONLY valid JSON (no markdown code fences)`;
+/**
+ * Build the category list string for the extraction prompt from spec config.
+ */
+function buildCategoryList(extractionConfig: ExtractionConfig): string {
+  return extractionConfig.extraction.categories
+    .map((c) => `- ${c.id}: ${c.description}`)
+    .join("\n");
+}
 
 /**
  * Use AI to extract assertions from a text chunk.
+ * Config is spec-driven — prompt, categories, LLM settings all from resolved config.
+ * Retries up to MAX_CHUNK_RETRIES times with exponential backoff on failure.
  */
 async function extractFromChunk(
   chunk: string,
   options: ExtractionOptions,
   chunkIndex: number,
+  extractionConfig: ExtractionConfig,
 ): Promise<ExtractedAssertion[]> {
+  const { extraction } = extractionConfig;
+  const validCategoryIds = new Set(extraction.categories.map((c) => c.id));
+
   const userPrompt = [
     `Extract all teaching points from this ${options.qualificationRef ? `${options.qualificationRef} ` : ""}training material.`,
+    `\nValid categories: ${extraction.categories.map((c) => c.id).join(", ")}`,
     options.focusChapters?.length
       ? `Focus on: ${options.focusChapters.join(", ")}`
       : "",
     `\n---\n${chunk}\n---`,
   ].filter(Boolean).join("\n");
 
-  try {
-    // @ai-call content-trust.extract — Extract assertions from training material | config: /x/ai-config
-    const result = await getConfiguredMeteredAICompletion(
-      {
-        callPoint: "content-trust.extract",
-        messages: [
-          { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.1,
-        maxTokens: 4000,
-      },
-      { sourceOp: "content-trust:extract" }
-    );
+  for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
+    try {
+      // @ai-call content-trust.extract — Extract assertions from training material | config: /x/ai-config
+      const result = await getConfiguredMeteredAICompletion(
+        {
+          callPoint: "content-trust.extract",
+          messages: [
+            { role: "system", content: extraction.systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: extraction.llmConfig.temperature,
+          maxTokens: extraction.llmConfig.maxTokens,
+        },
+        { sourceOp: "content-trust:extract" }
+      );
 
-    // Log for learning
-    logAssistantCall(
-      {
-        callPoint: "content-trust.extract",
-        userMessage: `Extract chunk ${chunkIndex} (${chunk.length} chars) for ${options.sourceSlug}`,
-        metadata: { sourceSlug: options.sourceSlug, chunkIndex },
-      },
-      { response: `Extracted assertions`, success: true }
-    );
+      // Log for learning
+      logAssistantCall(
+        {
+          callPoint: "content-trust.extract",
+          userMessage: `Extract chunk ${chunkIndex} (${chunk.length} chars) for ${options.sourceSlug}`,
+          metadata: { sourceSlug: options.sourceSlug, chunkIndex, attempt },
+        },
+        { response: `Extracted assertions`, success: true }
+      );
 
-    // Parse JSON response (with repair for common AI mistakes)
-    const text = result.content.trim();
-    // Handle potential markdown code fences
-    let jsonStr = text.startsWith("[") || text.startsWith("{") ? text : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
-    // Remove trailing commas before ] or }
-    jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
-    // Fix missing commas between }{ patterns
-    jsonStr = jsonStr.replace(/\}(\s*)\{/g, "},$1{");
-    const raw = JSON.parse(jsonStr);
+      // Parse JSON response (with repair for common AI mistakes)
+      const text = result.content.trim();
+      // Handle potential markdown code fences
+      let jsonStr = text.startsWith("[") || text.startsWith("{") ? text : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
+      // Remove trailing commas before ] or }
+      jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
+      // Fix missing commas between }{ patterns
+      jsonStr = jsonStr.replace(/\}(\s*)\{/g, "},$1{");
+      const raw = JSON.parse(jsonStr);
 
-    if (!Array.isArray(raw)) return [];
+      if (!Array.isArray(raw)) return [];
 
-    return raw.map((item: any) => ({
-      assertion: String(item.assertion || ""),
-      category: item.category || "fact",
-      chapter: item.chapter || undefined,
-      section: item.section || undefined,
-      tags: Array.isArray(item.tags) ? item.tags : [],
-      examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
-      learningOutcomeRef: item.learningOutcomeRef || undefined,
-      validUntil: item.validUntil || undefined,
-      taxYear: item.taxYear || undefined,
-      contentHash: hashAssertion(item.assertion || ""),
-    }));
-  } catch (err: any) {
-    console.error(`[extract-assertions] Chunk ${chunkIndex} failed:`, err.message);
-    return [];
+      return raw.map((item: any) => ({
+        assertion: String(item.assertion || ""),
+        category: validCategoryIds.has(item.category) ? item.category : "fact",
+        chapter: item.chapter || undefined,
+        section: item.section || undefined,
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
+        learningOutcomeRef: item.learningOutcomeRef || undefined,
+        validUntil: item.validUntil || undefined,
+        taxYear: item.taxYear || undefined,
+        contentHash: hashAssertion(item.assertion || ""),
+      }));
+    } catch (err: any) {
+      const isLastAttempt = attempt === MAX_CHUNK_RETRIES - 1;
+      if (isLastAttempt) {
+        console.error(`[extract-assertions] Chunk ${chunkIndex} failed after ${MAX_CHUNK_RETRIES} attempts:`, err.message);
+        return [];
+      }
+      const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+      console.warn(`[extract-assertions] Chunk ${chunkIndex} attempt ${attempt + 1} failed, retrying in ${delayMs}ms:`, err.message);
+      await sleep(delayMs);
+    }
   }
+
+  return []; // unreachable, but satisfies TS
 }
 
 // ------------------------------------------------------------------
@@ -250,6 +286,8 @@ async function extractFromChunk(
 /**
  * Extract assertions from document text.
  * Chunks the text, runs AI extraction on each chunk, deduplicates results.
+ *
+ * Config is resolved from CONTENT-EXTRACT-001 spec (system) + domain overrides.
  */
 export async function extractAssertions(
   text: string,
@@ -261,20 +299,32 @@ export async function extractAssertions(
     return { ok: false, assertions: [], warnings: [], error: "Empty document" };
   }
 
-  // Chunk the text
-  const chunks = chunkText(text);
+  // Resolve config from spec (system defaults + domain overrides + type overrides)
+  const extractionConfig = await resolveExtractionConfig(options.sourceId, options.documentType);
+
+  // Chunk the text using spec-configured chunk size
+  const chunks = chunkText(text, extractionConfig.extraction.chunkSize);
   if (chunks.length > 20) {
     warnings.push(`Large document split into ${chunks.length} chunks — extraction may be slow`);
   }
 
   // Extract from each chunk (sequentially to avoid rate limits)
   const allAssertions: ExtractedAssertion[] = [];
-  const limit = options.maxAssertions || 500;
+  const limit = options.maxAssertions || extractionConfig.extraction.maxAssertionsPerDocument;
+  let failedChunks = 0;
 
   for (let i = 0; i < chunks.length && allAssertions.length < limit; i++) {
-    const chunkAssertions = await extractFromChunk(chunks[i], options, i);
+    const chunkAssertions = await extractFromChunk(chunks[i], options, i, extractionConfig);
+    if (chunkAssertions.length === 0 && chunks[i].trim().length > 100) {
+      // Non-trivial chunk returned nothing — likely a failure after retries
+      failedChunks++;
+    }
     allAssertions.push(...chunkAssertions);
     options.onChunkDone?.(i, chunks.length, allAssertions.length);
+  }
+
+  if (failedChunks > 0) {
+    warnings.push(`${failedChunks} chunk${failedChunks > 1 ? "s" : ""} failed extraction after ${MAX_CHUNK_RETRIES} retries`);
   }
 
   if (allAssertions.length >= limit) {

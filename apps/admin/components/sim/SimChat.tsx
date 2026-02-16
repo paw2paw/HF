@@ -8,6 +8,7 @@ import { MessageInput } from './MessageInput';
 import { ArtifactCard } from './ArtifactCard';
 import { ActionCard } from './ActionCard';
 import { ContentPicker } from './ContentPicker';
+import { MediaLibraryPanel } from './MediaLibraryPanel';
 import type { MediaInfo } from './MessageBubble';
 
 interface Message {
@@ -104,6 +105,7 @@ export function SimChat({
   const [actions, setActions] = useState<any[]>([]);
   const [callEnded, setCallEnded] = useState(false);
   const [showContentPicker, setShowContentPicker] = useState(false);
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -546,6 +548,11 @@ export function SimChat({
         subtitle={domainName}
         onBack={onBack}
         onEndCall={() => setShowEndSheet(true)}
+        onMediaLibrary={() => {
+          setShowMediaLibrary(prev => !prev);
+          setShowContentPicker(false);
+        }}
+        mediaLibraryActive={showMediaLibrary}
         callActive={messages.length > 0 && !callEnded}
         avatarColor={hashColor(callerId)}
       />
@@ -698,12 +705,20 @@ export function SimChat({
         />
       )}
 
+      {/* Media Library overlay */}
+      {showMediaLibrary && (
+        <MediaLibraryPanel
+          callerId={callerId}
+          onClose={() => setShowMediaLibrary(false)}
+        />
+      )}
+
       {/* Input */}
       {!callEnded && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
           {callId && (
             <button
-              onClick={() => setShowContentPicker(!showContentPicker)}
+              onClick={() => { setShowContentPicker(!showContentPicker); setShowMediaLibrary(false); }}
               title="Share content"
               style={{
                 background: 'none',

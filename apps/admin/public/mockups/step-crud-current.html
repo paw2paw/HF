@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Step CRUD — CURRENT STATE</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-raised: #22252f;
+    --border: #2e3140;
+    --border-hover: #3d4155;
+    --text: #e4e5e9;
+    --text-secondary: #8b8fa3;
+    --text-muted: #5c6078;
+    --accent: #3b82f6;
+    --red: #ef4444;
+    --green: #22c55e;
+    --purple: #8b5cf6;
+    --indigo: #4338ca;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px;
+    min-height: 100vh;
+  }
+  .page-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 24px; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .panel-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  /* Card styles — matches FlowStepCard + LessonPlanEditor */
+  .step-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+    cursor: pointer;
+  }
+  .step-card:hover { border-color: var(--border-hover); }
+
+  .drag-handle {
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+    line-height: 20px;
+  }
+  .step-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 20px;
+    text-align: right;
+    flex-shrink: 0;
+    line-height: 20px;
+  }
+  .step-content { flex: 1; min-width: 0; }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .step-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+  .tag-blue { background: rgba(59,130,246,0.12); color: #60a5fa; }
+  .tag-green { background: rgba(34,197,94,0.12); color: #4ade80; }
+  .tag-purple { background: rgba(139,92,246,0.12); color: #a78bfa; }
+
+  .step-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .arrow-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .arrow-btn:hover { background: rgba(255,255,255,0.05); }
+  .arrow-btn.disabled { opacity: 0.2; cursor: default; }
+  .chevron {
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+
+  /* Inline row style (LessonPlanEditor) */
+  .inline-card {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .inline-input {
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+  }
+  .inline-input.flex { flex: 1; }
+  .inline-select {
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    width: 110px;
+  }
+  .remove-x {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--red);
+    padding: 2px 4px;
+  }
+  .move-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .move-col button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0;
+    color: var(--text-secondary);
+    line-height: 1;
+  }
+  .move-col button.disabled { opacity: 0.3; cursor: default; }
+
+  /* Add button */
+  .add-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    transition: all 0.15s;
+    width: 100%;
+    text-align: center;
+  }
+  .add-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(59,130,246,0.05);
+  }
+
+  /* Expanded card footer */
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    margin-top: 0;
+  }
+  .field-count { font-size: 11px; color: var(--text-muted); }
+  .remove-btn {
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.3);
+    background: rgba(239,68,68,0.08);
+    font-size: 11px;
+    color: var(--red);
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  /* Playbook domain row */
+  .domain-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .domain-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .watermark {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0.4;
+  }
+</style>
+</head>
+<body>
+<div class="watermark">CURRENT STATE</div>
+
+<div class="page-title">Step CRUD Components — As-Is</div>
+<h1>Three Patterns, Zero Sharing</h1>
+
+<div class="columns">
+
+  <!-- LEFT: FlowStepCard / SequencerView -->
+  <div class="panel">
+    <div class="panel-label">Pattern A — FlowStepCard (Orchestrator / Config)</div>
+
+    <!-- Card 1: collapsed -->
+    <div class="step-card">
+      <div class="drag-handle">⠿</div>
+      <div class="step-content">
+        <div class="step-title">
+          Extract Personality
+          <span class="badge" style="background:rgba(139,92,246,0.15);color:#a78bfa;">EXTRACT</span>
+        </div>
+        <div class="step-subtitle">Measure Big Five traits from conversational cues</div>
+        <div class="step-tags">
+          <span class="tag tag-blue">openness</span>
+          <span class="tag tag-blue">agreeableness</span>
+          <span class="tag tag-blue">conscientiousness</span>
+          <span class="tag tag-purple">+2 more</span>
+        </div>
+      </div>
+      <div class="step-controls">
+        <button class="arrow-btn disabled">▲</button>
+        <button class="arrow-btn">▼</button>
+        <span class="chevron">▼</span>
+      </div>
+    </div>
+
+    <!-- Card 2: collapsed -->
+    <div class="step-card">
+      <div class="drag-handle">⠿</div>
+      <div class="step-content">
+        <div class="step-title">
+          Aggregate Scores
+          <span class="badge" style="background:rgba(59,130,246,0.15);color:#60a5fa;">SYNTHESISE</span>
+        </div>
+        <div class="step-subtitle">EMA-weighted rolling average across sessions</div>
+      </div>
+      <div class="step-controls">
+        <button class="arrow-btn">▲</button>
+        <button class="arrow-btn">▼</button>
+        <span class="chevron">▼</span>
+      </div>
+    </div>
+
+    <!-- Card 3: expanded -->
+    <div class="step-card" style="border-color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,0.2);">
+      <div class="drag-handle">⠿</div>
+      <div class="step-content">
+        <div class="step-title">
+          Compose Prompt
+          <span class="badge" style="background:rgba(34,197,94,0.15);color:#4ade80;">COMPOSE</span>
+        </div>
+        <div class="step-subtitle" style="white-space:normal;">Build final prompt from personality profile, memories, and curriculum targets</div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:11px;color:var(--text-secondary);">operation</span>
+              <span style="font-size:12px;color:var(--text);font-family:monospace;">compose</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:11px;color:var(--text-secondary);">parallelise</span>
+              <span class="badge" style="background:rgba(34,197,94,0.15);color:#4ade80;">true</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:11px;color:var(--text-secondary);">timeout</span>
+              <span style="font-size:12px;color:var(--text);font-family:monospace;">30s</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer" style="margin:12px -14px -12px;padding:8px 14px;">
+          <span class="field-count">6 fields</span>
+          <button class="remove-btn">Remove Step</button>
+        </div>
+      </div>
+      <div class="step-controls">
+        <button class="arrow-btn">▲</button>
+        <button class="arrow-btn disabled">▼</button>
+        <span class="chevron" style="transform:rotate(180deg);">▼</span>
+      </div>
+    </div>
+
+    <button class="add-btn">+ Add Step</button>
+  </div>
+
+  <!-- RIGHT: Two patterns stacked -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+    <!-- Pattern B: LessonPlanEditor -->
+    <div class="panel">
+      <div class="panel-label">Pattern B — LessonPlanEditor (Subject / Curriculum)</div>
+
+      <div class="inline-card">
+        <span class="step-num">1</span>
+        <div class="move-col">
+          <button class="disabled">▲</button>
+          <button>▼</button>
+        </div>
+        <input class="inline-input flex" value="Introduction to GCSE English" />
+        <select class="inline-select">
+          <option>Introduce</option>
+        </select>
+        <select class="inline-select" style="width:140px;">
+          <option>Module 1: Reading</option>
+        </select>
+        <button class="remove-x">×</button>
+      </div>
+
+      <div class="inline-card">
+        <span class="step-num">2</span>
+        <div class="move-col">
+          <button>▲</button>
+          <button>▼</button>
+        </div>
+        <input class="inline-input flex" value="Poetry analysis — War Poets" />
+        <select class="inline-select">
+          <option>Teach</option>
+        </select>
+        <select class="inline-select" style="width:140px;">
+          <option>Module 2: Poetry</option>
+        </select>
+        <button class="remove-x">×</button>
+      </div>
+
+      <div class="inline-card">
+        <span class="step-num">3</span>
+        <div class="move-col">
+          <button>▲</button>
+          <button>▼</button>
+        </div>
+        <input class="inline-input flex" value="Creative writing exercise" />
+        <select class="inline-select">
+          <option>Practice</option>
+        </select>
+        <select class="inline-select" style="width:140px;">
+          <option>Module 3: Writing</option>
+        </select>
+        <button class="remove-x">×</button>
+      </div>
+
+      <div class="inline-card">
+        <span class="step-num">4</span>
+        <div class="move-col">
+          <button>▲</button>
+          <button class="disabled">▼</button>
+        </div>
+        <input class="inline-input flex" value="Mock assessment" />
+        <select class="inline-select">
+          <option>Assess</option>
+        </select>
+        <select class="inline-select" style="width:140px;">
+          <option>No module</option>
+        </select>
+        <button class="remove-x">×</button>
+      </div>
+
+      <button class="add-btn">+ Add Session</button>
+    </div>
+
+    <!-- Pattern C: Domain playbook list -->
+    <div class="panel">
+      <div class="panel-label">Pattern C — Domain Playbooks (Domains page)</div>
+
+      <div class="domain-row">
+        <div class="status-dot" style="background:var(--green);"></div>
+        <div class="domain-name">Onboarding Flow</div>
+        <span class="badge" style="background:rgba(34,197,94,0.12);color:#4ade80;">Published</span>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <button class="arrow-btn disabled" style="width:20px;height:14px;font-size:10px;">▲</button>
+          <button class="arrow-btn" style="width:20px;height:14px;font-size:10px;">▼</button>
+        </div>
+      </div>
+
+      <div class="domain-row">
+        <div class="status-dot" style="background:var(--green);"></div>
+        <div class="domain-name">Teaching Session</div>
+        <span class="badge" style="background:rgba(34,197,94,0.12);color:#4ade80;">Published</span>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <button class="arrow-btn" style="width:20px;height:14px;font-size:10px;">▲</button>
+          <button class="arrow-btn" style="width:20px;height:14px;font-size:10px;">▼</button>
+        </div>
+      </div>
+
+      <div class="domain-row">
+        <div class="status-dot" style="background:#eab308;"></div>
+        <div class="domain-name">Assessment Debrief</div>
+        <span class="badge" style="background:rgba(234,179,8,0.12);color:#eab308;">Draft</span>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <button class="arrow-btn" style="width:20px;height:14px;font-size:10px;">▲</button>
+          <button class="arrow-btn disabled" style="width:20px;height:14px;font-size:10px;">▼</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:32px;padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--surface);">
+  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">What's wrong with this picture</div>
+  <ul style="font-size:12px;color:var(--text-secondary);list-style:none;display:flex;flex-direction:column;gap:6px;">
+    <li>&#x2717; &nbsp;3 different card layouts — none shared</li>
+    <li>&#x2717; &nbsp;No kebab/overflow menu on any card (no duplicate, disable, copy)</li>
+    <li>&#x2717; &nbsp;Remove button only visible when expanded (Pattern A) or as tiny "×" (Pattern B)</li>
+    <li>&#x2717; &nbsp;No type picker dialog — "Add Step" creates blank item</li>
+    <li>&#x2717; &nbsp;Drag-drop in Pattern A only, ▲▼ buttons everywhere else</li>
+    <li>&#x2717; &nbsp;No section grouping ("When → Then do" style)</li>
+    <li>&#x2717; &nbsp;No enable/disable toggle per step (except PlaybookItem internally)</li>
+  </ul>
+</div>
+
+</body>
+</html>

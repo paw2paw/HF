@@ -171,10 +171,13 @@ async function searchAssertions(
       const tagSet = new Set(a.tags.map((t) => t.toLowerCase()));
       const contentMatches = words.filter((w) => lowerAssertion.includes(w)).length;
       const tagMatches = words.filter((w) => tagSet.has(w)).length;
+      // Boost deeper assertions (key points and details have more specific content)
+      const depthBoost = (a.depth === null || a.depth === undefined || a.depth >= 2) ? 0.05 : 0;
       const relevanceScore = Math.min(
         1,
         (contentMatches + tagMatches * 1.5) / words.length * 0.7 +
-          (a.examRelevance || 0.5) * 0.3,
+          (a.examRelevance || 0.5) * 0.3 +
+          depthBoost,
       );
 
       return {

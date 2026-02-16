@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 // ---------- Types ----------
 
@@ -365,6 +366,7 @@ export default function AnalyticsPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>

@@ -18,6 +18,7 @@ import { SpecRoleBadge, getSpecEditorRoute, requiresSpecialEditor } from "@/comp
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant } from "@/hooks/useAssistant";
 import { SpecConfigEditor } from "@/components/config-editor";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type Spec = {
   id: string;
@@ -1330,6 +1331,7 @@ export default function SpecsPage() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{

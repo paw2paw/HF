@@ -318,6 +318,33 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [showTargetsSaveConfirm, setShowTargetsSaveConfirm] = useState(false);
   const [compilingTargets, setCompilingTargets] = useState(false);
 
+  // Behavior Pills state
+  interface BehaviorPillParam {
+    parameterId: string;
+    atFull: number;
+    atZero: number;
+  }
+  interface BehaviorPill {
+    id: string;
+    label: string;
+    description: string;
+    intensity: number;
+    source: "intent" | "domain-context";
+    parameters: BehaviorPillParam[];
+  }
+  interface PillState {
+    pill: BehaviorPill;
+    active: boolean;
+    intensity: number;
+    lastModified: number;
+  }
+  const [intentText, setIntentText] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const [pillStates, setPillStates] = useState<PillState[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+
   // Playbook config settings (memory, learning, AI, thresholds)
   interface PlaybookConfigSettings {
     // Memory Settings
@@ -899,6 +926,102 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     const newChanges = new Map(pendingTargetChanges);
     newChanges.set(parameterId, value);
     setPendingTargetChanges(newChanges);
+  };
+
+  // Resolve active pills into pendingTargetChanges
+  const resolvePillsToTargets = useCallback((currentPills: PillState[]) => {
+    const activePills = currentPills
+      .filter((p) => p.active)
+      .sort((a, b) => a.lastModified - b.lastModified);
+
+    const resolved = new Map<string, number | null>();
+    for (const ps of activePills) {
+      for (const param of ps.pill.parameters) {
+        const value = param.atZero + (param.atFull - param.atZero) * ps.intensity;
+        resolved.set(param.parameterId, Math.max(0, Math.min(1, value)));
+      }
+    }
+    setPendingTargetChanges(resolved);
+  }, []);
+
+  // Toggle a pill on/off
+  const handlePillToggle = (pillId: string) => {
+    setPillStates((prev) => {
+      const next = prev.map((ps) =>
+        ps.pill.id === pillId
+          ? { ...ps, active: !ps.active, lastModified: Date.now() }
+          : ps
+      );
+      resolvePillsToTargets(next);
+      return next;
+    });
+  };
+
+  // Adjust a pill's intensity
+  const handlePillIntensity = (pillId: string, intensity: number) => {
+    setPillStates((prev) => {
+      const next = prev.map((ps) =>
+        ps.pill.id === pillId
+          ? { ...ps, intensity, lastModified: Date.now() }
+          : ps
+      );
+      resolvePillsToTargets(next);
+      return next;
+    });
+  };
+
+  // Submit intent to suggest endpoint
+  const handleSuggestPills = async (mode: "initial" | "more" = "initial") => {
+    if (!intentText.trim() || !playbookId) return;
+
+    if (mode === "initial") {
+      setSuggesting(true);
+      setSuggestError(null);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const existingPillIds = pillStates.map((ps) => ps.pill.id);
+      const res = await fetch(`/api/playbooks/${playbookId}/targets/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intent: intentText.trim(),
+          mode,
+          existingPillIds: mode === "more" ? existingPillIds : [],
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        setSuggestError(data.error || "Failed to generate suggestions");
+        return;
+      }
+
+      const newPills: PillState[] = (data.pills || []).map((pill: BehaviorPill) => ({
+        pill,
+        active: mode === "initial", // intent pills ON, extras OFF
+        intensity: pill.intensity,
+        lastModified: Date.now(),
+      }));
+
+      if (mode === "initial") {
+        setPillStates(newPills);
+        resolvePillsToTargets(newPills);
+      } else {
+        setPillStates((prev) => {
+          const combined = [...prev, ...newPills];
+          resolvePillsToTargets(combined);
+          return combined;
+        });
+      }
+    } catch (err: any) {
+      setSuggestError(err.message || "Network error");
+    } finally {
+      setSuggesting(false);
+      setLoadingMore(false);
+    }
   };
 
   const handleSaveTargets = async (confirmed = false) => {
@@ -3801,8 +3924,322 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 </div>
               )}
 
+              {/* ── Intent Bar ─────────────────────── */}
+              {isEditable && (
+                <div style={{ marginBottom: 20 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={intentText}
+                      onChange={(e) => setIntentText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && intentText.trim() && !suggesting) {
+                          handleSuggestPills("initial");
+                        }
+                      }}
+                      placeholder="Describe the style... e.g. &quot;warm, patient, exam-focused&quot;"
+                      disabled={suggesting}
+                      style={{
+                        flex: 1,
+                        padding: "10px 14px",
+                        fontSize: 14,
+                        background: "var(--surface-secondary)",
+                        border: "1px solid var(--border-default)",
+                        borderRadius: 8,
+                        color: "var(--text-primary)",
+                        outline: "none",
+                        transition: "border-color 0.15s",
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent-primary)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    />
+                    <button
+                      onClick={() => handleSuggestPills("initial")}
+                      disabled={!intentText.trim() || suggesting}
+                      style={{
+                        padding: "10px 16px",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        background:
+                          !intentText.trim() || suggesting
+                            ? "var(--surface-secondary)"
+                            : "var(--accent-primary)",
+                        color:
+                          !intentText.trim() || suggesting
+                            ? "var(--text-muted)"
+                            : "white",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor:
+                          !intentText.trim() || suggesting
+                            ? "not-allowed"
+                            : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {suggesting ? (
+                        <>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              width: 14,
+                              height: 14,
+                              border: "2px solid currentColor",
+                              borderTopColor: "transparent",
+                              borderRadius: "50%",
+                              animation: "spin 0.6s linear infinite",
+                            }}
+                          />
+                          Thinking...
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 16 }}>✨</span>
+                          Apply
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {suggestError && (
+                    <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "var(--status-error-text)" }}>
+                      {suggestError}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Behavior Pills ─────────────────── */}
+              {pillStates.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 12,
+                    }}
+                  >
+                    {pillStates.map((ps) => {
+                      const paramCount = ps.pill.parameters.length;
+                      return (
+                        <div
+                          key={ps.pill.id}
+                          style={{
+                            background: ps.active
+                              ? "var(--surface-primary)"
+                              : "var(--surface-secondary)",
+                            border: ps.active
+                              ? "1px solid var(--accent-primary)"
+                              : "1px solid var(--border-default)",
+                            borderRadius: 12,
+                            padding: "12px 16px",
+                            minWidth: 160,
+                            maxWidth: 220,
+                            opacity: ps.active ? 1 : 0.55,
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {/* Toggle + Label */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={ps.active}
+                              onChange={() => handlePillToggle(ps.pill.id)}
+                              style={{
+                                accentColor: "var(--accent-primary)",
+                                width: 16,
+                                height: 16,
+                                cursor: "pointer",
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 600,
+                                color: ps.active
+                                  ? "var(--text-primary)"
+                                  : "var(--text-muted)",
+                              }}
+                              title={ps.pill.description}
+                            >
+                              {ps.pill.label}
+                            </span>
+                          </div>
+
+                          {/* Intensity slider */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={Math.round(ps.intensity * 100)}
+                              onChange={(e) =>
+                                handlePillIntensity(
+                                  ps.pill.id,
+                                  Number(e.target.value) / 100
+                                )
+                              }
+                              disabled={!ps.active || !isEditable}
+                              style={{
+                                flex: 1,
+                                accentColor: "var(--accent-primary)",
+                                cursor: ps.active ? "pointer" : "default",
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: ps.active
+                                  ? "var(--text-secondary)"
+                                  : "var(--text-muted)",
+                                fontFamily: "ui-monospace, monospace",
+                                minWidth: 28,
+                                textAlign: "right",
+                              }}
+                            >
+                              {Math.round(ps.intensity * 100)}
+                            </span>
+                          </div>
+
+                          {/* Param count + source badge */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              marginTop: 6,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-muted)",
+                              }}
+                            >
+                              {paramCount} param{paramCount !== 1 ? "s" : ""}
+                            </span>
+                            {ps.pill.source === "domain-context" && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  padding: "1px 6px",
+                                  borderRadius: 4,
+                                  background: "var(--badge-blue-bg)",
+                                  color: "var(--badge-blue-text)",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                suggested
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* + More button */}
+                  <button
+                    onClick={() => handleSuggestPills("more")}
+                    disabled={loadingMore || suggesting}
+                    style={{
+                      marginTop: 12,
+                      padding: "8px 16px",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      background: "transparent",
+                      color: "var(--accent-primary)",
+                      border: "1px dashed var(--border-default)",
+                      borderRadius: 8,
+                      cursor: loadingMore ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--accent-primary)";
+                      e.currentTarget.style.background = "color-mix(in srgb, var(--accent-primary) 8%, transparent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border-default)";
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 12,
+                            height: 12,
+                            border: "2px solid currentColor",
+                            borderTopColor: "transparent",
+                            borderRadius: "50%",
+                            animation: "spin 0.6s linear infinite",
+                          }}
+                        />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <span>+</span>
+                        More suggestions for {playbook.domain.name}...
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* ── Advanced Sliders Toggle ──────────── */}
+              {pillStates.length > 0 && (
+                <button
+                  onClick={() => setShowAdvancedSliders(!showAdvancedSliders)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 0",
+                    marginBottom: 12,
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  <span
+                    style={{
+                      transform: showAdvancedSliders ? "rotate(90deg)" : "rotate(0deg)",
+                      transition: "transform 0.15s",
+                      display: "inline-block",
+                    }}
+                  >
+                    ▸
+                  </span>
+                  Show individual sliders (advanced)
+                </button>
+              )}
+
               {/* Graphic Equalizer - Group by domainGroup */}
-              {(() => {
+              {(pillStates.length === 0 || showAdvancedSliders) && (() => {
                 // Group parameters by domainGroup
                 const groups: Record<string, typeof targetsData.parameters> = {};
                 for (const param of targetsData.parameters) {

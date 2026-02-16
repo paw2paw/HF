@@ -24,6 +24,20 @@ export const TestUsers = {
     role: 'USER',
     name: 'Bob Test',
   },
+  /** Educator from seed-educator-demo.ts (Oakwood Primary, class 5A) */
+  EDUCATOR: {
+    email: 'j.chen@oakwood.sch.uk',
+    password: seedPassword,
+    role: 'EDUCATOR',
+    name: 'James Chen',
+  },
+  /** Head teacher / admin at Oakwood Primary */
+  SCHOOL_ADMIN: {
+    email: 's.thompson@oakwood.sch.uk',
+    password: seedPassword,
+    role: 'ADMIN',
+    name: 'Sarah Thompson',
+  },
 } as const;
 
 export const TestCallers = {

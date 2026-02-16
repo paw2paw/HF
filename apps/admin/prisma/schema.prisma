@@ -33,6 +33,17 @@ enum ContentTrustLevel {
   UNVERIFIED          // L0: Unreviewed submissions, user notes (default)
 }
 
+// Document classification - intrinsic type of a content source document
+// Determines extraction strategy, categories, and pyramid structure
+enum DocumentType {
+  CURRICULUM  // Formal syllabus with LOs/ACs — auto-structures pyramid
+  TEXTBOOK    // Dense reference material — full extraction + structuring
+  WORKSHEET   // Learner activity sheet — structure/questions extraction
+  EXAMPLE     // Illustrative document — light concept extraction
+  ASSESSMENT  // Test/quiz material — questions/answers/misconceptions
+  REFERENCE   // Glossary/cheat sheet — flat term extraction
+}
+
 // Conversation artifact types - content worth sharing from a call
 enum ConversationArtifactType {
   SUMMARY // Call summary / key takeaways
@@ -3494,6 +3505,10 @@ model ContentSource {
   // Trust classification
   trustLevel  ContentTrustLevel @default(UNVERIFIED)
 
+  // Document classification
+  documentType       DocumentType @default(TEXTBOOK)
+  documentTypeSource String?  // "ai:0.92" or "admin:manual" — provenance of classification
+
   // Publisher / authority chain
   publisherOrg    String?  // "Chartered Insurance Institute", "Highfield Publications"
   accreditingBody String?  // "CII", "Ofqual" - body that accredits this source
@@ -3535,6 +3550,7 @@ model ContentSource {
   mediaAssets MediaAsset[]   // Media files from this content source
 
   @@index([trustLevel])
+  @@index([documentType])
   @@index([qualificationRef])
   @@index([validUntil])
   @@index([isActive])
@@ -3575,6 +3591,14 @@ model ContentAssertion {
   // Content hash for dedup/change detection
   contentHash String?
 
+  // Pyramid hierarchy (spec-driven depth/breadth)
+  depth      Int?     // Pyramid level (meaning defined by CONTENT-EXTRACT spec levels config)
+  parentId   String?  // Self-referential FK for tree structure
+  parent     ContentAssertion?  @relation("AssertionHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children   ContentAssertion[] @relation("AssertionHierarchy")
+  orderIndex Int      @default(0) // Sort order among siblings
+  topicSlug  String?  // Stable topic identifier (e.g., "temperature-control")
+
   // Review chain
   createdBy  String? // User ID or "system:import"
   reviewedBy String? // User who reviewed
@@ -3588,6 +3612,9 @@ model ContentAssertion {
   @@index([category])
   @@index([validUntil])
   @@index([learningOutcomeRef])
+  @@index([parentId])
+  @@index([depth])
+  @@index([topicSlug])
 }
 
 // =========================
@@ -3608,6 +3635,9 @@ model Subject {
   qualificationBody  String?  // "Highfield", "CII"
   qualificationRef   String?  // "Highfield L2 Food Safety"
   qualificationLevel String?  // "Level 2"
+
+  // Teaching point pyramid depth override (null = use CONTENT-EXTRACT spec default)
+  teachingDepth Int?
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

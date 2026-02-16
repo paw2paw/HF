@@ -19,6 +19,9 @@ export interface StorageAdapter {
   /** Upload a file buffer and return the storage key */
   upload(file: Buffer, options: UploadOptions): Promise<UploadResult>;
 
+  /** Download a file by storage key */
+  download(storageKey: string): Promise<Buffer>;
+
   /** Generate a time-limited signed URL for reading */
   getSignedUrl(storageKey: string, expirySeconds?: number): Promise<string>;
 

@@ -5,8 +5,16 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 type Params = { params: Promise<{ subjectId: string }> };
 
 /**
- * GET /api/subjects/:subjectId
- * Get subject detail with sources, domains, and curriculum
+ * @api GET /api/subjects/:subjectId
+ * @visibility internal
+ * @scope subjects:read
+ * @auth session
+ * @tags subjects
+ * @description Get subject detail with sources, domains, and latest curriculum.
+ * @param subjectId string - Subject ID (path)
+ * @response 200 { subject: {...} }
+ * @response 404 { error: "Subject not found" }
+ * @response 500 { error: "..." }
  */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
@@ -48,8 +56,22 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 /**
- * PATCH /api/subjects/:subjectId
- * Update subject fields
+ * @api PATCH /api/subjects/:subjectId
+ * @visibility internal
+ * @scope subjects:update
+ * @auth session
+ * @tags subjects
+ * @description Update subject fields (name, description, trust level, qualification info, active status).
+ * @param subjectId string - Subject ID (path)
+ * @body name string - Display name
+ * @body description string - Subject description
+ * @body defaultTrustLevel string - Default trust level for sources
+ * @body qualificationBody string - Awarding body
+ * @body qualificationRef string - Qualification reference
+ * @body qualificationLevel string - Qualification level
+ * @body isActive boolean - Active status
+ * @response 200 { subject: {...} }
+ * @response 500 { error: "..." }
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {

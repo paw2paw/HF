@@ -54,8 +54,7 @@ export class LocalStorageAdapter implements StorageAdapter {
     }
   }
 
-  /** Read file from local storage (used by local serve route) */
-  async read(storageKey: string): Promise<Buffer> {
+  async download(storageKey: string): Promise<Buffer> {
     const { readFile } = await import("fs/promises");
     return readFile(this.fullPath(storageKey));
   }

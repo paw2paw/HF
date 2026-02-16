@@ -122,4 +122,132 @@ export const ADMIN_TOOLS: AITool[] = [
       },
     },
   },
+
+  // ── Curriculum Building Tools ──────────────────────────────────────────
+
+  {
+    name: "create_subject_with_source",
+    description:
+      "Create a new Subject and its primary ContentSource in one step. The source is automatically attached to the subject. Use this as the first step when building a curriculum from scratch. Returns subject_id and source_id needed for subsequent tools.",
+    input_schema: {
+      type: "object",
+      properties: {
+        subject_slug: {
+          type: "string",
+          description: "Unique slug for the subject (e.g., 'krebs-cycle', 'food-safety-l2'). Lowercase, hyphens only.",
+        },
+        subject_name: {
+          type: "string",
+          description: "Display name for the subject (e.g., 'The Krebs Cycle', 'Food Safety Level 2')",
+        },
+        subject_description: {
+          type: "string",
+          description: "Brief description of the subject and what it covers",
+        },
+        source_slug: {
+          type: "string",
+          description: "Unique slug for the content source (e.g., 'krebs-cycle-ai-knowledge')",
+        },
+        source_name: {
+          type: "string",
+          description: "Display name for the content source (e.g., 'AI-Generated Krebs Cycle Content')",
+        },
+        source_description: {
+          type: "string",
+          description: "Description of where this content comes from",
+        },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Tags for the source attachment (default: ['content']). Use ['syllabus','content'] if this defines curriculum structure.",
+        },
+      },
+      required: ["subject_slug", "subject_name", "source_slug", "source_name"],
+    },
+  },
+  {
+    name: "add_content_assertions",
+    description:
+      "Add teaching points (ContentAssertions) to a content source. Each assertion is a single atomic fact, definition, rule, process, or example. Generate these from your knowledge of the topic. Categories: 'fact', 'definition', 'threshold', 'rule', 'process', 'example'. Max 50 per call. Assertions are deduplicated by content hash.",
+    input_schema: {
+      type: "object",
+      properties: {
+        source_id: {
+          type: "string",
+          description: "The content source ID (returned by create_subject_with_source)",
+        },
+        assertions: {
+          type: "array",
+          description: "Array of assertion objects. Generate 15-30 teaching points covering the topic comprehensively.",
+          items: {
+            type: "object",
+            properties: {
+              assertion: {
+                type: "string",
+                description: "The teaching point text. Must be a single, self-contained, verifiable statement.",
+              },
+              category: {
+                type: "string",
+                enum: ["fact", "definition", "threshold", "rule", "process", "example"],
+                description: "Type of assertion",
+              },
+              chapter: {
+                type: "string",
+                description: "Logical grouping / topic area (e.g., 'Glycolysis', 'Electron Transport Chain')",
+              },
+              section: {
+                type: "string",
+                description: "Sub-section within the chapter",
+              },
+              tags: {
+                type: "array",
+                items: { type: "string" },
+                description: "Topic tags for this assertion",
+              },
+              exam_relevance: {
+                type: "number",
+                description: "0.0-1.0 how important this is for assessment (optional)",
+              },
+            },
+            required: ["assertion", "category"],
+          },
+        },
+      },
+      required: ["source_id", "assertions"],
+    },
+  },
+  {
+    name: "link_subject_to_domain",
+    description:
+      "Link a subject to a domain so callers in that domain can access this curriculum. Use get_domain_info first if you need to find the domain ID.",
+    input_schema: {
+      type: "object",
+      properties: {
+        subject_id: {
+          type: "string",
+          description: "The subject ID (returned by create_subject_with_source)",
+        },
+        domain_id: {
+          type: "string",
+          description: "The domain ID to link to (use get_domain_info to find it)",
+        },
+      },
+      required: ["subject_id", "domain_id"],
+    },
+  },
+  {
+    name: "generate_curriculum",
+    description:
+      "Trigger async AI curriculum generation for a subject. Requires at least one source with assertions attached. Returns a task ID for tracking. The curriculum organises assertions into modules and learning sequences.",
+    input_schema: {
+      type: "object",
+      properties: {
+        subject_id: {
+          type: "string",
+          description: "The subject ID to generate curriculum for",
+        },
+      },
+      required: ["subject_id"],
+    },
+  },
 ];

@@ -111,12 +111,23 @@ export async function POST(req: NextRequest) {
           sendEvent,
         );
 
-        // Mark task as completed
+        // Store summary + mark task as completed
         if (taskId) {
+          await updateTaskProgress(taskId, {
+            context: {
+              summary: {
+                domain: { id: result.domainId, name: result.domainName, slug: result.domainSlug },
+                caller: { id: result.callerId, name: result.callerName },
+                counts: {
+                  assertions: result.assertionCount ?? 0,
+                  modules: result.moduleCount ?? 0,
+                  goals: result.goalCount ?? 0,
+                },
+              },
+            },
+          });
           completeTask(taskId).catch(() => {});
         }
-
-        // Final result event (already sent by quickLaunchCommit, but ensure it's there)
       } catch (err: any) {
         console.error("[quick-launch:commit] Failed:", err);
         sendEvent({

@@ -12,10 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. **Dynamic parameters** — MEASURE specs → Pipeline → DB → UI. Adding a parameter = activate a spec, zero code changes.
 5. **Test what matters** — Vitest for units, Playwright for e2e. Business logic must be tested.
 6. **Test every route** — Every `app/api/**/route.ts` must have a test. CI enforces via test coverage scanner.
-7. **Document every API** — All routes listed in `docs/api.md` (route, method, auth, purpose). No undocumented endpoints.
-8. **Honest tests** — Mock only at system boundaries (DB, external APIs). Never mock the unit under test, never stub internal functions, never fabricate request/response shapes that don't match reality.
-9. **AI call registry** — All AI calls go through metered wrappers (ESLint enforces). `docs/ai-calls.md` lists every call site, purpose, and model used.
-10. **No dead tests** — No `test.skip` or `test.todo` in committed code.
+7. **E2E every feature** — Every new user-facing page or feature must have a Playwright e2e test in `e2e/tests/`. No feature ships without at least a smoke-level e2e spec covering: page loads, key elements visible, primary user flow works.
+8. **Document every API** — All routes listed in `docs/api.md` (route, method, auth, purpose). No undocumented endpoints.
+9. **Honest tests** — Mock only at system boundaries (DB, external APIs). Never mock the unit under test, never stub internal functions, never fabricate request/response shapes that don't match reality.
+10. **AI call registry** — All AI calls go through metered wrappers (ESLint enforces). `docs/ai-calls.md` lists every call site, purpose, and model used.
+11. **No dead tests** — No `test.skip` or `test.todo` in committed code.
 
 ## The Adaptive Loop
 
@@ -161,6 +162,7 @@ await prisma.$transaction(async (tx) => {
 - **Route coverage**: Every `app/api/**/route.ts` must have a corresponding test file.
 - **Honest tests**: Mock only at system boundaries. Allowed mocks: Prisma (DB), `fetch` (external APIs), `next/navigation`. Never mock the unit under test, never stub internal library functions to force a code path, never fabricate request/response shapes that diverge from real API contracts.
 - **No dead tests**: No `test.skip` or `test.todo` in committed code. If a test can't pass, fix it or delete it.
+- **E2E for every feature**: Every new page (`app/x/**`) or user-facing feature must have a Playwright spec in `e2e/tests/`. At minimum: page loads without error, heading/key elements visible, primary happy-path flow works. Use existing fixtures (`test-data.fixture.ts`) and page objects (`page-objects/`). Follow the pattern in existing specs.
 
 ## Prompt Composition
 

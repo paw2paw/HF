@@ -240,7 +240,7 @@ describe("Section Drag-Drop Reorder", () => {
 // =============================================================================
 
 describe("Chat Message Storage", () => {
-  type ChatMode = "CHAT" | "DATA" | "SPEC";
+  type ChatMode = "DATA";
   type ChatMessage = {
     id: string;
     role: "user" | "assistant";
@@ -251,9 +251,7 @@ describe("Chat Message Storage", () => {
 
   function createEmptyMessages(): Record<ChatMode, ChatMessage[]> {
     return {
-      CHAT: [],
       DATA: [],
-      SPEC: [],
     };
   }
 
@@ -269,47 +267,43 @@ describe("Chat Message Storage", () => {
     return trimmed as Record<ChatMode, ChatMessage[]>;
   }
 
-  it("should create empty messages for all modes", () => {
+  it("should create empty messages for DATA mode", () => {
     const empty = createEmptyMessages();
-    expect(empty.CHAT).toEqual([]);
     expect(empty.DATA).toEqual([]);
-    expect(empty.SPEC).toEqual([]);
   });
 
   it("should trim messages to max limit", () => {
     const messages = createEmptyMessages();
-    // Add 60 messages to CHAT mode
+    // Add 60 messages to DATA mode
     for (let i = 0; i < 60; i++) {
-      messages.CHAT.push({
+      messages.DATA.push({
         id: `msg-${i}`,
         role: "user",
         content: `Message ${i}`,
-        mode: "CHAT",
+        mode: "DATA",
         timestamp: new Date(),
       });
     }
 
     const trimmed = trimMessages(messages);
-    expect(trimmed.CHAT.length).toBe(50);
+    expect(trimmed.DATA.length).toBe(50);
     // Should keep the last 50 (ids 10-59)
-    expect(trimmed.CHAT[0].id).toBe("msg-10");
-    expect(trimmed.CHAT[49].id).toBe("msg-59");
+    expect(trimmed.DATA[0].id).toBe("msg-10");
+    expect(trimmed.DATA[49].id).toBe("msg-59");
   });
 
-  it("should not affect modes under the limit", () => {
+  it("should not trim when under the limit", () => {
     const messages = createEmptyMessages();
-    messages.CHAT.push({
+    messages.DATA.push({
       id: "msg-1",
       role: "user",
       content: "Hello",
-      mode: "CHAT",
+      mode: "DATA",
       timestamp: new Date(),
     });
 
     const trimmed = trimMessages(messages);
-    expect(trimmed.CHAT.length).toBe(1);
-    expect(trimmed.DATA.length).toBe(0);
-    expect(trimmed.SPEC.length).toBe(0);
+    expect(trimmed.DATA.length).toBe(1);
   });
 });
 
@@ -356,35 +350,19 @@ describe("User Change Detection", () => {
 // =============================================================================
 
 describe("Chat Mode Migration", () => {
-  type ChatMode = "CHAT" | "DATA" | "SPEC";
+  type ChatMode = "DATA";
 
   function migrateMode(storedMode: string): ChatMode {
-    // Handle migration: if stored mode is CALL, default to CHAT
-    if (storedMode === "CALL") return "CHAT";
-    if (storedMode === "CHAT" || storedMode === "DATA" || storedMode === "SPEC") {
-      return storedMode;
-    }
-    return "CHAT";
+    // All stored modes migrate to DATA (CHAT, SPEC, CALL removed)
+    return "DATA";
   }
 
-  it("should migrate CALL mode to CHAT", () => {
-    expect(migrateMode("CALL")).toBe("CHAT");
-  });
-
-  it("should keep CHAT mode unchanged", () => {
-    expect(migrateMode("CHAT")).toBe("CHAT");
-  });
-
-  it("should keep DATA mode unchanged", () => {
+  it("should migrate any stored mode to DATA", () => {
+    expect(migrateMode("CALL")).toBe("DATA");
+    expect(migrateMode("CHAT")).toBe("DATA");
+    expect(migrateMode("SPEC")).toBe("DATA");
     expect(migrateMode("DATA")).toBe("DATA");
-  });
-
-  it("should keep SPEC mode unchanged", () => {
-    expect(migrateMode("SPEC")).toBe("SPEC");
-  });
-
-  it("should default unknown modes to CHAT", () => {
-    expect(migrateMode("UNKNOWN")).toBe("CHAT");
-    expect(migrateMode("")).toBe("CHAT");
+    expect(migrateMode("UNKNOWN")).toBe("DATA");
+    expect(migrateMode("")).toBe("DATA");
   });
 });

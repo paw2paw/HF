@@ -130,6 +130,37 @@ vi.mock('@prisma/client', () => {
       updateMany: vi.fn(),
       count: vi.fn(),
     },
+    mediaAsset: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    subjectMedia: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      upsert: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+    },
+    channelConfig: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      upsert: vi.fn(),
+      delete: vi.fn(),
+    },
+    callMessage: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+      count: vi.fn(),
+    },
     $disconnect: vi.fn(),
   };
 
@@ -239,6 +270,14 @@ vi.mock('@prisma/client', () => {
     CallActionSource: {
       EXTRACTED: 'EXTRACTED',
       MANUAL: 'MANUAL',
+    },
+    ContentTrustLevel: {
+      UNVERIFIED: 'UNVERIFIED',
+      AI_ASSISTED: 'AI_ASSISTED',
+      EXPERT_CURATED: 'EXPERT_CURATED',
+      PUBLISHED_REFERENCE: 'PUBLISHED_REFERENCE',
+      ACCREDITED_MATERIAL: 'ACCREDITED_MATERIAL',
+      REGULATORY_STANDARD: 'REGULATORY_STANDARD',
     },
   };
 });

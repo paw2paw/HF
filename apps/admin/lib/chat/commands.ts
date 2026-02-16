@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { MemoryCategory } from "@prisma/client";
 
-type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
+type ChatMode = "DATA" | "CALL";
 
 interface EntityBreadcrumb {
   type: string;
@@ -100,7 +100,7 @@ const COMMANDS: ChatCommand[] = [
     aliases: ["?", "commands"],
     description: "Show available commands",
     usage: "/help [command]",
-    modes: ["CHAT", "DATA", "SPEC", "CALL"],
+    modes: ["DATA", "CALL"],
     execute: async (args, ctx) => {
       const specificCommand = args[0];
       if (specificCommand) {
@@ -133,7 +133,7 @@ const COMMANDS: ChatCommand[] = [
     aliases: ["ctx"],
     description: "Show current entity context",
     usage: "/context",
-    modes: ["CHAT", "DATA", "SPEC", "CALL"],
+    modes: ["DATA", "CALL"],
     execute: async (args, ctx) => {
       if (ctx.entityContext.length === 0) {
         return {
@@ -162,7 +162,7 @@ const COMMANDS: ChatCommand[] = [
     aliases: ["reset"],
     description: "Clear chat history for current mode",
     usage: "/clear",
-    modes: ["CHAT", "DATA", "SPEC", "CALL"],
+    modes: ["DATA", "CALL"],
     execute: async (args, ctx) => {
       return {
         ok: true,
@@ -249,7 +249,7 @@ const COMMANDS: ChatCommand[] = [
     aliases: ["prompt", "compose"],
     description: "Show or build the composed prompt for current caller",
     usage: "/buildprompt",
-    modes: ["DATA", "SPEC", "CALL"],
+    modes: ["DATA", "CALL"],
     execute: async (args, ctx) => {
       const callerEntity = ctx.entityContext.find((e) => e.type === "caller");
       if (!callerEntity) {
@@ -288,25 +288,6 @@ const COMMANDS: ChatCommand[] = [
         message: lines.join("\n"),
         data: prompt,
         action: "display",
-      };
-    },
-  },
-
-  {
-    name: "simulate",
-    aliases: ["sim", "call"],
-    description: "Switch to CALL mode to simulate a conversation",
-    usage: "/simulate",
-    modes: ["CHAT", "DATA"],
-    execute: async (args, ctx) => {
-      const callerEntity = ctx.entityContext.find((e) => e.type === "caller");
-      return {
-        ok: true,
-        message: callerEntity
-          ? `Switching to CALL mode to simulate conversation with ${callerEntity.label}...`
-          : "Switching to CALL mode. Select a caller for personalized simulation.",
-        action: "navigate",
-        navigateTo: "mode:CALL",
       };
     },
   },
@@ -372,133 +353,4 @@ const COMMANDS: ChatCommand[] = [
     },
   },
 
-  {
-    name: "newspec",
-    aliases: ["spec"],
-    description: "Get a template for creating a new analysis spec",
-    usage: "/newspec [MEASURE|LEARN|ADAPT|COMPOSE]",
-    modes: ["SPEC"],
-    execute: async (args, ctx) => {
-      const outputType = (args[0]?.toUpperCase() || "MEASURE") as string;
-      const validTypes = ["MEASURE", "LEARN", "ADAPT", "COMPOSE", "REWARD", "AGGREGATE"];
-
-      if (!validTypes.includes(outputType)) {
-        return {
-          ok: false,
-          message: `Invalid output type: ${outputType}\n\nValid types: ${validTypes.join(", ")}`,
-        };
-      }
-
-      const templates: Record<string, string> = {
-        MEASURE: `# ${outputType} Spec Template
-
-**Name:** [Parameter Name] Measurement
-**Slug:** measure-[parameter-name]
-**Output Type:** MEASURE
-**Scope:** DOMAIN
-
-## Given
-- A conversation transcript is available
-- The caller has participated in the conversation
-
-## When
-- The conversation contains evidence of [parameter]
-
-## Then
-- Score the caller on [parameter] from 0.0 to 1.0
-- 0.0 = [low anchor description]
-- 0.5 = [neutral description]
-- 1.0 = [high anchor description]
-
-## Prompt Template
-\`\`\`
-The caller scores {{value}} on {{param.name}} ({{label}}).
-{{#if high}}They show strong [positive trait].{{/if}}
-{{#if low}}They prefer [alternative approach].{{/if}}
-\`\`\``,
-
-        LEARN: `# ${outputType} Spec Template
-
-**Name:** [Category] Extraction
-**Slug:** learn-[category]
-**Output Type:** LEARN
-**Scope:** SYSTEM
-
-## Given
-- A conversation transcript is available
-
-## When
-- The conversation contains facts about the caller
-
-## Then
-- Extract and categorize the following:
-  - **FACT**: Immutable facts (name, location, occupation)
-  - **PREFERENCE**: Communication preferences
-  - **EVENT**: Time-bound events mentioned
-  - **TOPIC**: Topics of interest
-
-## Memory Format
-- Key: [descriptive_key]
-- Value: [extracted value]
-- Confidence: 0.0-1.0`,
-
-        ADAPT: `# ${outputType} Spec Template
-
-**Name:** [Target] Adaptation
-**Slug:** adapt-[target]
-**Output Type:** ADAPT
-**Scope:** DOMAIN
-
-## Given
-- Caller personality profile is available
-- Previous call scores are available
-
-## When
-- Computing behavior targets for next call
-
-## Then
-- Adjust [target] based on:
-  - Personality traits (extraversion, agreeableness, etc.)
-  - Recent interaction patterns
-  - Expressed preferences
-
-## Target Computation
-- Base target: 0.5
-- Adjustment range: 0.2 - 0.8`,
-
-        COMPOSE: `# ${outputType} Spec Template
-
-**Name:** [Section] Composition
-**Slug:** compose-[section]
-**Output Type:** COMPOSE
-**Scope:** DOMAIN
-
-## Given
-- Caller profile is available
-- Behavior targets are computed
-
-## When
-- Generating the next prompt for this caller
-
-## Then
-- Generate a personalized prompt section
-
-## Template
-\`\`\`
-{{#if memories.facts}}
-Key facts about {{caller.name}}:
-{{#each memories.facts}}
-- {{this.key}}: {{this.value}}
-{{/each}}
-{{/if}}
-\`\`\``,
-      };
-
-      return {
-        ok: true,
-        message: templates[outputType] || templates.MEASURE,
-        action: "display",
-      };
-    },
-  },
 ];

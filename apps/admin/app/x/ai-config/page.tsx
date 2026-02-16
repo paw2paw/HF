@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 // =====================================================
 // TYPES
@@ -424,6 +425,7 @@ export default function AIConfigPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>

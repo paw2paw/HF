@@ -321,7 +321,7 @@ export async function GET(
     }
 
     // Get counts
-    const [callCount, memoryCount, observationCount, measurementsCount, artifactCount, actionsPendingCount] = await Promise.all([
+    const [callCount, memoryCount, observationCount, measurementsCount, artifactCount, actionsPendingCount, keyFactCount] = await Promise.all([
       prisma.call.count({ where: { callerId: callerId } }),
       prisma.callerMemory.count({
         where: {
@@ -343,6 +343,7 @@ export async function GET(
       }).then(results => results.length),
       prisma.conversationArtifact.count({ where: { callerId: callerId } }),
       prisma.callAction.count({ where: { callerId: callerId, status: { in: ["PENDING", "IN_PROGRESS"] } } }),
+      prisma.conversationArtifact.count({ where: { callerId: callerId, type: "KEY_FACT" } }),
     ]);
 
     // Get behavior targets count for this caller
@@ -510,6 +511,7 @@ export async function GET(
         curriculumCompleted: curriculum?.completedCount || 0,
         goals: goals.length,
         activeGoals: goals.filter(g => g.status === 'ACTIVE').length,
+        keyFacts: keyFactCount,
       },
     });
   } catch (error: any) {

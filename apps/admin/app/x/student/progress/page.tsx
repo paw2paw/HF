@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TrendingUp, Target, Phone } from "lucide-react";
+import { TrendingUp, Target, Phone, BookOpen, Lightbulb } from "lucide-react";
+
+interface TopicEntry {
+  topic: string;
+  lastMentioned: string;
+}
 
 interface ProgressData {
   profile: {
@@ -19,6 +24,9 @@ interface ProgressData {
   totalCalls: number;
   classroom: string | null;
   domain: string | null;
+  topTopics: TopicEntry[];
+  topicCount: number;
+  keyFactCount: number;
 }
 
 export default function StudentProgressPage() {
@@ -62,7 +70,7 @@ export default function StudentProgressPage() {
     : [];
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div data-tour="welcome" className="p-6 max-w-4xl">
       <h1 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>
         My Progress
       </h1>
@@ -73,7 +81,7 @@ export default function StudentProgressPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
         <StatCard icon={Phone} label="Total Calls" value={data.totalCalls} />
         <StatCard icon={Target} label="Active Goals" value={data.goals.length} />
         <StatCard
@@ -81,6 +89,8 @@ export default function StudentProgressPage() {
           label="Calls Analyzed"
           value={data.profile?.callsAnalyzed ?? 0}
         />
+        <StatCard icon={BookOpen} label="Topics Covered" value={data.topicCount} />
+        <StatCard icon={Lightbulb} label="Key Facts" value={data.keyFactCount} />
       </div>
 
       {/* Goals */}
@@ -126,6 +136,48 @@ export default function StudentProgressPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Topics Covered */}
+      {data.topTopics.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+            Topics Covered
+          </h2>
+          <div
+            className="rounded-lg border p-4"
+            style={{
+              borderColor: "var(--border-default)",
+              background: "var(--surface-primary)",
+            }}
+          >
+            <div className="flex flex-wrap gap-2">
+              {data.topTopics.map((t) => (
+                <div
+                  key={t.topic}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+                  style={{
+                    background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                    border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+                  }}
+                >
+                  <BookOpen size={12} style={{ color: "var(--accent-primary)" }} />
+                  <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+                    {t.topic}
+                  </span>
+                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                    {formatTopicDate(t.lastMentioned)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {data.topicCount > data.topTopics.length && (
+              <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+                +{data.topicCount - data.topTopics.length} more topics discussed across your calls
+              </p>
+            )}
           </div>
         </section>
       )}
@@ -179,6 +231,16 @@ export default function StudentProgressPage() {
       )}
     </div>
   );
+}
+
+function formatTopicDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: number }) {

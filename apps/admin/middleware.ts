@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { decode } from "next-auth/jwt";
+import { getRequiredRole, hasRequiredRole } from "@/lib/page-roles";
 
 // Edge-compatible middleware - no Node.js dependencies
 // For database sessions, we can only check cookie existence here
@@ -19,6 +21,8 @@ const CORS_ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || "")
   .map((o) => o.trim())
   .filter(Boolean);
 
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
+
 /** Add CORS headers to a response if the origin is in the allow-list */
 function withCors(response: NextResponse, origin: string | null): NextResponse {
   if (origin && CORS_ALLOWED_ORIGINS.includes(origin)) {
@@ -27,7 +31,39 @@ function withCors(response: NextResponse, origin: string | null): NextResponse {
   return response;
 }
 
-export function middleware(request: NextRequest) {
+/** Session cookie names in priority order */
+const SESSION_COOKIE_NAMES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+];
+
+/** Get the session cookie name and value */
+function getSessionCookie(request: NextRequest) {
+  for (const name of SESSION_COOKIE_NAMES) {
+    const cookie = request.cookies.get(name);
+    if (cookie) return { name, value: cookie.value };
+  }
+  return null;
+}
+
+/** Decode JWT to extract role — fail-open on decode errors (fall through to auth()) */
+async function getRoleFromToken(tokenValue: string, cookieName: string): Promise<string | null> {
+  try {
+    const token = await decode({
+      token: tokenValue,
+      secret: AUTH_SECRET,
+      salt: cookieName,
+    });
+    return (token?.role as string) ?? null;
+  } catch {
+    // Decode failed — let the request through, auth() will handle it
+    return null;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get("origin");
 
@@ -62,17 +98,27 @@ export function middleware(request: NextRequest) {
 
   // Check for session cookie (JWT or database session)
   // NextAuth v5 uses different cookie names depending on environment
-  const sessionToken =
-    request.cookies.get("authjs.session-token") ||
-    request.cookies.get("__Secure-authjs.session-token") ||
-    request.cookies.get("next-auth.session-token") ||
-    request.cookies.get("__Secure-next-auth.session-token");
+  const sessionToken = getSessionCookie(request);
 
   if (!sessionToken) {
     // No session cookie - redirect to login
     const loginUrl = new URL("/login", request.nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // --- Page-level RBAC enforcement ---
+  // Check if this /x/ page requires a minimum role (derived from sidebar manifest)
+  if (pathname.startsWith("/x/")) {
+    const requiredRole = getRequiredRole(pathname);
+    if (requiredRole) {
+      const userRole = await getRoleFromToken(sessionToken.value, sessionToken.name);
+      if (userRole && !hasRequiredRole(userRole, requiredRole)) {
+        // Insufficient role — redirect to dashboard
+        return NextResponse.redirect(new URL("/x", request.nextUrl.origin));
+      }
+      // If userRole is null (decode failed), fall through — auth() will catch it
+    }
   }
 
   // Session cookie exists - allow (full validation in server components)

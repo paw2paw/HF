@@ -10,7 +10,6 @@ import {
   Sun,
   Moon,
   Monitor,
-  Mail,
   Ticket,
   Save,
   RotateCcw,
@@ -21,9 +20,13 @@ import {
   X,
   LogIn,
   PlayCircle,
+  Settings2,
+  ListChecks,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import { useMasquerade } from "@/contexts/MasqueradeContext";
+import { TourTrigger } from "@/src/components/shared/TourTrigger";
 import { UserAvatar, ROLE_COLORS } from "./UserAvatar";
 import { envSidebarColor, envLabel } from "./EnvironmentBanner";
 import { MASQUERADE_COLOR } from "./MasqueradeBanner";
@@ -96,6 +99,7 @@ function PanelLink({
   onClick,
   badge,
   accent,
+  pills,
 }: {
   href: string;
   icon: React.ElementType;
@@ -103,6 +107,7 @@ function PanelLink({
   onClick?: () => void;
   badge?: number;
   accent?: boolean;
+  pills?: Array<{ label: string; count: number; color: string }>;
 }) {
   return (
     <Link
@@ -116,6 +121,23 @@ function PanelLink({
         style={{ color: accent ? "var(--accent-primary)" : "var(--text-muted)" }}
       />
       <span className="flex-1">{label}</span>
+      {pills && pills.length > 0 && (
+        <span className="inline-flex items-center gap-1">
+          {pills.map((pill) => (
+            <span
+              key={pill.label}
+              className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+              style={{
+                background: `color-mix(in srgb, ${pill.color} 12%, transparent)`,
+                color: pill.color,
+              }}
+              title={pill.label}
+            >
+              {pill.count}
+            </span>
+          ))}
+        </span>
+      )}
       {badge != null && badge > 0 && (
         <span
           className="inline-flex items-center justify-center rounded-full text-[10px] font-bold text-white min-w-[20px] px-1.5 py-0.5"
@@ -388,9 +410,27 @@ function StepInSection() {
 export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptions, masqueradeOptions }: AccountPanelProps) {
   const { data: session } = useSession();
   const { preference, setPreference } = useTheme();
+  const { preference: viewPref, setPreference: setViewPref } = useViewMode();
   const user = session?.user;
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [savingGlobal, setSavingGlobal] = useState(false);
+  const [taskCounts, setTaskCounts] = useState<{ processing: number; completedRecent: number }>({ processing: 0, completedRecent: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCounts() {
+      try {
+        const res = await fetch("/api/tasks/counts");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          if (data.ok) setTaskCounts(data.counts);
+        }
+      } catch { /* ignore */ }
+    }
+    loadCounts();
+    const interval = setInterval(loadCounts, 10_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   if (!user) return null;
 
@@ -479,8 +519,17 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
       {/* ─── Notifications ─── */}
       <SectionLabel>Notifications</SectionLabel>
       <div className="mx-1 flex flex-col">
-        <PanelLink href="/x/messages" icon={Mail} label="Inbox" onClick={handleNavigate} badge={unreadCount} />
-        <PanelLink href="/x/tickets" icon={Ticket} label="Tickets" onClick={handleNavigate} />
+        <PanelLink href="/x/tickets" icon={Ticket} label="Messaging" onClick={handleNavigate} />
+        <PanelLink
+          href="/x/tasks"
+          icon={ListChecks}
+          label="Tasks"
+          onClick={handleNavigate}
+          pills={[
+            ...(taskCounts.processing > 0 ? [{ label: "Processing", count: taskCounts.processing, color: "#2563eb" }] : []),
+            ...(taskCounts.completedRecent > 0 ? [{ label: "Done (24h)", count: taskCounts.completedRecent, color: "#16a34a" }] : []),
+          ]}
+        />
       </div>
 
       {/* ─── Account ─── */}
@@ -511,6 +560,33 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
             <button
               key={value}
               onClick={() => setPreference(value)}
+              className="flex flex-1 flex-col items-center gap-1.5 rounded-lg py-2.5 text-[10px] font-semibold tracking-wide transition-all"
+              style={{
+                background: isActive ? "var(--surface-selected)" : "transparent",
+                color: isActive ? "var(--accent-primary)" : "var(--text-muted)",
+                border: isActive ? "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)" : "1px solid transparent",
+              }}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ─── View Mode ─── */}
+      <SectionLabel>View Mode</SectionLabel>
+      <div className="mx-3 flex gap-1.5">
+        {([
+          { value: "simple" as const, icon: Eye, label: "Simple" },
+          { value: "advanced" as const, icon: Settings2, label: "Advanced" },
+          { value: "auto" as const, icon: Monitor, label: "Auto" },
+        ]).map(({ value, icon: Icon, label }) => {
+          const isActive = viewPref === value;
+          return (
+            <button
+              key={value}
+              onClick={() => setViewPref(value)}
               className="flex flex-1 flex-col items-center gap-1.5 rounded-lg py-2.5 text-[10px] font-semibold tracking-wide transition-all"
               style={{
                 background: isActive ? "var(--surface-selected)" : "transparent",
@@ -611,6 +687,11 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
           <span className="text-[10px] font-medium" style={{ color: "var(--text-placeholder)" }}>
             v{process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0"}
           </span>
+        </div>
+
+        {/* Tour trigger */}
+        <div className="px-3 pb-2">
+          <TourTrigger className="w-full justify-center py-2 rounded-lg hover:bg-[var(--surface-secondary)] transition-colors" />
         </div>
 
         {/* Sign out */}

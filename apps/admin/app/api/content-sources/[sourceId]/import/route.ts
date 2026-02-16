@@ -6,6 +6,7 @@ import {
   chunkText,
   type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
+import type { DocumentType } from "@/lib/content-trust/resolve-config";
 import { createJob, getJob, updateJob } from "@/lib/content-trust/extraction-jobs";
 // Note: createJob/getJob/updateJob now delegate to UserTask DB storage
 import { requireAuth, isAuthError } from "@/lib/permissions";
@@ -40,7 +41,7 @@ export async function POST(
     // Verify source exists
     const source = await prisma.contentSource.findUnique({
       where: { id: sourceId },
-      select: { id: true, slug: true, name: true, trustLevel: true, qualificationRef: true },
+      select: { id: true, slug: true, name: true, trustLevel: true, qualificationRef: true, documentType: true },
     });
 
     if (!source) {
@@ -89,6 +90,8 @@ export async function POST(
       // Fire-and-forget the extraction + import
       runBackgroundExtraction(job.id, source, text, file.name, fileType, pages, {
         sourceSlug: source.slug,
+        sourceId: source.id,
+        documentType: (source.documentType as DocumentType) || undefined,
         qualificationRef: source.qualificationRef || undefined,
         focusChapters,
         maxAssertions,
@@ -115,6 +118,8 @@ export async function POST(
 
     const result = await extractAssertions(text, {
       sourceSlug: source.slug,
+      sourceId: source.id,
+      documentType: (source.documentType as DocumentType) || undefined,
       qualificationRef: source.qualificationRef || undefined,
       focusChapters,
       maxAssertions,
@@ -247,7 +252,7 @@ async function runBackgroundExtraction(
   fileName: string,
   fileType: string,
   pages: number | undefined,
-  options: { sourceSlug: string; qualificationRef?: string; focusChapters?: string[]; maxAssertions?: number }
+  options: { sourceSlug: string; sourceId?: string; documentType?: DocumentType; qualificationRef?: string; focusChapters?: string[]; maxAssertions?: number }
 ) {
   const result = await extractAssertions(text, {
     ...options,

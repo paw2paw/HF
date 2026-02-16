@@ -18,6 +18,8 @@ import '@/app/x/sim/sim.css';
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 import { EXAM_LEVEL_CONFIG } from "@/lib/curriculum/constants";
+import { useViewMode } from "@/contexts/ViewModeContext";
+import { AdvancedSection } from "@/components/shared/AdvancedSection";
 
 // Types
 type Domain = {
@@ -77,7 +79,7 @@ type MemorySummary = {
   topicCount: number;
   keyFacts: { key: string; value: string; confidence: number }[];
   preferences: Record<string, string>;
-  topTopics: { topic: string }[];
+  topTopics: { topic: string; lastMentioned?: string }[];
 };
 
 type Call = {
@@ -203,6 +205,7 @@ type CallerData = {
     curriculumCompleted?: number;
     goals?: number;
     activeGoals?: number;
+    keyFacts?: number;
   };
 };
 
@@ -1206,7 +1209,9 @@ export default function CallerDetailPage() {
               { id: "scores", label: "Scores", icon: <BarChart3 size={13} />, count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0 },
               { id: "behaviour", label: "Behaviour", icon: <Brain size={13} />, count: (data.counts.targets || 0) + (data.counts.measurements || 0) },
               { id: "goals", label: "Goals", icon: <Target size={13} />, count: data.counts.activeGoals || 0 },
+              { id: "topics", label: "Topics", icon: <BookOpen size={13} />, count: (data.memorySummary?.topicCount || 0) + (data.counts.keyFacts || 0) },
               { id: "exam", label: "Exam", icon: <ClipboardCheck size={13} /> },
+              { id: "plan", label: "Plan", icon: <CheckSquare size={13} /> },
             ]}
             visible={progressVis}
             onToggle={toggleProgressVis}
@@ -1216,7 +1221,11 @@ export default function CallerDetailPage() {
           {progressVis.goals !== false && (
             <LearningSection curriculum={data.curriculum} learnerProfile={data.learnerProfile} goals={data.goals} callerId={callerId} />
           )}
+          {progressVis.topics !== false && (
+            <TopicsCoveredSection memorySummary={data.memorySummary} keyFactCount={data.counts.keyFacts || 0} />
+          )}
           {progressVis.exam !== false && <ExamReadinessSection callerId={callerId} />}
+          {progressVis.plan !== false && <PlanProgressSection callerId={callerId} calls={data.calls} domainId={data.caller?.domainId} />}
         </>
       )}
 
@@ -3554,6 +3563,7 @@ function TwoColumnTargetsDisplay({
   measurements?: any[];
   historyByParameter?: Record<string, number[]>;
 }) {
+  const { isAdvanced } = useViewMode();
   const [expandedTarget, setExpandedTarget] = useState<string | null>(null);
 
   // Create measurement lookup
@@ -3714,8 +3724,8 @@ function TwoColumnTargetsDisplay({
           {target.effectiveScope}
         </div>
 
-        {/* Expanded: show layer cascade below */}
-        {isExpanded && (
+        {/* Expanded: show layer cascade below (advanced only) */}
+        {isAdvanced && isExpanded && (
           <div
             style={{
               position: "absolute",
@@ -3881,36 +3891,38 @@ function TwoColumnTargetsDisplay({
         </div>
       </div>
 
-      {/* Legend */}
-      <div
-        title="Layer Cascade Explanation\n\nTarget values follow a cascade system where later layers override earlier ones:\n\n1. SYSTEM (gray) - Default values from system configuration\n2. PLAYBOOK (blue) - Domain-specific values from the playbook\n3. CALLER (green) - Personalized adjustments for this individual\n\nExample: If SYSTEM sets warmth to 60%, PLAYBOOK raises it to 75%, and CALLER adjusts to 85%, the effective value is 85%.\n\nClick any slider to see the complete cascade for that parameter."
-        style={{
-          display: "flex",
-          gap: 12,
-          fontSize: 11,
-          color: "var(--text-muted)",
-          flexWrap: "wrap",
-          marginBottom: 16,
-          cursor: "help",
-        }}
-      >
-        <span style={{ fontWeight: 600 }}>Layer cascade:</span>
-        {["SYSTEM", "PLAYBOOK", "CALLER"].map((scope) => (
-          <span
-            key={scope}
-            style={{
-              padding: "2px 8px",
-              borderRadius: 4,
-              background: scopeColors[scope].bg,
-              color: scopeColors[scope].text,
-              fontWeight: 500,
-            }}
-          >
-            {scope}
-          </span>
-        ))}
-        <span style={{ color: "var(--text-placeholder)" }}>(later overrides earlier)</span>
-      </div>
+      {/* Legend (advanced only) */}
+      {isAdvanced && (
+        <div
+          title="Layer Cascade Explanation\n\nTarget values follow a cascade system where later layers override earlier ones:\n\n1. SYSTEM (gray) - Default values from system configuration\n2. PLAYBOOK (blue) - Domain-specific values from the playbook\n3. CALLER (green) - Personalized adjustments for this individual\n\nExample: If SYSTEM sets warmth to 60%, PLAYBOOK raises it to 75%, and CALLER adjusts to 85%, the effective value is 85%.\n\nClick any slider to see the complete cascade for that parameter."
+          style={{
+            display: "flex",
+            gap: 12,
+            fontSize: 11,
+            color: "var(--text-muted)",
+            flexWrap: "wrap",
+            marginBottom: 16,
+            cursor: "help",
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>Layer cascade:</span>
+          {["SYSTEM", "PLAYBOOK", "CALLER"].map((scope) => (
+            <span
+              key={scope}
+              style={{
+                padding: "2px 8px",
+                borderRadius: 4,
+                background: scopeColors[scope].bg,
+                color: scopeColors[scope].text,
+                fontWeight: 500,
+              }}
+            >
+              {scope}
+            </span>
+          ))}
+          <span style={{ color: "var(--text-placeholder)" }}>(later overrides earlier)</span>
+        </div>
+      )}
 
       {/* Two-column layout - CSS Grid for clean separation */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
@@ -4708,6 +4720,7 @@ function MemoriesSection({
   setExpandedMemory: (id: string | null) => void;
   hideSummary?: boolean;
 }) {
+  const { isAdvanced } = useViewMode();
   return (
     <div>
       {/* Summary Cards - hidden when shown inline in SectionSelector */}
@@ -4800,7 +4813,7 @@ function MemoriesSection({
                     <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>{isExpanded ? "▼" : "▶"}</span>
                   </div>
                 </button>
-                {isExpanded && (
+                {isAdvanced && isExpanded && (
                   <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)", fontSize: 13 }}>
                     {memory.evidence && (
                       <>
@@ -4844,6 +4857,7 @@ function PersonalitySection({
     params: Record<string, { parameterId: string; label: string; description: string; color: string; section: string }>;
   } | null;
 }) {
+  const { isAdvanced } = useViewMode();
   // Show message if no paramConfig loaded
   if (!paramConfig) {
     return (
@@ -5028,7 +5042,7 @@ function PersonalitySection({
 
       {/* Observations Timeline - DEPRECATED: Legacy OCEAN data only */}
       {/* TODO: Simplify display, enhance with history sparklines showing parameter trends over time */}
-      {observations.length > 0 && (
+      {isAdvanced && observations.length > 0 && (
         <details style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
           <summary style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, background: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>DEPRECATED</span>
@@ -5105,6 +5119,7 @@ function PersonalitySection({
 
 // Scores Section - slider-based display with click-to-expand details
 function ScoresSection({ scores }: { scores: CallScore[] }) {
+  const { isAdvanced } = useViewMode();
   const [expandedParam, setExpandedParam] = useState<string | null>(null);
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
 
@@ -5286,7 +5301,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
 
                     {isScoreExpanded && (
                       <div style={{ padding: "8px 16px 12px", background: "var(--background)", marginLeft: 56 }}>
-                        {s.evidence && s.evidence.length > 0 && (
+                        {isAdvanced && s.evidence && s.evidence.length > 0 && (
                           <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Evidence</div>
                             {s.evidence.map((e: string, i: number) => (
@@ -5296,7 +5311,7 @@ function ScoresSection({ scores }: { scores: CallScore[] }) {
                             ))}
                           </div>
                         )}
-                        {s.reasoning && (
+                        {isAdvanced && s.reasoning && (
                           <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Reasoning</div>
                             <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>{s.reasoning}</div>
@@ -7255,6 +7270,87 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
   );
 }
 
+// Topics Covered Section - shows topics discussed and key facts count
+function TopicsCoveredSection({ memorySummary, keyFactCount }: { memorySummary: MemorySummary | null; keyFactCount: number }) {
+  const topTopics = memorySummary?.topTopics ?? [];
+  const topicCount = memorySummary?.topicCount ?? 0;
+
+  if (!topTopics.length && !keyFactCount) {
+    return (
+      <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+        No topics or key facts recorded yet.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Stats row */}
+      <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", flex: 1 }}>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+            <BookOpen size={12} /> Topics Discussed
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{topicCount}</div>
+        </div>
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", flex: 1 }}>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+            <CheckSquare size={12} /> Key Facts
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{keyFactCount}</div>
+        </div>
+      </div>
+
+      {/* Topic chips */}
+      {topTopics.length > 0 && (
+        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {topTopics.map((t) => (
+              <span
+                key={t.topic}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 12px",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  background: CATEGORY_COLORS.TOPIC.bg,
+                  color: CATEGORY_COLORS.TOPIC.text,
+                }}
+              >
+                <BookOpen size={11} />
+                {t.topic}
+                {t.lastMentioned && (
+                  <span style={{ fontSize: 10, opacity: 0.7 }}>
+                    {formatRelativeDate(t.lastMentioned)}
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+          {topicCount > topTopics.length && (
+            <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12 }}>
+              +{topicCount - topTopics.length} more topics discussed across calls
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatRelativeDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 // Exam Readiness Section - shows readiness scores, gate status, weak modules, attempt history
 function ExamReadinessSection({ callerId }: { callerId: string }) {
   const [curricula, setCurricula] = useState<any[]>([]);
@@ -7471,6 +7567,7 @@ function ExamReadinessSection({ callerId }: { callerId: string }) {
 // Top-Level Targets Section - shows behavior targets for this caller
 // Top-Level Behaviour Section - shows targets + measurements across all calls
 function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
+  const { isAdvanced } = useViewMode();
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [callerTargets, setCallerTargets] = useState<any[]>([]);
   const [behaviorTargets, setBehaviorTargets] = useState<any[]>([]);
@@ -7571,7 +7668,70 @@ function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
     historyByParameter[parameterId] = sorted.map((m: any) => m.actualValue);
   }
 
-  return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} measurements={avgMeasurements} historyByParameter={historyByParameter} />;
+  // Advanced: full two-column targets + measurements with layer cascade
+  if (isAdvanced) {
+    return <TwoColumnTargetsDisplay callerTargets={callerTargets} behaviorTargets={behaviorTargets} measurements={avgMeasurements} historyByParameter={historyByParameter} />;
+  }
+
+  // Simple: measurement averages as clean sliders (no targets, no scope cascade)
+  if (avgMeasurements.length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No measurements yet</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+          Behaviour measurements will appear here after calls are analyzed
+        </div>
+      </div>
+    );
+  }
+
+  // Build a label lookup from behaviorTargets or callerTargets
+  const paramNames: Record<string, string> = {};
+  for (const t of [...behaviorTargets, ...callerTargets]) {
+    if (t.parameter?.name) paramNames[t.parameterId] = t.parameter.name;
+  }
+
+  return (
+    <SliderGroup
+      title={`Behaviour (${avgMeasurements.length})`}
+      color={{ primary: "var(--badge-indigo-text)", glow: "var(--button-primary-bg)" }}
+    >
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        {avgMeasurements.map((m) => {
+          const name = paramNames[m.parameterId] || m.parameterId;
+          const history = historyByParameter[m.parameterId] || [];
+          const color = m.actualValue >= 0.7
+            ? { primary: "var(--status-success-text)", glow: "var(--status-success-text)" }
+            : m.actualValue >= 0.4
+            ? { primary: "var(--status-warning-text)", glow: "var(--status-warning-text)" }
+            : { primary: "var(--status-error-text)", glow: "var(--status-error-text)" };
+
+          return (
+            <div key={m.parameterId} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <VerticalSlider
+                value={m.actualValue}
+                color={color}
+                tooltip={`${name}\n\nAverage: ${(m.actualValue * 100).toFixed(0)}%${history.length >= 2 ? `\nHistory: ${history.length} calls` : ""}`}
+                width={56}
+                height={140}
+                showGauge={false}
+                historyPoints={history}
+              />
+              <div style={{
+                marginTop: 8, fontSize: 9, fontWeight: 500,
+                color: "var(--text-muted)", textAlign: "center",
+                maxWidth: 70, lineHeight: 1.2,
+                textTransform: "uppercase", letterSpacing: "0.3px",
+              }}>
+                {name.replace("BEH-", "").replace(/-/g, " ")}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </SliderGroup>
+  );
 }
 
 // =====================================================
@@ -8386,6 +8546,200 @@ function ActionsSubSection({
             No actions match the current filters
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------
+// Plan Progress Section - shows lesson plan progress for a caller
+// ------------------------------------------------------------------
+
+const PLAN_SESSION_TYPES: Record<string, { label: string; color: string }> = {
+  onboarding: { label: "Onboarding", color: "#6366F1" },
+  introduce: { label: "Introduce", color: "#059669" },
+  deepen: { label: "Deepen", color: "#2563EB" },
+  review: { label: "Review", color: "#D97706" },
+  assess: { label: "Assess", color: "#DC2626" },
+  consolidate: { label: "Consolidate", color: "#7C3AED" },
+};
+
+function PlanProgressSection({
+  callerId,
+  calls,
+  domainId,
+}: {
+  callerId: string;
+  calls: Call[];
+  domainId: string | null | undefined;
+}) {
+  const [plan, setPlan] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!domainId) {
+      setLoading(false);
+      return;
+    }
+    // Find curriculum for this caller's domain, then fetch its lesson plan
+    (async () => {
+      try {
+        // Find subject for this domain
+        const domainRes = await fetch(`/api/domains/${domainId}`);
+        const domainData = await domainRes.json();
+        if (!domainData.ok || !domainData.domain?.subjects?.length) {
+          setLoading(false);
+          return;
+        }
+        const subjectId = domainData.domain.subjects[0].subjectId;
+
+        // Get curriculum for this subject
+        const currRes = await fetch(`/api/subjects/${subjectId}/curriculum`);
+        const currData = await currRes.json();
+        if (!currData.curriculum?.id) {
+          setLoading(false);
+          return;
+        }
+
+        // Get lesson plan
+        const planRes = await fetch(`/api/curricula/${currData.curriculum.id}/lesson-plan`);
+        const planData = await planRes.json();
+        if (planData.ok && planData.plan) {
+          setPlan(planData.plan);
+        }
+      } catch {
+        // silent
+      }
+      setLoading(false);
+    })();
+  }, [domainId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 16 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Plan Progress</h3>
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!plan || !plan.entries?.length) {
+    return (
+      <div style={{ padding: 16 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Plan Progress</h3>
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          No lesson plan configured for this caller&apos;s domain. Create one from the Subject page.
+        </p>
+      </div>
+    );
+  }
+
+  const entries: any[] = plan.entries;
+  const completedCalls = calls.length;
+  const totalPlanned = entries.length;
+
+  // Map calls to plan entries by index (call 1 → session 1, etc.)
+  const progressEntries = entries.map((entry: any, i: number) => {
+    const callIndex = i;
+    const call = calls.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[callIndex];
+
+    let status: "completed" | "current" | "upcoming";
+    if (callIndex < completedCalls - 1) {
+      status = "completed";
+    } else if (callIndex === completedCalls - 1) {
+      status = "current";
+    } else {
+      status = "upcoming";
+    }
+
+    return {
+      ...entry,
+      status,
+      call: call || null,
+      callDate: call?.createdAt || null,
+    };
+  });
+
+  const progressPct = totalPlanned > 0 ? Math.round((Math.min(completedCalls, totalPlanned) / totalPlanned) * 100) : 0;
+
+  return (
+    <div style={{ padding: 16 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Plan Progress</h3>
+      <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
+        Call {completedCalls} of {totalPlanned} planned ({progressPct}% through plan)
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ height: 6, borderRadius: 3, background: "var(--surface-tertiary)", overflow: "hidden", marginBottom: 16 }}>
+        <div style={{
+          height: "100%",
+          borderRadius: 3,
+          background: progressPct === 100 ? "#16a34a" : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+          width: `${progressPct}%`,
+          transition: "width 0.5s ease-out",
+        }} />
+      </div>
+
+      {/* Session list */}
+      <div style={{ display: "grid", gap: 4 }}>
+        {progressEntries.map((e: any) => {
+          const sessionCfg = PLAN_SESSION_TYPES[e.type] || { label: e.type, color: "#6B7280" };
+          return (
+            <div key={e.session} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+              borderRadius: 6,
+              border: e.status === "current" ? "1px solid var(--accent-primary)" : "1px solid var(--border-secondary)",
+              background: e.status === "current"
+                ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)"
+                : e.status === "completed"
+                  ? "var(--surface-primary)"
+                  : "transparent",
+              opacity: e.status === "upcoming" ? 0.6 : 1,
+            }}>
+              {/* Status icon */}
+              <span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>
+                {e.status === "completed" ? "\u2705" : e.status === "current" ? "\uD83D\uDD35" : "\u2B1C"}
+              </span>
+
+              {/* Session number */}
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 20,
+                textAlign: "right", fontVariantNumeric: "tabular-nums",
+              }}>
+                {e.session}.
+              </span>
+
+              {/* Label */}
+              <span style={{ flex: 1, fontSize: 13, fontWeight: e.status === "current" ? 600 : 400, color: "var(--text-primary)" }}>
+                {e.label}
+              </span>
+
+              {/* Session type badge */}
+              <span style={{
+                display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10,
+                fontWeight: 600, color: sessionCfg.color,
+                backgroundColor: `color-mix(in srgb, ${sessionCfg.color} 12%, transparent)`,
+                textTransform: "uppercase", minWidth: 70, textAlign: "center",
+              }}>
+                {sessionCfg.label}
+              </span>
+
+              {/* Module label */}
+              {e.moduleLabel && (
+                <span style={{ fontSize: 11, color: "var(--text-muted)", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {e.moduleLabel}
+                </span>
+              )}
+
+              {/* Call date */}
+              {e.callDate && (
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                  {new Date(e.callDate).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

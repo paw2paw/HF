@@ -84,6 +84,8 @@ export interface LoadedDataContext {
   onboardingSession?: any;
   /** Curriculum assertions (approved teaching points) from ContentAssertion table */
   curriculumAssertions?: CurriculumAssertionData[];
+  /** Teaching depth from Subject config (null = use spec default) */
+  teachingDepth?: number | null;
   /** Open actions (pending/in-progress) for prompt awareness */
   openActions?: OpenActionData[];
 }
@@ -101,6 +103,7 @@ export interface OpenActionData {
 
 /** ContentAssertion data loaded for teaching content */
 export interface CurriculumAssertionData {
+  id: string;
   assertion: string;
   category: string;
   chapter: string | null;
@@ -112,6 +115,11 @@ export interface CurriculumAssertionData {
   learningOutcomeRef: string | null;
   sourceName: string;
   sourceTrustLevel: string;
+  // Pyramid hierarchy fields
+  depth: number | null;
+  parentId: string | null;
+  orderIndex: number;
+  topicSlug: string | null;
 }
 
 /** INIT-001 onboarding spec shape */

@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useState, useRef, useCallback } from 'react
 import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
-import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding } from '@/contexts';
+import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding, ViewModeProvider } from '@/contexts';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
@@ -12,7 +12,7 @@ import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
 import EnvironmentBanner, { envSidebarColor, envLabel } from '@/components/shared/EnvironmentBanner';
 import MasqueradeBanner, { MASQUERADE_BANNER_HEIGHT, MASQUERADE_COLOR } from '@/components/shared/MasqueradeBanner';
-import { GuidanceBridge } from '@/src/components/shared/GuidanceBridge';
+import { TourOverlay } from '@/src/components/shared/TourOverlay';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Menu, PanelLeft } from 'lucide-react';
 import './globals.css';
@@ -319,13 +319,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <SessionProvider>
               <BrandingProvider>
               <MasqueradeProvider>
+              <ViewModeProvider>
               <MasqueradeBanner />
               <EntityProvider>
                 <GuidanceProvider>
                   <ChatProvider>
                     <GlobalAssistantProvider>
                       <ContentJobQueueProvider>
-                        <GuidanceBridge />
+                        <TourOverlay />
                         <Suspense fallback={null}>
                           <LayoutInner>{children}</LayoutInner>
                         </Suspense>
@@ -337,6 +338,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </ChatProvider>
                 </GuidanceProvider>
               </EntityProvider>
+              </ViewModeProvider>
               </MasqueradeProvider>
               </BrandingProvider>
             </SessionProvider>

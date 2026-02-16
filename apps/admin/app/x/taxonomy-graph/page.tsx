@@ -18,6 +18,7 @@ import { useVisualizerSearch } from "@/hooks/useVisualizerSearch";
 import { VisualizerSearch } from "@/components/shared/VisualizerSearch";
 import { drawIconNode, renderIconToCanvas, spriteTextureCache, NodeIcon } from "@/components/shared/VisualizerIcons";
 import { encodeTaxonomyNode, type VisualMode } from "@/lib/graph/visual-encoding";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type NodeType = "spec" | "parameter" | "playbook" | "domain" | "trigger" | "action" | "anchor" | "promptSlug" | "behaviorTarget" | "range";
 
@@ -546,6 +547,7 @@ export default function TaxonomyGraphPage() {
       overflow: "hidden",
       background: "var(--surface-secondary)",
     }}>
+      <AdvancedBanner />
       {/* Header - hidden in embed mode */}
       {!isEmbed && (
         <div

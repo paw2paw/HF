@@ -542,11 +542,13 @@ registerLoader("curriculumAssertions", async (callerId) => {
   if (!caller?.domainId) return [];
 
   // Find all content sources linked to the domain via subjects
+  // Also load teachingDepth from the subject
   const subjectDomains = await prisma.subjectDomain.findMany({
     where: { domainId: caller.domainId },
     select: {
       subject: {
         select: {
+          teachingDepth: true,
           sources: {
             select: { sourceId: true },
           },
@@ -558,6 +560,11 @@ registerLoader("curriculumAssertions", async (callerId) => {
   const sourceIds = subjectDomains.flatMap((sd) =>
     sd.subject.sources.map((s) => s.sourceId)
   );
+
+  // Extract teachingDepth from first subject that has one
+  const teachingDepth = subjectDomains
+    .map((sd) => sd.subject.teachingDepth)
+    .find((d) => d !== null) ?? null;
 
   if (sourceIds.length === 0) {
     // Fallback: try to find any active content sources directly (not linked via subjects)
@@ -571,17 +578,20 @@ registerLoader("curriculumAssertions", async (callerId) => {
     sourceIds.push(...domainSources.map((s) => s.id));
   }
 
-  // Fetch assertions from these sources (limit to prevent prompt bloat)
+  // Fetch assertions from these sources
+  // Order by depth (tree traversal) then orderIndex, with exam relevance as tiebreaker
   const assertions = await prisma.contentAssertion.findMany({
     where: {
       sourceId: { in: [...new Set(sourceIds)] },
     },
     orderBy: [
+      { depth: "asc" },
+      { orderIndex: "asc" },
       { examRelevance: "desc" },
-      { category: "asc" },
     ],
-    take: 100, // Limit to top 100 assertions by relevance
+    take: 300, // Increased from 100 to support pyramid hierarchy
     select: {
+      id: true,
       assertion: true,
       category: true,
       chapter: true,
@@ -591,6 +601,10 @@ registerLoader("curriculumAssertions", async (callerId) => {
       trustLevel: true,
       examRelevance: true,
       learningOutcomeRef: true,
+      depth: true,
+      parentId: true,
+      orderIndex: true,
+      topicSlug: true,
       source: {
         select: {
           name: true,
@@ -600,7 +614,10 @@ registerLoader("curriculumAssertions", async (callerId) => {
     },
   });
 
-  return assertions.map((a) => ({
+  // Store teachingDepth in a side-channel via the result shape
+  // The transform will access this from loadedData
+  const result = assertions.map((a) => ({
+    id: a.id,
     assertion: a.assertion,
     category: a.category,
     chapter: a.chapter,
@@ -612,7 +629,17 @@ registerLoader("curriculumAssertions", async (callerId) => {
     learningOutcomeRef: a.learningOutcomeRef,
     sourceName: a.source.name,
     sourceTrustLevel: a.source.trustLevel,
+    depth: a.depth,
+    parentId: a.parentId,
+    orderIndex: a.orderIndex,
+    topicSlug: a.topicSlug,
   }));
+
+  // Attach teachingDepth as metadata on the loader context
+  // (accessed via loadedData.teachingDepth in the transform)
+  (result as any).__teachingDepth = teachingDepth;
+
+  return result;
 });
 
 /**

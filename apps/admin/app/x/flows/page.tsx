@@ -7,6 +7,7 @@ import { OrchestratorShell, type SpecDetail, type FeatureSet } from "@/component
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DemoFlowView } from "@/components/demo/DemoFlowView";
 import { listAllDemos } from "@/lib/demo/registry";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 // Lazy load heavy supervisor components
 const FlowVisualizer = lazy(() => import("@/app/supervisor/components/FlowVisualizer"));
@@ -635,6 +636,7 @@ export default function FlowsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)" }}>
+      <AdvancedBanner />
       {/* Top bar with FancySelect picker */}
       <div
         style={{

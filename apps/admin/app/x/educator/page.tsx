@@ -84,7 +84,7 @@ export default function EducatorDashboard() {
   const hasClassrooms = stats.classroomCount > 0;
 
   return (
-    <div style={{ padding: "0 0 40px" }}>
+    <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
       {/* Welcome Header */}
       <div style={{ marginBottom: 32 }}>
         <h1

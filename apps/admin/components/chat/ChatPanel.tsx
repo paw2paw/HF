@@ -77,52 +77,6 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
   );
 }
 
-function ModeTabs() {
-  const { mode, setMode } = useChatContext();
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        borderBottom: "1px solid #e5e7eb",
-        background: "white",
-      }}
-    >
-      {(Object.keys(MODE_CONFIG) as Array<keyof typeof MODE_CONFIG>).map((m) => {
-        const config = MODE_CONFIG[m];
-        const isActive = mode === m;
-
-        return (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              border: "none",
-              borderBottom: isActive ? `2px solid ${config.color}` : "2px solid transparent",
-              background: isActive ? "#f9fafb" : "white",
-              color: isActive ? config.color : "#6b7280",
-              fontSize: 12,
-              fontWeight: isActive ? 600 : 500,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 4,
-              transition: "all 0.15s",
-              position: "relative",
-            }}
-            title={config.description}
-          >
-            <span>{config.icon}</span>
-            <span>{config.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function ChatMessages() {
   const { messages, mode, isStreaming, streamingMessageId } = useChatContext();
@@ -622,9 +576,6 @@ export function ChatPanel() {
             </button>
           </div>
         </div>
-
-        {/* Mode Tabs */}
-        <ModeTabs />
 
         {/* AI Chat Interface */}
         <>

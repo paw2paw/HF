@@ -5,11 +5,12 @@ import {
   Sun, Moon, Monitor, Check, Info, Shield, X, Save,
   Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Lock, Camera, Mail, Eye, EyeOff,
 } from "lucide-react";
-import { useTheme, usePalette, type ThemePreference } from "@/contexts";
+import { useTheme, usePalette, useViewMode, type ThemePreference } from "@/contexts";
 import { type SettingGroup, type SettingDef, SETTINGS_REGISTRY, EMAIL_TEMPLATE_DEFAULTS } from "@/lib/system-settings";
 import { FALLBACK_SETTINGS_REGISTRY } from "@/lib/fallback-settings";
 import { renderEmailHtml } from "@/lib/email-render";
 import { ChannelsPanel } from "@/components/settings/ChannelsPanel";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 // ── Icon map for setting groups ─────────────────────
 
@@ -203,13 +204,19 @@ const TABS = [
 
 // ── Main component ──────────────────────────────────
 
+const SIMPLE_TAB_IDS = new Set(["appearance", "email"]);
+
 export default function SettingsPage() {
   const { preference, setPreference, resolvedTheme } = useTheme();
   const { lightPalette, darkPalette, setLightPalette, setDarkPalette, lightPresets, darkPresets } = usePalette();
+  const { isAdvanced } = useViewMode();
 
   // Prevent hydration mismatch — theme/palette state differs server vs client
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  // Filter tabs based on view mode
+  const visibleTabs = isAdvanced ? TABS : TABS.filter((t) => SIMPLE_TAB_IDS.has(t.id));
 
   // Tab state from URL hash
   const [activeTab, setActiveTab] = useState("appearance");
@@ -217,6 +224,14 @@ export default function SettingsPage() {
     const hash = window.location.hash.slice(1);
     if (hash && TABS.some((t) => t.id === hash)) setActiveTab(hash);
   }, []);
+
+  // Reset to appearance if current tab is hidden by view mode change
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab("appearance");
+      window.history.replaceState(null, "", "#appearance");
+    }
+  }, [isAdvanced]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const switchTab = (id: string) => {
     setActiveTab(id);
@@ -314,6 +329,7 @@ export default function SettingsPage() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
@@ -334,7 +350,7 @@ export default function SettingsPage() {
           borderBottom: "1px solid var(--border-default)",
         }}
       >
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => switchTab(tab.id)}

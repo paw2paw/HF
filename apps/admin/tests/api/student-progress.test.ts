@@ -10,6 +10,8 @@ const mockPrisma = {
   goal: { findMany: vi.fn() },
   call: { count: vi.fn() },
   caller: { findUnique: vi.fn() },
+  callerMemorySummary: { findUnique: vi.fn() },
+  conversationArtifact: { count: vi.fn() },
 };
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
@@ -47,6 +49,11 @@ describe("GET /api/student/progress", () => {
       name: "Alice",
       cohortGroup: { name: "Year 9", domain: { name: "English" } },
     });
+    mockPrisma.callerMemorySummary.findUnique.mockResolvedValue({
+      topTopics: [{ topic: "ISA allowances", lastMentioned: "2026-02-15T10:00:00Z" }],
+      topicCount: 3,
+    });
+    mockPrisma.conversationArtifact.count.mockResolvedValue(5);
 
     const res = await GET();
     const body = await res.json();
@@ -58,6 +65,10 @@ describe("GET /api/student/progress", () => {
     expect(body.profile.callsAnalyzed).toBe(5);
     expect(body.classroom).toBe("Year 9");
     expect(body.domain).toBe("English");
+    expect(body.topTopics).toHaveLength(1);
+    expect(body.topTopics[0].topic).toBe("ISA allowances");
+    expect(body.topicCount).toBe(3);
+    expect(body.keyFactCount).toBe(5);
   });
 
   it("returns null profile when none exists", async () => {
@@ -68,6 +79,8 @@ describe("GET /api/student/progress", () => {
       name: "Bob",
       cohortGroup: { name: "Year 10", domain: { name: "Maths" } },
     });
+    mockPrisma.callerMemorySummary.findUnique.mockResolvedValue(null);
+    mockPrisma.conversationArtifact.count.mockResolvedValue(0);
 
     const res = await GET();
     const body = await res.json();
@@ -75,6 +88,9 @@ describe("GET /api/student/progress", () => {
     expect(body.ok).toBe(true);
     expect(body.profile).toBeNull();
     expect(body.totalCalls).toBe(0);
+    expect(body.topTopics).toEqual([]);
+    expect(body.topicCount).toBe(0);
+    expect(body.keyFactCount).toBe(0);
   });
 
   it("returns auth error when requireStudent fails", async () => {
