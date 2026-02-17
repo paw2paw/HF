@@ -52,7 +52,7 @@ vi.mock("@/lib/config", () => ({
     },
     storage: {
       backend: "local",
-      gcsBucket: "hf-media",
+      gcsBucket: "hf-admin-prod-media",
       localPath: "./storage/media",
     },
   },

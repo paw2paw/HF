@@ -365,7 +365,7 @@ export const config = {
     },
     /** GCS bucket name */
     get gcsBucket(): string {
-      return optional("STORAGE_GCS_BUCKET", "hf-media");
+      return optional("STORAGE_GCS_BUCKET", "hf-admin-prod-media");
     },
     /** Local storage path (for dev/test) */
     get localPath(): string {

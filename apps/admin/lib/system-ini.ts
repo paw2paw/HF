@@ -418,7 +418,7 @@ async function checkStorage(): Promise<IniCheck> {
   }
 
   const bucket = config.storage.gcsBucket;
-  if (bucket === "hf-media") {
+  if (bucket === "hf-admin-prod-media" && !process.env.STORAGE_GCS_BUCKET) {
     return {
       status: "warn",
       label: "Storage",
