@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { dropAllActiveEnrollments, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
 
 /**
  * @api POST /api/callers/:callerId/switch-domain
@@ -100,7 +102,10 @@ export async function POST(
         data: { status: "ARCHIVED" },
       });
 
-      // 2. Update caller with domain switch tracking
+      // 2. Drop old playbook enrollments
+      await dropAllActiveEnrollments(callerId, tx);
+
+      // 3. Update caller with domain switch tracking
       const updatedCaller = await tx.caller.update({
         where: { id: callerId },
         data: {
@@ -164,7 +169,7 @@ export async function POST(
       // 5. Create new goals from playbook
       const newGoals: string[] = [];
       if (playbook?.config) {
-        const config = playbook.config as any;
+        const config = playbook.config as PlaybookConfig;
         const goals = config.goals || [];
 
         for (const goalConfig of goals) {
@@ -203,6 +208,9 @@ export async function POST(
           newGoals.push(goal.name);
         }
       }
+
+      // Enroll in new domain's published playbooks
+      await enrollCallerInDomainPlaybooks(callerId, domainId, "switch-domain", tx);
 
       return {
         caller: updatedCaller,

@@ -33,7 +33,7 @@ export default function AIEngineSettingsCard() {
           openai: !!envChecks.OPENAI_HF_MVP_KEY || !!envChecks.OPENAI_API_KEY,
         });
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[AIEngine] Failed to check env status:", e));
   }, []);
 
   const handleChange = (newEngine: AIEngine) => {

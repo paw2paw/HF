@@ -5,13 +5,14 @@
 
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext } from "../types";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 registerTransform("computePreamble", (
   _rawData: any,
   context: AssembledContext,
 ) => {
   const voiceSpec = context.resolvedSpecs.voiceSpec;
-  const voiceConfig = voiceSpec?.config as any;
+  const voiceConfig = voiceSpec?.config as SpecConfig;
 
   return {
     systemInstruction: "You are receiving a structured context package for your next conversation. This data has been assembled specifically for this caller based on their history, personality, and learning progress. Use it to deliver a personalized, effective session.",
@@ -60,7 +61,7 @@ registerTransform("computePreamble", (
       memories: {
         priority: "LOW",
         what: "Facts/preferences from previous calls",
-        action: "Reference naturally. Don't force. Shows you remember them.",
+        action: "Reference naturally throughout. Don't force all at once. _quickStart.key_memories has the top 3.",
       },
     },
 

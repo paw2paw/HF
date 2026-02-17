@@ -294,7 +294,7 @@ async function main() {
   const demoSettings = [
     { key: "demo.default_caller", value: "Paul" },
     { key: "demo.default_domain", value: "qm-tutor" },
-    { key: "demo.default_spec", value: "PERS-001" },
+    { key: "demo.default_spec", value: "" },
   ];
 
   for (const s of demoSettings) {

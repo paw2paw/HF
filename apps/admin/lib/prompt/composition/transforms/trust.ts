@@ -37,7 +37,7 @@ async function loadTrustWeights() {
 
 // Preload trust weights from system settings on module import.
 // Uses cached 30s TTL — defaults apply until loaded.
-loadTrustWeights().catch(() => {});
+loadTrustWeights().catch((e) => console.warn("[trust] Failed to preload trust weights, using defaults:", e));
 
 interface SourceRef {
   sourceSlug: string;
@@ -175,7 +175,7 @@ registerTransform("computeTrustContext", (
       authorityLines.push(`  Publisher: ${primarySource.publisherOrg}`);
     }
     // Enriched DB metadata
-    const ps = primarySource as any;
+    const ps = primarySource as Record<string, any>;
     if (ps._accreditingBody) {
       authorityLines.push(`  Accrediting Body: ${ps._accreditingBody}${ps._accreditationRef ? ` (${ps._accreditationRef})` : ""}`);
     }
@@ -204,7 +204,7 @@ registerTransform("computeTrustContext", (
 
   // Check freshness from enriched DB metadata (_validUntil) or spec-level validUntil
   if (primarySource) {
-    const validUntil = (primarySource as any)._validUntil || (primarySource as any).validUntil;
+    const validUntil = (primarySource as Record<string, any>)._validUntil || (primarySource as Record<string, any>).validUntil;
     const warning = checkFreshness(validUntil);
     if (warning) {
       freshnessWarnings.push({ ...warning, message: `Primary source "${primarySource.name || primarySource.slug}": ${warning.message}` });
@@ -212,7 +212,7 @@ registerTransform("computeTrustContext", (
   }
 
   for (const src of secondarySources) {
-    const validUntil = (src as any)._validUntil || (src as any).validUntil;
+    const validUntil = (src as Record<string, any>)._validUntil || (src as Record<string, any>).validUntil;
     const warning = checkFreshness(validUntil);
     if (warning) {
       freshnessWarnings.push({ ...warning, message: `Secondary source "${src.name || src.slug}": ${warning.message}` });

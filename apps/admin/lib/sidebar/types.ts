@@ -1,10 +1,22 @@
 // Sidebar navigation types
 
 export type NavItem = {
+  /** Stable identifier for cross-referencing (e.g. tours, analytics) */
+  id?: string;
   href: string;
   label: string;
   icon?: string;
   highlighted?: boolean;
+  /** Role-specific overrides for label, href, and icon */
+  roleVariants?: Record<string, { label?: string; href?: string; icon?: string }>;
+  /** If set, only these roles see this item. Omit to show to all roles that can see the section. */
+  visibleFor?: string[];
+  /** Hidden when user is in simple view mode (view-mode gate) */
+  advancedOnly?: boolean;
+  /** If set, label is replaced with the resolved terminology term at runtime (e.g. "cohort_plural") */
+  terminologyLabel?: string;
+  /** Small static tag shown after the label (e.g. "NEW", "WS3") */
+  tag?: string;
 };
 
 export type NavSection = {
@@ -18,6 +30,10 @@ export type NavSection = {
   requiredRole?: string;
   /** Roles for which this section is hidden by default (soft — user can unhide) */
   defaultHiddenFor?: string[];
+  /** Hidden when user is in simple view mode (view-mode gate) */
+  advancedOnly?: boolean;
+  /** If set, section title is replaced with "My {term}" at runtime (e.g. "institution") */
+  terminologySectionTitle?: string;
 };
 
 // Persisted layout configuration

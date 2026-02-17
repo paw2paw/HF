@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { StepFormProps } from "@/lib/workflow/types";
+import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
 
 // ── Types ────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ export function UploadStepForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const tickRef = useRef<NodeJS.Timeout | null>(null);
+  const { addJob } = useContentJobQueue();
 
   // Resolve which content source to use — from a previous step or prefilled
   const sourceId =
@@ -172,6 +174,7 @@ export function UploadStepForm({
           extractedCount: 0,
           warnings: [],
         });
+        addJob(data.jobId, sourceId, sourceName, file.name);
         startPolling(data.jobId);
       } else {
         setError(data.error || "Failed to start extraction");

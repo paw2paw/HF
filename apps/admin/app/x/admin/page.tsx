@@ -8,7 +8,7 @@ export default function AdminPage() {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Admin</h1>
-        <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+        <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           System-wide settings and configuration
         </p>
       </div>
@@ -21,12 +21,12 @@ export default function AdminPage() {
       {/* Future sections placeholder */}
       <div
         style={{
-          background: "#f9fafb",
-          border: "1px dashed #d1d5db",
+          background: "var(--surface-secondary)",
+          border: "1px dashed var(--border-default)",
           borderRadius: 12,
           padding: 24,
           textAlign: "center",
-          color: "#9ca3af",
+          color: "var(--text-muted)",
         }}
       >
         <div style={{ fontSize: 14, fontWeight: 500 }}>More settings coming soon</div>

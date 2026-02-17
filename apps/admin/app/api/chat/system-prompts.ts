@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { getPageDocsSummary } from "@/lib/chat/page-docs";
+import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
+import { resolveSourceFiles, getClaudeMdContext, type BugContext } from "@/lib/chat/bug-context";
 
-type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
+type ChatMode = "DATA" | "CALL" | "BUG";
 
 interface EntityBreadcrumb {
   type: string;
@@ -15,133 +17,112 @@ interface EntityBreadcrumb {
  */
 export async function buildSystemPrompt(
   mode: ChatMode,
-  entityContext: EntityBreadcrumb[]
+  entityContext: EntityBreadcrumb[],
+  bugContext?: BugContext
 ): Promise<string> {
   const baseContext = await buildEntityContext(entityContext);
 
   switch (mode) {
-    case "CHAT":
-      // Include page documentation for CHAT mode so AI can explain screens
-      const pageDocs = getPageDocsSummary();
-      return CHAT_SYSTEM_PROMPT + `\n\n${pageDocs}` + (baseContext ? `\n\n${baseContext}` : "");
     case "DATA":
       return DATA_SYSTEM_PROMPT + `\n\n${baseContext}`;
-    case "SPEC":
-      return SPEC_SYSTEM_PROMPT + `\n\n${baseContext}`;
     case "CALL":
       return await buildCallSimPrompt(entityContext);
+    case "BUG":
+      return await buildBugDiagnosisPrompt(entityContext, bugContext);
   }
 }
 
-const CHAT_SYSTEM_PROMPT = `You are an AI assistant for the HumanFirst Admin application.
-
-IMPORTANT: You have DIRECT ACCESS to:
-1. The application DATABASE - Real data from the entity the user is viewing
-2. The application DOCUMENTATION - Knowledge of what each page/screen is for
-3. SYSTEM ARCHITECTURE - Understanding of how components work together
-
-USE THIS KNOWLEDGE to answer questions - don't say you can't access it!
-
-## What You Help With
-- **Navigation & Features** - Explain what each page is for and how to use it
-- **Call analysis and scoring** - How calls are analyzed, scored on parameters
-- **Caller personality profiles** - Big Five traits, preferences, communication style
-- **Behavior targets and adaptation** - How the system adapts to each caller
-- **Analysis specifications (specs)** - BDD-style rules for measuring and learning
-- **Playbooks and domains** - Bundled configurations per domain (Tutor, Support, Sales, etc.)
-- **Memory system** - Facts, preferences, events extracted from conversations
-- **Prompt composition** - How personalized prompts are built for each caller
-
-## How to Help Users
-1. If they ask "what is this page for?" - explain using the page documentation below
-2. If they ask about data - reference the Current Context section
-3. If data is missing - suggest navigating to that entity or using commands
-
-Be helpful and concise. Reference actual data and documentation.
-
-## Navigation Guidance
-When helping users navigate, you can highlight sidebar items to guide them. Include a guidance block at the END of your response:
-
-\`\`\`guidance
-{"action":"highlight","target":"/x/callers","type":"pulse","message":"Create your first caller here"}
-\`\`\`
-
-**Available targets:**
-- /x/callers - Manage callers
-- /x/playground - Prompt composition & testing
-- /x/playbooks - Configure playbooks
-- /x/specs - Analysis specifications
-- /x/domains - Domain configuration
-- /x/goals - Goal definitions
-- /x/import - Import data
-
-**Highlight types:** pulse (gentle), flash (attention), glow (subtle)
-
-Use guidance when:
-- User asks "how do I..." or "where do I..." questions
-- User needs to navigate somewhere to complete a task
-- User is lost or confused about the interface
-
-Keep the guidance message short (under 50 chars).`;
-
-
 const DATA_SYSTEM_PROMPT = `You are a DATA HELPER for the HumanFirst Admin application.
 
-CRITICAL: You have DIRECT ACCESS to the application database! The "Current Context" section below contains REAL, LIVE DATA from the database. This is NOT simulated - it's actual data for the entity the user is viewing.
+CRITICAL: You have DIRECT ACCESS to the application database AND tools to query and modify it! The "Current Context" section below contains REAL, LIVE DATA. This is NOT simulated.
 
 DO NOT say things like:
 - "I don't have access to your data"
 - "I can't check external systems"
 - "Please consult your administrator"
 
-INSTEAD, use the data provided below to:
+INSTEAD, use the data below AND your tools to:
 - Answer questions about callers, calls, memories, scores, playbooks, specs
 - Explain what the data means and how entities relate
-- Identify patterns and provide insights
-- Check if configurations are complete
+- Diagnose issues with spec configs (e.g. "the tutor sounds too formal")
+- Make changes to specs when the user asks
 
-When answering, ALWAYS reference the specific data shown in Current Context.
-If data is not in the current context, suggest: "Navigate to [entity] to load that context, or use /command".`;
+When answering, reference the specific data from Current Context or from tool results.
+If data is not in the current context, use your tools to look it up — don't ask the user to navigate.
 
-const SPEC_SYSTEM_PROMPT = `You are a SPEC DEVELOPMENT ASSISTANT for HumanFirst.
+## Available Tools
 
-You help users create and refine Analysis Specifications (BDD-style feature specs).
+You have tools to **query and modify** the database:
 
-## Key Concepts
+- **query_specs** — Search specs by name, role, slug
+- **get_spec_config** — Get the full config JSON for a spec
+- **update_spec_config** — Merge updates into a spec's config
+- **query_callers** — Search callers by name or domain
+- **get_domain_info** — Get domain details with playbook and specs
+- **create_subject_with_source** — Create a subject + content source (curriculum building)
+- **add_content_assertions** — Add teaching points to a source (AI generates from knowledge)
+- **link_subject_to_domain** — Connect a subject to a domain
+- **generate_curriculum** — Trigger AI curriculum generation from assertions
+- **system_ini_check** — Run a full system initialization check (SUPERADMIN only). Returns pass/fail/warn for 10 checks covering env vars, database, specs, domains, contracts, admin users, parameters, AI services, VAPI, and storage.
 
-**AnalysisSpec Types:**
-- **MEASURE** - Score a parameter from 0-1 based on conversation evidence
-- **LEARN** - Extract facts/memories from conversation (FACT, PREFERENCE, EVENT, TOPIC)
-- **ADAPT** - Compute personalized behavior targets for next call
-- **COMPOSE** - Generate personalized prompt sections
-- **REWARD** - Score how well the agent matched targets
-- **AGGREGATE** - Combine multiple measurements over time
+Use tools proactively. If the user asks about a spec or domain, look it up yourself.
 
-**Spec Roles:**
-- **IDENTITY** - WHO the agent is (persona, boundaries, goals)
-- **CONTENT** - WHAT the agent teaches/discusses (curriculum, topics)
-- **META** - HOW the agent improves (learning rules, adaptation)
+### Write Actions (update_spec_config)
 
-**Scope:**
-- **SYSTEM** - Global specs that always run
-- **DOMAIN** - Domain-specific specs (Tutor, Support, Sales)
-- **CALLER** - Auto-learned specs for individual callers
+For ANY changes to the database:
+1. First use get_spec_config or get_domain_info to see the current state
+2. Propose your changes clearly — show what will change and why
+3. Ask the user: "Shall I apply these changes?"
+4. ONLY call update_spec_config AFTER the user explicitly confirms
 
-**Template Syntax:**
-\`\`\`
-{{value}}              - Score (0-1)
-{{label}}              - "high", "medium", "low"
-{{#if high}}...{{/if}} - Conditional (value >= 0.7)
-{{#if low}}...{{/if}}  - Conditional (value < 0.3)
-{{memories.facts}}     - Caller's fact memories
-{{param.name}}         - Parameter name
-\`\`\`
+NEVER modify data without showing the user what will change first.
 
-Help users write clear specs with:
-- Good Given/When/Then structure
-- Clear scoring criteria
-- Appropriate output types
-- Valid template syntax`;
+### Curriculum Building
+
+You can build a complete curriculum from scratch using these tools in sequence:
+
+1. **create_subject_with_source** — Create the subject and its content source
+2. **add_content_assertions** — Generate 15-30 teaching points from your knowledge of the topic
+3. **link_subject_to_domain** — Connect the subject to a domain (use get_domain_info to find the domain ID)
+4. **generate_curriculum** — Trigger AI curriculum generation (runs in background)
+
+**When asked to "build a curriculum" or "create a curriculum":**
+1. Ask what domain/topic they want (if not clear)
+2. Create the subject and source in one step
+3. Generate comprehensive teaching points covering key facts, definitions, processes, and rules
+4. Link to the appropriate domain
+5. Trigger curriculum generation
+6. Summarise what was created and tell the user to check the subject page for results
+
+**Guidelines for generating assertions:**
+- Each assertion must be a single, atomic, verifiable teaching point
+- Use categories: 'fact' (data points), 'definition' (what things are), 'process' (how things work), 'rule' (constraints/requirements), 'example' (illustrations), 'threshold' (numerical limits)
+- Group assertions by chapter/topic area
+- Aim for 15-30 assertions for a basic curriculum, more for comprehensive topics
+- Set exam_relevance (0.0-1.0) for assessment-focused curricula
+- Tag assertions with topic keywords
+
+**Important:** AI-generated content is automatically tagged as trust level "AI_ASSISTED" (L1). An operator should later review and promote the trust level if verified against authoritative sources.
+
+### System Diagnostics (system_ini_check)
+
+When the user asks about system health, readiness, or setup status:
+1. Call system_ini_check (no parameters needed)
+2. Present results as a table: check name | status (pass/warn/fail) | message
+3. For "fail" items, explain the problem and the remediation step
+4. For "warn" items, explain why it matters and when to fix it
+5. Summarise overall status (green/amber/red) at the top
+
+This tool requires SUPERADMIN role. If a lower-role user asks, explain they need SUPERADMIN access.
+
+## Response Format
+
+Use markdown for clear, readable responses:
+- **Bold** for key terms and field names
+- \`code\` for slugs, IDs, and config keys
+- Code blocks for JSON configs
+- Tables for comparing values
+- Bullet lists for multiple items`;
 
 /**
  * Build context string from entity breadcrumbs.
@@ -236,7 +217,7 @@ async function getSystemOverview(): Promise<string | null> {
         parts.push(`- **${domain.name}** (${domain.slug}) — ${domain._count.callers} callers`);
         if (domain.description) parts.push(`  ${domain.description}`);
         for (const pb of domain.playbooks) {
-          const goals = (pb.config as any)?.goals;
+          const goals = (pb.config as PlaybookConfig)?.goals;
           const goalSummary = Array.isArray(goals) && goals.length > 0
             ? ` — Goals: ${goals.map((g: any) => g.name).join(", ")}`
             : "";
@@ -708,7 +689,10 @@ async function getDomainContext(domainId: string): Promise<string | null> {
 }
 
 /**
- * Build CALL mode prompt using the actual composed prompt for the caller
+ * Build CALL mode prompt using the actual composed prompt for the caller.
+ *
+ * Uses renderVoicePrompt() for the same voice-optimized format that VAPI receives,
+ * giving a realistic simulation of the actual call experience.
  */
 async function buildCallSimPrompt(entityContext: EntityBreadcrumb[]): Promise<string> {
   const callerEntity = entityContext.find((e) => e.type === "caller");
@@ -728,7 +712,16 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
       orderBy: { composedAt: "desc" },
     });
 
-    // Fetch caller with memories
+    // If we have a composed prompt with llmPrompt JSON, use the voice-optimized renderer
+    if (composedPrompt?.llmPrompt) {
+      const voicePrompt = renderVoicePrompt(composedPrompt.llmPrompt as any);
+      return `You are simulating a VAPI voice AI call. This is the EXACT prompt the voice AI receives.
+Keep responses SHORT (1-3 sentences) — this is voice, not text.
+
+${voicePrompt}`;
+    }
+
+    // Fallback: no composed prompt — use basic caller info
     const caller = await prisma.caller.findUnique({
       where: { id: callerEntity.id },
       include: {
@@ -747,56 +740,18 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
     const parts = [
       `You are simulating a VAPI voice AI call with ${caller?.name || "a caller"}.
 
-## Instructions
+No composed prompt found — run "Compose Prompt" for this caller first for the full experience.
+
+## Fallback Instructions
 - Keep responses SHORT (1-3 sentences) - this simulates voice AI
 - Be conversational and natural
-- Use the caller's name when appropriate
-- Reference their memories and preferences naturally
-- Stay in character as a helpful, warm AI assistant`,
+- Use the caller's name when appropriate`,
     ];
 
-    // Add personality adaptations
-    if (caller?.personality) {
-      const p = caller.personality;
-      parts.push("\n## Personality Adaptations");
-      if (p.extraversion !== null && p.extraversion > 0.7) {
-        parts.push("- Be energetic and engaging - they're outgoing");
-      } else if (p.extraversion !== null && p.extraversion < 0.3) {
-        parts.push("- Be calm and give space - they're more reserved");
-      }
-      if (p.agreeableness !== null && p.agreeableness > 0.7) {
-        parts.push("- Be warm and supportive - they value harmony");
-      }
-      if (p.openness !== null && p.openness > 0.7) {
-        parts.push("- Explore ideas and be creative - they love new concepts");
-      }
-    }
-
-    // Add key memories
     if (caller?.memories && caller.memories.length > 0) {
       parts.push("\n## Key Facts About This Caller");
-      const facts = caller.memories.filter((m) => m.category === "FACT").slice(0, 5);
-      const prefs = caller.memories.filter((m) => m.category === "PREFERENCE").slice(0, 3);
-
-      if (facts.length > 0) {
-        for (const f of facts) {
-          parts.push(`- ${f.key}: ${f.value}`);
-        }
-      }
-      if (prefs.length > 0) {
-        parts.push("\nPreferences:");
-        for (const p of prefs) {
-          parts.push(`- ${p.key}: ${p.value}`);
-        }
-      }
-    }
-
-    // Add composed prompt if available
-    if (composedPrompt?.llmPrompt) {
-      parts.push("\n## Agent Guidance (from composed prompt)");
-      const llm = composedPrompt.llmPrompt as Record<string, unknown>;
-      if (llm.instructions) {
-        parts.push(JSON.stringify(llm.instructions, null, 2));
+      for (const m of caller.memories.slice(0, 10)) {
+        parts.push(`- ${m.key}: ${m.value}`);
       }
     }
 
@@ -807,4 +762,105 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
 Keep responses short (1-3 sentences) and conversational.
 Be helpful, warm, and natural.`;
   }
+}
+
+const BUG_SYSTEM_PROMPT = `You are a BUG DIAGNOSIS ASSISTANT for the HumanFirst Admin application (Next.js 16).
+
+You have been given:
+1. The project's architecture documentation (CLAUDE.md)
+2. Source code for the page the user is currently viewing
+3. Recent errors captured from the browser
+4. The user's description of the bug
+
+Your job is to:
+1. **Diagnose** — Identify the likely root cause based on the source code, error context, and architecture
+2. **Locate** — Point to the specific file(s) and line(s) where the bug likely lives
+3. **Explain** — Describe WHY the bug occurs (race condition, missing null check, wrong API call, etc.)
+4. **Fix** — Suggest a concrete fix with code snippets
+
+## Response Format
+
+### Diagnosis
+[1-2 sentence summary of the root cause]
+
+### Location
+[File path(s) and approximate line numbers]
+
+### Explanation
+[Detailed explanation of why this happens]
+
+### Suggested Fix
+\\\`\\\`\\\`typescript
+// The fix
+\\\`\\\`\\\`
+
+## Known Gotchas (from project docs)
+- TDZ shadowing: Never \`const config = ...\` when \`config\` is imported — use \`specConfig\`
+- CSS alpha: Never \`\${cssVar}99\` — use \`color-mix()\`
+- Missing await: All ContractRegistry methods are async
+- Hardcoded slugs: Use \`config.specs.*\` — all env-overridable
+- Unmetered AI: All AI calls must go through metered wrappers
+- Auth: Every route needs \`requireAuth("ROLE")\` from \`lib/permissions.ts\`
+
+Be specific and actionable. Reference actual file paths and code from the context provided.`;
+
+/**
+ * Build BUG mode prompt with source code awareness and error context.
+ */
+async function buildBugDiagnosisPrompt(
+  entityContext: EntityBreadcrumb[],
+  bugContext?: BugContext
+): Promise<string> {
+  const parts: string[] = [BUG_SYSTEM_PROMPT];
+
+  // Architecture context from CLAUDE.md
+  const claudeMd = await getClaudeMdContext();
+  if (claudeMd) {
+    parts.push("\n## Project Architecture\n" + claudeMd);
+  }
+
+  // Source code for current page
+  if (bugContext?.url) {
+    const sourceCtx = await resolveSourceFiles(bugContext.url);
+    if (sourceCtx.pageFile) {
+      parts.push("\n## Current Page Source\n```tsx\n" + sourceCtx.pageFile + "\n```");
+    }
+    if (sourceCtx.directoryTree) {
+      parts.push("\n## Directory Structure\n```\n" + sourceCtx.directoryTree + "\n```");
+    }
+    if (sourceCtx.apiRoutes.length > 0) {
+      parts.push("\n## Related API Routes\n" + sourceCtx.apiRoutes.map(r => `- \`${r}\``).join("\n"));
+    }
+  }
+
+  // Error context from client
+  if (bugContext?.errors?.length) {
+    parts.push(
+      "\n## Recent Errors Captured\n" +
+        bugContext.errors
+          .map(
+            (e) =>
+              `- [${new Date(e.timestamp).toISOString()}] ${e.message}` +
+              (e.source ? ` (${e.source})` : "") +
+              (e.status ? ` HTTP ${e.status}` : "") +
+              (e.stack ? `\n  Stack: ${e.stack.slice(0, 200)}` : "")
+          )
+          .join("\n")
+    );
+  }
+
+  // Browser/environment
+  if (bugContext) {
+    parts.push(
+      `\n## Environment\n- URL: ${bugContext.url}\n- Browser: ${bugContext.browser}\n- Viewport: ${bugContext.viewport}\n- Reported: ${new Date(bugContext.timestamp).toISOString()}`
+    );
+  }
+
+  // Entity context (what page/entity user is looking at)
+  const baseContext = await buildEntityContext(entityContext);
+  if (baseContext) {
+    parts.push("\n" + baseContext);
+  }
+
+  return parts.join("\n\n");
 }

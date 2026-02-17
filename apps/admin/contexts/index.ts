@@ -9,3 +9,14 @@ export type { ThemePreference, ResolvedTheme } from "./ThemeContext";
 
 export { PaletteProvider, usePalette, palettePresets, darkPalettePresets } from "./PaletteContext";
 export type { PalettePreset } from "./PaletteContext";
+
+export { MasqueradeProvider, useMasquerade } from "./MasqueradeContext";
+export type { MasqueradeState } from "./MasqueradeContext";
+
+export { BrandingProvider, useBranding } from "./BrandingContext";
+
+export { ViewModeProvider, useViewMode } from "./ViewModeContext";
+export type { ViewModePreference } from "./ViewModeContext";
+
+export { ErrorCaptureProvider, useErrorCapture } from "./ErrorCaptureContext";
+export type { CapturedError } from "./ErrorCaptureContext";

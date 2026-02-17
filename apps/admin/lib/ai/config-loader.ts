@@ -6,6 +6,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import type { AIEngine } from "./client";
 import { getAIModelConfigsFallback } from "@/lib/fallback-settings";
 
@@ -51,34 +52,46 @@ export interface AIConfigResult {
   isCustomized: boolean;
 }
 
-// Default configurations per call point
+// Per-call-point defaults: provider, model, and optional temperature/maxTokens.
+// Uses config.ai.claude.model for flagship and config.ai.claude.lightModel for fast/cheap tasks.
+// All env-overridable via config.ai.*. Operators can override per-call-point via /x/ai-config.
 // These match the definitions in /api/ai-config/route.ts
-const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string }> = {
-  "pipeline.measure": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.learn": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.score_agent": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.adapt": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "compose.prompt": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "analysis.measure": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "analysis.learn": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "parameter.enrich": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "bdd.parse": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.stream": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.assistant": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.view": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "chat.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.call": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.tasks": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "content-trust.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "workflow.classify": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "workflow.step": { provider: "claude", model: "claude-sonnet-4-20250514" },
+const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string; temperature?: number; maxTokens?: number }> = {
+  "pipeline.measure": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 2048 },
+  "pipeline.learn": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model, temperature: 0.3 },
+  "pipeline.adapt": { provider: "claude", model: config.ai.claude.lightModel },
+  "pipeline.extract_goals": { provider: "claude", model: config.ai.claude.lightModel },
+  "compose.prompt": { provider: "claude", model: config.ai.claude.model },
+  "analysis.measure": { provider: "claude", model: config.ai.claude.lightModel },
+  "analysis.learn": { provider: "claude", model: config.ai.claude.lightModel },
+  "parameter.enrich": { provider: "claude", model: config.ai.claude.lightModel },
+  "bdd.parse": { provider: "claude", model: config.ai.claude.model },
+  "chat.stream": { provider: "claude", model: config.ai.claude.model },
+  "spec.assistant": { provider: "claude", model: config.ai.claude.model },
+  "spec.view": { provider: "claude", model: config.ai.claude.model },
+  "spec.extract": { provider: "claude", model: config.ai.claude.model },
+  "spec.parse": { provider: "claude", model: config.ai.claude.lightModel },
+  "chat.data": { provider: "claude", model: config.ai.claude.model, temperature: 0.7, maxTokens: 4000 },
+  "chat.call": { provider: "claude", model: config.ai.claude.model, temperature: 0.85, maxTokens: 300 },
+  "chat.bug": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 2000 },
+  "assistant.chat": { provider: "claude", model: config.ai.claude.model },
+  "assistant.tasks": { provider: "claude", model: config.ai.claude.model },
+  "assistant.data": { provider: "claude", model: config.ai.claude.model },
+  "assistant.spec": { provider: "claude", model: config.ai.claude.model },
+  "content-trust.extract": { provider: "claude", model: config.ai.claude.model, temperature: 0.1, maxTokens: 4000 },
+  "content-trust.structure": { provider: "claude", model: config.ai.claude.model, temperature: 0.2, maxTokens: 8000 },
+  "content-trust.classify": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 500 },
+  "content-trust.curriculum": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 8000 },
+  "content-trust.curriculum-from-goals": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 8000 },
+  "workflow.classify": { provider: "claude", model: config.ai.claude.model },
+  "workflow.step": { provider: "claude", model: config.ai.claude.model },
+  "quick-launch.identity": { provider: "claude", model: config.ai.claude.model, temperature: 0.4 },
+  "test-harness.system": { provider: "claude", model: config.ai.claude.model },
+  "test-harness.caller": { provider: "claude", model: config.ai.claude.model },
+  "test-harness.greeting": { provider: "claude", model: config.ai.claude.model },
+  "targets.suggest": { provider: "claude", model: config.ai.claude.lightModel },
+  "content-sources.suggest": { provider: "claude", model: config.ai.claude.lightModel },
 };
 
 // In-memory cache with TTL
@@ -87,8 +100,8 @@ const CACHE_TTL_MS = 60_000; // 1 minute cache
 
 // Default models per provider (used for fallback)
 const DEFAULT_MODELS: Record<AIEngine, string> = {
-  claude: "claude-sonnet-4-20250514",
-  openai: "gpt-4o",
+  claude: config.ai.claude.model,
+  openai: config.ai.openai.model,
   mock: "mock-model",
 };
 
@@ -182,6 +195,8 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
     const result: AIConfigResult = {
       provider,
       model,
+      maxTokens: defaultConfig.maxTokens,
+      temperature: defaultConfig.temperature,
       isCustomized: false,
     };
     configCache.set(callPoint, { config: result, fetchedAt: Date.now() });

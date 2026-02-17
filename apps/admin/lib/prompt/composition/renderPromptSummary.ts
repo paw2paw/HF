@@ -7,6 +7,8 @@
  * Replaces the AI-generated placeholder-filled summary with actual data.
  */
 
+import { narrativeFrame } from "./transforms/instructions";
+
 interface LLMPrompt {
   _preamble?: {
     systemInstruction?: string;
@@ -15,9 +17,11 @@ interface LLMPrompt {
   };
   _quickStart?: {
     this_caller?: string;
+    cohort_context?: string | null;
     this_session?: string;
     you_are?: string;
     key_memory?: string;
+    key_memories?: string[];
     voice_style?: string;
     learner_goals?: string;
     curriculum_progress?: string | null;
@@ -130,6 +134,167 @@ function pct(score: number): string {
 }
 
 /**
+ * Render a voice-optimized prompt (~4KB) for VAPI.
+ *
+ * Structured as: IDENTITY → STYLE → THIS CALLER → SESSION PLAN → RETRIEVAL → RULES
+ *
+ * Omits bulk data (teaching assertions, full module lists, all memories)
+ * — that content is served via Custom KB retrieval during the call.
+ */
+export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
+  const parts: string[] = [];
+  const qs = llmPrompt._quickStart;
+  const id = llmPrompt.identity;
+  const voice = llmPrompt.instructions?.voice;
+  const pedagogy = llmPrompt.instructions?.session_pedagogy;
+  const curr = llmPrompt.curriculum;
+  const mem = llmPrompt.memories;
+  const goals = llmPrompt.learnerGoals?.goals;
+  const critical = llmPrompt._preamble?.criticalRules;
+  const targets = llmPrompt.instructions?.behavior_targets_summary;
+
+  // --- IDENTITY ---
+  parts.push("[IDENTITY]");
+  if (qs?.you_are) {
+    parts.push(qs.you_are);
+  } else if (id?.role) {
+    parts.push(id.role.substring(0, 300));
+  }
+  if (id?.primaryGoal) parts.push(`Goal: ${id.primaryGoal}`);
+  parts.push("");
+
+  // --- STYLE ---
+  parts.push("[STYLE]");
+  if (qs?.voice_style) parts.push(qs.voice_style);
+  if (voice?.response_length) {
+    parts.push(`Keep responses ${voice.response_length.target || "2-3 sentences"}. Max ${voice.response_length.max_seconds || 15}s.`);
+  }
+  if (voice?.natural_speech?.use_fillers) {
+    parts.push(`Use natural fillers: ${voice.natural_speech.use_fillers.join(", ")}`);
+  }
+  if (voice?.natural_speech?.confirmations) {
+    parts.push(`Check-ins: ${voice.natural_speech.confirmations.join(", ")}`);
+  }
+  if (qs?.critical_voice) {
+    const cv = qs.critical_voice;
+    parts.push(`${cv.sentences_per_turn || "2-3"} sentences per turn. Wait ${cv.silence_wait || "3s"} before prompting.`);
+  }
+  // Personality adaptation (concise)
+  const adapt = llmPrompt.instructions?.personality_adaptation;
+  if (adapt?.length) {
+    adapt.slice(0, 3).forEach(a => parts.push(`- ${a}`));
+  }
+  parts.push("");
+
+  // --- THIS CALLER ---
+  parts.push("[THIS CALLER]");
+  if (qs?.this_caller) parts.push(qs.this_caller);
+  if (qs?.cohort_context) parts.push(qs.cohort_context);
+  if (qs?.this_session) parts.push(qs.this_session);
+  const callNum = llmPrompt.callHistory?.totalCalls;
+  if (callNum) parts.push(`Call #${callNum}`);
+
+  // Top 5 memories — narrative format for natural voice delivery
+  if (mem?.all?.length) {
+    const narrative = narrativeFrame(mem.all.slice(0, 5), {});
+    if (narrative) parts.push("About this caller: " + narrative);
+  } else if (qs?.key_memories?.length) {
+    parts.push("Key memories: " + qs.key_memories.slice(0, 5).join(" | "));
+  } else if (qs?.key_memory) {
+    parts.push(`Key memory: ${qs.key_memory}`);
+  }
+
+  // Goals (concise)
+  if (goals?.length) {
+    const goalList = goals.slice(0, 3).map(g => {
+      const prog = g.progress !== undefined ? ` (${Math.round(g.progress * 100)}%)` : "";
+      return `${g.name}${prog}`;
+    });
+    parts.push(`Goals: ${goalList.join(", ")}`);
+  }
+
+  // Behavior targets summary (concise)
+  if (targets?.length) {
+    const targetList = targets.slice(0, 4).map(t => `${t.what}: ${t.target}`);
+    parts.push(`Adapt: ${targetList.join(". ")}`);
+  }
+  parts.push("");
+
+  // --- SESSION PLAN ---
+  parts.push("[SESSION PLAN]");
+  if (pedagogy?.sessionType) parts.push(`Type: ${pedagogy.sessionType}`);
+  if (pedagogy?.flow?.length) {
+    parts.push("Flow: " + pedagogy.flow.join(" → "));
+  }
+  if (curr?.hasData) {
+    const progress = curr.completedCount && curr.totalModules
+      ? ` (${curr.completedCount}/${curr.totalModules})`
+      : "";
+    if (curr.name) parts.push(`Curriculum: ${curr.name}${progress}`);
+
+    const inProgress = curr.modules?.find(m => m.status === "in_progress");
+    if (inProgress) parts.push(`Current module: ${inProgress.name}`);
+    if (curr.nextModule) parts.push(`Next module: ${curr.nextModule.name}`);
+  }
+  if (qs?.curriculum_progress) parts.push(qs.curriculum_progress);
+  parts.push("");
+
+  // --- ACTIVITIES ---
+  const activities = (llmPrompt as any).activityToolkit;
+  if (activities?.hasActivities && activities.recommended?.length > 0) {
+    parts.push("[ACTIVITIES]");
+    parts.push("You have interactive activities you can deploy when the moment is right:");
+    for (const act of activities.recommended.slice(0, 3)) {
+      const channelTag = act.channel === "text" ? " [TEXT]" : "";
+      parts.push(`- ${act.name}${channelTag}: ${act.reason}`);
+      // Include concise format (first 2 steps only for voice brevity)
+      if (act.format_steps?.length) {
+        parts.push(`  How: ${act.format_steps.slice(0, 2).join(" → ")}`);
+      }
+      if (act.adaptations?.length) {
+        parts.push(`  Adapt: ${act.adaptations[0]}`);
+      }
+    }
+    if (activities.limits) {
+      parts.push(`Max ${activities.limits.max_per_session} activities per session, ${activities.limits.min_minutes_apart}+ min apart.`);
+    }
+    if (activities.principles?.length) {
+      parts.push(`Remember: ${activities.principles[0]}`);
+    }
+    parts.push("");
+  }
+
+  // --- RETRIEVAL ---
+  parts.push("[RETRIEVAL]");
+  parts.push("You have access to the caller's knowledge base. When the caller asks about specific topics, teaching content, or curriculum details, the system will automatically provide relevant material.");
+  if (id?.techniques?.length) {
+    const techNames = id.techniques.slice(0, 4).map(t => t.name);
+    parts.push(`Techniques available: ${techNames.join(", ")}`);
+  }
+  parts.push("");
+
+  // --- OPENING ---
+  if (qs?.first_line) {
+    parts.push("[OPENING]");
+    parts.push(qs.first_line);
+    parts.push("");
+  }
+
+  // --- RULES ---
+  if (critical?.length || id?.boundaries?.doesNot?.length) {
+    parts.push("[RULES]");
+    if (critical?.length) {
+      critical.slice(0, 5).forEach(r => parts.push(`- ${r}`));
+    }
+    if (id?.boundaries?.doesNot?.length) {
+      id.boundaries.doesNot.slice(0, 3).forEach(d => parts.push(`- Never: ${d}`));
+    }
+  }
+
+  return parts.join("\n");
+}
+
+/**
  * Render the llmPrompt as a human-readable markdown summary.
  */
 export function renderPromptSummary(llmPrompt: LLMPrompt): string {
@@ -146,7 +311,11 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
     if (qs.this_session) parts.push(`**Session**: ${qs.this_session}`);
     if (qs.voice_style) parts.push(`**Voice**: ${qs.voice_style}`);
     if (qs.learner_goals) parts.push(`**Goals**: ${qs.learner_goals}`);
-    if (qs.key_memory) parts.push(`**Key Memory**: ${qs.key_memory}`);
+    if (qs.key_memories?.length) {
+      parts.push(`**Key Memories**: ${qs.key_memories.join(" | ")}`);
+    } else if (qs.key_memory) {
+      parts.push(`**Key Memory**: ${qs.key_memory}`);
+    }
     if (qs.first_line) parts.push(`**Opening**: "${qs.first_line}"`);
     if (qs.critical_voice) {
       const cv = qs.critical_voice;
@@ -198,6 +367,30 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
     });
     if (curr.modules.length > 5) {
       parts.push(`  ... and ${curr.modules.length - 5} more`);
+    }
+    parts.push("");
+  }
+
+  // Activity Toolkit
+  const actToolkit = (llmPrompt as any).activityToolkit;
+  if (actToolkit?.hasActivities && actToolkit.recommended?.length) {
+    parts.push("## Activity Toolkit\n");
+    parts.push(`**Context**: ${actToolkit.context_signals?.mastery_level || "unknown"} mastery, ${actToolkit.context_signals?.session_phase || "unknown"} phase\n`);
+    parts.push("**Recommended Activities**:");
+    for (const act of actToolkit.recommended) {
+      const channelTag = act.channel === "text" ? " (text)" : " (voice)";
+      parts.push(`- **${act.name}**${channelTag} — ${act.reason}`);
+      if (act.adaptations?.length) {
+        act.adaptations.forEach((a: string) => parts.push(`  - Adapt: ${a}`));
+      }
+    }
+    if (actToolkit.all_available?.length) {
+      const others = actToolkit.all_available
+        .filter((a: any) => !actToolkit.recommended.some((r: any) => r.id === a.id))
+        .map((a: any) => a.name);
+      if (others.length) {
+        parts.push(`\n**Also available**: ${others.join(", ")}`);
+      }
     }
     parts.push("");
   }

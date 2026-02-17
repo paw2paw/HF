@@ -51,6 +51,7 @@ export async function loadAllData(
     onboardingSession,
     subjectSources,
     curriculumAssertions,
+    openActions,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
     loaderRegistry.get("memories")!(callerId, { limit: memoriesLimit }),
@@ -68,6 +69,7 @@ export async function loadAllData(
     loaderRegistry.get("onboardingSession")!(callerId),
     loaderRegistry.get("subjectSources")!(callerId),
     loaderRegistry.get("curriculumAssertions")!(callerId),
+    loaderRegistry.get("openActions")!(callerId),
   ]);
 
   return {
@@ -87,6 +89,7 @@ export async function loadAllData(
     onboardingSession: onboardingSession || null,
     subjectSources: subjectSources || null,
     curriculumAssertions: curriculumAssertions || [],
+    openActions: openActions || [],
   };
 }
 
@@ -126,6 +129,13 @@ registerLoader("caller", async (callerId) => {
           },
         },
       },
+      cohortGroup: {
+        select: {
+          id: true,
+          name: true,
+          owner: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 });
@@ -145,6 +155,8 @@ registerLoader("memories", async (callerId, config) => {
       value: true,
       confidence: true,
       evidence: true,
+      extractedAt: true,
+      decayFactor: true,
     },
   });
 });
@@ -298,8 +310,53 @@ registerLoader("goals", async (callerId) => {
   });
 });
 
-registerLoader("playbooks", async (callerId, config?: { playbookIds?: string[] }) => {
-  // Get caller's domain, then find ALL published playbooks (stacked)
+registerLoader("playbooks", async (callerId, loaderConfig?: { playbookIds?: string[] }) => {
+  const specSelect = {
+    id: true,
+    slug: true,
+    name: true,
+    description: true,
+    specRole: true,
+    outputType: true,
+    config: true,
+    promptTemplate: true,
+    domain: true,
+    extendsAgent: true,
+  };
+
+  const itemInclude = {
+    where: { isEnabled: true, itemType: "SPEC" as const },
+    orderBy: { sortOrder: "asc" as const },
+    include: { spec: { select: specSelect } },
+  };
+
+  // 1. Check CallerPlaybook enrollments (ACTIVE)
+  const enrollments = await prisma.callerPlaybook.findMany({
+    where: { callerId, status: "ACTIVE" },
+    select: { playbookId: true },
+  });
+
+  if (enrollments.length > 0) {
+    let playbookIds = enrollments.map((e) => e.playbookId);
+
+    // If caller explicitly requests specific playbooks, intersect with enrollments
+    if (loaderConfig?.playbookIds && loaderConfig.playbookIds.length > 0) {
+      const requested = new Set(loaderConfig.playbookIds);
+      playbookIds = playbookIds.filter((id) => requested.has(id));
+    }
+
+    if (playbookIds.length > 0) {
+      const playbooks = await prisma.playbook.findMany({
+        where: { id: { in: playbookIds }, status: "PUBLISHED" },
+        orderBy: { sortOrder: "asc" },
+        include: { domain: true, items: itemInclude },
+      });
+
+      if (playbooks.length > 0) return playbooks;
+    }
+  }
+
+  // 2. Domain-based fallback (no enrollments or no published enrolled playbooks)
   const callerWithDomain = await prisma.caller.findUnique({
     where: { id: callerId },
     select: { domainId: true },
@@ -307,46 +364,19 @@ registerLoader("playbooks", async (callerId, config?: { playbookIds?: string[] }
 
   if (!callerWithDomain?.domainId) return [];
 
-  // Build where clause - optionally filter to specific playbooks
-  const whereClause: any = {
+  const whereClause: Record<string, unknown> = {
     domainId: callerWithDomain.domainId,
-    status: "PUBLISHED", // Only PUBLISHED playbooks stack
+    status: "PUBLISHED",
   };
 
-  // If playbookIds specified, filter to only those playbooks
-  if (config?.playbookIds && config.playbookIds.length > 0) {
-    whereClause.id = { in: config.playbookIds };
+  if (loaderConfig?.playbookIds && loaderConfig.playbookIds.length > 0) {
+    whereClause.id = { in: loaderConfig.playbookIds };
   }
 
-  // Load all PUBLISHED playbooks for domain, ordered by sortOrder (lower = higher priority)
   return prisma.playbook.findMany({
     where: whereClause,
-    orderBy: { sortOrder: "asc" }, // First playbook wins on conflicts
-    include: {
-      domain: true,
-      items: {
-        where: {
-          isEnabled: true,
-          itemType: "SPEC",
-        },
-        orderBy: { sortOrder: "asc" },
-        include: {
-          spec: {
-            select: {
-              id: true,
-              slug: true,
-              name: true,
-              description: true,
-              specRole: true,
-              outputType: true,
-              config: true,
-              promptTemplate: true,
-              domain: true,
-            },
-          },
-        },
-      },
-    },
+    orderBy: { sortOrder: "asc" },
+    include: { domain: true, items: itemInclude },
   });
 });
 
@@ -365,6 +395,7 @@ registerLoader("systemSpecs", async (_callerId) => {
       outputType: true,
       config: true,
       domain: true,
+      extendsAgent: true,
     },
   });
 });
@@ -528,11 +559,13 @@ registerLoader("curriculumAssertions", async (callerId) => {
   if (!caller?.domainId) return [];
 
   // Find all content sources linked to the domain via subjects
+  // Also load teachingDepth from the subject
   const subjectDomains = await prisma.subjectDomain.findMany({
     where: { domainId: caller.domainId },
     select: {
       subject: {
         select: {
+          teachingDepth: true,
           sources: {
             select: { sourceId: true },
           },
@@ -544,6 +577,11 @@ registerLoader("curriculumAssertions", async (callerId) => {
   const sourceIds = subjectDomains.flatMap((sd) =>
     sd.subject.sources.map((s) => s.sourceId)
   );
+
+  // Extract teachingDepth from first subject that has one
+  const teachingDepth = subjectDomains
+    .map((sd) => sd.subject.teachingDepth)
+    .find((d) => d !== null) ?? null;
 
   if (sourceIds.length === 0) {
     // Fallback: try to find any active content sources directly (not linked via subjects)
@@ -557,17 +595,20 @@ registerLoader("curriculumAssertions", async (callerId) => {
     sourceIds.push(...domainSources.map((s) => s.id));
   }
 
-  // Fetch assertions from these sources (limit to prevent prompt bloat)
+  // Fetch assertions from these sources
+  // Order by depth (tree traversal) then orderIndex, with exam relevance as tiebreaker
   const assertions = await prisma.contentAssertion.findMany({
     where: {
       sourceId: { in: [...new Set(sourceIds)] },
     },
     orderBy: [
+      { depth: "asc" },
+      { orderIndex: "asc" },
       { examRelevance: "desc" },
-      { category: "asc" },
     ],
-    take: 100, // Limit to top 100 assertions by relevance
+    take: 300, // Increased from 100 to support pyramid hierarchy
     select: {
+      id: true,
       assertion: true,
       category: true,
       chapter: true,
@@ -577,6 +618,10 @@ registerLoader("curriculumAssertions", async (callerId) => {
       trustLevel: true,
       examRelevance: true,
       learningOutcomeRef: true,
+      depth: true,
+      parentId: true,
+      orderIndex: true,
+      topicSlug: true,
       source: {
         select: {
           name: true,
@@ -586,7 +631,10 @@ registerLoader("curriculumAssertions", async (callerId) => {
     },
   });
 
-  return assertions.map((a) => ({
+  // Store teachingDepth in a side-channel via the result shape
+  // The transform will access this from loadedData
+  const result = assertions.map((a) => ({
+    id: a.id,
     assertion: a.assertion,
     category: a.category,
     chapter: a.chapter,
@@ -598,5 +646,39 @@ registerLoader("curriculumAssertions", async (callerId) => {
     learningOutcomeRef: a.learningOutcomeRef,
     sourceName: a.source.name,
     sourceTrustLevel: a.source.trustLevel,
+    depth: a.depth,
+    parentId: a.parentId,
+    orderIndex: a.orderIndex,
+    topicSlug: a.topicSlug,
   }));
+
+  // Attach teachingDepth as metadata on the loader context
+  // (accessed via loadedData.teachingDepth in the transform)
+  (result as any).__teachingDepth = teachingDepth;
+
+  return result;
+});
+
+/**
+ * Open actions — pending/in-progress actions for this caller.
+ * Fed into voice prompt so the AI agent can reference them.
+ */
+registerLoader("openActions", async (callerId) => {
+  return prisma.callAction.findMany({
+    where: {
+      callerId,
+      status: { in: ["PENDING", "IN_PROGRESS"] },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: {
+      type: true,
+      title: true,
+      description: true,
+      assignee: true,
+      priority: true,
+      dueAt: true,
+      createdAt: true,
+    },
+  });
 });

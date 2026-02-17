@@ -12,11 +12,13 @@ import {
 } from "@/components/shared/ExplorerTree";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
+import { Zap, FileJson } from "lucide-react";
 import { SpecPill, ParameterPill, DomainPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { SpecRoleBadge, getSpecEditorRoute, requiresSpecialEditor } from "@/components/shared/SpecRoleBadge";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant } from "@/hooks/useAssistant";
 import { SpecConfigEditor } from "@/components/config-editor";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type Spec = {
   id: string;
@@ -256,7 +258,7 @@ function SourceAuthorityPanel({
       .then((d) => {
         if (d.ok) setAvailableSources(d.sources || []);
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Specs] Failed to load content sources:", e))
       .finally(() => setLoadingSources(false));
   }, []);
 
@@ -942,7 +944,7 @@ export default function SpecsPage() {
           }
         }
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[Specs] Failed to load freshness data:", e));
   }, []);
 
   // Fetch detail when selectedId changes
@@ -1284,7 +1286,7 @@ export default function SpecsPage() {
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 600,
-        border: isActive ? `1px solid ${colors.text}40` : "1px solid var(--border-default)",
+        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
         borderRadius: 5,
         cursor: "pointer",
         background: isActive ? colors.bg : "var(--surface-secondary)",
@@ -1329,6 +1331,7 @@ export default function SpecsPage() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{
@@ -1877,7 +1880,7 @@ export default function SpecsPage() {
                     fontSize: 11,
                     padding: "3px 8px",
                     borderRadius: 4,
-                    border: "1px solid var(--border-primary)",
+                    border: "1px solid var(--border-default)",
                     background: "var(--surface-secondary)",
                     color: "var(--text-primary)",
                     textDecoration: "none",
@@ -1925,8 +1928,8 @@ export default function SpecsPage() {
               <DraggableTabs
                 storageKey={`spec-detail-tabs-${spec.id}`}
                 tabs={[
-                  { id: "derived", label: "Derived Output" },
-                  ...(featureSet ? [{ id: "source", label: "Source Spec" }] : []),
+                  { id: "derived", label: "Derived Output", icon: <Zap size={14} /> },
+                  ...(featureSet ? [{ id: "source", label: "Source Spec", icon: <FileJson size={14} /> }] : []),
                 ]}
                 activeTab={activeTab}
                 onTabChange={(id) => setActiveTab(id as "derived" | "source")}
@@ -2019,8 +2022,8 @@ export default function SpecsPage() {
                         configText={configText}
                         onConfigChange={handleConfigChange}
                         disabled={spec.isLocked}
-                        specRole={spec.specRole}
-                        outputType={spec.outputType}
+                        specRole={spec.specRole ?? undefined}
+                        outputType={spec.outputType ?? undefined}
                       />
                     </div>
                   )}

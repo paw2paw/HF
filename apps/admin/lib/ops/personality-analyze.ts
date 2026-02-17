@@ -23,6 +23,8 @@ import { AnalysisOutputType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { TRAITS } from "@/lib/registry";
 import { getPipelineSettings } from "@/lib/system-settings";
+import type { SpecConfig } from "@/lib/types/json-fields";
+import type { AIEngine } from "@/lib/ai/client";
 
 interface PersonalityAnalyzerOptions {
   verbose?: boolean;
@@ -128,7 +130,7 @@ async function loadTraitMapping(): Promise<Record<string, string>> {
     return DEFAULT_TRAIT_MAPPING;
   }
 
-  const config = spec.config as any;
+  const config = spec.config as SpecConfig;
   if (config.traitMapping && typeof config.traitMapping === "object") {
     cachedTraitMapping = config.traitMapping as Record<string, string>;
     return cachedTraitMapping;
@@ -386,7 +388,7 @@ export async function analyzePersonality(
             spec as AnalysisSpecWithRelations,
             parameter,
             anchors,
-            (spec as any).config,
+            spec.config as SpecConfig,
             mock,
             verbose
           );
@@ -526,7 +528,7 @@ Return JSON:
   }
 
   // ALL config from spec — zero hardcoding
-  const cfg = (specConfig as any) || {};
+  const cfg = (specConfig as SpecConfig) || {};
   const transcriptTruncateLength = cfg.transcriptTruncateLength || 4000;
 
   // Render template
@@ -551,7 +553,7 @@ Return JSON:
     const { getConfiguredMeteredAICompletion } = await import("@/lib/metering/instrumented-ai");
     const { recoverBrokenJson } = await import("@/lib/utils/json-recovery");
 
-    const cfg = (specConfig as any) || {};
+    const cfg = (specConfig as SpecConfig) || {};
     const llmConfig = cfg.llmConfig || {};
     const maxTokens = llmConfig.maxTokens || 512;
     const temperature = llmConfig.temperature || 0.2;
@@ -571,7 +573,7 @@ Return JSON:
     // @ai-call pipeline.measure — Score personality trait from transcript | config: /x/ai-config
     const result = await getConfiguredMeteredAICompletion({
       callPoint: "pipeline.measure",
-      engineOverride: (llmConfig.engine as any) || undefined,
+      engineOverride: llmConfig.engine as AIEngine || undefined,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: fullPrompt },
@@ -602,7 +604,7 @@ Return JSON:
         outcome: "failure",
         metadata: { action: "score", entityType: "parameter", entityId: parameter.parameterId },
       });
-    }).catch(() => {});
+    }).catch((e) => console.warn("[personality-analyze] Failed to log AI interaction:", e));
     return mockScoreParameter(transcript, parameter);
   }
 }

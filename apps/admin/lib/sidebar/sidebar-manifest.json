@@ -1,100 +1,124 @@
 [
   {
     "id": "home",
+    "defaultHiddenFor": ["STUDENT"],
     "items": [
-      { "href": "/x", "label": "Home", "icon": "Home" },
-      { "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
-      { "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
-      { "href": "/x/launchpad", "label": "Launchpad", "icon": "Rocket" },
-      { "href": "/x/demos", "label": "Demos", "icon": "PlayCircle" }
+      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
+      { "id": "content-wizard", "href": "/x/content-wizard", "label": "Content Wizard", "icon": "BookPlus", "requiredRole": "OPERATOR" },
+      { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
+      { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" },
+      { "id": "messages", "href": "/x/messages", "label": "Messages", "icon": "Mail" },
+      { "id": "tickets", "href": "/x/tickets", "label": "Tickets", "icon": "Ticket" }
     ]
   },
   {
-    "id": "communicate",
-    "title": "Communicate",
-    "defaultHiddenFor": ["DEMO"],
+    "id": "calls",
+    "title": "Callers & Calls",
+    "href": "/x/callers",
+    "defaultHiddenFor": ["TESTER", "STUDENT", "DEMO", "EDUCATOR"],
     "items": [
-      { "href": "/x/messages", "label": "Inbox", "icon": "Mail" },
-      { "href": "/x/tickets", "label": "Tickets", "icon": "Ticket" }
-    ]
-  },
-  {
-    "id": "data",
-    "title": "Data",
-    "href": "/x/data",
-    "defaultHiddenFor": ["TESTER", "DEMO"],
-    "items": [
-      { "href": "/x/callers", "label": "Callers", "icon": "User" },
-      { "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
-      { "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" },
-      { "href": "/x/goals", "label": "Goals", "icon": "Target" },
-      { "href": "/x/import", "label": "Import", "icon": "Download" }
-    ]
-  },
-  {
-    "id": "analytics",
-    "title": "Analytics",
-    "defaultHiddenFor": ["TESTER", "DEMO"],
-    "items": [
-      { "href": "/x/analytics", "label": "Dashboard", "icon": "TrendingUp" }
+      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User" },
+      { "id": "sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
+      { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
+      { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR", "tag": "GF" }
     ]
   },
   {
     "id": "content",
     "title": "Content",
-    "href": "/x/content",
+    "href": "/x/subjects",
     "requiredRole": "OPERATOR",
-    "defaultHiddenFor": ["DEMO"],
+    "defaultHiddenFor": ["DEMO", "EDUCATOR"],
+    "advancedOnly": true,
     "items": [
-      { "href": "/x/subjects", "label": "Subjects", "icon": "BookMarked" },
-      { "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck" },
-      { "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" }
+      { "id": "subjects", "href": "/x/subjects", "label": "Subjects", "icon": "BookMarked" },
+      { "id": "content-sources", "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck" },
+      { "id": "content-review", "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" }
+    ]
+  },
+  {
+    "id": "educator",
+    "title": "My School",
+    "terminologySectionTitle": "institution",
+    "defaultHiddenFor": ["OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
+    "items": [
+      { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "tag": "GF" },
+      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms", "icon": "School" } }, "tag": "GF" },
+      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "learner_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["ADMIN", "SUPERADMIN"] },
+      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"], "tag": "GF" },
+      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
   {
     "id": "config",
     "title": "Configure",
-    "href": "/x/configure",
+    "href": "/x/domains",
     "requiredRole": "OPERATOR",
-    "defaultHiddenFor": ["OPERATOR"],
+    "defaultHiddenFor": ["EDUCATOR"],
+    "advancedOnly": true,
     "items": [
-      { "href": "/x/domains", "label": "Domains", "icon": "Globe" },
-      { "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen" },
-      { "href": "/x/specs", "label": "Specs", "icon": "ClipboardList" },
-      { "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
-      { "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" }
+      { "id": "domains", "href": "/x/domains", "label": "Domains", "icon": "Globe" },
+      { "id": "playbooks", "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen" },
+      { "id": "specs", "href": "/x/specs", "label": "Specs", "icon": "ClipboardList" },
+      { "id": "layers", "href": "/x/layers", "label": "Layers", "icon": "Layers" },
+      { "id": "taxonomy-graph", "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" },
+      { "id": "flows", "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
+      { "id": "content-explorer", "href": "/x/content-explorer", "label": "Content Explorer", "icon": "FileSearch" },
+      { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download" },
+      { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" }
     ]
   },
   {
-    "id": "system",
-    "title": "System",
-    "href": "/x/system",
+    "id": "ai",
+    "title": "AI",
+    "href": "/x/ai-config",
     "requiredRole": "ADMIN",
+    "advancedOnly": true,
     "items": [
-      { "href": "/x/metering", "label": "Metering", "icon": "BarChart3" },
-      { "href": "/x/ai-config", "label": "AI Config", "icon": "Bot" },
-      { "href": "/x/ai-errors", "label": "AI Errors", "icon": "AlertTriangle" },
-      { "href": "/x/ai-knowledge", "label": "AI Knowledge", "icon": "Brain" },
-      { "href": "/x/users", "label": "Team", "icon": "Users" },
-      { "href": "/x/system/access-control", "label": "Access Control", "icon": "Shield" },
-      { "href": "/x/settings", "label": "Settings", "icon": "Settings" }
+      { "id": "ai-config", "href": "/x/ai-config", "label": "AI Config", "icon": "Bot" },
+      { "id": "ai-knowledge", "href": "/x/ai-knowledge", "label": "AI Knowledge", "icon": "Brain" },
+      { "id": "ai-errors", "href": "/x/ai-errors", "label": "AI Errors", "icon": "AlertTriangle" },
+      { "id": "ai-metering", "href": "/x/metering", "label": "AI Metering", "icon": "BarChart3" }
+    ]
+  },
+  {
+    "id": "admin",
+    "title": "Administration",
+    "href": "/x/system/access-control",
+    "requiredRole": "ADMIN",
+    "advancedOnly": true,
+    "items": [
+      { "id": "system-health", "href": "/x/system", "label": "System Health", "icon": "HeartPulse", "requiredRole": "SUPERADMIN" },
+      { "id": "access-control", "href": "/x/system/access-control", "label": "Access Control", "icon": "Shield" },
+      { "id": "team", "href": "/x/users", "label": "Team", "icon": "Users" },
+      { "id": "institutions", "href": "/x/institutions", "label": "Institutions", "icon": "Building2" },
+      { "id": "settings", "href": "/x/settings", "label": "Settings", "icon": "Settings" }
     ]
   },
   {
     "id": "devtools",
     "title": "Dev Tools",
+    "href": "/x/playground",
     "collapsedByDefault": true,
     "requiredRole": "SUPERADMIN",
+    "advancedOnly": true,
     "items": [
-      { "href": "/x/playground", "label": "Playground", "icon": "FlaskConical" },
-      { "href": "/x/pipeline", "label": "Pipeline Runs", "icon": "GitBranch" },
-      { "href": "/x/sidebar", "label": "Responsive Viewer", "icon": "Smartphone" },
-      { "href": "/x/debug", "label": "Debug", "icon": "Bug" },
-      { "href": "/x/logs", "label": "Logs", "icon": "FileText" },
-      { "href": "/x/admin/tests", "label": "E2E Tests", "icon": "TestTube" },
-      { "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" },
-      { "href": "/x/test-harness", "label": "Test Harness", "icon": "Beaker" },
-      { "href": "/x/spec-schema", "label": "Spec Schema", "icon": "FileJson" }
+      { "id": "playground", "href": "/x/playground", "label": "Playground", "icon": "FlaskConical" },
+      { "id": "pipeline-runs", "href": "/x/pipeline", "label": "Pipeline Runs", "icon": "GitBranch" },
+      { "id": "launchpad", "href": "/x/launchpad", "label": "Launchpad", "icon": "Rocket" },
+      { "id": "debug", "href": "/x/debug", "label": "Debug", "icon": "Bug" },
+      { "id": "logs", "href": "/x/logs", "label": "Logs", "icon": "FileText" },
+      { "id": "e2e-tests", "href": "/x/admin/tests", "label": "E2E Tests", "icon": "TestTube" },
+      { "id": "seed-data", "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" },
+      { "id": "test-harness", "href": "/x/test-harness", "label": "Test Harness", "icon": "Beaker" },
+      { "id": "spec-schema", "href": "/x/spec-schema", "label": "Spec Schema", "icon": "FileJson" },
+      { "id": "responsive-viewer", "href": "/x/sidebar", "label": "Responsive Viewer", "icon": "Smartphone" }
     ]
   }
 ]

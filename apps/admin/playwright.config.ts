@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const AUTH_FILE = '.playwright/auth.json';
+const isCloud = !!process.env.CLOUD_E2E;
+const TEST_PORT = process.env.PORT || (isCloud ? '3000' : '3001');
+const TEST_BASE_URL = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${TEST_PORT}`;
 
 /**
  * Playwright Configuration for E2E Testing
@@ -19,11 +22,14 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
 
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Retry — cloud gets more retries due to network variability */
+  retries: isCloud ? 3 : process.env.CI ? 2 : 0,
 
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
+
+  /* Cloud tests get longer timeouts for AI calls + network latency */
+  timeout: isCloud ? 120_000 : 30_000,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
@@ -36,7 +42,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+    baseURL: TEST_BASE_URL,
 
     /* Collect trace when retrying the failed test. */
     trace: 'on-first-retry',
@@ -47,8 +53,11 @@ export default defineConfig({
     /* Video on failure */
     video: 'retain-on-failure',
 
-    /* Maximum time each action can take */
-    actionTimeout: 10000,
+    /* Maximum time each action can take — cloud gets more time */
+    actionTimeout: isCloud ? 30_000 : 10_000,
+
+    /* Navigation timeout for cloud latency */
+    navigationTimeout: isCloud ? 60_000 : 30_000,
   },
 
   /* Configure projects for major browsers */
@@ -56,7 +65,7 @@ export default defineConfig({
     /* Authenticated tests - run with pre-established session */
     {
       name: 'authenticated',
-      testMatch: /tests\/.+\.spec\.ts/,
+      testMatch: /tests\/(?!cloud\/).+\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: AUTH_FILE,
@@ -76,9 +85,19 @@ export default defineConfig({
     /* Mobile viewport tests */
     {
       name: 'mobile',
-      testMatch: /tests\/.+\.spec\.ts/,
+      testMatch: /tests\/(?!cloud\/).+\.spec\.ts/,
       use: {
         ...devices['Pixel 5'],
+        storageState: AUTH_FILE,
+      },
+    },
+
+    /* Cloud E2E tests — full system flow against cloud environment */
+    {
+      name: 'cloud',
+      testMatch: /tests\/cloud\/.+\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
         storageState: AUTH_FILE,
       },
     },
@@ -91,11 +110,12 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+  /* Run test server on separate port so dev server stays untouched.
+   * Skip for CI (handles its own server) and cloud E2E (uses SSH tunnel). */
+  webServer: (process.env.CI || isCloud) ? undefined : {
+    command: `NODE_ENV=test npm run dev -- --port ${TEST_PORT}`,
+    url: TEST_BASE_URL,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 });

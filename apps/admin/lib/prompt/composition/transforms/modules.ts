@@ -189,7 +189,7 @@ function extractSubjectCurriculumModules(
     const curriculum = subject.curriculum;
     if (!curriculum?.notableInfo) continue;
 
-    const rawModules = (curriculum.notableInfo as any)?.modules;
+    const rawModules = (curriculum.notableInfo as Record<string, any>)?.modules;
     if (!Array.isArray(rawModules) || rawModules.length === 0) continue;
 
     const modules: ModuleData[] = rawModules.map((m: any, idx: number) => ({
@@ -306,7 +306,72 @@ export function computeSharedState(
 
   // Next module = one after last completed
   const nextModuleIndex = lastCompletedIndex + 1;
-  const nextModule = nextModuleIndex < modules.length ? modules[nextModuleIndex] : null;
+  let nextModule = nextModuleIndex < modules.length ? modules[nextModuleIndex] : null;
+
+  // =========================================================================
+  // LESSON PLAN SESSION TRACKING
+  // If a lesson plan exists and onboarding is complete, use the lesson plan
+  // entry for the current session to override module selection.
+  // =========================================================================
+  let currentSessionNumber: number | null = null;
+  let lessonPlanSessionType: string | null = null;
+  let lessonPlanEntry: SharedComputedState['lessonPlanEntry'] = null;
+
+  // Load lesson plan from Subject curriculum deliveryConfig
+  const subjects = data.subjectSources?.subjects;
+  let lessonPlan: { estimatedSessions: number; entries: any[] } | null = null;
+
+  if (subjects?.length) {
+    for (const subject of subjects) {
+      const dc = subject.curriculum?.deliveryConfig as Record<string, any> | null;
+      if (dc?.lessonPlan?.entries?.length) {
+        lessonPlan = dc.lessonPlan;
+        break;
+      }
+    }
+  }
+
+  if (lessonPlan && onboardingSession?.isComplete) {
+    // Read currentSession from callerAttributes
+    const sessionAttr = data.callerAttributes.find(
+      (a) => a.key.includes(':current_session') && a.scope === 'CURRICULUM'
+    );
+    currentSessionNumber = sessionAttr?.numberValue ?? null;
+
+    if (currentSessionNumber) {
+      const entry = lessonPlan.entries.find((e: any) => e.session === currentSessionNumber);
+      if (entry) {
+        lessonPlanSessionType = entry.type;
+        lessonPlanEntry = {
+          session: entry.session,
+          type: entry.type,
+          moduleId: entry.moduleId || null,
+          moduleLabel: entry.moduleLabel || '',
+          label: entry.label || '',
+        };
+
+        // Override nextModule if entry specifies a moduleId
+        if (entry.moduleId) {
+          const entryModule = modules.find((m) => (m.id || m.slug) === entry.moduleId);
+          if (entryModule) {
+            nextModule = entryModule;
+            console.log(
+              `[modules] Lesson plan session ${currentSessionNumber}: ${entry.type} - ${entry.moduleLabel}`
+            );
+          }
+        } else {
+          console.log(
+            `[modules] Lesson plan session ${currentSessionNumber}: ${entry.type} (cross-module)`
+          );
+        }
+      } else {
+        // Session number exceeds plan — curriculum complete
+        console.log(
+          `[modules] Lesson plan complete: session ${currentSessionNumber} > ${lessonPlan.estimatedSessions} entries`
+        );
+      }
+    }
+  }
 
   // Determine review intensity based on time gap
   // Thresholds from specConfig (default: 14/7/3 days for reintroduce/deep_review/application)
@@ -342,6 +407,10 @@ export function computeSharedState(
     // Include metadata for downstream transforms
     curriculumMetadata: metadata,
     curriculumSpecSlug: specSlug || undefined,
+    // Lesson plan session tracking
+    currentSessionNumber,
+    lessonPlanSessionType,
+    lessonPlanEntry,
   };
 }
 
@@ -362,7 +431,7 @@ registerTransform("computeModuleProgress", (
   const contentCfg = contentSpec?.config as Record<string, any> | null;
   const callerAttributes = loadedData.callerAttributes;
   const totalCallCount = loadedData.callCount;
-  const masteryThreshold = (sharedState as any).curriculumMetadata?.masteryThreshold ?? 0.7;
+  const masteryThreshold = (sharedState as Record<string, any>).curriculumMetadata?.masteryThreshold ?? 0.7;
 
   const curriculumAttrs = callerAttributes.filter((a: CallerAttributeData) =>
     a.key.includes("module") ||

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type ContentSource = {
   id: string;
@@ -23,12 +24,12 @@ type ContentSource = {
 };
 
 const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "#D4AF37", bg: "#FDF6E3", level: 5 },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "#8B8B8B", bg: "#F5F5F5", level: 4 },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "#4A90D9", bg: "#EBF3FC", level: 3 },
-  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "#2E7D32", bg: "#E8F5E9", level: 2 },
-  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "#FF8F00", bg: "#FFF3E0", level: 1 },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "#B71C1C", bg: "#FFEBEE", level: 0 },
+  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)", level: 5 },
+  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "var(--trust-l4-text)", bg: "var(--trust-l4-bg)", level: 4 },
+  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "var(--trust-l3-text)", bg: "var(--trust-l3-bg)", level: 3 },
+  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "var(--trust-l2-text)", bg: "var(--trust-l2-bg)", level: 2 },
+  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "var(--trust-l1-text)", bg: "var(--trust-l1-bg)", level: 1 },
+  { value: "UNVERIFIED", label: "L0 Unverified", color: "var(--trust-l0-text)", bg: "var(--trust-l0-bg)", level: 0 },
 ];
 
 function TrustBadge({ level }: { level: string }) {
@@ -43,7 +44,7 @@ function TrustBadge({ level }: { level: string }) {
         fontWeight: 600,
         color: config.color,
         backgroundColor: config.bg,
-        border: `1px solid ${config.color}33`,
+        border: `1px solid color-mix(in srgb, ${config.color} 20%, transparent)`,
       }}
     >
       {config.label}
@@ -75,20 +76,7 @@ function FreshnessBadge({ validUntil }: { validUntil: string | null }) {
   );
 }
 
-type ImportAssertion = {
-  assertion: string;
-  category: string;
-  chapter?: string;
-  section?: string;
-  tags: string[];
-  examRelevance?: number;
-  learningOutcomeRef?: string;
-  validUntil?: string;
-  taxYear?: string;
-  contentHash: string;
-};
-
-type ReviewTab = "needs-review" | "expired" | "import" | "all";
+type ReviewTab = "needs-review" | "expired" | "all";
 
 export default function ContentReviewPage() {
   const [sources, setSources] = useState<ContentSource[]>([]);
@@ -102,12 +90,6 @@ export default function ContentReviewPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Import state
-  const [importSourceId, setImportSourceId] = useState("");
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [previewAssertions, setPreviewAssertions] = useState<ImportAssertion[] | null>(null);
-  const [importResult, setImportResult] = useState<{ created: number; duplicatesSkipped: number; warnings: string[] } | null>(null);
 
   const fetchSources = useCallback(() => {
     setLoading(true);
@@ -168,6 +150,7 @@ export default function ContentReviewPage() {
 
   return (
     <div>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{
@@ -280,7 +263,6 @@ export default function ContentReviewPage() {
         {([
           { key: "needs-review", label: "Needs Review", count: needsReview.length },
           { key: "expired", label: "Expired/Expiring", count: expired.length },
-          { key: "import", label: "Import Document", count: -1 },
           { key: "all", label: "All Sources", count: sources.length },
         ] as { key: ReviewTab; label: string; count: number }[]).map((tab) => (
           <button
@@ -302,224 +284,8 @@ export default function ContentReviewPage() {
         ))}
       </div>
 
-      {/* Import tab */}
-      {activeTab === "import" && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            padding: 20,
-          }}
-        >
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>
-            Import Document into Source
-          </h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px" }}>
-            Upload a PDF, text, or markdown file. AI will extract teaching points as assertions linked to the selected source.
-          </p>
-
-          {/* Source selector */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>
-              Content Source *
-            </label>
-            <select
-              value={importSourceId}
-              onChange={(e) => { setImportSourceId(e.target.value); setPreviewAssertions(null); setImportResult(null); }}
-              style={{
-                width: "100%",
-                padding: "8px 10px",
-                fontSize: 12,
-                border: "1px solid var(--input-border)",
-                borderRadius: 6,
-                background: "var(--surface-primary)",
-                color: "var(--text-primary)",
-              }}
-            >
-              <option value="">Select a source...</option>
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({TRUST_LEVELS.find((t) => t.value === s.trustLevel)?.label || s.trustLevel})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* File upload */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>
-              Document *
-            </label>
-            <input
-              type="file"
-              accept=".pdf,.txt,.md,.markdown,.json"
-              onChange={(e) => { setImportFile(e.target.files?.[0] || null); setPreviewAssertions(null); setImportResult(null); }}
-              style={{ fontSize: 12 }}
-            />
-            <div style={{ fontSize: 10, color: "var(--text-placeholder)", marginTop: 2 }}>
-              Supported: PDF, TXT, MD, JSON
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={async () => {
-                if (!importSourceId || !importFile) return;
-                setImporting(true);
-                setPreviewAssertions(null);
-                setImportResult(null);
-                setSaveMessage(null);
-                try {
-                  const fd = new FormData();
-                  fd.append("file", importFile);
-                  fd.append("mode", "preview");
-                  const res = await fetch(`/api/content-sources/${importSourceId}/import`, { method: "POST", body: fd });
-                  const data = await res.json();
-                  if (data.ok) {
-                    setPreviewAssertions(data.assertions);
-                    if (data.warnings?.length) {
-                      setSaveMessage({ type: "error", text: data.warnings.join("; ") });
-                    }
-                  } else {
-                    setSaveMessage({ type: "error", text: data.error || "Preview failed" });
-                  }
-                } catch (err: any) {
-                  setSaveMessage({ type: "error", text: err.message });
-                } finally {
-                  setImporting(false);
-                }
-              }}
-              disabled={!importSourceId || !importFile || importing}
-              style={{
-                padding: "8px 16px",
-                fontSize: 12,
-                fontWeight: 600,
-                background: !importSourceId || !importFile || importing ? "var(--surface-secondary)" : "#eff6ff",
-                color: !importSourceId || !importFile || importing ? "var(--text-muted)" : "#1e40af",
-                border: `1px solid ${!importSourceId || !importFile || importing ? "var(--input-border)" : "#93c5fd"}`,
-                borderRadius: 6,
-                cursor: !importSourceId || !importFile || importing ? "not-allowed" : "pointer",
-              }}
-            >
-              {importing ? "Extracting..." : "Preview Extraction"}
-            </button>
-
-            {previewAssertions && previewAssertions.length > 0 && (
-              <button
-                onClick={async () => {
-                  if (!importSourceId || !importFile) return;
-                  setImporting(true);
-                  setImportResult(null);
-                  try {
-                    const fd = new FormData();
-                    fd.append("file", importFile);
-                    fd.append("mode", "import");
-                    const res = await fetch(`/api/content-sources/${importSourceId}/import`, { method: "POST", body: fd });
-                    const data = await res.json();
-                    if (data.ok) {
-                      setImportResult({ created: data.created, duplicatesSkipped: data.duplicatesSkipped, warnings: data.warnings || [] });
-                      setSaveMessage({ type: "success", text: `Imported ${data.created} assertions (${data.duplicatesSkipped} duplicates skipped)` });
-                      setPreviewAssertions(null);
-                      fetchSources();
-                    } else {
-                      setSaveMessage({ type: "error", text: data.error || "Import failed" });
-                    }
-                  } catch (err: any) {
-                    setSaveMessage({ type: "error", text: err.message });
-                  } finally {
-                    setImporting(false);
-                  }
-                }}
-                disabled={importing}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: importing ? "var(--surface-secondary)" : "#166534",
-                  color: importing ? "var(--text-muted)" : "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: importing ? "not-allowed" : "pointer",
-                }}
-              >
-                {importing ? "Importing..." : `Import ${previewAssertions.length} Assertions`}
-              </button>
-            )}
-          </div>
-
-          {/* Preview results */}
-          {previewAssertions && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-                Preview: {previewAssertions.length} assertions extracted
-              </div>
-              <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid var(--border-default)", borderRadius: 6 }}>
-                {previewAssertions.map((a, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: "8px 12px",
-                      borderBottom: i < previewAssertions.length - 1 ? "1px solid var(--border-default)" : "none",
-                      fontSize: 12,
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
-                      <span style={{
-                        padding: "1px 6px",
-                        borderRadius: 3,
-                        fontSize: 9,
-                        fontWeight: 600,
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-muted)",
-                        textTransform: "uppercase",
-                      }}>
-                        {a.category}
-                      </span>
-                      {a.chapter && (
-                        <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{a.chapter}</span>
-                      )}
-                      {a.examRelevance != null && (
-                        <span style={{ fontSize: 10, color: a.examRelevance >= 0.7 ? "#166534" : "var(--text-placeholder)", marginLeft: "auto" }}>
-                          Exam: {Math.round(a.examRelevance * 100)}%
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ color: "var(--text-primary)" }}>{a.assertion}</div>
-                    {a.tags.length > 0 && (
-                      <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                        {a.tags.map((tag) => (
-                          <span key={tag} style={{ fontSize: 9, padding: "1px 4px", background: "var(--surface-secondary)", borderRadius: 3, color: "var(--text-muted)" }}>
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Import result */}
-          {importResult && (
-            <div style={{ marginTop: 12, padding: 12, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, fontSize: 12 }}>
-              <div style={{ fontWeight: 600, color: "#166534" }}>
-                Import complete: {importResult.created} assertions created
-              </div>
-              {importResult.duplicatesSkipped > 0 && (
-                <div style={{ color: "#166534", marginTop: 2 }}>
-                  {importResult.duplicatesSkipped} duplicates skipped (already imported)
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Source list */}
-      {activeTab !== "import" && (
+      {(
       <div
         style={{
           background: "var(--surface-primary)",

@@ -4,182 +4,24 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
+import { EditableTitle } from "@/components/shared/EditableTitle";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
-import { DraggableTabs, TabDefinition } from "@/components/shared/DraggableTabs";
+import { DraggableTabs } from "@/components/shared/DraggableTabs";
 import { useEntityContext } from "@/contexts/EntityContext";
-import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
+import { TreeNode } from "@/components/shared/ExplorerTree";
 import { SpecRoleBadge } from "@/components/shared/SpecRoleBadge";
-
-type ScoringAnchor = {
-  id: string;
-  score: number;
-  example: string;
-  rationale: string | null;
-  positiveSignals: string[];
-  negativeSignals: string[];
-  isGold: boolean;
-};
-
-type ParameterInfo = {
-  parameterId: string;
-  name: string;
-  definition?: string;
-  scaleType: string;
-  interpretationHigh?: string;
-  interpretationLow?: string;
-  scoringAnchors: ScoringAnchor[];
-};
-
-type AnalysisAction = {
-  id: string;
-  description: string;
-  weight: number;
-  parameterId: string | null;
-  parameter: ParameterInfo | null;
-  learnCategory: string | null;
-  learnKeyPrefix: string | null;
-  learnKeyHint: string | null;
-};
-
-type AnalysisTrigger = {
-  id: string;
-  name: string | null;
-  given: string;
-  when: string;
-  then: string;
-  actions: AnalysisAction[];
-};
-
-type SpecDetail = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  scope: "CALLER" | "DOMAIN" | "SYSTEM";
-  specType: "SYSTEM" | "DOMAIN";
-  outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
-  specRole: "ORCHESTRATE" | "EXTRACT" | "SYNTHESISE" | "CONSTRAIN" | "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL" | "BOOTSTRAP";
-  domain: string | null;
-  priority: number;
-  isActive: boolean;
-  version: string;
-  promptTemplate?: string | null;
-  triggers?: AnalysisTrigger[];
-  _count?: { triggers: number };
-};
-
-type Spec = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  scope: "CALLER" | "DOMAIN" | "SYSTEM";
-  specType: "SYSTEM" | "DOMAIN";
-  outputType: "LEARN" | "MEASURE" | "ADAPT" | "COMPOSE" | "MEASURE_AGENT" | "AGGREGATE" | "REWARD" | "SUPERVISE";
-  specRole: "ORCHESTRATE" | "EXTRACT" | "SYNTHESISE" | "CONSTRAIN" | "IDENTITY" | "CONTENT" | "VOICE" | "MEASURE" | "ADAPT" | "REWARD" | "GUARDRAIL" | "BOOTSTRAP";
-  domain: string | null;
-  priority: number;
-  isActive?: boolean;
-  config?: Record<string, any> | null;
-  _count?: { triggers: number };
-};
-
-type PromptTemplateItem = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  version?: string;
-};
-
-type PlaybookItem = {
-  id: string;
-  itemType: "SPEC" | "PROMPT_TEMPLATE";
-  specId: string | null;
-  promptTemplateId: string | null;
-  spec: Spec | null;
-  promptTemplate: PromptTemplateItem | null;
-  isEnabled: boolean;
-  sortOrder: number;
-};
-
-type Domain = {
-  id: string;
-  slug: string;
-  name: string;
-};
-
-type Agent = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  scope: "SYSTEM" | "DOMAIN";
-};
-
-type Curriculum = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-};
-
-type PlaybookSystemSpec = {
-  id: string;
-  specId: string;
-  isEnabled: boolean;
-  configOverride: any | null;
-  spec: Spec;
-};
-
-type Playbook = {
-  id: string;
-  name: string;
-  description: string | null;
-  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
-  version: string;
-  publishedAt: string | null;
-  domain: Domain;
-  agent: Agent | null;
-  curriculum: Curriculum | null;
-  items: PlaybookItem[];
-  systemSpecs: PlaybookSystemSpec[];
-  _count: { items: number };
-};
-
-type AvailableItems = {
-  callerSpecs: Spec[]; // Deprecated - always empty, kept for API compatibility
-  domainSpecs: Spec[];
-  systemSpecs: Spec[];
-  promptTemplates: PromptTemplateItem[];
-};
-
-type BehaviorParameter = {
-  parameterId: string;
-  name: string;
-  definition: string | null;
-  domainGroup: string | null;
-  systemValue: number | null;
-  systemSource: string | null;
-  playbookValue: number | null;
-  playbookTargetId: string | null;
-  effectiveValue: number;
-  effectiveScope: string;
-};
-
-type TargetsData = {
-  parameters: BehaviorParameter[];
-  counts: {
-    total: number;
-    withPlaybookOverride: number;
-    withSystemDefault: number;
-  };
-};
-
-type PlaybookBuilderProps = {
-  playbookId: string;
-  routePrefix?: string;
-};
+import { ClipboardList, Layers, Target, GitBranch, Settings, Zap, Orbit, Users } from "lucide-react";
+import { TypePickerDialog, PickerItem, PickerCategory } from "@/components/shared/TypePickerDialog";
+import { ParametersTabContent } from "./playbook-builder/ParametersTab";
+import { TriggersTabContent } from "./playbook-builder/TriggersTab";
+import { SlugsTabContent } from "./playbook-builder/SlugsTab";
+import { ExplorerTabContent } from "./playbook-builder/ExplorerTab";
+import { RosterTabContent } from "./playbook-builder/RosterTab";
+import type {
+  SpecDetail, Spec, PlaybookItem,
+  Domain, Agent, Curriculum, Playbook,
+  AvailableItems, BehaviorParameter, TargetsData, PlaybookBuilderProps,
+} from "./playbook-builder/types";
 
 export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilderProps) {
   const router = useRouter();
@@ -200,22 +42,15 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
   // Tabs state - Explorer (unified tree+toggles view) is default
   // TODO: Consider removing "grid" tab once unified Explorer view is proven sufficient
-  const [activeTab, setActiveTab] = useState<"grid" | "targets" | "explorer" | "slugs" | "parameters" | "triggers" | "visualizer">("grid");
+  const [activeTab, setActiveTab] = useState<"grid" | "targets" | "explorer" | "slugs" | "parameters" | "triggers" | "visualizer" | "roster">("grid");
+  const [rosterCount, setRosterCount] = useState<number | null>(null);
   const [targetsData, setTargetsData] = useState<TargetsData | null>(null);
   const [specSearch, setSpecSearch] = useState("");
-  const [expandedAddPanels, setExpandedAddPanels] = useState<Set<"agent" | "caller" | "content">>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerDefaultCategory, setPickerDefaultCategory] = useState<string>("agent");
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [showSystemInColumns, setShowSystemInColumns] = useState<Record<string, boolean>>({ agent: true, caller: true, content: true });
   const [systemColumnCollapsed, setSystemColumnCollapsed] = useState(false);
-
-  const toggleAddPanel = (column: "agent" | "caller" | "content") => {
-    setExpandedAddPanels(prev => {
-      const next = new Set(prev);
-      if (next.has(column)) next.delete(column);
-      else next.add(column);
-      return next;
-    });
-  };
 
   // Parameters tab state
   type ParameterCategory = {
@@ -315,6 +150,33 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   const [savingTargets, setSavingTargets] = useState(false);
   const [showTargetsSaveConfirm, setShowTargetsSaveConfirm] = useState(false);
   const [compilingTargets, setCompilingTargets] = useState(false);
+
+  // Behavior Pills state
+  interface BehaviorPillParam {
+    parameterId: string;
+    atFull: number;
+    atZero: number;
+  }
+  interface BehaviorPill {
+    id: string;
+    label: string;
+    description: string;
+    intensity: number;
+    source: "intent" | "domain-context";
+    parameters: BehaviorPillParam[];
+  }
+  interface PillState {
+    pill: BehaviorPill;
+    active: boolean;
+    intensity: number;
+    lastModified: number;
+  }
+  const [intentText, setIntentText] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const [pillStates, setPillStates] = useState<PillState[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
 
   // Playbook config settings (memory, learning, AI, thresholds)
   interface PlaybookConfigSettings {
@@ -897,6 +759,102 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     const newChanges = new Map(pendingTargetChanges);
     newChanges.set(parameterId, value);
     setPendingTargetChanges(newChanges);
+  };
+
+  // Resolve active pills into pendingTargetChanges
+  const resolvePillsToTargets = useCallback((currentPills: PillState[]) => {
+    const activePills = currentPills
+      .filter((p) => p.active)
+      .sort((a, b) => a.lastModified - b.lastModified);
+
+    const resolved = new Map<string, number | null>();
+    for (const ps of activePills) {
+      for (const param of ps.pill.parameters) {
+        const value = param.atZero + (param.atFull - param.atZero) * ps.intensity;
+        resolved.set(param.parameterId, Math.max(0, Math.min(1, value)));
+      }
+    }
+    setPendingTargetChanges(resolved);
+  }, []);
+
+  // Toggle a pill on/off
+  const handlePillToggle = (pillId: string) => {
+    setPillStates((prev) => {
+      const next = prev.map((ps) =>
+        ps.pill.id === pillId
+          ? { ...ps, active: !ps.active, lastModified: Date.now() }
+          : ps
+      );
+      resolvePillsToTargets(next);
+      return next;
+    });
+  };
+
+  // Adjust a pill's intensity
+  const handlePillIntensity = (pillId: string, intensity: number) => {
+    setPillStates((prev) => {
+      const next = prev.map((ps) =>
+        ps.pill.id === pillId
+          ? { ...ps, intensity, lastModified: Date.now() }
+          : ps
+      );
+      resolvePillsToTargets(next);
+      return next;
+    });
+  };
+
+  // Submit intent to suggest endpoint
+  const handleSuggestPills = async (mode: "initial" | "more" = "initial") => {
+    if (!intentText.trim() || !playbookId) return;
+
+    if (mode === "initial") {
+      setSuggesting(true);
+      setSuggestError(null);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const existingPillIds = pillStates.map((ps) => ps.pill.id);
+      const res = await fetch(`/api/playbooks/${playbookId}/targets/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intent: intentText.trim(),
+          mode,
+          existingPillIds: mode === "more" ? existingPillIds : [],
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        setSuggestError(data.error || "Failed to generate suggestions");
+        return;
+      }
+
+      const newPills: PillState[] = (data.pills || []).map((pill: BehaviorPill) => ({
+        pill,
+        active: mode === "initial", // intent pills ON, extras OFF
+        intensity: pill.intensity,
+        lastModified: Date.now(),
+      }));
+
+      if (mode === "initial") {
+        setPillStates(newPills);
+        resolvePillsToTargets(newPills);
+      } else {
+        setPillStates((prev) => {
+          const combined = [...prev, ...newPills];
+          resolvePillsToTargets(combined);
+          return combined;
+        });
+      }
+    } catch (err: any) {
+      setSuggestError(err.message || "Network error");
+    } finally {
+      setSuggesting(false);
+      setLoadingMore(false);
+    }
   };
 
   const handleSaveTargets = async (confirmed = false) => {
@@ -1536,6 +1494,51 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
   ) || [];
   const availableContentSpecs = availableItems?.domainSpecs.filter(s => s.specRole === "CONTENT") || [];
 
+  // TypePickerDialog categories and items
+  const pickerCategories: PickerCategory[] = [
+    { key: "agent", label: "Agent / Identity", color: "var(--status-info-text)" },
+    { key: "caller", label: "Caller / Understanding", color: "var(--status-warning-text)" },
+    { key: "content", label: "Content", color: "var(--status-success-text)" },
+  ];
+  const pickerItems: PickerItem[] = [
+    ...availableAgentSpecs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description ? (s.description.length > 80 ? s.description.slice(0, 80) + "..." : s.description) : undefined,
+      category: "agent",
+      meta: s.specRole,
+      disabled: items.some((i) => i.specId === s.id),
+      disabledReason: "Already in playbook",
+    })),
+    ...availableCallerSpecs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description ? (s.description.length > 80 ? s.description.slice(0, 80) + "..." : s.description) : undefined,
+      category: "caller",
+      meta: s.specRole,
+      disabled: items.some((i) => i.specId === s.id),
+      disabledReason: "Already in playbook",
+    })),
+    ...availableContentSpecs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description ? (s.description.length > 80 ? s.description.slice(0, 80) + "..." : s.description) : undefined,
+      category: "content",
+      meta: s.specRole,
+      disabled: items.some((i) => i.specId === s.id),
+      disabledReason: "Already in playbook",
+    })),
+  ];
+
+  const openPicker = (category: "agent" | "caller" | "content") => {
+    setPickerDefaultCategory(category);
+    setPickerOpen(true);
+  };
+
+  const handlePickerSelect = (item: PickerItem) => {
+    addItemFromPalette("spec", item.id);
+  };
+
   // Enabled system specs that belong in each column (read-only references)
   const systemAgentSpecs = (availableItems?.systemSpecs || []).filter(s =>
     (s.specRole === "IDENTITY" || s.specRole === "VOICE") && systemSpecToggles.get(s.id) !== false
@@ -1996,7 +1999,23 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </>
       )}
       <SourcePageHeader
-        title={playbook.name}
+        title={
+          <EditableTitle
+            value={playbook.name}
+            as="span"
+            disabled={playbook.status === "PUBLISHED"}
+            onSave={async (newName) => {
+              const res = await fetch(`/api/playbooks/${playbookId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newName }),
+              });
+              const data = await res.json();
+              if (!data.ok) throw new Error(data.error);
+              setPlaybook((prev: any) => prev ? { ...prev, name: newName } : prev);
+            }}
+          />
+        }
         description={`${playbook.domain.name} — v${playbook.version}`}
         dataNodeId="playbooks"
         actions={
@@ -2126,13 +2145,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
       <DraggableTabs
         storageKey="playbook-builder-tabs"
         tabs={[
-          { id: "grid", label: `📋 Specs (${items.length})`, title: "4-column grid view of all specs" },
-          { id: "explorer", label: "📂 Explorer", title: "Browse specs with tree navigation and inline toggles" },
-          { id: "targets", label: `🎚️ Targets ${targetsData ? `(${targetsData.counts.total})` : ""}`, title: "Configure playbook targets and thresholds" },
-          { id: "slugs", label: `🔗 Slugs ${slugsData ? `(${slugsData.counts.total})` : ""}`, title: "URL slug mappings for playbook routing" },
-          { id: "parameters", label: `🔢 Parameters ${parametersData ? `(${parametersData.counts.parameters})` : ""}`, title: "Parameter definitions and configuration" },
-          { id: "triggers", label: `⚡ Triggers ${triggersData ? `(${triggersData.counts.triggers})` : ""}`, title: "Trigger configurations and rules" },
-          { id: "visualizer", label: "🌌 Visualizer", title: "Interactive graph visualization of playbook structure" },
+          { id: "grid", label: "Specs", icon: <ClipboardList size={14} />, count: items.length, title: "4-column grid view of all specs" },
+          { id: "explorer", label: "Explorer", icon: <Layers size={14} />, title: "Browse specs with tree navigation and inline toggles" },
+          { id: "targets", label: "Targets", icon: <Target size={14} />, count: targetsData?.counts.total ?? null, title: "Configure playbook targets and thresholds" },
+          { id: "slugs", label: "Slugs", icon: <GitBranch size={14} />, count: slugsData?.counts.total ?? null, title: "URL slug mappings for playbook routing" },
+          { id: "parameters", label: "Parameters", icon: <Settings size={14} />, count: parametersData?.counts.parameters ?? null, title: "Parameter definitions and configuration" },
+          { id: "triggers", label: "Triggers", icon: <Zap size={14} />, count: triggersData?.counts.triggers ?? null, title: "Trigger configurations and rules" },
+          { id: "visualizer", label: "Visualizer", icon: <Orbit size={14} />, title: "Interactive graph visualization of playbook structure" },
+          { id: "roster", label: "Roster", icon: <Users size={14} />, count: rosterCount, title: "Enrolled callers (class roster)" },
         ]}
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as typeof activeTab)}
@@ -2548,13 +2568,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               )}
               {isEditable && availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
                 <button
-                  onClick={() => toggleAddPanel("agent")}
+                  onClick={() => openPicker("agent")}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: 6,
                     border: "1px solid var(--status-info-border)",
-                    background: expandedAddPanels.has("agent") ? "var(--status-info-bg)" : "var(--surface-primary)",
+                    background: "var(--surface-primary)",
                     color: "var(--status-info-text)",
                     fontSize: 16,
                     fontWeight: 600,
@@ -2566,51 +2586,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   }}
                   title="Add spec"
                 >
-                  {expandedAddPanels.has("agent") ? "−" : "+"}
+                  +
                 </button>
               )}
             </div>
           </div>
 
-          {/* Collapsible add panel for Agent specs */}
-          {isEditable && expandedAddPanels.has("agent") && (
-            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-info-bg)", borderRadius: 8, border: "1px solid var(--status-info-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {availableAgentSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
-                  <button
-                    key={spec.id}
-                    onClick={() => {
-                      addItemFromPalette("spec", spec.id);
-                      toggleAddPanel("agent");
-                    }}
-                    style={{
-                      padding: "8px 10px",
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>📄</span>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
-                      {spec.description && (
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Agent specs are now added via TypePickerDialog */}
 
           {/* System IDENTITY/VOICE specs shown as read-only references */}
           {showSystemInColumns.agent && filteredSystemAgentSpecs.length > 0 && (
@@ -3107,13 +3089,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               )}
               {isEditable && availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
                 <button
-                  onClick={() => toggleAddPanel("caller")}
+                  onClick={() => openPicker("caller")}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: 6,
                     border: "1px solid var(--status-warning-border)",
-                    background: expandedAddPanels.has("caller") ? "var(--status-warning-bg)" : "var(--surface-primary)",
+                    background: "var(--surface-primary)",
                     color: "var(--status-warning-text)",
                   fontSize: 16,
                   fontWeight: 600,
@@ -3125,51 +3107,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 }}
                 title="Add spec"
               >
-                {expandedAddPanels.has("caller") ? "−" : "+"}
+                +
               </button>
             )}
             </div>
           </div>
 
-          {/* Collapsible add panel for Caller specs */}
-          {isEditable && expandedAddPanels.has("caller") && (
-            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {availableCallerSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
-                  <button
-                    key={spec.id}
-                    onClick={() => {
-                      addItemFromPalette("spec", spec.id);
-                      toggleAddPanel("caller");
-                    }}
-                    style={{
-                      padding: "8px 10px",
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>📄</span>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
-                      {spec.description && (
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Caller specs are now added via TypePickerDialog */}
 
           {/* System CALLER specs shown as read-only references */}
           {showSystemInColumns.caller && filteredSystemCallerSpecs.length > 0 && (
@@ -3353,13 +3297,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               )}
               {isEditable && availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).length > 0 && (
                 <button
-                  onClick={() => toggleAddPanel("content")}
+                  onClick={() => openPicker("content")}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: 6,
                     border: "1px solid var(--status-success-border)",
-                    background: expandedAddPanels.has("content") ? "var(--status-success-bg)" : "var(--surface-primary)",
+                    background: "var(--surface-primary)",
                     color: "var(--status-success-text)",
                   fontSize: 16,
                   fontWeight: 600,
@@ -3371,51 +3315,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 }}
                 title="Add spec"
               >
-                {expandedAddPanels.has("content") ? "−" : "+"}
+                +
               </button>
             )}
             </div>
           </div>
 
-          {/* Collapsible add panel for Content specs */}
-          {isEditable && expandedAddPanels.has("content") && (
-            <div style={{ marginBottom: 12, padding: 10, background: "var(--status-success-bg)", borderRadius: 8, border: "1px solid var(--status-success-border)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-success-text)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Add Spec</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {availableContentSpecs.filter(s => !items.some(i => i.specId === s.id)).map((spec) => (
-                  <button
-                    key={spec.id}
-                    onClick={() => {
-                      addItemFromPalette("spec", spec.id);
-                      toggleAddPanel("content");
-                    }}
-                    style={{
-                      padding: "8px 10px",
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>📄</span>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{spec.name}</div>
-                      {spec.description && (
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                          {spec.description.length > 60 ? spec.description.slice(0, 60) + "..." : spec.description}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Content specs are now added via TypePickerDialog */}
 
           {/* System CONTENT specs shown as read-only references */}
           {showSystemInColumns.content && filteredSystemContentSpecs.length > 0 && (
@@ -3783,8 +3689,322 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 </div>
               )}
 
+              {/* ── Intent Bar ─────────────────────── */}
+              {isEditable && (
+                <div style={{ marginBottom: 20 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={intentText}
+                      onChange={(e) => setIntentText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && intentText.trim() && !suggesting) {
+                          handleSuggestPills("initial");
+                        }
+                      }}
+                      placeholder="Describe the style... e.g. &quot;warm, patient, exam-focused&quot;"
+                      disabled={suggesting}
+                      style={{
+                        flex: 1,
+                        padding: "10px 14px",
+                        fontSize: 14,
+                        background: "var(--surface-secondary)",
+                        border: "1px solid var(--border-default)",
+                        borderRadius: 8,
+                        color: "var(--text-primary)",
+                        outline: "none",
+                        transition: "border-color 0.15s",
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent-primary)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    />
+                    <button
+                      onClick={() => handleSuggestPills("initial")}
+                      disabled={!intentText.trim() || suggesting}
+                      style={{
+                        padding: "10px 16px",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        background:
+                          !intentText.trim() || suggesting
+                            ? "var(--surface-secondary)"
+                            : "var(--accent-primary)",
+                        color:
+                          !intentText.trim() || suggesting
+                            ? "var(--text-muted)"
+                            : "white",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor:
+                          !intentText.trim() || suggesting
+                            ? "not-allowed"
+                            : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {suggesting ? (
+                        <>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              width: 14,
+                              height: 14,
+                              border: "2px solid currentColor",
+                              borderTopColor: "transparent",
+                              borderRadius: "50%",
+                              animation: "spin 0.6s linear infinite",
+                            }}
+                          />
+                          Thinking...
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 16 }}>✨</span>
+                          Apply
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {suggestError && (
+                    <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "var(--status-error-text)" }}>
+                      {suggestError}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Behavior Pills ─────────────────── */}
+              {pillStates.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 12,
+                    }}
+                  >
+                    {pillStates.map((ps) => {
+                      const paramCount = ps.pill.parameters.length;
+                      return (
+                        <div
+                          key={ps.pill.id}
+                          style={{
+                            background: ps.active
+                              ? "var(--surface-primary)"
+                              : "var(--surface-secondary)",
+                            border: ps.active
+                              ? "1px solid var(--accent-primary)"
+                              : "1px solid var(--border-default)",
+                            borderRadius: 12,
+                            padding: "12px 16px",
+                            minWidth: 160,
+                            maxWidth: 220,
+                            opacity: ps.active ? 1 : 0.55,
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {/* Toggle + Label */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={ps.active}
+                              onChange={() => handlePillToggle(ps.pill.id)}
+                              style={{
+                                accentColor: "var(--accent-primary)",
+                                width: 16,
+                                height: 16,
+                                cursor: "pointer",
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 600,
+                                color: ps.active
+                                  ? "var(--text-primary)"
+                                  : "var(--text-muted)",
+                              }}
+                              title={ps.pill.description}
+                            >
+                              {ps.pill.label}
+                            </span>
+                          </div>
+
+                          {/* Intensity slider */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={Math.round(ps.intensity * 100)}
+                              onChange={(e) =>
+                                handlePillIntensity(
+                                  ps.pill.id,
+                                  Number(e.target.value) / 100
+                                )
+                              }
+                              disabled={!ps.active || !isEditable}
+                              style={{
+                                flex: 1,
+                                accentColor: "var(--accent-primary)",
+                                cursor: ps.active ? "pointer" : "default",
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: ps.active
+                                  ? "var(--text-secondary)"
+                                  : "var(--text-muted)",
+                                fontFamily: "ui-monospace, monospace",
+                                minWidth: 28,
+                                textAlign: "right",
+                              }}
+                            >
+                              {Math.round(ps.intensity * 100)}
+                            </span>
+                          </div>
+
+                          {/* Param count + source badge */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              marginTop: 6,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-muted)",
+                              }}
+                            >
+                              {paramCount} param{paramCount !== 1 ? "s" : ""}
+                            </span>
+                            {ps.pill.source === "domain-context" && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  padding: "1px 6px",
+                                  borderRadius: 4,
+                                  background: "var(--badge-blue-bg)",
+                                  color: "var(--badge-blue-text)",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                suggested
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* + More button */}
+                  <button
+                    onClick={() => handleSuggestPills("more")}
+                    disabled={loadingMore || suggesting}
+                    style={{
+                      marginTop: 12,
+                      padding: "8px 16px",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      background: "transparent",
+                      color: "var(--accent-primary)",
+                      border: "1px dashed var(--border-default)",
+                      borderRadius: 8,
+                      cursor: loadingMore ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--accent-primary)";
+                      e.currentTarget.style.background = "color-mix(in srgb, var(--accent-primary) 8%, transparent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border-default)";
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 12,
+                            height: 12,
+                            border: "2px solid currentColor",
+                            borderTopColor: "transparent",
+                            borderRadius: "50%",
+                            animation: "spin 0.6s linear infinite",
+                          }}
+                        />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <span>+</span>
+                        More suggestions for {playbook.domain.name}...
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* ── Advanced Sliders Toggle ──────────── */}
+              {pillStates.length > 0 && (
+                <button
+                  onClick={() => setShowAdvancedSliders(!showAdvancedSliders)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 0",
+                    marginBottom: 12,
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  <span
+                    style={{
+                      transform: showAdvancedSliders ? "rotate(90deg)" : "rotate(0deg)",
+                      transition: "transform 0.15s",
+                      display: "inline-block",
+                    }}
+                  >
+                    ▸
+                  </span>
+                  Show individual sliders (advanced)
+                </button>
+              )}
+
               {/* Graphic Equalizer - Group by domainGroup */}
-              {(() => {
+              {(pillStates.length === 0 || showAdvancedSliders) && (() => {
                 // Group parameters by domainGroup
                 const groups: Record<string, typeof targetsData.parameters> = {};
                 for (const param of targetsData.parameters) {
@@ -4303,1140 +4523,76 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
       {/* Explorer Tab */}
       {activeTab === "explorer" && (
-        <div style={{ marginTop: 24 }}>
-          {explorerLoading ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Loading playbook tree...
-            </div>
-          ) : !explorerTree ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Failed to load playbook structure
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "350px 1fr", gap: 24, height: "calc(100vh - 300px)" }}>
-              {/* Left Panel: File Explorer Tree */}
-              <div style={{
-                background: "var(--background)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}>
-                {/* Tree Header */}
-                <div style={{
-                  padding: "12px 16px",
-                  borderBottom: "1px solid var(--border-default)",
-                  background: "var(--surface-primary)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}>
-                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-secondary)" }}>Playbook Structure</span>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button
-                      onClick={expandAllNodes}
-                      style={{
-                        padding: "4px 8px",
-                        fontSize: 11,
-                        background: "var(--status-info-bg)",
-                        color: "var(--button-primary-bg)",
-                        border: "none",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
-                      title="Expand all nodes in the tree"
-                    >
-                      + Expand All
-                    </button>
-                    <button
-                      onClick={collapseAllNodes}
-                      style={{
-                        padding: "4px 8px",
-                        fontSize: 11,
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-muted)",
-                        border: "none",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
-                      title="Collapse all nodes in the tree"
-                    >
-                      − Collapse All
-                    </button>
-                  </div>
-                </div>
-                {/* Tree Content */}
-                <div
-                  tabIndex={0}
-                  onKeyDown={handleTreeKeyDown}
-                  style={{
-                    flex: 1,
-                    overflowY: "auto",
-                    padding: 8,
-                    outline: "none",
-                  }}
-                  onFocus={(e) => {
-                    // Auto-select root if nothing selected
-                    if (!selectedNode && explorerTree) {
-                      setSelectedNode(explorerTree);
-                    }
-                  }}
-                >
-                  <ExplorerTreeNode
-                    node={explorerTree}
-                    depth={0}
-                    expandedNodes={expandedNodes}
-                    selectedNode={selectedNode}
-                    onToggle={toggleNodeExpand}
-                    onSelect={setSelectedNode}
-                  />
-                </div>
-              </div>
-
-              {/* Right Panel: Detail View or Group Specs Panel */}
-              <div style={{
-                background: "var(--surface-primary)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}>
-                {selectedNode ? (
-                  // Check if this is a group node - show spec cards with toggles
-                  (selectedNode.type === "group" || selectedNode.type === "output-group") && selectedNode.children && selectedNode.children.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                      {/* Group Header */}
-                      <div style={{
-                        padding: "16px 20px",
-                        borderBottom: "1px solid var(--border-default)",
-                        background: "var(--background)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-                            {selectedNode.name}
-                          </h3>
-                          <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "var(--text-muted)" }}>
-                            {selectedNode.meta?.count || selectedNode.children.length} specs
-                            {selectedNode.meta?.enabledCount !== undefined &&
-                              ` • ${selectedNode.meta.enabledCount} enabled`}
-                          </p>
-                        </div>
-                        {systemSpecsHaveChanges && (
-                          <button
-                            onClick={handleSaveSystemSpecs}
-                            disabled={savingSystemSpecs}
-                            style={{
-                              padding: "6px 12px",
-                              fontSize: 12,
-                              fontWeight: 500,
-                              background: "var(--status-success-text)",
-                              color: "white",
-                              border: "none",
-                              borderRadius: 4,
-                              cursor: savingSystemSpecs ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {savingSystemSpecs ? "Saving..." : "Save Changes"}
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Spec Cards with Toggles */}
-                      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-                        {(() => {
-                          // Collect all spec nodes from children (handle nested output-groups)
-                          const collectSpecs = (nodes: TreeNode[]): TreeNode[] => {
-                            const specs: TreeNode[] = [];
-                            for (const node of nodes) {
-                              if (node.type === "spec") {
-                                specs.push(node);
-                              } else if (node.children) {
-                                specs.push(...collectSpecs(node.children));
-                              }
-                            }
-                            return specs;
-                          };
-
-                          const specNodes = collectSpecs(selectedNode.children || []);
-
-                          // If this has output-groups, group by those
-                          const hasSubGroups = selectedNode.children?.some(c => c.type === "output-group");
-
-                          if (hasSubGroups) {
-                            // Render grouped by output-group
-                            return selectedNode.children?.map((subGroup) => {
-                              if (subGroup.type !== "output-group") return null;
-                              const subSpecs = collectSpecs(subGroup.children || []);
-                              if (subSpecs.length === 0) return null;
-
-                              return (
-                                <div key={subGroup.id} style={{ marginBottom: 20 }}>
-                                  <div style={{
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    color: "var(--text-muted)",
-                                    letterSpacing: "0.05em",
-                                    marginBottom: 8,
-                                    paddingBottom: 4,
-                                    borderBottom: "1px solid var(--input-border)",
-                                  }}>
-                                    {subGroup.name}
-                                  </div>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                    {subSpecs.map((specNode) => {
-                                      const spec = (availableItems?.systemSpecs || []).find(s => s.id === specNode.id);
-                                      const isEnabled = systemSpecToggles.get(specNode.id) ?? true;
-                                      const isGloballyActive = specNode.meta?.isActive !== false;
-                                      const effectiveEnabled = isGloballyActive && isEnabled;
-                                      const specHasOverride = hasConfigOverride(specNode.id);
-                                      const specHasConfig = spec?.config && Object.keys(spec.config).length > 0;
-
-                                      return (
-                                        <div
-                                          key={specNode.id}
-                                          style={{
-                                            padding: "12px 14px",
-                                            background: !isGloballyActive
-                                              ? "var(--status-error-bg)"
-                                              : specHasOverride
-                                                ? "var(--status-warning-bg)"
-                                                : effectiveEnabled
-                                                  ? "var(--surface-primary)"
-                                                  : "var(--background)",
-                                            border: !isGloballyActive
-                                              ? "1px solid var(--status-error-border)"
-                                              : specHasOverride
-                                                ? "1px solid var(--status-warning-border)"
-                                                : effectiveEnabled
-                                                  ? "1px solid var(--status-success-border)"
-                                                  : "1px solid var(--border-default)",
-                                            borderRadius: 8,
-                                            opacity: effectiveEnabled ? 1 : 0.6,
-                                            transition: "all 0.15s",
-                                          }}
-                                        >
-                                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                                                <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
-                                                {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
-                                                {!isGloballyActive && (
-                                                  <span style={{
-                                                    fontSize: 9,
-                                                    fontWeight: 600,
-                                                    padding: "1px 4px",
-                                                    background: "var(--button-destructive-bg)",
-                                                    color: "white",
-                                                    borderRadius: 3,
-                                                    textTransform: "uppercase",
-                                                  }}>
-                                                    Inactive
-                                                  </span>
-                                                )}
-                                              </div>
-                                              <Link
-                                                href={`${routePrefix}/specs/${specNode.id}`}
-                                                style={{
-                                                  fontWeight: 600,
-                                                  fontSize: 13,
-                                                  color: effectiveEnabled ? "var(--text-primary)" : "var(--text-muted)",
-                                                  textDecoration: "none",
-                                                  display: "block",
-                                                  marginBottom: 4,
-                                                }}
-                                              >
-                                                {specNode.name.replace(/^🚫\s*/, "")}
-                                              </Link>
-                                              {specNode.description && (
-                                                <div style={{
-                                                  fontSize: 11,
-                                                  color: effectiveEnabled ? "var(--text-muted)" : "var(--text-placeholder)",
-                                                  lineHeight: 1.4,
-                                                  overflow: "hidden",
-                                                  display: "-webkit-box",
-                                                  WebkitLineClamp: 2,
-                                                  WebkitBoxOrient: "vertical",
-                                                }}>
-                                                  {specNode.description}
-                                                </div>
-                                              )}
-                                            </div>
-                                            {/* Toggle controls */}
-                                            {isGloballyActive && (
-                                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                                                {specHasConfig && (
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      if (spec) handleOpenConfigModal(spec);
-                                                    }}
-                                                    style={{
-                                                      width: 28,
-                                                      height: 28,
-                                                      borderRadius: 6,
-                                                      border: specHasOverride ? "2px solid var(--status-warning-text)" : "1px solid var(--input-border)",
-                                                      background: specHasOverride ? "var(--status-warning-bg)" : "var(--surface-primary)",
-                                                      cursor: "pointer",
-                                                      display: "flex",
-                                                      alignItems: "center",
-                                                      justifyContent: "center",
-                                                    }}
-                                                    title={specHasOverride ? "Config overridden - click to edit" : "Configure spec settings"}
-                                                  >
-                                                    <span style={{ fontSize: 14 }}>⚙️</span>
-                                                  </button>
-                                                )}
-                                                <button
-                                                  onClick={() => handleToggleSystemSpec(specNode.id)}
-                                                  style={{
-                                                    width: 40,
-                                                    height: 22,
-                                                    borderRadius: 11,
-                                                    border: "none",
-                                                    background: isEnabled ? "var(--status-success-text)" : "var(--button-disabled-bg)",
-                                                    cursor: "pointer",
-                                                    position: "relative",
-                                                    transition: "background 0.15s",
-                                                  }}
-                                                >
-                                                  <div style={{
-                                                    width: 18,
-                                                    height: 18,
-                                                    borderRadius: "50%",
-                                                    background: "var(--surface-primary)",
-                                                    position: "absolute",
-                                                    top: 2,
-                                                    left: isEnabled ? 20 : 2,
-                                                    transition: "left 0.15s",
-                                                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                                                  }} />
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            });
-                          } else {
-                            // Render flat list of specs
-                            return (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {specNodes.map((specNode) => {
-                                  const spec = (availableItems?.systemSpecs || []).find(s => s.id === specNode.id) ||
-                                               items.find(i => i.spec?.id === specNode.id)?.spec;
-                                  const isSystemSpec = specNode.meta?.isSystemSpec;
-                                  const isEnabled = isSystemSpec
-                                    ? (systemSpecToggles.get(specNode.id) ?? true)
-                                    : true;
-                                  const isGloballyActive = specNode.meta?.isActive !== false;
-                                  const effectiveEnabled = isGloballyActive && isEnabled;
-                                  const specHasOverride = isSystemSpec && hasConfigOverride(specNode.id);
-                                  const specHasConfig = spec?.config && Object.keys(spec.config).length > 0;
-
-                                  return (
-                                    <div
-                                      key={specNode.id}
-                                      style={{
-                                        padding: "12px 14px",
-                                        background: effectiveEnabled ? "var(--surface-primary)" : "var(--background)",
-                                        border: effectiveEnabled
-                                          ? "1px solid var(--status-success-border)"
-                                          : "1px solid var(--border-default)",
-                                        borderRadius: 8,
-                                        opacity: effectiveEnabled ? 1 : 0.6,
-                                      }}
-                                    >
-                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                                            <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
-                                            {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
-                                          </div>
-                                          <Link
-                                            href={`${routePrefix}/specs/${specNode.id}`}
-                                            style={{
-                                              fontWeight: 600,
-                                              fontSize: 13,
-                                              color: effectiveEnabled ? "var(--text-primary)" : "var(--text-muted)",
-                                              textDecoration: "none",
-                                              display: "block",
-                                              marginBottom: 4,
-                                            }}
-                                          >
-                                            {specNode.name.replace(/^🚫\s*/, "")}
-                                          </Link>
-                                          {specNode.description && (
-                                            <div style={{
-                                              fontSize: 11,
-                                              color: effectiveEnabled ? "var(--text-muted)" : "var(--text-placeholder)",
-                                              lineHeight: 1.4,
-                                            }}>
-                                              {specNode.description}
-                                            </div>
-                                          )}
-                                        </div>
-                                        {/* Toggle for system specs only */}
-                                        {isSystemSpec && isGloballyActive && (
-                                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                                            {specHasConfig && (
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  if (spec) handleOpenConfigModal(spec as Spec);
-                                                }}
-                                                style={{
-                                                  width: 28,
-                                                  height: 28,
-                                                  borderRadius: 6,
-                                                  border: specHasOverride ? "2px solid var(--status-warning-text)" : "1px solid var(--input-border)",
-                                                  background: specHasOverride ? "var(--status-warning-bg)" : "var(--surface-primary)",
-                                                  cursor: "pointer",
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  justifyContent: "center",
-                                                }}
-                                                title={specHasOverride ? "Config overridden" : "Configure"}
-                                              >
-                                                <span style={{ fontSize: 14 }}>⚙️</span>
-                                              </button>
-                                            )}
-                                            <button
-                                              onClick={() => handleToggleSystemSpec(specNode.id)}
-                                              style={{
-                                                width: 40,
-                                                height: 22,
-                                                borderRadius: 11,
-                                                border: "none",
-                                                background: isEnabled ? "var(--status-success-text)" : "var(--button-disabled-bg)",
-                                                cursor: "pointer",
-                                                position: "relative",
-                                              }}
-                                            >
-                                              <div style={{
-                                                width: 18,
-                                                height: 18,
-                                                borderRadius: "50%",
-                                                background: "var(--surface-primary)",
-                                                position: "absolute",
-                                                top: 2,
-                                                left: isEnabled ? 20 : 2,
-                                                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                                              }} />
-                                            </button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          }
-                        })()}
-                      </div>
-                    </div>
-                  ) : (
-                    // Regular detail view for non-group nodes
-                    <NodeDetailPanel node={selectedNode} />
-                  )
-                ) : (
-                  <div style={{
-                    padding: 48,
-                    textAlign: "center",
-                    color: "var(--text-placeholder)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    height: "100%",
-                  }}>
-                    <span style={{ fontSize: 48, marginBottom: 16 }}>🌳</span>
-                    <p style={{ fontSize: 14 }}>Select an item from the tree to view details</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <ExplorerTabContent
+          explorerLoading={explorerLoading}
+          explorerTree={explorerTree}
+          expandedNodes={expandedNodes}
+          selectedNode={selectedNode}
+          setSelectedNode={setSelectedNode}
+          expandAllNodes={expandAllNodes}
+          collapseAllNodes={collapseAllNodes}
+          handleTreeKeyDown={handleTreeKeyDown}
+          toggleNodeExpand={toggleNodeExpand}
+          systemSpecsHaveChanges={systemSpecsHaveChanges}
+          handleSaveSystemSpecs={handleSaveSystemSpecs}
+          savingSystemSpecs={savingSystemSpecs}
+          availableItems={availableItems}
+          systemSpecToggles={systemSpecToggles}
+          hasConfigOverride={hasConfigOverride}
+          handleOpenConfigModal={handleOpenConfigModal}
+          handleToggleSystemSpec={handleToggleSystemSpec}
+          routePrefix={routePrefix}
+          items={items}
+          outputTypeBadge={outputTypeBadge}
+        />
       )}
 
       {/* Slugs Tab */}
       {activeTab === "slugs" && (
-        <div style={{ marginTop: 24 }}>
-          {slugsLoading ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Loading template variables...
-            </div>
-          ) : !slugsData ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Failed to load slugs data
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Summary - Clickable Filters */}
-              <div style={{
-                padding: 16,
-                background: "var(--background)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}>
-                <button
-                  onClick={() => setActiveFilter(null)}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: activeFilter === null ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                    background: activeFilter === null ? "var(--status-info-bg)" : "var(--surface-primary)",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    minWidth: 70,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>All</div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === null ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{slugsData.counts.total}</div>
-                </button>
-                {[
-                  { key: "IDENTITY", label: "🎭 Identity", count: slugsData.counts.identity },
-                  { key: "CONTENT", label: "📖 Content", count: slugsData.counts.content },
-                  { key: "VOICE", label: "🎙️ Voice", count: slugsData.counts.voice },
-                  { key: "MEASURE", label: "📊 Measure", count: slugsData.counts.measure },
-                  { key: "LEARN", label: "🧠 Learn", count: slugsData.counts.learn },
-                  { key: "ADAPT", label: "🔄 Adapt", count: slugsData.counts.adapt },
-                  { key: "REWARD", label: "⭐ Reward", count: slugsData.counts.reward || 0 },
-                  { key: "GUARDRAIL", label: "🛡️ Guard", count: slugsData.counts.guardrail || 0 },
-                  { key: "COMPOSE", label: "🧩 Compose", count: slugsData.counts.compose || 0 },
-                ].map(stat => (
-                  <button
-                    key={stat.key}
-                    onClick={() => toggleFilter(stat.key)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: activeFilter === stat.key ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                      background: activeFilter === stat.key ? "var(--status-info-bg)" : "var(--surface-primary)",
-                      cursor: stat.count > 0 ? "pointer" : "default",
-                      opacity: stat.count > 0 ? 1 : 0.5,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      minWidth: 70,
-                    }}
-                    disabled={stat.count === 0}
-                  >
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>{stat.label}</div>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === stat.key ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{stat.count}</div>
-                  </button>
-                ))}
-              </div>
-
-              {/* Tree View */}
-              <div style={{
-                background: "var(--surface-primary)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                overflow: "hidden",
-                maxHeight: "calc(100vh - 400px)",
-                overflowY: "auto",
-              }}>
-                {slugsData.tree
-                  .filter(category => !activeFilter || category.name.toUpperCase() === activeFilter)
-                  .map((category) => (
-                  <SlugTreeCategory
-                    key={category.id}
-                    category={category}
-                    expanded={expandedSlugNodes.has(category.id)}
-                    expandedNodes={expandedSlugNodes}
-                    onToggle={toggleSlugNodeExpand}
-                    routePrefix={routePrefix}
-                  />
-                ))}
-                {slugsData.tree.length === 0 && (
-                  <div style={{ padding: 48, textAlign: "center", color: "var(--text-placeholder)" }}>
-                    No specs configured for this playbook
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <SlugsTabContent
+          slugsLoading={slugsLoading}
+          slugsData={slugsData}
+          activeFilter={activeFilter}
+          setActiveFilter={setActiveFilter}
+          toggleFilter={toggleFilter}
+          expandedSlugNodes={expandedSlugNodes}
+          toggleSlugNodeExpand={toggleSlugNodeExpand}
+          routePrefix={routePrefix}
+        />
       )}
 
       {/* Parameters Tab */}
       {activeTab === "parameters" && (
-        <div style={{ marginTop: 24 }}>
-          {parametersLoading ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Loading parameters...
-            </div>
-          ) : !parametersData ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Failed to load parameters data
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Summary - Clickable Filters */}
-              <div style={{
-                padding: 16,
-                background: "var(--background)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}>
-                <button
-                  onClick={() => setActiveFilter(null)}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: activeFilter === null ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                    background: activeFilter === null ? "var(--status-info-bg)" : "var(--surface-primary)",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    minWidth: 70,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>All</div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === null ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{parametersData.counts.parameters}</div>
-                </button>
-                {parametersData.categories.map(cat => (
-                  <button
-                    key={cat.category}
-                    onClick={() => toggleFilter(cat.category)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: activeFilter === cat.category ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                      background: activeFilter === cat.category ? "var(--status-info-bg)" : "var(--surface-primary)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      minWidth: 70,
-                    }}
-                  >
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>{cat.icon} {cat.category}</div>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === cat.category ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{cat.parameters.length}</div>
-                  </button>
-                ))}
-                <div style={{ marginLeft: "auto", position: "relative" }}>
-                  <input
-                    type="text"
-                    placeholder="Search parameters..."
-                    value={parameterSearch}
-                    onChange={(e) => setParameterSearch(e.target.value)}
-                    style={{
-                      padding: "8px 12px 8px 32px",
-                      borderRadius: 6,
-                      border: "1px solid var(--border-default)",
-                      background: "var(--surface-primary)",
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      width: 200,
-                      outline: "none",
-                    }}
-                  />
-                  <span style={{
-                    position: "absolute",
-                    left: 10,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--text-muted)",
-                    fontSize: 14,
-                    pointerEvents: "none",
-                  }}>🔍</span>
-                  {parameterSearch && (
-                    <button
-                      onClick={() => setParameterSearch("")}
-                      style={{
-                        position: "absolute",
-                        right: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--text-muted)",
-                        fontSize: 12,
-                        padding: 0,
-                      }}
-                    >✕</button>
-                  )}
-                </div>
-              </div>
-
-              {/* Categories */}
-              <div style={{
-                background: "var(--surface-primary)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                overflow: "hidden",
-                maxHeight: "calc(100vh - 400px)",
-                overflowY: "auto",
-              }}>
-                {parametersData.categories
-                  .filter(category => !activeFilter || activeFilter === category.category)
-                  .map((category) => {
-                    const searchLower = parameterSearch.toLowerCase();
-                    const filteredParams = parameterSearch
-                      ? category.parameters.filter(p =>
-                          p.parameterId.toLowerCase().includes(searchLower) ||
-                          p.name.toLowerCase().includes(searchLower) ||
-                          (p.definition && p.definition.toLowerCase().includes(searchLower))
-                        )
-                      : category.parameters;
-                    if (parameterSearch && filteredParams.length === 0) return null;
-                    return (
-                  <div key={category.category}>
-                    {/* Category Header */}
-                    <div
-                      onClick={() => toggleParamCategoryExpand(category.category)}
-                      style={{
-                        padding: "12px 16px",
-                        background: "var(--background)",
-                        borderBottom: "1px solid var(--border-default)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <span style={{ fontSize: 18 }}>{category.icon}</span>
-                      <span style={{ fontWeight: 600 }}>{category.category}</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({filteredParams.length}{parameterSearch && filteredParams.length !== category.parameters.length ? ` / ${category.parameters.length}` : ""})</span>
-                      <span style={{ marginLeft: "auto", color: "var(--text-placeholder)", fontSize: 12 }}>
-                        {expandedParamCategories.has(category.category) ? "▼" : "▶"}
-                      </span>
-                    </div>
-                    {/* Category Content */}
-                    {expandedParamCategories.has(category.category) && (
-                      <div style={{ padding: "8px 0" }}>
-                        {filteredParams.map((param) => (
-                          <div key={param.parameterId}>
-                            {/* Parameter Header */}
-                            <div
-                              onClick={() => toggleParamExpand(param.parameterId)}
-                              style={{
-                                padding: "8px 16px 8px 32px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                borderBottom: "1px solid var(--border-subtle)",
-                              }}
-                            >
-                              <span style={{
-                                fontSize: 11,
-                                fontFamily: "monospace",
-                                color: "var(--button-primary-bg)",
-                                background: "var(--status-info-bg)",
-                                padding: "2px 6px",
-                                borderRadius: 4,
-                              }}>
-                                {param.parameterId}
-                              </span>
-                              <span style={{ fontWeight: 500 }}>{param.name}</span>
-                              {param.sourceFeatureSet && (
-                                <a
-                                  href={`/lab/features/${param.sourceFeatureSet.id}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    fontSize: 10,
-                                    background: "var(--status-success-bg)",
-                                    color: "var(--status-success-text)",
-                                    padding: "1px 6px",
-                                    borderRadius: 3,
-                                    textDecoration: "none",
-                                  }}
-                                >
-                                  📦 {param.sourceFeatureSet.name}
-                                </a>
-                              )}
-                              {param.scoringAnchors.length > 0 && (
-                                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
-                                  {param.scoringAnchors.length} anchors
-                                </span>
-                              )}
-                              <span style={{ marginLeft: "auto", color: "var(--text-placeholder)", fontSize: 11 }}>
-                                {expandedParams.has(param.parameterId) ? "▼" : "▶"}
-                              </span>
-                            </div>
-                            {/* Parameter Details */}
-                            {expandedParams.has(param.parameterId) && (
-                              <div style={{ padding: "8px 16px 16px 48px", background: "var(--background)" }}>
-                                {param.definition && (
-                                  <div style={{ marginBottom: 8, color: "var(--text-secondary)", fontSize: 13 }}>
-                                    {param.definition}
-                                  </div>
-                                )}
-                                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 12, fontSize: 12 }}>
-                                  <div>
-                                    <span style={{ color: "var(--text-muted)" }}>Scale:</span>{" "}
-                                    <span style={{ fontWeight: 500 }}>{param.scaleType}</span>
-                                  </div>
-                                  <div>
-                                    <span style={{ color: "var(--text-muted)" }}>Type:</span>{" "}
-                                    <span style={{ fontWeight: 500 }}>{param.parameterType}</span>
-                                  </div>
-                                </div>
-                                {(param.interpretationHigh || param.interpretationLow) && (
-                                  <div style={{ marginBottom: 12, fontSize: 12 }}>
-                                    {param.interpretationHigh && (
-                                      <div style={{ marginBottom: 4 }}>
-                                        <span style={{ color: "var(--status-success-text)" }}>↑ High:</span>{" "}
-                                        <span style={{ color: "var(--text-secondary)" }}>{param.interpretationHigh}</span>
-                                      </div>
-                                    )}
-                                    {param.interpretationLow && (
-                                      <div>
-                                        <span style={{ color: "var(--status-error-text)" }}>↓ Low:</span>{" "}
-                                        <span style={{ color: "var(--text-secondary)" }}>{param.interpretationLow}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                                {/* Scoring Anchors */}
-                                {param.scoringAnchors.length > 0 && (
-                                  <div>
-                                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase" }}>
-                                      Scoring Anchors
-                                    </div>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                      {param.scoringAnchors.map((anchor) => (
-                                        <div
-                                          key={anchor.id}
-                                          style={{
-                                            padding: "8px 12px",
-                                            background: "var(--surface-primary)",
-                                            borderRadius: 6,
-                                            border: anchor.isGold ? "2px solid var(--status-warning-border)" : "1px solid var(--border-default)",
-                                          }}
-                                        >
-                                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                            <span style={{
-                                              fontWeight: 700,
-                                              fontSize: 14,
-                                              color: anchor.score >= 0.7 ? "var(--status-success-text)" : anchor.score <= 0.3 ? "var(--status-error-text)" : "var(--status-warning-text)",
-                                            }}>
-                                              {anchor.score.toFixed(1)}
-                                            </span>
-                                            {anchor.isGold && (
-                                              <span style={{ fontSize: 11, color: "var(--status-warning-text)", background: "var(--status-warning-bg)", padding: "1px 4px", borderRadius: 3 }}>
-                                                Gold
-                                              </span>
-                                            )}
-                                          </div>
-                                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, fontStyle: "italic" }}>
-                                            &ldquo;{anchor.example}&rdquo;
-                                          </div>
-                                          {anchor.rationale && (
-                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                                              {anchor.rationale}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                                {/* Used by Specs */}
-                                {param.usedBySpecs.length > 0 && (
-                                  <div style={{ marginTop: 12 }}>
-                                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Used by:</div>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                                      {param.usedBySpecs.map((spec) => (
-                                        <span
-                                          key={spec.specId}
-                                          style={{
-                                            fontSize: 10,
-                                            background: "var(--status-success-bg)",
-                                            color: "var(--status-success-text)",
-                                            padding: "2px 6px",
-                                            borderRadius: 3,
-                                            border: "1px solid var(--status-success-border)",
-                                          }}
-                                        >
-                                          {spec.specSlug}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-                })}
-                {parametersData.categories.length === 0 && (
-                  <div style={{ padding: 48, textAlign: "center", color: "var(--text-placeholder)" }}>
-                    No parameters found in this playbook
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <ParametersTabContent
+          parametersLoading={parametersLoading}
+          parametersData={parametersData}
+          activeFilter={activeFilter}
+          setActiveFilter={setActiveFilter}
+          toggleFilter={toggleFilter}
+          parameterSearch={parameterSearch}
+          setParameterSearch={setParameterSearch}
+          expandedParamCategories={expandedParamCategories}
+          toggleParamCategoryExpand={toggleParamCategoryExpand}
+          expandedParams={expandedParams}
+          toggleParamExpand={toggleParamExpand}
+        />
       )}
 
       {/* Triggers Tab */}
       {activeTab === "triggers" && (
-        <div style={{ marginTop: 24 }}>
-          {triggersLoading ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Loading triggers...
-            </div>
-          ) : !triggersData ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-              Failed to load triggers data
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Summary - Clickable Filters */}
-              <div style={{
-                padding: 16,
-                background: "var(--background)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}>
-                <button
-                  onClick={() => setActiveFilter(null)}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: activeFilter === null ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                    background: activeFilter === null ? "var(--status-info-bg)" : "var(--surface-primary)",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    minWidth: 70,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>All</div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === null ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{triggersData.counts.triggers}</div>
-                </button>
-                {triggersData.categories.map(cat => (
-                  <button
-                    key={cat.outputType}
-                    onClick={() => toggleFilter(cat.outputType)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: activeFilter === cat.outputType ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                      background: activeFilter === cat.outputType ? "var(--status-info-bg)" : "var(--surface-primary)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      minWidth: 70,
-                    }}
-                  >
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>{cat.icon} {cat.outputType}</div>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === cat.outputType ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{cat.specs.reduce((sum, s) => sum + s.triggers.length, 0)}</div>
-                  </button>
-                ))}
-              </div>
-
-              {/* Categories by Output Type */}
-              <div style={{
-                background: "var(--surface-primary)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                overflow: "hidden",
-                maxHeight: "calc(100vh - 400px)",
-                overflowY: "auto",
-              }}>
-                {triggersData.categories
-                  .filter(category => !activeFilter || activeFilter === category.outputType)
-                  .map((category) => (
-                  <div key={category.outputType}>
-                    {/* Output Type Header */}
-                    <div
-                      onClick={() => toggleTriggerCategoryExpand(category.outputType)}
-                      style={{
-                        padding: "12px 16px",
-                        background: "var(--background)",
-                        borderBottom: "1px solid var(--border-default)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <span style={{ fontSize: 18 }}>{category.icon}</span>
-                      <span style={{ fontWeight: 600 }}>{category.outputType}</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({category.specs.length} specs)</span>
-                      <span style={{ marginLeft: 8, color: "var(--text-placeholder)", fontSize: 11, fontStyle: "italic" }}>
-                        {category.description}
-                      </span>
-                      <span style={{ marginLeft: "auto", color: "var(--text-placeholder)", fontSize: 12 }}>
-                        {expandedTriggerCategories.has(category.outputType) ? "▼" : "▶"}
-                      </span>
-                    </div>
-                    {/* Specs in this category */}
-                    {expandedTriggerCategories.has(category.outputType) && (
-                      <div style={{ padding: "8px 0" }}>
-                        {category.specs.map((spec, specIdx) => (
-                          <div key={`${category.outputType}-${spec.specId}-${specIdx}`}>
-                            {/* Spec Header */}
-                            <div
-                              onClick={() => toggleTriggerSpecExpand(spec.specId)}
-                              style={{
-                                padding: "8px 16px 8px 32px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                borderBottom: "1px solid var(--border-subtle)",
-                              }}
-                            >
-                              <span style={{
-                                fontSize: 10,
-                                fontFamily: "monospace",
-                                color: "var(--status-success-text)",
-                                background: "var(--status-success-bg)",
-                                padding: "2px 6px",
-                                borderRadius: 4,
-                              }}>
-                                {spec.specSlug}
-                              </span>
-                              <span style={{ fontWeight: 500 }}>{spec.specName}</span>
-                              <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
-                                {spec.triggers.length} trigger{spec.triggers.length !== 1 ? "s" : ""}
-                              </span>
-                              <span style={{ marginLeft: "auto", color: "var(--text-placeholder)", fontSize: 11 }}>
-                                {expandedTriggerSpecs.has(spec.specId) ? "▼" : "▶"}
-                              </span>
-                            </div>
-                            {/* Triggers for this spec */}
-                            {expandedTriggerSpecs.has(spec.specId) && (
-                              <div style={{ padding: "8px 16px 8px 48px" }}>
-                                {spec.triggers.map((trigger, triggerIdx) => (
-                                  <div
-                                    key={trigger.id}
-                                    style={{
-                                      marginBottom: 12,
-                                      padding: 12,
-                                      background: "var(--status-warning-bg)",
-                                      borderRadius: 6,
-                                      border: "1px solid var(--status-warning-border)",
-                                    }}
-                                  >
-                                    {/* Trigger Header */}
-                                    <div
-                                      onClick={() => toggleTriggerItemExpand(trigger.id)}
-                                      style={{ cursor: "pointer", marginBottom: 8 }}
-                                    >
-                                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                        <span style={{ fontSize: 14 }}>⚡</span>
-                                        <span style={{ fontWeight: 600, fontSize: 13 }}>
-                                          {trigger.name || `Trigger ${triggerIdx + 1}`}
-                                        </span>
-                                        <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
-                                          ({trigger.actions.length} action{trigger.actions.length !== 1 ? "s" : ""})
-                                        </span>
-                                        <span style={{ marginLeft: "auto", color: "var(--text-placeholder)", fontSize: 10 }}>
-                                          {expandedTriggerItems.has(trigger.id) ? "▼" : "▶"}
-                                        </span>
-                                      </div>
-                                      {/* Given/When/Then */}
-                                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                                        <div><span style={{ color: "var(--badge-purple-text)", fontWeight: 500 }}>Given:</span> {trigger.given}</div>
-                                        <div><span style={{ color: "var(--status-warning-text)", fontWeight: 500 }}>When:</span> {trigger.when}</div>
-                                        <div><span style={{ color: "var(--status-success-text)", fontWeight: 500 }}>Then:</span> {trigger.then}</div>
-                                      </div>
-                                    </div>
-                                    {/* Actions */}
-                                    {expandedTriggerItems.has(trigger.id) && trigger.actions.length > 0 && (
-                                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--status-warning-border)" }}>
-                                        <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase" }}>
-                                          Actions
-                                        </div>
-                                        {trigger.actions.map((action) => (
-                                          <div
-                                            key={action.id}
-                                            style={{
-                                              padding: "6px 10px",
-                                              background: "var(--surface-primary)",
-                                              borderRadius: 4,
-                                              marginBottom: 4,
-                                              fontSize: 12,
-                                              border: "1px solid var(--border-default)",
-                                            }}
-                                          >
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                              <span>▶️</span>
-                                              <span style={{ flex: 1 }}>{action.description}</span>
-                                              <span style={{
-                                                fontSize: 10,
-                                                color: "var(--text-muted)",
-                                                background: "var(--surface-secondary)",
-                                                padding: "1px 4px",
-                                                borderRadius: 2,
-                                              }}>
-                                                w:{action.weight.toFixed(1)}
-                                              </span>
-                                            </div>
-                                            {action.parameterId && (
-                                              <div style={{ marginLeft: 24, fontSize: 11, color: "var(--button-primary-bg)" }}>
-                                                → {action.parameterName || action.parameterId}
-                                              </div>
-                                            )}
-                                            {action.learnCategory && (
-                                              <div style={{ marginLeft: 24, fontSize: 11, color: "var(--badge-purple-text)" }}>
-                                                → Learn: {action.learnCategory}
-                                                {action.learnKeyPrefix && ` (prefix: ${action.learnKeyPrefix})`}
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {triggersData.categories.length === 0 && (
-                  <div style={{ padding: 48, textAlign: "center", color: "var(--text-placeholder)" }}>
-                    No triggers found in this playbook
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <TriggersTabContent
+          triggersLoading={triggersLoading}
+          triggersData={triggersData}
+          activeFilter={activeFilter}
+          setActiveFilter={setActiveFilter}
+          toggleFilter={toggleFilter}
+          expandedTriggerCategories={expandedTriggerCategories}
+          toggleTriggerCategoryExpand={toggleTriggerCategoryExpand}
+          expandedTriggerSpecs={expandedTriggerSpecs}
+          toggleTriggerSpecExpand={toggleTriggerSpecExpand}
+          expandedTriggerItems={expandedTriggerItems}
+          toggleTriggerItemExpand={toggleTriggerItemExpand}
+        />
       )}
 
       {/* Visualizer Tab */}
@@ -5480,6 +4636,10 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
         </div>
       )}
 
+      {activeTab === "roster" && (
+        <RosterTabContent playbookId={playbookId} onCountChange={setRosterCount} />
+      )}
+
       {/* Config Override Modal */}
       {configModalSpec && (
         <ConfigOverrideModal
@@ -5489,791 +4649,19 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           onClose={handleCloseConfigModal}
         />
       )}
+
+      {/* Spec Picker Dialog */}
+      <TypePickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handlePickerSelect}
+        title="Add Spec to Playbook"
+        categories={pickerCategories}
+        items={pickerItems}
+        searchPlaceholder="Search specs..."
+        defaultCategory={pickerDefaultCategory}
+      />
     </div>
   );
 }
 
-// Explorer Tree Node Component (uses nodeIcons/nodeColors from ExplorerTree)
-function ExplorerTreeNode({
-  node,
-  depth,
-  expandedNodes,
-  selectedNode,
-  onToggle,
-  onSelect,
-  isLast = false,
-  parentLines = [],
-}: {
-  node: TreeNode;
-  depth: number;
-  expandedNodes: Set<string>;
-  selectedNode: TreeNode | null;
-  onToggle: (id: string) => void;
-  onSelect: (node: TreeNode) => void;
-  isLast?: boolean;
-  parentLines?: boolean[];
-}) {
-  const hasChildren = node.children && node.children.length > 0;
-  const isExpanded = expandedNodes.has(node.id);
-  const isSelected = selectedNode?.id === node.id;
-  const icon = nodeIcons[node.type] || "📄";
-  const colors = nodeColors[node.type] || nodeColors.config;
-
-  // Windows Explorer style [+]/[-] toggle box
-  const ToggleBox = () => {
-    if (!hasChildren) {
-      return <span style={{ width: 16, height: 16, display: "inline-block" }} />;
-    }
-    return (
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle(node.id);
-        }}
-        style={{
-          width: 16,
-          height: 16,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: "1px solid var(--text-placeholder)",
-          borderRadius: 2,
-          background: "var(--surface-primary)",
-          fontSize: 12,
-          fontWeight: 700,
-          color: "var(--text-muted)",
-          cursor: "pointer",
-          flexShrink: 0,
-          lineHeight: 1,
-          fontFamily: "monospace",
-        }}
-        title={isExpanded ? "Collapse" : "Expand"}
-      >
-        {isExpanded ? "−" : "+"}
-      </span>
-    );
-  };
-
-  return (
-    <div style={{ position: "relative" }}>
-      {/* Tree connector lines */}
-      {depth > 0 && (
-        <>
-          {/* Vertical lines from parent levels */}
-          {parentLines.map((showLine, i) => (
-            showLine && (
-              <div
-                key={i}
-                style={{
-                  position: "absolute",
-                  left: i * 20 + 8,
-                  top: 0,
-                  bottom: 0,
-                  width: 1,
-                  background: "var(--button-disabled-bg)",
-                }}
-              />
-            )
-          ))}
-          {/* Horizontal connector to this node */}
-          <div
-            style={{
-              position: "absolute",
-              left: (depth - 1) * 20 + 8,
-              top: 14,
-              width: 12,
-              height: 1,
-              background: "var(--button-disabled-bg)",
-            }}
-          />
-          {/* Vertical line segment for this level (if not last) */}
-          {!isLast && (
-            <div
-              style={{
-                position: "absolute",
-                left: (depth - 1) * 20 + 8,
-                top: 0,
-                bottom: 0,
-                width: 1,
-                background: "var(--button-disabled-bg)",
-              }}
-            />
-          )}
-          {/* Vertical line to horizontal for this node */}
-          <div
-            style={{
-              position: "absolute",
-              left: (depth - 1) * 20 + 8,
-              top: 0,
-              height: 15,
-              width: 1,
-              background: "var(--button-disabled-bg)",
-            }}
-          />
-        </>
-      )}
-
-      <div
-        data-node-id={node.id}
-        onClick={() => {
-          onSelect(node);
-        }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "4px 8px",
-          marginLeft: depth * 20,
-          borderRadius: 4,
-          cursor: "pointer",
-          background: isSelected ? colors.selectedBg : "transparent",
-          border: isSelected ? `1px solid ${colors.border}` : "1px solid transparent",
-          transition: "background 0.1s",
-          position: "relative",
-        }}
-        ref={(el) => {
-          // Scroll into view when selected
-          if (isSelected && el) {
-            el.scrollIntoView({ block: "nearest", behavior: "smooth" });
-          }
-        }}
-        onMouseEnter={(e) => {
-          if (!isSelected) e.currentTarget.style.background = "var(--hover-bg)";
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) e.currentTarget.style.background = "transparent";
-        }}
-      >
-        {/* Windows-style [+]/[-] Toggle Box */}
-        <ToggleBox />
-
-        {/* Node Icon */}
-        <span style={{ flexShrink: 0, fontSize: 14 }}>{icon}</span>
-
-        {/* Node Name */}
-        <span style={{
-          fontSize: 12,
-          fontWeight: isSelected ? 600 : 400,
-          color: isSelected ? colors.text : "var(--text-secondary)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
-          {node.name}
-        </span>
-
-        {/* Child Count Badge */}
-        {hasChildren && (
-          <span style={{
-            fontSize: 10,
-            color: "var(--text-muted)",
-            background: "var(--border-default)",
-            padding: "1px 5px",
-            borderRadius: 8,
-            marginLeft: "auto",
-            flexShrink: 0,
-          }}>
-            {node.children!.length}
-          </span>
-        )}
-      </div>
-
-      {/* Children */}
-      {hasChildren && isExpanded && (
-        <div>
-          {node.children!.map((child, index) => (
-            <ExplorerTreeNode
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              expandedNodes={expandedNodes}
-              selectedNode={selectedNode}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              isLast={index === node.children!.length - 1}
-              parentLines={[...parentLines, !isLast]}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Node Detail Panel Component
-function NodeDetailPanel({ node }: { node: TreeNode }) {
-  const icon = nodeIcons[node.type] || "📄";
-  const colors = nodeColors[node.type] || nodeColors.config;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Header */}
-      <div style={{
-        padding: "20px 24px",
-        borderBottom: "1px solid var(--border-default)",
-        background: colors.bg,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 32 }}>{icon}</span>
-          <div>
-            <span style={{
-              fontSize: 10,
-              textTransform: "uppercase",
-              color: colors.text,
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-            }}>
-              {node.type}
-            </span>
-            <h2 style={{
-              margin: "4px 0 0 0",
-              fontSize: 18,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-            }}>
-              {node.name}
-            </h2>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-        {/* Description */}
-        {node.description && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-              Description
-            </h3>
-            <p style={{
-              margin: 0,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              lineHeight: 1.6,
-              whiteSpace: "pre-wrap",
-            }}>
-              {node.description}
-            </p>
-          </div>
-        )}
-
-        {/* Metadata */}
-        {node.meta && Object.keys(node.meta).length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-              Properties
-            </h3>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 12,
-            }}>
-              {Object.entries(node.meta)
-                .filter(([k, v]) => v !== null && v !== undefined && k !== "fullTemplate" && k !== "fullDescription" && k !== "fullText")
-                .map(([key, value]) => (
-                  <div
-                    key={key}
-                    style={{
-                      padding: "10px 12px",
-                      background: "var(--background)",
-                      borderRadius: 6,
-                      border: "1px solid var(--border-default)",
-                    }}
-                  >
-                    <div style={{
-                      fontSize: 10,
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                      marginBottom: 4,
-                      fontWeight: 500,
-                    }}>
-                      {key}
-                    </div>
-                    <div style={{
-                      fontSize: 13,
-                      color: "var(--text-primary)",
-                      fontWeight: 500,
-                      wordBreak: "break-word",
-                    }}>
-                      {typeof value === "boolean"
-                        ? (value ? "✓ Yes" : "✗ No")
-                        : typeof value === "number"
-                        ? value.toLocaleString()
-                        : Array.isArray(value)
-                        ? value.join(", ")
-                        : typeof value === "object"
-                        ? JSON.stringify(value)
-                        : String(value)
-                      }
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Full Template Content (for template-content nodes) */}
-        {node.type === "template-content" && node.meta?.fullTemplate && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-              Full Template ({node.meta.length} chars)
-            </h3>
-            <pre style={{
-              margin: 0,
-              padding: 16,
-              background: "var(--code-bg)",
-              color: "var(--code-text)",
-              borderRadius: 8,
-              fontSize: 12,
-              lineHeight: 1.6,
-              overflow: "auto",
-              maxHeight: 400,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}>
-              {node.meta.fullTemplate}
-            </pre>
-          </div>
-        )}
-
-        {/* Full Description (for info nodes) */}
-        {node.type === "info" && node.meta?.fullDescription && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-              Full Description
-            </h3>
-            <p style={{
-              margin: 0,
-              padding: 16,
-              background: "var(--status-info-bg)",
-              borderRadius: 8,
-              border: "1px solid var(--status-info-border)",
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: "var(--status-info-text)",
-              whiteSpace: "pre-wrap",
-            }}>
-              {node.meta.fullDescription}
-            </p>
-          </div>
-        )}
-
-        {/* Instruction Content (for instruction nodes) */}
-        {node.type === "instruction" && node.meta?.fullText && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-              Instruction
-            </h3>
-            <p style={{
-              margin: 0,
-              padding: 16,
-              background: "var(--status-success-bg)",
-              borderRadius: 8,
-              border: "1px solid var(--status-success-border)",
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: "var(--status-success-text)",
-              whiteSpace: "pre-wrap",
-            }}>
-              {node.meta.fullText}
-            </p>
-          </div>
-        )}
-
-        {/* Children Summary */}
-        {node.children && node.children.length > 0 && (
-          <div>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-              Contains ({node.children.length} items)
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {node.children.slice(0, 10).map((child) => {
-                const childIcon = nodeIcons[child.type] || "📄";
-                const childColors = nodeColors[child.type] || nodeColors.config;
-                return (
-                  <div
-                    key={child.id}
-                    style={{
-                      padding: "10px 12px",
-                      background: childColors.bg,
-                      borderRadius: 6,
-                      border: `1px solid ${childColors.border}`,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                    }}
-                  >
-                    <span>{childIcon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: childColors.text,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}>
-                        {child.name}
-                      </div>
-                      {child.description && (
-                        <div style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}>
-                          {child.description}
-                        </div>
-                      )}
-                    </div>
-                    <span style={{
-                      fontSize: 9,
-                      padding: "2px 6px",
-                      background: "var(--surface-primary)",
-                      borderRadius: 4,
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                    }}>
-                      {child.type}
-                    </span>
-                  </div>
-                );
-              })}
-              {node.children.length > 10 && (
-                <div style={{
-                  padding: 12,
-                  textAlign: "center",
-                  color: "var(--text-muted)",
-                  fontSize: 12,
-                  background: "var(--background)",
-                  borderRadius: 6,
-                }}>
-                  ...and {node.children.length - 10} more items
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Slug Tree Components for the Slugs tab
-type SlugNodeType = {
-  id: string;
-  type: "category" | "spec" | "variable" | "value" | "produces";
-  name: string;
-  path?: string;
-  value?: string | number | boolean | null;
-  specId?: string;
-  specSlug?: string;
-  children?: SlugNodeType[];
-  meta?: Record<string, any>;
-};
-
-const slugCategoryIcons: Record<string, string> = {
-  IDENTITY: "🎭",
-  CONTENT: "📖",
-  VOICE: "🎙️",
-  MEASURE: "📊",
-  LEARN: "🧠",
-  ADAPT: "🔄",
-  REWARD: "⭐",
-  GUARDRAIL: "🛡️",
-  COMPOSE: "🧩",
-};
-
-const slugCategoryColors: Record<string, { bg: string; border: string; headerBg: string }> = {
-  IDENTITY: { bg: "var(--badge-blue-bg)", border: "var(--status-info-border)", headerBg: "var(--badge-blue-bg)" },
-  CONTENT: { bg: "var(--badge-green-bg)", border: "var(--status-success-border)", headerBg: "var(--badge-green-bg)" },
-  VOICE: { bg: "var(--status-warning-bg)", border: "var(--status-warning-border)", headerBg: "var(--badge-yellow-bg)" },
-  MEASURE: { bg: "var(--status-success-bg)", border: "var(--status-success-border)", headerBg: "var(--status-success-bg)" },
-  LEARN: { bg: "var(--badge-purple-bg)", border: "var(--badge-purple-text)", headerBg: "var(--badge-purple-bg)" },
-  ADAPT: { bg: "var(--badge-yellow-bg)", border: "var(--status-warning-border)", headerBg: "var(--badge-yellow-bg)" },
-  REWARD: { bg: "var(--badge-yellow-bg)", border: "var(--status-warning-border)", headerBg: "var(--badge-yellow-bg)" },
-  GUARDRAIL: { bg: "var(--status-error-bg)", border: "var(--status-error-border)", headerBg: "var(--status-error-bg)" },
-  COMPOSE: { bg: "var(--badge-pink-bg)", border: "var(--badge-pink-border)", headerBg: "var(--badge-pink-bg)" },
-};
-
-function SlugTreeCategory({
-  category,
-  expanded,
-  expandedNodes,
-  onToggle,
-  routePrefix,
-}: {
-  category: SlugNodeType;
-  expanded: boolean;
-  expandedNodes: Set<string>;
-  onToggle: (id: string) => void;
-  routePrefix: string;
-}) {
-  const icon = slugCategoryIcons[category.name] || "📋";
-  const colors = slugCategoryColors[category.name] || { bg: "var(--background)", border: "var(--border-default)", headerBg: "var(--surface-secondary)" };
-
-  return (
-    <div style={{ borderBottom: "1px solid var(--border-default)" }}>
-      {/* Category Header */}
-      <div
-        onClick={() => onToggle(category.id)}
-        style={{
-          padding: "14px 16px",
-          background: colors.headerBg,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
-        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          {expanded ? "▼" : "▶"}
-        </span>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-        <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{category.name}</span>
-        <span style={{
-          fontSize: 11,
-          padding: "2px 8px",
-          background: "var(--surface-primary)",
-          borderRadius: 10,
-          color: "var(--text-muted)",
-        }}>
-          {category.children?.length || 0} specs
-        </span>
-        {category.meta?.description && (
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{category.meta.description}</span>
-        )}
-      </div>
-
-      {/* Category Content */}
-      {expanded && category.children && category.children.length > 0 && (
-        <div style={{ background: colors.bg, padding: "8px 16px 16px 16px" }}>
-          {category.children.map((spec) => (
-            <SlugTreeSpec
-              key={spec.id}
-              spec={spec}
-              expanded={expandedNodes.has(spec.id)}
-              expandedNodes={expandedNodes}
-              onToggle={onToggle}
-              routePrefix={routePrefix}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SlugTreeSpec({
-  spec,
-  expanded,
-  expandedNodes,
-  onToggle,
-  routePrefix,
-}: {
-  spec: SlugNodeType;
-  expanded: boolean;
-  expandedNodes: Set<string>;
-  onToggle: (id: string) => void;
-  routePrefix: string;
-}) {
-  const hasChildren = spec.children && spec.children.length > 0;
-
-  return (
-    <div style={{
-      marginTop: 8,
-      background: "var(--surface-primary)",
-      borderRadius: 8,
-      border: "1px solid var(--border-default)",
-      overflow: "hidden",
-    }}>
-      {/* Spec Header */}
-      <div
-        onClick={() => hasChildren && onToggle(spec.id)}
-        style={{
-          padding: "10px 14px",
-          cursor: hasChildren ? "pointer" : "default",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          background: expanded ? "var(--background)" : "var(--surface-primary)",
-        }}
-      >
-        {hasChildren && (
-          <span style={{ fontSize: 10, color: "var(--text-placeholder)", width: 12 }}>
-            {expanded ? "▼" : "▶"}
-          </span>
-        )}
-        {!hasChildren && <span style={{ width: 12 }} />}
-        <span style={{ fontSize: 14 }}>📋</span>
-        {spec.specId ? (
-          <Link href={`${routePrefix}/specs/${spec.specId}`} onClick={(e) => e.stopPropagation()} style={{ fontWeight: 500, fontSize: 13, flex: 1, textDecoration: "none", color: "inherit" }}>{spec.name}</Link>
-        ) : (
-          <span style={{ fontWeight: 500, fontSize: 13, flex: 1 }}>{spec.name}</span>
-        )}
-        {spec.specSlug && spec.specId && (
-          <Link
-            href={`${routePrefix}/specs/${spec.specId}`}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              fontSize: 10,
-              padding: "2px 6px",
-              background: "var(--surface-secondary)",
-              borderRadius: 4,
-              color: "var(--button-primary-bg)",
-              textDecoration: "none",
-            }}
-          >
-            {spec.specSlug}
-          </Link>
-        )}
-        {spec.meta?.scope && (
-          <span style={{
-            fontSize: 9,
-            padding: "2px 6px",
-            background: spec.meta.scope === "SYSTEM" ? "var(--badge-blue-bg)" : "var(--status-success-bg)",
-            color: spec.meta.scope === "SYSTEM" ? "var(--status-info-text)" : "var(--status-success-text)",
-            borderRadius: 4,
-          }}>
-            {spec.meta.scope}
-          </span>
-        )}
-      </div>
-
-      {/* Spec Variables */}
-      {expanded && spec.children && spec.children.length > 0 && (
-        <div style={{ padding: "0 14px 14px 40px" }}>
-          {spec.children.map((node) => (
-            <SlugTreeNodeComponent
-              key={node.id}
-              node={node}
-              depth={0}
-              expanded={expandedNodes.has(node.id)}
-              expandedNodes={expandedNodes}
-              onToggle={onToggle}
-              routePrefix={routePrefix}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SlugTreeNodeComponent({
-  node,
-  depth,
-  expanded,
-  expandedNodes,
-  onToggle,
-  routePrefix,
-}: {
-  node: SlugNodeType;
-  depth: number;
-  expanded: boolean;
-  expandedNodes: Set<string>;
-  onToggle: (id: string) => void;
-  routePrefix: string;
-}) {
-  const hasChildren = node.children && node.children.length > 0;
-  const isProduces = node.type === "produces";
-
-  // Truncate value for display
-  const displayValue = (() => {
-    if (node.value === undefined || node.value === null) return null;
-    const str = String(node.value);
-    return str.length > 60 ? str.substring(0, 60) + "..." : str;
-  })();
-
-  return (
-    <div style={{ marginTop: depth === 0 ? 8 : 4 }}>
-      <div
-        onClick={() => hasChildren && onToggle(node.id)}
-        style={{
-          padding: "6px 10px",
-          paddingLeft: 10 + depth * 16,
-          cursor: hasChildren ? "pointer" : "default",
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 8,
-          background: isProduces ? "var(--status-warning-bg)" : (depth % 2 === 0 ? "var(--background)" : "var(--surface-primary)"),
-          borderRadius: 4,
-          fontSize: 12,
-        }}
-      >
-        {hasChildren && (
-          <span style={{ fontSize: 9, color: "var(--text-placeholder)", marginTop: 3 }}>
-            {expanded ? "▼" : "▶"}
-          </span>
-        )}
-        {!hasChildren && <span style={{ width: 9 }} />}
-
-        {isProduces ? (
-          <>
-            <span style={{ color: "var(--status-warning-text)", fontWeight: 500 }}>→ {node.name}:</span>
-            <span style={{ color: "var(--text-muted)", fontSize: 10 }}>{node.meta?.outputType}</span>
-          </>
-        ) : (
-          <>
-            <span style={{ fontFamily: "monospace", color: "var(--button-primary-bg)" }}>
-              {node.path || node.name}
-            </span>
-            {displayValue !== null && (
-              <span style={{
-                flex: 1,
-                color: "var(--text-secondary)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}>
-                → {displayValue}
-              </span>
-            )}
-            {node.meta?.isArray && (
-              <span style={{
-                fontSize: 10,
-                padding: "1px 5px",
-                background: "var(--status-info-bg)",
-                color: "var(--button-primary-bg)",
-                borderRadius: 3,
-              }}>
-                [{node.meta.count}]
-              </span>
-            )}
-            {node.meta?.linkTo && (
-              <Link
-                href={node.meta.linkTo}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  fontSize: 10,
-                  color: "var(--button-primary-bg)",
-                  textDecoration: "none",
-                }}
-              >
-                →
-              </Link>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Children */}
-      {expanded && node.children && node.children.length > 0 && (
-        <div>
-          {node.children.map((child) => (
-            <SlugTreeNodeComponent
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              expanded={expandedNodes.has(child.id)}
-              expandedNodes={expandedNodes}
-              onToggle={onToggle}
-              routePrefix={routePrefix}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

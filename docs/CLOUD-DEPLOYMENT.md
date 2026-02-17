@@ -1,7 +1,7 @@
 # Cloud Deployment: Data & Seeding Guide
 
-**Last Updated**: 2026-02-12
-**Status**: Pre-deployment (market test)
+**Last Updated**: 2026-02-14
+**Status**: Live (market test)
 
 This document covers the data architecture, seed process, and exact steps needed to bootstrap a fresh cloud instance. Read this before deploying.
 
@@ -321,3 +321,232 @@ After the initial seed, new data enters the system through:
 6. **Spec edits** — admins modify specs via UI (changes go to DB, not files)
 
 No re-seeding is needed after initial setup unless you want to add new spec files.
+
+---
+
+## Live Infrastructure
+
+| Resource | Details |
+|----------|---------|
+| **Cloud Run** | `hf-admin` — 512Mi, 1 CPU, 0-3 instances, europe-west2 |
+| **Cloud SQL** | `hf-db` — PostgreSQL 16, db-f1-micro, private IP only (172.23.0.3) |
+| **VPC Connector** | `hf-connector` — bridges Cloud Run → Cloud SQL |
+| **Artifact Registry** | `europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/` |
+| **Cloud Run Jobs** | `hf-migrate` (schema sync), `hf-seed` (seed scripts) |
+| **Secrets Manager** | `DATABASE_URL`, `AUTH_SECRET`, `HF_SUPERADMIN_TOKEN` |
+
+**URL**: `https://hf-admin-311250123759.europe-west2.run.app`
+**GCP Project**: `hf-admin-prod`
+**Estimated cost**: ~$17/mo (Cloud SQL $10 + VPC connector $7)
+
+---
+
+## Day-to-Day Development Workflow
+
+Local development is completely isolated from production. Nothing you do locally can affect live data.
+
+### Local stack
+
+```bash
+# Start local PostgreSQL (docker-compose.yml)
+docker compose up -d
+
+# Dev server on :3000
+cd apps/admin
+npm run dev
+```
+
+- Local `.env` points to `localhost:5432` — your docker-compose Postgres
+- Production uses Cloud SQL via private VPC — no overlap
+- Use `prisma db push` locally for fast schema iteration
+- Use `prisma migrate dev` when you want to create a migration for production
+
+### Development → Production flow
+
+```
+Local dev → Push to branch → PR → CI tests pass → Merge to main
+    → Build Docker image → Push to Artifact Registry
+    → Run migrations (if schema changed)
+    → Deploy to Cloud Run
+    → Smoke test /api/health
+```
+
+---
+
+## Deploying Changes to Production
+
+### Quick deploy (no schema changes)
+
+```bash
+cd apps/admin
+
+# 1. Build the runner image
+docker build --platform linux/amd64 --target runner \
+  -t europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest \
+  -f Dockerfile .
+
+# 2. Push to Artifact Registry
+docker push europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest
+
+# 3. Deploy to Cloud Run
+gcloud run deploy hf-admin \
+  --image=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest \
+  --region=europe-west2
+```
+
+Cloud Run performs a zero-downtime rolling update. The old container serves traffic until the new one passes health checks.
+
+### Deploy with schema changes
+
+When your branch includes new Prisma migrations, run migrations **before** deploying the new image (new code may depend on new columns/tables).
+
+```bash
+cd apps/admin
+
+# 1. Build + push the migrate image (includes new migration files)
+docker build --platform linux/amd64 --target migrate \
+  -t europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate:latest \
+  -f Dockerfile .
+docker push europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate:latest
+
+# 2. Run migrations
+gcloud run jobs execute hf-migrate --region=europe-west2 --wait
+
+# 3. Build + push + deploy the runner image (same as quick deploy)
+docker build --platform linux/amd64 --target runner \
+  -t europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest \
+  -f Dockerfile .
+docker push europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest
+gcloud run deploy hf-admin \
+  --image=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest \
+  --region=europe-west2
+```
+
+### Deploy with new specs
+
+If you've added or changed spec JSON files in `docs-archive/bdd-specs/`:
+
+```bash
+cd apps/admin
+
+# 1. Build + push the seed image
+docker build --platform linux/amd64 --target seed \
+  -t europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest \
+  -f Dockerfile .
+docker push europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest
+
+# 2. Run seeding (upserts — safe for existing data)
+gcloud run jobs execute hf-seed --region=europe-west2 --wait
+```
+
+### Order of operations
+
+| Scenario | Steps |
+|----------|-------|
+| Code-only change | Build runner → Push → Deploy |
+| Schema change | Build migrate → Push → Run migrate job → Build runner → Push → Deploy |
+| New specs | Build seed → Push → Run seed job → Build runner → Push → Deploy |
+| Schema + specs + code | Migrate → Seed → Deploy runner (in that order) |
+
+---
+
+## What Happens to Existing User Data
+
+**User data is safe across all normal deployments.**
+
+### Why deployments don't affect user data
+
+| Operation | Effect on user data |
+|-----------|-------------------|
+| Deploy new runner image | None. Cloud Run swaps containers; DB is external (Cloud SQL) |
+| `prisma migrate deploy` | Additive only — adds columns, tables, indexes. Never drops existing data unless the migration explicitly does |
+| Re-seed specs (`seed-clean.ts`) | Upserts specs, contracts, and parameters only. Does NOT touch Caller, Call, CallerMemory, Observation, or Session tables |
+| Cloud Run scales to 0 | None. DB persists independently. Next request spins up a new container |
+
+### What WOULD affect user data (never do these accidentally)
+
+| Action | Effect | When to use |
+|--------|--------|-------------|
+| `prisma migrate reset` | **Wipes entire database** | Never on production |
+| `prisma db push --force-reset` | **Wipes entire database** | Never on production |
+| Migration with `DROP TABLE` / `DROP COLUMN` | Loses that table/column's data | Only after careful review and data backup |
+| `prisma/reset.ts` | Deletes all rows (preserves schema) | Only for full reset with intent |
+
+### Data architecture separation
+
+```
+Seed data (safe to re-run):          User data (never overwritten):
+├── AnalysisSpec                     ├── Caller
+├── Parameter                        ├── Call
+├── ScoringAnchor                    ├── CallerMemory
+├── PromptSlug                       ├── Observation
+├── BDDFeatureSet                    ├── Session
+├── SystemSetting (contracts)        ├── PersonalityProfile
+└── Domain                           └── User
+```
+
+---
+
+## Rollback
+
+### Roll back the application (no schema change to undo)
+
+Cloud Run keeps previous revisions. To roll back:
+
+```bash
+# List recent revisions
+gcloud run revisions list --service=hf-admin --region=europe-west2
+
+# Route traffic back to previous revision
+gcloud run services update-traffic hf-admin \
+  --to-revisions=PREVIOUS_REVISION_NAME=100 \
+  --region=europe-west2
+```
+
+### Roll back a migration
+
+Prisma doesn't support automatic migration rollback. If a migration causes issues:
+
+1. Write a new migration that reverses the change (`prisma migrate dev --name rollback_xyz`)
+2. Deploy the rollback migration via `hf-migrate` job
+3. Deploy the previous runner image
+
+### Worst case: restore from backup
+
+Cloud SQL has automated daily backups. To restore:
+
+```bash
+gcloud sql backups list --instance=hf-db
+gcloud sql backups restore BACKUP_ID --restore-instance=hf-db
+```
+
+---
+
+## Smoke Tests
+
+After every deploy, verify the instance is healthy:
+
+```bash
+APP_URL="https://hf-admin-311250123759.europe-west2.run.app"
+
+# Health check
+curl -f "$APP_URL/api/health"
+
+# Readiness (DB connected, specs loaded)
+curl -f "$APP_URL/api/ready"
+
+# System readiness (detailed)
+curl -f "$APP_URL/api/system/readiness"
+```
+
+---
+
+## Gotchas
+
+| Issue | Detail |
+|-------|--------|
+| **Private IP only** | Cloud SQL has no public IP (GCP org policy). Cannot connect from local machine. Use Cloud Run Jobs for all DB operations |
+| **AUTH_TRUST_HOST=true** | Required for Auth.js v5 on Cloud Run — without it, auth redirects fail |
+| **Runner can't seed** | Production image is intentionally minimal. Use the `seed` Docker target or Cloud Run job |
+| **db push vs migrate** | Local dev uses `prisma db push`. Production uses `prisma migrate deploy` (or `db push` via Cloud Run job if migrations are out of sync) |
+| **Seed image needs tsconfig.json** | For `@/` path alias resolution in seed scripts |

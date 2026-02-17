@@ -4,53 +4,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { useSession } from "next-auth/react";
 import { EntityBreadcrumb, useEntityContext } from "./EntityContext";
 
-export type ChatMode = "CHAT" | "DATA" | "SPEC";
+export type ChatMode = "DATA";
 export type ChatLayout = "vertical" | "horizontal" | "popout";
-
-// Types for messaging system
-export interface InboxMessage {
-  id: string;
-  senderId: string;
-  sender: { id: string; name: string | null; email: string; image: string | null };
-  recipientId: string;
-  recipient: { id: string; name: string | null; email: string; image: string | null };
-  subject: string | null;
-  content: string;
-  readAt: string | null;
-  parentId: string | null;
-  createdAt: string;
-  _count?: { replies: number };
-}
-
-// Types for ticketing system
-export interface Ticket {
-  id: string;
-  ticketNumber: number;
-  creatorId: string;
-  creator: { id: string; name: string | null; email: string; image: string | null };
-  assigneeId: string | null;
-  assignee: { id: string; name: string | null; email: string; image: string | null } | null;
-  title: string;
-  description: string;
-  status: "OPEN" | "IN_PROGRESS" | "WAITING" | "RESOLVED" | "CLOSED";
-  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-  category: "BUG" | "FEATURE" | "QUESTION" | "SUPPORT" | "OTHER";
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
-  resolvedAt: string | null;
-  _count?: { comments: number };
-}
-
-export interface TicketComment {
-  id: string;
-  ticketId: string;
-  authorId: string;
-  author: { id: string; name: string | null; email: string; image: string | null };
-  content: string;
-  isInternal: boolean;
-  createdAt: string;
-}
 
 export interface ChatMessage {
   id: string;
@@ -64,6 +19,7 @@ export interface ChatMessage {
     entityContext?: EntityBreadcrumb[];
     isStreaming?: boolean;
     error?: string;
+    toolCalls?: number;
   };
 }
 
@@ -75,17 +31,6 @@ interface ChatState {
   isStreaming: boolean;
   streamingMessageId: string | null;
   error: string | null;
-  // Guidance directives from AI responses
-  pendingGuidance: GuidanceDirective[];
-  // Inbox/Tickets state - DEPRECATED (moved to separate features)
-  // inboxMessages: InboxMessage[];
-  // inboxLoading: boolean;
-  // selectedMessageId: string | null;
-  // unreadCount: number;
-  // tickets: Ticket[];
-  // ticketsLoading: boolean;
-  // selectedTicketId: string | null;
-  // ticketStats: { open: number; inProgress: number; myAssigned: number } | null;
 }
 
 interface ChatActions {
@@ -101,17 +46,6 @@ interface ChatActions {
   clearHistory: (mode?: ChatMode) => void;
   cancelStream: () => void;
   setError: (error: string | null) => void;
-  // Inbox/Tickets actions - DEPRECATED (moved to separate features)
-  // fetchInbox: () => Promise<void>;
-  // selectMessage: (id: string | null) => void;
-  // sendInboxMessage: (recipientId: string, content: string, subject?: string, parentId?: string) => Promise<void>;
-  // fetchTickets: () => Promise<void>;
-  // selectTicket: (id: string | null) => void;
-  // createTicket: (data: { title: string; description: string; priority?: string; category?: string; assigneeId?: string }) => Promise<void>;
-  // updateTicket: (id: string, data: Partial<Ticket>) => Promise<void>;
-  // addTicketComment: (ticketId: string, content: string) => Promise<void>;
-  // Guidance actions
-  consumeGuidance: () => GuidanceDirective[];
 }
 
 type ChatContextValue = ChatState & ChatActions;
@@ -132,23 +66,11 @@ function getSettingsKey(userId: string | undefined): string {
 
 // Mode display configuration
 export const MODE_CONFIG: Record<ChatMode, { label: string; icon: string; color: string; description: string }> = {
-  CHAT: {
-    label: "Chat",
-    icon: "💬",
-    color: "#3b82f6",
-    description: "General AI assistance",
-  },
   DATA: {
     label: "Data",
     icon: "📊",
     color: "#10b981",
     description: "Context-aware data exploration",
-  },
-  SPEC: {
-    label: "Spec",
-    icon: "📋",
-    color: "#8b5cf6",
-    description: "Spec development assistant",
   },
 };
 
@@ -156,53 +78,9 @@ function generateId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Guidance directive parsing
-export interface GuidanceDirective {
-  action: "highlight";
-  target: string;
-  type?: "pulse" | "flash" | "glow";
-  message?: string;
-}
-
-/**
- * Parse guidance blocks from AI response content.
- * Returns the cleaned content and any parsed directives.
- */
-export function parseGuidanceFromContent(content: string): {
-  cleanContent: string;
-  directives: GuidanceDirective[];
-} {
-  const directives: GuidanceDirective[] = [];
-
-  // Match ```guidance ... ``` blocks
-  const guidanceRegex = /```guidance\s*([\s\S]*?)```/g;
-  let match;
-
-  while ((match = guidanceRegex.exec(content)) !== null) {
-    try {
-      const json = match[1].trim();
-      const directive = JSON.parse(json) as GuidanceDirective;
-      if (directive.action === "highlight" && directive.target) {
-        directives.push(directive);
-      }
-    } catch {
-      // Ignore malformed guidance blocks
-    }
-  }
-
-  // Remove guidance blocks from content for cleaner display
-  const cleanContent = content.replace(guidanceRegex, "").trim();
-
-  return { cleanContent, directives };
-}
-
 function createEmptyMessages(): Record<ChatMode, ChatMessage[]> {
   return {
-    CHAT: [],
     DATA: [],
-    SPEC: [],
-    INBOX: [],    // Not used for AI chat, but needed for type consistency
-    TICKETS: [],  // Not used for AI chat, but needed for type consistency
   };
 }
 
@@ -249,16 +127,14 @@ function persistMessages(messages: Record<ChatMode, ChatMessage[]>, userId: stri
 }
 
 function loadSettings(userId: string | undefined): { isOpen: boolean; mode: ChatMode; chatLayout: ChatLayout } {
-  if (typeof window === "undefined") return { isOpen: false, mode: "CHAT", chatLayout: "vertical" };
+  if (typeof window === "undefined") return { isOpen: false, mode: "DATA", chatLayout: "vertical" };
   try {
     const stored = localStorage.getItem(getSettingsKey(userId));
-    if (!stored) return { isOpen: false, mode: "CHAT", chatLayout: "vertical" };
+    if (!stored) return { isOpen: false, mode: "DATA", chatLayout: "vertical" };
     const parsed = JSON.parse(stored);
-    // Handle migration: if stored mode is CALL, default to CHAT
-    const mode = parsed.mode === "CALL" ? "CHAT" : (parsed.mode || "CHAT");
-    return { isOpen: false, mode, chatLayout: parsed.chatLayout || "vertical" };
+    return { isOpen: false, mode: "DATA", chatLayout: parsed.chatLayout || "vertical" };
   } catch {
-    return { isOpen: false, mode: "CHAT", chatLayout: "vertical" };
+    return { isOpen: false, mode: "DATA", chatLayout: "vertical" };
   }
 }
 
@@ -276,7 +152,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const userId = session?.user?.id;
 
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setModeState] = useState<ChatMode>("CHAT");
+  const [mode, setModeState] = useState<ChatMode>("DATA");
   const [chatLayout, setChatLayoutState] = useState<ChatLayout>("vertical");
   const [messages, setMessages] = useState<Record<ChatMode, ChatMessage[]>>(createEmptyMessages);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -284,21 +160,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [lastUserId, setLastUserId] = useState<string | undefined>(undefined);
-
-  // Inbox/Tickets state - DEPRECATED (moved to separate features)
-  // const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
-  // const [inboxLoading, setInboxLoading] = useState(false);
-  // const [inboxFetched, setInboxFetched] = useState(false);
-  // const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  // const [unreadCount, setUnreadCount] = useState(0);
-  // const [tickets, setTickets] = useState<Ticket[]>([]);
-  // const [ticketsLoading, setTicketsLoading] = useState(false);
-  // const [ticketsFetched, setTicketsFetched] = useState(false);
-  // const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  // const [ticketStats, setTicketStats] = useState<{ open: number; inProgress: number; myAssigned: number } | null>(null);
-
-  // Guidance directives from AI responses
-  const [pendingGuidance, setPendingGuidance] = useState<GuidanceDirective[]>([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -556,21 +417,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           updateMessage(assistantId, { content: accumulatedContent });
         }
 
-        // Parse guidance from the accumulated content
-        const { cleanContent, directives } = parseGuidanceFromContent(accumulatedContent);
-        if (directives.length > 0) {
-          console.log("[ChatContext] Found guidance directives:", directives);
-          setPendingGuidance(directives);
-          // Update message with cleaned content (without guidance block)
-          updateMessage(assistantId, {
-            content: cleanContent,
-            metadata: { isStreaming: false, entityContext: entityContext.breadcrumbs },
-          });
-        } else {
-          updateMessage(assistantId, {
-            metadata: { isStreaming: false, entityContext: entityContext.breadcrumbs },
-          });
-        }
+        // Capture tool call count from response header
+        const toolCallsHeader = response.headers.get("X-Tool-Calls");
+        const toolCalls = toolCallsHeader ? parseInt(toolCallsHeader, 10) : undefined;
+
+        updateMessage(assistantId, {
+          metadata: { isStreaming: false, entityContext: entityContext.breadcrumbs, toolCalls },
+        });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
           updateMessage(assistantId, {
@@ -594,57 +447,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [mode, isStreaming, entityContext.breadcrumbs, messages, addMessage, updateMessage, appendToMessage]
   );
 
-  // ========================
-  // INBOX/TICKETS ACTIONS - DEPRECATED (moved to separate features)
-  // ========================
-
-  // Commented out - these features are now accessed through separate pages/components
-
-  /*
-  const fetchInbox = useCallback(async () => { ... }, []);
-  const selectMessage = useCallback((id: string | null) => { ... }, []);
-  const sendInboxMessage = useCallback(async (recipientId: string, content: string, subject?: string, parentId?: string) => { ... }, [fetchInbox]);
-  const fetchTickets = useCallback(async () => { ... }, []);
-  const selectTicket = useCallback((id: string | null) => { ... }, []);
-  const createTicket = useCallback(async (data: { ... }) => { ... }, [fetchTickets]);
-  const updateTicket = useCallback(async (id: string, data: Partial<Ticket>) => { ... }, []);
-  const addTicketComment = useCallback(async (ticketId: string, content: string) => { ... }, []);
-  */
-
-  // Consume and clear pending guidance directives
-  const consumeGuidance = useCallback((): GuidanceDirective[] => {
-    const directives = [...pendingGuidance];
-    setPendingGuidance([]);
-    return directives;
-  }, [pendingGuidance]);
-
-  // Fetch inbox/tickets when mode changes - DEPRECATED (commented out)
-  // useEffect(() => {
-  //   if (mode === "INBOX" && !inboxFetched && !inboxLoading) {
-  //     fetchInbox();
-  //   } else if (mode === "TICKETS" && !ticketsFetched && !ticketsLoading) {
-  //     fetchTickets();
-  //   }
-  // }, [mode, inboxFetched, ticketsFetched, inboxLoading, ticketsLoading, fetchInbox, fetchTickets]);
-
-  // Poll for unread count - DEPRECATED (commented out)
-  // useEffect(() => {
-  //   if (!isOpen) return;
-  //   const pollUnread = async () => {
-  //     try {
-  //       const res = await fetch("/api/messages/unread-count");
-  //       if (res.ok) {
-  //         const data = await res.json();
-  //         if (data.ok) setUnreadCount(data.count);
-  //       }
-  //     } catch {
-  //       // Ignore polling errors
-  //     }
-  //   };
-  //   const interval = setInterval(pollUnread, 30000);
-  //   return () => clearInterval(interval);
-  // }, [isOpen]);
-
   const value: ChatContextValue = {
     // State
     isOpen,
@@ -654,8 +456,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     isStreaming,
     streamingMessageId,
     error,
-    // Guidance state
-    pendingGuidance,
     // Actions
     togglePanel,
     openPanel,
@@ -669,8 +469,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     clearHistory,
     cancelStream,
     setError,
-    // Guidance actions
-    consumeGuidance,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

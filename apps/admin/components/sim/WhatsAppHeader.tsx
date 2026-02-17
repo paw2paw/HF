@@ -1,17 +1,19 @@
 'use client';
 
-import { ArrowLeft, Phone, PhoneOff } from 'lucide-react';
+import { ArrowLeft, Phone, PhoneOff, FolderOpen } from 'lucide-react';
 
 interface WhatsAppHeaderProps {
   title: string;
   subtitle?: string;
   onBack?: () => void;
   onEndCall?: () => void;
+  onMediaLibrary?: () => void;
+  mediaLibraryActive?: boolean;
   callActive?: boolean;
   avatarColor?: string;
 }
 
-export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, callActive, avatarColor = '#6B7B8D' }: WhatsAppHeaderProps) {
+export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibrary, mediaLibraryActive, callActive, avatarColor = '#6B7B8D' }: WhatsAppHeaderProps) {
   const initials = title.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
@@ -28,6 +30,17 @@ export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, callActive,
         <div className="wa-header-title">{title}</div>
         {subtitle && <div className="wa-header-subtitle">{subtitle}</div>}
       </div>
+      {onMediaLibrary && (
+        <button
+          className="wa-back-btn"
+          onClick={onMediaLibrary}
+          aria-label="Shared files"
+          title="Shared files"
+          style={{ color: mediaLibraryActive ? '#4338ca' : undefined }}
+        >
+          <FolderOpen size={20} />
+        </button>
+      )}
       {callActive && onEndCall && (
         <button
           className="wa-back-btn"

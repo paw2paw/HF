@@ -90,7 +90,7 @@ describe('learner/profile.ts', () => {
         (c: any) => c[0].create.stringValue === 'visual'
       );
       expect(learningStyleCall).toBeDefined();
-      expect(learningStyleCall[0].where.callerId_key_scope.scope).toBe('LEARNER_PROFILE');
+      expect(learningStyleCall![0].where.callerId_key_scope.scope).toBe('LEARNER_PROFILE');
     });
 
     it('stores pace preference with contract-defined key', async () => {
@@ -126,7 +126,7 @@ describe('learner/profile.ts', () => {
       const learningStyleCall = mockPrisma.callerAttribute.upsert.mock.calls.find(
         (c: any) => c[0].create.stringValue === 'visual'
       );
-      expect(learningStyleCall[0].create.confidence).toBe(0.7);
+      expect(learningStyleCall![0].create.confidence).toBe(0.7);
     });
 
     it('accepts custom confidence', async () => {
@@ -135,7 +135,7 @@ describe('learner/profile.ts', () => {
       const learningStyleCall = mockPrisma.callerAttribute.upsert.mock.calls.find(
         (c: any) => c[0].create.stringValue === 'visual'
       );
-      expect(learningStyleCall[0].create.confidence).toBe(0.95);
+      expect(learningStyleCall![0].create.confidence).toBe(0.95);
     });
 
     it('throws when contract not loaded', async () => {

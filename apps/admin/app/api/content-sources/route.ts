@@ -3,8 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/content-sources
- * List all content sources with optional filtering
+ * @api GET /api/content-sources
+ * @visibility internal
+ * @scope content:read
+ * @auth session
+ * @tags content
+ * @description List all content sources with optional filtering by trust level, qualification, and active status.
+ * @query trustLevel string - Filter by trust level
+ * @query qualificationRef string - Filter by qualification reference (case-insensitive contains)
+ * @query activeOnly string - "false" to include inactive sources (default: true)
+ * @response 200 { sources: [...] }
+ * @response 500 { error: "..." }
  */
 export async function GET(req: NextRequest) {
   try {
@@ -53,8 +62,22 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/content-sources
- * Create a new content source
+ * @api POST /api/content-sources
+ * @visibility internal
+ * @scope content:create
+ * @auth session
+ * @tags content
+ * @description Create a new content source with provenance metadata.
+ * @body slug string - Unique slug (required)
+ * @body name string - Display name (required)
+ * @body description string - Source description
+ * @body trustLevel string - Trust level (default: UNVERIFIED)
+ * @body publisherOrg string - Publisher organization
+ * @body qualificationRef string - Qualification reference
+ * @response 201 { source: {...} }
+ * @response 400 { error: "slug and name are required" }
+ * @response 409 { error: "A content source with this slug already exists" }
+ * @response 500 { error: "..." }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -67,6 +90,7 @@ export async function POST(req: NextRequest) {
       name,
       description,
       trustLevel,
+      documentType,
       publisherOrg,
       accreditingBody,
       accreditationRef,
@@ -94,6 +118,7 @@ export async function POST(req: NextRequest) {
         name,
         description,
         trustLevel: trustLevel || "UNVERIFIED",
+        ...(documentType ? { documentType, documentTypeSource: "admin:manual" } : {}),
         publisherOrg,
         accreditingBody,
         accreditationRef,

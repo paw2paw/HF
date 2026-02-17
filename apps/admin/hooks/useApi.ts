@@ -6,11 +6,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
  * Standard API response shape used by most endpoints.
  * Endpoints return { ok: true, ...data } on success or { ok: false, error: string } on failure.
  */
-export interface ApiResponse<T> {
+export type ApiResponse<T> = {
   ok: boolean;
   error?: string;
-  [key: string]: unknown;
-}
+} & Record<string, any>;
 
 export interface UseApiOptions<T> {
   /** Skip initial fetch (useful for conditional loading) */

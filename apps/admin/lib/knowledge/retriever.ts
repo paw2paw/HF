@@ -3,11 +3,13 @@
  *
  * Retrieves relevant knowledge chunks from the database to inject
  * into prompts, making the LLM "expert" in the ingested domain.
+ *
+ * Supports hybrid search: pgvector cosine similarity + keyword fallback.
  */
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { toVectorLiteral } from "@/lib/embeddings";
 
 export interface KnowledgeChunkResult {
   id: string;
@@ -21,6 +23,8 @@ export interface KnowledgeChunkResult {
 export interface RetrievalParams {
   /** Text to match against (e.g., transcript excerpt) */
   queryText?: string;
+  /** Pre-computed query embedding for vector search */
+  queryEmbedding?: number[];
   /** Call ID to get transcript from */
   callId?: string;
   /** Caller ID for personalized retrieval */
@@ -38,8 +42,8 @@ export interface RetrievalParams {
  *
  * Strategy priority:
  * 1. If parameterId provided, get pre-linked chunks first
- * 2. If queryText provided, use keyword matching (vector search TODO)
- * 3. If callId provided, get transcript and use that as queryText
+ * 2. If queryEmbedding provided, use vector similarity search
+ * 3. If queryText provided, use keyword matching (fallback)
  * 4. Fall back to recent/popular chunks
  */
 export async function retrieveKnowledgeForPrompt(
@@ -64,7 +68,17 @@ export async function retrieveKnowledgeForPrompt(
     queryText = await getTranscriptText(params.callId);
   }
 
-  // Strategy 3: Keyword search if we have query text
+  // Strategy 3: Vector search (if embedding provided)
+  if (params.queryEmbedding && results.length < limit) {
+    const vectorResults = await searchByVectorSimilarity(
+      params.queryEmbedding,
+      limit - results.length,
+      minRelevance,
+    );
+    results.push(...vectorResults);
+  }
+
+  // Strategy 4: Keyword search (fallback or supplement)
   if (queryText && results.length < limit) {
     const keywords = extractKeywords(queryText);
     if (keywords.length > 0) {
@@ -73,7 +87,7 @@ export async function retrieveKnowledgeForPrompt(
     }
   }
 
-  // Strategy 4: Fall back to recent knowledge chunks
+  // Strategy 5: Fall back to recent knowledge chunks
   if (results.length < limit) {
     const recent = await getRecentChunks(limit - results.length);
     results.push(...recent);
@@ -119,8 +133,7 @@ async function getLinkedChunksForParameter(
 }
 
 /**
- * Search chunks by keyword matching (simple LIKE query)
- * TODO: Replace with vector similarity search when embeddings are ready
+ * Search chunks by keyword matching (LIKE query — fallback when no embeddings)
  */
 async function searchByKeywords(
   keywords: string[],
@@ -229,27 +242,44 @@ function extractKeywords(text: string, maxKeywords = 10): string[] {
 }
 
 /**
- * Vector similarity search (placeholder - needs pgvector)
- * TODO: Implement when embeddings are stored
+ * Vector similarity search using pgvector cosine distance.
+ * Returns chunks ordered by semantic similarity to the query embedding.
  */
 export async function searchByVectorSimilarity(
   queryEmbedding: number[],
   limit: number,
   minScore = 0.5
 ): Promise<KnowledgeChunkResult[]> {
-  // This requires pgvector extension and stored embeddings
-  // For now, return empty - will be implemented in Phase 2
+  const vectorLiteral = toVectorLiteral(queryEmbedding);
 
-  // Future implementation:
-  // const results = await prisma.$queryRaw`
-  //   SELECT c.*, v."embeddingData" <=> ${queryEmbedding}::vector as distance
-  //   FROM "KnowledgeChunk" c
-  //   JOIN "VectorEmbedding" v ON c.id = v."chunkId"
-  //   WHERE 1 - (v."embeddingData" <=> ${queryEmbedding}::vector) >= ${minScore}
-  //   ORDER BY distance ASC
-  //   LIMIT ${limit}
-  // `;
+  const rows = await prisma.$queryRaw<Array<{
+    id: string;
+    content: string;
+    chunkIndex: number;
+    title: string | null;
+    sourcePath: string;
+    similarity: number;
+  }>>(
+    Prisma.sql`
+      SELECT c.id, c.content, c."chunkIndex", d.title, d."sourcePath",
+             1 - (v.embedding <=> ${vectorLiteral}::vector) as similarity
+      FROM "KnowledgeChunk" c
+      JOIN "VectorEmbedding" v ON c.id = v."chunkId"
+      JOIN "KnowledgeDoc" d ON c."docId" = d.id
+      WHERE v.embedding IS NOT NULL
+      ORDER BY v.embedding <=> ${vectorLiteral}::vector
+      LIMIT ${limit}
+    `
+  );
 
-  console.log("[Vector Search] Not yet implemented - using keyword fallback");
-  return [];
+  return rows
+    .filter((r) => r.similarity >= minScore)
+    .map((r) => ({
+      id: r.id,
+      title: r.title ?? undefined,
+      content: r.content,
+      relevanceScore: r.similarity,
+      sourcePath: r.sourcePath,
+      chunkIndex: r.chunkIndex,
+    }));
 }

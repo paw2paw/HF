@@ -3,24 +3,40 @@
  * Provides standard test users and entities
  */
 
+const seedPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+
 export const TestUsers = {
   ADMIN: {
     email: 'admin@test.com',
-    password: 'admin123',
+    password: seedPassword,
     role: 'ADMIN',
     name: 'Admin User',
   },
   ALICE: {
     email: 'alice@test.com',
-    password: 'admin123',
+    password: seedPassword,
     role: 'USER',
     name: 'Alice Test',
   },
   BOB: {
     email: 'bob@test.com',
-    password: 'admin123',
+    password: seedPassword,
     role: 'USER',
     name: 'Bob Test',
+  },
+  /** Educator from seed-educator-demo.ts (Oakwood Primary, class 5A) */
+  EDUCATOR: {
+    email: 'j.chen@oakwood.sch.uk',
+    password: seedPassword,
+    role: 'EDUCATOR',
+    name: 'James Chen',
+  },
+  /** Head teacher / admin at Oakwood Primary */
+  SCHOOL_ADMIN: {
+    email: 's.thompson@oakwood.sch.uk',
+    password: seedPassword,
+    role: 'ADMIN',
+    name: 'Sarah Thompson',
   },
 } as const;
 
@@ -66,4 +82,19 @@ export const StorageKeys = {
   PALETTE_DARK: 'palette-dark',
   CHAT_LAYOUT: 'chatLayout',
   CHAT_MODE: 'chatMode',
+} as const;
+
+/**
+ * Cloud E2E test data — matches entities created by prisma/seed-e2e.ts
+ */
+export const CloudTestData = {
+  E2E_CALLER: {
+    name: 'E2E Test Caller',
+    externalId: 'e2e-sim-caller',
+  },
+  E2E_DOMAIN: {
+    name: 'E2E Test Domain',
+    slug: 'e2e-test-domain',
+  },
+  QUICK_LAUNCH_SUBJECT: `E2E Cloud Test`,
 } as const;

@@ -41,6 +41,7 @@ import {
   DEFAULT_TRANSCRIPT_LIMITS,
   DEFAULT_AI_MODEL_CONFIGS,
 } from "../lib/fallback-settings";
+import { slimParameters, slimSummary } from "../lib/bdd/spec-slim";
 
 const prisma = new PrismaClient();
 
@@ -73,7 +74,7 @@ export interface SeedSpecResult {
 /**
  * Load all .spec.json files from the bdd-specs folder
  */
-export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; rawJson: any }[] {
+export function loadSpecFiles(excludeFeatureIds?: string[]): { filename: string; content: JsonFeatureSpec; rawJson: any }[] {
   const specs: { filename: string; content: JsonFeatureSpec; rawJson: any }[] = [];
   const specsFolder = getSpecsFolder();
 
@@ -89,6 +90,8 @@ export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; r
   );
   console.log(`   Found ${files.length} spec files in ${specsFolder}`);
 
+  const excludeSet = new Set(excludeFeatureIds || []);
+
   for (const filename of files) {
     const filePath = path.join(specsFolder, filename);
     try {
@@ -97,6 +100,11 @@ export function loadSpecFiles(): { filename: string; content: JsonFeatureSpec; r
       const parseResult = parseJsonSpec(content);
 
       if (parseResult.success) {
+        const featureId = parseResult.data.id;
+        if (excludeSet.has(featureId)) {
+          console.log(`   ⊘ ${filename} (${featureId}) — excluded by SEED_MODE`);
+          continue;
+        }
         specs.push({ filename, content: parseResult.data, rawJson });
       } else {
         console.log(`   Warning: Failed to parse ${filename}: ${parseResult.errors.join(", ")}`);
@@ -587,10 +595,11 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   if (outputType === AnalysisOutputType.COMPOSE) {
     // If this is a CONTENT spec, preserve full parameter structure from featureSet
     if (specRole === SpecRole.CONTENT && featureSet.parameters) {
+      const slimmed = slimParameters(featureSet.parameters as any[]);
       config = {
-        parameters: featureSet.parameters,
+        parameters: slimmed,
       };
-      console.log(`      Built COMPOSE config with ${(featureSet.parameters as any[]).length} parameters (full structure preserved for CONTENT spec)`);
+      console.log(`      Built COMPOSE config with ${slimmed.length} parameters (${slimSummary(featureSet.parameters as any[])})`);
     } else {
       // For other COMPOSE specs, use compiled params
       config = {
@@ -620,10 +629,12 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   }
   // For IDENTITY and CONTENT specs: preserve parameters array AND flatten for backward compat
   else if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT) {
-    // NEW: Preserve full parameter structure (needed for generic curriculum composer)
+    // Preserve parameter structure but strip already-extracted fields (scoringAnchors, interpretationScale, etc.)
+    const slimmed = slimParameters((featureSet.parameters as any[]) || []);
     config = {
-      parameters: featureSet.parameters || [],
+      parameters: slimmed,
     };
+    console.log(`      ${slimSummary((featureSet.parameters as any[]) || [])}`);
 
     // Also flatten top-level config properties for backward compatibility
     for (const param of compiledParams) {
@@ -761,6 +772,9 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     console.log(`      ⚠️ No rawSpec in database - re-run seed to populate rawSpec`);
   }
 
+  // Extract extendsAgent from rawSpec (for overlay identity specs like TUT-QM-001 → extends TUT-001)
+  const extendsAgent = rawSpecData?.extendsAgent || null;
+
   const specData = {
     name: featureSet.name,
     description,
@@ -775,6 +789,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     compiledAt: new Date(),
     compiledSetId: featureSet.id,
     isDirty: false,
+    ...(extendsAgent && { extendsAgent }),
     ...(config && { config }),
     ...(promptTemplate && { promptTemplate }),
   };
@@ -1583,7 +1598,7 @@ export async function seedFallbacks(): Promise<{ seeded: number; skipped: number
 /**
  * Main function - seed from all spec files
  */
-export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<SeedSpecResult[]> {
+export async function seedFromSpecs(options?: { specIds?: string[]; excludeFeatureIds?: string[] }): Promise<SeedSpecResult[]> {
   console.log("\n📋 SEEDING FROM BDD SPEC FILES\n");
   console.log("━".repeat(60));
 
@@ -1600,7 +1615,7 @@ export async function seedFromSpecs(options?: { specIds?: string[] }): Promise<S
   // Load contracts from DB for spec validation
   await ensureContractsLoaded();
 
-  let specFiles = loadSpecFiles();
+  let specFiles = loadSpecFiles(options?.excludeFeatureIds);
 
   // Filter to specific specs if requested
   if (options?.specIds?.length) {

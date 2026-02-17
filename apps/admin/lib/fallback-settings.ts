@@ -10,6 +10,7 @@
  */
 
 import { getSystemSetting } from "@/lib/system-settings";
+import { config } from "@/lib/config";
 
 // ── Generic accessor ──────────────────────────────────────
 
@@ -170,8 +171,9 @@ export interface FallbackTranscriptLimits {
 export const DEFAULT_TRANSCRIPT_LIMITS: FallbackTranscriptLimits = {
   "pipeline.measure": 4000,
   "pipeline.learn": 4000,
-  "pipeline.score_agent": 4000,
-  "pipeline.adapt": 2500,
+  "pipeline.score_agent": 3000,
+  "pipeline.adapt": 2000,
+  "pipeline.extract_goals": 3000,
 };
 
 export async function getTranscriptLimitsFallback(): Promise<FallbackTranscriptLimits> {
@@ -188,35 +190,68 @@ export interface FallbackAIModelConfig {
 }
 
 export const DEFAULT_AI_MODEL_CONFIGS: Record<string, FallbackAIModelConfig> = {
-  "pipeline.measure": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.learn": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.score_agent": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "pipeline.adapt": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "compose.prompt": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "analysis.measure": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "analysis.learn": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "parameter.enrich": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "bdd.parse": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.stream": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.assistant": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.view": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "spec.parse": { provider: "claude", model: "claude-3-haiku-20240307" },
-  "chat.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "chat.call": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.chat": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.tasks": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.data": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "assistant.spec": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "content-trust.extract": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "workflow.classify": { provider: "claude", model: "claude-sonnet-4-20250514" },
-  "workflow.step": { provider: "claude", model: "claude-sonnet-4-20250514" },
+  "pipeline.measure": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.learn": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model },
+  "pipeline.adapt": { provider: "claude", model: config.ai.claude.model },
+  "compose.prompt": { provider: "claude", model: config.ai.claude.model },
+  "analysis.measure": { provider: "claude", model: config.ai.claude.lightModel },
+  "analysis.learn": { provider: "claude", model: config.ai.claude.lightModel },
+  "parameter.enrich": { provider: "claude", model: config.ai.claude.lightModel },
+  "bdd.parse": { provider: "claude", model: config.ai.claude.model },
+  "chat.stream": { provider: "claude", model: config.ai.claude.model },
+  "spec.assistant": { provider: "claude", model: config.ai.claude.model },
+  "spec.view": { provider: "claude", model: config.ai.claude.model },
+  "spec.extract": { provider: "claude", model: config.ai.claude.model },
+  "spec.parse": { provider: "claude", model: config.ai.claude.lightModel },
+  "chat.data": { provider: "claude", model: config.ai.claude.model },
+  "chat.call": { provider: "claude", model: config.ai.claude.model },
+  "assistant.chat": { provider: "claude", model: config.ai.claude.model },
+  "assistant.tasks": { provider: "claude", model: config.ai.claude.model },
+  "assistant.data": { provider: "claude", model: config.ai.claude.model },
+  "assistant.spec": { provider: "claude", model: config.ai.claude.model },
+  "content-trust.extract": { provider: "claude", model: config.ai.claude.model },
+  "workflow.classify": { provider: "claude", model: config.ai.claude.model },
+  "workflow.step": { provider: "claude", model: config.ai.claude.model },
 };
 
 export async function getAIModelConfigsFallback(): Promise<Record<string, FallbackAIModelConfig>> {
   return getFallback("ai.default_models", DEFAULT_AI_MODEL_CONFIGS);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 6. ACTIVITIES CONFIG (activity toolkit & text delivery)
+// ═══════════════════════════════════════════════════════════
+
+export interface ActivitiesConfig {
+  /** Master switch — disables all activity recommendations when false */
+  enabled: boolean;
+  /** Text message delivery provider */
+  textProvider: "stub" | "twilio" | "vapi-sms";
+  /** Twilio config (only used when textProvider = "twilio") */
+  twilio?: {
+    fromNumber: string;
+    accountSid?: string; // Falls back to env TWILIO_ACCOUNT_SID
+    authToken?: string;  // Falls back to env TWILIO_AUTH_TOKEN
+  };
+  /** Max structured activities the AI should deploy per session */
+  maxActivitiesPerSession: number;
+  /** Max text messages to send per caller per week */
+  maxTextsPerWeek: number;
+  /** Whether between-session text activities are enabled */
+  betweenSessionTextsEnabled: boolean;
+}
+
+export const DEFAULT_ACTIVITIES_CONFIG: ActivitiesConfig = {
+  enabled: true,
+  textProvider: "stub",
+  maxActivitiesPerSession: 2,
+  maxTextsPerWeek: 2,
+  betweenSessionTextsEnabled: false,
+};
+
+export async function getActivitiesConfig(): Promise<ActivitiesConfig> {
+  return getFallback("activities.config", DEFAULT_ACTIVITIES_CONFIG);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -272,6 +307,12 @@ export const FALLBACK_SETTINGS_REGISTRY: FallbackSettingGroup = {
       key: "fallback:ai.default_models",
       label: "AI Model Defaults",
       description: "Default AI provider and model per call point (used when AIConfig DB is empty)",
+      type: "json",
+    },
+    {
+      key: "fallback:activities.config",
+      label: "Activities Config",
+      description: "Activity toolkit settings: enable/disable, text provider (stub/twilio/vapi-sms), session limits, between-session texts",
       type: "json",
     },
   ],

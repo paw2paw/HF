@@ -22,6 +22,9 @@ import {
 } from "@/lib/domain/generate-identity";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
+import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
+import { enrollCaller } from "@/lib/enrollment";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -37,10 +40,13 @@ export interface LaunchStep {
 
 export interface QuickLaunchInput {
   subjectName: string;
+  brief?: string;
   persona: string;
   learningGoals: string[];
-  file: File;
+  file?: File;
   qualificationRef?: string;
+  mode?: "upload" | "generate";
+  domainId?: string; // Use existing domain instead of creating new one
 }
 
 export interface ProgressEvent {
@@ -121,36 +127,54 @@ export async function loadLaunchSteps(): Promise<LaunchStep[]> {
 
 const stepExecutors: Record<string, StepExecutor> = {
   /**
-   * Step 1: Create Domain + Subject + link them
+   * Step 1: Resolve or create Domain + Subject + link them.
+   * If input.domainId is provided, uses that existing domain (new playbook in existing school).
+   * Otherwise creates a new domain from subjectName (original behavior).
    */
   create_domain: async (ctx) => {
-    const { subjectName, qualificationRef } = ctx.input;
+    const { subjectName, brief, qualificationRef, domainId: existingDomainId } = ctx.input;
 
-    // Generate slug from subject name
-    const slug = subjectName
+    let domain;
+
+    if (existingDomainId) {
+      // Use existing domain — creating a new playbook (class) within it
+      domain = await prisma.domain.findUnique({
+        where: { id: existingDomainId },
+      });
+      if (!domain) {
+        throw new Error(`Domain not found: ${existingDomainId}`);
+      }
+    } else {
+      // Create or find domain from subject name (original behavior)
+      const slug = subjectName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      domain = await prisma.domain.findFirst({ where: { slug } });
+      if (!domain) {
+        domain = await prisma.domain.create({
+          data: {
+            slug,
+            name: subjectName,
+            description: brief || `Quick-launched domain for ${subjectName}`,
+            isActive: true,
+          },
+        });
+      }
+    }
+
+    // Create or find subject (always, even for existing domains)
+    const subjectSlug = subjectName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    // Create or find domain
-    let domain = await prisma.domain.findFirst({ where: { slug } });
-    if (!domain) {
-      domain = await prisma.domain.create({
-        data: {
-          slug,
-          name: subjectName,
-          description: `Quick-launched domain for ${subjectName}`,
-          isActive: true,
-        },
-      });
-    }
-
-    // Create or find subject
-    let subject = await prisma.subject.findFirst({ where: { slug } });
+    let subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
     if (!subject) {
       subject = await prisma.subject.create({
         data: {
-          slug,
+          slug: subjectSlug,
           name: subjectName,
           qualificationRef: qualificationRef || null,
           isActive: true,
@@ -173,14 +197,23 @@ const stepExecutors: Record<string, StepExecutor> = {
     ctx.results.domainName = domain.name;
     ctx.results.subjectId = subject.id;
     ctx.results.subjectSlug = subject.slug;
+    ctx.results.useExistingDomain = !!existingDomainId;
     ctx.results.warnings = [];
   },
 
   /**
    * Step 2: Extract teaching points from uploaded file
+   * Skipped in generate mode (no file).
    */
   extract_content: async (ctx, step) => {
     const { file } = ctx.input;
+
+    if (!file) {
+      ctx.results.assertions = [];
+      ctx.results.assertionCount = 0;
+      return;
+    }
+
     const maxAssertions = step.args?.maxAssertions ?? 500;
 
     // Extract text from document
@@ -196,7 +229,7 @@ const stepExecutors: Record<string, StepExecutor> = {
 
     // Run AI extraction with progress updates
     const result = await extractAssertions(text, {
-      sourceSlug: ctx.results.subjectSlug || "quick-launch",
+      sourceSlug: ctx.results.subjectSlug || `quick-launch-${Date.now()}`,
       qualificationRef: ctx.input.qualificationRef,
       maxAssertions,
       onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
@@ -223,15 +256,19 @@ const stepExecutors: Record<string, StepExecutor> = {
 
   /**
    * Step 3: Save assertions to DB (ContentSource + SubjectSource + assertions)
+   * Skipped in generate mode (no file/assertions).
    */
   save_assertions: async (ctx) => {
     const assertions: ExtractedAssertion[] = ctx.results.assertions || [];
     if (assertions.length === 0) {
-      ctx.results.warnings!.push("No assertions to save");
+      if (ctx.input.mode !== "generate") {
+        ctx.results.warnings!.push("No assertions to save");
+      }
       return;
     }
 
     const { file } = ctx.input;
+    if (!file) return;
     const subjectId = ctx.results.subjectId!;
     const subjectSlug = ctx.results.subjectSlug || "quick-launch";
 
@@ -323,6 +360,8 @@ const stepExecutors: Record<string, StepExecutor> = {
 
   /**
    * Step 5: Scaffold domain (identity spec, playbook, onboarding)
+   * When using an existing domain, forceNewPlaybook creates a new playbook
+   * alongside existing ones (new class in the same school).
    */
   scaffold_domain: async (ctx) => {
     const domainId = ctx.results.domainId!;
@@ -333,6 +372,8 @@ const stepExecutors: Record<string, StepExecutor> = {
     const scaffoldResult = await scaffoldDomain(domainId, {
       identityConfig: ctx.results.identityConfig || undefined,
       flowPhases: flowPhases || undefined,
+      forceNewPlaybook: !!ctx.results.useExistingDomain,
+      playbookName: ctx.results.useExistingDomain ? ctx.input.subjectName : undefined,
     });
 
     if (scaffoldResult.identitySpec) {
@@ -345,28 +386,136 @@ const stepExecutors: Record<string, StepExecutor> = {
   },
 
   /**
-   * Step 6: Generate structured curriculum from assertions
+   * Step 6: Generate structured curriculum
+   * Upload mode: from assertions via generateContentSpec()
+   * Generate mode: from goals via generateCurriculumFromGoals()
    * + patch the CONTENT spec for CURRICULUM_PROGRESS_V1 contract compliance
    */
   generate_curriculum: async (ctx) => {
     const domainId = ctx.results.domainId!;
 
+    // Try assertion-based generation first (upload mode)
     const result = await generateContentSpec(domainId);
-
-    if (result.error) {
-      ctx.results.warnings!.push(`Curriculum: ${result.error}`);
-    }
 
     if (result.contentSpec) {
       ctx.results.contentSpecId = result.contentSpec.id;
       ctx.results.moduleCount = result.moduleCount;
-
-      // Patch spec for contract compliance (compose-content-section.ts needs this)
       await patchContentSpecForContract(result.contentSpec.id);
-    } else {
-      ctx.results.moduleCount = 0;
-      ctx.results.warnings!.push(...result.skipped);
+      return;
     }
+
+    // No assertions — use goals-based generation (generate mode)
+    const { subjectName, persona, learningGoals, qualificationRef } = ctx.input;
+
+    const curriculum = await generateCurriculumFromGoals(
+      subjectName,
+      persona,
+      learningGoals,
+      qualificationRef,
+    );
+
+    if (!curriculum.ok || curriculum.modules.length === 0) {
+      ctx.results.moduleCount = 0;
+      ctx.results.warnings!.push(
+        curriculum.error || "Curriculum generation produced no modules"
+      );
+      return;
+    }
+
+    // Create CONTENT spec from goals-based curriculum
+    const domain = await prisma.domain.findUnique({
+      where: { id: domainId },
+      select: { slug: true, name: true },
+    });
+
+    const contentSlug = `${domain!.slug}-content`;
+
+    // Check idempotency
+    const existing = await prisma.analysisSpec.findFirst({
+      where: { slug: contentSlug },
+      select: { id: true, slug: true, name: true },
+    });
+
+    if (existing) {
+      ctx.results.contentSpecId = existing.id;
+      ctx.results.moduleCount = 0;
+      ctx.results.warnings!.push("Content spec already exists");
+      return;
+    }
+
+    const contentSpec = await prisma.analysisSpec.create({
+      data: {
+        slug: contentSlug,
+        name: `${domain!.name} Curriculum`,
+        description: curriculum.description || `AI-generated curriculum for ${domain!.name}`,
+        outputType: "COMPOSE",
+        specRole: "CONTENT",
+        specType: "DOMAIN",
+        domain: "content",
+        scope: "DOMAIN",
+        isActive: true,
+        isDirty: false,
+        isDeletable: true,
+        config: JSON.parse(JSON.stringify({
+          modules: curriculum.modules,
+          deliveryConfig: curriculum.deliveryConfig,
+          sourceCount: 0,
+          assertionCount: 0,
+          generatedFrom: "goals",
+          generatedAt: new Date().toISOString(),
+        })),
+        triggers: {
+          create: [{
+            given: `A ${domain!.name} teaching session with curriculum content`,
+            when: "The system needs to deliver structured teaching material",
+            then: "Content is presented following the curriculum module sequence",
+            name: "Curriculum delivery",
+            sortOrder: 0,
+          }],
+        },
+      },
+      select: { id: true, slug: true, name: true },
+    });
+
+    // Add to published playbook
+    const playbook = await prisma.playbook.findFirst({
+      where: { domainId, status: "PUBLISHED" },
+      select: { id: true },
+    });
+
+    if (playbook) {
+      const existingItem = await prisma.playbookItem.findFirst({
+        where: { playbookId: playbook.id, specId: contentSpec.id },
+      });
+
+      if (!existingItem) {
+        const maxItem = await prisma.playbookItem.findFirst({
+          where: { playbookId: playbook.id },
+          orderBy: { sortOrder: "desc" },
+          select: { sortOrder: true },
+        });
+
+        await prisma.playbookItem.create({
+          data: {
+            playbookId: playbook.id,
+            itemType: "SPEC",
+            specId: contentSpec.id,
+            sortOrder: (maxItem?.sortOrder ?? 0) + 1,
+            isEnabled: true,
+          },
+        });
+
+        await prisma.playbook.update({
+          where: { id: playbook.id },
+          data: { publishedAt: new Date() },
+        });
+      }
+    }
+
+    ctx.results.contentSpecId = contentSpec.id;
+    ctx.results.moduleCount = curriculum.modules.length;
+
+    await patchContentSpecForContract(contentSpec.id);
   },
 
   /**
@@ -415,6 +564,11 @@ const stepExecutors: Record<string, StepExecutor> = {
     }
 
     ctx.results.goalCount = learningGoals.length;
+
+    // Enroll caller in the newly created playbook
+    if (ctx.results.playbookId) {
+      await enrollCaller(caller.id, ctx.results.playbookId, "quick-launch");
+    }
   },
 };
 
@@ -441,7 +595,7 @@ async function loadPersonaFlowPhases(persona: string): Promise<any | null> {
 
   if (!spec?.config) return null;
 
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   const personaConfig = specConfig.personas?.[persona];
   return personaConfig?.firstCallFlow?.phases ? { phases: personaConfig.firstCallFlow.phases } : null;
 }
@@ -624,9 +778,10 @@ export interface AnalysisPreview {
   subjectId: string;
   sourceId: string;
   assertionCount: number;
-  assertionSummary: AssertionSummary;
+  assertionSummary: AssertionSummary | Record<string, never>;
   identityConfig: GeneratedIdentityConfig | null;
   warnings: string[];
+  mode?: "upload" | "generate";
 }
 
 export interface CommitOverrides {

@@ -16,9 +16,10 @@ export type AuthFixture = {
 
 export const test = base.extend<AuthFixture>({
   loginAs: async ({ page }, use) => {
-    const login = async (email: string, password = 'admin123') => {
-      await page.goto('/login');
-      await page.waitForLoadState('domcontentloaded');
+    const login = async (email: string, password = process.env.SEED_ADMIN_PASSWORD || 'admin123') => {
+      const isCloud = !!process.env.CLOUD_E2E;
+      await page.goto('/login', { timeout: isCloud ? 60000 : 30000 });
+      await page.waitForLoadState('networkidle', { timeout: isCloud ? 30000 : 15000 });
 
       // Fill credentials
       await page.locator('#email').fill(email);
@@ -27,8 +28,8 @@ export const test = base.extend<AuthFixture>({
       // Submit form
       await page.locator('button[type="submit"]').click();
 
-      // Wait for redirect to /x
-      await page.waitForURL(/\/x/, { timeout: 10000 });
+      // Wait for redirect to /x (domcontentloaded — dashboard has long-lived connections that block 'load')
+      await page.waitForURL(/\/x/, { timeout: isCloud ? 60000 : 15000, waitUntil: 'domcontentloaded' });
     };
     await use(login);
   },
@@ -44,7 +45,7 @@ export const test = base.extend<AuthFixture>({
   },
 
   createAuthenticatedContext: async ({ browser }, use) => {
-    const createContext = async (email: string, password = 'admin123') => {
+    const createContext = async (email: string, password = process.env.SEED_ADMIN_PASSWORD || 'admin123') => {
       const context = await browser.newContext();
       const page = await context.newPage();
 

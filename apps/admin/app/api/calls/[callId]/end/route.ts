@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { config } from "@/lib/config";
 
 /**
  * @api POST /api/calls/:callId/end
@@ -46,7 +47,7 @@ export async function POST(
     const baseUrl = `${protocol}://${host}`;
 
     // Internal API secret for server-to-server calls
-    const internalSecret = process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret";
+    const internalSecret = config.security.internalApiSecret;
 
     const pipelineRes = await fetch(
       `${baseUrl}/api/calls/${callId}/pipeline`,

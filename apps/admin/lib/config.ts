@@ -85,6 +85,33 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // Security
+  // ---------------------------------------------------------------------------
+  security: {
+    /**
+     * Internal API secret for server-to-server calls.
+     * REQUIRED in production. In dev, falls back to a deterministic value
+     * derived from DATABASE_URL so it works without manual setup.
+     */
+    get internalApiSecret(): string {
+      const envVal = process.env.INTERNAL_API_SECRET;
+      if (envVal) return envVal;
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          "INTERNAL_API_SECRET is required in production.\n" +
+            "Generate with: openssl rand -hex 32"
+        );
+      }
+      return "dev-internal-" + (process.env.DATABASE_URL?.slice(-8) || "local");
+    },
+    /** CORS allowed origins (comma-separated). Empty = no cross-origin allowed. */
+    get corsAllowedOrigins(): string[] {
+      const origins = process.env.CORS_ALLOWED_ORIGINS;
+      return origins ? origins.split(",").map((o) => o.trim()).filter(Boolean) : [];
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // AI Services
   // ---------------------------------------------------------------------------
   ai: {
@@ -96,6 +123,10 @@ export const config = {
       /** OpenAI model ID */
       get model(): string {
         return optional("OPENAI_MODEL_ID", "gpt-4o");
+      },
+      /** OpenAI embedding model ID */
+      get embeddingModel(): string {
+        return optional("OPENAI_EMBEDDING_MODEL_ID", "text-embedding-3-small");
       },
       /** Check if OpenAI is configured */
       get isConfigured(): boolean {
@@ -110,6 +141,10 @@ export const config = {
       /** Claude model ID */
       get model(): string {
         return optional("CLAUDE_MODEL_ID", "claude-sonnet-4-20250514");
+      },
+      /** Claude lightweight model ID (for fast/cheap tasks) */
+      get lightModel(): string {
+        return optional("CLAUDE_LIGHT_MODEL_ID", "claude-3-haiku-20240307");
       },
       /** Check if Claude is configured */
       get isConfigured(): boolean {
@@ -153,6 +188,18 @@ export const config = {
     /** Enable filesystem operations (agents, manifest sync, etc.) */
     get opsEnabled(): boolean {
       return process.env.HF_OPS_ENABLED === "true";
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Terminology
+  // ---------------------------------------------------------------------------
+  terminology: {
+    /** Default terminology preset when no institution config exists.
+     *  One of: school, corporate, coaching, healthcare.
+     *  Can be overridden via TERMINOLOGY_DEFAULT_PRESET env var. */
+    get defaultPreset(): string {
+      return optional("TERMINOLOGY_DEFAULT_PRESET", "corporate");
     },
   },
 
@@ -213,6 +260,47 @@ export const config = {
     get onboardingSlugPrefix(): string {
       return optional("ONBOARDING_SLUG_PREFIX", "init.");
     },
+
+    /**
+     * Content Extract Spec (default: CONTENT-EXTRACT-001)
+     * Defines teaching point extraction rules, pyramid structuring, and rendering config.
+     * Domain-level override specs deep-merge onto this system spec.
+     * Can be overridden via SPEC_CONTENT_EXTRACT env var.
+     */
+    get contentExtract(): string {
+      return optional("SPEC_CONTENT_EXTRACT", "CONTENT-EXTRACT-001");
+    },
+
+    /**
+     * Default Archetype Spec (default: TUT-001)
+     * The base archetype used when scaffolding new domain overlays.
+     * Can be overridden via DEFAULT_ARCHETYPE_SLUG env var.
+     */
+    get defaultArchetype(): string {
+      return optional("DEFAULT_ARCHETYPE_SLUG", "TUT-001");
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // VAPI Integration
+  // ---------------------------------------------------------------------------
+  vapi: {
+    /** VAPI API key for updating assistants */
+    get apiKey(): string | undefined {
+      return process.env.VAPI_API_KEY;
+    },
+    /** Webhook secret for verifying VAPI signatures */
+    get webhookSecret(): string | undefined {
+      return process.env.VAPI_WEBHOOK_SECRET;
+    },
+    /** Whether VAPI integration is configured */
+    get isConfigured(): boolean {
+      return !!process.env.VAPI_API_KEY;
+    },
+    /** Auto-run pipeline on call ingest */
+    get autoPipeline(): boolean {
+      return optionalBool("VAPI_AUTO_PIPELINE", true);
+    },
   },
 
   // ---------------------------------------------------------------------------
@@ -230,6 +318,10 @@ export const config = {
     /** Node environment */
     get nodeEnv(): string {
       return optional("NODE_ENV", "development");
+    },
+    /** Application environment label (DEV / STG / LIVE) */
+    get env(): string {
+      return optional("NEXT_PUBLIC_APP_ENV", "DEV");
     },
     /** Is production environment */
     get isProduction(): boolean {
@@ -260,6 +352,111 @@ export const config = {
     /** Docker command timeout (ms) */
     get dockerTimeoutMs(): number {
       return optionalInt("DOCKER_TIMEOUT_MS", 5000);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Storage (Media file storage)
+  // ---------------------------------------------------------------------------
+  storage: {
+    /** Storage backend: "gcs" (production) or "local" (dev/test) */
+    get backend(): string {
+      return optional("STORAGE_BACKEND", "gcs");
+    },
+    /** GCS bucket name */
+    get gcsBucket(): string {
+      return optional("STORAGE_GCS_BUCKET", "hf-media");
+    },
+    /** Local storage path (for dev/test) */
+    get localPath(): string {
+      return optional("STORAGE_LOCAL_PATH", "./storage/media");
+    },
+    /** Maximum file size in bytes (default: 20MB) */
+    get maxFileSize(): number {
+      return optionalInt("STORAGE_MAX_FILE_SIZE", 20971520);
+    },
+    /** GCS signed URL expiry in seconds (default: 3600 = 1 hour) */
+    get signedUrlExpirySec(): number {
+      return optionalInt("STORAGE_SIGNED_URL_EXPIRY_SECONDS", 3600);
+    },
+    /** Comma-separated list of allowed MIME types */
+    get allowedMimeTypes(): string[] {
+      return optional(
+        "STORAGE_ALLOWED_MIME_TYPES",
+        "image/jpeg,image/png,image/webp,application/pdf,audio/mpeg,audio/wav,audio/ogg"
+      ).split(",");
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Artifacts (Conversation Artifacts sub-system)
+  // ---------------------------------------------------------------------------
+  artifacts: {
+    /** Delivery channel: "sim" (Phase 1) or "whatsapp" (Phase 2) */
+    get channel(): string {
+      return optional("ARTIFACTS_CHANNEL", "sim");
+    },
+    /** Whether artifact extraction is enabled in the pipeline */
+    get enabled(): boolean {
+      return optionalBool("ARTIFACTS_ENABLED", true);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Actions (Call Actions sub-system)
+  // ---------------------------------------------------------------------------
+  actions: {
+    /** Whether action extraction is enabled in the pipeline */
+    get enabled(): boolean {
+      return optionalBool("ACTIONS_ENABLED", true);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Data Retention (GDPR)
+  // ---------------------------------------------------------------------------
+  retention: {
+    /** Days to retain caller data. 0 = disabled (keep indefinitely). */
+    get callerDataDays(): number {
+      return optionalInt("RETENTION_CALLER_DATA_DAYS", 0);
+    },
+    /** Days to retain audit log entries. Default: 365. */
+    get auditLogDays(): number {
+      return optionalInt("RETENTION_AUDIT_LOG_DAYS", 365);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Seed Mode
+  // ---------------------------------------------------------------------------
+  seed: {
+    /**
+     * SEED_MODE controls what data gets seeded.
+     *   "full" (default) — All specs, demo fixtures, transcripts (dev)
+     *   "prod"           — Infrastructure + measurement specs only, no demo data
+     */
+    get mode(): "full" | "prod" {
+      const val = optional("SEED_MODE", "full");
+      if (val !== "full" && val !== "prod") {
+        console.warn(`Invalid SEED_MODE "${val}", defaulting to "full"`);
+        return "full";
+      }
+      return val;
+    },
+    /** Whether running in prod seed mode */
+    get isProd(): boolean {
+      return this.mode === "prod";
+    },
+    /**
+     * Spec featureIds to exclude in prod mode.
+     * These are dev-only identity overlays and domain-specific content.
+     */
+    get excludedSpecs(): string[] {
+      return [
+        "FS-TEST-99",      // Food Safety exam prep — dev only
+        "TUT-WNF-001",     // WNF session tutor overlay — dev only
+        "TUT-QM-001",      // QM session tutor overlay — dev only
+      ];
     },
   },
 
@@ -299,6 +496,11 @@ export function validateConfig(): void {
   }
   if (!process.env.HF_SUPERADMIN_TOKEN) {
     errors.push("HF_SUPERADMIN_TOKEN is required");
+  }
+
+  // Check internal API secret in production
+  if (config.app.isProduction && !process.env.INTERNAL_API_SECRET) {
+    errors.push("INTERNAL_API_SECRET is required in production (generate with: openssl rand -hex 32)");
   }
 
   // Warn if no AI keys
@@ -360,6 +562,9 @@ export function getConfigSummary(): Record<string, unknown> {
     },
     features: {
       opsEnabled: config.features.opsEnabled,
+    },
+    terminology: {
+      defaultPreset: config.terminology.defaultPreset,
     },
     specs: {
       onboarding: config.specs.onboarding,

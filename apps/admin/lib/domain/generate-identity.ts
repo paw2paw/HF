@@ -91,31 +91,32 @@ function sampleAssertions(
 
 // ── AI Prompt ──────────────────────────────────────────
 
-const IDENTITY_SYSTEM_PROMPT = `You are generating the identity configuration for an AI teaching agent.
-The agent will teach learners via phone calls. Based on the teaching material excerpts provided,
-generate a JSON identity configuration that makes this agent a convincing subject matter expert.
+const IDENTITY_SYSTEM_PROMPT = `You are generating a DOMAIN OVERLAY for an AI teaching agent's identity.
+This overlay will be MERGED with a base tutor archetype that already provides:
+- Generic session structure (opening/main/closing phases)
+- Interaction style defaults (warmth, formality, pacing)
+- Core boundaries (what tutors do and don't do)
+- Assessment principles and methods
+- General teaching pedagogy
+
+Your job is to generate ONLY the domain-specific adaptations. Do NOT repeat generic tutor behaviors.
 
 The configuration MUST include ALL of these fields:
 - roleStatement: A 2-3 sentence description positioning the agent as an expert in this specific subject
 - primaryGoal: The main teaching objective (informed by the learner's goals if provided)
-- secondaryGoals: Array of 3-5 secondary goals
-- techniques: Array of 3-5 teaching techniques, each with { name, description, when }
-- defaults: Object with style defaults like { warmth: "high", formality: "moderate", pace: "adaptive" }
-- styleGuidelines: Array of 4-6 style guidelines specific to this subject
-- does: Array of 4-6 things this agent DOES (boundaries)
-- doesNot: Array of 4-6 things this agent DOES NOT do
-- opening: { approach: string, examples: string[] } for session openings
-- main: { approach: string, strategies: string[] } for main teaching
-- closing: { approach: string, examples: string[] } for session closings
-- principles: Array of 3-5 assessment principles
-- methods: Array of 3-5 assessment methods
+- secondaryGoals: Array of 3-5 secondary goals specific to this subject
+- techniques: Array of 3-5 DOMAIN-SPECIFIC teaching techniques, each with { name, description, when }
+  (e.g. for physics: "phenomena before equations"; for law: "case study analysis")
 - domainVocabulary: Array of 10-20 key terms the agent should use naturally
+- styleGuidelines: Array of 3-5 style guidelines SPECIFIC to this subject domain
 
 IMPORTANT:
 - The agent should sound like a genuine expert in this specific subject
 - Use vocabulary and examples from the actual source material
-- Do NOT claim qualifications the agent doesn't have
-- Do NOT give advice outside the subject domain
+- Do NOT include generic teaching behaviors (scaffolding, checking understanding, etc.) — those come from the base
+- Do NOT include generic boundaries — those come from the base
+- Do NOT include session structure — that comes from the base
+- Focus on what makes THIS subject different from any other
 - Tailor everything to phone-based teaching (verbal, conversational)
 - Return ONLY valid JSON (no markdown code fences)`;
 
@@ -160,13 +161,13 @@ ${assertionText}
 Generate the identity configuration JSON.`;
 
   try {
+    // @ai-call quick-launch.identity — Generate agent identity config from domain assertions | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion({
       callPoint: "quick-launch.identity",
       messages: [
         { role: "system", content: IDENTITY_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.4,
     });
 
     const content = response.content || "";
@@ -180,13 +181,13 @@ Generate the identity configuration JSON.`;
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Validate required fields exist
+    // Build overlay config — only domain-specific fields
     const config: GeneratedIdentityConfig = {
       roleStatement: parsed.roleStatement || `You are a knowledgeable ${options.persona} specializing in ${options.subjectName}.`,
       primaryGoal: parsed.primaryGoal || `Help learners develop genuine understanding of ${options.subjectName}`,
       secondaryGoals: parsed.secondaryGoals || [],
       techniques: Array.isArray(parsed.techniques) ? parsed.techniques : [],
-      defaults: parsed.defaults || { warmth: "high", formality: "moderate", pace: "adaptive" },
+      defaults: parsed.defaults || {},
       styleGuidelines: parsed.styleGuidelines || [],
       does: parsed.does || [],
       doesNot: parsed.doesNot || [],

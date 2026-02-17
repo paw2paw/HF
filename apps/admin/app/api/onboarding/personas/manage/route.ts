@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { config } from "@/lib/config";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 /**
  * @api POST /api/onboarding/personas/manage
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const specConfig = spec.config as any || {};
+    const specConfig = spec.config as SpecConfig || {};
     const personas = specConfig.personas || {};
 
     // Check if slug already exists
@@ -214,7 +215,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const specConfig = spec.config as any || {};
+    const specConfig = spec.config as SpecConfig || {};
     const personas = specConfig.personas || {};
 
     if (!personas[slug]) {

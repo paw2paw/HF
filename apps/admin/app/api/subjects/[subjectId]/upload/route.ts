@@ -1,22 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  extractText,
-  extractAssertions,
-  type ExtractedAssertion,
+  extractTextFromBuffer,
 } from "@/lib/content-trust/extract-assertions";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { classifyDocument, fetchFewShotExamples } from "@/lib/content-trust/classify-document";
+import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
+import { getStorageAdapter, computeContentHash } from "@/lib/storage";
+import { config } from "@/lib/config";
 
 /**
- * POST /api/subjects/:subjectId/upload
- * Drag-drop endpoint: upload a document, auto-create ContentSource, attach to subject, extract assertions.
+ * @api POST /api/subjects/:subjectId/upload
+ * @visibility public
+ * @scope subjects:write
+ * @auth OPERATOR
+ * @tags subjects, content-trust, classification
+ * @description Drag-drop endpoint: upload a document, auto-create ContentSource,
+ *   classify its document type via AI, and attach to subject.
+ *   Does NOT start extraction — user must confirm the classification first,
+ *   then trigger extraction via POST /api/content-sources/:sourceId/extract.
  *
- * FormData:
- *   file: File (PDF, TXT, MD, JSON)
- *   mode: "preview" | "import" (default: preview)
- *   role: "syllabus" | "textbook" | "reference" | "supplementary" (default: reference)
- *   sourceName: optional display name (defaults to filename)
- *   trustLevel: optional override (defaults to subject's defaultTrustLevel)
+ * @body file File (PDF, TXT, MD, JSON)
+ * @body tags string — comma-separated tags (default: "content")
+ * @body sourceName string — optional display name (defaults to filename)
+ * @body trustLevel string — optional override (defaults to subject's defaultTrustLevel)
+ *
+ * @response 202 { ok, source, classification, awaitingClassification }
  */
 export async function POST(
   req: NextRequest,
@@ -39,7 +48,6 @@ export async function POST(
     // Parse form data
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const mode = (formData.get("mode") as string) || "preview";
     const tagsRaw = (formData.get("tags") as string) || "content";
     const tags = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
     const sourceName = (formData.get("sourceName") as string) || null;
@@ -59,8 +67,13 @@ export async function POST(
       );
     }
 
-    // Extract text from document
-    const { text, pages, fileType } = await extractText(file);
+    // ── Read file into buffer (used for text extraction + storage) ──
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // ── Extract text (fast, no AI) ──
+
+    const { text } = await extractTextFromBuffer(buffer, file.name);
     if (!text.trim()) {
       return NextResponse.json(
         { ok: false, error: "Could not extract text from document" },
@@ -68,48 +81,46 @@ export async function POST(
       );
     }
 
-    // Run AI extraction
-    const result = await extractAssertions(text, {
-      sourceSlug: subject.slug,
-      qualificationRef: subject.qualificationRef || undefined,
-      maxAssertions: 500,
-    });
+    // ── Classify document type (AI, ~1-2 sec) ──
 
-    if (!result.ok) {
-      return NextResponse.json(
-        { ok: false, error: result.error, warnings: result.warnings },
-        { status: 422 }
-      );
-    }
+    const extractionConfig = await resolveExtractionConfig();
+    const fewShotConfig = extractionConfig.classification.fewShot;
 
-    // Preview mode — return assertions without saving anything
-    if (mode === "preview") {
-      return NextResponse.json({
-        ok: true,
-        mode: "preview",
-        subjectSlug: subject.slug,
-        fileName: file.name,
-        fileType,
-        pages: pages || null,
-        textLength: text.length,
-        assertions: result.assertions,
-        total: result.assertions.length,
-        warnings: result.warnings,
+    // Resolve domain from subject for domain-aware few-shot examples
+    let domainId: string | undefined;
+    try {
+      const subjectWithDomains = await prisma.subject.findUnique({
+        where: { id: subjectId },
+        select: { domains: { select: { domainId: true }, take: 1 } },
       });
-    }
+      domainId = subjectWithDomains?.domains?.[0]?.domainId;
+    } catch { /* best-effort */ }
 
-    // Import mode — create ContentSource, attach to subject, save assertions
+    const examples = fewShotConfig?.enabled !== false
+      ? await fetchFewShotExamples({ domainId }, fewShotConfig)
+      : [];
+    const classification = await classifyDocument(
+      text.substring(0, extractionConfig.classification.sampleSize),
+      file.name,
+      extractionConfig,
+      examples,
+    );
 
-    // Generate slug from filename
+    // Auto-set tags: CURRICULUM → add "syllabus"
+    const finalTags = classification.documentType === "CURRICULUM" && !tags.includes("syllabus")
+      ? [...tags, "syllabus"]
+      : tags;
+
+    // ── Create ContentSource (with classified type) ──
+
     const baseSlug = file.name
-      .replace(/\.[^/.]+$/, "") // remove extension
+      .replace(/\.[^/.]+$/, "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
     const sourceSlug = `${subject.slug}-${baseSlug}`;
     const displayName = sourceName || file.name.replace(/\.[^/.]+$/, "");
 
-    // Create ContentSource
     const trustLevel = trustLevelOverride || subject.defaultTrustLevel;
     let source;
     try {
@@ -118,16 +129,23 @@ export async function POST(
           slug: sourceSlug,
           name: displayName,
           trustLevel: trustLevel as any,
+          documentType: classification.documentType as any,
+          documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+          textSample: text.substring(0, 1000),
+          aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
         },
       });
     } catch (err: any) {
       if (err.code === "P2002") {
-        // Slug conflict — append timestamp
         source = await prisma.contentSource.create({
           data: {
             slug: `${sourceSlug}-${Date.now()}`,
             name: displayName,
             trustLevel: trustLevel as any,
+            documentType: classification.documentType as any,
+            documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+            textSample: text.substring(0, 1000),
+            aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
           },
         });
       } else {
@@ -140,69 +158,84 @@ export async function POST(
       data: {
         subjectId,
         sourceId: source.id,
-        tags,
+        tags: finalTags,
         trustLevelOverride: trustLevelOverride ? (trustLevelOverride as any) : null,
       },
     });
 
-    // Dedup and save assertions
-    const existingHashes = new Set(
-      (
-        await prisma.contentAssertion.findMany({
-          where: { sourceId: source.id },
-          select: { contentHash: true },
-        })
-      )
-        .map((a) => a.contentHash)
-        .filter(Boolean)
-    );
+    // ── Store file in storage backend + create MediaAsset ──
 
-    const toCreate: ExtractedAssertion[] = [];
-    let duplicatesSkipped = 0;
+    const contentHash = computeContentHash(buffer);
+    const storage = getStorageAdapter();
 
-    for (const assertion of result.assertions) {
-      if (existingHashes.has(assertion.contentHash)) {
-        duplicatesSkipped++;
-        continue;
-      }
-      toCreate.push(assertion);
-    }
+    // Check for duplicate content
+    const existingMedia = await prisma.mediaAsset.findUnique({ where: { contentHash } });
+    let mediaId: string;
 
-    if (toCreate.length > 0) {
-      await prisma.contentAssertion.createMany({
-        data: toCreate.map((a) => ({
-          sourceId: source.id,
-          assertion: a.assertion,
-          category: a.category,
-          chapter: a.chapter || null,
-          section: a.section || null,
-          tags: a.tags,
-          examRelevance: a.examRelevance ?? null,
-          learningOutcomeRef: a.learningOutcomeRef || null,
-          validUntil: a.validUntil ? new Date(a.validUntil) : null,
-          taxYear: a.taxYear || null,
-          contentHash: a.contentHash,
-        })),
+    if (existingMedia) {
+      // Reuse existing storage, just link to this source
+      mediaId = existingMedia.id;
+      await prisma.mediaAsset.update({
+        where: { id: existingMedia.id },
+        data: { sourceId: source.id },
       });
+    } else {
+      const mimeType = file.type || "application/octet-stream";
+      const { storageKey } = await storage.upload(buffer, {
+        fileName: file.name,
+        mimeType,
+        contentHash,
+      });
+
+      const media = await prisma.mediaAsset.create({
+        data: {
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType,
+          contentHash,
+          storageKey,
+          storageType: config.storage.backend,
+          uploadedBy: authResult.session.user.id,
+          sourceId: source.id,
+          trustLevel: trustLevel as any,
+        },
+      });
+      mediaId = media.id;
     }
 
-    return NextResponse.json({
-      ok: true,
-      mode: "import",
-      subjectSlug: subject.slug,
-      source: {
-        id: source.id,
-        slug: source.slug,
-        name: source.name,
-        trustLevel: source.trustLevel,
-      },
-      tags,
-      fileName: file.name,
-      created: toCreate.length,
-      duplicatesSkipped,
-      total: result.assertions.length,
-      warnings: result.warnings,
+    // Link media to subject via SubjectMedia (so content pickers can find it)
+    await prisma.subjectMedia.upsert({
+      where: { subjectId_mediaId: { subjectId, mediaId } },
+      update: {},
+      create: { subjectId, mediaId },
     });
+
+    // ── Return immediately (no extraction started) ──
+
+    return NextResponse.json(
+      {
+        ok: true,
+        source: {
+          id: source.id,
+          slug: source.slug,
+          name: source.name,
+          trustLevel: source.trustLevel,
+          documentType: source.documentType,
+          documentTypeSource: source.documentTypeSource,
+        },
+        classification: {
+          documentType: classification.documentType,
+          confidence: classification.confidence,
+          reasoning: classification.reasoning,
+        },
+        tags: finalTags,
+        fileName: file.name,
+        textLength: text.length,
+        mediaId,
+        awaitingClassification: true,
+      },
+      { status: 202 }
+    );
   } catch (error: any) {
     console.error("[subjects/:id/upload] POST error:", error);
     return NextResponse.json(

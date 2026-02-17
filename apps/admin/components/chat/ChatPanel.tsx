@@ -1,12 +1,11 @@
 "use client";
 
 import React from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useChatContext, useChatKeyboardShortcut, MODE_CONFIG } from "@/contexts/ChatContext";
 import { useEntityContext, ENTITY_COLORS, EntityBreadcrumb } from "@/contexts/EntityContext";
 import { useEntityDetection } from "@/hooks/useEntityDetection";
-// Inbox/Tickets views removed - now separate features
-// import { InboxView } from "./InboxView";
-// import { TicketsView } from "./TicketsView";
 import { AIModelBadge } from "@/components/shared/AIModelBadge";
 
 // Sub-components
@@ -78,52 +77,6 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
   );
 }
 
-function ModeTabs() {
-  const { mode, setMode } = useChatContext();
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        borderBottom: "1px solid #e5e7eb",
-        background: "white",
-      }}
-    >
-      {(Object.keys(MODE_CONFIG) as Array<keyof typeof MODE_CONFIG>).map((m) => {
-        const config = MODE_CONFIG[m];
-        const isActive = mode === m;
-
-        return (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              border: "none",
-              borderBottom: isActive ? `2px solid ${config.color}` : "2px solid transparent",
-              background: isActive ? "#f9fafb" : "white",
-              color: isActive ? config.color : "#6b7280",
-              fontSize: 12,
-              fontWeight: isActive ? 600 : 500,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 4,
-              transition: "all 0.15s",
-              position: "relative",
-            }}
-            title={config.description}
-          >
-            <span>{config.icon}</span>
-            <span>{config.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function ChatMessages() {
   const { messages, mode, isStreaming, streamingMessageId } = useChatContext();
@@ -177,6 +130,7 @@ function ChatMessages() {
         const isUser = msg.role === "user";
         const isCurrentStreaming = isStreaming && msg.id === streamingMessageId;
         const hasError = msg.metadata?.error;
+        const toolCalls = msg.metadata?.toolCalls;
 
         return (
           <div
@@ -187,6 +141,23 @@ function ChatMessages() {
               alignItems: isUser ? "flex-end" : "flex-start",
             }}
           >
+            {/* Tool usage indicator */}
+            {!isUser && toolCalls && toolCalls > 0 && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#8b5cf6",
+                  marginBottom: 4,
+                  paddingLeft: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontSize: 12 }}>&#x1F527;</span>
+                <span>Used {toolCalls} tool{toolCalls > 1 ? "s" : ""}</span>
+              </div>
+            )}
             <div
               style={{
                 maxWidth: "85%",
@@ -196,11 +167,109 @@ function ChatMessages() {
                 color: isUser ? "white" : hasError ? "#dc2626" : "#1f2937",
                 fontSize: 13,
                 lineHeight: 1.5,
-                whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
+                ...(isUser ? { whiteSpace: "pre-wrap" as const } : {}),
               }}
             >
-              {msg.content || (isCurrentStreaming ? "..." : "")}
+              {isUser ? (
+                msg.content || ""
+              ) : (
+                <div className="chat-markdown">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({ children }) => <p style={{ margin: "0 0 8px 0" }}>{children}</p>,
+                      strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+                      code: ({ children, className }) => {
+                        const isBlock = className?.includes("language-");
+                        if (isBlock) {
+                          return (
+                            <code
+                              style={{
+                                display: "block",
+                                background: "#1f2937",
+                                color: "#e5e7eb",
+                                padding: 12,
+                                borderRadius: 6,
+                                fontSize: 12,
+                                overflowX: "auto",
+                                whiteSpace: "pre",
+                                margin: "8px 0",
+                              }}
+                            >
+                              {children}
+                            </code>
+                          );
+                        }
+                        return (
+                          <code
+                            style={{
+                              background: "#e5e7eb",
+                              padding: "1px 4px",
+                              borderRadius: 3,
+                              fontSize: 12,
+                            }}
+                          >
+                            {children}
+                          </code>
+                        );
+                      },
+                      pre: ({ children }) => <div>{children}</div>,
+                      ul: ({ children }) => <ul style={{ margin: "4px 0", paddingLeft: 20 }}>{children}</ul>,
+                      ol: ({ children }) => <ol style={{ margin: "4px 0", paddingLeft: 20 }}>{children}</ol>,
+                      li: ({ children }) => <li style={{ margin: "2px 0" }}>{children}</li>,
+                      table: ({ children }) => (
+                        <table
+                          style={{
+                            borderCollapse: "collapse",
+                            fontSize: 12,
+                            margin: "8px 0",
+                            width: "100%",
+                          }}
+                        >
+                          {children}
+                        </table>
+                      ),
+                      th: ({ children }) => (
+                        <th
+                          style={{
+                            border: "1px solid #d1d5db",
+                            padding: "4px 8px",
+                            background: "#e5e7eb",
+                            fontWeight: 600,
+                            textAlign: "left",
+                          }}
+                        >
+                          {children}
+                        </th>
+                      ),
+                      td: ({ children }) => (
+                        <td style={{ border: "1px solid #d1d5db", padding: "4px 8px" }}>{children}</td>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 style={{ fontSize: 14, fontWeight: 600, margin: "12px 0 4px 0" }}>{children}</h3>
+                      ),
+                      h4: ({ children }) => (
+                        <h4 style={{ fontSize: 13, fontWeight: 600, margin: "8px 0 4px 0" }}>{children}</h4>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote
+                          style={{
+                            borderLeft: "3px solid #8b5cf6",
+                            paddingLeft: 12,
+                            margin: "8px 0",
+                            color: "#4b5563",
+                          }}
+                        >
+                          {children}
+                        </blockquote>
+                      ),
+                    }}
+                  >
+                    {msg.content || (isCurrentStreaming ? "..." : "")}
+                  </ReactMarkdown>
+                </div>
+              )}
               {isCurrentStreaming && (
                 <span
                   style={{
@@ -507,9 +576,6 @@ export function ChatPanel() {
             </button>
           </div>
         </div>
-
-        {/* Mode Tabs */}
-        <ModeTabs />
 
         {/* AI Chat Interface */}
         <>

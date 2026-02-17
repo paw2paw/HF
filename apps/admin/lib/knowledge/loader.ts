@@ -897,31 +897,8 @@ async function readJsonl(p: string): Promise<KbJsonlRow[]> {
   return out;
 }
 
-async function openAiEmbed(texts: string[], model: string): Promise<number[][]> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("OPENAI_API_KEY is not set");
-
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model,
-      input: texts,
-    }),
-  });
-
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(`OpenAI embeddings failed: ${res.status} ${msg}`);
-  }
-
-  const json = (await res.json()) as any;
-  const data = Array.isArray(json?.data) ? json.data : [];
-  return data.map((d: any) => d.embedding as number[]);
-}
+// Re-export from shared module for backward compat
+import { openAiEmbed } from "@/lib/embeddings";
 
 export async function buildVectors(opts: LoadKnowledgeOptions & { model?: string; batchSize?: number } = {}): Promise<VectorBuildSummary> {
   const layout = await resolveKbLayout(opts);
@@ -944,7 +921,8 @@ export async function buildVectors(opts: LoadKnowledgeOptions & { model?: string
   }
 
   const rows = await readJsonl(inputKbJsonlPath);
-  const model = opts.model || "text-embedding-3-small";
+  const { config } = await import("@/lib/config");
+  const model = opts.model || config.ai.openai.embeddingModel;
   const batchSize = typeof opts.batchSize === "number" ? Math.max(1, Math.floor(opts.batchSize)) : 32;
 
   const outJsonlPath = path.join(layout.vectorsDir, "embeddings.jsonl");

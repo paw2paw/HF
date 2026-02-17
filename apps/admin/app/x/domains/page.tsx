@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
@@ -9,141 +9,16 @@ import { DraggableTabs } from "@/components/shared/DraggableTabs";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 import { ReadinessBadge } from "@/components/shared/ReadinessBadge";
-
-type DomainListItem = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  isDefault: boolean;
-  isActive: boolean;
-  callerCount: number;
-  playbookCount: number;
-  publishedPlaybook: {
-    id: string;
-    name: string;
-    version: string;
-    publishedAt: string;
-  } | null;
-};
-
-type Caller = {
-  id: string;
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-  externalId: string | null;
-  createdAt: string;
-  _count: { calls: number };
-};
-
-type Playbook = {
-  id: string;
-  name: string;
-  description: string | null;
-  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
-  version: string;
-  sortOrder: number;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  domain?: { id: string; name: string };
-  _count?: { items: number };
-};
-
-type SubjectSourceItem = {
-  id: string;
-  tags: string[];
-  sortOrder: number;
-  source: {
-    id: string;
-    slug: string;
-    name: string;
-    trustLevel: string;
-    _count: { assertions: number };
-  };
-};
-
-type SubjectItem = {
-  subject: {
-    id: string;
-    slug: string;
-    name: string;
-    qualificationRef?: string | null;
-    sources: SubjectSourceItem[];
-    _count: { sources: number };
-  };
-};
-
-type DomainDetail = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  isDefault: boolean;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  callers: Caller[];
-  playbooks: Playbook[];
-  subjects?: SubjectItem[];
-  onboardingWelcome?: string | null;
-  onboardingIdentitySpec?: {
-    id: string;
-    slug: string;
-    name: string;
-  } | null;
-  onboardingFlowPhases?: any;
-  onboardingDefaultTargets?: any;
-  _count: {
-    callers: number;
-    playbooks: number;
-    subjects?: number;
-  };
-};
-
-const STATUSES = ["active", "inactive"] as const;
-
-const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
-  active: { bg: "#dcfce7", text: "#166534", icon: "✅", desc: "Currently active domains" },
-  inactive: { bg: "#fee2e2", text: "#991b1b", icon: "⏸️", desc: "Inactive domains" },
-};
-
-// Map playbook status to StatusBadge status type
-const playbookStatusMap: Record<string, "draft" | "active" | "archived"> = {
-  DRAFT: "draft",
-  PUBLISHED: "active",
-  ARCHIVED: "archived",
-};
-
-const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory", color: "#D4AF37", bg: "#FDF6E3" },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited", color: "#8B8B8B", bg: "#F5F5F5" },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published", color: "#4A90D9", bg: "#EBF3FC" },
-  { value: "EXPERT_CURATED", label: "L2 Expert", color: "#2E7D32", bg: "#E8F5E9" },
-  { value: "AI_ASSISTED", label: "L1 AI", color: "#FF8F00", bg: "#FFF3E0" },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "#B71C1C", bg: "#FFEBEE" },
-];
-
-function TrustBadge({ level }: { level: string }) {
-  const config = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: 11,
-        fontWeight: 600,
-        color: config.color,
-        backgroundColor: config.bg,
-        border: `1px solid ${config.color}33`,
-      }}
-    >
-      {config.label}
-    </span>
-  );
-}
+import { EditableTitle } from "@/components/shared/EditableTitle";
+import { BookOpen, Users, FileText, Rocket } from "lucide-react";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import { SortableList } from "@/components/shared/SortableList";
+import type { DomainListItem, DomainDetail } from "./components/types";
+import { statusColors, playbookStatusMap, TrustBadge, DocTypeBadge } from "./components/constants";
+import { CreateDomainModal } from "./components/CreateDomainModal";
+import { AddPlaybookModal } from "./components/AddPlaybookModal";
+import { PromptPreviewModal } from "./components/PromptPreviewModal";
+import { OnboardingTabContent } from "./components/OnboardingTab";
 
 export default function DomainsPage() {
   const router = useRouter();
@@ -155,8 +30,6 @@ export default function DomainsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [newDomain, setNewDomain] = useState({ slug: "", name: "", description: "" });
-  const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"name" | "callers" | "playbooks">("name");
@@ -167,12 +40,6 @@ export default function DomainsPage() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"callers" | "playbooks" | "content" | "onboarding">("playbooks");
   const [showPlaybookModal, setShowPlaybookModal] = useState(false);
-  const [creatingPlaybook, setCreatingPlaybook] = useState(false);
-  const [newPlaybook, setNewPlaybook] = useState({ name: "", description: "" });
-  const [allPlaybooks, setAllPlaybooks] = useState<Playbook[]>([]);
-  const [loadingPlaybooks, setLoadingPlaybooks] = useState(false);
-  const [modalTab, setModalTab] = useState<"create" | "existing">("existing");
-  const [movingPlaybookId, setMovingPlaybookId] = useState<string | null>(null);
 
   // Delete domain state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -189,31 +56,11 @@ export default function DomainsPage() {
     layout: "popout",
     enabledTabs: ["chat", "data"],
   });
-
-  // Keyboard shortcut for assistant
   useAssistantKeyboardShortcut(assistant.toggle);
   const [reorderingId, setReorderingId] = useState<string | null>(null);
 
-  // Onboarding editing state
-  const [editingOnboarding, setEditingOnboarding] = useState(false);
-  const [onboardingForm, setOnboardingForm] = useState({
-    welcomeMessage: "",
-    identitySpecId: "",
-    flowPhases: "",
-    defaultTargets: "",
-  });
-  const [flowPhasesMode, setFlowPhasesMode] = useState<"visual" | "json">("visual");
-  const [defaultTargetsMode, setDefaultTargetsMode] = useState<"visual" | "json">("visual");
-  const [structuredPhases, setStructuredPhases] = useState<Array<{
-    phase: string;
-    duration: string;
-    goals: string[];
-  }>>([]);
-  const [structuredTargets, setStructuredTargets] = useState<Record<string, { value: number; confidence: number }>>({});
-  const [savingOnboarding, setSavingOnboarding] = useState(false);
-  const [onboardingSaveError, setOnboardingSaveError] = useState<string | null>(null);
-  const [onboardingSaveSuccess, setOnboardingSaveSuccess] = useState(false);
-  const [availableSpecs, setAvailableSpecs] = useState<Array<{ id: string; slug: string; name: string }>>([]);
+  // Prompt preview
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
 
   const fetchDomains = () => {
     fetch("/api/domains")
@@ -258,192 +105,6 @@ export default function DomainsPage() {
         setDetailLoading(false);
       });
   }, [selectedId]);
-
-  // Fetch onboarding data when Onboarding tab is selected
-  useEffect(() => {
-    if (activeTab === "onboarding" && domain) {
-      fetch(`/api/domains/${domain.id}/onboarding`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.ok) {
-            // Merge onboarding-specific data into domain
-            setDomain((prev) => prev ? { ...prev, ...data.domain } : data.domain);
-          }
-        })
-        .catch((err) => {
-          console.error("Error fetching onboarding data:", err);
-        });
-    }
-  }, [activeTab, domain?.id]);
-
-  // Fetch available identity specs for onboarding tab
-  useEffect(() => {
-    if (activeTab === "onboarding" && availableSpecs.length === 0) {
-      fetch("/api/specs?role=IDENTITY")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.ok) {
-            setAvailableSpecs(data.specs || []);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [activeTab, availableSpecs.length]);
-
-  // Populate form when entering edit mode - fetch onboarding data to get identity spec
-  useEffect(() => {
-    if (editingOnboarding && domain) {
-      // Fetch full onboarding config including identity spec relation
-      fetch(`/api/domains/${domain.id}/onboarding`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.ok) {
-            const onboardingData = data.domain;
-            const flowPhasesJson = onboardingData.onboardingFlowPhases ? JSON.stringify(onboardingData.onboardingFlowPhases, null, 2) : "";
-            const defaultTargetsJson = onboardingData.onboardingDefaultTargets ? JSON.stringify(onboardingData.onboardingDefaultTargets, null, 2) : "";
-
-            setOnboardingForm({
-              welcomeMessage: onboardingData.onboardingWelcome || "",
-              identitySpecId: onboardingData.onboardingIdentitySpecId || "",
-              flowPhases: flowPhasesJson,
-              defaultTargets: defaultTargetsJson,
-            });
-
-            // Parse structured data
-            if (onboardingData.onboardingFlowPhases?.phases) {
-              setStructuredPhases(onboardingData.onboardingFlowPhases.phases);
-            } else {
-              setStructuredPhases([]);
-            }
-
-            if (onboardingData.onboardingDefaultTargets) {
-              setStructuredTargets(onboardingData.onboardingDefaultTargets);
-            } else {
-              setStructuredTargets({});
-            }
-          }
-        })
-        .catch((err) => {
-          console.error("Error fetching onboarding config:", err);
-          // Fallback to existing domain data if fetch fails
-          const flowPhasesJson = domain.onboardingFlowPhases ? JSON.stringify(domain.onboardingFlowPhases, null, 2) : "";
-          const defaultTargetsJson = domain.onboardingDefaultTargets ? JSON.stringify(domain.onboardingDefaultTargets, null, 2) : "";
-
-          setOnboardingForm({
-            welcomeMessage: domain.onboardingWelcome || "",
-            identitySpecId: "",
-            flowPhases: flowPhasesJson,
-            defaultTargets: defaultTargetsJson,
-          });
-        });
-    }
-  }, [editingOnboarding, domain?.id]);
-
-  const handleCreate = async () => {
-    if (!newDomain.slug || !newDomain.name) return;
-    setCreating(true);
-    try {
-      const res = await fetch("/api/domains", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newDomain),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setShowCreate(false);
-        setNewDomain({ slug: "", name: "", description: "" });
-        fetchDomains();
-        router.push(`/x/domains?id=${data.domain.id}`, { scroll: false });
-      } else {
-        setError(data.error);
-      }
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleSaveOnboarding = async () => {
-    if (!domain) return;
-
-    setSavingOnboarding(true);
-    setOnboardingSaveError(null);
-    setOnboardingSaveSuccess(false);
-
-    try {
-      // Parse JSON fields or use structured data
-      let flowPhases = null;
-      let defaultTargets = null;
-
-      if (flowPhasesMode === "visual") {
-        // Use structured phases
-        if (structuredPhases.length > 0) {
-          flowPhases = { phases: structuredPhases };
-        }
-      } else {
-        // Parse JSON
-        if (onboardingForm.flowPhases.trim()) {
-          try {
-            flowPhases = JSON.parse(onboardingForm.flowPhases);
-          } catch (e) {
-            throw new Error("Invalid JSON in Flow Phases");
-          }
-        }
-      }
-
-      if (defaultTargetsMode === "visual") {
-        // Use structured targets
-        if (Object.keys(structuredTargets).length > 0) {
-          defaultTargets = structuredTargets;
-        }
-      } else {
-        // Parse JSON
-        if (onboardingForm.defaultTargets.trim()) {
-          try {
-            defaultTargets = JSON.parse(onboardingForm.defaultTargets);
-          } catch (e) {
-            throw new Error("Invalid JSON in Default Targets");
-          }
-        }
-      }
-
-      const res = await fetch(`/api/domains/${domain.id}/onboarding`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          onboardingWelcome: onboardingForm.welcomeMessage || null,
-          onboardingIdentitySpecId: onboardingForm.identitySpecId || null,
-          onboardingFlowPhases: flowPhases,
-          onboardingDefaultTargets: defaultTargets,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!data.ok) {
-        throw new Error(data.error || "Failed to save onboarding configuration");
-      }
-
-      // Refresh domain data - use onboarding endpoint to get full data including identity spec
-      const refreshRes = await fetch(`/api/domains/${domain.id}/onboarding`);
-      const refreshData = await refreshRes.json();
-      if (refreshData.ok) {
-        // Update domain with onboarding data
-        setDomain((prev) => prev ? { ...prev, ...refreshData.domain } : refreshData.domain);
-      }
-
-      setOnboardingSaveSuccess(true);
-      setEditingOnboarding(false);
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setOnboardingSaveSuccess(false), 3000);
-    } catch (e: any) {
-      setOnboardingSaveError(e.message || "Failed to save");
-    } finally {
-      setSavingOnboarding(false);
-    }
-  };
 
   const handleDeleteDomain = async () => {
     if (!domain) return;
@@ -558,17 +219,13 @@ export default function DomainsPage() {
   const sortedPlaybooks = [...(domain?.playbooks || [])].sort((a, b) => a.sortOrder - b.sortOrder);
   const publishedPlaybooks = sortedPlaybooks.filter((p) => p.status === "PUBLISHED");
 
-  const handleReorder = async (playbookId: string, direction: "up" | "down") => {
-    const idx = sortedPlaybooks.findIndex((p) => p.id === playbookId);
-    if (idx === -1) return;
-    if (direction === "up" && idx === 0) return;
-    if (direction === "down" && idx === sortedPlaybooks.length - 1) return;
+  const handleReorder = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const currentPlaybook = sortedPlaybooks[fromIndex];
+    const swapPlaybook = sortedPlaybooks[toIndex];
+    if (!currentPlaybook || !swapPlaybook) return;
 
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    const currentPlaybook = sortedPlaybooks[idx];
-    const swapPlaybook = sortedPlaybooks[swapIdx];
-
-    setReorderingId(playbookId);
+    setReorderingId(currentPlaybook.id);
     try {
       await Promise.all([
         fetch(`/api/playbooks/${currentPlaybook.id}`, {
@@ -590,35 +247,6 @@ export default function DomainsPage() {
       alert("Error reordering: " + err.message);
     } finally {
       setReorderingId(null);
-    }
-  };
-
-  const handleCreatePlaybook = async () => {
-    if (!newPlaybook.name || !selectedId) {
-      alert("Name is required");
-      return;
-    }
-
-    setCreatingPlaybook(true);
-    try {
-      const res = await fetch("/api/playbooks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newPlaybook,
-          domainId: selectedId,
-        }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        router.push(`/x/playbooks/${data.playbook.id}`);
-      } else {
-        alert("Failed to create playbook: " + data.error);
-      }
-    } catch (err: any) {
-      alert("Error creating playbook: " + err.message);
-    } finally {
-      setCreatingPlaybook(false);
     }
   };
 
@@ -644,7 +272,7 @@ export default function DomainsPage() {
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 600,
-        border: isActive ? `1px solid ${colors.text}40` : "1px solid var(--border-default)",
+        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
         borderRadius: 5,
         cursor: "pointer",
         background: isActive ? colors.bg : "var(--surface-secondary)",
@@ -684,6 +312,7 @@ export default function DomainsPage() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{
@@ -899,7 +528,21 @@ export default function DomainsPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{domain.name}</h2>
+                    <EditableTitle
+                      value={domain.name}
+                      as="h2"
+                      onSave={async (newName) => {
+                        const res = await fetch(`/api/domains/${domain.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ name: newName }),
+                        });
+                        const data = await res.json();
+                        if (!data.ok) throw new Error(data.error);
+                        setDomain((prev) => prev ? { ...prev, name: newName } : prev);
+                        fetchDomains();
+                      }}
+                    />
                     {domain.isDefault && (
                       <span style={{ padding: "4px 8px", fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 4 }}>
                         Default
@@ -1045,10 +688,10 @@ export default function DomainsPage() {
               <DraggableTabs
                 storageKey={`domain-detail-tabs-${domain.id}`}
                 tabs={[
-                  { id: "playbooks", label: `Playbooks (${domain.playbooks.length})` },
-                  { id: "callers", label: `Callers (${domain._count.callers})` },
-                  { id: "content", label: `Content (${domain._count.subjects ?? 0})` },
-                  { id: "onboarding", label: "Onboarding" },
+                  { id: "playbooks", label: "Playbooks", icon: <BookOpen size={14} />, count: domain.playbooks.length },
+                  { id: "callers", label: "Callers", icon: <Users size={14} />, count: domain._count.callers },
+                  { id: "content", label: "Content", icon: <FileText size={14} />, count: domain._count.subjects ?? 0 },
+                  { id: "onboarding", label: "Onboarding", icon: <Rocket size={14} /> },
                 ]}
                 activeTab={activeTab}
                 onTabChange={(id) => setActiveTab(id as "callers" | "playbooks" | "content" | "onboarding")}
@@ -1061,17 +704,7 @@ export default function DomainsPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Playbooks</h3>
                     <button
-                      onClick={() => {
-                        setShowPlaybookModal(true);
-                        setModalTab("existing");
-                        setLoadingPlaybooks(true);
-                        fetch("/api/playbooks")
-                          .then((r) => r.json())
-                          .then((data) => {
-                            if (data.ok) setAllPlaybooks(data.playbooks || []);
-                          })
-                          .finally(() => setLoadingPlaybooks(false));
-                      }}
+                      onClick={() => setShowPlaybookModal(true)}
                       style={{
                         padding: "8px 16px",
                         fontSize: 14,
@@ -1107,17 +740,7 @@ export default function DomainsPage() {
                     <div style={{ padding: 32, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
                       <p style={{ color: "var(--text-muted)", marginBottom: 16 }}>No playbooks yet</p>
                       <button
-                        onClick={() => {
-                          setShowPlaybookModal(true);
-                          setModalTab("existing");
-                          setLoadingPlaybooks(true);
-                          fetch("/api/playbooks")
-                            .then((r) => r.json())
-                            .then((data) => {
-                              if (data.ok) setAllPlaybooks(data.playbooks || []);
-                            })
-                            .finally(() => setLoadingPlaybooks(false));
-                        }}
+                        onClick={() => setShowPlaybookModal(true)}
                         style={{
                           padding: "8px 16px",
                           fontSize: 14,
@@ -1133,62 +756,20 @@ export default function DomainsPage() {
                       </button>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {sortedPlaybooks.map((playbook, idx) => {
+                    <SortableList
+                      items={sortedPlaybooks}
+                      getItemId={(p) => p.id}
+                      onReorder={handleReorder}
+                      onRemove={(index) => {
+                        const playbook = sortedPlaybooks[index];
+                        if (playbook) setShowRemovePlaybookConfirm(playbook.id);
+                      }}
+                      disabled={!!reorderingId}
+                      renderCard={(playbook) => {
                         const isPublished = playbook.status === "PUBLISHED";
                         const stackPosition = isPublished ? publishedPlaybooks.findIndex((p) => p.id === playbook.id) + 1 : null;
-
                         return (
-                          <div
-                            key={playbook.id}
-                            style={{
-                              background: "var(--surface-primary)",
-                              border: isPublished ? "1px solid var(--status-success-border)" : "1px solid var(--border-default)",
-                              borderRadius: 8,
-                              padding: "12px 16px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12,
-                            }}
-                          >
-                            {/* Reorder buttons */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              <button
-                                onClick={(e) => { e.preventDefault(); handleReorder(playbook.id, "up"); }}
-                                disabled={idx === 0 || reorderingId === playbook.id}
-                                style={{
-                                  width: 24,
-                                  height: 20,
-                                  padding: 0,
-                                  border: "1px solid var(--border-strong)",
-                                  borderRadius: 3,
-                                  background: idx === 0 ? "var(--surface-tertiary)" : "var(--surface-primary)",
-                                  color: idx === 0 ? "var(--text-muted)" : "var(--text-primary)",
-                                  cursor: idx === 0 ? "not-allowed" : "pointer",
-                                  fontSize: 10,
-                                }}
-                              >
-                                ▲
-                              </button>
-                              <button
-                                onClick={(e) => { e.preventDefault(); handleReorder(playbook.id, "down"); }}
-                                disabled={idx === sortedPlaybooks.length - 1 || reorderingId === playbook.id}
-                                style={{
-                                  width: 24,
-                                  height: 20,
-                                  padding: 0,
-                                  border: "1px solid var(--border-strong)",
-                                  borderRadius: 3,
-                                  background: idx === sortedPlaybooks.length - 1 ? "var(--surface-tertiary)" : "var(--surface-primary)",
-                                  color: idx === sortedPlaybooks.length - 1 ? "var(--text-muted)" : "var(--text-primary)",
-                                  cursor: idx === sortedPlaybooks.length - 1 ? "not-allowed" : "pointer",
-                                  fontSize: 10,
-                                }}
-                              >
-                                ▼
-                              </button>
-                            </div>
-
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }} onClick={(e) => e.stopPropagation()}>
                             {/* Stack position badge */}
                             <div style={{
                               width: 28,
@@ -1218,94 +799,65 @@ export default function DomainsPage() {
                               </div>
                               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                                 {playbook._count?.items || 0} specs
+                                {(playbook._count?.enrollments ?? 0) > 0 && (
+                                  <> &bull; {playbook._count!.enrollments} enrolled</>
+                                )}
                                 {playbook.publishedAt && (
                                   <> &bull; Published {new Date(playbook.publishedAt).toLocaleDateString()}</>
                                 )}
                               </div>
                             </Link>
 
-                            {/* Remove + Arrow */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              {showRemovePlaybookConfirm === playbook.id ? (
-                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                  <span style={{ fontSize: 11, color: "#991b1b", whiteSpace: "nowrap" }}>
-                                    {isPublished ? "Archive first" : "Remove?"}
-                                  </span>
-                                  {!isPublished && (
-                                    <button
-                                      onClick={(e) => { e.preventDefault(); handleRemovePlaybook(playbook.id); }}
-                                      disabled={removingPlaybookId === playbook.id}
-                                      style={{
-                                        padding: "3px 8px",
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        background: "#dc2626",
-                                        color: "white",
-                                        border: "none",
-                                        borderRadius: 4,
-                                        cursor: removingPlaybookId === playbook.id ? "not-allowed" : "pointer",
-                                        opacity: removingPlaybookId === playbook.id ? 0.7 : 1,
-                                      }}
-                                    >
-                                      {removingPlaybookId === playbook.id ? "..." : "Yes"}
-                                    </button>
-                                  )}
+                            {/* Remove confirm (inline) */}
+                            {showRemovePlaybookConfirm === playbook.id && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ fontSize: 11, color: "#991b1b", whiteSpace: "nowrap" }}>
+                                  {isPublished ? "Archive first" : "Remove?"}
+                                </span>
+                                {!isPublished && (
                                   <button
-                                    onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(null); }}
+                                    onClick={(e) => { e.preventDefault(); handleRemovePlaybook(playbook.id); }}
+                                    disabled={removingPlaybookId === playbook.id}
                                     style={{
                                       padding: "3px 8px",
                                       fontSize: 11,
-                                      fontWeight: 500,
-                                      background: "var(--surface-secondary)",
-                                      color: "var(--text-muted)",
-                                      border: "1px solid var(--border-default)",
+                                      fontWeight: 600,
+                                      background: "#dc2626",
+                                      color: "white",
+                                      border: "none",
                                       borderRadius: 4,
-                                      cursor: "pointer",
+                                      cursor: removingPlaybookId === playbook.id ? "not-allowed" : "pointer",
+                                      opacity: removingPlaybookId === playbook.id ? 0.7 : 1,
                                     }}
                                   >
-                                    No
+                                    {removingPlaybookId === playbook.id ? "..." : "Yes"}
                                   </button>
-                                </div>
-                              ) : (
+                                )}
                                 <button
-                                  onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(playbook.id); }}
-                                  title="Remove playbook from domain"
+                                  onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(null); }}
                                   style={{
-                                    width: 24,
-                                    height: 24,
-                                    padding: 0,
-                                    background: "transparent",
-                                    color: "var(--text-placeholder)",
-                                    border: "1px solid transparent",
+                                    padding: "3px 8px",
+                                    fontSize: 11,
+                                    fontWeight: 500,
+                                    background: "var(--surface-secondary)",
+                                    color: "var(--text-muted)",
+                                    border: "1px solid var(--border-default)",
                                     borderRadius: 4,
                                     cursor: "pointer",
-                                    fontSize: 14,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = "#fef2f2";
-                                    e.currentTarget.style.color = "#dc2626";
-                                    e.currentTarget.style.borderColor = "#fca5a5";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = "transparent";
-                                    e.currentTarget.style.color = "var(--text-placeholder)";
-                                    e.currentTarget.style.borderColor = "transparent";
                                   }}
                                 >
-                                  ×
+                                  No
                                 </button>
-                              )}
-                              <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none" }}>
-                                →
-                              </Link>
-                            </div>
+                              </div>
+                            )}
+
+                            <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none", flexShrink: 0 }}>
+                              →
+                            </Link>
                           </div>
                         );
-                      })}
-                    </div>
+                      }}
+                    />
                   )}
                 </div>
               )}
@@ -1440,8 +992,42 @@ export default function DomainsPage() {
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                                {subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
+                                <span>{subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}</span>
+                                <Link
+                                  href={`/x/content-wizard?subjectId=${subj.id}&domainId=${domain.id}`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    padding: "2px 8px",
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: "var(--accent-primary)",
+                                    background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                                    borderRadius: 4,
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Add Content
+                                </Link>
+                                <Link
+                                  href={`/x/domains/${domain.id}/extraction`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    padding: "2px 8px",
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: "#8b5cf6",
+                                    background: "#ede9fe",
+                                    borderRadius: 4,
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Extraction Config
+                                </Link>
                               </div>
                             </div>
                             {/* Sources list */}
@@ -1455,7 +1041,7 @@ export default function DomainsPage() {
                                       alignItems: "center",
                                       gap: 12,
                                       padding: "8px 0",
-                                      borderTop: idx > 0 ? "1px solid var(--border-secondary)" : "none",
+                                      borderTop: idx > 0 ? "1px solid var(--border-subtle)" : "none",
                                     }}
                                   >
                                     <span style={{ color: "var(--text-muted)", fontSize: 14, width: 20 }}>
@@ -1475,6 +1061,7 @@ export default function DomainsPage() {
                                         {ss.tags[0]}
                                       </span>
                                     )}
+                                    <DocTypeBadge type={ss.source.documentType} />
                                     <Link
                                       href={`/x/content-sources?highlight=${ss.source.id}`}
                                       style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}
@@ -1503,1081 +1090,15 @@ export default function DomainsPage() {
 
               {/* Onboarding Tab */}
               {activeTab === "onboarding" && (
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-                        First-Call Onboarding Configuration
-                      </h3>
-                      <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>
-                        Customize the onboarding experience for new callers in this domain
-                      </p>
-                    </div>
-                    {!editingOnboarding && (
-                      <button
-                        onClick={() => setEditingOnboarding(true)}
-                        style={{
-                          padding: "8px 16px",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          background: "var(--accent-primary)",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Edit Configuration
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Success Message */}
-                  {onboardingSaveSuccess && (
-                    <div style={{
-                      padding: 12,
-                      marginBottom: 16,
-                      background: "#dcfce7",
-                      color: "#166534",
-                      borderRadius: 8,
-                      fontSize: 14,
-                    }}>
-                      ✅ Onboarding configuration saved successfully
-                    </div>
-                  )}
-
-                  {/* Error Message */}
-                  {onboardingSaveError && (
-                    <div style={{
-                      padding: 12,
-                      marginBottom: 16,
-                      background: "var(--status-error-bg)",
-                      color: "var(--status-error-text)",
-                      borderRadius: 8,
-                      fontSize: 14,
-                    }}>
-                      {onboardingSaveError}
-                    </div>
-                  )}
-
-                  {editingOnboarding ? (
-                    /* Edit Mode */
-                    <div style={{
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                      padding: 20,
-                    }}>
-                      {/* Welcome Message */}
-                      <div style={{ marginBottom: 20 }}>
-                        <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-                          Welcome Message
-                        </label>
-                        <textarea
-                          value={onboardingForm.welcomeMessage}
-                          onChange={(e) => setOnboardingForm({ ...onboardingForm, welcomeMessage: e.target.value })}
-                          placeholder="Enter the welcome message for first-time callers..."
-                          style={{
-                            width: "100%",
-                            minHeight: 120,
-                            padding: 12,
-                            fontSize: 14,
-                            border: "2px solid var(--border-default)",
-                            borderRadius: 6,
-                            fontFamily: "inherit",
-                            resize: "vertical",
-                          }}
-                        />
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                          This message is shown to new callers on their first call
-                        </div>
-                      </div>
-
-                      {/* Identity Spec */}
-                      <div style={{ marginBottom: 20 }}>
-                        <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-                          Identity Spec
-                        </label>
-                        <select
-                          value={onboardingForm.identitySpecId}
-                          onChange={(e) => setOnboardingForm({ ...onboardingForm, identitySpecId: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: 12,
-                            fontSize: 14,
-                            border: "2px solid var(--border-default)",
-                            borderRadius: 6,
-                            background: "var(--surface-primary)",
-                          }}
-                        >
-                          <option value="">Use default identity spec</option>
-                          {availableSpecs.map((spec) => (
-                            <option key={spec.id} value={spec.id}>
-                              {spec.name} ({spec.slug})
-                            </option>
-                          ))}
-                        </select>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                          Which identity/persona spec to use for onboarding
-                        </div>
-                      </div>
-
-                      {/* Flow Phases */}
-                      <div style={{ marginBottom: 20 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <label style={{ fontSize: 14, fontWeight: 600 }}>
-                            Flow Phases
-                          </label>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              onClick={() => setFlowPhasesMode("visual")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: flowPhasesMode === "visual" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: flowPhasesMode === "visual" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Visual
-                            </button>
-                            <button
-                              onClick={() => setFlowPhasesMode("json")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: flowPhasesMode === "json" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: flowPhasesMode === "json" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              JSON
-                            </button>
-                          </div>
-                        </div>
-
-                        {flowPhasesMode === "visual" ? (
-                          /* Visual Editor */
-                          <div>
-                            {structuredPhases.map((phase, index) => (
-                              <div
-                                key={index}
-                                style={{
-                                  display: "flex",
-                                  gap: 8,
-                                  marginBottom: 12,
-                                  padding: 16,
-                                  background: "var(--surface-primary)",
-                                  border: "2px solid var(--border-default)",
-                                  borderRadius: 8,
-                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                }}
-                              >
-                                {/* Drag Handle & Reorder */}
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 4 }}>
-                                  <button
-                                    onClick={() => {
-                                      if (index === 0) return;
-                                      const newPhases = [...structuredPhases];
-                                      [newPhases[index - 1], newPhases[index]] = [newPhases[index], newPhases[index - 1]];
-                                      setStructuredPhases(newPhases);
-                                    }}
-                                    disabled={index === 0}
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      padding: 0,
-                                      fontSize: 14,
-                                      background: index === 0 ? "var(--surface-tertiary)" : "var(--surface-secondary)",
-                                      border: "1px solid var(--border-default)",
-                                      borderRadius: 4,
-                                      cursor: index === 0 ? "not-allowed" : "pointer",
-                                      opacity: index === 0 ? 0.3 : 1,
-                                    }}
-                                    title="Move up"
-                                  >
-                                    ↑
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (index === structuredPhases.length - 1) return;
-                                      const newPhases = [...structuredPhases];
-                                      [newPhases[index], newPhases[index + 1]] = [newPhases[index + 1], newPhases[index]];
-                                      setStructuredPhases(newPhases);
-                                    }}
-                                    disabled={index === structuredPhases.length - 1}
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      padding: 0,
-                                      fontSize: 14,
-                                      background: index === structuredPhases.length - 1 ? "var(--surface-tertiary)" : "var(--surface-secondary)",
-                                      border: "1px solid var(--border-default)",
-                                      borderRadius: 4,
-                                      cursor: index === structuredPhases.length - 1 ? "not-allowed" : "pointer",
-                                      opacity: index === structuredPhases.length - 1 ? 0.3 : 1,
-                                    }}
-                                    title="Move down"
-                                  >
-                                    ↓
-                                  </button>
-                                </div>
-
-                                {/* Phase Content */}
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <div style={{
-                                        width: 28,
-                                        height: 28,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        background: "var(--accent-primary)",
-                                        color: "white",
-                                        borderRadius: "50%",
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                      }}>
-                                        {index + 1}
-                                      </div>
-                                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
-                                        Phase {index + 1}
-                                      </span>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        const newPhases = structuredPhases.filter((_, i) => i !== index);
-                                        setStructuredPhases(newPhases);
-                                      }}
-                                      style={{
-                                        padding: "4px 12px",
-                                        fontSize: 11,
-                                        fontWeight: 500,
-                                        background: "var(--status-error-bg)",
-                                        color: "var(--status-error-text)",
-                                        border: "none",
-                                        borderRadius: 4,
-                                        cursor: "pointer",
-                                      }}
-                                    >
-                                      × Remove
-                                    </button>
-                                  </div>
-                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 10, marginBottom: 10 }}>
-                                    <div>
-                                      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                                        Phase Name
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={phase.phase}
-                                        onChange={(e) => {
-                                          const newPhases = [...structuredPhases];
-                                          newPhases[index].phase = e.target.value;
-                                          setStructuredPhases(newPhases);
-                                        }}
-                                        placeholder="e.g., welcome, orient, discover"
-                                        style={{
-                                          width: "100%",
-                                          padding: 10,
-                                          fontSize: 14,
-                                          border: "2px solid var(--border-default)",
-                                          borderRadius: 6,
-                                          background: "var(--surface-secondary)",
-                                        }}
-                                      />
-                                    </div>
-                                    <div>
-                                      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                                        Duration
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={phase.duration}
-                                        onChange={(e) => {
-                                          const newPhases = [...structuredPhases];
-                                          newPhases[index].duration = e.target.value;
-                                          setStructuredPhases(newPhases);
-                                        }}
-                                        placeholder="e.g., 2min"
-                                        style={{
-                                          width: "100%",
-                                          padding: 10,
-                                          fontSize: 14,
-                                          border: "2px solid var(--border-default)",
-                                          borderRadius: 6,
-                                          background: "var(--surface-secondary)",
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                                      Goals (one per line)
-                                    </label>
-                                    <textarea
-                                      value={phase.goals.join("\n")}
-                                      onChange={(e) => {
-                                        const newPhases = [...structuredPhases];
-                                        newPhases[index].goals = e.target.value.split("\n").filter(g => g.trim());
-                                        setStructuredPhases(newPhases);
-                                      }}
-                                      placeholder="Enter goals for this phase..."
-                                      style={{
-                                        width: "100%",
-                                        minHeight: 80,
-                                        padding: 10,
-                                        fontSize: 13,
-                                        lineHeight: 1.6,
-                                        border: "2px solid var(--border-default)",
-                                        borderRadius: 6,
-                                        background: "var(--surface-secondary)",
-                                        resize: "vertical",
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => {
-                                setStructuredPhases([...structuredPhases, { phase: "", duration: "", goals: [] }]);
-                              }}
-                              style={{
-                                width: "100%",
-                                padding: 10,
-                                fontSize: 14,
-                                fontWeight: 500,
-                                background: "var(--surface-secondary)",
-                                color: "var(--text-primary)",
-                                border: "1px dashed var(--border-default)",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                              }}
-                            >
-                              + Add Phase
-                            </button>
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
-                              Define the onboarding flow phases (leave empty to use defaults)
-                            </div>
-                          </div>
-                        ) : (
-                          /* JSON Editor */
-                          <div>
-                            <textarea
-                              value={onboardingForm.flowPhases}
-                              onChange={(e) => setOnboardingForm({ ...onboardingForm, flowPhases: e.target.value })}
-                              placeholder='{"phases": [{"phase": "welcome", "duration": "2min", "goals": ["..."]}]}'
-                              style={{
-                                width: "100%",
-                                minHeight: 200,
-                                padding: 12,
-                                fontSize: 13,
-                                fontFamily: "monospace",
-                                border: "2px solid var(--border-default)",
-                                borderRadius: 6,
-                                resize: "vertical",
-                              }}
-                            />
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                              Define the onboarding flow phases in JSON format
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Default Targets */}
-                      <div style={{ marginBottom: 20 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <label style={{ fontSize: 14, fontWeight: 600 }}>
-                            Default Behavior Targets
-                          </label>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              onClick={() => setDefaultTargetsMode("visual")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: defaultTargetsMode === "visual" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: defaultTargetsMode === "visual" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Visual
-                            </button>
-                            <button
-                              onClick={() => setDefaultTargetsMode("json")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: defaultTargetsMode === "json" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: defaultTargetsMode === "json" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              JSON
-                            </button>
-                          </div>
-                        </div>
-
-                        {defaultTargetsMode === "visual" ? (
-                          /* Visual Editor with Vertical Sliders */
-                          <div>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                              {Object.entries(structuredTargets).map(([paramId, target]) => (
-                              <div
-                                key={paramId}
-                                style={{
-                                  padding: 16,
-                                  background: "var(--surface-primary)",
-                                  border: "2px solid var(--border-default)",
-                                  borderRadius: 8,
-                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                  display: "flex",
-                                  flexDirection: "column",
-                                }}
-                              >
-                                {/* Header */}
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.2 }}>
-                                    {paramId}
-                                  </span>
-                                  <button
-                                    onClick={() => {
-                                      const newTargets = { ...structuredTargets };
-                                      delete newTargets[paramId];
-                                      setStructuredTargets(newTargets);
-                                    }}
-                                    style={{
-                                      padding: "2px 8px",
-                                      fontSize: 10,
-                                      fontWeight: 500,
-                                      background: "var(--status-error-bg)",
-                                      color: "var(--status-error-text)",
-                                      border: "none",
-                                      borderRadius: 4,
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-
-                                {/* Vertical Sliders Container */}
-                                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", gap: 20, flex: 1 }}>
-                                  {/* Value Slider */}
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                                    <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
-                                      Value
-                                    </label>
-                                    <span style={{
-                                      fontSize: 15,
-                                      fontWeight: 700,
-                                      color: "var(--accent-primary)",
-                                      fontFamily: "monospace",
-                                      marginBottom: 8,
-                                      minHeight: 20,
-                                    }}>
-                                      {target.value.toFixed(2)}
-                                    </span>
-
-                                    {/* Vertical Slider Wrapper */}
-                                    <div style={{ position: "relative", height: 180, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                      {/* Scale markers */}
-                                      <div style={{ position: "absolute", right: -24, top: -6, fontSize: 9, color: "var(--text-muted)" }}>1.0</div>
-                                      <div style={{ position: "absolute", right: -24, top: 84, fontSize: 9, color: "var(--text-muted)" }}>0.5</div>
-                                      <div style={{ position: "absolute", right: -24, bottom: -6, fontSize: 9, color: "var(--text-muted)" }}>0.0</div>
-
-                                      {/* Vertical range input */}
-                                      <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.01"
-                                        value={target.value}
-                                        onChange={(e) => {
-                                          const newTargets = { ...structuredTargets };
-                                          newTargets[paramId].value = parseFloat(e.target.value);
-                                          setStructuredTargets(newTargets);
-                                        }}
-                                        style={{
-                                          WebkitAppearance: "slider-vertical",
-                                          width: 6,
-                                          height: 180,
-                                          borderRadius: 3,
-                                          background: `linear-gradient(to top, var(--accent-primary) 0%, var(--accent-primary) ${target.value * 100}%, var(--surface-tertiary) ${target.value * 100}%, var(--surface-tertiary) 100%)`,
-                                          outline: "none",
-                                          cursor: "pointer",
-                                          writingMode: "bt-lr",
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* Confidence Slider */}
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                                    <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
-                                      Confidence
-                                    </label>
-                                    <span style={{
-                                      fontSize: 15,
-                                      fontWeight: 700,
-                                      color: "var(--accent-primary)",
-                                      fontFamily: "monospace",
-                                      marginBottom: 8,
-                                      minHeight: 20,
-                                    }}>
-                                      {target.confidence.toFixed(2)}
-                                    </span>
-
-                                    {/* Vertical Slider Wrapper */}
-                                    <div style={{ position: "relative", height: 180, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                      {/* Scale markers */}
-                                      <div style={{ position: "absolute", left: -24, top: -6, fontSize: 9, color: "var(--text-muted)" }}>1.0</div>
-                                      <div style={{ position: "absolute", left: -24, top: 84, fontSize: 9, color: "var(--text-muted)" }}>0.5</div>
-                                      <div style={{ position: "absolute", left: -24, bottom: -6, fontSize: 9, color: "var(--text-muted)" }}>0.0</div>
-
-                                      {/* Vertical range input */}
-                                      <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.01"
-                                        value={target.confidence}
-                                        onChange={(e) => {
-                                          const newTargets = { ...structuredTargets };
-                                          newTargets[paramId].confidence = parseFloat(e.target.value);
-                                          setStructuredTargets(newTargets);
-                                        }}
-                                        style={{
-                                          WebkitAppearance: "slider-vertical",
-                                          width: 6,
-                                          height: 180,
-                                          borderRadius: 3,
-                                          background: `linear-gradient(to top, var(--accent-primary) 0%, var(--accent-primary) ${target.confidence * 100}%, var(--surface-tertiary) ${target.confidence * 100}%, var(--surface-tertiary) 100%)`,
-                                          outline: "none",
-                                          cursor: "pointer",
-                                          writingMode: "bt-lr",
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Add Parameter Section */}
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ display: "flex", gap: 8 }}>
-                              <input
-                                type="text"
-                                id="newParamId"
-                                placeholder="Parameter ID (e.g., warmth)"
-                                style={{
-                                  flex: 1,
-                                  padding: 10,
-                                  fontSize: 14,
-                                  border: "1px solid var(--border-default)",
-                                  borderRadius: 6,
-                                }}
-                              />
-                              <button
-                                onClick={() => {
-                                  const input = document.getElementById("newParamId") as HTMLInputElement;
-                                  const paramId = input.value.trim();
-                                  if (paramId && !structuredTargets[paramId]) {
-                                    setStructuredTargets({
-                                      ...structuredTargets,
-                                      [paramId]: { value: 0.5, confidence: 0.3 },
-                                    });
-                                    input.value = "";
-                                  }
-                                }}
-                                style={{
-                                  padding: "10px 20px",
-                                  fontSize: 14,
-                                  fontWeight: 500,
-                                  background: "var(--accent-primary)",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: 6,
-                                  cursor: "pointer",
-                                }}
-                              >
-                                Add Parameter
-                              </button>
-                            </div>
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
-                              Default behavior parameter values for first-time callers (leave empty to use defaults)
-                            </div>
-                          </div>
-                          </div>
-                        ) : (
-                          /* JSON Editor */
-                          <div>
-                            <textarea
-                              value={onboardingForm.defaultTargets}
-                              onChange={(e) => setOnboardingForm({ ...onboardingForm, defaultTargets: e.target.value })}
-                              placeholder='{"warmth": {"value": 0.7, "confidence": 0.3}, ...}'
-                              style={{
-                                width: "100%",
-                                minHeight: 200,
-                                padding: 12,
-                                fontSize: 13,
-                                fontFamily: "monospace",
-                                border: "2px solid var(--border-default)",
-                                borderRadius: 6,
-                                resize: "vertical",
-                              }}
-                            />
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                              Default behavior parameter values in JSON format
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-                        <button
-                          onClick={() => {
-                            setEditingOnboarding(false);
-                            setOnboardingSaveError(null);
-                          }}
-                          disabled={savingOnboarding}
-                          style={{
-                            padding: "10px 20px",
-                            fontSize: 14,
-                            fontWeight: 500,
-                            background: "var(--surface-secondary)",
-                            color: "var(--text-secondary)",
-                            border: "1px solid var(--border-default)",
-                            borderRadius: 6,
-                            cursor: savingOnboarding ? "not-allowed" : "pointer",
-                            opacity: savingOnboarding ? 0.5 : 1,
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSaveOnboarding}
-                          disabled={savingOnboarding}
-                          style={{
-                            padding: "10px 24px",
-                            fontSize: 14,
-                            fontWeight: 600,
-                            background: savingOnboarding ? "#d1d5db" : "var(--accent-primary)",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 6,
-                            cursor: savingOnboarding ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {savingOnboarding ? "Saving..." : "Save Changes"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* View Mode */
-                    <div>
-
-                  {/* Quick Stats - Dashboard Style */}
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, 1fr)",
-                    gap: 16,
-                    marginBottom: 24,
-                  }}>
-                    {/* Identity Spec Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingIdentitySpec ? "#10b981" : "#ef4444"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingIdentitySpec ? "👤" : "⚠️"}
-                      </div>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: domain.onboardingIdentitySpec ? "#10b981" : "#ef4444",
-                        textAlign: "center",
-                        marginBottom: 4,
-                      }}>
-                        {domain.onboardingIdentitySpec?.name || "Not Set"}
-                      </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
-                        Identity Spec
-                      </div>
-                    </div>
-
-                    {/* Welcome Message Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingWelcome ? "#10b981" : "#d1d5db"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingWelcome ? "✅" : "💬"}
-                      </div>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: domain.onboardingWelcome ? "#10b981" : "var(--text-muted)",
-                        textAlign: "center",
-                        marginBottom: 4,
-                      }}>
-                        {domain.onboardingWelcome ? "Configured" : "Default"}
-                      </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
-                        Welcome Message
-                      </div>
-                    </div>
-
-                    {/* Flow Phases Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingFlowPhases ? "#10b981" : "#d1d5db"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingFlowPhases ? "🔄" : "⏭️"}
-                      </div>
-                      <div style={{
-                        fontSize: 20,
-                        fontWeight: 700,
-                        color: domain.onboardingFlowPhases ? "var(--button-primary-bg)" : "var(--text-muted)",
-                        lineHeight: 1,
-                        marginBottom: 4,
-                      }}>
-                        {domain.onboardingFlowPhases ?
-                          (domain.onboardingFlowPhases as any).phases?.length || 0 :
-                          "0"}
-                      </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
-                        Flow Phases
-                      </div>
-                    </div>
-
-                    {/* Default Targets Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingDefaultTargets ? "#10b981" : "#d1d5db"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingDefaultTargets ? "🎯" : "⚙️"}
-                      </div>
-                      <div style={{
-                        fontSize: 20,
-                        fontWeight: 700,
-                        color: domain.onboardingDefaultTargets ? "var(--button-primary-bg)" : "var(--text-muted)",
-                        lineHeight: 1,
-                        marginBottom: 4,
-                      }}>
-                        {domain.onboardingDefaultTargets ?
-                          Object.keys(domain.onboardingDefaultTargets as object).length :
-                          "0"}
-                      </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
-                        Default Targets
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Welcome Message Preview */}
-                  {domain.onboardingWelcome && (
-                    <div style={{
-                      padding: 16,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                      marginBottom: 20,
-                    }}>
-                      <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600 }}>
-                        Welcome Message Preview
-                      </h4>
-                      <div style={{
-                        padding: 16,
-                        background: "var(--surface-tertiary)",
-                        borderRadius: 6,
-                        fontSize: 14,
-                        lineHeight: 1.6,
-                        fontStyle: "italic",
-                      }}>
-                        "{domain.onboardingWelcome}"
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Flow Phases Visual */}
-                  {domain.onboardingFlowPhases && (domain.onboardingFlowPhases as any).phases && (
-                    <div style={{
-                      padding: 20,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 12,
-                      marginBottom: 20,
-                    }}>
-                      <h4 style={{
-                        margin: "0 0 16px 0",
-                        fontSize: 16,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}>
-                        <span style={{ fontSize: 20 }}>🔄</span>
-                        Onboarding Flow Phases
-                      </h4>
-                      <div style={{
-                        display: "flex",
-                        gap: 16,
-                        overflowX: "auto",
-                        paddingBottom: 8,
-                      }}>
-                        {((domain.onboardingFlowPhases as any).phases || []).map((phase: any, idx: number) => (
-                          <div key={idx} style={{
-                            minWidth: 220,
-                            padding: 20,
-                            background: "var(--surface-primary)",
-                            border: "1px solid var(--border-default)",
-                            borderRadius: 12,
-                            position: "relative",
-                            transition: "all 0.2s",
-                          }}
-                          className="phase-card">
-                            <div style={{
-                              position: "absolute",
-                              top: 12,
-                              right: 12,
-                              background: "var(--button-primary-bg)",
-                              color: "white",
-                              padding: "4px 10px",
-                              borderRadius: 6,
-                              fontSize: 12,
-                              fontWeight: 700,
-                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                            }}>
-                              {idx + 1}
-                            </div>
-                            <div style={{
-                              fontSize: 16,
-                              fontWeight: 700,
-                              marginBottom: 12,
-                              marginTop: 8,
-                              color: "var(--button-primary-bg)",
-                              textTransform: "capitalize",
-                            }}>
-                              {phase.phase}
-                            </div>
-                            <div style={{
-                              fontSize: 13,
-                              color: "var(--text-muted)",
-                              marginBottom: 16,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                              padding: "6px 10px",
-                              background: "var(--surface-secondary)",
-                              borderRadius: 6,
-                              fontWeight: 500,
-                            }}>
-                              <span>⏱️</span>
-                              <span>{phase.duration}</span>
-                            </div>
-                            {phase.goals && phase.goals.length > 0 && (
-                              <div>
-                                <div style={{
-                                  fontSize: 10,
-                                  color: "var(--text-muted)",
-                                  marginBottom: 8,
-                                  fontWeight: 700,
-                                  letterSpacing: "0.5px",
-                                  textTransform: "uppercase",
-                                }}>
-                                  Goals
-                                </div>
-                                <ul style={{
-                                  margin: 0,
-                                  paddingLeft: 18,
-                                  fontSize: 13,
-                                  lineHeight: 1.6,
-                                  color: "var(--text-secondary)",
-                                }}>
-                                  {phase.goals.map((goal: string, gIdx: number) => (
-                                    <li key={gIdx} style={{ marginBottom: 4 }}>{goal}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Default Targets Visual */}
-                  {domain.onboardingDefaultTargets && Object.keys(domain.onboardingDefaultTargets as object).length > 0 && (
-                    <div style={{
-                      padding: 16,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                    }}>
-                      <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600 }}>
-                        Default Parameter Targets
-                      </h4>
-                      <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                        gap: 12,
-                      }}>
-                        {Object.entries(domain.onboardingDefaultTargets as object).map(([param, data]: [string, any]) => {
-                          const value = data.value ?? data;
-                          const confidence = data.confidence ?? null;
-                          const normalizedValue = typeof value === 'number' ? value : 0;
-                          const percentage = Math.round(normalizedValue * 100);
-
-                          return (
-                            <div key={param} style={{
-                              padding: 12,
-                              background: "var(--surface-secondary)",
-                              border: "1px solid var(--border-default)",
-                              borderRadius: 6,
-                            }}>
-                              <div style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                marginBottom: 8,
-                                color: "var(--text-primary)",
-                                textTransform: "capitalize",
-                              }}>
-                                {param.replace(/_/g, " ")}
-                              </div>
-                              <div style={{
-                                display: "flex",
-                                alignItems: "baseline",
-                                gap: 6,
-                                marginBottom: 8,
-                              }}>
-                                <div style={{
-                                  fontSize: 24,
-                                  fontWeight: 700,
-                                  color: "var(--accent-primary)",
-                                }}>
-                                  {percentage}%
-                                </div>
-                                <div style={{
-                                  fontSize: 11,
-                                  color: "var(--text-muted)",
-                                }}>
-                                  ({normalizedValue.toFixed(2)})
-                                </div>
-                              </div>
-                              {/* Progress bar */}
-                              <div style={{
-                                width: "100%",
-                                height: 4,
-                                background: "var(--surface-tertiary)",
-                                borderRadius: 2,
-                                overflow: "hidden",
-                                marginBottom: confidence !== null ? 8 : 0,
-                              }}>
-                                <div style={{
-                                  width: `${percentage}%`,
-                                  height: "100%",
-                                  background: "var(--accent-primary)",
-                                  transition: "width 0.3s ease",
-                                }} />
-                              </div>
-                              {confidence !== null && (
-                                <div style={{
-                                  fontSize: 11,
-                                  color: "var(--text-muted)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                }}>
-                                  <span>Confidence:</span>
-                                  <span style={{ fontWeight: 600 }}>
-                                    {Math.round(confidence * 100)}%
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Hover Styles for Onboarding Cards */}
-                  <style>{`
-                    .phase-card:hover {
-                      border-color: var(--button-primary-bg) !important;
-                      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
-                      transform: translateY(-2px);
-                    }
-                  `}</style>
-                </div>
-                  )}
-                </div>
+                <OnboardingTabContent
+                  domain={domain}
+                  onDomainRefresh={() => {
+                    fetch(`/api/domains/${domain.id}`)
+                      .then((r) => r.json())
+                      .then((data) => { if (data.ok) setDomain(data.domain); });
+                  }}
+                  onPreviewPrompt={() => setShowPromptPreview(true)}
+                />
               )}
             </>
           )}
@@ -2585,327 +1106,41 @@ export default function DomainsPage() {
       </div>
 
       {/* Create Domain Modal */}
-      {showCreate && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setShowCreate(false)}
-        >
-          <div
-            style={{ background: "var(--surface-primary)", borderRadius: 12, padding: 24, width: 400 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New Domain</h2>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Slug</label>
-              <input
-                type="text"
-                value={newDomain.slug}
-                onChange={(e) => setNewDomain({ ...newDomain, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
-                placeholder="e.g., tutor"
-                style={{ width: "100%", padding: 10, border: "1px solid var(--border-strong)", borderRadius: 6 }}
-              />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Name</label>
-              <input
-                type="text"
-                value={newDomain.name}
-                onChange={(e) => setNewDomain({ ...newDomain, name: e.target.value })}
-                placeholder="e.g., AI Tutor"
-                style={{ width: "100%", padding: 10, border: "1px solid var(--border-strong)", borderRadius: 6 }}
-              />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Description</label>
-              <textarea
-                value={newDomain.description}
-                onChange={(e) => setNewDomain({ ...newDomain, description: e.target.value })}
-                rows={2}
-                style={{ width: "100%", padding: 10, border: "1px solid var(--border-strong)", borderRadius: 6, resize: "vertical" }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setShowCreate(false)}
-                style={{ padding: "8px 16px", background: "var(--surface-secondary)", border: "none", borderRadius: 6, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={creating || !newDomain.slug || !newDomain.name}
-                style={{
-                  padding: "8px 16px",
-                  background: "var(--button-primary-bg)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  opacity: creating ? 0.7 : 1,
-                }}
-              >
-                {creating ? "Creating..." : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      <CreateDomainModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={(id) => {
+          setShowCreate(false);
+          fetchDomains();
+          router.push(`/x/domains?id=${id}`, { scroll: false });
+        }}
+        onError={(msg) => setError(msg)}
+      />
       {/* Add Playbook Modal */}
-      {showPlaybookModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
+      {domain && (
+        <AddPlaybookModal
+          domainId={domain.id}
+          domainName={domain.name}
+          open={showPlaybookModal}
+          onClose={() => setShowPlaybookModal(false)}
+          onPlaybookAdded={() => {
+            setShowPlaybookModal(false);
+            fetch(`/api/domains/${domain.id}`)
+              .then((r) => r.json())
+              .then((data) => { if (data.ok) setDomain(data.domain); });
+            fetchDomains();
           }}
-          onClick={() => setShowPlaybookModal(false)}
-        >
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 12,
-              width: 500,
-              maxWidth: "90%",
-              maxHeight: "80vh",
-              display: "flex",
-              flexDirection: "column",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header with Tabs */}
-            <div style={{ borderBottom: "1px solid var(--border-default)" }}>
-              <div style={{ padding: "16px 20px 0 20px" }}>
-                <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Add Playbook to {domain?.name}</h2>
-              </div>
-              <div style={{ display: "flex", gap: 0 }}>
-                <button
-                  onClick={() => setModalTab("existing")}
-                  style={{
-                    flex: 1,
-                    padding: "10px 16px",
-                    background: "none",
-                    border: "none",
-                    borderBottom: modalTab === "existing" ? "2px solid var(--accent-primary)" : "2px solid transparent",
-                    color: modalTab === "existing" ? "var(--accent-primary)" : "var(--text-muted)",
-                    fontWeight: modalTab === "existing" ? 600 : 400,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  Move Existing
-                </button>
-                <button
-                  onClick={() => setModalTab("create")}
-                  style={{
-                    flex: 1,
-                    padding: "10px 16px",
-                    background: "none",
-                    border: "none",
-                    borderBottom: modalTab === "create" ? "2px solid var(--accent-primary)" : "2px solid transparent",
-                    color: modalTab === "create" ? "var(--accent-primary)" : "var(--text-muted)",
-                    fontWeight: modalTab === "create" ? 600 : 400,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  Create New
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
-              {modalTab === "existing" ? (
-                <div>
-                  {loadingPlaybooks ? (
-                    <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Loading playbooks...</div>
-                  ) : (() => {
-                    const otherPlaybooks = allPlaybooks.filter((pb) => pb.domain?.id !== selectedId);
-                    return otherPlaybooks.length === 0 ? (
-                      <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>
-                        <p>No playbooks in other domains to move.</p>
-                        <button
-                          onClick={() => setModalTab("create")}
-                          style={{
-                            marginTop: 12,
-                            padding: "8px 16px",
-                            background: "var(--button-primary-bg)",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            fontSize: 13,
-                          }}
-                        >
-                          Create New Instead
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {otherPlaybooks.map((pb) => (
-                          <div
-                            key={pb.id}
-                            style={{
-                              padding: 12,
-                              border: "1px solid var(--border-default)",
-                              borderRadius: 8,
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                <span style={{ fontWeight: 500, fontSize: 14 }}>{pb.name}</span>
-                                {playbookStatusBadge(pb.status)}
-                              </div>
-                              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                                From: {pb.domain?.name || "No domain"} &bull; {pb._count?.items || 0} specs
-                              </div>
-                            </div>
-                            <button
-                              onClick={async () => {
-                                setMovingPlaybookId(pb.id);
-                                try {
-                                  const res = await fetch(`/api/playbooks/${pb.id}`, {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ domainId: selectedId }),
-                                  });
-                                  const data = await res.json();
-                                  if (data.ok) {
-                                    setShowPlaybookModal(false);
-                                    // Refresh domain detail
-                                    const refreshRes = await fetch(`/api/domains/${selectedId}`);
-                                    const refreshData = await refreshRes.json();
-                                    if (refreshData.ok) setDomain(refreshData.domain);
-                                  } else {
-                                    alert("Failed to move playbook: " + data.error);
-                                  }
-                                } catch (err: any) {
-                                  alert("Error: " + err.message);
-                                } finally {
-                                  setMovingPlaybookId(null);
-                                }
-                              }}
-                              disabled={movingPlaybookId === pb.id}
-                              style={{
-                                padding: "6px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: movingPlaybookId === pb.id ? "#e5e7eb" : "#eef2ff",
-                                color: movingPlaybookId === pb.id ? "#9ca3af" : "#4f46e5",
-                                border: "none",
-                                borderRadius: 6,
-                                cursor: movingPlaybookId === pb.id ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              {movingPlaybookId === pb.id ? "Moving..." : "Move Here"}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <div>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>
-                      Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={newPlaybook.name}
-                      onChange={(e) => setNewPlaybook({ ...newPlaybook, name: e.target.value })}
-                      placeholder="e.g., Default Tutor Playbook"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid var(--border-strong)",
-                        borderRadius: 6,
-                        fontSize: 14,
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>
-                      Description
-                    </label>
-                    <textarea
-                      value={newPlaybook.description}
-                      onChange={(e) => setNewPlaybook({ ...newPlaybook, description: e.target.value })}
-                      placeholder="What does this playbook do?"
-                      rows={3}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid var(--border-strong)",
-                        borderRadius: 6,
-                        fontSize: 14,
-                        resize: "vertical",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-
-                  <button
-                    onClick={handleCreatePlaybook}
-                    disabled={creatingPlaybook || !newPlaybook.name}
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      background: newPlaybook.name ? "#4f46e5" : "#e5e7eb",
-                      color: newPlaybook.name ? "white" : "#9ca3af",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: newPlaybook.name && !creatingPlaybook ? "pointer" : "not-allowed",
-                    }}
-                  >
-                    {creatingPlaybook ? "Creating..." : "Create & Edit"}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border-default)", textAlign: "right" }}>
-              <button
-                onClick={() => setShowPlaybookModal(false)}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: 13,
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                  border: "1px solid var(--border-strong)",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
-
+      {/* Prompt Preview Modal */}
+      {domain && (
+        <PromptPreviewModal
+          domainId={domain.id}
+          domainName={domain.name}
+          open={showPromptPreview}
+          onClose={() => setShowPromptPreview(false)}
+        />
+      )}
       {/* AI Assistant */}
       <UnifiedAssistantPanel
         visible={assistant.isOpen}

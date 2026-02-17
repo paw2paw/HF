@@ -11,6 +11,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { getFlowPhasesFallback } from "@/lib/fallback-settings";
 
 // ── Types ──────────────────────────────────────────────
@@ -20,6 +21,10 @@ export interface ScaffoldOptions {
   identityConfig?: Record<string, any>;
   /** Persona-specific onboarding flow phases (from INIT-001). If omitted, uses DEFAULT_FLOW_PHASES. */
   flowPhases?: any;
+  /** When true, always create a new playbook even if one already exists (new class in existing school). */
+  forceNewPlaybook?: boolean;
+  /** Custom playbook name (used when forceNewPlaybook=true). Falls back to "{domain.name} Playbook". */
+  playbookName?: string;
 }
 
 export interface ScaffoldResult {
@@ -50,19 +55,22 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // 2. Check for existing published playbook — already scaffolded
-  const existingPublished = await prisma.playbook.findFirst({
-    where: { domainId, status: "PUBLISHED" },
-    select: { id: true, name: true },
-  });
+  //    Skip this check when forceNewPlaybook=true (new class in existing school)
+  if (!options?.forceNewPlaybook) {
+    const existingPublished = await prisma.playbook.findFirst({
+      where: { domainId, status: "PUBLISHED" },
+      select: { id: true, name: true },
+    });
 
-  if (existingPublished) {
-    return {
-      identitySpec: null,
-      playbook: { id: existingPublished.id, name: existingPublished.name },
-      published: false,
-      onboardingConfigured: false,
-      skipped: ["Published playbook already exists — skipping scaffold"],
-    };
+    if (existingPublished) {
+      return {
+        identitySpec: null,
+        playbook: { id: existingPublished.id, name: existingPublished.name },
+        published: false,
+        onboardingConfigured: false,
+        skipped: ["Published playbook already exists — skipping scaffold"],
+      };
+    }
   }
 
   // 3. Find or create Identity spec
@@ -73,13 +81,29 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   });
 
   if (!identitySpec) {
+    // Build overlay config: only domain-specific parameters, not a full standalone spec.
+    // At prompt composition time, mergeIdentitySpec() merges this overlay with the base archetype.
+    const overlayConfig = options?.identityConfig
+      ? JSON.parse(JSON.stringify(options.identityConfig))
+      : {
+          parameters: [
+            {
+              id: "tutor_role",
+              name: "Domain Role Override",
+              section: "identity",
+              config: {
+                roleStatement: `You are a friendly, patient tutor specializing in ${domain.name}. You adapt to each learner's pace and style while maintaining high standards for understanding.`,
+                primaryGoal: `Help learners build genuine understanding of ${domain.name}`,
+              },
+            },
+          ],
+        };
+
     identitySpec = await prisma.analysisSpec.create({
       data: {
         slug: identitySlug,
         name: `${domain.name} Identity`,
-        description: options?.identityConfig
-          ? `AI-generated identity for the ${domain.name} domain, tailored from source material analysis.`
-          : `Identity and teaching personality for the ${domain.name} agent. Edit this spec to customise how the AI presents itself.`,
+        description: `Domain overlay for ${domain.name} — extends the base tutor archetype with domain-specific adaptations.`,
         outputType: "COMPOSE",
         specRole: "IDENTITY",
         specType: "DOMAIN",
@@ -88,9 +112,8 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
         isActive: true,
         isDirty: false,
         isDeletable: true,
-        config: options?.identityConfig
-          ? JSON.parse(JSON.stringify(options.identityConfig))
-          : undefined,
+        extendsAgent: config.specs.defaultArchetype,
+        config: overlayConfig,
         triggers: {
           create: [
             {
@@ -110,23 +133,30 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // 4. Find or create Playbook
-  let playbook = await prisma.playbook.findFirst({
-    where: { domainId, status: "DRAFT" },
-    select: { id: true, name: true },
-  });
+  //    When forceNewPlaybook=true, always create a new playbook (new class)
+  const pbName = options?.playbookName || `${domain.name} Playbook`;
+  let playbook: { id: string; name: string } | null = null;
+
+  if (!options?.forceNewPlaybook) {
+    playbook = await prisma.playbook.findFirst({
+      where: { domainId, status: "DRAFT" },
+      select: { id: true, name: true },
+    });
+    if (playbook) {
+      skipped.push("Reusing existing DRAFT playbook");
+    }
+  }
 
   if (!playbook) {
     playbook = await prisma.playbook.create({
       data: {
-        name: `${domain.name} Playbook`,
+        name: pbName,
         domainId,
         status: "DRAFT",
         version: "1.0",
       },
       select: { id: true, name: true },
     });
-  } else {
-    skipped.push("Reusing existing DRAFT playbook");
   }
 
   // 5. Add Identity spec to playbook (if not already linked)
@@ -177,15 +207,19 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     },
   });
 
-  // 7. Publish playbook (archive any other published, set status)
-  await prisma.playbook.updateMany({
-    where: {
-      domainId,
-      status: "PUBLISHED",
-      id: { not: playbook.id },
-    },
-    data: { status: "ARCHIVED" },
-  });
+  // 7. Publish playbook
+  //    When forceNewPlaybook=true, keep existing published playbooks (multiple classes coexist).
+  //    Otherwise archive them (original behavior — one published playbook per domain).
+  if (!options?.forceNewPlaybook) {
+    await prisma.playbook.updateMany({
+      where: {
+        domainId,
+        status: "PUBLISHED",
+        id: { not: playbook.id },
+      },
+      data: { status: "ARCHIVED" },
+    });
+  }
 
   await prisma.playbook.update({
     where: { id: playbook.id },

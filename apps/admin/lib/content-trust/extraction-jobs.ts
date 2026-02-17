@@ -1,12 +1,20 @@
 /**
- * In-memory extraction job tracker.
+ * Extraction job compatibility wrapper.
  *
- * Tracks background assertion extraction jobs so the UI can poll for progress
- * and the user can continue with other workflow steps while extraction runs.
+ * Previously used an in-memory Map to track extraction jobs.
+ * Now delegates to the UserTask system for DB-backed persistence.
  *
- * Jobs are kept in memory (single-process). On restart, in-flight jobs are lost
- * but the user can re-upload. For the market test phase this is fine.
+ * Callers that still import from this module continue to work,
+ * but new code should use startTaskTracking/updateTaskProgress/completeTask
+ * from lib/ai/task-guidance.ts directly.
  */
+
+import { prisma } from "@/lib/prisma";
+import {
+  startTaskTracking,
+  updateTaskProgress,
+  completeTask,
+} from "@/lib/ai/task-guidance";
 
 export type JobStatus = "pending" | "extracting" | "importing" | "done" | "error";
 
@@ -15,12 +23,9 @@ export interface ExtractionJob {
   sourceId: string;
   fileName: string;
   status: JobStatus;
-  /** Current chunk being processed (0-based) */
   currentChunk: number;
   totalChunks: number;
-  /** Assertions extracted so far */
   extractedCount: number;
-  /** Assertions saved to DB (only set after import) */
   importedCount?: number;
   duplicatesSkipped?: number;
   warnings: string[];
@@ -29,46 +34,151 @@ export interface ExtractionJob {
   updatedAt: string;
 }
 
-// Simple in-memory store — keyed by job ID
-const jobs = new Map<string, ExtractionJob>();
-
-// Auto-clean jobs older than 1 hour
-const MAX_AGE_MS = 60 * 60 * 1000;
-
-function cleanup() {
-  const cutoff = Date.now() - MAX_AGE_MS;
-  for (const [id, job] of jobs) {
-    if (new Date(job.createdAt).getTime() < cutoff) {
-      jobs.delete(id);
-    }
+/** Map UserTask status + context to the legacy ExtractionJob shape. */
+function taskToJob(task: {
+  id: string;
+  status: string;
+  currentStep: number;
+  totalSteps: number;
+  context: any;
+  startedAt: Date;
+  updatedAt: Date;
+}): ExtractionJob {
+  const ctx = (task.context as Record<string, any>) ?? {};
+  // Map UserTask status to legacy JobStatus
+  let status: JobStatus;
+  if (task.status === "completed") {
+    status = ctx.error ? "error" : "done";
+  } else if (task.status === "abandoned") {
+    status = "error";
+  } else {
+    // in_progress — use step to determine sub-status
+    status = task.currentStep >= 2 ? "importing" : "extracting";
   }
+
+  return {
+    id: task.id,
+    sourceId: ctx.sourceId ?? "",
+    fileName: ctx.fileName ?? "",
+    status,
+    currentChunk: ctx.currentChunk ?? 0,
+    totalChunks: ctx.totalChunks ?? task.totalSteps,
+    extractedCount: ctx.extractedCount ?? 0,
+    importedCount: ctx.importedCount,
+    duplicatesSkipped: ctx.duplicatesSkipped,
+    warnings: ctx.warnings ?? [],
+    error: ctx.error,
+    createdAt: task.startedAt.toISOString(),
+    updatedAt: task.updatedAt.toISOString(),
+  };
 }
 
-export function createJob(sourceId: string, fileName: string): ExtractionJob {
-  cleanup();
-  const id = `exj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const job: ExtractionJob = {
-    id,
+/**
+ * Create an extraction job. Now creates a UserTask in the DB.
+ * Requires userId — pass from requireAuth().session.user.id.
+ */
+export async function createExtractionTask(
+  userId: string,
+  sourceId: string,
+  fileName: string,
+  subjectId?: string,
+  subjectName?: string,
+): Promise<ExtractionJob> {
+  const taskId = await startTaskTracking(userId, "extraction", {
     sourceId,
     fileName,
-    status: "pending",
+    subjectId,
+    subjectName,
     currentChunk: 0,
     totalChunks: 0,
     extractedCount: 0,
     warnings: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  jobs.set(id, job);
-  return job;
+  });
+
+  const task = await prisma.userTask.findUniqueOrThrow({
+    where: { id: taskId },
+  });
+
+  return taskToJob(task);
 }
 
-export function getJob(id: string): ExtractionJob | undefined {
-  return jobs.get(id);
+/**
+ * @deprecated Use createExtractionTask() which accepts userId.
+ * Falls back to a system user lookup for backward compat.
+ */
+export async function createJob(sourceId: string, fileName: string): Promise<ExtractionJob> {
+  // Find any admin user as fallback — background jobs triggered without explicit user
+  const fallbackUser = await prisma.user.findFirst({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+  const userId = fallbackUser?.id ?? "system";
+  return createExtractionTask(userId, sourceId, fileName);
 }
 
-export function updateJob(id: string, patch: Partial<ExtractionJob>) {
-  const job = jobs.get(id);
-  if (!job) return;
-  Object.assign(job, patch, { updatedAt: new Date().toISOString() });
+/** Get an extraction job by ID. Reads from UserTask. */
+export async function getJob(id: string): Promise<ExtractionJob | undefined> {
+  const task = await prisma.userTask.findUnique({
+    where: { id },
+  });
+  if (!task || task.taskType !== "extraction") return undefined;
+  return taskToJob(task);
+}
+
+/** Update extraction job progress. Updates the UserTask context. */
+export async function updateJob(id: string, patch: Partial<ExtractionJob>) {
+  const contextPatch: Record<string, any> = {};
+  if (patch.currentChunk !== undefined) contextPatch.currentChunk = patch.currentChunk;
+  if (patch.totalChunks !== undefined) contextPatch.totalChunks = patch.totalChunks;
+  if (patch.extractedCount !== undefined) contextPatch.extractedCount = patch.extractedCount;
+  if (patch.importedCount !== undefined) contextPatch.importedCount = patch.importedCount;
+  if (patch.duplicatesSkipped !== undefined) contextPatch.duplicatesSkipped = patch.duplicatesSkipped;
+  if (patch.warnings !== undefined) contextPatch.warnings = patch.warnings;
+  if (patch.error !== undefined) contextPatch.error = patch.error;
+
+  // Map legacy status to UserTask step + status
+  const updates: {
+    currentStep?: number;
+    context?: Record<string, any>;
+  } = {};
+
+  if (Object.keys(contextPatch).length > 0) {
+    updates.context = contextPatch;
+  }
+
+  if (patch.status === "importing") {
+    updates.currentStep = 2;
+  } else if (patch.status === "done") {
+    // Read existing context for summary fields
+    const task = await prisma.userTask.findUnique({
+      where: { id },
+      select: { context: true },
+    });
+    const existingCtx = (task?.context as Record<string, any>) ?? {};
+    contextPatch.summary = {
+      source: { id: existingCtx.sourceId ?? "", name: existingCtx.fileName ?? "" },
+      counts: {
+        extracted: contextPatch.extractedCount ?? existingCtx.extractedCount ?? 0,
+        imported: contextPatch.importedCount ?? existingCtx.importedCount ?? 0,
+        duplicates: contextPatch.duplicatesSkipped ?? existingCtx.duplicatesSkipped ?? 0,
+      },
+    };
+    await updateTaskProgress(id, { context: contextPatch });
+    await completeTask(id);
+    return;
+  } else if (patch.status === "error") {
+    // Store error in context, then mark completed (with error flag)
+    contextPatch.error = patch.error || "Unknown error";
+    await updateTaskProgress(id, { context: contextPatch });
+    // Mark as abandoned for error state
+    await prisma.userTask.update({
+      where: { id },
+      data: { status: "abandoned", completedAt: new Date() },
+    });
+    return;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await updateTaskProgress(id, updates);
+  }
 }

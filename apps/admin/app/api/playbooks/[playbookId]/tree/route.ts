@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 /**
  * @api GET /api/playbooks/:playbookId/tree
@@ -116,7 +117,7 @@ export async function GET(
             }
           }
         }
-        const config = item.spec.config as any;
+        const config = item.spec.config as SpecConfig;
         if (config?.parameterId) {
           parameterIds.add(config.parameterId);
         }
@@ -133,7 +134,7 @@ export async function GET(
             }
           }
         }
-        const config = ss.spec.config as any;
+        const config = ss.spec.config as SpecConfig;
         if (config?.parameterId) {
           parameterIds.add(config.parameterId);
         }

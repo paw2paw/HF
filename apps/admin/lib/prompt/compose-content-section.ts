@@ -16,6 +16,7 @@
 import { prisma } from "@/lib/prisma";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { CURRICULUM_REQUIRED_FIELDS } from "@/lib/curriculum/constants";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 interface CurriculumMetadata {
   type: 'sequential' | 'branching' | 'open-ended';
@@ -66,35 +67,56 @@ export async function composeContentSection(
   callerId: string,
   domainId: string
 ): Promise<ContentSection> {
-  // 1. Find the CONTENT spec via domain's published playbook
-  // This correctly associates specs with domains based on playbook configuration
-  const playbook = await prisma.playbook.findFirst({
-    where: {
-      domainId,
-      status: 'PUBLISHED',
-    },
-    include: {
-      items: {
-        where: {
-          itemType: 'SPEC',
-          isEnabled: true,
-        },
-        include: {
-          spec: {
-            select: {
-              id: true,
-              slug: true,
-              name: true,
-              description: true,
-              config: true,
-              specRole: true,
-              isActive: true,
-            },
+  // 1. Find the CONTENT spec — enrollment-first, then domain fallback
+  const playbookInclude = {
+    items: {
+      where: {
+        itemType: 'SPEC' as const,
+        isEnabled: true,
+      },
+      include: {
+        spec: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            description: true,
+            config: true,
+            specRole: true,
+            isActive: true,
           },
         },
       },
     },
+  };
+
+  // Check CallerPlaybook enrollments first
+  let playbook = null;
+  const enrollments = await prisma.callerPlaybook.findMany({
+    where: { callerId, status: "ACTIVE" },
+    select: { playbookId: true },
   });
+
+  if (enrollments.length > 0) {
+    playbook = await prisma.playbook.findFirst({
+      where: {
+        id: { in: enrollments.map(e => e.playbookId) },
+        status: 'PUBLISHED',
+      },
+      include: playbookInclude,
+    });
+  }
+
+  // Domain fallback
+  if (!playbook) {
+    playbook = await prisma.playbook.findFirst({
+      where: {
+        domainId,
+        status: 'PUBLISHED',
+      },
+      include: playbookInclude,
+    });
+  }
 
   // Find the CONTENT spec from playbook items
   const contentSpecItem = playbook?.items.find(
@@ -166,7 +188,7 @@ export async function composeContentSection(
  * Throws error if required metadata is missing
  */
 async function extractCurriculumMetadata(spec: any): Promise<CurriculumMetadata> {
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   const meta = specConfig?.metadata?.curriculum;
 
   if (!meta) {
@@ -186,7 +208,7 @@ async function extractCurriculumMetadata(spec: any): Promise<CurriculumMetadata>
   for (const field of CURRICULUM_REQUIRED_FIELDS) {
     if (meta[field] === undefined) {
       // Check if contract has a default
-      const fieldDef = contractMetadata[field as keyof typeof contractMetadata] as any;
+      const fieldDef = contractMetadata[field as keyof typeof contractMetadata] as Record<string, any> | undefined;
       if (!fieldDef?.default) {
         missingFields.push(field);
       }
@@ -218,7 +240,7 @@ function extractModulesFromSpec(
   spec: any,
   metadata: CurriculumMetadata
 ): CurriculumModule[] {
-  const specConfig = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   const params = specConfig?.parameters || [];
 
   // Parse selector (e.g., "section=content" → filter by section="content")

@@ -20,6 +20,7 @@
  */
 
 import { PrismaClient, BehaviorTargetScope } from "@prisma/client";
+import type { SpecConfig, OutcomeSignal } from "@/lib/types/json-fields";
 
 const prisma = new PrismaClient();
 
@@ -74,22 +75,22 @@ async function loadRewardConfig(): Promise<RewardConfig> {
     return DEFAULT_REWARD_CONFIG;
   }
 
-  const config = spec.config as any;
+  const specConfig = spec.config as SpecConfig;
   return {
-    defaultTargetValue: config.defaultTargetValue ?? DEFAULT_REWARD_CONFIG.defaultTargetValue,
-    tolerance: config.tolerance ?? DEFAULT_REWARD_CONFIG.tolerance,
+    defaultTargetValue: specConfig.defaultTargetValue ?? DEFAULT_REWARD_CONFIG.defaultTargetValue,
+    tolerance: specConfig.tolerance ?? DEFAULT_REWARD_CONFIG.tolerance,
     outcomeWeights: {
-      resolved: config.outcomeWeights?.resolved ?? DEFAULT_REWARD_CONFIG.outcomeWeights.resolved,
-      notResolved: config.outcomeWeights?.notResolved ?? DEFAULT_REWARD_CONFIG.outcomeWeights.notResolved,
-      escalated: config.outcomeWeights?.escalated ?? DEFAULT_REWARD_CONFIG.outcomeWeights.escalated,
-      notEscalated: config.outcomeWeights?.notEscalated ?? DEFAULT_REWARD_CONFIG.outcomeWeights.notEscalated,
+      resolved: specConfig.outcomeWeights?.resolved ?? DEFAULT_REWARD_CONFIG.outcomeWeights.resolved,
+      notResolved: specConfig.outcomeWeights?.notResolved ?? DEFAULT_REWARD_CONFIG.outcomeWeights.notResolved,
+      escalated: specConfig.outcomeWeights?.escalated ?? DEFAULT_REWARD_CONFIG.outcomeWeights.escalated,
+      notEscalated: specConfig.outcomeWeights?.notEscalated ?? DEFAULT_REWARD_CONFIG.outcomeWeights.notEscalated,
     },
-    behaviorWeight: config.behaviorWeight ?? DEFAULT_REWARD_CONFIG.behaviorWeight,
-    outcomeWeight: config.outcomeWeight ?? DEFAULT_REWARD_CONFIG.outcomeWeight,
-    resolutionMarkers: config.resolutionMarkers ?? DEFAULT_REWARD_CONFIG.resolutionMarkers,
-    escalationMarkers: config.escalationMarkers ?? DEFAULT_REWARD_CONFIG.escalationMarkers,
-    positiveWords: config.positiveWords ?? DEFAULT_REWARD_CONFIG.positiveWords,
-    negativeWords: config.negativeWords ?? DEFAULT_REWARD_CONFIG.negativeWords,
+    behaviorWeight: specConfig.behaviorWeight ?? DEFAULT_REWARD_CONFIG.behaviorWeight,
+    outcomeWeight: specConfig.outcomeWeight ?? DEFAULT_REWARD_CONFIG.outcomeWeight,
+    resolutionMarkers: specConfig.resolutionMarkers ?? DEFAULT_REWARD_CONFIG.resolutionMarkers,
+    escalationMarkers: specConfig.escalationMarkers ?? DEFAULT_REWARD_CONFIG.escalationMarkers,
+    positiveWords: specConfig.positiveWords ?? DEFAULT_REWARD_CONFIG.positiveWords,
+    negativeWords: specConfig.negativeWords ?? DEFAULT_REWARD_CONFIG.negativeWords,
   };
 }
 
@@ -462,7 +463,7 @@ export async function computeReward(
           effectiveTargets: effectiveTargetsJson,
           actualBehavior: actualBehaviorJson,
           parameterDiffs: parameterDiffsJson,
-          outcomeSignals: outcomes as any,
+          outcomeSignals: outcomes as Record<string, any>,
         },
       });
 

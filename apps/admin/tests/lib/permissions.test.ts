@@ -14,6 +14,9 @@ import { NextResponse } from "next/server";
 // MOCK SETUP
 // =====================================================
 
+// Override global setup.ts mock — this test needs the REAL permissions module
+vi.unmock("@/lib/permissions");
+
 const mockAuth = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
@@ -26,6 +29,7 @@ vi.mock("@/lib/auth", () => ({
 
 function makeSession(role: string) {
   return {
+    expires: new Date(Date.now() + 86400000).toISOString(),
     user: {
       id: "user-1",
       email: "test@example.com",
@@ -245,8 +249,8 @@ describe("lib/permissions", () => {
     });
 
     it("returns false for success results", () => {
-      const success = { session: makeSession("ADMIN") };
-      expect(isAuthError(success)).toBe(false);
+      const success = { session: makeSession("ADMIN") } as { session: any };
+      expect(isAuthError(success as any)).toBe(false);
     });
   });
 });

@@ -5,11 +5,13 @@
  * Use these functions instead of the raw AI client to track costs.
  */
 
+import { config } from "@/lib/config";
 import {
   getAICompletion,
   getAICompletionStream,
   getConfiguredAICompletion,
   getConfiguredAICompletionStream,
+  getTextContent,
   AICompletionOptions,
   AICompletionResult,
   AIStreamOptions,
@@ -73,7 +75,7 @@ export async function getMeteredAICompletionStream(
   const stream = await getAICompletionStream(options);
 
   // Estimate input tokens from message content
-  const inputChars = options.messages.reduce((sum, m) => sum + m.content.length, 0);
+  const inputChars = options.messages.reduce((sum, m) => sum + getTextContent(m).length, 0);
   const estimatedInputTokens = Math.ceil(inputChars / 4);
 
   // Return stream with a callback to log output when streaming completes
@@ -84,7 +86,7 @@ export async function getMeteredAICompletionStream(
 
     logAIUsage({
       engine: options.engine as "claude" | "openai",
-      model: options.engine === "claude" ? "claude-sonnet-4-20250514" : "gpt-4o",
+      model: options.engine === "claude" ? config.ai.claude.model : config.ai.openai.model,
       inputTokens: estimatedInputTokens,
       outputTokens: estimatedOutputTokens,
       userId: context?.userId,
@@ -111,7 +113,7 @@ export async function getMeteredAICompletionStream(
 export function createMeteredStream(
   originalStream: ReadableStream<Uint8Array>,
   engine: AIEngine,
-  inputMessages: { content: string }[],
+  inputMessages: { content: string | any[] }[],
   context?: MeteringContext
 ): ReadableStream<Uint8Array> {
   if (engine === "mock") {
@@ -122,7 +124,7 @@ export function createMeteredStream(
   const decoder = new TextDecoder();
 
   // Estimate input tokens
-  const inputChars = inputMessages.reduce((sum, m) => sum + m.content.length, 0);
+  const inputChars = inputMessages.reduce((sum, m) => sum + (typeof m.content === "string" ? m.content.length : JSON.stringify(m.content).length), 0);
   const estimatedInputTokens = Math.ceil(inputChars / 4);
 
   return new ReadableStream({
@@ -139,7 +141,7 @@ export function createMeteredStream(
 
             logAIUsage({
               engine: engine as "claude" | "openai",
-              model: engine === "claude" ? "claude-sonnet-4-20250514" : "gpt-4o",
+              model: engine === "claude" ? config.ai.claude.model : config.ai.openai.model,
               inputTokens: estimatedInputTokens,
               outputTokens: estimatedOutputTokens,
               userId: context?.userId,
@@ -221,20 +223,20 @@ export async function getConfiguredMeteredAICompletionStream(
 ): Promise<{ stream: ReadableStream<Uint8Array>; model: string }> {
   // Import config loader to get the model info
   const { getAIConfig } = await import("@/lib/ai/config-loader");
-  const config = await getAIConfig(options.callPoint);
+  const aiConfig = await getAIConfig(options.callPoint);
 
   const stream = await getConfiguredAICompletionStream(options);
 
   // Wrap with metering
   const meteredStream = createMeteredStreamWithModel(
     stream,
-    config.provider,
-    config.model,
+    aiConfig.provider,
+    aiConfig.model,
     options.messages,
     { ...context, sourceOp: context?.sourceOp || options.callPoint }
   );
 
-  return { stream: meteredStream, model: config.model };
+  return { stream: meteredStream, model: aiConfig.model };
 }
 
 /**
@@ -245,7 +247,7 @@ function createMeteredStreamWithModel(
   originalStream: ReadableStream<Uint8Array>,
   engine: AIEngine,
   model: string,
-  inputMessages: { content: string }[],
+  inputMessages: { content: string | any[] }[],
   context?: MeteringContext
 ): ReadableStream<Uint8Array> {
   if (engine === "mock") {
@@ -256,7 +258,7 @@ function createMeteredStreamWithModel(
   const decoder = new TextDecoder();
 
   // Estimate input tokens
-  const inputChars = inputMessages.reduce((sum, m) => sum + m.content.length, 0);
+  const inputChars = inputMessages.reduce((sum, m) => sum + (typeof m.content === "string" ? m.content.length : JSON.stringify(m.content).length), 0);
   const estimatedInputTokens = Math.ceil(inputChars / 4);
 
   return new ReadableStream({

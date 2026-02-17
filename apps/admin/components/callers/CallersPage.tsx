@@ -7,6 +7,7 @@ import { FancySelect } from "@/components/shared/FancySelect";
 import { DomainPill } from "@/src/components/shared/EntityPill";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
+import { useArchiveFilter } from "@/hooks/useArchiveFilter";
 
 type Caller = {
   id: string;
@@ -15,6 +16,7 @@ type Caller = {
   phone: string | null;
   externalId: string | null;
   createdAt: string;
+  archivedAt: string | null;
   nextPrompt: string | null;
   nextPromptComposedAt: string | null;
   domain?: {
@@ -90,6 +92,9 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
   const [newCallerDomainId, setNewCallerDomainId] = useState("");
   const [creating, setCreating] = useState(false);
 
+  // Archive filter
+  const [showArchived, toggleShowArchived] = useArchiveFilter("callers");
+
   // AI Assistant
   const assistant = useAssistant({
     defaultTab: "chat",
@@ -101,7 +106,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
   useAssistantKeyboardShortcut(assistant.toggle);
 
   const fetchCallers = () => {
-    fetch("/api/callers?withPersonality=true&withCounts=true")
+    const archiveParam = showArchived ? "&includeArchived=true" : "";
+    fetch(`/api/callers?withPersonality=true&withCounts=true${archiveParam}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.ok) {
@@ -123,7 +129,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
   useEffect(() => {
     fetchCallers();
-    // Fetch domains for filter
+    // Fetch domains for filter (only on mount, not on archive toggle)
     fetch("/api/domains")
       .then((r) => r.json())
       .then((data) => {
@@ -131,8 +137,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           setDomains(data.domains || []);
         }
       })
-      .catch(() => {});
-  }, []);
+      .catch((e) => console.warn("[Callers] Failed to load domains:", e));
+  }, [showArchived]);
 
   // Auto-clear success message
   useEffect(() => {
@@ -379,6 +385,51 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
     }
   };
 
+  const handleArchive = async (caller: Caller, shouldArchive: boolean) => {
+    setActionLoading(caller.id);
+    try {
+      const res = await fetch(`/api/callers/${caller.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archive: shouldArchive }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(shouldArchive ? `Archived ${getCallerLabel(caller)}` : `Unarchived ${getCallerLabel(caller)}`);
+        fetchCallers();
+      } else {
+        setError(data.error || "Failed to update archive status");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to update archive status");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    const ids = Array.from(selectedCallers);
+    setActionLoading("bulk");
+    try {
+      await Promise.all(
+        ids.map((id) =>
+          fetch(`/api/callers/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ archive: true }),
+          })
+        )
+      );
+      setSuccessMessage(`Archived ${ids.length} caller(s)`);
+      exitSelectionMode();
+      fetchCallers();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to archive callers");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Sort options for FancySelect
   const sortOptions = [
     { value: "createdAt-desc", label: "Newest first" },
@@ -462,6 +513,27 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           options={sortOptions}
         />
 
+        {/* Archive Toggle */}
+        <button
+          onClick={toggleShowArchived}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "5px 10px",
+            fontSize: 12,
+            fontWeight: showArchived ? 600 : 400,
+            background: showArchived ? "var(--status-warning-bg)" : "transparent",
+            color: showArchived ? "var(--status-warning-text)" : "var(--text-muted)",
+            border: `1px solid ${showArchived ? "var(--status-warning-border)" : "var(--border-default)"}`,
+            borderRadius: 16,
+            cursor: "pointer",
+            opacity: showArchived ? 1 : 0.6,
+          }}
+        >
+          {showArchived ? "Showing Archived" : "Show Archived"}
+        </button>
+
         <div style={{ flex: 1 }} />
 
         {/* Add Caller Button */}
@@ -506,7 +578,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             gap: 6,
           }}
         >
-          {selectionMode ? "Cancel Selection" : "Select to Merge"}
+          {selectionMode ? "Cancel Selection" : "Select"}
         </button>
 
         <button
@@ -582,6 +654,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 transition: "all 0.15s ease",
                 cursor: "pointer",
                 position: "relative",
+                opacity: caller.archivedAt ? 0.6 : 1,
               }}
             >
               {/* Selection checkbox */}
@@ -617,9 +690,24 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     {getCallerLabel(caller)}
                   </div>
                 </div>
-                {caller.domain && (
-                  <DomainPill label={caller.domain.name} size="compact" />
-                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {caller.archivedAt && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: "2px 6px",
+                      background: "var(--status-warning-bg)",
+                      color: "var(--status-warning-text)",
+                      border: "1px solid var(--status-warning-border)",
+                      borderRadius: 4,
+                    }}>
+                      Archived
+                    </span>
+                  )}
+                  {caller.domain && (
+                    <DomainPill label={caller.domain.name} size="compact" />
+                  )}
+                </div>
               </div>
 
               {/* Stats Row */}
@@ -764,6 +852,22 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   </button>
                 )}
                 <button
+                  onClick={(e) => { e.stopPropagation(); handleArchive(caller, !caller.archivedAt); }}
+                  disabled={actionLoading === caller.id}
+                  title={caller.archivedAt ? "Unarchive caller" : "Archive caller"}
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    background: caller.archivedAt ? "var(--status-info-bg)" : "var(--status-warning-bg)",
+                    color: caller.archivedAt ? "var(--status-info-text)" : "var(--status-warning-text)",
+                    border: `1px solid ${caller.archivedAt ? "var(--status-info-border)" : "var(--status-warning-border)"}`,
+                    borderRadius: 5,
+                    cursor: actionLoading === caller.id ? "wait" : "pointer",
+                  }}
+                >
+                  {caller.archivedAt ? "📤" : "📦"}
+                </button>
+                <button
                   onClick={(e) => { e.stopPropagation(); setShowDeleteModal(caller); setDeleteExclude(false); }}
                   title="Delete caller"
                   style={{
@@ -897,8 +1001,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         </div>
       )}
 
-      {/* Floating Action Bar - when 2+ callers selected */}
-      {selectionMode && selectedCallers.size >= 2 && (
+      {/* Floating Action Bar - when 1+ callers selected */}
+      {selectionMode && selectedCallers.size >= 1 && (
         <div
           style={{
             position: "fixed",
@@ -938,6 +1042,22 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             }}
           >
             Merge Selected {selectedCallers.size >= 2 ? `(${selectedCallers.size})` : ""}
+          </button>
+          <button
+            onClick={handleBulkArchive}
+            disabled={actionLoading === "bulk"}
+            style={{
+              padding: "8px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              background: "var(--status-warning-bg)",
+              color: "var(--status-warning-text)",
+              border: "1px solid var(--status-warning-border)",
+              borderRadius: 6,
+              cursor: actionLoading === "bulk" ? "wait" : "pointer",
+            }}
+          >
+            Archive Selected ({selectedCallers.size})
           </button>
           <button
             onClick={exitSelectionMode}

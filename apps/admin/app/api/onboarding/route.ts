@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { PARAMS } from "@/lib/registry";
 import { config } from "@/lib/config";
+import type { SpecConfig } from "@/lib/types/json-fields";
 
 /**
  * @api GET /api/onboarding
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const specConfig = spec.config as any || {};
+    const specConfig = spec.config as SpecConfig || {};
     const personas = specConfig.personas || {};
     const defaultPersona = personas.defaultPersona || "tutor";
 

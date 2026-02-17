@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { config } from "@/lib/config";
 
 /**
  * @api POST /api/x/seed-transcripts
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-internal-secret": process.env.INTERNAL_API_SECRET || "hf-internal-dev-secret",
+        "x-internal-secret": config.security.internalApiSecret,
       },
       body: JSON.stringify({
         fromKbPath: true,

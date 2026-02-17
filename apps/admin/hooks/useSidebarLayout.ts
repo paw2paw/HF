@@ -200,8 +200,10 @@ const SIDEBAR_ROLE_LEVEL: Record<string, number> = {
   SUPERADMIN: 5,
   ADMIN: 4,
   OPERATOR: 3,
+  EDUCATOR: 3,
   SUPER_TESTER: 2,
   TESTER: 1,
+  STUDENT: 1,
   DEMO: 0,
   VIEWER: 1, // @deprecated alias
 };
@@ -211,6 +213,7 @@ export interface UseSidebarLayoutOptions {
   userRole?: string;
   baseSections: NavSection[];
   isAdmin?: boolean;
+  isAdvanced?: boolean;
 }
 
 export interface UseSidebarLayoutResult {
@@ -263,6 +266,7 @@ export function useSidebarLayout({
   userRole,
   baseSections,
   isAdmin = false,
+  isAdvanced = true,
 }: UseSidebarLayoutOptions): UseSidebarLayoutResult {
   const [state, dispatch] = useReducer(sidebarReducer, INITIAL_STATE);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -270,19 +274,31 @@ export function useSidebarLayout({
   const [hasPersonalDefault, setHasPersonalDefault] = useState(false);
 
   // ============================================================================
-  // Role-based section filtering
+  // Role-based + view-mode section filtering
   // ============================================================================
 
-  // Filter baseSections by requiredRole (hard gate) and apply defaultHiddenFor
+  // Filter baseSections by requiredRole (hard gate), advancedOnly (view-mode gate),
+  // and apply defaultHiddenFor
   const { roleSections, roleDefaultHidden } = useMemo(() => {
-    const userLevel = SIDEBAR_ROLE_LEVEL[userRole || "OPERATOR"] ?? 3;
+    const userLevel = SIDEBAR_ROLE_LEVEL[userRole || "OPERATOR"] ?? 0;
 
-    // Hard gate: remove sections the user's role can't see
-    const filtered = baseSections.filter((section) => {
-      if (!section.requiredRole) return true;
-      const requiredLevel = SIDEBAR_ROLE_LEVEL[section.requiredRole] ?? 0;
-      return userLevel >= requiredLevel;
-    });
+    // Hard gate: remove sections the user's role can't see + advancedOnly in simple mode
+    const filtered = baseSections
+      .filter((section) => {
+        if (!section.requiredRole) {
+          // no role gate — check view mode only
+        } else {
+          const requiredLevel = SIDEBAR_ROLE_LEVEL[section.requiredRole] ?? 0;
+          if (userLevel < requiredLevel) return false;
+        }
+        if (section.advancedOnly && !isAdvanced) return false;
+        return true;
+      })
+      .map((section) => ({
+        ...section,
+        // Also filter advancedOnly items within visible sections
+        items: section.items.filter((item) => !(item.advancedOnly && !isAdvanced)),
+      }));
 
     // Soft default: collect section IDs that should be hidden by default for this role
     const defaultHidden = filtered
@@ -290,7 +306,7 @@ export function useSidebarLayout({
       .map((section) => section.id);
 
     return { roleSections: filtered, roleDefaultHidden: defaultHidden };
-  }, [baseSections, userRole]);
+  }, [baseSections, userRole, isAdvanced]);
 
   // ============================================================================
   // Load layout on mount
@@ -434,13 +450,16 @@ export function useSidebarLayout({
       }
     }
 
-    // Build final sections with custom titles
+    // Build final sections with custom titles, filtering items by visibleFor
     return orderedSections.map((section) => ({
       ...section,
       title: sectionTitles?.[section.id] ?? section.title,
-      items: sectionItems[section.id] || [],
+      items: (sectionItems[section.id] || []).filter((item) => {
+        if (!item.visibleFor || item.visibleFor.length === 0) return true;
+        return item.visibleFor.includes(userRole || "");
+      }),
     }));
-  }, [roleSections, state.layout]);
+  }, [roleSections, state.layout, userRole]);
 
   // Filter visible sections (exclude both hidden and deleted)
   const hiddenSectionIds = useMemo(

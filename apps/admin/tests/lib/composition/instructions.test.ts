@@ -33,7 +33,7 @@ describe("narrativeFrame", () => {
       narrativeTemplates: {}, // no matching template
     };
     const result = narrativeFrame(memories, specConfig);
-    expect(result).toBe("Their favorite color is blue.");
+    expect(result).toBe("They mentioned their favorite color is blue.");
   });
 
   it("uses custom generic template from spec", () => {
@@ -95,12 +95,13 @@ describe("narrativeFrame", () => {
     expect(result).toBe("They are 34 years old.");
   });
 
-  it("works with no spec config at all", () => {
+  it("works with no spec config at all (uses structural default templates)", () => {
     const memories = [
       { key: "name", value: "Alice", category: "FACT" },
     ];
     const result = narrativeFrame(memories, {});
-    expect(result).toBe("Their name is Alice.");
+    // "name" matches DEFAULT_NARRATIVE_TEMPLATES → "They go by {value}"
+    expect(result).toBe("They go by Alice.");
   });
 
   it("handles {value} appearing multiple times in template", () => {

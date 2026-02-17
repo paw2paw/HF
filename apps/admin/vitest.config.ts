@@ -13,13 +13,14 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: [
-        'lib/ops/**/*.ts',
-        'lib/prompt/composition/**/*.ts',
-        'lib/pipeline/**/*.ts',
-        'lib/utils/**/*.ts',
-        'lib/lab/**/*.ts',
+        'lib/**/*.ts',
         'app/**/*.tsx',
         'app/api/**/*.ts',
+      ],
+      exclude: [
+        'lib/prisma.ts',
+        'lib/**/*.test.ts',
+        'lib/**/*.spec.ts',
       ],
     },
     // Mock Prisma by default

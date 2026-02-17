@@ -71,9 +71,9 @@ export async function validateSpecDependencies(
     let dependsOn: string[] = [];
 
     // Source 1: spec.config.dependsOn (if seeded there)
-    const config = spec.config as Record<string, any> | null;
-    if (config?.dependsOn && Array.isArray(config.dependsOn)) {
-      dependsOn = config.dependsOn;
+    const specConfig = spec.config as Record<string, any> | null;
+    if (specConfig?.dependsOn && Array.isArray(specConfig.dependsOn)) {
+      dependsOn = specConfig.dependsOn;
     }
 
     // Source 2: rawSpec.context.dependsOn (original spec JSON)

@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       persona: string;
       learningGoals: string[];
       qualificationRef?: string;
+      mode?: "upload" | "generate";
     };
   };
 
@@ -96,9 +97,6 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        // Build a minimal QuickLaunchInput (file not needed for commit phase)
-        const fakeFile = new File([], "commit-placeholder.txt");
-
         const result = await quickLaunchCommit(
           domainId,
           preview,
@@ -107,24 +105,40 @@ export async function POST(req: NextRequest) {
             subjectName: input.subjectName,
             persona: input.persona,
             learningGoals: overrides.learningGoals ?? input.learningGoals,
-            file: fakeFile,
             qualificationRef: input.qualificationRef,
+            mode: input.mode,
+            domainId, // Forward so scaffold knows this is an existing domain
           },
           sendEvent,
         );
 
-        // Mark task as completed
+        // Store summary + mark task as completed
         if (taskId) {
+          await updateTaskProgress(taskId, {
+            context: {
+              summary: {
+                domain: { id: result.domainId, name: result.domainName, slug: result.domainSlug },
+                caller: { id: result.callerId, name: result.callerName },
+                counts: {
+                  assertions: result.assertionCount ?? 0,
+                  modules: result.moduleCount ?? 0,
+                  goals: result.goalCount ?? 0,
+                },
+              },
+            },
+          });
           completeTask(taskId).catch(() => {});
         }
-
-        // Final result event (already sent by quickLaunchCommit, but ensure it's there)
       } catch (err: any) {
         console.error("[quick-launch:commit] Failed:", err);
         sendEvent({
           phase: "error",
           message: err.message || "Commit failed",
         });
+        // Mark task as completed so it doesn't block future resume
+        if (taskId) {
+          completeTask(taskId).catch(() => {});
+        }
       } finally {
         controller.close();
       }

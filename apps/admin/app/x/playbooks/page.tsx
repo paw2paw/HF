@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { EntityPill, DomainPill, PlaybookPill, SpecPill, StatusBadge } from "@/src/components/shared/EntityPill";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 type Domain = {
   id: string;
@@ -60,9 +61,9 @@ type PlaybookDetail = {
 const STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 
 const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
-  DRAFT: { bg: "#fef3c7", text: "#92400e", icon: "📝", desc: "Work in progress" },
-  PUBLISHED: { bg: "#dcfce7", text: "#166534", icon: "✅", desc: "Active and in use" },
-  ARCHIVED: { bg: "#f3f4f6", text: "#6b7280", icon: "📦", desc: "No longer active" },
+  DRAFT: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", icon: "📝", desc: "Work in progress" },
+  PUBLISHED: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", icon: "✅", desc: "Active and in use" },
+  ARCHIVED: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)", icon: "📦", desc: "No longer active" },
 };
 
 // Map playbook status to StatusBadge status type
@@ -96,7 +97,7 @@ export default function PlaybooksPage() {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
-  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
+  const [selectedDomain, setSelectedDomain] = useState("");
 
   // Detail state
   const [playbook, setPlaybook] = useState<PlaybookDetail | null>(null);
@@ -249,15 +250,6 @@ export default function PlaybooksPage() {
     });
   };
 
-  const toggleDomain = (domainId: string) => {
-    setSelectedDomains((prev) => {
-      const next = new Set(prev);
-      if (next.has(domainId)) next.delete(domainId);
-      else next.add(domainId);
-      return next;
-    });
-  };
-
   const selectPlaybook = (id: string) => {
     router.push(`/x/playbooks?id=${id}`, { scroll: false });
   };
@@ -270,7 +262,7 @@ export default function PlaybooksPage() {
       if (!matchesSearch) return false;
     }
     if (selectedStatuses.size > 0 && !selectedStatuses.has(pb.status)) return false;
-    if (selectedDomains.size > 0 && !selectedDomains.has(pb.domain.id)) return false;
+    if (selectedDomain && selectedDomain !== pb.domain.id) return false;
     return true;
   });
 
@@ -307,7 +299,7 @@ export default function PlaybooksPage() {
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 600,
-        border: isActive ? `1px solid ${colors.text}40` : "1px solid var(--border-default)",
+        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
         borderRadius: 5,
         cursor: "pointer",
         background: isActive ? colors.bg : "var(--surface-secondary)",
@@ -359,6 +351,7 @@ export default function PlaybooksPage() {
 
   return (
     <div>
+      <AdvancedBanner />
       {/* Header */}
       <div
         style={{
@@ -372,19 +365,6 @@ export default function PlaybooksPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Playbooks</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                padding: "6px 10px",
-                border: "1px solid var(--input-border)",
-                borderRadius: 6,
-                width: 160,
-                fontSize: 12,
-              }}
-            />
             <button
               onClick={() => setShowCreate(true)}
               style={{
@@ -404,7 +384,50 @@ export default function PlaybooksPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+          {/* Search */}
+          <div style={{ position: "relative" }}>
+            <input
+              type="text"
+              placeholder="Search playbooks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                paddingRight: search ? 28 : 12,
+                border: "1px solid var(--border-default)",
+                borderRadius: 6,
+                width: 180,
+                fontSize: 13,
+                background: "var(--surface-primary)",
+                color: "var(--text-primary)",
+                outline: "none",
+              }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 2,
+                  color: "var(--text-muted)",
+                  fontSize: 14,
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+            )}
+          </div>
+
+          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+
           {/* Status */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by playbook status">Status</span>
@@ -433,18 +456,14 @@ export default function PlaybooksPage() {
               <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by domain">Domain</span>
-                <ClearBtn onClick={() => setSelectedDomains(new Set())} show={selectedDomains.size > 0} />
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {domains.map((domain) => (
-                    <DomainPill
-                      key={domain.id}
-                      label={domain.name}
-                      size="compact"
-                      onClick={() => toggleDomain(domain.id)}
-                      status={selectedDomains.has(domain.id) ? "active" : undefined}
-                    />
-                  ))}
-                </div>
+                <FancySelect
+                  value={selectedDomain}
+                  onChange={setSelectedDomain}
+                  placeholder="All domains"
+                  clearable
+                  options={domains.map((d) => ({ value: d.id, label: d.name }))}
+                  style={{ width: 180 }}
+                />
               </div>
             </>
           )}
@@ -488,7 +507,7 @@ export default function PlaybooksPage() {
             >
               <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
-                {search || selectedStatuses.size > 0 || selectedDomains.size > 0
+                {search || selectedStatuses.size > 0 || selectedDomain
                   ? "No playbooks match filters"
                   : "No playbooks yet"}
               </div>
@@ -702,8 +721,8 @@ export default function PlaybooksPage() {
                       disabled={publishing}
                       style={{
                         padding: "8px 16px",
-                        background: "#16a34a",
-                        color: "white",
+                        background: "var(--status-success-text)",
+                        color: "var(--accent-primary-text)",
                         border: "none",
                         borderRadius: 6,
                         fontWeight: 500,
@@ -816,8 +835,8 @@ export default function PlaybooksPage() {
                                         fontSize: 9,
                                         padding: "1px 4px",
                                         borderRadius: 3,
-                                        background: outputTypeColors[item.spec.outputType]?.bg || "#e5e7eb",
-                                        color: outputTypeColors[item.spec.outputType]?.text || "#374151",
+                                        background: outputTypeColors[item.spec.outputType]?.bg || "var(--surface-secondary)",
+                                        color: outputTypeColors[item.spec.outputType]?.text || "var(--text-secondary)",
                                       }}
                                     >
                                       {item.spec.outputType}

@@ -28,6 +28,7 @@ export interface CallerPickerProps {
   value: string | null;
   onChange: (callerId: string, caller?: CallerSummary) => void;
   domainId?: string;
+  roleFilter?: string;
   placeholder?: string;
   disabled?: boolean;
   autoFocus?: boolean;
@@ -43,6 +44,7 @@ export function CallerPicker({
   value,
   onChange,
   domainId,
+  roleFilter,
   placeholder = "Search callers...",
   disabled = false,
   autoFocus = false,
@@ -64,14 +66,14 @@ export function CallerPicker({
   // Fetch callers on mount
   useEffect(() => {
     setLoading(true);
-    fetch("/api/callers?withCounts=true&limit=500")
+    fetch(`/api/callers?withCounts=true&limit=500${roleFilter ? `&role=${roleFilter}` : ""}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.ok) {
           setCallers(data.callers || []);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[CallerPicker] Failed to load callers:", e))
       .finally(() => setLoading(false));
   }, []);
 

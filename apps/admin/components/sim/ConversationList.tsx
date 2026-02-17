@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, RefreshCw, ChevronDown, ArrowLeft } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
+import { Search, RefreshCw, ChevronDown, ArrowLeft, LogOut } from 'lucide-react';
 import { ConversationItem } from './ConversationItem';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
 interface Conversation {
   callerId: string;
@@ -25,6 +27,7 @@ const SORT_LABELS: Record<SortMode, string> = {
 
 export function ConversationList() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -33,8 +36,10 @@ export function ConversationList() {
   const [domainFilter, setDomainFilter] = useState('');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showDomainDropdown, setShowDomainDropdown] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const domainRef = useRef<HTMLDivElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   const fetchConversations = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -49,7 +54,7 @@ export function ConversationList() {
           setConversations(data.conversations);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[ConversationList] Failed to load conversations:", e))
       .finally(() => {
         setLoading(false);
         setRefreshing(false);
@@ -62,7 +67,7 @@ export function ConversationList() {
 
   // Close dropdowns on click outside
   useEffect(() => {
-    if (!showSortDropdown && !showDomainDropdown) return;
+    if (!showSortDropdown && !showDomainDropdown && !showAccountMenu) return;
     const handler = (e: MouseEvent) => {
       if (showSortDropdown && sortRef.current && !sortRef.current.contains(e.target as Node)) {
         setShowSortDropdown(false);
@@ -70,10 +75,13 @@ export function ConversationList() {
       if (showDomainDropdown && domainRef.current && !domainRef.current.contains(e.target as Node)) {
         setShowDomainDropdown(false);
       }
+      if (showAccountMenu && accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setShowAccountMenu(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showSortDropdown, showDomainDropdown]);
+  }, [showSortDropdown, showDomainDropdown, showAccountMenu]);
 
   const uniqueDomains = useMemo(() => {
     const map = new Map<string, string>();
@@ -135,27 +143,96 @@ export function ConversationList() {
           </button>
           <div className="wa-header-title" style={{ fontSize: 20 }}>HF Simulator</div>
         </div>
-        <button
-          onClick={() => fetchConversations(true)}
-          disabled={refreshing}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: 8,
-            cursor: 'pointer',
-            color: 'var(--wa-header-text)',
-            opacity: 0.75,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <RefreshCw
-            size={20}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            onClick={() => fetchConversations(true)}
+            disabled={refreshing}
             style={{
-              animation: refreshing ? 'spin 1s linear infinite' : 'none',
+              background: 'none',
+              border: 'none',
+              padding: 8,
+              cursor: 'pointer',
+              color: 'var(--wa-header-text)',
+              opacity: 0.75,
+              display: 'flex',
+              alignItems: 'center',
             }}
-          />
-        </button>
+          >
+            <RefreshCw
+              size={20}
+              style={{
+                animation: refreshing ? 'spin 1s linear infinite' : 'none',
+              }}
+            />
+          </button>
+
+          {/* Account avatar */}
+          <div style={{ position: 'relative' }} ref={accountRef}>
+            <button
+              onClick={() => setShowAccountMenu(v => !v)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 4,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <UserAvatar
+                name={session?.user?.name || session?.user?.email || '?'}
+                role={session?.user?.role}
+                size={28}
+              />
+            </button>
+            {showAccountMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '100%',
+                  marginTop: 4,
+                  background: 'var(--wa-surface)',
+                  border: '1px solid var(--wa-divider)',
+                  borderRadius: 12,
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                  width: 220,
+                  zIndex: 50,
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--wa-divider)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--wa-text-primary)' }}>
+                    {(session?.user as any)?.displayName || session?.user?.name || session?.user?.email}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--wa-text-muted)', marginTop: 2 }}>
+                    {session?.user?.email}
+                  </div>
+                </div>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    color: '#dc2626',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--wa-hover)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                >
+                  <LogOut size={14} />
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Search row — domain dropdown + search input + sort dropdown */}

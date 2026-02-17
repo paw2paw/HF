@@ -449,7 +449,7 @@ export async function PATCH(
 
     const { callId } = await params;
     const body = await request.json();
-    const { transcript, summary } = body;
+    const { transcript, summary, endedAt } = body;
 
     const call = await prisma.call.findUnique({
       where: { id: callId },
@@ -465,6 +465,7 @@ export async function PATCH(
     const updateData: any = {};
     if (transcript !== undefined) updateData.transcript = transcript;
     if (summary !== undefined) updateData.summary = summary;
+    if (endedAt !== undefined) updateData.endedAt = new Date(endedAt);
 
     const updated = await prisma.call.update({
       where: { id: callId },

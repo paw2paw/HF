@@ -2,6 +2,140 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+
+// ── Active Jobs Banner (survives navigation) ──────────────
+
+type ActiveJob = {
+  id: string;
+  status: string;
+  context: {
+    sourceId?: string;
+    fileName?: string;
+    currentChunk?: number;
+    totalChunks?: number;
+    extractedCount?: number;
+    importedCount?: number;
+    duplicatesSkipped?: number;
+    warnings?: string[];
+    error?: string;
+  };
+  startedAt: string;
+  updatedAt: string;
+};
+
+function ActiveJobsBanner({ onJobDone }: { onJobDone: () => void }) {
+  const [jobs, setJobs] = useState<ActiveJob[]>([]);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchActiveJobs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks?status=in_progress");
+      const data = await res.json();
+      if (!data.ok) return;
+      const extractionJobs = (data.tasks || []).filter(
+        (t: any) => t.taskType === "extraction"
+      );
+      setJobs(extractionJobs);
+      // If no active jobs, stop polling
+      if (extractionJobs.length === 0 && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveJobs();
+    pollRef.current = setInterval(fetchActiveJobs, 3000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [fetchActiveJobs]);
+
+  // Detect job completion: if a job we were tracking disappears from active list
+  const prevJobIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const currentIds = new Set(jobs.map((j) => j.id));
+    if (prevJobIds.current.size > 0 && prevJobIds.current.size > currentIds.size) {
+      onJobDone();
+    }
+    prevJobIds.current = currentIds;
+  }, [jobs, onJobDone]);
+
+  if (jobs.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+      {jobs.map((job) => {
+        const ctx = job.context || {};
+        const pct = ctx.totalChunks && ctx.totalChunks > 0
+          ? Math.round(((ctx.currentChunk || 0) / ctx.totalChunks) * 100)
+          : 0;
+        const elapsed = Math.floor((Date.now() - new Date(job.startedAt).getTime()) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+        return (
+          <div
+            key={job.id}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 8,
+              background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+              fontSize: 13,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "var(--accent-primary)",
+                  animation: "activejob-pulse 1.5s ease-in-out infinite",
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                Extracting: {ctx.fileName || "document"}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                {ctx.extractedCount || 0} assertions
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 12, marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+                {timeStr}
+              </span>
+            </div>
+            {ctx.totalChunks && ctx.totalChunks > 0 && (
+              <div style={{ height: 3, borderRadius: 2, background: "var(--surface-tertiary)", overflow: "hidden" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    borderRadius: 2,
+                    background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                    width: `${pct}%`,
+                    transition: "width 0.5s ease-out",
+                  }}
+                />
+              </div>
+            )}
+            {ctx.totalChunks && ctx.totalChunks > 0 && (
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>
+                Chunk {ctx.currentChunk || 0}/{ctx.totalChunks} ({pct}%)
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <style>{`@keyframes activejob-pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }`}</style>
+    </div>
+  );
+}
 
 type ContentSource = {
   id: string;
@@ -9,6 +143,8 @@ type ContentSource = {
   name: string;
   description: string | null;
   trustLevel: string;
+  documentType: string;
+  documentTypeSource: string | null;
   publisherOrg: string | null;
   accreditingBody: string | null;
   accreditationRef: string | null;
@@ -37,13 +173,22 @@ type ContentSource = {
   }>;
 };
 
+const DOCUMENT_TYPES = [
+  { value: "TEXTBOOK", label: "Textbook", icon: "\uD83D\uDCD6" },
+  { value: "CURRICULUM", label: "Curriculum", icon: "\uD83C\uDF93" },
+  { value: "WORKSHEET", label: "Worksheet", icon: "\uD83D\uDCDD" },
+  { value: "EXAMPLE", label: "Example", icon: "\uD83D\uDCC4" },
+  { value: "ASSESSMENT", label: "Assessment", icon: "\u2705" },
+  { value: "REFERENCE", label: "Reference", icon: "\uD83D\uDCD1" },
+];
+
 const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "#D4AF37", bg: "#FDF6E3" },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "#8B8B8B", bg: "#F5F5F5" },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "#4A90D9", bg: "#EBF3FC" },
-  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "#2E7D32", bg: "#E8F5E9" },
-  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "#FF8F00", bg: "#FFF3E0" },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "#B71C1C", bg: "#FFEBEE" },
+  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
+  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "var(--trust-l4-text)", bg: "var(--trust-l4-bg)" },
+  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "var(--trust-l3-text)", bg: "var(--trust-l3-bg)" },
+  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "var(--trust-l2-text)", bg: "var(--trust-l2-bg)" },
+  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "var(--trust-l1-text)", bg: "var(--trust-l1-bg)" },
+  { value: "UNVERIFIED", label: "L0 Unverified", color: "var(--trust-l0-text)", bg: "var(--trust-l0-bg)" },
 ];
 
 function TrustBadge({ level }: { level: string }) {
@@ -58,7 +203,7 @@ function TrustBadge({ level }: { level: string }) {
         fontWeight: 600,
         color: config.color,
         backgroundColor: config.bg,
-        border: `1px solid ${config.color}33`,
+        border: `1px solid color-mix(in srgb, ${config.color} 20%, transparent)`,
       }}
     >
       {config.label}
@@ -73,12 +218,40 @@ function FreshnessIndicator({ validUntil }: { validUntil: string | null }) {
   const daysUntil = Math.floor((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   if (daysUntil < 0) {
-    return <span style={{ color: "#B71C1C", fontSize: 12, fontWeight: 600 }}>Expired {Math.abs(daysUntil)}d ago</span>;
+    return <span style={{ color: "var(--status-error-text)", fontSize: 12, fontWeight: 600 }}>Expired {Math.abs(daysUntil)}d ago</span>;
   }
   if (daysUntil <= 60) {
     return <span style={{ color: "#FF8F00", fontSize: 12, fontWeight: 600 }}>Expires in {daysUntil}d</span>;
   }
   return <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Valid until {expiry.toLocaleDateString()}</span>;
+}
+
+function DocumentTypeBadge({ type, source }: { type: string; source?: string | null }) {
+  const dt = DOCUMENT_TYPES.find((d) => d.value === type) || DOCUMENT_TYPES[0];
+  const isAuto = source?.startsWith("ai:");
+  return (
+    <span
+      title={source ? `Set by: ${source}` : "Default (not classified)"}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 8px",
+        borderRadius: 4,
+        fontSize: 11,
+        fontWeight: 500,
+        color: "var(--text-secondary)",
+        backgroundColor: "var(--surface-tertiary)",
+        border: `1px solid var(--border-subtle)`,
+      }}
+    >
+      <span style={{ fontSize: 12 }}>{dt.icon}</span>
+      {dt.label}
+      {isAuto && (
+        <span style={{ fontSize: 9, color: "var(--text-muted)", fontStyle: "italic" }}>auto</span>
+      )}
+    </span>
+  );
 }
 
 function UsedByCell({ subjects }: { subjects: ContentSource["subjects"] }) {
@@ -120,7 +293,7 @@ export default function ContentSourcesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [uploadSourceId, setUploadSourceId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [dropStatus, setDropStatus] = useState<{ phase: "idle" | "creating" | "extracting" | "done" | "error"; message: string }>({ phase: "idle", message: "" });
+  const [dropStatus, setDropStatus] = useState<{ phase: "idle" | "creating" | "classifying" | "done" | "error"; message: string }>({ phase: "idle", message: "" });
 
   async function fetchSources() {
     setLoading(true);
@@ -173,24 +346,28 @@ export default function ContentSourcesPage() {
 
       const sourceId = createData.source.id;
 
-      // Step 2: Start background extraction
-      setDropStatus({ phase: "extracting", message: `Extracting assertions from "${file.name}"...` });
+      // Step 2: Classify document type + store file (no extraction yet)
+      setDropStatus({ phase: "classifying", message: `Classifying "${file.name}"...` });
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("mode", "background");
-      formData.append("maxAssertions", "500");
-      const uploadRes = await fetch(`/api/content-sources/${sourceId}/import`, {
+      formData.append("mode", "classify");
+      const classifyRes = await fetch(`/api/content-sources/${sourceId}/import`, {
         method: "POST",
         body: formData,
       });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData.error || "Failed to start extraction");
+      const classifyData = await classifyRes.json();
+      if (!classifyRes.ok) throw new Error(classifyData.error || "Failed to classify document");
 
-      setDropStatus({ phase: "done", message: `Source created. Extraction running in background.` });
+      const detectedType = classifyData.classification?.documentType
+        ? DOCUMENT_TYPES.find((d) => d.value === classifyData.classification.documentType)
+        : null;
+      const pct = classifyData.classification?.confidence
+        ? Math.round(classifyData.classification.confidence * 100)
+        : 0;
+      const typeMsg = detectedType ? ` Classified as ${detectedType.icon} ${detectedType.label} (${pct}%).` : "";
+      setDropStatus({ phase: "done", message: `Source created.${typeMsg} Review the type, then extract.` });
       fetchSources();
-      // Auto-expand the upload row to show progress
-      setUploadSourceId(sourceId);
-      setTimeout(() => setDropStatus({ phase: "idle", message: "" }), 4000);
+      setTimeout(() => setDropStatus({ phase: "idle", message: "" }), 5000);
     } catch (err: any) {
       setDropStatus({ phase: "error", message: err.message });
       setTimeout(() => setDropStatus({ phase: "idle", message: "" }), 5000);
@@ -223,6 +400,7 @@ export default function ContentSourcesPage() {
       onDrop={handleDrop}
       style={{ position: "relative" }}
     >
+      <AdvancedBanner />
       {/* Full-page drop overlay */}
       {dragOver && (
         <div style={{
@@ -246,7 +424,7 @@ export default function ContentSourcesPage() {
           }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
-              Drop to create source & extract
+              Drop to create source & classify
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
               PDF, TXT, MD, JSON
@@ -267,12 +445,12 @@ export default function ContentSourcesPage() {
           alignItems: "center",
           gap: 8,
           ...(dropStatus.phase === "error"
-            ? { background: "#FFEBEE", color: "#B71C1C", border: "1px solid #FFCDD2" }
+            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid #FFCDD2" }
             : dropStatus.phase === "done"
               ? { background: "#E8F5E9", color: "#2E7D32", border: "1px solid #C8E6C9" }
               : { background: "#EBF3FC", color: "#1565C0", border: "1px solid #BBDEFB" }),
         }}>
-          {dropStatus.phase === "creating" || dropStatus.phase === "extracting" ? (
+          {dropStatus.phase === "creating" || dropStatus.phase === "classifying" ? (
             <span style={{
               width: 8, height: 8, borderRadius: "50%",
               background: "currentColor",
@@ -289,16 +467,19 @@ export default function ContentSourcesPage() {
           Content Sources
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-          Authoritative sources for teaching content. Drag & drop a PDF to create a source and extract assertions automatically.
+          Authoritative sources for teaching content. Drag & drop a PDF to classify and store it, then extract assertions after reviewing the type.
         </p>
       </div>
+
+      {/* Active extraction jobs (survives navigation) */}
+      <ActiveJobsBanner onJobDone={fetchSources} />
 
       {/* Freshness alerts */}
       {(expired.length > 0 || expiringSoon.length > 0) && (
         <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
           {expired.length > 0 && (
-            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "#FFEBEE", border: "1px solid #FFCDD2", fontSize: 13 }}>
-              <span style={{ fontWeight: 600, color: "#B71C1C" }}>{expired.length} expired</span>
+            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "var(--status-error-bg)", border: "1px solid #FFCDD2", fontSize: 13 }}>
+              <span style={{ fontWeight: 600, color: "var(--status-error-text)" }}>{expired.length} expired</span>
               <span style={{ color: "#C62828" }}> source{expired.length > 1 ? "s" : ""} need{expired.length === 1 ? "s" : ""} updating</span>
             </div>
           )}
@@ -321,8 +502,8 @@ export default function ContentSourcesPage() {
           style={{
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
-            backgroundColor: "var(--bg-secondary)",
+            border: "1px solid var(--border-default)",
+            backgroundColor: "var(--surface-secondary)",
             color: "var(--text-primary)",
             fontSize: 13,
             width: 240,
@@ -334,8 +515,8 @@ export default function ContentSourcesPage() {
           style={{
             padding: "8px 12px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
-            backgroundColor: "var(--bg-secondary)",
+            border: "1px solid var(--border-default)",
+            backgroundColor: "var(--surface-secondary)",
             color: "var(--text-primary)",
             fontSize: 13,
           }}
@@ -350,7 +531,7 @@ export default function ContentSourcesPage() {
           style={{
             padding: "8px 16px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
+            border: "1px solid var(--border-default)",
             backgroundColor: "var(--accent-primary)",
             color: "#fff",
             fontSize: 13,
@@ -377,15 +558,16 @@ export default function ContentSourcesPage() {
       {loading ? (
         <p style={{ color: "var(--text-muted)" }}>Loading sources...</p>
       ) : error ? (
-        <p style={{ color: "#B71C1C" }}>Error: {error}</p>
+        <p style={{ color: "var(--status-error-text)" }}>Error: {error}</p>
       ) : filtered.length === 0 ? (
         <p style={{ color: "var(--text-muted)" }}>No content sources found. Add one to get started.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid var(--border-primary)" }}>
+              <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Source</th>
+                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Type</th>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Trust Level</th>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Qualification</th>
                 <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Publisher</th>
@@ -403,6 +585,7 @@ export default function ContentSourcesPage() {
                   isUploading={uploadSourceId === s.id}
                   onToggleUpload={() => setUploadSourceId(uploadSourceId === s.id ? null : s.id)}
                   onUploadDone={() => { setUploadSourceId(null); fetchSources(); }}
+                  onRefresh={fetchSources}
                 />
               ))}
             </tbody>
@@ -420,21 +603,73 @@ function SourceRow({
   isUploading,
   onToggleUpload,
   onUploadDone,
+  onRefresh,
 }: {
   source: ContentSource;
   isUploading: boolean;
   onToggleUpload: () => void;
   onUploadDone: () => void;
+  onRefresh: () => void;
 }) {
+  const [extracting, setExtracting] = useState(false);
+  const [changingType, setChangingType] = useState(false);
+
+  const awaiting = s._count.assertions === 0 && s.documentTypeSource?.startsWith("ai:");
+  const confidence = s.documentTypeSource?.startsWith("ai:")
+    ? Math.round(parseFloat(s.documentTypeSource.split(":")[1]) * 100)
+    : null;
+
+  async function handleExtract() {
+    setExtracting(true);
+    try {
+      const res = await fetch(`/api/content-sources/${s.id}/extract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      // Extraction started in background — the ActiveJobsBanner will pick it up
+      onRefresh();
+    } catch {
+      // Error handled by banner
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function handleChangeType(newType: string) {
+    setChangingType(true);
+    try {
+      const res = await fetch(`/api/content-sources/${s.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentType: newType }),
+      });
+      if (!res.ok) return;
+      onRefresh();
+    } finally {
+      setChangingType(false);
+    }
+  }
+
+  const hasExpandedRow = isUploading || awaiting;
+
   return (
     <>
-      <tr style={{ borderBottom: isUploading ? "none" : "1px solid var(--border-secondary)" }}>
+      <tr style={{
+        borderBottom: hasExpandedRow ? "none" : "1px solid var(--border-subtle)",
+        ...(awaiting ? { background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)" } : {}),
+      }}>
         <td style={{ padding: "10px 12px" }}>
-          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</div>
+          <Link href={`/x/content-sources/${s.id}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{s.name}</Link>
           <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
           {s.authors.length > 0 && (
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.authors.join(", ")}</div>
           )}
+        </td>
+        <td style={{ padding: "10px 12px" }}>
+          <DocumentTypeBadge type={s.documentType} source={s.documentTypeSource} />
         </td>
         <td style={{ padding: "10px 12px" }}>
           <TrustBadge level={s.trustLevel} />
@@ -457,8 +692,14 @@ function SourceRow({
         <td style={{ padding: "10px 12px" }}>
           <UsedByCell subjects={s.subjects} />
         </td>
-        <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--text-muted)" }}>
-          {s._count.assertions}
+        <td style={{ padding: "10px 12px", textAlign: "right" }}>
+          {s._count.assertions > 0 ? (
+            <Link href={`/x/content-sources/${s.id}`} style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500 }}>
+              {s._count.assertions}
+            </Link>
+          ) : (
+            <span style={{ color: "var(--text-muted)" }}>0</span>
+          )}
         </td>
         <td style={{ padding: "10px 12px", textAlign: "right" }}>
           <button
@@ -466,7 +707,7 @@ function SourceRow({
             style={{
               padding: "4px 12px",
               borderRadius: 6,
-              border: isUploading ? "1px solid var(--accent-primary)" : "1px solid var(--border-primary)",
+              border: isUploading ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
               backgroundColor: isUploading ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
               color: isUploading ? "var(--accent-primary)" : "var(--text-secondary)",
               fontSize: 12,
@@ -478,9 +719,66 @@ function SourceRow({
           </button>
         </td>
       </tr>
+      {/* Classification review row — awaiting user confirmation */}
+      {awaiting && !isUploading && (
+        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+          <td colSpan={9} style={{ padding: "0 12px 12px" }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 16px",
+              borderRadius: 8,
+              border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+              background: "color-mix(in srgb, var(--accent-primary) 4%, transparent)",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>
+                Classified{confidence !== null ? ` (${confidence}%)` : ""}
+              </span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Type:</span>
+              <select
+                value={s.documentType}
+                onChange={(e) => handleChangeType(e.target.value)}
+                disabled={changingType}
+                style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-primary)",
+                }}
+              >
+                {DOCUMENT_TYPES.map((d) => (
+                  <option key={d.value} value={d.value}>{d.icon} {d.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleExtract}
+                disabled={extracting}
+                style={{
+                  padding: "4px 14px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "var(--accent-primary)",
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: extracting ? "not-allowed" : "pointer",
+                  opacity: extracting ? 0.6 : 1,
+                }}
+              >
+                {extracting ? "Starting..." : "Extract Assertions"}
+              </button>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+                Confirm type before extracting
+              </span>
+            </div>
+          </td>
+        </tr>
+      )}
       {isUploading && (
-        <tr style={{ borderBottom: "1px solid var(--border-secondary)" }}>
-          <td colSpan={8} style={{ padding: "0 12px 16px" }}>
+        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+          <td colSpan={9} style={{ padding: "0 12px 16px" }}>
             <InlineUploader sourceId={s.id} sourceName={s.name} onDone={onUploadDone} />
           </td>
         </tr>
@@ -605,8 +903,8 @@ function InlineUploader({
       style={{
         padding: 16,
         borderRadius: 10,
-        border: "1px solid var(--border-primary)",
-        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-default)",
+        background: "var(--surface-secondary)",
         marginTop: 8,
       }}
     >
@@ -625,7 +923,7 @@ function InlineUploader({
             style={{
               padding: "6px 16px",
               borderRadius: 6,
-              border: "1px solid var(--border-primary)",
+              border: "1px solid var(--border-default)",
               background: "var(--surface-primary)",
               color: "var(--text-primary)",
               fontSize: 13,
@@ -656,7 +954,7 @@ function InlineUploader({
           >
             Extract &amp; Import
           </button>
-          {error && <span style={{ fontSize: 12, color: "#B71C1C", width: "100%" }}>{error}</span>}
+          {error && <span style={{ fontSize: 12, color: "var(--status-error-text)", width: "100%" }}>{error}</span>}
         </div>
       )}
 
@@ -728,29 +1026,45 @@ function InlineUploader({
               </span>
             )}
           </div>
-          <button
-            onClick={onDone}
-            style={{
-              marginLeft: "auto",
-              padding: "6px 16px",
-              borderRadius: 6,
-              border: "none",
-              background: "var(--accent-primary)",
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Done
-          </button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <Link
+              href={`/x/content-sources/${sourceId}`}
+              style={{
+                padding: "6px 16px",
+                borderRadius: 6,
+                border: "1px solid var(--accent-primary)",
+                background: "transparent",
+                color: "var(--accent-primary)",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Review Assertions
+            </Link>
+            <button
+              onClick={onDone}
+              style={{
+                padding: "6px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "var(--accent-primary)",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
 
       {/* Error */}
       {phase === "error" && (
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 13, color: "#B71C1C", fontWeight: 600 }}>
+          <span style={{ fontSize: 13, color: "var(--status-error-text)", fontWeight: 600 }}>
             Failed: {error}
           </span>
           <button
@@ -759,7 +1073,7 @@ function InlineUploader({
               marginLeft: "auto",
               padding: "6px 16px",
               borderRadius: 6,
-              border: "1px solid var(--border-primary)",
+              border: "1px solid var(--border-default)",
               background: "transparent",
               color: "var(--text-secondary)",
               fontSize: 12,
@@ -780,6 +1094,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
     name: "",
     description: "",
     trustLevel: "UNVERIFIED",
+    documentType: "",
     publisherOrg: "",
     accreditingBody: "",
     accreditationRef: "",
@@ -793,6 +1108,53 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [intentText, setIntentText] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
+
+  async function handleSuggest() {
+    if (!intentText.trim() || suggesting) return;
+    setSuggesting(true);
+    setSuggestError(null);
+    setAiInterpretation(null);
+    try {
+      const res = await fetch("/api/content-sources/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: intentText.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setSuggestError(data.error || "Failed to generate suggestions");
+        return;
+      }
+      const f = data.fields || {};
+      setForm((prev) => ({
+        ...prev,
+        slug: f.slug || prev.slug,
+        name: f.name || prev.name,
+        description: f.description || prev.description,
+        trustLevel: f.trustLevel || prev.trustLevel,
+        documentType: f.documentType || prev.documentType,
+        publisherOrg: f.publisherOrg || prev.publisherOrg,
+        accreditingBody: f.accreditingBody || prev.accreditingBody,
+        accreditationRef: f.accreditationRef || prev.accreditationRef,
+        authors: Array.isArray(f.authors) ? f.authors.join(", ") : prev.authors,
+        isbn: f.isbn || prev.isbn,
+        edition: f.edition || prev.edition,
+        publicationYear: f.publicationYear ? String(f.publicationYear) : prev.publicationYear,
+        qualificationRef: f.qualificationRef || prev.qualificationRef,
+        validFrom: f.validFrom || prev.validFrom,
+        validUntil: f.validUntil || prev.validUntil,
+      }));
+      if (data.interpretation) setAiInterpretation(data.interpretation);
+    } catch (err: any) {
+      setSuggestError(err.message || "Network error");
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -804,6 +1166,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          documentType: form.documentType || undefined,
           authors: form.authors ? form.authors.split(",").map((a) => a.trim()) : [],
           publicationYear: form.publicationYear ? parseInt(form.publicationYear) : null,
           validFrom: form.validFrom || null,
@@ -823,8 +1186,8 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
   const inputStyle = {
     padding: "6px 10px",
     borderRadius: 4,
-    border: "1px solid var(--border-primary)",
-    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-default)",
+    backgroundColor: "var(--surface-secondary)",
     color: "var(--text-primary)",
     fontSize: 13,
     width: "100%",
@@ -842,17 +1205,108 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
       onSubmit={handleSubmit}
       style={{
         padding: 16,
-        border: "1px solid var(--border-primary)",
+        border: "1px solid var(--border-default)",
         borderRadius: 8,
         marginBottom: 16,
-        backgroundColor: "var(--bg-secondary)",
+        backgroundColor: "var(--surface-secondary)",
       }}
     >
       <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>Add Content Source</h3>
 
-      {error && <p style={{ color: "#B71C1C", fontSize: 13, marginBottom: 8 }}>{error}</p>}
+      {/* Intent Bar */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="text"
+            value={intentText}
+            onChange={(e) => setIntentText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && intentText.trim() && !suggesting) {
+                e.preventDefault();
+                handleSuggest();
+              }
+            }}
+            placeholder='Describe the source... e.g. "CII R04 Insurance Syllabus 2025/26" or paste an ISBN'
+            disabled={suggesting}
+            style={{
+              ...inputStyle,
+              flex: 1,
+              padding: "8px 12px",
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleSuggest}
+            disabled={!intentText.trim() || suggesting}
+            style={{
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              background: !intentText.trim() || suggesting ? "var(--surface-secondary)" : "var(--accent-primary)",
+              color: !intentText.trim() || suggesting ? "var(--text-muted)" : "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: !intentText.trim() || suggesting ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              whiteSpace: "nowrap" as const,
+            }}
+          >
+            {suggesting ? (
+              <>
+                <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                Thinking...
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 14 }}>✨</span>
+                Fill
+              </>
+            )}
+          </button>
+        </div>
+        {suggestError && (
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--status-error-text)" }}>{suggestError}</p>
+        )}
+        {aiInterpretation && (
+          <div style={{
+            marginTop: 6,
+            padding: "6px 10px",
+            borderRadius: 4,
+            background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+            fontSize: 12,
+            color: "var(--text-secondary)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}>
+            <span style={{ fontSize: 13 }}>✨</span>
+            {aiInterpretation}
+            <button
+              type="button"
+              onClick={() => setAiInterpretation(null)}
+              style={{
+                marginLeft: "auto",
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                fontSize: 14,
+                padding: 0,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+      {error && <p style={{ color: "var(--status-error-text)", fontSize: 13, marginBottom: 8 }}>{error}</p>}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
         <div>
           <div style={labelStyle}>Slug *</div>
           <input style={inputStyle} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="e.g., cii-r04-syllabus-2025" required />
@@ -860,6 +1314,15 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
         <div>
           <div style={labelStyle}>Name *</div>
           <input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., CII R04 Syllabus 2025/26" required />
+        </div>
+        <div>
+          <div style={labelStyle}>Document Type</div>
+          <select style={inputStyle} value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })}>
+            <option value="">Auto-detect</option>
+            {DOCUMENT_TYPES.map((d) => (
+              <option key={d.value} value={d.value}>{d.icon} {d.label}</option>
+            ))}
+          </select>
         </div>
         <div>
           <div style={labelStyle}>Trust Level</div>
@@ -940,7 +1403,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
           style={{
             padding: "8px 20px",
             borderRadius: 6,
-            border: "1px solid var(--border-primary)",
+            border: "1px solid var(--border-default)",
             backgroundColor: "transparent",
             color: "var(--text-secondary)",
             fontSize: 13,

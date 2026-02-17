@@ -22,8 +22,10 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 ARG NODE_OPTIONS
+ARG NEXT_PUBLIC_APP_ENV=LIVE
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=$NODE_OPTIONS
+ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
@@ -53,11 +55,12 @@ CMD ["node", "server.js"]
 FROM node:20-alpine AS seed
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
+COPY package.json tsconfig.json ./
 COPY prisma ./prisma
 COPY docs-archive/bdd-specs ./docs-archive/bdd-specs
 COPY lib ./lib
 COPY scripts ./scripts
+COPY transcripts ./transcripts
 RUN npx prisma generate
 CMD ["npx", "tsx", "prisma/seed-clean.ts"]
 

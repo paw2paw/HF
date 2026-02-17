@@ -33,6 +33,53 @@ enum ContentTrustLevel {
   UNVERIFIED          // L0: Unreviewed submissions, user notes (default)
 }
 
+// Document classification - intrinsic type of a content source document
+// Determines extraction strategy, categories, and pyramid structure
+enum DocumentType {
+  CURRICULUM  // Formal syllabus with LOs/ACs — auto-structures pyramid
+  TEXTBOOK    // Dense reference material — full extraction + structuring
+  WORKSHEET   // Learner activity sheet — structure/questions extraction
+  EXAMPLE     // Illustrative document — light concept extraction
+  ASSESSMENT  // Test/quiz material — questions/answers/misconceptions
+  REFERENCE   // Glossary/cheat sheet — flat term extraction
+}
+
+// Conversation artifact types - content worth sharing from a call
+enum ConversationArtifactType {
+  SUMMARY // Call summary / key takeaways
+  KEY_FACT // Important fact discussed or taught
+  FORMULA // Mathematical or domain formula
+  EXERCISE // Practice question or exercise
+  RESOURCE_LINK // Book, tool, or resource reference
+  STUDY_NOTE // Study note or revision aid
+  REMINDER // Follow-up action or reminder
+  MEDIA // Image, PDF, or audio clip
+}
+
+// Artifact trust level - how well the content traces to trusted sources
+enum ArtifactTrustLevel {
+  VERIFIED // All facts trace to ContentAssertions
+  INFERRED // AI-generated but plausible
+  UNVERIFIED // Caller-contributed or unverifiable
+}
+
+// Artifact delivery status
+enum ArtifactStatus {
+  PENDING // Extracted, not yet delivered
+  SENT // Sent to channel (awaiting confirmation)
+  DELIVERED // Confirmed delivered
+  READ // Confirmed read/opened
+  FAILED // Delivery failed
+}
+
+// Inbound message types from callers
+enum InboundMessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+}
+
 // Goal types - different kinds of objectives for callers
 enum GoalType {
   LEARN // Knowledge/skill acquisition (curriculum-based)
@@ -43,12 +90,67 @@ enum GoalType {
   CREATE // Creative projects, build something
 }
 
+// Call action types - actionable items that emerge from calls
+enum CallActionType {
+  SEND_MEDIA // Send doc/image/media to caller
+  HOMEWORK   // Practice/study assignment for the caller
+  TASK       // Generic actionable task
+  FOLLOWUP   // Follow up on something discussed
+  REMINDER   // Remember to do/check something
+}
+
+// Who needs to act on a call action
+enum CallActionAssignee {
+  CALLER   // Learner needs to do this
+  OPERATOR // Admin/operator needs to fulfill
+  AGENT    // AI agent should do this next call
+}
+
+// Call action completion lifecycle
+enum CallActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Call action priority
+enum CallActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// How the action was created
+enum CallActionSource {
+  EXTRACTED // AI extracted from call transcript
+  MANUAL    // Operator/admin created
+}
+
 // Goal lifecycle status
 enum GoalStatus {
   ACTIVE // Currently being pursued
   COMPLETED // Successfully achieved
   PAUSED // Temporarily suspended
   ARCHIVED // No longer relevant
+}
+
+// CallerPlaybook enrollment status — tracks a caller's relationship to a specific playbook
+enum CallerPlaybookStatus {
+  ACTIVE // Currently enrolled, specs run in pipeline
+  COMPLETED // Finished the course/playbook
+  PAUSED // Temporarily suspended
+  DROPPED // Explicitly withdrawn
+}
+
+// Caller role - what function this person serves in the learning platform
+enum CallerRole {
+  LEARNER // Default — uses the system as a student/participant
+  TEACHER // Owns cohort groups, sees pupil dashboards
+  TUTOR // 1-1 tutor, owns small groups or individual supervision
+  PARENT // Parent/guardian access to child's progress
+  MENTOR // Mentor with oversight of mentees
 }
 
 model Parameter {
@@ -349,6 +451,8 @@ model Domain {
   invites            Invite[] // Field tester invites locked to this domain
   subjects           SubjectDomain[] // Subjects taught in this domain
   assignedUsers      User[] @relation("AssignedUsers") // Users scoped to this domain
+  cohortGroups       CohortGroup[] // Cohort groups in this domain
+  channelConfigs     ChannelConfig[] // Delivery channel configs for this domain
 
   @@index([slug])
   @@index([isDefault])
@@ -508,6 +612,32 @@ model BehaviorMeasurement {
 }
 
 // =========================
+// INSTITUTIONS
+// =========================
+// An institution represents a school, university, or organization.
+// Provides branding (logo, colors, welcome message) for the educator portal + join pages.
+
+model Institution {
+  id             String  @id @default(uuid())
+  name           String
+  slug           String  @unique
+  logoUrl        String?
+  primaryColor   String? // Hex color for accent (e.g., "#4f46e5")
+  secondaryColor String? // Hex color for hover/secondary accent
+  welcomeMessage String? // Custom welcome text for join pages
+  terminology    Json?   // Per-institution terminology overrides (TerminologyConfig)
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users        User[]
+  cohortGroups CohortGroup[]
+
+  @@index([slug])
+}
+
 // SYSTEM USERS & CALLERS
 // =========================
 // "User" = Admin/operator accounts who use this system
@@ -517,8 +647,10 @@ enum UserRole {
   SUPERADMIN // Level 5 — full system access, all entities, all config
   ADMIN // Level 4 — operational admin, broad access, no system internals
   OPERATOR // Level 3 — kept for backward compat, operational access
+  EDUCATOR // Level 3 — educator portal, own cohorts + students only
   SUPER_TESTER // Level 2 — enhanced testing, domain-scoped data
   TESTER // Level 1 — basic testing, own data only
+  STUDENT // Level 1 — student portal, own data only
   DEMO // Level 0 — guided demo experience, read-only subset
   VIEWER // @deprecated — alias for TESTER (kept for data migration compat)
 }
@@ -556,12 +688,23 @@ model User {
   assignedDomainId String?
   assignedDomain   Domain? @relation("AssignedUsers", fields: [assignedDomainId], references: [id])
 
+  // Institution scope (null = no institution)
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+
   // Field tester → Caller link
   callers Caller[]
+
+  // Invites sent by this user (educator → student chain)
+  sentInvites Invite[] @relation("SentInvites")
+
+  // Media uploads
+  mediaUploads MediaAsset[]
 
   @@index([email])
   @@index([role])
   @@index([assignedDomainId])
+  @@index([institutionId])
 }
 
 // Note: AuditLog has userId but no FK constraint (logs persist after user deletion)
@@ -620,9 +763,17 @@ model Invite {
   domain    Domain? @relation(fields: [domainId], references: [id])
   sentAt    DateTime? // When invite email was sent
 
+  // Educator invite extensions
+  cohortGroupId String? // Auto-assign student to cohort on accept
+  cohortGroup   CohortGroup? @relation(fields: [cohortGroupId], references: [id])
+  callerRole    CallerRole? // Create Caller with this role on accept (TEACHER or LEARNER)
+  invitedById   String? // Track invitation chain (User ID who sent the invite)
+  invitedBy     User?        @relation("SentInvites", fields: [invitedById], references: [id])
+
   @@index([token])
   @@index([email])
   @@index([domainId])
+  @@index([cohortGroupId])
 }
 
 model Caller {
@@ -631,6 +782,9 @@ model Caller {
   name       String?
   phone      String?
   externalId String? @unique
+
+  // Caller role — determines function in the learning platform
+  role CallerRole @default(LEARNER)
 
   // User link - for field testers who accepted an invite
   userId String?
@@ -641,6 +795,18 @@ model Caller {
   domain            Domain? @relation(fields: [domainId], references: [id])
   previousDomainId  String? // Track last domain for re-onboarding detection
   domainSwitchCount Int     @default(0) // Number of times caller switched domains
+
+  // Cohort group membership (for pupils in a teacher's group)
+  cohortGroupId String?
+  cohortGroup   CohortGroup? @relation("CohortMembers", fields: [cohortGroupId], references: [id])
+
+  // Direct supervisor (for 1-1 tutor relationships without a formal group)
+  supervisorCallerId String?
+  supervisorCaller   Caller?  @relation("SupervisedCallers", fields: [supervisorCallerId], references: [id])
+  supervisedCallers  Caller[] @relation("SupervisedCallers")
+
+  // Cohort groups this caller owns (for teachers/tutors)
+  ownedCohorts CohortGroup[] @relation("OwnedCohorts")
 
   // Relations
   personality             CallerPersonality?
@@ -671,8 +837,20 @@ model Caller {
   // Caller's goals (learn, achieve, connect, etc.)
   goals Goal[]
 
+  // Playbook enrollments — explicit links to specific playbooks (class roster)
+  enrollments CallerPlaybook[]
+
+  // Conversation artifacts (content shared after calls)
+  artifacts       ConversationArtifact[]
+  actions         CallAction[]
+  inboundMessages InboundMessage[]
+  artifactConsent Boolean @default(true) // true for sim, explicit opt-in for WhatsApp
+
   // Onboarding tracking per domain
   onboardingSessions OnboardingSession[]
+
+  // Archive: null = active, non-null = archived with timestamp
+  archivedAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -680,6 +858,10 @@ model Caller {
   @@index([externalId])
   @@index([domainId])
   @@index([previousDomainId])
+  @@index([archivedAt])
+  @@index([role])
+  @@index([cohortGroupId])
+  @@index([supervisorCallerId])
 }
 
 // ExcludedCaller - Phone numbers/IDs to skip during transcript import
@@ -695,6 +877,55 @@ model ExcludedCaller {
   @@unique([externalId])
   @@index([phone])
   @@index([externalId])
+}
+
+// =========================
+// COHORT GROUPS (Teacher/Tutor cohorts)
+// =========================
+// A cohort group is a set of callers supervised by a teacher or tutor.
+// The owner (teacher/tutor) gets a dashboard showing pupil activity and progress.
+
+model CohortGroup {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  // Domain scope — cohort belongs to one domain
+  domainId String
+  domain   Domain @relation(fields: [domainId], references: [id])
+
+  // Owner — the teacher/tutor Caller who manages this cohort
+  ownerId String
+  owner   Caller @relation("OwnedCohorts", fields: [ownerId], references: [id])
+
+  // Settings
+  maxMembers Int     @default(50)
+  isActive   Boolean @default(true)
+
+  // Magic join link — shareable URL token for students to self-enrol
+  joinToken    String?   @unique
+  joinTokenExp DateTime? // Optional expiry (null = no expiry)
+
+  // Members
+  members Caller[] @relation("CohortMembers")
+
+  // Institution branding (null = no institution)
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+
+  // Invites linked to this cohort
+  invites Invite[]
+
+  // Playbooks assigned to this cohort (courses this classroom teaches)
+  playbooks CohortPlaybook[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([domainId])
+  @@index([ownerId])
+  @@index([isActive])
+  @@index([institutionId])
 }
 
 // CallTarget - Per-call behavior targets computed by ADAPT specs
@@ -850,6 +1081,60 @@ model Goal {
   @@index([playbookId])
 }
 
+// CallerPlaybook — Explicit enrollment of a caller in a specific playbook.
+// Replaces the implicit "caller inherits all domain playbooks" pattern.
+// Organisers manage class rosters by enrolling callers in specific playbooks.
+model CallerPlaybook {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  playbookId String
+  playbook   Playbook @relation(fields: [playbookId], references: [id])
+
+  status CallerPlaybookStatus @default(ACTIVE)
+
+  // Lifecycle timestamps
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+  pausedAt    DateTime?
+  droppedAt   DateTime?
+
+  // Source tracking — how this enrollment was created
+  enrolledBy String? // "quick-launch" | "invite" | "auto" | "manual" | "migration"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([callerId, playbookId])
+  @@index([callerId, status])
+  @@index([playbookId])
+}
+
+// CohortPlaybook — Links a classroom (CohortGroup) to specific playbooks (courses).
+// When students join the cohort, they auto-enroll in these playbooks.
+// If a cohort has no CohortPlaybook records, falls back to domain-wide enrollment.
+model CohortPlaybook {
+  id String @id @default(uuid())
+
+  cohortGroupId String
+  cohortGroup   CohortGroup @relation(fields: [cohortGroupId], references: [id], onDelete: Cascade)
+
+  playbookId String
+  playbook   Playbook @relation(fields: [playbookId], references: [id])
+
+  // Who assigned this playbook to the cohort
+  assignedBy String? // "auto" | "manual" | "quick-launch" | userId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cohortGroupId, playbookId])
+  @@index([cohortGroupId])
+  @@index([playbookId])
+}
+
 // OnboardingSession - Tracks onboarding completion per caller per domain
 // Supports domain switching with optional re-onboarding
 model OnboardingSession {
@@ -925,14 +1210,41 @@ model Call {
   // Per-call behavior targets (computed by ADAPT specs)
   callTargets CallTarget[]
 
+  // Conversation artifacts extracted from this call
+  artifacts ConversationArtifact[]
+
+  // Call actions (actionable items from this call)
+  actions CallAction[]
+
   // Onboarding tracking (if this call was the first in a domain)
   onboardingSessionsAsFirstCall OnboardingSession[]
+
+  // Live observation
+  endedAt  DateTime? // null = call may still be active (or pre-feature calls)
+  messages CallMessage[]
 
   @@index([source])
   @@index([externalId])
   @@index([callerId], map: "Call_userId_idx")
   @@index([previousCallId])
   @@index([usedPromptId])
+}
+
+model CallMessage {
+  id         String   @id @default(uuid())
+  callId     String
+  call       Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  role       String // "user" | "assistant" | "teacher"
+  content    String   @db.Text
+  senderName String? // For teacher messages: "Mrs. Smith"
+  createdAt  DateTime @default(now())
+
+  // Optional media attachment
+  mediaId String?
+  media   MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  @@index([callId, createdAt])
+  @@index([mediaId])
 }
 
 model CallScore {
@@ -1050,9 +1362,10 @@ model VectorEmbedding {
   id      String @id @default(uuid())
   chunkId String @unique
 
-  // Vector data (stored as bytes, converted to/from float[] in app)
-  // In production, use pgvector extension: Unsupported("vector(1536)")
-  embeddingData Bytes // Serialized float32 array
+  // Vector data — pgvector native column for similarity search
+  embedding     Unsupported("vector(1536)")?
+  // Legacy BYTEA column (nullable, kept for backward compat during transition)
+  embeddingData Bytes?
 
   // Embedding metadata
   model      String // "text-embedding-3-small", "text-embedding-3-large"
@@ -1853,6 +2166,10 @@ model AnalysisSpec {
   priority Int     @default(0) // Higher = more important
   isActive Boolean @default(true)
 
+  // Base agent reference — for overlay IDENTITY specs that extend a base archetype
+  // Value is the spec ID (e.g., "TUT-001"). Prompt composition merges base + overlay at runtime.
+  extendsAgent String?
+
   // Deletion control - prevents accidental deletion of critical specs
   isDeletable Boolean @default(true) // ORCHESTRATE specs (PIPELINE-001, INIT-001) should be false
 
@@ -1936,6 +2253,7 @@ model AnalysisSpec {
   @@index([compiledSetId])
   @@index([sourceFeatureSetId])
   @@index([isLocked])
+  @@index([extendsAgent])
   // Keep old name as map for migration compatibility
   @@map("BddFeature")
 }
@@ -2078,6 +2396,12 @@ model Playbook {
 
   // Goals instantiated from this playbook template
   goals Goal[]
+
+  // Caller enrollments — who is enrolled in this playbook (class roster)
+  enrollments CallerPlaybook[]
+
+  // Cohort assignments — which classrooms use this playbook (course)
+  cohortAssignments CohortPlaybook[]
 
   @@index([domainId])
   @@index([domainId, sortOrder])
@@ -3230,6 +3554,7 @@ model UserTask {
   // Timestamps
   startedAt   DateTime  @default(now())
   completedAt DateTime?
+  archivedAt  DateTime?
   updatedAt   DateTime  @updatedAt
 
   @@index([userId])
@@ -3256,6 +3581,13 @@ model ContentSource {
 
   // Trust classification
   trustLevel  ContentTrustLevel @default(UNVERIFIED)
+
+  // Document classification
+  documentType            DocumentType @default(TEXTBOOK)
+  documentTypeSource      String?  // "ai:0.92" or "admin:manual" — provenance of classification
+  textSample              String?  @db.Text  // First ~1000 chars for few-shot classification learning
+  aiClassification        String?            // Original AI guess "TYPE:confidence" (never mutated after set)
+  classificationCorrected Boolean  @default(false) // True when admin overrode AI's classification
 
   // Publisher / authority chain
   publisherOrg    String?  // "Chartered Insurance Institute", "Highfield Publications"
@@ -3295,11 +3627,14 @@ model ContentSource {
   assertions ContentAssertion[]
   curricula  Curriculum[] @relation("CurriculumPrimarySource")
   subjects   SubjectSource[] // Subjects this source belongs to
+  mediaAssets MediaAsset[]   // Media files from this content source
 
   @@index([trustLevel])
+  @@index([documentType])
   @@index([qualificationRef])
   @@index([validUntil])
   @@index([isActive])
+  @@index([classificationCorrected])
 }
 
 // An atomic trusted teaching point with full provenance
@@ -3337,6 +3672,17 @@ model ContentAssertion {
   // Content hash for dedup/change detection
   contentHash String?
 
+  // Pyramid hierarchy (spec-driven depth/breadth)
+  depth      Int?     // Pyramid level (meaning defined by CONTENT-EXTRACT spec levels config)
+  parentId   String?  // Self-referential FK for tree structure
+  parent     ContentAssertion?  @relation("AssertionHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children   ContentAssertion[] @relation("AssertionHierarchy")
+  orderIndex Int      @default(0) // Sort order among siblings
+  topicSlug  String?  // Stable topic identifier (e.g., "temperature-control")
+
+  // Vector embedding for semantic search (pgvector)
+  embedding Unsupported("vector(1536)")?
+
   // Review chain
   createdBy  String? // User ID or "system:import"
   reviewedBy String? // User who reviewed
@@ -3350,6 +3696,9 @@ model ContentAssertion {
   @@index([category])
   @@index([validUntil])
   @@index([learningOutcomeRef])
+  @@index([parentId])
+  @@index([depth])
+  @@index([topicSlug])
 }
 
 // =========================
@@ -3371,6 +3720,9 @@ model Subject {
   qualificationRef   String?  // "Highfield L2 Food Safety"
   qualificationLevel String?  // "Level 2"
 
+  // Teaching point pyramid depth override (null = use CONTENT-EXTRACT spec default)
+  teachingDepth Int?
+
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3379,6 +3731,7 @@ model Subject {
   sources   SubjectSource[]
   domains   SubjectDomain[]
   curricula Curriculum[]
+  media     SubjectMedia[]
 
   @@index([slug])
   @@index([isActive])
@@ -3419,4 +3772,207 @@ model SubjectDomain {
   @@unique([subjectId, domainId])
   @@index([subjectId])
   @@index([domainId])
+}
+
+// =============================================================================
+// Conversation Artifacts — content shared after calls
+// =============================================================================
+
+// ConversationArtifact - Content extracted from calls worth sharing with the caller
+// Channel-agnostic: works in Sim (Phase 1) and WhatsApp (Phase 2)
+model ConversationArtifact {
+  id String @id @default(uuid())
+
+  // Source — callId is null for educator-created artifacts
+  callId   String?
+  call     Call?   @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Provenance — userId of creator (educator, operator); null for AI-extracted
+  createdBy String?
+
+  // Content
+  type      ConversationArtifactType // SUMMARY, KEY_FACT, FORMULA, EXERCISE, etc.
+  title     String // Short descriptive title
+  content   String @db.Text // Markdown text body
+  mediaUrl  String? // For images/PDFs — URL to stored media (legacy, use mediaId)
+  mediaType String? // MIME type: image/png, application/pdf, audio/mpeg
+
+  // Structured media reference (preferred over mediaUrl)
+  mediaId String?
+  media   MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  // Trust chain — links to ContentAssertion IDs for provenance
+  contentAssertionIds String[] // Array of ContentAssertion IDs
+  trustLevel          ArtifactTrustLevel @default(INFERRED)
+
+  // Extraction metadata
+  confidence Float @default(0.8) // 0-1: extraction confidence
+  evidence   String? @db.Text // Transcript excerpt that triggered extraction
+
+  // Delivery
+  status             ArtifactStatus @default(PENDING)
+  channel            String         @default("sim") // "sim" | "whatsapp"
+  externalMessageId  String? // WhatsApp message ID (Phase 2)
+  deliveredAt        DateTime?
+  readAt             DateTime?
+
+  // Actions that reference this artifact
+  actions CallAction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([callId])
+  @@index([callerId])
+  @@index([callerId, status])
+  @@index([status])
+  @@index([mediaId])
+}
+
+// CallAction - Actionable items that emerge from calls (homework, follow-ups, media to send)
+// Different lifecycle from Artifacts: PENDING → IN_PROGRESS → COMPLETED (completion, not delivery)
+model CallAction {
+  id String @id @default(uuid())
+
+  // Source
+  callId   String?
+  call     Call?   @relation(fields: [callId], references: [id], onDelete: SetNull)
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Action content
+  type        CallActionType
+  title       String
+  description String? @db.Text
+
+  // Optional media attachment
+  mediaUrl  String?
+  mediaType String? // MIME type
+
+  // Optional artifact link (action can reference an artifact)
+  artifactId String?
+  artifact   ConversationArtifact? @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+
+  // Assignment & tracking
+  assignee    CallActionAssignee
+  status      CallActionStatus   @default(PENDING)
+  priority    CallActionPriority @default(MEDIUM)
+  dueAt       DateTime?
+  completedAt DateTime?
+  completedBy String? // User ID, "system", or "agent"
+
+  // Extraction metadata
+  source     CallActionSource @default(MANUAL)
+  confidence Float            @default(1.0) // 1.0 for manual, 0-1 for extracted
+  evidence   String?          @db.Text      // Transcript excerpt
+
+  // Notes
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String? // User ID if manual
+
+  @@index([callerId])
+  @@index([callId])
+  @@index([callerId, status])
+  @@index([assignee])
+  @@index([status])
+}
+
+// InboundMessage - Content sent by callers (sim text input or future WhatsApp messages)
+// Processed into CallerMemory for inclusion in next call's prompt
+model InboundMessage {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  // Channel
+  channel           String  @default("sim") // "sim" | "whatsapp"
+  externalMessageId String? // WhatsApp message ID (Phase 2)
+
+  // Content
+  type      InboundMessageType @default(TEXT)
+  content   String?            @db.Text // Text body or transcription
+  mediaUrl  String? // Downloaded + stored media URL
+  mediaType String? // MIME type
+
+  // Processing state
+  processed   Boolean @default(false)
+  processedAs String? // "CALLER_MEMORY", "GOAL_UPDATE", etc.
+
+  createdAt DateTime @default(now())
+
+  @@index([callerId])
+  @@index([processed])
+}
+
+// =============================================================================
+// Media Assets — uploaded files (images, PDFs, audio) for content delivery
+// =============================================================================
+
+model MediaAsset {
+  id          String @id @default(uuid())
+  fileName    String
+  fileSize    Int
+  mimeType    String // image/png, application/pdf, audio/mpeg
+  contentHash String @unique // SHA-256 for deduplication
+  storageKey  String // Object key in storage backend
+  storageType String @default("gcs") // "gcs" | "local"
+
+  title       String?
+  description String?  @db.Text
+  tags        String[]
+
+  uploadedBy String
+  uploader   User   @relation(fields: [uploadedBy], references: [id])
+  sourceId   String?
+  source     ContentSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  trustLevel ContentTrustLevel @default(UNVERIFIED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subjects  SubjectMedia[]
+  messages  CallMessage[]
+  artifacts ConversationArtifact[]
+
+  @@index([uploadedBy])
+  @@index([sourceId])
+  @@index([mimeType])
+}
+
+// Many-to-many: which media assets belong to a subject's content library
+model SubjectMedia {
+  id        String     @id @default(uuid())
+  subjectId String
+  mediaId   String
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  media     MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  @@unique([subjectId, mediaId])
+  @@index([subjectId])
+  @@index([mediaId])
+}
+
+// Channel configuration — per-domain delivery channel settings
+model ChannelConfig {
+  id          String   @id @default(uuid())
+  channelType String // "sim" | "whatsapp" | "sms"
+  domainId    String?
+  domain      Domain?  @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  isEnabled   Boolean  @default(true)
+  config      Json     @default("{}") // Provider-specific: API keys, endpoints, phone numbers
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([domainId, channelType])
+  @@index([channelType])
 }

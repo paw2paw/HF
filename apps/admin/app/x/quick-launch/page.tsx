@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ReviewPanel from "./ReviewPanel";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
+import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
 
 // ── Types ──────────────────────────────────────────
 
@@ -28,6 +29,7 @@ type LaunchResult = {
   domainId: string;
   domainSlug: string;
   domainName: string;
+  subjectId?: string;
   callerId: string;
   callerName: string;
   assertionCount: number;
@@ -482,13 +484,24 @@ export default function QuickLaunchPage() {
   const [taskId, setTaskId] = useState<string | null>(null);
 
   // Form state
+  const [brief, setBrief] = useState("");
   const [subjectName, setSubjectName] = useState("");
+  const [nameLoading, setNameLoading] = useState(false);
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
+  const [suggestedName, setSuggestedName] = useState<string | null>(null);
+  const [suggestedPersona, setSuggestedPersona] = useState<string | null>(null);
+  const [suggestedGoals, setSuggestedGoals] = useState<string[] | null>(null);
   const [persona, setPersona] = useState("");
   const [goalInput, setGoalInput] = useState("");
   const [goals, setGoals] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [qualificationRef, setQualificationRef] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [launchMode, setLaunchMode] = useState<"upload" | "generate">("generate");
+
+  // Domain picker — use existing domain or create new
+  const [domains, setDomains] = useState<{ id: string; slug: string; name: string }[]>([]);
+  const [selectedDomainId, setSelectedDomainId] = useState<string>("");
 
   // Personas from API
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -516,7 +529,7 @@ export default function QuickLaunchPage() {
   // Autosave debounce ref
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Load personas ──────────────────────────────────
+  // ── Load personas + domains ────────────────────────
 
   useEffect(() => {
     fetch("/api/onboarding/personas")
@@ -527,11 +540,26 @@ export default function QuickLaunchPage() {
           setPersona(data.defaultPersona || data.personas[0].slug);
         }
       })
-      .catch(() => {
+      .catch((e) => {
+        console.warn("[QuickLaunch] Failed to load personas, using fallback:", e);
         setPersonas([{ slug: "tutor", name: "Tutor", description: "Patient teaching expert" }]);
         setPersona("tutor");
       })
       .finally(() => setPersonasLoading(false));
+
+    // Load domains for domain picker
+    fetch("/api/domains?activeOnly=true")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.domains) {
+          setDomains(data.domains.map((d: any) => ({
+            id: d.id,
+            slug: d.slug,
+            name: d.name,
+          })));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // ── Check for resumable task ──────────────────────
@@ -551,7 +579,7 @@ export default function QuickLaunchPage() {
           }
         }
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[QuickLaunch] Failed to check for resumable tasks:", e));
   }, []);
 
   // ── Resume handler ────────────────────────────────
@@ -565,9 +593,16 @@ export default function QuickLaunchPage() {
     // Restore input state
     if (ctx.input) {
       setSubjectName(ctx.input.subjectName || "");
+      setBrief(ctx.input.brief || "");
+      if (ctx.input.subjectName) setNameManuallyEdited(true);
       setPersona(ctx.input.persona || "");
       setGoals(ctx.input.learningGoals || []);
       setQualificationRef(ctx.input.qualificationRef || "");
+    }
+
+    // Restore launch mode
+    if (ctx.mode) {
+      setLaunchMode(ctx.mode);
     }
 
     // Restore preview if available
@@ -582,7 +617,26 @@ export default function QuickLaunchPage() {
       setOverrides(ctx.overrides);
     }
 
-    setPhase(ctx.phase === "review" ? "review" : "form");
+    // If still building (extraction in progress), resume polling instead of going to form
+    if (ctx.phase === "building" && ctx.sourceId && ctx.jobId) {
+      setPreview({
+        domainId: ctx.domainId,
+        domainSlug: ctx.domainSlug,
+        domainName: ctx.domainName,
+        subjectId: ctx.subjectId,
+        sourceId: ctx.sourceId,
+      });
+      setExtractionJobId(ctx.jobId);
+      setExtractionSourceId(ctx.sourceId);
+      setAnalysisProgress(10);
+      setAnalysisLabel("Resuming extraction...");
+      setPhase("review"); // Shows review panel with progress bar + skeletons
+    } else if (ctx.phase === "review") {
+      setPhase("review");
+    } else {
+      setPhase("form");
+    }
+
     setResumeTask(null);
   }, [resumeTask]);
 
@@ -600,7 +654,7 @@ export default function QuickLaunchPage() {
             taskId,
             updates: { context: { phase: "review", overrides: newOverrides } },
           }),
-        }).catch(() => {});
+        }).catch((e) => console.warn("[QuickLaunch] Failed to save task overrides:", e));
       }, 1000);
     },
     [taskId]
@@ -612,6 +666,77 @@ export default function QuickLaunchPage() {
       autosaveOverrides(o);
     },
     [autosaveOverrides]
+  );
+
+  // ── AI field suggestions (fires on blur of brief textarea) ──
+
+  const suggestAbort = useRef<AbortController | null>(null);
+
+  const suggestFields = useCallback(
+    async (text: string) => {
+      if (text.trim().length < 20) return;
+
+      // Abort any in-flight request
+      suggestAbort.current?.abort();
+      const controller = new AbortController();
+      suggestAbort.current = controller;
+
+      // Hard timeout — 10s max
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+
+      setNameLoading(true);
+      try {
+        const res = await fetch("/api/domains/suggest-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            brief: text.trim(),
+            personaSlugs: personas.map((p) => p.slug),
+          }),
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!data.ok) return;
+
+        // Name: apply directly if empty, otherwise show as suggestion
+        if (data.name && !nameManuallyEdited) {
+          if (!subjectName.trim()) {
+            setSubjectName(data.name);
+          } else {
+            setSuggestedName(data.name);
+          }
+        }
+
+        // Persona: suggest if user hasn't picked one yet, or show chip
+        if (data.persona && personas.some((p) => p.slug === data.persona)) {
+          if (!persona) {
+            setPersona(data.persona);
+          } else if (data.persona !== persona) {
+            setSuggestedPersona(data.persona);
+          }
+        }
+
+        // Goals: suggest if user hasn't added any, or show chips
+        if (data.goals?.length) {
+          if (goals.length === 0) {
+            setGoals(data.goals);
+          } else {
+            const newGoals = data.goals.filter(
+              (g: string) => !goals.some((existing) => existing.toLowerCase() === g.toLowerCase())
+            );
+            if (newGoals.length > 0) {
+              setSuggestedGoals(newGoals);
+            }
+          }
+        }
+      } catch {
+        // Silently fail — user can fill fields manually
+      } finally {
+        clearTimeout(timeout);
+        setNameLoading(false);
+      }
+    },
+    [nameManuallyEdited, subjectName, persona, goals, personas]
   );
 
   // ── Goal chips ─────────────────────────────────────
@@ -654,9 +779,93 @@ export default function QuickLaunchPage() {
     e.stopPropagation();
   }, []);
 
-  // ── Build My Tutor (Analyze) ─────────────────────
+  // ── Global job queue ──────────────────────────────
+  const { addJob: addToGlobalQueue } = useContentJobQueue();
 
-  const canLaunch = subjectName.trim() && persona && file && phase === "form";
+  // Poll extraction job for completion
+  const jobPollRef = useRef<NodeJS.Timeout | null>(null);
+  const [extractionJobId, setExtractionJobId] = useState<string | null>(null);
+  const [extractionSourceId, setExtractionSourceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!extractionJobId || !extractionSourceId) return;
+    if (analysisComplete) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `/api/content-sources/${extractionSourceId}/import?jobId=${extractionJobId}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.ok || !data.job) return;
+
+        const job = data.job;
+        const pct =
+          job.totalChunks > 0
+            ? Math.round((job.currentChunk / job.totalChunks) * 80) + 10
+            : 10;
+
+        if (job.status === "extracting") {
+          setAnalysisProgress(pct);
+          setAnalysisLabel(
+            `Extracting... ${job.extractedCount} teaching points found`
+          );
+        } else if (job.status === "importing") {
+          setAnalysisProgress(85);
+          setAnalysisLabel("Saving content...");
+        } else if (job.status === "done") {
+          // Extraction complete — fetch full preview from UserTask
+          setAnalysisProgress(95);
+          setAnalysisLabel("Finishing up...");
+          if (jobPollRef.current) clearInterval(jobPollRef.current);
+
+          // Update preview with assertion count from job
+          setPreview((prev) => ({
+            ...prev,
+            assertionCount: job.importedCount ?? job.extractedCount ?? 0,
+          }));
+
+          // Fetch full preview from task (includes identity config + assertion summary)
+          if (taskId) {
+            try {
+              const taskRes = await fetch(`/api/tasks?status=in_progress`);
+              const taskData = await taskRes.json();
+              if (taskData.ok && taskData.tasks) {
+                const qlTask = taskData.tasks.find(
+                  (t: any) => t.id === taskId && t.context?.preview
+                );
+                if (qlTask?.context?.preview) {
+                  setPreview(qlTask.context.preview as Partial<AnalysisPreview>);
+                }
+              }
+            } catch {
+              // Preview from task unavailable — continue with what we have
+            }
+          }
+
+          setAnalysisComplete(true);
+          setAnalysisProgress(100);
+          setAnalysisLabel("Analysis complete!");
+        } else if (job.status === "error") {
+          if (jobPollRef.current) clearInterval(jobPollRef.current);
+          setError(job.error || "Content extraction failed");
+        }
+      } catch {
+        // Keep polling
+      }
+    };
+
+    jobPollRef.current = setInterval(poll, 3000);
+    poll(); // Run immediately
+    return () => {
+      if (jobPollRef.current) clearInterval(jobPollRef.current);
+    };
+  }, [extractionJobId, extractionSourceId, analysisComplete, taskId]);
+
+  // ── Build (Analyze) ─────────────────────────────
+
+  const canLaunch = subjectName.trim() && persona && (launchMode === "generate" || !!file) && phase === "form";
 
   const handleBuild = async () => {
     if (!canLaunch) return;
@@ -666,13 +875,22 @@ export default function QuickLaunchPage() {
     setPreview({});
     setOverrides({});
     setAnalysisComplete(false);
-    setAnalysisProgress(0);
-    setAnalysisLabel("Setting up domain...");
+    setAnalysisProgress(5);
+    setAnalysisLabel("Setting up agent...");
 
     const formData = new FormData();
     formData.append("subjectName", subjectName.trim());
     formData.append("persona", persona);
-    formData.append("file", file!);
+    formData.append("mode", launchMode);
+    if (selectedDomainId) {
+      formData.append("domainId", selectedDomainId);
+    }
+    if (brief.trim()) {
+      formData.append("brief", brief.trim());
+    }
+    if (launchMode === "upload" && file) {
+      formData.append("file", file);
+    }
     if (goals.length > 0) {
       formData.append("learningGoals", JSON.stringify(goals));
     }
@@ -686,145 +904,53 @@ export default function QuickLaunchPage() {
         body: formData,
       });
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.error || `Server error: ${response.status}`);
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response stream");
+      // Set scaffold data immediately
+      setTaskId(data.taskId || null);
+      setPreview({
+        domainId: data.domainId,
+        domainSlug: data.domainSlug,
+        domainName: data.domainName,
+        subjectId: data.subjectId,
+        sourceId: data.sourceId || "",
+        identityConfig: data.identityConfig || null,
+        mode: launchMode,
+      });
 
-      const decoder = new TextDecoder();
-      let buffer = "";
-      const totalAnalysisSteps = 4;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const block of lines) {
-          const dataLine = block.split("\n").find((l) => l.startsWith("data: "));
-          if (!dataLine) continue;
-
-          try {
-            const event = JSON.parse(dataLine.slice(6));
-            handleAnalysisEvent(event, totalAnalysisSteps);
-          } catch {
-            // Ignore malformed events
-          }
-        }
+      if (launchMode === "upload" && file) {
+        // Upload mode: start polling for extraction completion
+        addToGlobalQueue(
+          data.jobId,
+          data.sourceId,
+          data.domainName || subjectName.trim(),
+          file.name
+        );
+        setExtractionJobId(data.jobId);
+        setExtractionSourceId(data.sourceId);
+        setAnalysisProgress(10);
+        setAnalysisLabel("Extracting content...");
+      } else {
+        // Generate mode: no extraction needed — go straight to review
+        setAnalysisComplete(true);
+        setAnalysisProgress(100);
+        setAnalysisLabel("Ready for review");
       }
 
-      // Process any remaining buffer
-      if (buffer.trim()) {
-        const dataLine = buffer.split("\n").find((l) => l.startsWith("data: "));
-        if (dataLine) {
-          try {
-            const event = JSON.parse(dataLine.slice(6));
-            handleAnalysisEvent(event, totalAnalysisSteps);
-          } catch {
-            // Ignore
-          }
-        }
-      }
-    } catch (err: any) {
-      setError(err.message || "Analysis failed");
-      setPhase("form");
-    }
-  };
-
-  const handleAnalysisEvent = (event: any, totalSteps: number) => {
-    const { phase: evtPhase, message, data: evtData } = event;
-
-    // Task created
-    if (evtPhase === "task_created" && evtData?.taskId) {
-      setTaskId(evtData.taskId);
-      return;
-    }
-
-    // Error
-    if (evtPhase === "error") {
-      setError(message);
-      setPhase("form");
-      return;
-    }
-
-    // Init
-    if (evtPhase === "init") return;
-
-    // Domain ready
-    if (evtPhase === "domain_ready" && evtData) {
-      setPreview((prev) => ({
-        ...prev,
-        domainId: evtData.domainId,
-        domainSlug: evtData.domainSlug,
-        domainName: evtData.domainName,
-        subjectId: evtData.subjectId,
-      }));
-      setAnalysisProgress(25);
-      setAnalysisLabel("Extracting content...");
-      return;
-    }
-
-    // Extraction progress (per-chunk)
-    if (evtPhase === "extract_content" && message) {
-      setAnalysisLabel(message);
-      return;
-    }
-
-    // Extraction complete
-    if (evtPhase === "extraction_complete" && evtData) {
-      setPreview((prev) => ({
-        ...prev,
-        assertionCount: evtData.assertionCount,
-        assertionSummary: evtData.assertionSummary,
-      }));
-      setAnalysisProgress(50);
-      setAnalysisLabel("Saving content...");
-      return;
-    }
-
-    // Assertions saved
-    if (evtPhase === "assertions_saved" && evtData) {
-      setPreview((prev) => ({ ...prev, sourceId: evtData.sourceId }));
-      setAnalysisProgress(65);
-      setAnalysisLabel("Generating tutor identity...");
-      return;
-    }
-
-    // Identity ready
-    if (evtPhase === "identity_ready" && evtData) {
-      setPreview((prev) => ({
-        ...prev,
-        identityConfig: evtData.identityConfig,
-      }));
-      setAnalysisProgress(90);
-      setAnalysisLabel("Finalizing...");
-      return;
-    }
-
-    // Analysis complete
-    if (evtPhase === "analysis_complete") {
-      if (evtData) {
-        setPreview(evtData as Partial<AnalysisPreview>);
-      }
-      setAnalysisComplete(true);
-      setAnalysisProgress(100);
-      setAnalysisLabel("Analysis complete!");
+      // Transition to review
       setPhase("review");
-      return;
-    }
-
-    // Generic step progress
-    if (message) {
-      setAnalysisLabel(message);
-      if (event.stepIndex !== undefined && totalSteps > 0) {
-        setAnalysisProgress(((event.stepIndex + 1) / totalSteps) * 100);
-      }
+    } catch (err: any) {
+      const msg = err.message || "Analysis failed";
+      const isNetworkError = msg === "Load failed" || msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource.";
+      setError(
+        isNetworkError
+          ? "Connection lost — the server may have restarted. Check your tunnel and try again."
+          : msg
+      );
+      setPhase("form");
     }
   };
 
@@ -846,9 +972,11 @@ export default function QuickLaunchPage() {
           overrides,
           input: {
             subjectName: subjectName.trim(),
+            brief: brief.trim() || undefined,
             persona,
             learningGoals: overrides.learningGoals ?? goals,
             qualificationRef: qualificationRef.trim() || undefined,
+            mode: launchMode,
           },
         }),
       });
@@ -896,7 +1024,14 @@ export default function QuickLaunchPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || "Creation failed");
+      const msg = err.message || "Creation failed";
+      // Translate browser network errors to user-friendly messages
+      const isNetworkError = msg === "Load failed" || msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource.";
+      setError(
+        isNetworkError
+          ? "Connection lost — the server may have restarted. Check your tunnel and try again."
+          : msg
+      );
       setPhase("review");
     }
   };
@@ -957,6 +1092,91 @@ export default function QuickLaunchPage() {
     setAnalysisProgress(0);
   };
 
+  // ── Result screen state (inline editing + classroom) ──
+
+  const [editDomainName, setEditDomainName] = useState("");
+  const [editWelcome, setEditWelcome] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [savingWelcome, setSavingWelcome] = useState(false);
+  const [classroom, setClassroom] = useState<{ cohortId: string; joinToken: string; joinUrl: string } | null>(null);
+  const [creatingClassroom, setCreatingClassroom] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Fetch onboarding data when result screen appears
+  useEffect(() => {
+    if (phase === "result" && result) {
+      setEditDomainName(result.domainName);
+      fetch(`/api/domains/${result.domainId}/onboarding`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            setEditWelcome(data.domain?.onboardingWelcome || "");
+          }
+        })
+        .catch((e) => console.warn("[QuickLaunch] Failed to load domain welcome:", e));
+    }
+  }, [phase, result]);
+
+  const handleSaveDomainName = async (name: string) => {
+    if (!result || name === result.domainName) return;
+    setSavingName(true);
+    try {
+      await fetch(`/api/domains/${result.domainId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+    } catch {
+      // silent — the edit is still reflected locally
+    }
+    setSavingName(false);
+  };
+
+  const handleSaveWelcome = async (welcome: string) => {
+    if (!result) return;
+    setSavingWelcome(true);
+    try {
+      await fetch(`/api/domains/${result.domainId}/onboarding`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onboardingWelcome: welcome }),
+      });
+    } catch {
+      // silent
+    }
+    setSavingWelcome(false);
+  };
+
+  const handleCreateClassroom = async () => {
+    if (!result) return;
+    setCreatingClassroom(true);
+    try {
+      const res = await fetch(`/api/domains/${result.domainId}/classroom`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `${editDomainName} Classroom` }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setClassroom({
+          cohortId: data.cohort.id,
+          joinToken: data.joinToken,
+          joinUrl: `${window.location.origin}/join/${data.joinToken}`,
+        });
+      }
+    } catch {
+      // silent
+    }
+    setCreatingClassroom(false);
+  };
+
+  const handleCopyJoinLink = () => {
+    if (!classroom) return;
+    navigator.clipboard.writeText(classroom.joinUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // ── Reset all ─────────────────────────────────────
 
   const handleReset = () => {
@@ -965,6 +1185,10 @@ export default function QuickLaunchPage() {
     setCommitTimeline([]);
     setFile(null);
     setSubjectName("");
+    setSuggestedName(null);
+    setSuggestedPersona(null);
+    setSuggestedGoals(null);
+    setNameManuallyEdited(false);
     setGoals([]);
     setPreview({});
     setOverrides({});
@@ -972,11 +1196,15 @@ export default function QuickLaunchPage() {
     setAnalysisProgress(0);
     setTaskId(null);
     setError(null);
+    setClassroom(null);
+    setCopied(false);
+    setEditDomainName("");
+    setEditWelcome("");
   };
 
   // ── Form completion ───────────────────────────────
 
-  const formSteps = [!!subjectName.trim(), !!persona, !!file];
+  const formSteps = [!!subjectName.trim(), !!persona, launchMode === "generate" || !!file];
   const completedSteps = formSteps.filter(Boolean).length;
 
   const selectedPersona = personas.find((p) => p.slug === persona);
@@ -1032,11 +1260,11 @@ export default function QuickLaunchPage() {
             lineHeight: 1.5,
           }}
         >
-          {phase === "form" && "Upload your course material and get a working AI tutor in one click."}
-          {phase === "building" && "Building your AI tutor..."}
+          {phase === "form" && "Describe what you want to build and launch a working AI agent in one click."}
+          {phase === "building" && "Building your agent..."}
           {phase === "review" && "Review what AI created and customize before finalizing."}
-          {phase === "committing" && "Creating your tutor domain..."}
-          {phase === "result" && "Your AI tutor is ready!"}
+          {phase === "committing" && "Creating your agent..."}
+          {phase === "result" && "Your agent is ready!"}
         </p>
       </div>
 
@@ -1083,7 +1311,13 @@ export default function QuickLaunchPage() {
               Resume
             </button>
             <button
-              onClick={() => setResumeTask(null)}
+              onClick={() => {
+                // Abandon old task so it doesn't resurface
+                if (resumeTask?.id) {
+                  fetch(`/api/tasks?taskId=${resumeTask.id}`, { method: "DELETE" }).catch((e) => console.warn("[QuickLaunch] Failed to delete old task:", e));
+                }
+                setResumeTask(null);
+              }}
               style={{
                 padding: "10px 20px",
                 borderRadius: 10,
@@ -1117,9 +1351,31 @@ export default function QuickLaunchPage() {
             fontSize: 15,
             fontWeight: 500,
             marginBottom: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
           }}
         >
-          {error}
+          <span>{error}</span>
+          <button
+            onClick={() => setError(null)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "var(--status-error-text)",
+              padding: "0 4px",
+              lineHeight: 1,
+              flexShrink: 0,
+              opacity: 0.7,
+            }}
+            title="Dismiss"
+          >
+            &times;
+          </button>
         </div>
       )}
 
@@ -1128,12 +1384,14 @@ export default function QuickLaunchPage() {
         <ReviewPanel
           input={{
             subjectName: subjectName.trim(),
+            brief: brief.trim() || undefined,
             persona,
             personaName: selectedPersona?.name,
             goals,
-            fileName: file?.name || "",
-            fileSize: file?.size || 0,
+            fileName: file?.name,
+            fileSize: file?.size,
             qualificationRef: qualificationRef.trim() || undefined,
+            mode: launchMode,
           }}
           preview={preview}
           overrides={overrides}
@@ -1165,7 +1423,7 @@ export default function QuickLaunchPage() {
               letterSpacing: "-0.01em",
             }}
           >
-            Creating your tutor...
+            Creating your agent...
           </div>
           {commitTimeline.map((step, i) => (
             <div
@@ -1242,73 +1500,87 @@ export default function QuickLaunchPage() {
 
       {/* ── Phase: Result ── */}
       {phase === "result" && result && (
-        <div
-          style={{
-            padding: 32,
-            borderRadius: 16,
-            background: "linear-gradient(135deg, var(--status-success-bg), #ecfdf5)",
-            border: "2px solid var(--status-success-border)",
-            marginBottom: 32,
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* ── Success Banner ── */}
           <div
             style={{
-              fontSize: 22,
-              fontWeight: 700,
-              marginBottom: 10,
-              color: "var(--status-success-text)",
+              padding: 32,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, var(--status-success-bg), #ecfdf5)",
+              border: "2px solid var(--status-success-border)",
             }}
           >
-            Ready to test
-          </div>
-          <div
-            style={{
-              fontSize: 15,
-              color: "var(--text-secondary)",
-              marginBottom: 20,
-              lineHeight: 1.6,
-            }}
-          >
-            <strong>{result.domainName}</strong> domain created with{" "}
-            {result.assertionCount} teaching points
-            {result.moduleCount > 0 && `, ${result.moduleCount} curriculum modules`}
-            {result.goalCount > 0 && `, ${result.goalCount} learning goals`}.
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              onClick={() => router.push(`/x/domains?selected=${result.domainId}`)}
+            <div
               style={{
-                padding: "12px 24px",
-                borderRadius: 10,
-                background: "var(--accent-primary)",
-                color: "white",
-                border: "none",
-                fontSize: 15,
+                fontSize: 22,
                 fontWeight: 700,
-                cursor: "pointer",
-                letterSpacing: "-0.01em",
+                marginBottom: 10,
+                color: "var(--status-success-text)",
               }}
             >
-              View Domain
-            </button>
-            <button
-              onClick={() => router.push(`/x/callers/${result.callerId}`)}
+              Ready to test
+            </div>
+
+            {/* ── Editable domain name ── */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 6 }}>
+                Agent Name {savingName && <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— saving...</span>}
+              </div>
+              <input
+                type="text"
+                value={editDomainName}
+                onChange={(e) => setEditDomainName(e.target.value)}
+                onBlur={() => handleSaveDomainName(editDomainName)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-default)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  background: "var(--surface-primary)",
+                  color: "var(--text-primary)",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--accent-primary)")}
+              />
+            </div>
+
+            <div
               style={{
-                padding: "12px 24px",
-                borderRadius: 10,
-                background: "var(--surface-primary)",
-                border: "2px solid var(--border-default)",
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: "pointer",
+                fontSize: 14,
+                color: "var(--text-secondary)",
+                marginBottom: 20,
+                lineHeight: 1.6,
               }}
             >
-              View Test Caller
-            </button>
-            {result.identitySpecId && (
+              {result.assertionCount} teaching points
+              {result.moduleCount > 0 && `, ${result.moduleCount} curriculum modules`}
+              {result.goalCount > 0 && `, ${result.goalCount} learning goals`}
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
-                onClick={() => router.push(`/x/specs/${result.identitySpecId}`)}
+                onClick={() => router.push(`/x/domains?selected=${result.domainId}`)}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  background: "var(--accent-primary)",
+                  color: "white",
+                  border: "none",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                View Agent
+              </button>
+              <button
+                onClick={() => router.push(`/x/callers/${result.callerId}`)}
                 style={{
                   padding: "12px 24px",
                   borderRadius: 10,
@@ -1319,23 +1591,228 @@ export default function QuickLaunchPage() {
                   cursor: "pointer",
                 }}
               >
-                Edit Identity
+                View Test Caller
               </button>
+              {result.identitySpecId && (
+                <button
+                  onClick={() => router.push(`/x/specs/${result.identitySpecId}`)}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: 10,
+                    background: "var(--surface-primary)",
+                    border: "2px solid var(--border-default)",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Edit Identity
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (result.domainId) params.set("domainId", result.domainId);
+                  if (result.subjectId) params.set("subjectId", result.subjectId);
+                  router.push(`/x/content-wizard?${params.toString()}`);
+                }}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                  border: "2px solid var(--accent-primary)",
+                  color: "var(--accent-primary)",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Add Content →
+              </button>
+            </div>
+
+            {result.warnings.length > 0 && (
+              <div style={{ marginTop: 16, fontSize: 13, color: "var(--text-muted)" }}>
+                {result.warnings.map((w, i) => (
+                  <div key={i}>Note: {w}</div>
+                ))}
+              </div>
             )}
           </div>
 
-          {result.warnings.length > 0 && (
-            <div style={{ marginTop: 16, fontSize: 13, color: "var(--text-muted)" }}>
-              {result.warnings.map((w, i) => (
-                <div key={i}>Note: {w}</div>
-              ))}
+          {/* ── Onboarding Welcome ── */}
+          <div
+            style={{
+              padding: 24,
+              borderRadius: 14,
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 6 }}>
+              Onboarding Welcome {savingWelcome && <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— saving...</span>}
             </div>
-          )}
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>
+              This message is shown to learners when they join.
+            </div>
+            <textarea
+              value={editWelcome}
+              onChange={(e) => setEditWelcome(e.target.value)}
+              onBlur={() => handleSaveWelcome(editWelcome)}
+              placeholder="e.g. Welcome! Let's get started with your learning journey."
+              rows={2}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid var(--border-default)",
+                fontSize: 14,
+                fontWeight: 500,
+                background: "var(--surface-secondary)",
+                color: "var(--text-primary)",
+                outline: "none",
+                resize: "vertical",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+                transition: "border-color 0.15s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--accent-primary)")}
+            />
+          </div>
 
+          {/* ── Get Learners In ── */}
+          <div
+            style={{
+              padding: 24,
+              borderRadius: 14,
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>
+              Get Learners In
+            </div>
+
+            {/* 3-step visual explainer */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 20,
+                padding: "14px 16px",
+                background: "var(--surface-secondary)",
+                borderRadius: 10,
+                fontSize: 13,
+                color: "var(--text-secondary)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 16 }}>&#128279;</span>
+                <span>Share link</span>
+              </div>
+              <span style={{ color: "var(--text-muted)" }}>&rarr;</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 16 }}>&#9997;</span>
+                <span>They enter name</span>
+              </div>
+              <span style={{ color: "var(--text-muted)" }}>&rarr;</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 16 }}>&#9989;</span>
+                <span>They&apos;re in</span>
+              </div>
+            </div>
+
+            {!classroom ? (
+              <button
+                onClick={handleCreateClassroom}
+                disabled={creatingClassroom}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  background: creatingClassroom ? "var(--border-default)" : "var(--accent-primary)",
+                  color: creatingClassroom ? "var(--text-muted)" : "white",
+                  border: "none",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: creatingClassroom ? "not-allowed" : "pointer",
+                  letterSpacing: "-0.01em",
+                  transition: "all 0.2s",
+                }}
+              >
+                {creatingClassroom ? "Creating..." : "Create Classroom"}
+              </button>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 14px",
+                    background: "var(--surface-secondary)",
+                    borderRadius: 8,
+                    border: "1px solid var(--border-default)",
+                  }}
+                >
+                  <code
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      color: "var(--text-primary)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {classroom.joinUrl}
+                  </code>
+                  <button
+                    onClick={handleCopyJoinLink}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "6px 12px",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: 6,
+                      background: "var(--surface-primary)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: copied ? "#10b981" : "var(--text-secondary)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "color 0.2s",
+                    }}
+                  >
+                    {copied ? "\u2713 Copied" : "Copy"}
+                  </button>
+                </div>
+                <button
+                  onClick={() => window.open(classroom.joinUrl, "_blank")}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid var(--border-default)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: "var(--text-secondary)",
+                    alignSelf: "flex-start",
+                    transition: "border-color 0.15s",
+                  }}
+                >
+                  Open Preview
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Launch Another ── */}
           <button
             onClick={handleReset}
             style={{
-              marginTop: 20,
               padding: "10px 20px",
               borderRadius: 8,
               background: "transparent",
@@ -1343,6 +1820,7 @@ export default function QuickLaunchPage() {
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
+              alignSelf: "flex-start",
             }}
           >
             Launch Another
@@ -1353,27 +1831,67 @@ export default function QuickLaunchPage() {
       {/* ── Phase: Form ── */}
       {phase === "form" && (
         <>
-          {/* Step 1: Subject Name */}
+          {/* Step 1: Describe what you're building */}
           <FormCard>
-            <StepMarker number={1} label="What are you teaching?" completed={!!subjectName.trim()} />
-            <input
-              id="subject"
-              type="text"
-              value={subjectName}
-              onChange={(e) => setSubjectName(e.target.value)}
-              placeholder="e.g. Food Safety Level 2, Quantum Mechanics, Financial Planning"
+            <StepMarker number={1} label="Describe what you're building" completed={!!subjectName.trim()} />
+
+            {/* Domain picker — use existing domain or create new */}
+            {domains.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+                  Organisation / Domain
+                </label>
+                <select
+                  value={selectedDomainId}
+                  onChange={(e) => setSelectedDomainId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    border: "1px solid var(--input-border)",
+                    fontSize: 14,
+                    background: "var(--input-bg)",
+                    color: "var(--text-primary)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="">Create new domain</option>
+                  {domains.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {selectedDomainId && (
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                    A new playbook (class) will be created within this domain.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+              Tell us what you&apos;re creating &mdash; a tutor, coach, support agent, or anything else.
+            </div>
+            <textarea
+              id="brief"
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              placeholder="e.g. An AI tutor for 11+ Creative Comprehension, a sales coaching agent, or a customer support assistant"
+              rows={3}
               style={{
                 width: "100%",
                 padding: "16px 20px",
                 borderRadius: 12,
                 border: "2px solid var(--input-border)",
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: 500,
                 background: "var(--input-bg)",
                 color: "var(--text-primary)",
                 outline: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 boxSizing: "border-box",
+                resize: "vertical",
+                fontFamily: "inherit",
+                lineHeight: 1.5,
               }}
               onFocus={(e) => {
                 e.target.style.borderColor = "var(--accent-primary)";
@@ -1382,25 +1900,211 @@ export default function QuickLaunchPage() {
               onBlur={(e) => {
                 e.target.style.borderColor = "var(--input-border)";
                 e.target.style.boxShadow = "none";
+                suggestFields(e.target.value);
               }}
             />
+
+            {/* Agent name — AI-suggested or manually entered */}
+            <div style={{ marginTop: 16 }}>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8,
+              }}>
+                <label
+                  htmlFor="subject"
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  Agent name
+                </label>
+                {nameLoading && (
+                  <span style={{
+                    fontSize: 12,
+                    color: "var(--accent-primary)",
+                    fontWeight: 500,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}>
+                    <span style={{
+                      display: "inline-block",
+                      width: 12,
+                      height: 12,
+                      border: "2px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                      borderTopColor: "var(--accent-primary)",
+                      borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite",
+                    }} />
+                    Suggesting...
+                  </span>
+                )}
+                {!nameLoading && subjectName && !nameManuallyEdited && !suggestedName && (
+                  <span style={{
+                    fontSize: 11,
+                    color: "var(--text-muted)",
+                    fontWeight: 500,
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    background: "var(--surface-secondary)",
+                  }}>
+                    AI suggested
+                  </span>
+                )}
+              </div>
+              <input
+                id="subject"
+                type="text"
+                value={subjectName}
+                onChange={(e) => {
+                  setSubjectName(e.target.value);
+                  setNameManuallyEdited(true);
+                  setSuggestedName(null);
+                }}
+                placeholder={brief.trim().length >= 20 ? "Generating name..." : "e.g. Creative Comprehension, Sales Coaching"}
+                style={{
+                  width: "100%",
+                  padding: "14px 18px",
+                  borderRadius: 12,
+                  border: "2px solid var(--input-border)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  background: "var(--input-bg)",
+                  color: "var(--text-primary)",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--accent-primary)";
+                  e.target.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "var(--input-border)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+              {suggestedName && suggestedName !== subjectName && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubjectName(suggestedName);
+                    setSuggestedName(null);
+                    setNameManuallyEdited(false);
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 8,
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    border: "1px solid var(--accent-primary)",
+                    background: "var(--status-info-bg)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>Suggestion:</span>
+                  {suggestedName}
+                  <span style={{
+                    fontSize: 11,
+                    color: "var(--accent-primary)",
+                    fontWeight: 600,
+                    marginLeft: 4,
+                  }}>
+                    Use
+                  </span>
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); setSuggestedName(null); }}
+                    style={{
+                      fontSize: 15,
+                      color: "var(--text-muted)",
+                      fontWeight: 700,
+                      marginLeft: 2,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                    }}
+                  >
+                    &times;
+                  </span>
+                </button>
+              )}
+              {!brief.trim() && !subjectName.trim() && !suggestedName && (
+                <div style={{
+                  fontSize: 13,
+                  color: "var(--text-muted)",
+                  marginTop: 6,
+                  fontStyle: "italic",
+                }}>
+                  Describe what you&apos;re building above and we&apos;ll suggest a name
+                </div>
+              )}
+            </div>
           </FormCard>
 
-          {/* Step 2: Teaching Style */}
+          {/* Step 2: Persona */}
           <FormCard>
-            <StepMarker number={2} label="Choose a teaching style" completed={!!persona} />
+            <StepMarker number={2} label="Choose a persona" completed={!!persona} />
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+              The personality and interaction style your AI will use with callers.
+            </div>
             <FancySelect
               options={personas.map((p) => ({ value: p.slug, label: p.name, description: p.description }))}
               value={persona}
-              onChange={setPersona}
-              placeholder="Pick a teaching style..."
+              onChange={(v) => { setPersona(v); setSuggestedPersona(null); }}
+              placeholder="Pick a persona..."
               loading={personasLoading}
             />
+            {suggestedPersona && suggestedPersona !== persona && (() => {
+              const sp = personas.find((p) => p.slug === suggestedPersona);
+              if (!sp) return null;
+              return (
+                <button
+                  type="button"
+                  onClick={() => { setPersona(suggestedPersona); setSuggestedPersona(null); }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 8,
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    border: "1px solid var(--accent-primary)",
+                    background: "var(--status-info-bg)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>Suggestion:</span>
+                  {sp.name}
+                  <span style={{ fontSize: 11, color: "var(--accent-primary)", fontWeight: 600, marginLeft: 4 }}>Use</span>
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); setSuggestedPersona(null); }}
+                    style={{ fontSize: 15, color: "var(--text-muted)", fontWeight: 700, marginLeft: 2, lineHeight: 1, cursor: "pointer" }}
+                  >
+                    &times;
+                  </span>
+                </button>
+              );
+            })()}
           </FormCard>
 
           {/* Step 3: Learning Goals */}
           <FormCard>
-            <StepMarker number={3} label="Learning goals" completed={goals.length > 0} />
+            <StepMarker number={3} label="Goals" completed={goals.length > 0} />
             <div
               style={{
                 fontSize: 13,
@@ -1409,7 +2113,7 @@ export default function QuickLaunchPage() {
                 marginTop: -6,
               }}
             >
-              Optional &mdash; what should your learners achieve?
+              Optional &mdash; what should users achieve?
             </div>
             <div style={{ display: "flex", gap: 10, marginBottom: goals.length > 0 ? 12 : 0 }}>
               <input
@@ -1422,7 +2126,7 @@ export default function QuickLaunchPage() {
                     addGoal();
                   }
                 }}
-                placeholder="e.g. Pass the exam, Understand key concepts"
+                placeholder="e.g. Pass the certification, Close more deals, Resolve tickets faster"
                 style={{
                   flex: 1,
                   padding: "14px 18px",
@@ -1500,72 +2204,247 @@ export default function QuickLaunchPage() {
                 ))}
               </div>
             )}
-          </FormCard>
-
-          {/* Step 4: Course Material */}
-          <FormCard>
-            <StepMarker number={4} label="Upload course material" completed={!!file} />
-            <div
-              ref={dropRef}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                padding: file ? "20px 24px" : "44px 24px",
-                borderRadius: 16,
-                border: `2px dashed ${file ? "var(--accent-primary)" : "var(--border-default)"}`,
-                background: file ? "var(--status-info-bg)" : "var(--surface-primary)",
-                textAlign: "center",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {file ? (
-                <div>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-primary)" }}>
-                    {file.name}
-                  </div>
-                  <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-                    {(file.size / 1024).toFixed(0)} KB
+            {suggestedGoals && suggestedGoals.length > 0 && (
+              <div style={{ marginTop: goals.length > 0 ? 10 : 0 }}>
+                <div style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 600, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  Suggestions
+                  <span
+                    role="button"
+                    onClick={() => setSuggestedGoals(null)}
+                    style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 700, cursor: "pointer", lineHeight: 1 }}
+                  >
+                    &times;
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {suggestedGoals.map((g, i) => (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFile(null);
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setGoals((prev) => [...prev, g]);
+                        setSuggestedGoals((prev) => prev ? prev.filter((_, j) => j !== i) : null);
                       }}
                       style={{
-                        background: "none",
-                        border: "none",
-                        color: "var(--accent-primary)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "7px 12px",
+                        borderRadius: 18,
+                        border: "1px dashed var(--accent-primary)",
+                        background: "var(--status-info-bg)",
                         cursor: "pointer",
-                        marginLeft: 12,
-                        textDecoration: "underline",
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: 500,
+                        color: "var(--text-primary)",
+                        transition: "background 0.15s",
                       }}
                     >
-                      Remove
+                      + {g}
                     </button>
-                  </div>
+                  ))}
                 </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.25 }}>&#8613;</div>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-secondary)" }}>
-                    Drop a file here or click to browse
-                  </div>
-                  <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 6 }}>
-                    PDF, TXT, Markdown, or JSON
-                  </div>
-                </div>
-              )}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.txt,.md,.markdown,.json"
-              onChange={(e) => handleFile(e.target.files?.[0] || null)}
-              style={{ display: "none" }}
+              </div>
+            )}
+          </FormCard>
+
+          {/* Step 4: Curriculum Source */}
+          <FormCard>
+            <StepMarker
+              number={4}
+              label="Content source"
+              completed={launchMode === "generate" || !!file}
             />
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+              Where the knowledge for your AI comes from &mdash; generate it or upload your own material.
+            </div>
+
+            {/* Mode toggle */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+              <button
+                onClick={() => setLaunchMode("generate")}
+                style={{
+                  flex: 1,
+                  padding: "16px 16px 14px",
+                  borderRadius: 12,
+                  border: `2px solid ${launchMode === "generate" ? "var(--accent-primary)" : "var(--border-default)"}`,
+                  background: launchMode === "generate" ? "var(--status-info-bg)" : "var(--surface-primary)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s",
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                  Generate with AI
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
+                  AI generates content from your description
+                </div>
+              </button>
+              <button
+                onClick={() => setLaunchMode("upload")}
+                style={{
+                  flex: 1,
+                  padding: "16px 16px 14px",
+                  borderRadius: 12,
+                  border: `2px solid ${launchMode === "upload" ? "var(--accent-primary)" : "var(--border-default)"}`,
+                  background: launchMode === "upload" ? "var(--status-info-bg)" : "var(--surface-primary)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s",
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                  Upload Materials
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
+                  Extract from your documents
+                </div>
+              </button>
+            </div>
+
+            {/* Generate mode: inline summary card */}
+            {launchMode === "generate" && (
+              <div
+                style={{
+                  padding: "20px 24px",
+                  borderRadius: 14,
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>
+                  We&apos;ll build an agent for:
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {brief.trim() && (
+                    <div style={{ display: "flex", gap: 8, fontSize: 14, alignItems: "flex-start" }}>
+                      <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70, paddingTop: 1 }}>Brief</span>
+                      <span style={{ color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.4 }}>
+                        {brief.trim().length > 120 ? brief.trim().slice(0, 120) + "..." : brief.trim()}
+                      </span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Name</span>
+                    <span style={{ color: subjectName.trim() ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
+                      {subjectName.trim() || "enter agent name above"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Style</span>
+                    <span style={{ color: selectedPersona ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
+                      {selectedPersona?.name || "select above"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 14, alignItems: "flex-start" }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70, paddingTop: 1 }}>Goals</span>
+                    {goals.length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {goals.map((g, i) => (
+                          <span key={i} style={{
+                            padding: "3px 10px",
+                            borderRadius: 8,
+                            background: "var(--surface-tertiary)",
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: "var(--text-primary)",
+                          }}>
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)", fontWeight: 500, fontStyle: "italic" }}>
+                        none (AI will infer)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {goals.length === 0 && (
+                  <div style={{
+                    marginTop: 14,
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    background: "color-mix(in srgb, var(--status-warning-text) 8%, transparent)",
+                    border: "1px solid color-mix(in srgb, var(--status-warning-text) 15%, transparent)",
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    fontWeight: 500,
+                  }}>
+                    Adding goals helps AI create a more tailored experience
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Upload mode: file dropzone */}
+            {launchMode === "upload" && (
+              <>
+                <div
+                  ref={dropRef}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    padding: file ? "20px 24px" : "44px 24px",
+                    borderRadius: 16,
+                    border: `2px dashed ${file ? "var(--accent-primary)" : "var(--border-default)"}`,
+                    background: file ? "var(--status-info-bg)" : "var(--surface-primary)",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {file ? (
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-primary)" }}>
+                        {file.name}
+                      </div>
+                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+                        {(file.size / 1024).toFixed(0)} KB
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFile(null);
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--accent-primary)",
+                            cursor: "pointer",
+                            marginLeft: 12,
+                            textDecoration: "underline",
+                            fontSize: 14,
+                            fontWeight: 500,
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.25 }}>&#8613;</div>
+                      <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-secondary)" }}>
+                        Drop a file here or click to browse
+                      </div>
+                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 6 }}>
+                        PDF, TXT, Markdown, or JSON
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.md,.markdown,.json"
+                  onChange={(e) => handleFile(e.target.files?.[0] || null)}
+                  style={{ display: "none" }}
+                />
+              </>
+            )}
           </FormCard>
 
           {/* Advanced Options */}
@@ -1654,7 +2533,7 @@ export default function QuickLaunchPage() {
                   : "none",
               }}
             >
-              Build My Tutor
+              Build It
             </button>
 
             {/* Progress bar showing form completion */}
@@ -1672,10 +2551,12 @@ export default function QuickLaunchPage() {
                 {!canLaunch && (
                   <span>
                     {!subjectName.trim()
-                      ? "Enter a subject name"
-                      : !file
-                        ? "Upload course material"
-                        : ""}
+                      ? "Enter an agent name"
+                      : !persona
+                        ? "Select a persona"
+                        : launchMode === "upload" && !file
+                          ? "Upload material"
+                          : ""}
                   </span>
                 )}
               </div>
@@ -1710,7 +2591,7 @@ export default function QuickLaunchPage() {
                 lineHeight: 1.5,
               }}
             >
-              Creates domain, extracts teaching points, builds curriculum, and sets up a test caller.
+              Creates an agent, extracts content, configures the persona, and sets up a test caller.
             </p>
           </div>
         </>

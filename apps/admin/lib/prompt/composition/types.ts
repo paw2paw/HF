@@ -49,6 +49,8 @@ export interface ResolvedSpec {
   slug?: string;
   config: any;
   description?: string | null;
+  /** Base archetype ID (e.g., "TUT-001") — triggers merge at composition time */
+  extendsAgent?: string | null;
 }
 
 export interface ResolvedSpecs {
@@ -82,10 +84,26 @@ export interface LoadedDataContext {
   onboardingSession?: any;
   /** Curriculum assertions (approved teaching points) from ContentAssertion table */
   curriculumAssertions?: CurriculumAssertionData[];
+  /** Teaching depth from Subject config (null = use spec default) */
+  teachingDepth?: number | null;
+  /** Open actions (pending/in-progress) for prompt awareness */
+  openActions?: OpenActionData[];
+}
+
+/** Open action data loaded for voice prompt integration */
+export interface OpenActionData {
+  type: string;
+  title: string;
+  description: string | null;
+  assignee: string;
+  priority: string;
+  dueAt: Date | null;
+  createdAt: Date;
 }
 
 /** ContentAssertion data loaded for teaching content */
 export interface CurriculumAssertionData {
+  id: string;
   assertion: string;
   category: string;
   chapter: string | null;
@@ -97,6 +115,11 @@ export interface CurriculumAssertionData {
   learningOutcomeRef: string | null;
   sourceName: string;
   sourceTrustLevel: string;
+  // Pyramid hierarchy fields
+  depth: number | null;
+  parentId: string | null;
+  orderIndex: number;
+  topicSlug: string | null;
 }
 
 /** INIT-001 onboarding spec shape */
@@ -168,6 +191,18 @@ export interface SharedComputedState {
   curriculumSpecSlug?: string;
   /** Whether first call in current domain (for domain-switch re-onboarding) */
   isFirstCallInDomain?: boolean;
+  /** Current lesson plan session number (1-based), null if no lesson plan */
+  currentSessionNumber?: number | null;
+  /** Session type from lesson plan entry (introduce, deepen, review, assess, consolidate) */
+  lessonPlanSessionType?: string | null;
+  /** Full lesson plan entry for current session */
+  lessonPlanEntry?: {
+    session: number;
+    type: string;
+    moduleId: string | null;
+    moduleLabel: string;
+    label: string;
+  } | null;
 }
 
 export interface ModuleData {
@@ -197,10 +232,18 @@ export interface CallerData {
   externalId: string | null;
   domain: {
     id: string;
+    slug: string;
     name: string;
     description: string | null;
+    onboardingFlowPhases?: unknown;
+    onboardingDefaultTargets?: unknown;
   } | null;
   domainId?: string | null;
+  cohortGroup?: {
+    id: string;
+    name: string;
+    owner: { id: string; name: string | null };
+  } | null;
 }
 
 export interface MemoryData {
@@ -209,6 +252,8 @@ export interface MemoryData {
   value: string;
   confidence: number;
   evidence: string | null;
+  extractedAt: Date | null;
+  decayFactor: number;
 }
 
 export interface PersonalityData {
@@ -359,6 +404,8 @@ export interface SystemSpecData {
   config: any;
   domain: string | null;
   promptTemplate?: string | null;
+  /** Base archetype ID (e.g., "TUT-001") — for overlay specs */
+  extendsAgent?: string | null;
 }
 
 // === TRANSFORM FUNCTION SIGNATURE ===

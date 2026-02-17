@@ -94,7 +94,7 @@ export function ReadinessBadge({
       .then((res) => {
         if (res.ok) setData(res);
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Readiness] Failed to load readiness:", e))
       .finally(() => setLoading(false));
   };
 
@@ -109,7 +109,7 @@ export function ReadinessBadge({
           setData(res);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Readiness] Failed to load readiness:", e))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });

@@ -21,6 +21,8 @@ interface ProgressUpdate {
   currentModuleId?: string;
   moduleMastery?: Record<string, number>;
   lastAccessedAt?: Date;
+  /** Current lesson plan session number (1-based) */
+  currentSession?: number;
 }
 
 /**
@@ -120,6 +122,32 @@ export async function updateCurriculumProgress(
     }
   }
 
+  // Update current lesson plan session
+  if (updates.currentSession !== undefined) {
+    const key = await buildStorageKey(specSlug, 'currentSession');
+    writes.push(
+      prisma.callerAttribute.upsert({
+        where: {
+          callerId_key_scope: {
+            callerId,
+            key,
+            scope: 'CURRICULUM',
+          },
+        },
+        create: {
+          callerId,
+          key,
+          scope: 'CURRICULUM',
+          valueType: 'NUMBER',
+          numberValue: updates.currentSession,
+        },
+        update: {
+          numberValue: updates.currentSession,
+        },
+      })
+    );
+  }
+
   // Update last accessed timestamp
   if (updates.lastAccessedAt !== undefined) {
     const key = await buildStorageKey(specSlug, 'lastAccessed');
@@ -160,6 +188,7 @@ export async function getCurriculumProgress(
   currentModuleId: string | null;
   modulesMastery: Record<string, number>;
   lastAccessedAt: string | null;
+  currentSession: number | null;
 }> {
   // Get contract keys
   const storageKeys = await ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
@@ -187,6 +216,7 @@ export async function getCurriculumProgress(
     currentModuleId: null as string | null,
     modulesMastery: {} as Record<string, number>,
     lastAccessedAt: null as string | null,
+    currentSession: null as number | null,
   };
 
   for (const attr of attributes) {
@@ -199,6 +229,8 @@ export async function getCurriculumProgress(
       progress.modulesMastery[moduleId] = attr.numberValue || 0;
     } else if (key === storageKeys.lastAccessed) {
       progress.lastAccessedAt = attr.stringValue;
+    } else if (key === storageKeys.currentSession) {
+      progress.currentSession = attr.numberValue || null;
     }
   }
 
@@ -367,13 +399,17 @@ export async function computeTrustWeightedProgress(
   let allTotalWeight = 0;
 
   for (const [moduleId, mastery] of Object.entries(moduleMastery)) {
-    const trustLevel = moduleTrustLevels[moduleId] || 'UNVERIFIED';
-    const weight = TRUST_WEIGHTS[trustLevel] ?? 0.05;
+    const trustLevel = moduleTrustLevels[moduleId];
+    if (!trustLevel) {
+      console.warn(`[track-progress] No trust level for module ${moduleId}, defaulting to UNVERIFIED`);
+    }
+    const effectiveTrustLevel = trustLevel || 'UNVERIFIED';
+    const weight = TRUST_WEIGHTS[effectiveTrustLevel] ?? 0.05;
     const countsToCertification = weight >= CERTIFICATION_MIN_WEIGHT;
 
     moduleBreakdown[moduleId] = {
       mastery,
-      trustLevel,
+      trustLevel: effectiveTrustLevel,
       trustWeight: weight,
       countsToCertification,
     };

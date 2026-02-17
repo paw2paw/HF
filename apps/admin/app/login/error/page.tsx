@@ -20,15 +20,21 @@ export default function ErrorPage() {
   };
 
   return (
-    <div className="w-full max-w-md text-center">
+    <div className="login-card w-full max-w-md text-center">
       {/* Error Icon */}
-      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-500/20 text-red-400">
+      <div
+        className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full"
+        style={{
+          background: "color-mix(in srgb, #ef4444 15%, transparent)",
+        }}
+      >
         <svg
           className="h-10 w-10"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth={2}
+          style={{ color: "#fca5a5" }}
         >
           <path
             strokeLinecap="round"
@@ -39,20 +45,34 @@ export default function ErrorPage() {
       </div>
 
       {/* Error Message */}
-      <div className="rounded-2xl border border-neutral-700 bg-neutral-800/50 p-8 shadow-xl backdrop-blur-sm">
+      <div
+        className="rounded-2xl p-8 shadow-2xl backdrop-blur-xl"
+        style={{
+          background: "color-mix(in srgb, var(--login-navy) 70%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--login-blue) 20%, transparent)",
+        }}
+      >
         <h1 className="mb-4 text-2xl font-semibold text-white">
           Authentication Error
         </h1>
-        <p className="mb-6 text-neutral-400">{getErrorMessage(error)}</p>
+        <p style={{ color: "var(--login-blue)" }} className="mb-6">
+          {getErrorMessage(error)}
+        </p>
         {error && (
-          <p className="text-sm text-neutral-500">Error code: {error}</p>
+          <p
+            className="text-sm"
+            style={{ color: "color-mix(in srgb, var(--login-blue) 50%, transparent)" }}
+          >
+            Error code: {error}
+          </p>
         )}
       </div>
 
       {/* Back link */}
       <a
         href="/login"
-        className="mt-6 inline-block text-sm text-neutral-400 hover:text-white"
+        className="mt-6 inline-block text-sm transition-colors hover:text-white"
+        style={{ color: "var(--login-blue)" }}
       >
         &larr; Try again
       </a>

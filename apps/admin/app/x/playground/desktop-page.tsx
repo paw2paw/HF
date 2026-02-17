@@ -691,7 +691,7 @@ export default function PlaygroundPage() {
           padding: "12px 24px",
           minHeight: 56,
           background: "var(--surface-primary)",
-          borderBottom: "1px solid var(--border-primary)",
+          borderBottom: "1px solid var(--border-default)",
           display: "flex",
           alignItems: "center",
           gap: 16,
@@ -1199,7 +1199,7 @@ export default function PlaygroundPage() {
                   padding: "60px 20px",
                   background: "var(--surface-primary)",
                   borderRadius: 12,
-                  border: "1px solid var(--border-primary)",
+                  border: "1px solid var(--border-default)",
                 }}
               >
                 <div style={{ fontSize: 48, marginBottom: 16 }}>🧪</div>
@@ -1256,7 +1256,7 @@ export default function PlaygroundPage() {
                   style={{
                     background: "var(--surface-primary)",
                     borderRadius: 12,
-                    border: "1px solid var(--border-primary)",
+                    border: "1px solid var(--border-default)",
                     padding: 16,
                     marginBottom: 16,
                   }}
@@ -1297,7 +1297,7 @@ export default function PlaygroundPage() {
                   style={{
                     background: "var(--surface-primary)",
                     borderRadius: 12,
-                    border: "1px solid var(--border-primary)",
+                    border: "1px solid var(--border-default)",
                     padding: 16,
                   }}
                 >
@@ -1437,7 +1437,7 @@ export default function PlaygroundPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* No playbook selected */}
                 {!selectedPlaybookId && (
-                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)" }}>
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
                     <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📚</div>
                     <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-secondary)", margin: "0 0 8px 0" }}>Select a Playbook</h3>
                     <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Choose a playbook from the control bar above to generate prompts</p>
@@ -1446,7 +1446,7 @@ export default function PlaygroundPage() {
 
                 {/* Ready to generate */}
                 {selectedPlaybookId && !generatedPrompt && !isGenerating && (
-                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)" }}>
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
                     <div style={{ fontSize: 48, marginBottom: 16 }}>✨</div>
                     <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px 0" }}>Ready to Generate</h3>
                     <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>Click Generate in the control bar or below</p>
@@ -1461,7 +1461,7 @@ export default function PlaygroundPage() {
 
                 {/* Generating */}
                 {isGenerating && (
-                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)" }}>
+                  <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
                     <div style={{ fontSize: 48, marginBottom: 16 }} className="animate-pulse">⟳</div>
                     <h3 style={{ fontSize: 18, fontWeight: 600, color: "#7c3aed", margin: 0 }}>Generating prompt...</h3>
                   </div>
@@ -1469,9 +1469,9 @@ export default function PlaygroundPage() {
 
                 {/* Generated output */}
                 {generatedPrompt && !isGenerating && (
-                  <div style={{ background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-primary)", overflow: "hidden" }}>
+                  <div style={{ background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-default)", overflow: "hidden" }}>
                     {/* Header */}
-                    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary)", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 12 }}>
                       <span style={{ fontSize: 14 }}>✨</span>
                       <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Generated Prompt</span>
                       <AIConfigButton callPoint="compose.prompt" label="Prompt Composition" />
@@ -1751,7 +1751,7 @@ export default function PlaygroundPage() {
                   padding: "60px 20px",
                   background: "var(--surface-primary)",
                   borderRadius: 12,
-                  border: "1px solid var(--border-primary)",
+                  border: "1px solid var(--border-default)",
                 }}
               >
                 <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📊</div>

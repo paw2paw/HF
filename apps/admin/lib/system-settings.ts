@@ -11,7 +11,10 @@
  *   goals.*         — Goal detection thresholds
  *   trust.*         — Content trust weights
  *   ai_learning.*   — AI pattern learning rates
+ *   knowledge.*     — Knowledge retrieval tuning
+ *   voice.*         — Voice call provider, model, tools, RAG
  *   cache.*         — Cache TTL tuning
+ *   email.*         — Email template text blocks
  */
 
 import { prisma } from "@/lib/prisma";
@@ -178,6 +181,35 @@ export async function getGoalSettings(): Promise<GoalSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 3b. ARTIFACTS
+// ═══════════════════════════════════════════════════════
+
+export interface ArtifactSettings {
+  confidenceThreshold: number;
+  similarityThreshold: number;
+  transcriptMinChars: number;
+  transcriptLimitChars: number;
+}
+
+export const ARTIFACT_DEFAULTS: ArtifactSettings = {
+  confidenceThreshold: 0.6,
+  similarityThreshold: 0.8,
+  transcriptMinChars: 100,
+  transcriptLimitChars: 4000,
+};
+
+const ARTIFACT_KEYS: Record<keyof ArtifactSettings, string> = {
+  confidenceThreshold: "artifacts.confidence_threshold",
+  similarityThreshold: "artifacts.similarity_threshold",
+  transcriptMinChars: "artifacts.transcript_min_chars",
+  transcriptLimitChars: "artifacts.transcript_limit_chars",
+};
+
+export async function getArtifactSettings(): Promise<ArtifactSettings> {
+  return loadGroup(ARTIFACT_KEYS, ARTIFACT_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // 4. CONTENT TRUST
 // ═══════════════════════════════════════════════════════
 
@@ -245,7 +277,106 @@ export async function getAILearningSettings(): Promise<AILearningSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
-// 6. PERFORMANCE & CACHING
+// 6. KNOWLEDGE RETRIEVAL
+// ═══════════════════════════════════════════════════════
+
+export interface KnowledgeRetrievalSettings {
+  queryMessageCount: number;
+  topResults: number;
+  chunkLimit: number;
+  assertionLimit: number;
+  memoryLimit: number;
+  minRelevance: number;
+}
+
+export const KNOWLEDGE_RETRIEVAL_DEFAULTS: KnowledgeRetrievalSettings = {
+  queryMessageCount: 3,
+  topResults: 10,
+  chunkLimit: 5,
+  assertionLimit: 5,
+  memoryLimit: 3,
+  minRelevance: 0.3,
+};
+
+const KNOWLEDGE_RETRIEVAL_KEYS: Record<keyof KnowledgeRetrievalSettings, string> = {
+  queryMessageCount: "knowledge.query_message_count",
+  topResults: "knowledge.top_results",
+  chunkLimit: "knowledge.chunk_limit",
+  assertionLimit: "knowledge.assertion_limit",
+  memoryLimit: "knowledge.memory_limit",
+  minRelevance: "knowledge.min_relevance",
+};
+
+export async function getKnowledgeRetrievalSettings(): Promise<KnowledgeRetrievalSettings> {
+  return loadGroup(KNOWLEDGE_RETRIEVAL_KEYS, KNOWLEDGE_RETRIEVAL_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
+// 7. VOICE CALLS (provider-agnostic call service config)
+// ═══════════════════════════════════════════════════════
+
+export interface VoiceCallSettings {
+  // Provider & model (provider-agnostic — works with any call service)
+  provider: string;
+  model: string;
+  // Per-turn knowledge retrieval (automatic RAG every turn)
+  knowledgePlanEnabled: boolean;
+  // Pipeline
+  autoPipeline: boolean;
+  // Tool toggles
+  toolLookupTeachingPoint: boolean;
+  toolCheckMastery: boolean;
+  toolRecordObservation: boolean;
+  toolGetPracticeQuestion: boolean;
+  toolGetNextModule: boolean;
+  toolLogActivityResult: boolean;
+  toolSendText: boolean;
+  toolRequestArtifact: boolean;
+  // Fallback prompts
+  unknownCallerPrompt: string;
+  noActivePromptFallback: string;
+}
+
+export const VOICE_CALL_DEFAULTS: VoiceCallSettings = {
+  provider: "openai",
+  model: "gpt-4o",
+  knowledgePlanEnabled: false,
+  autoPipeline: true,
+  toolLookupTeachingPoint: true,
+  toolCheckMastery: true,
+  toolRecordObservation: true,
+  toolGetPracticeQuestion: true,
+  toolGetNextModule: true,
+  toolLogActivityResult: true,
+  toolSendText: true,
+  toolRequestArtifact: true,
+  unknownCallerPrompt: "You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name.",
+  noActivePromptFallback: "You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation.",
+};
+
+const VOICE_CALL_KEYS: Record<keyof VoiceCallSettings, string> = {
+  provider: "voice.provider",
+  model: "voice.model",
+  knowledgePlanEnabled: "voice.knowledge_plan_enabled",
+  autoPipeline: "voice.auto_pipeline",
+  toolLookupTeachingPoint: "voice.tool_lookup_teaching_point",
+  toolCheckMastery: "voice.tool_check_mastery",
+  toolRecordObservation: "voice.tool_record_observation",
+  toolGetPracticeQuestion: "voice.tool_get_practice_question",
+  toolGetNextModule: "voice.tool_get_next_module",
+  toolLogActivityResult: "voice.tool_log_activity_result",
+  toolSendText: "voice.tool_send_text",
+  toolRequestArtifact: "voice.tool_request_artifact",
+  unknownCallerPrompt: "voice.unknown_caller_prompt",
+  noActivePromptFallback: "voice.no_active_prompt_fallback",
+};
+
+export async function getVoiceCallSettings(): Promise<VoiceCallSettings> {
+  return loadGroup(VOICE_CALL_KEYS, VOICE_CALL_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
+// 8. PERFORMANCE & CACHING (renumbered from 7)
 // ═══════════════════════════════════════════════════════
 
 export interface CacheSettings {
@@ -288,7 +419,7 @@ export const DEMO_CAPTURE_DEFAULTS: DemoCaptureSettings = {
   defaultCaller: "Paul",
   defaultDomain: "qm-tutor",
   defaultPlaybook: "",
-  defaultSpec: "PERS-001",
+  defaultSpec: "",
 };
 
 const DEMO_CAPTURE_KEYS: Record<keyof DemoCaptureSettings, string> = {
@@ -303,6 +434,62 @@ export async function getDemoCaptureSettings(): Promise<DemoCaptureSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 8. EMAIL TEMPLATES
+// ═══════════════════════════════════════════════════════
+
+export interface EmailTemplateSettings {
+  magicLinkSubject: string;
+  magicLinkHeading: string;
+  magicLinkBody: string;
+  magicLinkButtonText: string;
+  magicLinkFooter: string;
+  inviteSubject: string;
+  inviteHeading: string;
+  inviteBody: string;
+  inviteButtonText: string;
+  inviteFooter: string;
+  sharedFromName: string;
+  sharedBrandColorStart: string;
+  sharedBrandColorEnd: string;
+}
+
+export const EMAIL_TEMPLATE_DEFAULTS: EmailTemplateSettings = {
+  magicLinkSubject: "Sign in to HF Admin",
+  magicLinkHeading: "Sign In",
+  magicLinkBody: "Click the button below to sign in to your account. No password needed.",
+  magicLinkButtonText: "Sign In",
+  magicLinkFooter: "This link expires in 24 hours. If you didn't request this, ignore this email.",
+  inviteSubject: "You're invited to test HF — {{domainName}}",
+  inviteHeading: "You're Invited",
+  inviteBody: "{{greeting}} {{context}}",
+  inviteButtonText: "Accept Invitation",
+  inviteFooter: "This invitation expires in 7 days.",
+  sharedFromName: "HF Admin",
+  sharedBrandColorStart: "#3b82f6",
+  sharedBrandColorEnd: "#9333ea",
+};
+
+const EMAIL_TEMPLATE_KEYS: Record<keyof EmailTemplateSettings, string> = {
+  magicLinkSubject: "email.magic_link.subject",
+  magicLinkHeading: "email.magic_link.heading",
+  magicLinkBody: "email.magic_link.body",
+  magicLinkButtonText: "email.magic_link.button_text",
+  magicLinkFooter: "email.magic_link.footer",
+  inviteSubject: "email.invite.subject",
+  inviteHeading: "email.invite.heading",
+  inviteBody: "email.invite.body",
+  inviteButtonText: "email.invite.button_text",
+  inviteFooter: "email.invite.footer",
+  sharedFromName: "email.shared.from_name",
+  sharedBrandColorStart: "email.shared.brand_color_start",
+  sharedBrandColorEnd: "email.shared.brand_color_end",
+};
+
+export async function getEmailTemplateSettings(): Promise<EmailTemplateSettings> {
+  return loadGroup(EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -310,7 +497,7 @@ export interface SettingDef {
   key: string;
   label: string;
   description: string;
-  type: "int" | "float" | "bool" | "text";
+  type: "int" | "float" | "bool" | "text" | "textarea";
   default: number | boolean | string;
   min?: number;
   max?: number;
@@ -327,6 +514,28 @@ export interface SettingGroup {
 }
 
 export const SETTINGS_REGISTRY: SettingGroup[] = [
+  {
+    id: "voice",
+    label: "Voice Calls",
+    icon: "Phone",
+    description: "Call service provider, model, per-turn RAG, tool enablement, and fallback prompts",
+    settings: [
+      { key: "voice.provider", label: "LLM provider", description: "Which provider serves the voice model (e.g. openai, anthropic, google)", type: "text", default: "openai", placeholder: "openai" },
+      { key: "voice.model", label: "Voice model", description: "Model ID used for the voice assistant (e.g. gpt-4o, claude-sonnet-4-5-20250929)", type: "text", default: "gpt-4o", placeholder: "gpt-4o" },
+      { key: "voice.knowledge_plan_enabled", label: "Per-turn RAG", description: "Automatically retrieve knowledge every conversation turn. Disable to rely on tools + front-loaded prompt instead", type: "bool", default: true },
+      { key: "voice.auto_pipeline", label: "Auto-pipeline", description: "Automatically trigger analysis pipeline when a call ends", type: "bool", default: true },
+      { key: "voice.tool_lookup_teaching_point", label: "Tool: Lookup teaching point", description: "Let the AI look up teaching content mid-call", type: "bool", default: true },
+      { key: "voice.tool_check_mastery", label: "Tool: Check mastery", description: "Let the AI check caller mastery before teaching new material", type: "bool", default: true },
+      { key: "voice.tool_record_observation", label: "Tool: Record observation", description: "Let the AI record caller observations in real-time", type: "bool", default: true },
+      { key: "voice.tool_get_practice_question", label: "Tool: Practice question", description: "Let the AI fetch practice questions for a topic", type: "bool", default: true },
+      { key: "voice.tool_get_next_module", label: "Tool: Next module", description: "Let the AI look up the next curriculum module", type: "bool", default: true },
+      { key: "voice.tool_log_activity_result", label: "Tool: Log activity", description: "Let the AI log activity results (quiz, MCQ, teach-back)", type: "bool", default: true },
+      { key: "voice.tool_send_text", label: "Tool: Send text to caller", description: "Let the AI send SMS during calls (requires text provider config)", type: "bool", default: true },
+      { key: "voice.tool_request_artifact", label: "Tool: Request artifact", description: "Let the AI request study artifacts be sent after the call", type: "bool", default: true },
+      { key: "voice.unknown_caller_prompt", label: "Unknown caller prompt", description: "System prompt used when the caller isn't registered", type: "textarea", default: "You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name." },
+      { key: "voice.no_active_prompt_fallback", label: "No-prompt fallback", description: "System prompt used when a known caller has no active composed prompt", type: "textarea", default: "You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation." },
+    ],
+  },
   {
     id: "pipeline",
     label: "Pipeline & Scoring",
@@ -397,6 +606,20 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     ],
   },
   {
+    id: "knowledge",
+    label: "Knowledge Retrieval",
+    icon: "Search",
+    description: "Per-turn RAG retrieval for VAPI and sim calls (vector + keyword hybrid)",
+    settings: [
+      { key: "knowledge.query_message_count", label: "Query message count", description: "Number of recent user messages used as search context", type: "int", default: 3, min: 1, max: 10 },
+      { key: "knowledge.top_results", label: "Top results", description: "Max results returned per retrieval turn", type: "int", default: 10, min: 1, max: 30 },
+      { key: "knowledge.chunk_limit", label: "Knowledge chunks", description: "Max knowledge base chunks per retrieval", type: "int", default: 5, min: 1, max: 20 },
+      { key: "knowledge.assertion_limit", label: "Teaching assertions", description: "Max teaching assertions per retrieval", type: "int", default: 5, min: 1, max: 20 },
+      { key: "knowledge.memory_limit", label: "Caller memories", description: "Max caller memories per retrieval", type: "int", default: 3, min: 1, max: 10 },
+      { key: "knowledge.min_relevance", label: "Min relevance score", description: "Minimum similarity score (0–1) to include a result", type: "float", default: 0.3, min: 0, max: 1, step: 0.05 },
+    ],
+  },
+  {
     id: "cache",
     label: "Performance",
     icon: "Gauge",
@@ -417,7 +640,31 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "demo.default_caller", label: "Default caller", description: "Caller name used for entity screenshots", type: "text", default: "Paul", placeholder: "e.g. Paul" },
       { key: "demo.default_domain", label: "Default domain", description: "Domain slug used for entity screenshots", type: "text", default: "qm-tutor", placeholder: "e.g. qm-tutor" },
       { key: "demo.default_playbook", label: "Default playbook", description: "Playbook name (leave empty for first available)", type: "text", default: "", placeholder: "e.g. QM Adaptive v1" },
-      { key: "demo.default_spec", label: "Default spec", description: "Spec slug for spec-related screenshots", type: "text", default: "PERS-001", placeholder: "e.g. PERS-001" },
+      { key: "demo.default_spec", label: "Default spec", description: "Spec slug for spec-related screenshots", type: "text", default: "", placeholder: "e.g. PERS-001" },
+    ],
+  },
+  {
+    id: "email",
+    label: "Email Templates",
+    icon: "Mail",
+    description: "Customise the text and branding of system emails (magic link sign-in and invitations)",
+    settings: [
+      // ── Shared branding ──
+      { key: "email.shared.from_name", label: "Sender name", description: "The 'from' name shown in recipients' inboxes", type: "text", default: "HF Admin", placeholder: "e.g. HF Admin" },
+      { key: "email.shared.brand_color_start", label: "Brand gradient start", description: "Hex colour for the header gradient (left/top)", type: "text", default: "#3b82f6", placeholder: "#3b82f6" },
+      { key: "email.shared.brand_color_end", label: "Brand gradient end", description: "Hex colour for the header gradient (right/bottom)", type: "text", default: "#9333ea", placeholder: "#9333ea" },
+      // ── Magic link email ──
+      { key: "email.magic_link.subject", label: "Magic link — Subject", description: "Email subject line for magic link sign-in", type: "text", default: "Sign in to HF Admin", placeholder: "Sign in to HF Admin" },
+      { key: "email.magic_link.heading", label: "Magic link — Heading", description: "Heading text shown in the email header", type: "text", default: "Sign In", placeholder: "Sign In" },
+      { key: "email.magic_link.body", label: "Magic link — Body", description: "Main body text above the sign-in button", type: "textarea", default: "Click the button below to sign in to your account. No password needed." },
+      { key: "email.magic_link.button_text", label: "Magic link — Button", description: "Call-to-action button label", type: "text", default: "Sign In", placeholder: "Sign In" },
+      { key: "email.magic_link.footer", label: "Magic link — Footer", description: "Footer text below the button", type: "textarea", default: "This link expires in 24 hours. If you didn't request this, ignore this email." },
+      // ── Invite email ──
+      { key: "email.invite.subject", label: "Invite — Subject", description: "Use {{domainName}} for the domain. E.g. \"Join HF — {{domainName}}\"", type: "text", default: "You're invited to test HF — {{domainName}}", placeholder: "You're invited to test HF — {{domainName}}" },
+      { key: "email.invite.heading", label: "Invite — Heading", description: "Heading text shown in the email header", type: "text", default: "You're Invited", placeholder: "You're Invited" },
+      { key: "email.invite.body", label: "Invite — Body", description: "Use {{greeting}} and {{context}} for dynamic content", type: "textarea", default: "{{greeting}} {{context}}" },
+      { key: "email.invite.button_text", label: "Invite — Button", description: "Call-to-action button label", type: "text", default: "Accept Invitation", placeholder: "Accept Invitation" },
+      { key: "email.invite.footer", label: "Invite — Footer", description: "Footer text below the button", type: "textarea", default: "This invitation expires in 7 days." },
     ],
   },
 ];

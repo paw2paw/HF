@@ -5,9 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PrismaClient, MemoryCategory, MemorySource } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { MemoryCategory, MemorySource } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 describe('memory-extract', () => {
   beforeEach(() => {
@@ -25,16 +24,13 @@ describe('memory-extract', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    // TODO: This test requires dependency injection refactoring to properly mock Prisma
-    // The module creates its own PrismaClient instance, so vi.mocked() doesn't work
-    // Use integration tests to verify this functionality instead
-    it.skip('should extract memories using pattern matching in mock mode', async () => {
+    it('should extract memories using pattern matching in mock mode', async () => {
       const mockCall = {
         id: 'call-1',
-        userId: 'user-1',
+        callerId: 'caller-1',
         transcript: 'Customer: I live in San Francisco. I work at Google as a software engineer.',
         createdAt: new Date(),
-        user: { id: 'user-1', name: 'Test User' },
+        caller: { id: 'caller-1', name: 'Test User' },
         extractedMemories: [],
       };
 

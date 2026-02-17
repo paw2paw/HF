@@ -21,6 +21,8 @@ export interface Mission {
   icon: string;
   steps: MissionStep[];
   currentStepIndex: number;
+  isTour?: boolean;
+  onComplete?: () => void;
 }
 
 export interface MissionStep {
@@ -29,6 +31,10 @@ export interface MissionStep {
   description?: string;
   target: string; // href to highlight
   completed: boolean;
+  elementSelector?: string; // CSS selector for non-sidebar elements
+  placement?: "top" | "bottom" | "left" | "right" | "center";
+  navigateTo?: string; // auto-navigate before showing step
+  nextLabel?: string; // custom label for Next button
 }
 
 interface GuidanceState {
@@ -168,11 +174,15 @@ export function GuidanceProvider({ children }: { children: React.ReactNode }) {
       if (!prev) return null;
       const nextIndex = prev.currentStepIndex + 1;
       if (nextIndex >= prev.steps.length) {
-        // Mission complete
+        // Mission complete — fire callback if present
+        prev.onComplete?.();
         return null;
       }
-      // Highlight next step
-      highlightSidebar(prev.steps[nextIndex].target, "pulse", 30000);
+      // Highlight next step (only if it targets a sidebar href)
+      const nextStep = prev.steps[nextIndex];
+      if (nextStep.target && !nextStep.elementSelector) {
+        highlightSidebar(nextStep.target, "pulse", 30000);
+      }
       return {
         ...prev,
         currentStepIndex: nextIndex,
@@ -193,10 +203,14 @@ export function GuidanceProvider({ children }: { children: React.ReactNode }) {
       // Find next incomplete step
       const nextIndex = steps.findIndex((s, i) => i > prev.currentStepIndex && !s.completed);
       if (nextIndex === -1) {
-        // All steps complete
+        // All steps complete — fire callback if present
+        prev.onComplete?.();
         return null;
       }
-      highlightSidebar(steps[nextIndex].target, "pulse", 30000);
+      const nextStep = steps[nextIndex];
+      if (nextStep.target && !nextStep.elementSelector) {
+        highlightSidebar(nextStep.target, "pulse", 30000);
+      }
       return {
         ...prev,
         steps,

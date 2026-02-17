@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function DemoDashboard() {
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center", paddingTop: 48 }}>
+    <div data-tour="welcome" style={{ maxWidth: 600, margin: "0 auto", textAlign: "center", paddingTop: 48 }}>
       <div style={{ fontSize: 64, marginBottom: 24 }}>👋</div>
 
       <h1 style={{ fontSize: 32, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>

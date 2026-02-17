@@ -92,6 +92,8 @@ export async function startTaskTracking(
 
 /**
  * Update task progress.
+ * Context is deep-merged (top-level keys) so callers can update
+ * individual fields without losing the rest of the saved state.
  */
 export async function updateTaskProgress(
   taskId: string,
@@ -102,15 +104,30 @@ export async function updateTaskProgress(
     context?: Record<string, any>;
   }
 ): Promise<void> {
+  // Build the data payload, only setting fields that were provided
+  const data: Record<string, any> = { updatedAt: new Date() };
+  if (updates.currentStep !== undefined) data.currentStep = updates.currentStep;
+  if (updates.completedSteps !== undefined) data.completedSteps = updates.completedSteps;
+  if (updates.blockers !== undefined) data.blockers = updates.blockers;
+
+  // Deep-merge context atomically to avoid race conditions
+  // (concurrent calls like autosave + extraction progress could lose data)
+  if (updates.context !== undefined) {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.userTask.findUnique({
+        where: { id: taskId },
+        select: { context: true },
+      });
+      const existingCtx = (existing?.context as Record<string, any>) ?? {};
+      data.context = { ...existingCtx, ...updates.context };
+      await tx.userTask.update({ where: { id: taskId }, data });
+    });
+    return;
+  }
+
   await prisma.userTask.update({
     where: { id: taskId },
-    data: {
-      currentStep: updates.currentStep,
-      completedSteps: updates.completedSteps as any,
-      blockers: updates.blockers as any,
-      context: updates.context as any,
-      updatedAt: new Date(),
-    },
+    data,
   });
 }
 
@@ -206,6 +223,35 @@ async function generateSuggestions(task: TaskContext): Promise<GuidanceSuggestio
         },
       });
       break;
+
+    case "extraction":
+      suggestions.push({
+        type: "tip",
+        message: "You can continue working while extraction runs in the background",
+      });
+      break;
+
+    case "curriculum_generation":
+      suggestions.push({
+        type: "tip",
+        message: "Curriculum generation runs in the background — you'll be notified when it's ready to review",
+      });
+      break;
+
+    case "content_wizard":
+      if (task.currentStep === 1) {
+        suggestions.push({
+          type: "tip",
+          message: "Upload PDF, TXT, or MD documents — the AI will extract teaching points automatically",
+        });
+      }
+      if (task.currentStep === 3) {
+        suggestions.push({
+          type: "best-practice",
+          message: "Pick a template or enter a custom session count. AI will distribute onboarding, teaching, review, and assessment phases.",
+        });
+      }
+      break;
   }
 
   // Check for common blockers
@@ -255,12 +301,28 @@ async function generateNextActions(task: TaskContext): Promise<NextAction[]> {
 
   // Completion
   if (task.currentStep === task.totalSteps) {
-    actions.push({
-      label: "Create & Activate",
-      description: "Finish creating your spec and make it active",
-      priority: "high",
-      estimated: "Quick",
-    });
+    if (task.taskType === "curriculum_generation") {
+      actions.push({
+        label: "Review Curriculum",
+        description: "Review the generated curriculum and save or regenerate",
+        priority: "high",
+        estimated: "2 min",
+      });
+    } else if (task.taskType === "extraction") {
+      actions.push({
+        label: "View Assertions",
+        description: "Review the extracted teaching points",
+        priority: "high",
+        estimated: "Quick",
+      });
+    } else {
+      actions.push({
+        label: "Create & Activate",
+        description: "Finish creating your spec and make it active",
+        priority: "high",
+        estimated: "Quick",
+      });
+    }
   }
 
   return actions;
@@ -436,6 +498,56 @@ const TASK_STEP_MAPS: Record<string, Record<number, TaskStep>> = {
       title: "Create",
       description: "Building your tutor domain, curriculum, and test caller",
       estimated: "30 sec",
+    },
+  },
+  extraction: {
+    1: {
+      title: "Extracting",
+      description: "AI is reading your document and extracting teaching points",
+      estimated: "1-3 min",
+    },
+    2: {
+      title: "Saving",
+      description: "Importing extracted assertions to database",
+      estimated: "30 sec",
+    },
+  },
+  curriculum_generation: {
+    1: {
+      title: "Loading",
+      description: "Loading assertions from all sources",
+      estimated: "10 sec",
+    },
+    2: {
+      title: "Generating",
+      description: "AI is structuring your curriculum into modules and learning outcomes",
+      estimated: "1-3 min",
+    },
+    3: {
+      title: "Complete",
+      description: "Curriculum ready for review",
+    },
+  },
+  content_wizard: {
+    1: {
+      title: "Add Content",
+      description: "Upload documents or select existing sources for your subject",
+      estimated: "2 min",
+    },
+    2: {
+      title: "Extract",
+      description: "AI extracts teaching points from your documents",
+      estimated: "1-3 min",
+    },
+    3: {
+      title: "Plan Lessons",
+      description: "Set session count and generate a lesson plan",
+      estimated: "2 min",
+    },
+    4: {
+      title: "Attach to Domains",
+      description: "Link the subject to domains where it will be taught",
+      estimated: "1 min",
     },
   },
 };

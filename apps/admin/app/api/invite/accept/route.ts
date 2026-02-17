@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encode } from "next-auth/jwt";
+import { validateBody, inviteAcceptSchema } from "@/lib/validation";
+import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
+import { enrollCallerInCohortPlaybooks, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 
 /**
  * @api POST /api/invite/accept
@@ -17,15 +20,13 @@ import { encode } from "next-auth/jwt";
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { token, firstName, lastName } = body;
+    const rl = checkRateLimit(getClientIP(request), "invite-accept");
+    if (!rl.ok) return rl.error;
 
-    if (!token || !firstName?.trim() || !lastName?.trim()) {
-      return NextResponse.json(
-        { ok: false, error: "Token, first name, and last name are required" },
-        { status: 400 }
-      );
-    }
+    const body = await request.json();
+    const v = validateBody(inviteAcceptSchema, body);
+    if (!v.ok) return v.error;
+    const { token, firstName, lastName } = v.data;
 
     // Find and validate invite
     const invite = await prisma.invite.findUnique({
@@ -45,13 +46,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
+      // Same error shape as "not found" to prevent email enumeration
       return NextResponse.json(
-        { ok: false, error: "An account already exists with this email" },
-        { status: 400 }
+        { ok: false, error: "Invite not found, expired, or already used" },
+        { status: 404 }
       );
     }
 
-    // Create user and mark invite used in a transaction
+    // Create user, linked Caller (if callerRole set), and mark invite used
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -61,8 +63,32 @@ export async function POST(request: NextRequest) {
           role: invite.role,
           emailVerified: new Date(),
           isActive: true,
+          ...(invite.domainId ? { assignedDomainId: invite.domainId } : {}),
         },
       });
+
+      // Auto-create Caller if invite specifies a callerRole
+      // (EDUCATOR invites create TEACHER callers, student invites create LEARNER callers)
+      if (invite.callerRole) {
+        const newCaller = await tx.caller.create({
+          data: {
+            name: `${firstName.trim()} ${lastName.trim()}`,
+            email: invite.email,
+            role: invite.callerRole,
+            userId: newUser.id,
+            domainId: invite.domainId,
+            cohortGroupId: invite.cohortGroupId,
+            externalId: `invite-${newUser.id}`,
+          },
+        });
+
+        // Auto-enroll in cohort playbooks (or domain-wide fallback)
+        if (invite.cohortGroupId && invite.domainId) {
+          await enrollCallerInCohortPlaybooks(newCaller.id, invite.cohortGroupId, invite.domainId, "invite", tx);
+        } else if (invite.domainId) {
+          await enrollCallerInDomainPlaybooks(newCaller.id, invite.domainId, "invite", tx);
+        }
+      }
 
       await tx.invite.update({
         where: { id: invite.id },
@@ -91,6 +117,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
       },
       secret,
+      salt: "authjs.session-token",
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
 

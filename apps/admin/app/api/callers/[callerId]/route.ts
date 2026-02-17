@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { composeContentSection } from "@/lib/prompt/compose-content-section";
 import { getLearnerProfile } from "@/lib/learner/profile";
 import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
+import { deleteCallerData } from "@/lib/gdpr/delete-caller-data";
+import { auditLog, AuditAction } from "@/lib/audit";
+import type { CallerRole } from "@prisma/client";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
 
 /**
  * @api GET /api/callers/:callerId
@@ -37,13 +41,30 @@ export async function GET(
           email: true,
           phone: true,
           externalId: true,
+          role: true,
           createdAt: true,
           domainId: true,
+          cohortGroupId: true,
+          archivedAt: true,
           domain: {
             select: {
               id: true,
               slug: true,
               name: true,
+            },
+          },
+          cohortGroup: {
+            select: {
+              id: true,
+              name: true,
+              owner: { select: { id: true, name: true } },
+            },
+          },
+          ownedCohorts: {
+            select: {
+              id: true,
+              name: true,
+              _count: { select: { members: true } },
             },
           },
         },
@@ -80,7 +101,7 @@ export async function GET(
         },
       }),
 
-      // Active memories (not superseded, not expired)
+      // Active memories (not superseded, not expired), deduplicated by normalizedKey
       prisma.callerMemory.findMany({
         where: {
           callerId: callerId,
@@ -91,17 +112,30 @@ export async function GET(
           ],
         },
         orderBy: [{ category: "asc" }, { confidence: "desc" }],
-        take: 100,
+        take: 200, // fetch extra to allow dedup
         select: {
           id: true,
           category: true,
           key: true,
           value: true,
+          normalizedKey: true,
           evidence: true,
           confidence: true,
+          decayFactor: true,
           extractedAt: true,
           expiresAt: true,
         },
+      }).then(raw => {
+        // Deduplicate by normalizedKey — keep highest confidence per key
+        const seen = new Map<string, typeof raw[0]>();
+        for (const m of raw) {
+          const dedup = m.normalizedKey || m.key;
+          const existing = seen.get(dedup);
+          if (!existing || (m.confidence ?? 0) > (existing.confidence ?? 0)) {
+            seen.set(dedup, m);
+          }
+        }
+        return Array.from(seen.values()).slice(0, 100);
       }),
 
       // Memory summary
@@ -287,7 +321,7 @@ export async function GET(
     }
 
     // Get counts
-    const [callCount, memoryCount, observationCount, measurementsCount] = await Promise.all([
+    const [callCount, memoryCount, observationCount, measurementsCount, artifactCount, actionsPendingCount, keyFactCount] = await Promise.all([
       prisma.call.count({ where: { callerId: callerId } }),
       prisma.callerMemory.count({
         where: {
@@ -307,6 +341,9 @@ export async function GET(
         distinct: ['parameterId'],
         select: { parameterId: true },
       }).then(results => results.length),
+      prisma.conversationArtifact.count({ where: { callerId: callerId } }),
+      prisma.callAction.count({ where: { callerId: callerId, status: { in: ["PENDING", "IN_PROGRESS"] } } }),
+      prisma.conversationArtifact.count({ where: { callerId: callerId, type: "KEY_FACT" } }),
     ]);
 
     // Get behavior targets count for this caller
@@ -468,10 +505,13 @@ export async function GET(
         targets: targetsCount,
         callerTargets: callerTargets.length,
         measurements: measurementsCount,
+        artifacts: artifactCount,
+        actions: actionsPendingCount,
         curriculumModules: curriculum?.totalModules || 0,
         curriculumCompleted: curriculum?.completedCount || 0,
         goals: goals.length,
         activeGoals: goals.filter(g => g.status === 'ACTIVE').length,
+        keyFacts: keyFactCount,
       },
     });
   } catch (error: any) {
@@ -495,6 +535,8 @@ export async function GET(
  * @body email string - Caller email
  * @body phone string - Caller phone number
  * @body domainId string - New domain ID (triggers domain switch if different)
+ * @body role string - Caller role (LEARNER, TEACHER, TUTOR, PARENT, MENTOR)
+ * @body archive boolean - Set true to archive, false to unarchive
  * @response 200 { ok: true, caller: object, goalsCreated?: string[] }
  * @response 400 { ok: false, error: "Domain not found" }
  * @response 404 { ok: false, error: "Caller not found" }
@@ -512,7 +554,7 @@ export async function PATCH(
     const body = await req.json();
 
     // Allowed fields to update
-    const { name, email, phone, domainId } = body;
+    const { name, email, phone, domainId, role, archive } = body;
 
     // Check if domain is changing (for domain-switch logic)
     const currentCaller = await prisma.caller.findUnique({
@@ -534,15 +576,19 @@ export async function PATCH(
       name?: string | null;
       email?: string | null;
       phone?: string | null;
+      role?: CallerRole;
       domainId?: string | null;
       previousDomainId?: string | null;
       domainSwitchCount?: number;
+      archivedAt?: Date | null;
     } = {};
 
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
+    if (role !== undefined) updateData.role = role;
     if (domainId !== undefined) updateData.domainId = domainId;
+    if (archive !== undefined) updateData.archivedAt = archive ? new Date() : null;
 
     // Track domain switches
     if (isDomainSwitch) {
@@ -572,10 +618,12 @@ export async function PATCH(
         email: true,
         phone: true,
         externalId: true,
+        role: true,
         createdAt: true,
         domainId: true,
         previousDomainId: true,
         domainSwitchCount: true,
+        archivedAt: true,
         domain: {
           select: {
             id: true,
@@ -638,7 +686,7 @@ export async function PATCH(
       });
 
       if (playbook?.config) {
-        const config = playbook.config as any;
+        const config = playbook.config as PlaybookConfig;
         const goals = config.goals || [];
 
         // Create goal instances for caller
@@ -762,49 +810,24 @@ export async function DELETE(
       }
     }
 
-    // Delete all related records (order matters due to FK constraints)
-    // Delete in order of dependency
-    await prisma.$transaction(async (tx) => {
-      // Delete call-related records first
-      const callIds = await tx.call.findMany({
-        where: { callerId },
-        select: { id: true },
-      });
-      const callIdList = callIds.map((c) => c.id);
+    // Delete all related records via shared utility
+    const deletionCounts = await deleteCallerData(callerId);
+    const excluded = exclude && !!(caller.phone || caller.externalId);
 
-      if (callIdList.length > 0) {
-        // Delete records that reference calls
-        await tx.callScore.deleteMany({ where: { callId: { in: callIdList } } });
-        await tx.behaviorMeasurement.deleteMany({ where: { callId: { in: callIdList } } });
-        await tx.callTarget.deleteMany({ where: { callId: { in: callIdList } } });
-        await tx.rewardScore.deleteMany({ where: { callId: { in: callIdList } } });
-      }
-
-      // Delete caller-related records
-      await tx.callerMemory.deleteMany({ where: { callerId } });
-      await tx.callerMemorySummary.deleteMany({ where: { callerId } });
-      await tx.personalityObservation.deleteMany({ where: { callerId } });
-      await tx.callerPersonality.deleteMany({ where: { callerId } });
-      await tx.callerPersonalityProfile.deleteMany({ where: { callerId } });
-      await tx.promptSlugSelection.deleteMany({ where: { callerId } });
-      await tx.composedPrompt.deleteMany({ where: { callerId } });
-      await tx.callerTarget.deleteMany({ where: { callerId } });
-      await tx.callerAttribute.deleteMany({ where: { callerId } });
-
-      // Delete caller identities
-      await tx.callerIdentity.deleteMany({ where: { callerId } });
-
-      // Delete calls
-      await tx.call.deleteMany({ where: { callerId } });
-
-      // Finally delete the caller
-      await tx.caller.delete({ where: { id: callerId } });
+    // Audit trail (non-blocking, non-throwing)
+    auditLog({
+      userId: authResult.session.user.id,
+      userEmail: authResult.session.user.email,
+      action: AuditAction.DELETED_CALLER,
+      entityType: "Caller",
+      entityId: callerId,
+      metadata: { excluded, deletionCounts },
     });
 
     return NextResponse.json({
       ok: true,
       message: `Deleted caller ${caller.name || caller.phone || callerId}`,
-      excluded: exclude && (caller.phone || caller.externalId),
+      excluded,
     });
   } catch (error: any) {
     console.error("Error deleting caller:", error);

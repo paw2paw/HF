@@ -3,8 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 
 /**
- * GET /api/subjects
- * List all subjects with source/domain/assertion counts
+ * @api GET /api/subjects
+ * @visibility internal
+ * @scope subjects:read
+ * @auth session
+ * @tags subjects
+ * @description List all subjects with source, domain, curriculum counts, and lesson plan session counts.
+ * @query activeOnly string - "false" to include inactive (default: true)
+ * @query domainId string - Filter to subjects linked to this domain
+ * @response 200 { subjects: [...{ ..., lessonPlanSessions: number }] }
+ * @response 500 { error: "..." }
  */
 export async function GET(req: NextRequest) {
   try {
@@ -32,11 +40,27 @@ export async function GET(req: NextRequest) {
         domains: {
           include: { domain: { select: { id: true, name: true, slug: true } } },
         },
+        curricula: {
+          select: { id: true, deliveryConfig: true },
+        },
       },
       orderBy: [{ name: "asc" }],
     });
 
-    return NextResponse.json({ subjects });
+    // Compute lesson plan session counts from curriculum JSON
+    const subjectsWithCounts = subjects.map((s) => {
+      let lessonPlanSessions = 0;
+      for (const c of s.curricula) {
+        const dc = c.deliveryConfig as Record<string, any> | null;
+        if (dc?.lessonPlan?.entries?.length) {
+          lessonPlanSessions += dc.lessonPlan.entries.length;
+        }
+      }
+      const { curricula: _curricula, ...rest } = s;
+      return { ...rest, lessonPlanSessions };
+    });
+
+    return NextResponse.json({ subjects: subjectsWithCounts });
   } catch (error: any) {
     console.error("[subjects] GET error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -44,8 +68,23 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/subjects
- * Create a new subject
+ * @api POST /api/subjects
+ * @visibility internal
+ * @scope subjects:create
+ * @auth session
+ * @tags subjects
+ * @description Create a new subject with optional qualification metadata.
+ * @body slug string - Unique slug (required)
+ * @body name string - Display name (required)
+ * @body description string - Subject description
+ * @body defaultTrustLevel string - Default trust level (default: UNVERIFIED)
+ * @body qualificationBody string - Awarding body
+ * @body qualificationRef string - Qualification reference
+ * @body qualificationLevel string - Qualification level
+ * @response 201 { subject: {...} }
+ * @response 400 { error: "slug and name are required" }
+ * @response 409 { error: "A subject with this slug already exists" }
+ * @response 500 { error: "..." }
  */
 export async function POST(req: NextRequest) {
   try {

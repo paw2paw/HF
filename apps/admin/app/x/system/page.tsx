@@ -1,16 +1,10 @@
-import { auth } from "@/lib/auth";
+import { requirePageAuth } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-
-const ROLE_LEVEL: Record<string, number> = {
-  SUPERADMIN: 5, ADMIN: 4, OPERATOR: 3, SUPER_TESTER: 2, TESTER: 1, DEMO: 0, VIEWER: 1,
-};
+import { SystemHealthPanel } from "@/components/shared/SystemHealthPanel";
 
 export default async function SystemHubPage() {
-  const session = await auth();
-  const userLevel = ROLE_LEVEL[session?.user?.role ?? ""] ?? 0;
-  if (userLevel < ROLE_LEVEL.ADMIN) redirect("/x");
+  await requirePageAuth("ADMIN");
 
   let usersCount = 0,
     activeAIConfigsCount = 0,
@@ -56,6 +50,9 @@ export default async function SystemHubPage() {
           {usersCount} team members, {activeAIConfigsCount} active AI configs, {pipelineRunsCount} pipeline runs
         </p>
       </div>
+
+      {/* System Health — SUPERADMIN only, client component fetches /api/system/ini */}
+      <SystemHealthPanel />
 
       <div style={{ marginBottom: 40 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>

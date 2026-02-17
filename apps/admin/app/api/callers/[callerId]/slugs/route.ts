@@ -101,34 +101,56 @@ export async function GET(
       },
     });
 
-    // Load playbook for this caller's domain
+    // Load playbook — enrollment-first, then domain fallback
     let playbook = null;
     let playbookSpecs: any[] = [];
     const availableSlugNames = new Set<string>();
 
-    if (caller.domainId) {
+    const playbookInclude = {
+      items: {
+        where: { isEnabled: true },
+        include: {
+          spec: true,
+          promptTemplate: {
+            select: {
+              systemPrompt: true,
+              contextTemplate: true,
+            },
+          },
+        },
+      },
+    };
+
+    // 1. Check CallerPlaybook enrollments first
+    const enrollments = await prisma.callerPlaybook.findMany({
+      where: { callerId, status: "ACTIVE" },
+      select: { playbookId: true },
+    });
+
+    if (enrollments.length > 0) {
+      playbook = await prisma.playbook.findFirst({
+        where: {
+          id: { in: enrollments.map(e => e.playbookId) },
+          status: { in: ["PUBLISHED", "DRAFT"] },
+        },
+        orderBy: { status: "asc" },
+        include: playbookInclude,
+      });
+    }
+
+    // 2. Domain fallback (if no enrolled playbooks found)
+    if (!playbook && caller.domainId) {
       playbook = await prisma.playbook.findFirst({
         where: {
           domainId: caller.domainId,
           status: { in: ["PUBLISHED", "DRAFT"] },
         },
         orderBy: { status: "asc" },
-        include: {
-          // curriculum: removed - FK relation no longer exists on Playbook model
-          items: {
-            where: { isEnabled: true },
-            include: {
-              spec: true,
-              promptTemplate: {
-                select: {
-                  systemPrompt: true,
-                  contextTemplate: true,
-                },
-              },
-            },
-          },
-        },
+        include: playbookInclude,
       });
+    }
+
+    if (caller.domainId) {
 
       // Also load system specs
       const systemSpecs = await prisma.analysisSpec.findMany({

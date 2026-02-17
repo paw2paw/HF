@@ -1,22 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AIEngine, AIMessage } from "@/lib/ai/client";
+import { AIEngine, AIMessage, ContentBlock } from "@/lib/ai/client";
 import { getAIConfig } from "@/lib/ai/config-loader";
-import { getConfiguredMeteredAICompletionStream } from "@/lib/metering";
+import { getConfiguredMeteredAICompletionStream, getConfiguredMeteredAICompletion } from "@/lib/metering";
 import { buildSystemPrompt } from "./system-prompts";
 import { executeCommand, parseCommand } from "@/lib/chat/commands";
 import { logAI } from "@/lib/logger";
 import { logAIInteraction } from "@/lib/ai/knowledge-accumulation";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
+import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
+import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
+import { embedText } from "@/lib/embeddings";
+import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
+import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
+import {
+  searchAssertionsHybrid,
+  searchAssertions,
+  searchCallerMemories,
+  formatAssertion,
+} from "@/lib/knowledge/assertions";
 
 export const runtime = "nodejs";
 
-type ChatMode = "CHAT" | "DATA" | "SPEC" | "CALL";
+type ChatMode = "DATA" | "CALL" | "BUG";
 
 interface EntityBreadcrumb {
   type: string;
   id: string;
   label: string;
   data?: Record<string, unknown>;
+}
+
+interface BugContextPayload {
+  url: string;
+  errors: Array<{
+    message: string;
+    source?: string;
+    timestamp: number;
+    status?: number;
+    stack?: string;
+    url?: string;
+  }>;
+  browser: string;
+  viewport: string;
+  timestamp: number;
 }
 
 interface ChatRequest {
@@ -26,7 +53,11 @@ interface ChatRequest {
   conversationHistory?: { role: string; content: string }[];
   isCommand?: boolean;
   engine?: AIEngine;
+  callId?: string; // Active call ID for media message creation in CALL mode
+  bugContext?: BugContextPayload; // Bug report context for BUG mode
 }
+
+const MAX_TOOL_ITERATIONS = 5;
 
 /**
  * @api POST /api/chat
@@ -34,12 +65,13 @@ interface ChatRequest {
  * @scope chat:send
  * @auth session
  * @tags chat
- * @description Sends a message to the AI chat assistant. Supports multiple modes (CHAT, DATA, SPEC, CALL) with mode-specific system prompts. Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
+ * @description Sends a message to the AI chat assistant. Supports DATA mode (tool calling for database queries and spec updates), CALL mode (voice call simulation with content sharing), and BUG mode (bug diagnosis with source code awareness). Returns a streaming text response. Handles slash commands separately. Logs interactions for AI knowledge accumulation.
  * @body message string - User message text (required)
- * @body mode string - Chat mode: "CHAT" | "DATA" | "SPEC" | "CALL"
+ * @body mode string - Chat mode: "DATA" | "CALL" | "BUG"
  * @body entityContext EntityBreadcrumb[] - Current UI context breadcrumbs
  * @body conversationHistory object[] - Previous conversation messages
  * @body engine string - AI engine to use (optional, uses default if not specified)
+ * @body bugContext object - Bug report context for BUG mode (url, errors, browser, viewport, timestamp)
  * @response 200 text/plain (streaming response)
  * @response 400 { ok: false, error: "Message is required" }
  * @response 500 { ok: false, error: "...", errorCode: "BILLING" | "AUTH" | "RATE_LIMIT" | ... }
@@ -48,9 +80,10 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth("OPERATOR");
     if (isAuthError(authResult)) return authResult.error;
+    const userRole = authResult.session.user.role;
 
     const body: ChatRequest = await request.json();
-    const { message, mode, entityContext, conversationHistory = [], engine } = body;
+    const { message, mode, entityContext, conversationHistory = [], engine, callId: requestCallId, bugContext } = body;
 
     if (!message?.trim()) {
       return NextResponse.json({ ok: false, error: "Message is required" }, { status: 400 });
@@ -64,10 +97,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Build mode-specific system prompt
-    const systemPrompt = await buildSystemPrompt(mode, entityContext);
+    const systemPrompt = await buildSystemPrompt(mode, entityContext, bugContext);
 
     // Prepare messages with conversation history
-    // Check if the last message in history is already the user's current message (to avoid duplication)
     const lastHistoryMessage = conversationHistory[conversationHistory.length - 1];
     const isUserMessageInHistory = lastHistoryMessage?.role === "user" && lastHistoryMessage?.content === message.trim();
 
@@ -77,52 +109,223 @@ export async function POST(request: NextRequest) {
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
-      // Only add user message if it's not already at the end of history
       ...(isUserMessageInHistory ? [] : [{ role: "user" as const, content: message.trim() }]),
     ];
 
-    // @ai-call chat.{chat|data|spec|call} — Streaming chat per mode | config: /x/ai-config
+    // @ai-call chat.{data|call} — Chat per mode (DATA with tools, CALL with voice sim) | config: /x/ai-config
     const callPoint = `chat.${mode.toLowerCase()}`;
     const aiConfig = await getAIConfig(callPoint);
     const selectedEngine = engine || aiConfig.provider;
 
-    const { stream: meteredStream, model } = await getConfiguredMeteredAICompletionStream(
+    // DATA mode: use tool calling with non-streaming loop
+    if (mode === "DATA") {
+      const userId = authResult.session.user.id;
+      return await handleDataModeWithTools(messages, callPoint, engine, selectedEngine, mode, message, entityContext, conversationHistory, userRole, userId);
+    }
+
+    // CALL mode: per-turn knowledge retrieval (matches what VAPI does live)
+    if (mode === "CALL") {
+      const callerEntity = entityContext.find((e) => e.type === "caller");
+
+      // Retrieve relevant knowledge for this message (fire-and-forget on error)
+      const knowledgeBlock = await retrieveSimKnowledge(message, callerEntity?.id, conversationHistory);
+      if (knowledgeBlock && messages[0]?.role === "system" && typeof messages[0].content === "string") {
+        messages[0].content += knowledgeBlock;
+      }
+
+      if (callerEntity && requestCallId) {
+        return await handleCallModeWithTools(
+          messages, callPoint, engine, selectedEngine, mode, message,
+          entityContext, conversationHistory, callerEntity.id, requestCallId
+        );
+      }
+
+      // @ai-call chat.call — Streaming CALL mode (no callId) | config: /x/ai-config
+      const { stream: meteredStream } = await getConfiguredMeteredAICompletionStream(
+        {
+          callPoint,
+          engineOverride: engine,
+          messages,
+        },
+        { sourceOp: callPoint }
+      );
+
+      logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext);
+
+      return new Response(meteredStream, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+          "X-Chat-Mode": mode,
+          "X-AI-Engine": selectedEngine,
+        },
+      });
+    }
+
+    // BUG mode: streaming diagnosis, no tool calling
+    if (mode === "BUG") {
+      // @ai-call chat.bug — Bug diagnosis with code context | config: /x/ai-config
+      const callPoint = "chat.bug";
+
+      const { stream: meteredStream } = await getConfiguredMeteredAICompletionStream(
+        {
+          callPoint,
+          engineOverride: engine,
+          messages,
+        },
+        { sourceOp: callPoint }
+      );
+
+      logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext);
+
+      return new Response(meteredStream, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+          "X-Chat-Mode": mode,
+          "X-AI-Engine": selectedEngine,
+        },
+      });
+    }
+
+    // Should not reach here
+    return NextResponse.json({ ok: false, error: "Invalid chat mode" }, { status: 400 });
+  } catch (error) {
+    console.error("Chat API error:", error);
+    const errorMessage = parseAIError(error);
+    return NextResponse.json(
+      { ok: false, error: errorMessage, errorCode: getErrorCode(error) },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DATA mode with tool calling.
+ * Uses non-streaming for the tool loop, then returns final text.
+ */
+async function handleDataModeWithTools(
+  messages: AIMessage[],
+  callPoint: string,
+  engine: AIEngine | undefined,
+  selectedEngine: string,
+  mode: ChatMode,
+  message: string,
+  entityContext: EntityBreadcrumb[],
+  conversationHistory: { role: string; content: string }[],
+  userRole: string,
+  userId: string,
+): Promise<Response> {
+  const loopMessages: AIMessage[] = [...messages];
+  let toolCallCount = 0;
+  let finalContent = "";
+
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    // @ai-call chat.data — Non-streaming with tools | config: /x/ai-config
+    const response = await getConfiguredMeteredAICompletion(
+      {
+        callPoint,
+        engineOverride: engine,
+        messages: loopMessages,
+        tools: ADMIN_TOOLS,
+      },
+      { sourceOp: `${callPoint}.tools` }
+    );
+
+    // If no tool calls, we're done
+    if (!response.toolUses || response.toolUses.length === 0) {
+      finalContent = response.content;
+      break;
+    }
+
+    // Model wants to use tools
+    toolCallCount += response.toolUses.length;
+
+    // Add assistant's response (with tool_use blocks) to the conversation
+    loopMessages.push({
+      role: "assistant",
+      content: response.rawContentBlocks || [{ type: "text", text: response.content }],
+    });
+
+    // Execute each tool and collect results
+    const toolResultBlocks: ContentBlock[] = [];
+    for (const toolUse of response.toolUses) {
+      console.log(`[chat-tools] Executing tool: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
+      const result = await executeAdminTool(toolUse.name, toolUse.input, userRole as any, { userId });
+      toolResultBlocks.push({
+        type: "tool_result",
+        tool_use_id: toolUse.id,
+        content: result,
+      });
+    }
+
+    // Add tool results as a user message
+    loopMessages.push({
+      role: "user",
+      content: toolResultBlocks,
+    });
+  }
+
+  // If loop exhausted without final content, use the last response
+  if (!finalContent) {
+    finalContent = "I used several tools but couldn't complete the request. Please try again with a more specific question.";
+  }
+
+  logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext, toolCallCount);
+
+  // Return as streaming-style response for consistency with other modes
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(finalContent));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "X-Chat-Mode": mode,
+      "X-AI-Engine": selectedEngine,
+      "X-Tool-Calls": toolCallCount.toString(),
+    },
+  });
+}
+
+/**
+ * CALL mode with content sharing tools.
+ * Checks if teaching materials are available; if so, enables share_content tool.
+ * Uses non-streaming for the tool loop, then returns final text as a stream.
+ */
+async function handleCallModeWithTools(
+  messages: AIMessage[],
+  callPoint: string,
+  engine: AIEngine | undefined,
+  selectedEngine: string,
+  mode: ChatMode,
+  message: string,
+  entityContext: EntityBreadcrumb[],
+  conversationHistory: { role: string; content: string }[],
+  callerId: string,
+  callId: string,
+): Promise<Response> {
+  // Check if there's any content to share
+  const catalog = await buildContentCatalog(callerId);
+
+  // No content available — fall back to standard streaming (no tools needed)
+  if (!catalog) {
+    // @ai-call chat.call — Streaming CALL mode (no content catalog) | config: /x/ai-config
+    const { stream: meteredStream } = await getConfiguredMeteredAICompletionStream(
       {
         callPoint,
         engineOverride: engine,
         messages,
-        maxTokens: mode === "CALL" ? 300 : 2000,
-        temperature: mode === "CALL" ? 0.85 : 0.7,
       },
       { sourceOp: callPoint }
     );
 
-    // Log the chat request (response is streamed so we log metadata only)
-    const promptSummary = `[${mode}] ${message.slice(0, 200)}${message.length > 200 ? "..." : ""}`;
-    logAI("chat", promptSummary, "(streaming)", {
-      mode,
-      engine: selectedEngine,
-      messageLength: message.length,
-      historyLength: conversationHistory.length,
-      entityContext: entityContext.map((e) => `${e.type}:${e.id}`).join(", "),
-    });
-
-    // Log for AI knowledge accumulation (in background)
-    const entityInfo = entityContext.length > 0 ? entityContext[0] : null;
-    logAIInteraction({
-      callPoint: `chat.${mode.toLowerCase()}`,
-      userMessage: message,
-      aiResponse: "(streaming response)",
-      outcome: "success",
-      metadata: {
-        mode,
-        entityType: entityInfo?.type,
-        entityId: entityInfo?.id,
-        action: "chat",
-        model: selectedEngine, // e.g., "anthropic", "openai"
-        provider: selectedEngine,
-      },
-    }).catch(console.error);
+    logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext);
 
     return new Response(meteredStream, {
       headers: {
@@ -132,21 +335,210 @@ export async function POST(request: NextRequest) {
         "X-AI-Engine": selectedEngine,
       },
     });
-  } catch (error) {
-    console.error("Chat API error:", error);
-
-    // Parse AI provider-specific errors for better messaging
-    const errorMessage = parseAIError(error);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: errorMessage,
-        errorCode: getErrorCode(error),
-      },
-      { status: 500 }
-    );
   }
+
+  // Inject content catalog into system prompt
+  const systemMsg = messages[0];
+  if (systemMsg?.role === "system" && typeof systemMsg.content === "string") {
+    systemMsg.content += catalog;
+  }
+
+  // Tool loop (same pattern as DATA mode)
+  const loopMessages: AIMessage[] = [...messages];
+  let toolCallCount = 0;
+  let finalContent = "";
+  const toolCtx = { callerId, callId };
+
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    // @ai-call chat.call — Non-streaming with content tools | config: /x/ai-config
+    const response = await getConfiguredMeteredAICompletion(
+      {
+        callPoint,
+        engineOverride: engine,
+        messages: loopMessages,
+        tools: CHAT_TOOLS,
+      },
+      { sourceOp: `${callPoint}.tools`, callerId, callId }
+    );
+
+    // No tool calls — done
+    if (!response.toolUses || response.toolUses.length === 0) {
+      finalContent = response.content;
+      break;
+    }
+
+    toolCallCount += response.toolUses.length;
+
+    // Add assistant's response to conversation
+    loopMessages.push({
+      role: "assistant",
+      content: response.rawContentBlocks || [{ type: "text", text: response.content }],
+    });
+
+    // Execute tools and collect results
+    const toolResultBlocks: ContentBlock[] = [];
+    for (const toolUse of response.toolUses) {
+      console.log(`[chat-tools:call] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
+      const result = await executeToolCall(toolUse, toolCtx);
+      toolResultBlocks.push({
+        type: "tool_result",
+        tool_use_id: result.tool_use_id,
+        content: result.content,
+        ...(result.is_error ? { is_error: true } : {}),
+      });
+    }
+
+    loopMessages.push({
+      role: "user",
+      content: toolResultBlocks,
+    });
+  }
+
+  if (!finalContent) {
+    finalContent = "Let me continue our conversation.";
+  }
+
+  logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext, toolCallCount);
+
+  // Return as streaming-style response
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(finalContent));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "X-Chat-Mode": mode,
+      "X-AI-Engine": selectedEngine,
+      "X-Tool-Calls": toolCallCount.toString(),
+    },
+  });
+}
+
+/**
+ * Per-turn knowledge retrieval for sim calls.
+ * Mirrors what VAPI gets via /api/vapi/knowledge on every conversation turn.
+ * Returns a formatted text block to append to the system prompt, or null.
+ */
+async function retrieveSimKnowledge(
+  message: string,
+  callerId: string | undefined,
+  conversationHistory: { role: string; content: string }[],
+): Promise<string | null> {
+  try {
+    // Load retrieval settings (30s cache)
+    const ks = await getKnowledgeRetrievalSettings();
+
+    // Build query from last N user messages (same as VAPI endpoint)
+    const recentUserMessages = conversationHistory
+      .filter((m) => m.role === "user")
+      .slice(-(ks.queryMessageCount - 1))
+      .map((m) => m.content);
+    recentUserMessages.push(message);
+    const queryText = recentUserMessages.join(" ");
+
+    if (!queryText.trim()) return null;
+
+    // Embed query text for vector search
+    let queryEmbedding: number[] | undefined;
+    try {
+      queryEmbedding = await embedText(queryText);
+    } catch {
+      // Fall back to keyword-only — don't block the sim call
+    }
+
+    // Run retrieval strategies in parallel
+    const [knowledgeResults, assertionResults, memoryResults] = await Promise.all([
+      retrieveKnowledgeForPrompt({
+        queryText,
+        queryEmbedding,
+        callerId,
+        limit: ks.chunkLimit,
+        minRelevance: ks.minRelevance,
+      }),
+      queryEmbedding
+        ? searchAssertionsHybrid(queryText, queryEmbedding, ks.assertionLimit, ks.minRelevance)
+        : searchAssertions(queryText, ks.assertionLimit),
+      callerId ? searchCallerMemories(callerId, queryText, ks.memoryLimit) : Promise.resolve([]),
+    ]);
+
+    // Format results
+    const lines: string[] = [];
+
+    for (const a of assertionResults) {
+      lines.push(formatAssertion(a));
+    }
+    for (const k of knowledgeResults) {
+      lines.push(k.title ? `[${k.title}] ${k.content}` : k.content);
+    }
+    for (const m of memoryResults) {
+      lines.push(`[Memory] ${m.key}: ${m.value}`);
+    }
+
+    if (lines.length === 0) return null;
+
+    // Sort by relevance already done in individual searches
+    const allResults = [
+      ...assertionResults.map((a) => ({ text: formatAssertion(a), score: a.relevanceScore })),
+      ...knowledgeResults.map((k) => ({ text: k.title ? `[${k.title}] ${k.content}` : k.content, score: k.relevanceScore })),
+      ...memoryResults.map((m) => ({ text: `[Memory] ${m.key}: ${m.value}`, score: m.relevanceScore })),
+    ];
+    allResults.sort((a, b) => b.score - a.score);
+    const top = allResults.slice(0, ks.topResults);
+
+    console.log(
+      `[sim/knowledge] ${top.length} results ` +
+        `(assertions: ${assertionResults.length}, chunks: ${knowledgeResults.length}, memories: ${memoryResults.length}, vector: ${!!queryEmbedding})`,
+    );
+
+    return `\n\n[RELEVANT TEACHING MATERIAL FOR THIS TURN]\nUse the following content to inform your response. Reference specific facts when relevant.\n${top.map((r) => `- ${r.text}`).join("\n")}`;
+  } catch (err) {
+    console.warn("[sim/knowledge] Retrieval failed, continuing without:", err);
+    return null;
+  }
+}
+
+/**
+ * Log chat request metadata
+ */
+function logChatRequest(
+  mode: string,
+  message: string,
+  selectedEngine: string,
+  conversationHistory: { role: string; content: string }[],
+  entityContext: EntityBreadcrumb[],
+  toolCalls?: number,
+) {
+  const promptSummary = `[${mode}] ${message.slice(0, 200)}${message.length > 200 ? "..." : ""}`;
+  logAI("chat", promptSummary, "(streaming)", {
+    mode,
+    engine: selectedEngine,
+    messageLength: message.length,
+    historyLength: conversationHistory.length,
+    entityContext: entityContext.map((e) => `${e.type}:${e.id}`).join(", "),
+    ...(toolCalls ? { toolCalls } : {}),
+  });
+
+  const entityInfo = entityContext.length > 0 ? entityContext[0] : null;
+  logAIInteraction({
+    callPoint: `chat.${mode.toLowerCase()}`,
+    userMessage: message,
+    aiResponse: "(streaming response)",
+    outcome: "success",
+    metadata: {
+      entityType: entityInfo?.type,
+      entityId: entityInfo?.id,
+      action: "chat",
+      model: selectedEngine,
+      provider: selectedEngine,
+      ...(toolCalls ? { toolCalls } : {}),
+    },
+  }).catch(console.error);
 }
 
 /**
@@ -159,37 +551,25 @@ function parseAIError(error: unknown): string {
 
   const message = error.message.toLowerCase();
 
-  // Anthropic billing errors
   if (message.includes("credit balance is too low")) {
     return "Anthropic API credits exhausted. Please add credits at console.anthropic.com or switch to OpenAI in AI Config.";
   }
-
-  // API key errors
   if (message.includes("api key") || message.includes("authentication") || message.includes("unauthorized")) {
     return "API key invalid or not configured. Check your .env.local file.";
   }
-
-  // Rate limiting
   if (message.includes("rate limit") || message.includes("too many requests")) {
     return "Rate limited by AI provider. Please wait a moment and try again.";
   }
-
-  // Model errors
   if (message.includes("model") && (message.includes("not found") || message.includes("does not exist"))) {
     return "AI model not available. Check AI Config settings.";
   }
-
-  // Network errors
   if (message.includes("network") || message.includes("econnrefused") || message.includes("timeout")) {
     return "Network error connecting to AI provider. Check your internet connection.";
   }
-
-  // Content policy
   if (message.includes("content policy") || message.includes("safety")) {
     return "Message blocked by AI safety filters.";
   }
 
-  // Return the original message if no specific pattern matched
   return error.message;
 }
 

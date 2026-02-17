@@ -4,21 +4,73 @@ import React, { Suspense, useEffect, useState, useRef, useCallback } from 'react
 import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
-import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript } from '@/contexts';
+import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding, ViewModeProvider } from '@/contexts';
+import { TerminologyProvider } from '@/contexts/TerminologyContext';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
 import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
-import { GuidanceBridge } from '@/src/components/shared/GuidanceBridge';
+import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
+import EnvironmentBanner, { envSidebarColor, envSidebarWidth, envLabel } from '@/components/shared/EnvironmentBanner';
+import MasqueradeBanner, { MASQUERADE_BANNER_HEIGHT, MASQUERADE_COLOR } from '@/components/shared/MasqueradeBanner';
+import { TourOverlay } from '@/src/components/shared/TourOverlay';
+import { ErrorCaptureProvider } from '@/contexts/ErrorCaptureContext';
+import { BugReportButton } from '@/components/shared/BugReportButton';
 import { useResponsive } from '@/hooks/useResponsive';
-import { Menu } from 'lucide-react';
+import { Menu, PanelLeft } from 'lucide-react';
 import './globals.css';
+
+/** Error boundary to catch page-level crashes while keeping floating widgets alive */
+class PageErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, textAlign: "center" }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>
+            Something went wrong
+          </h2>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
+            {this.state.error.message}
+          </p>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            Try again
+          </button>
+          <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 12 }}>
+            Use the Bug Report button to send this error to Claude for diagnosis.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const SIDEBAR_WIDTH_KEY = 'hf.sidebar.width';
 const DEFAULT_SIDEBAR_WIDTH = 180;
 const MIN_SIDEBAR_WIDTH = 140;
 const MAX_SIDEBAR_WIDTH = 320;
-const COLLAPSED_WIDTH = 56;
+const COLLAPSED_WIDTH = 0;
 
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
@@ -31,6 +83,12 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const { isOpen, chatLayout } = useChatContext();
   const { isMobile, showDesktop } = useResponsive();
+  const { isMasquerading } = useMasquerade();
+  const { branding } = useBranding();
+
+  // Hydration guard is now centralized in MasqueradeContext — isMasquerading
+  // is always false until after mount, so all consumers are automatically safe.
+  const showMasqueradeChrome = isMasquerading;
 
   // Embed mode - render without sidebar/chrome (for iframes)
   const isEmbed = searchParams.get('embed') === '1';
@@ -139,15 +197,24 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Sidebar width config
   const effectiveSidebarWidth = collapsed ? COLLAPSED_WIDTH : sidebarWidth;
 
+  // Height accounts for fixed banners (MasqueradeBanner only — env banner removed)
+  const bannerHeight = showMasqueradeChrome ? MASQUERADE_BANNER_HEIGHT : 0;
+  const layoutHeight = bannerHeight > 0 ? `calc(100vh - ${bannerHeight}px)` : '100vh';
+
   // Auth pages, embed mode, and sim pages render without sidebar/chrome
   if (isAuthPage || isEmbed || isSimPage) {
     return <>{children}</>;
   }
 
+  // Masquerade border — visible purple frame around the viewport
+  const masqueradeBorderStyle: React.CSSProperties = showMasqueradeChrome
+    ? { boxShadow: `inset 0 0 0 3px ${MASQUERADE_COLOR}` }
+    : {};
+
   // Mobile layout (< 768px, not forced desktop mode)
   if (isMobile && !showDesktop) {
     return (
-      <div className="h-screen flex flex-col">
+      <div className="flex flex-col" style={{ height: layoutHeight, ...masqueradeBorderStyle }}>
         {/* Mobile header with hamburger */}
         <header
           className="h-14 border-b flex items-center px-4 gap-3 flex-shrink-0"
@@ -163,9 +230,13 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           >
             <Menu className="w-5 h-5" style={{ color: 'var(--text-primary)' }} />
           </button>
-          <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
-            HumanFirst
-          </span>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={branding.name} style={{ height: 28 }} />
+          ) : (
+            <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+              {branding.name}
+            </span>
+          )}
         </header>
 
         {/* Mobile sidebar overlay */}
@@ -182,6 +253,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               style={{
                 background: 'var(--surface-primary)',
                 borderRight: '1px solid var(--border-default)',
+                borderLeft: envSidebarColor ? `${envSidebarWidth}px solid ${envSidebarColor}` : undefined,
               }}
             >
               <div className="h-full px-2 py-4">
@@ -207,14 +279,41 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Desktop layout (current grid)
   return (
     <div
-      className="grid h-screen"
+      className="grid relative"
       style={{
+        height: layoutHeight,
         gridTemplateColumns: `${effectiveSidebarWidth}px 1fr`,
-        transition: isResizing ? 'none' : 'grid-template-columns 150ms ease-out',
+        gridTemplateRows: '1fr',
+        transition: isResizing ? 'none' : 'grid-template-columns 200ms ease-out',
+        ...masqueradeBorderStyle,
       }}
     >
+      {/* Floating sidebar open button when fully hidden */}
+      {collapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          className="absolute top-4 left-3 z-30 flex h-8 w-8 items-center justify-center rounded-md transition-all hover:bg-[var(--hover-bg)]"
+          style={{
+            background: 'var(--surface-primary)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+          }}
+          aria-label="Open sidebar"
+          title="Open sidebar"
+        >
+          <PanelLeft className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+        </button>
+      )}
+
       {/* Sidebar */}
-      <aside className="relative h-screen overflow-hidden border-r bg-[var(--surface-primary)]" style={{ borderColor: "var(--border-subtle)" }}>
+      <aside
+        className="relative h-full overflow-hidden"
+        style={{
+          background: 'var(--surface-primary)',
+          borderRight: collapsed ? 'none' : '1px solid var(--border-subtle)',
+          borderLeft: envSidebarColor ? `${envSidebarWidth}px solid ${envSidebarColor}` : undefined,
+        }}
+      >
         <div className="h-full px-2 py-4">
           <SimpleSidebarNav
             collapsed={collapsed}
@@ -242,13 +341,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className="flex h-screen min-w-0 flex-col transition-all duration-200"
+        className="h-full min-w-0 overflow-auto transition-all duration-200"
         style={getMainStyle()}
       >
-        <div className="flex-1 overflow-auto">
-          <div className="mx-auto px-8 py-6" style={{ maxWidth: '1200px' }}>
-            {children}
-          </div>
+        <div className="py-6" style={{ paddingLeft: collapsed ? 56 : 32, paddingRight: 32 }}>
+          {children}
         </div>
       </main>
     </div>
@@ -269,28 +366,44 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased">
+        <EnvironmentBanner />
+        <ErrorCaptureProvider>
         <ThemeProvider>
           <PaletteProvider>
             <SessionProvider>
+              <BrandingProvider>
+              <TerminologyProvider>
+              <MasqueradeProvider>
+              <ViewModeProvider>
+              <MasqueradeBanner />
               <EntityProvider>
                 <GuidanceProvider>
                   <ChatProvider>
                     <GlobalAssistantProvider>
-                      <GuidanceBridge />
-                      <Suspense fallback={null}>
-                        <LayoutInner>{children}</LayoutInner>
-                      </Suspense>
-                      {/* Old AI Chat Panel (Deprecated - use GlobalAssistant instead) */}
-                      {/* <ChatPanel /> */}
-                      {/* New Unified AI Assistant (Cmd+K) - includes search & all features */}
-                      <GlobalAssistant />
+                      <ContentJobQueueProvider>
+                        <TourOverlay />
+                        <PageErrorBoundary>
+                          <Suspense fallback={null}>
+                            <LayoutInner>{children}</LayoutInner>
+                          </Suspense>
+                        </PageErrorBoundary>
+                        {/* Floating widgets — outside PageErrorBoundary so they survive page crashes */}
+                        <GlobalAssistant />
+                        <ContentJobQueue />
+                        <BugReportButton />
+                      </ContentJobQueueProvider>
                     </GlobalAssistantProvider>
                   </ChatProvider>
                 </GuidanceProvider>
               </EntityProvider>
+              </ViewModeProvider>
+              </MasqueradeProvider>
+              </TerminologyProvider>
+              </BrandingProvider>
             </SessionProvider>
           </PaletteProvider>
         </ThemeProvider>
+        </ErrorCaptureProvider>
       </body>
     </html>
   );

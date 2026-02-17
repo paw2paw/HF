@@ -23,6 +23,8 @@
 import { MemoryCategory, MemorySource } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMemorySettings } from "@/lib/system-settings";
+import type { SpecConfig } from "@/lib/types/json-fields";
+import type { AIEngine } from "@/lib/ai/client";
 
 // Config loaded from MEMORY_TAXONOMY spec
 interface MemoryTaxonomyConfig {
@@ -127,7 +129,7 @@ async function loadTaxonomyConfig(): Promise<MemoryTaxonomyConfig> {
     return DEFAULT_TAXONOMY_CONFIG;
   }
 
-  const config = spec.config as any;
+  const config = spec.config as SpecConfig;
   cachedTaxonomyConfig = {
     keyNormalization: config.keyNormalization ?? DEFAULT_TAXONOMY_CONFIG.keyNormalization,
     categoryMappings: config.categoryMappings ?? DEFAULT_TAXONOMY_CONFIG.categoryMappings,
@@ -624,7 +626,7 @@ Return JSON array:
   }
 
   // ALL config from MEM-001 spec — zero hardcoding
-  const specConfig = (spec.config as any) || {};
+  const specConfig = (spec.config as SpecConfig) || {};
   const llmConfig = specConfig.llmConfig || {};
   const memSettings = await getMemorySettings();
   const transcriptTruncateLength = specConfig.transcriptTruncateLength || memSettings.transcriptLimitChars;
@@ -665,7 +667,7 @@ Return JSON array:
     // @ai-call pipeline.learn — Extract memories/facts from transcript | config: /x/ai-config
     const result = await getConfiguredMeteredAICompletion({
       callPoint: "pipeline.learn",
-      engineOverride: (llmConfig.engine as any) || undefined,
+      engineOverride: llmConfig.engine as AIEngine || undefined,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: fullPrompt },
@@ -691,7 +693,7 @@ Return JSON array:
           outcome: "failure",
           metadata: { action: "extract", entityType: "spec", entityId: spec.slug },
         });
-      }).catch(() => {});
+      }).catch((e) => console.warn("[memory-extract] Failed to log AI interaction:", e));
       return extractMemoriesFromPatterns(transcript, verbose);
     }
 
@@ -720,7 +722,7 @@ Return JSON array:
         outcome: "failure",
         metadata: { action: "extract", entityType: "spec", entityId: spec.slug },
       });
-    }).catch(() => {});
+    }).catch((e) => console.warn("[memory-extract] Failed to log AI interaction:", e));
     return extractMemoriesFromPatterns(transcript, verbose);
   }
 }
@@ -799,7 +801,7 @@ async function extractMemoriesFromPatterns(
           value: value,
           evidence: match[0],
           confidence: 0.7 + Math.random() * 0.2,
-          expiresInDays: (pattern as any).expiresInDays,
+          expiresInDays: (pattern as Record<string, unknown>).expiresInDays as number | undefined,
         });
       }
     }

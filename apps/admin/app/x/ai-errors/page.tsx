@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 interface Failure {
   id: string;
@@ -89,6 +90,7 @@ export default function AIErrorsPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--surface-secondary)", padding: 24 }}>
+      <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>

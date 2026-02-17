@@ -7,6 +7,7 @@ import { entityColors } from "@/src/components/shared/uiColors";
 import { useVisualizerSearch } from "@/hooks/useVisualizerSearch";
 import { VisualizerSearch } from "@/components/shared/VisualizerSearch";
 import { drawIconNode, renderIconToCanvas, spriteTextureCache, NodeIcon } from "@/components/shared/VisualizerIcons";
+import { encodeCallerNode, type VisualMode } from "@/lib/graph/visual-encoding";
 
 type CallerNodeType =
   | "caller"
@@ -34,6 +35,12 @@ interface GraphNode {
   details?: NodeDetail[];
   value?: number;
   status?: string;
+  confidence?: number;
+  decayFactor?: number;
+  category?: string;
+  progress?: number;
+  age?: number;
+  scoreCount?: number;
   x?: number;
   y?: number;
   z?: number;
@@ -139,6 +146,7 @@ export default function CallerGraphPage() {
   const [visibleTypes, setVisibleTypes] = useState<Set<CallerNodeType>>(() => new Set(ALL_TYPES));
   const [is3D, setIs3D] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [visualMode, setVisualMode] = useState<VisualMode>("simple");
 
   // Search functionality
   const searchableNodes = useMemo(() =>
@@ -360,30 +368,24 @@ export default function CallerGraphPage() {
         import("three").then((THREE) => {
           graph
             .nodeThreeObject((node: GraphNode) => {
-              const size = nodeSizes[node.type] || 8;
               const color = getNodeColor(node);
-              const cacheKey = `${node.type}:${color}`;
+              const encoded = encodeCallerNode(node, visualMode, nodeSizes[node.type] || 8, color);
+              const cacheKey = `${node.type}:${encoded.color}:${encoded.ring?.color || ""}`;
 
               let texture = spriteTextureCache.get(cacheKey);
               if (!texture) {
-                const canvas = renderIconToCanvas(node.type as CallerNodeType, color);
+                const canvas = renderIconToCanvas(node.type as CallerNodeType, encoded.color, 64, encoded.ring);
                 texture = new THREE.CanvasTexture(canvas);
                 spriteTextureCache.set(cacheKey, texture);
-              }
-
-              // Encode value in opacity for personality nodes
-              let opacity = 0.95;
-              if (node.type === "personality" && node.value !== undefined) {
-                opacity = 0.3 + node.value * 0.7;
               }
 
               const material = new THREE.SpriteMaterial({
                 map: texture,
                 transparent: true,
-                opacity,
+                opacity: encoded.opacity,
               });
               const sprite = new THREE.Sprite(material);
-              sprite.scale.set(size * 1.5, size * 1.5, 1);
+              sprite.scale.set(encoded.radius * 1.5, encoded.radius * 1.5, 1);
               return sprite;
             })
             .nodeOpacity(0.95)
@@ -404,22 +406,18 @@ export default function CallerGraphPage() {
 
             const baseOpacity = isSearching && !isNodeMatch ? 0.15 : 1;
 
-            // Encode value in opacity for personality nodes
+            const color = getNodeColor(node);
+            const encoded = encodeCallerNode(node, visualMode, nodeSizes[node.type] || 8, color);
+
+            // In simple mode, preserve existing personality/goal encoding
             let opacity = baseOpacity;
-            if (node.type === "personality" && node.value !== undefined && baseOpacity === 1) {
-              opacity = 0.3 + node.value * 0.7;
-            }
-            // Goal status encoding
-            if (node.type === "goal" && node.status && baseOpacity === 1) {
-              if (node.status === "PAUSED") opacity = 0.5;
-              else if (node.status === "ARCHIVED") opacity = 0.3;
+            if (baseOpacity === 1) {
+              opacity = encoded.opacity;
             }
 
             ctx.globalAlpha = opacity;
 
-            const size = nodeSizes[node.type] || 8;
-            const color = getNodeColor(node);
-            drawIconNode(ctx, node.type, node.x!, node.y!, size, color);
+            drawIconNode(ctx, node.type, node.x!, node.y!, encoded.radius, encoded.color, encoded.ring);
 
             // Draw label for caller hub node in 2D
             if (node.type === "caller") {
@@ -428,7 +426,7 @@ export default function CallerGraphPage() {
               ctx.font = "bold 5px sans-serif";
               ctx.textAlign = "center";
               ctx.textBaseline = "top";
-              ctx.fillText(node.label, node.x!, node.y! + size + 3);
+              ctx.fillText(node.label, node.x!, node.y! + encoded.radius + 3);
             }
 
             ctx.globalAlpha = 1;
@@ -477,7 +475,7 @@ export default function CallerGraphPage() {
         graphRef.current = null;
       }
     };
-  }, [graphData, is3D, isDarkMode, navigateToEntity, centerOnNode, getNodeColor]);
+  }, [graphData, is3D, isDarkMode, navigateToEntity, centerOnNode, getNodeColor, visualMode]);
 
   // Update visibility
   useEffect(() => {
@@ -648,6 +646,16 @@ export default function CallerGraphPage() {
                 3D
               </button>
             </div>
+            <button
+              onClick={() => setVisualMode(v => v === "simple" ? "rich" : "simple")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${
+                visualMode === "rich"
+                  ? "bg-amber-600 text-white border-amber-500 shadow-inner"
+                  : "bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-600 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+              }`}
+            >
+              Detailed
+            </button>
           </div>
           <div className="flex flex-col gap-1">
             {presentTypes.map(type => {
@@ -655,11 +663,11 @@ export default function CallerGraphPage() {
               const color = nodeColors[type];
               const name = displayNames[type];
               const count = graphData?.counts.byType[type] || 0;
-              const bgColor = isVisible ? `${color}30` : (isDarkMode ? "#262626" : "#f5f5f5");
-              const borderColor = isVisible ? color : (isDarkMode ? "#525252" : "#d4d4d4");
+              const bgColor = isVisible ? `color-mix(in srgb, ${color} 19%, transparent)` : "var(--surface-secondary)";
+              const borderColor = isVisible ? color : "var(--border-strong)";
               const textColor = isVisible
-                ? (isDarkMode ? "#fafafa" : "#171717")
-                : (isDarkMode ? "#a3a3a3" : "#737373");
+                ? "var(--text-primary)"
+                : "var(--text-muted)";
               return (
                 <button
                   key={type}

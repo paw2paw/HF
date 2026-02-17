@@ -8,16 +8,29 @@ export default async function SuperadminDashboard() {
     callersCount = 0,
     specsCount = 0,
     parametersCount = 0;
+  let recentCalls: Array<{ id: string; createdAt: Date; caller: { id: string; name: string | null } | null }> = [];
 
   try {
-    const counts = await Promise.all([
-      prisma.domain.count().catch(() => 0),
-      prisma.playbook.count().catch(() => 0),
-      prisma.caller.count().catch(() => 0),
-      prisma.analysisSpec.count().catch(() => 0),
-      prisma.parameter.count().catch(() => 0),
+    const [counts, calls] = await Promise.all([
+      Promise.all([
+        prisma.domain.count().catch(() => 0),
+        prisma.playbook.count().catch(() => 0),
+        prisma.caller.count().catch(() => 0),
+        prisma.analysisSpec.count().catch(() => 0),
+        prisma.parameter.count().catch(() => 0),
+      ]),
+      prisma.call.findMany({
+        take: 8,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          createdAt: true,
+          caller: { select: { id: true, name: true } },
+        },
+      }).catch(() => []),
     ]);
     [domainsCount, playbooksCount, callersCount, specsCount, parametersCount] = counts;
+    recentCalls = calls;
   } catch (error) {
     console.warn("Database not fully initialized - showing 0 counts");
   }
@@ -63,7 +76,7 @@ export default async function SuperadminDashboard() {
   ];
 
   return (
-    <div>
+    <div data-tour="welcome">
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
           <div>
@@ -113,6 +126,29 @@ export default async function SuperadminDashboard() {
         ))}
       </div>
 
+      {/* Recent Activity */}
+      <div style={{ marginTop: 40 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Recent Activity</h2>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Latest calls across all callers</p>
+        {recentCalls.length === 0 ? (
+          <div style={{ padding: "20px 16px", background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, textAlign: "center" }}>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No calls yet</p>
+          </div>
+        ) : (
+          <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden" }}>
+            {recentCalls.map((call, i) => (
+              <Link key={call.id} href={`/x/callers/${call.caller?.id}?tab=calls`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: i < recentCalls.length - 1 ? "1px solid var(--border-subtle)" : "none", textDecoration: "none", transition: "background 0.15s" }} className="home-recent-row">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-success-text)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{call.caller?.name || "Unknown Caller"}</span>
+                </div>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(call.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid var(--border-subtle)", display: "flex", gap: 24, justifyContent: "center" }}>
         {[
           { href: "/x/pipeline", icon: "📜", label: "Run History" },
@@ -130,6 +166,7 @@ export default async function SuperadminDashboard() {
         .home-stat-card:hover { border-color: var(--button-primary-bg) !important; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1); transform: translateY(-2px); }
         .home-action-card:hover { border-color: var(--button-primary-bg) !important; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1); transform: translateY(-2px); }
         .home-action-card:hover > div:nth-child(2) { color: var(--button-primary-bg) !important; }
+        .home-recent-row:hover { background: var(--hover-bg) !important; }
         .home-footer-link:hover { color: var(--button-primary-bg) !important; }
         @media (max-width: 768px) {
           div[style*="gridTemplateColumns: repeat(5"] { grid-template-columns: repeat(3, 1fr) !important; }
