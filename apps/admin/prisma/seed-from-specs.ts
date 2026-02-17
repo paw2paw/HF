@@ -43,7 +43,12 @@ import {
 } from "../lib/fallback-settings";
 import { slimParameters, slimSummary } from "../lib/bdd/spec-slim";
 
-const prisma = new PrismaClient();
+let prisma = new PrismaClient();
+
+/** Allow external callers (e.g. seed-full.ts) to share a single PrismaClient */
+export function setPrismaClient(client: PrismaClient) {
+  prisma = client;
+}
 
 // Path to spec files (archived — only used for initial import/seeding)
 function getSpecsFolder(): string {

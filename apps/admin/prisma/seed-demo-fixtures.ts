@@ -22,7 +22,7 @@
 
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 // ── Demo transcripts ────────────────────────────────
 
@@ -69,7 +69,8 @@ const DEMO_MEMORIES: Array<{
 
 // ── Main ────────────────────────────────────────────
 
-async function main() {
+export async function main(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
   console.log("\n=== Seeding Demo Fixtures ===\n");
 
   // 1. Create/update QM Tutor domain
@@ -309,9 +310,11 @@ async function main() {
   console.log("\n=== Demo Fixtures Complete ===\n");
 }
 
-main()
-  .catch((e) => {
-    console.error("Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("Seed failed:", e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

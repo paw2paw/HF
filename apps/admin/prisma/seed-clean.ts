@@ -18,10 +18,10 @@ import * as fs from "fs";
 import * as path from "path";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
-import { seedFromSpecs, loadSpecFiles } from "./seed-from-specs";
+import { seedFromSpecs, loadSpecFiles, setPrismaClient } from "./seed-from-specs";
 import { config } from "../lib/config";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 // =============================================================================
 // CONFIGURATION
@@ -321,9 +321,12 @@ async function createInfrastructure() {
 // MAIN
 // =============================================================================
 
-async function main() {
+export async function main(externalPrisma?: PrismaClient, opts?: { reset?: boolean }) {
+  prisma = externalPrisma || new PrismaClient();
+  setPrismaClient(prisma);
+
   const args = process.argv.slice(2);
-  const shouldReset = args.includes("--reset") || args.includes("-r");
+  const shouldReset = opts?.reset ?? (args.includes("--reset") || args.includes("-r"));
   const seedMode = config.seed.mode;
   const isProd = config.seed.isProd;
 
@@ -376,9 +379,11 @@ async function main() {
   console.log("\n  Next: Go to /x to configure playbooks and generate prompts\n");
 }
 
-main()
-  .catch((e) => {
-    console.error("❌ Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("❌ Seed failed:", e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

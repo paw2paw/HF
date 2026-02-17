@@ -19,7 +19,9 @@
 
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
+
+export { main };
 
 const E2E_MEMORIES: Array<{
   category: "FACT" | "PREFERENCE" | "TOPIC" | "CONTEXT";
@@ -68,7 +70,8 @@ AI: Great choice! Let's start with the basics. An equation is like a balanced sc
 User: I know that x + 5 = 10 means x is 5.
 AI: Exactly! You've solved your first equation by isolating the variable. Let's try something slightly more challenging next.`;
 
-async function main() {
+async function main(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
   console.log("\n=== Seeding E2E Test Fixtures ===\n");
 
   // 1. Create/update E2E domain
@@ -265,9 +268,11 @@ async function main() {
   console.log("\n=== E2E Fixtures Complete ===\n");
 }
 
-main()
-  .catch((e) => {
-    console.error("E2E seed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("E2E seed failed:", e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

@@ -4,6 +4,9 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useBranding } from "@/contexts/BrandingContext";
+import { showEnvBanner, envSidebarColor, envLabel } from "@/components/shared/EnvironmentBanner";
+
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -43,6 +46,21 @@ export default function LoginPage() {
 
   return (
     <div className="login-card w-full max-w-md">
+      {/* Environment Banner — non-prod only */}
+      {showEnvBanner && envSidebarColor && envLabel && (
+        <div
+          className="mb-6 rounded-xl px-5 py-3 text-center font-semibold tracking-wide"
+          style={{
+            background: `color-mix(in srgb, ${envSidebarColor} 20%, transparent)`,
+            border: `2px solid ${envSidebarColor}`,
+            color: envSidebarColor,
+          }}
+        >
+          <div className="text-lg">{envLabel} ENVIRONMENT</div>
+          <div className="mt-1 text-xs font-normal opacity-80">v{APP_VERSION}</div>
+        </div>
+      )}
+
       {/* Logo & Brand */}
       <div className="mb-8 text-center">
         {branding.logoUrl ? (

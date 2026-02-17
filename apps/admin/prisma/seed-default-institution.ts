@@ -9,9 +9,10 @@
 
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
-async function main() {
+export async function main(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
   const institution = await prisma.institution.upsert({
     where: { slug: "humanfirst" },
     update: {},
@@ -41,9 +42,11 @@ async function main() {
   console.log(`  Assigned ${cohortResult.count} cohorts`);
 }
 
-main()
-  .catch((e) => {
-    console.error("Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("Seed failed:", e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

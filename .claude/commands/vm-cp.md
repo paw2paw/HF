@@ -12,7 +12,15 @@ git status --short
 
 Show the user what's changed. If there are no changes, tell them and stop.
 
-## 2. Stage and commit
+## 2. Auto version bump
+
+```bash
+cd apps/admin && npx tsx scripts/bump-version.ts
+```
+
+Report the version change (e.g. `Version: 0.5.0 -> 0.5.1`). Stage the bumped `package.json`.
+
+## 3. Stage and commit
 
 Show the diff summary (`git diff --stat`) so the user can see what's being committed.
 
@@ -26,7 +34,7 @@ git commit -m '<message>
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>'
 ```
 
-## 3. Push
+## 4. Push
 
 ```bash
 git push
@@ -34,7 +42,7 @@ git push
 
 If the push is rejected, suggest `git pull --rebase` first.
 
-## 4. Pull on VM
+## 5. Pull on VM
 
 ```bash
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git pull --rebase && cd apps/admin && npm install --prefer-offline"

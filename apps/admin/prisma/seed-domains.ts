@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 /**
  * Seed initial domains for caller segmentation.
@@ -11,7 +11,8 @@ const prisma = new PrismaClient();
  * - Sales: Sales and lead conversations
  * - Wellness: Mental health and wellness coaching
  */
-async function main() {
+export async function main(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
   console.log("Seeding domains...");
 
   const domains = [
@@ -81,11 +82,13 @@ async function main() {
   console.log(`Done. ${count} domains in database.`);
 }
 
-main()
-  .catch((e) => {
-    console.error("Error seeding domains:", e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("Error seeding domains:", e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

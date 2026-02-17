@@ -13,7 +13,7 @@
 
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 const SCHOOLS = [
   {
@@ -48,7 +48,8 @@ const SCHOOLS = [
   },
 ];
 
-async function main() {
+export async function main(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
   console.log("Seeding school institutions...\n");
 
   for (const school of SCHOOLS) {
@@ -160,9 +161,11 @@ async function main() {
   console.log("\nDone!");
 }
 
-main()
-  .catch((e) => {
-    console.error("Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("Seed failed:", e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

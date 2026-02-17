@@ -62,7 +62,7 @@ COPY lib ./lib
 COPY scripts ./scripts
 COPY transcripts ./transcripts
 RUN npx prisma generate
-CMD ["npx", "tsx", "prisma/seed-clean.ts"]
+CMD ["npx", "tsx", "prisma/seed-full.ts"]
 
 # --- Target: migrate — Database migration image -------------------------------
 # Minimal image for running prisma migrate deploy in CI/CD.

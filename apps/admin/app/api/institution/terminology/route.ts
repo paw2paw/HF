@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import {
   resolveTerminology,
   DEFAULT_TERMINOLOGY,
@@ -120,7 +121,7 @@ export async function PATCH(request: NextRequest) {
 
   await prisma.institution.update({
     where: { id: user.institutionId },
-    data: { terminology: terminologyConfig },
+    data: { terminology: terminologyConfig as unknown as Prisma.InputJsonValue },
   });
 
   const resolved = resolveTerminology(terminologyConfig);

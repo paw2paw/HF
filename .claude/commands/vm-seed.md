@@ -1,0 +1,19 @@
+---
+description: Run full seed on hf-dev VM
+---
+
+Run the full seed orchestrator on the hf-dev VM to populate all data.
+
+## 1. Run full seed
+
+```bash
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF/apps/admin && npx tsx prisma/seed-full.ts"
+```
+
+If the SSH command fails with exit code 255, wait 3 seconds and retry once.
+
+## 2. Report results
+
+Parse the output for the verification table (Specs, Parameters, Domains, Institutions, Users, Callers, Calls, CallScores, Memories, Goals, Run Configs) and report to the user.
+
+If the seed fails, show the error and suggest checking the DB connection or running migrations first (`/vm-cpp`).

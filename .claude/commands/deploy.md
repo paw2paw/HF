@@ -50,7 +50,7 @@ cd apps/admin && npx prisma migrate status
 Report: any pending migrations.
 
 ### 4. Seed Scripts
-Verify seed files exist: `prisma/seed-clean.ts`, `prisma/seed-domains.ts`.
+Verify seed files exist: `prisma/seed-full.ts` (orchestrator), `prisma/seed-clean.ts`.
 
 ### 5. Docker
 Check Dockerfile exists and has the 3 targets: `runner`, `seed`, `migrate`.
@@ -64,6 +64,12 @@ All routes must be protected before deploying.
 Report: `Deploy Check: READY (6/6)` or list blockers with fix instructions.
 
 ## Quick Deploy Steps (option 2)
+
+First, auto-bump the version:
+```bash
+cd apps/admin && npx tsx scripts/bump-version.ts
+```
+Stage and commit the version bump, then push.
 
 ```bash
 cd apps/admin

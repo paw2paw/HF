@@ -10,7 +10,7 @@
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 function slugify(name: string): string {
   return name
@@ -21,7 +21,8 @@ function slugify(name: string): string {
     .replace(/-+$/, "");
 }
 
-async function main() {
+export async function main(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
   console.log("De-duplicating existing parameters...\n");
 
   // Get all parameters
@@ -130,11 +131,13 @@ async function main() {
   console.log(`   Tagged as Active: ${taggedActive}`);
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

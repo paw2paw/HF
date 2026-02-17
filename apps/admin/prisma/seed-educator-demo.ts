@@ -27,7 +27,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 // ══════════════════════════════════════════════════════════
 // TYPES
@@ -2014,7 +2014,8 @@ async function createEnrollments(
 // MAIN
 // ══════════════════════════════════════════════════════════
 
-async function main() {
+export async function main(externalPrisma?: PrismaClient) {
+  prisma = externalPrisma || new PrismaClient();
   console.log("\n══════════════════════════════════════════════");
   console.log("  EDUCATOR DEMO SEED");
   console.log("══════════════════════════════════════════════\n");
@@ -2068,9 +2069,11 @@ async function main() {
   console.log(`\n  Login as: j.chen@oakwood.sch.uk / (SEED_ADMIN_PASSWORD)\n`);
 }
 
-main()
-  .catch((e) => {
-    console.error("\nSeed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("\nSeed failed:", e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

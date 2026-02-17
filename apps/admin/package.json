@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.4.0",
+  "version": "0.5.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -52,7 +52,12 @@
     "docs:health:ci": "tsx scripts/doc-health.ts --ci",
     "docs:health:json": "tsx scripts/doc-health.ts --json",
     "snap": "tsx scripts/capture-demo-screenshots.ts",
-    "seed:demo": "tsx prisma/seed-demo-fixtures.ts"
+    "seed:demo": "tsx prisma/seed-demo-fixtures.ts",
+    "db:seed:full": "tsx prisma/seed-full.ts",
+    "db:seed:full:reset": "tsx prisma/seed-full.ts --reset",
+    "version:bump": "tsx scripts/bump-version.ts",
+    "version:bump:minor": "tsx scripts/bump-version.ts --minor",
+    "version:bump:major": "tsx scripts/bump-version.ts --major"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -15,7 +15,7 @@ export const runtime = "nodejs";
  * - SAFE ARGUMENTS ONLY (no shell injection)
  */
 
-type OpRisk = "safe" | "mutates" | "destructive";
+type OpRisk = "safe" | "mutates" | "destructive" | "unknown";
 
 type OpEffects = {
   reads?: string[];
