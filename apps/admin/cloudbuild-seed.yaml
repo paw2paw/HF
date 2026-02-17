@@ -1,0 +1,13 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--target=seed'
+      - '-t'
+      - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest'
+      - '-t'
+      - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:test'
+      - '.'
+images:
+  - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest'
+  - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:test'
