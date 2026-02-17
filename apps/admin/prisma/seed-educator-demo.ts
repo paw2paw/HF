@@ -2069,6 +2069,20 @@ export async function main(externalPrisma?: PrismaClient) {
   });
   console.log("   ✓ Admin user ready: boaz@tal.biz (SUPERADMIN)");
 
+  // Ensure Eldar superadmin exists
+  await prisma.user.upsert({
+    where: { email: "eldar.gilad@gmail.com" },
+    update: { passwordHash: boazHash, role: "SUPERADMIN", isActive: true },
+    create: {
+      email: "eldar.gilad@gmail.com",
+      name: "Eldar Gilad",
+      role: "SUPERADMIN",
+      isActive: true,
+      passwordHash: boazHash,
+    },
+  });
+  console.log("   ✓ Admin user ready: eldar.gilad@gmail.com (SUPERADMIN)");
+
   const subjectMap = await createSubjects();
   await createParameters();
   const schoolMap = await createSchools(subjectMap);

@@ -322,6 +322,20 @@ async function createInfrastructure() {
   });
   console.log(`   ✓ Admin user ready: boaz@tal.biz (SUPERADMIN)`);
 
+  // Ensure Eldar superadmin exists
+  await prisma.user.upsert({
+    where: { email: "eldar.gilad@gmail.com" },
+    update: { passwordHash, role: "SUPERADMIN", isActive: true },
+    create: {
+      email: "eldar.gilad@gmail.com",
+      name: "Eldar Gilad",
+      role: "SUPERADMIN",
+      isActive: true,
+      passwordHash,
+    },
+  });
+  console.log(`   ✓ Admin user ready: eldar.gilad@gmail.com (SUPERADMIN)`);
+
   // NOTE: Default domain and playbook creation removed
   // Use seed-domains.ts and BDD-based seeding for proper domain/playbook setup
   console.log("   ℹ️  Skipping default domain/playbook creation");
