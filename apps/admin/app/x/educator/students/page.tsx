@@ -50,7 +50,8 @@ export default function StudentsPage() {
     ? students.filter(
         (s) =>
           s.name.toLowerCase().includes(search.toLowerCase()) ||
-          s.classroom?.name.toLowerCase().includes(search.toLowerCase())
+          s.classroom?.name.toLowerCase().includes(search.toLowerCase()) ||
+          (!s.classroom && "unassigned".includes(search.toLowerCase()))
       )
     : students;
 
@@ -80,7 +81,10 @@ export default function StudentsPage() {
             Students
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-            {students.length} student{students.length !== 1 ? "s" : ""} across all classrooms
+            {students.length} student{students.length !== 1 ? "s" : ""}
+            {students.some((s) => !s.classroom) && (
+              <> &middot; {students.filter((s) => !s.classroom).length} unassigned</>
+            )}
           </p>
         </div>
         <input
@@ -183,7 +187,18 @@ export default function StudentsPage() {
                           {s.classroom.name}
                         </Link>
                       ) : (
-                        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>—</span>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "#d97706",
+                            padding: "2px 8px",
+                            background: "#fef3c7",
+                            borderRadius: 4,
+                            fontWeight: 500,
+                          }}
+                        >
+                          Unassigned
+                        </span>
                       )}
                     </td>
                     <td style={{ padding: "10px 16px", textAlign: "center", fontSize: 14, color: "var(--text-secondary)" }}>

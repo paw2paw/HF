@@ -3,6 +3,34 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
 
+const studentSelect = {
+  id: true,
+  name: true,
+  email: true,
+  createdAt: true,
+  cohortGroup: { select: { id: true, name: true } },
+  _count: { select: { calls: true } },
+  calls: {
+    select: { createdAt: true },
+    orderBy: { createdAt: "desc" as const },
+    take: 1,
+  },
+};
+
+function formatStudents(students: Awaited<ReturnType<typeof prisma.caller.findMany<{ select: typeof studentSelect }>>>) {
+  return students.map((s) => ({
+    id: s.id,
+    name: s.name ?? "Unknown",
+    email: s.email,
+    classroom: s.cohortGroup
+      ? { id: s.cohortGroup.id, name: s.cohortGroup.name }
+      : null,
+    totalCalls: s._count.calls,
+    lastCallAt: s.calls[0]?.createdAt ?? null,
+    joinedAt: s.createdAt,
+  }));
+}
+
 /**
  * @api GET /api/educator/students
  * @visibility internal
@@ -10,57 +38,49 @@ import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
  * @auth bearer
  * @tags educator, students
  * @query institutionId - Optional institution ID for ADMIN+ users to view all students in an institution
- * @description List all students across the educator's active classrooms, including classroom assignment, call counts, and last activity. ADMIN+ users can pass ?institutionId= to view all students in an institution.
+ * @description List students. ADMIN+ users see all learners (optionally scoped by institutionId). Educators see learners in their owned classrooms only.
  * @response 200 { ok: true, students: [{ id, name, email, classroom, totalCalls, lastCallAt, joinedAt }] }
  */
 export async function GET(request: NextRequest) {
   const institutionId = request.nextUrl.searchParams.get("institutionId");
 
-  let cohortFilter: Record<string, unknown>;
+  // ADMIN+ path — see all learners (optionally scoped to institution)
+  const adminAuth = await requireAuth("ADMIN");
+  if (!isAuthError(adminAuth)) {
+    const where: Record<string, unknown> = { role: "LEARNER" };
 
-  if (institutionId) {
-    const authResult = await requireAuth("ADMIN");
-    if (isAuthError(authResult)) return authResult.error;
-    cohortFilter = { institutionId, isActive: true };
-  } else {
-    const auth = await requireEducator();
-    if (isEducatorAuthError(auth)) return auth.error;
-    cohortFilter = { ownerId: auth.callerId, isActive: true };
+    if (institutionId) {
+      // Learners in this institution's cohorts + unassigned learners in domains linked to this institution
+      where.OR = [
+        { cohortGroup: { institutionId, isActive: true } },
+        {
+          cohortGroupId: null,
+          domain: { cohortGroups: { some: { institutionId } } },
+        },
+      ];
+    }
+
+    const students = await prisma.caller.findMany({
+      where,
+      select: studentSelect,
+      orderBy: { name: "asc" },
+    });
+
+    return NextResponse.json({ ok: true, students: formatStudents(students) });
   }
+
+  // Educator path — see learners in owned cohorts only
+  const auth = await requireEducator();
+  if (isEducatorAuthError(auth)) return auth.error;
 
   const students = await prisma.caller.findMany({
     where: {
-      cohortGroup: cohortFilter,
+      cohortGroup: { ownerId: auth.callerId, isActive: true },
       role: "LEARNER",
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      createdAt: true,
-      cohortGroup: { select: { id: true, name: true } },
-      _count: { select: { calls: true } },
-      calls: {
-        select: { createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-    },
+    select: studentSelect,
     orderBy: { name: "asc" },
   });
 
-  return NextResponse.json({
-    ok: true,
-    students: students.map((s) => ({
-      id: s.id,
-      name: s.name ?? "Unknown",
-      email: s.email,
-      classroom: s.cohortGroup
-        ? { id: s.cohortGroup.id, name: s.cohortGroup.name }
-        : null,
-      totalCalls: s._count.calls,
-      lastCallAt: s.calls[0]?.createdAt ?? null,
-      joinedAt: s.createdAt,
-    })),
-  });
+  return NextResponse.json({ ok: true, students: formatStudents(students) });
 }

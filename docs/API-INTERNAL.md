@@ -4989,7 +4989,7 @@ Aggregated analytics across all classrooms or filtered to a specific one. Includ
 
 ### `GET` /api/educator/students
 
-List all students across the educator's active classrooms, including classroom assignment, call counts, and last activity. ADMIN+ users can pass ?institutionId= to view all students in an institution.
+List students. ADMIN+ users see all learners (optionally scoped by institutionId). Educators see learners in their owned classrooms only.
 
 **Auth**: Bearer token · **Scope**: `educator:read`
 
