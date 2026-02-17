@@ -847,6 +847,18 @@ export default function SimpleSidebarNav({
                           </span>
                         )}
                         {!collapsed && <span className="truncate">{item.label}</span>}
+                        {!collapsed && (rawItem as any).tag && (
+                          <span
+                            className="ml-auto inline-flex items-center justify-center rounded text-[9px] font-bold tracking-wide px-1.5 py-0.5 flex-shrink-0"
+                            style={{
+                              background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)",
+                              color: "var(--status-success-text)",
+                              border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)",
+                            }}
+                          >
+                            {(rawItem as any).tag}
+                          </span>
+                        )}
                         {!collapsed && item.href === "/x/messages" && unreadCount > 0 && (
                           <span
                             className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"

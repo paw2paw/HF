@@ -99,8 +99,9 @@ export default function StudentProgressPage() {
 
   return (
     <div data-tour="welcome" className="p-6 max-w-4xl">
-      <h1 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>
+      <h1 className="text-xl font-bold mb-1 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
         My Progress
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
       </h1>
       {data.classroom && (
         <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>

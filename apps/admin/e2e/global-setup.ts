@@ -39,9 +39,10 @@ async function globalSetup(config: FullConfig) {
   const page = await context.newPage();
 
   try {
-    // Navigate to login page
-    await page.goto(`${baseURL}/login`);
-    await page.waitForLoadState('domcontentloaded');
+    // Navigate to login page and wait for full render (cloud tunnel can be slow)
+    const isCloud = !!process.env.CLOUD_E2E;
+    await page.goto(`${baseURL}/login`, { timeout: isCloud ? 60000 : 30000 });
+    await page.waitForLoadState('networkidle', { timeout: isCloud ? 30000 : 15000 });
 
     // Fill in credentials (using default admin user)
     await page.locator('#email').fill('admin@test.com');
@@ -50,9 +51,8 @@ async function globalSetup(config: FullConfig) {
     // Submit login form
     await page.locator('button[type="submit"]').click();
 
-    // Wait for successful redirect to /x (cloud/tunnel needs more time for first page compile)
-    const isCloud = !!process.env.CLOUD_E2E;
-    await page.waitForURL(/\/x/, { timeout: isCloud ? 60000 : 15000 });
+    // Wait for successful redirect to /x (domcontentloaded — dashboard has long-lived connections that block 'load')
+    await page.waitForURL(/\/x/, { timeout: isCloud ? 60000 : 15000, waitUntil: 'domcontentloaded' });
 
     console.log('[Global Setup] Login successful, saving auth state...');
 

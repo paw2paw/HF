@@ -65,8 +65,9 @@ export default function TestimonyDashboard() {
   return (
     <div data-tour="welcome" style={{ maxWidth: 960, padding: "0 0 40px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
           Testimony
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
         </h1>
       </div>
       <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 24 }}>

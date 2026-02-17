@@ -223,9 +223,13 @@ export default function EducatorDashboard() {
             fontWeight: 700,
             color: "var(--text-primary)",
             marginBottom: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
           {viewingSchoolName ?? `My ${terms.institution}`}
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
           {hasClassrooms
