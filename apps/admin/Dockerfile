@@ -22,8 +22,10 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 ARG NODE_OPTIONS
+ARG NEXT_PUBLIC_APP_ENV=LIVE
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=$NODE_OPTIONS
+ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate

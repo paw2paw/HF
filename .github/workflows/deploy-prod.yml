@@ -48,6 +48,7 @@ jobs:
       - name: Build runner image
         run: |
           docker build --platform linux/amd64 --target runner \
+            --build-arg NEXT_PUBLIC_APP_ENV=LIVE \
             -t ${{ env.REGISTRY }}/hf-admin:latest \
             -t ${{ env.REGISTRY }}/hf-admin:prod-${{ github.sha }} \
             -f apps/admin/Dockerfile apps/admin

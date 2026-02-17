@@ -42,6 +42,7 @@ jobs:
       - name: Build runner image
         run: |
           docker build --platform linux/amd64 --target runner \
+            --build-arg NEXT_PUBLIC_APP_ENV=TEST \
             -t ${{ env.REGISTRY }}/hf-admin:test \
             -t ${{ env.REGISTRY }}/hf-admin:test-${{ github.sha }} \
             -f apps/admin/Dockerfile apps/admin
