@@ -15,6 +15,8 @@ export type NavItem = {
   advancedOnly?: boolean;
   /** If set, label is replaced with the resolved terminology term at runtime (e.g. "cohort_plural") */
   terminologyLabel?: string;
+  /** Small static tag shown after the label (e.g. "NEW", "WS3") */
+  tag?: string;
 };
 
 export type NavSection = {
