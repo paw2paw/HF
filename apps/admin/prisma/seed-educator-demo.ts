@@ -814,22 +814,51 @@ async function cleanupExistingData() {
     });
   }
 
-  // 5. Callers (pupils) — must come before CohortGroups (FK: caller.cohortGroupId)
+  // 5. ComposedPrompts + ConversationArtifacts on demo callers (FK: callerId)
+  if (demoCallerIds.length > 0) {
+    await prisma.composedPrompt.deleteMany({
+      where: { callerId: { in: demoCallerIds } },
+    });
+    await prisma.conversationArtifact.deleteMany({
+      where: { callerId: { in: demoCallerIds } },
+    });
+    await prisma.callerIdentity.deleteMany({
+      where: { callerId: { in: demoCallerIds } },
+    });
+  }
+
+  // 6. Callers (pupils) — must come before CohortGroups (FK: caller.cohortGroupId)
   await prisma.caller.deleteMany({
     where: { externalId: { startsWith: "edu-demo-" } },
   });
 
-  // 6. CohortGroups — must come before teacher callers (FK: cohortGroup.ownerId)
+  // 7. CohortGroups — must come before teacher callers (FK: cohortGroup.ownerId)
   await prisma.cohortGroup.deleteMany({
     where: { domain: { slug: { in: schoolSlugs } } },
   });
 
-  // 7. Teacher callers
+  // 8. Teacher callers — clean FKs first
+  const teacherCallers = await prisma.caller.findMany({
+    where: { externalId: { startsWith: "edu-teacher-" } },
+    select: { id: true },
+  });
+  const teacherCallerIds = teacherCallers.map((c) => c.id);
+  if (teacherCallerIds.length > 0) {
+    await prisma.composedPrompt.deleteMany({
+      where: { callerId: { in: teacherCallerIds } },
+    });
+    await prisma.conversationArtifact.deleteMany({
+      where: { callerId: { in: teacherCallerIds } },
+    });
+    await prisma.callerIdentity.deleteMany({
+      where: { callerIdentityId: { in: teacherCallerIds } },
+    });
+  }
   await prisma.caller.deleteMany({
     where: { externalId: { startsWith: "edu-teacher-" } },
   });
 
-  // 8. MediaAssets (CC worksheets) — SubjectMedia first, then MediaAsset (before Users due to FK: uploadedBy)
+  // 9. MediaAssets (CC worksheets) — SubjectMedia first, then MediaAsset (before Users due to FK: uploadedBy)
   const demoMedia = await prisma.mediaAsset.findMany({
     where: { contentHash: { startsWith: "edu-demo-" } },
     select: { id: true },
