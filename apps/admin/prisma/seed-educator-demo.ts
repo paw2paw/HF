@@ -851,7 +851,7 @@ async function cleanupExistingData() {
       where: { callerId: { in: teacherCallerIds } },
     });
     await prisma.callerIdentity.deleteMany({
-      where: { callerIdentityId: { in: teacherCallerIds } },
+      where: { callerId: { in: teacherCallerIds } },
     });
   }
   await prisma.caller.deleteMany({
