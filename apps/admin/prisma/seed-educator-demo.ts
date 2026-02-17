@@ -836,7 +836,7 @@ async function cleanupExistingData() {
   });
   if (demoMedia.length > 0) {
     await prisma.subjectMedia.deleteMany({
-      where: { mediaAssetId: { in: demoMedia.map((m) => m.id) } },
+      where: { mediaId: { in: demoMedia.map((m) => m.id) } },
     });
     await prisma.mediaAsset.deleteMany({
       where: { id: { in: demoMedia.map((m) => m.id) } },
@@ -1877,7 +1877,7 @@ async function createOnboarding(
 
       // Link worksheet to CC subject
       await prisma.subjectMedia.create({
-        data: { subjectId: ccSubjectId, mediaAssetId: worksheet.id },
+        data: { subjectId: ccSubjectId, mediaId: worksheet.id },
       });
     }
 
