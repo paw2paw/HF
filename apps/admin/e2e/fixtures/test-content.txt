@@ -1,0 +1,22 @@
+Photosynthesis: How Plants Make Food
+
+Photosynthesis is the process by which green plants, algae, and some bacteria convert light energy into chemical energy stored in glucose. This process primarily occurs in the chloroplasts of plant cells, specifically within structures called thylakoids.
+
+The Basic Equation:
+6CO2 + 6H2O + light energy → C6H12O6 + 6O2
+
+Key Concepts:
+
+1. Light-Dependent Reactions: These occur in the thylakoid membranes. Chlorophyll absorbs sunlight and uses it to split water molecules, releasing oxygen as a by-product and producing ATP and NADPH.
+
+2. Light-Independent Reactions (Calvin Cycle): These occur in the stroma. Using ATP and NADPH from the light reactions, carbon dioxide is fixed into glucose through a series of enzymatic reactions.
+
+3. Factors Affecting Photosynthesis: Light intensity, carbon dioxide concentration, and temperature all influence the rate of photosynthesis. Each factor can become a limiting factor depending on conditions.
+
+4. Importance: Photosynthesis produces oxygen essential for aerobic respiration and is the primary source of organic compounds and energy for nearly all ecosystems on Earth.
+
+Learning Outcomes:
+- Explain the overall equation of photosynthesis
+- Describe where light-dependent and light-independent reactions occur
+- Identify three factors that affect the rate of photosynthesis
+- Explain why photosynthesis is essential for life on Earth

@@ -123,4 +123,21 @@ export class QuickLaunchPage extends BasePage {
     const text = await this.page.getByText(/domain created with/).textContent();
     return text || '';
   }
+
+  /** Upload a file via the hidden file input (bypasses dropzone click) */
+  async uploadFile(filePath: string): Promise<void> {
+    const fileInput = this.page.locator('input[type="file"]');
+    await fileInput.setInputFiles(filePath);
+  }
+
+  /** Click "View Test Caller" and extract the callerId from the resulting URL */
+  async navigateToTestCaller(): Promise<string> {
+    await Promise.all([
+      this.page.waitForURL(/\/x\/callers\//, { timeout: 15_000 }),
+      this.viewCallerButton.click(),
+    ]);
+    const match = this.page.url().match(/\/x\/callers\/([a-f0-9-]+)/);
+    if (!match) throw new Error(`Could not extract callerId from URL: ${this.page.url()}`);
+    return match[1];
+  }
 }
