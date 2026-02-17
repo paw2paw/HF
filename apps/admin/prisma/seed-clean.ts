@@ -284,8 +284,10 @@ function parseTextTranscript(content: string, filename: string): VAPICall | null
 async function createInfrastructure() {
   console.log("\n🏗️  CREATING INFRASTRUCTURE\n");
 
-  // Ensure default admin user exists (needed for login, e2e tests, screenshot capture)
-  const adminEmail = "admin@test.com";
+  // Ensure admin user exists (needed for login, e2e tests, screenshot capture)
+  // SEED_ADMIN_EMAIL: override login email per environment (default: admin@test.com)
+  // SEED_ADMIN_PASSWORD: required in production, defaults to admin123 in dev
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@test.com";
   if (process.env.NODE_ENV === "production" && !process.env.SEED_ADMIN_PASSWORD) {
     throw new Error(
       "SEED_ADMIN_PASSWORD must be set in production. Refusing to seed with default password."
@@ -293,26 +295,18 @@ async function createInfrastructure() {
   }
   const seedPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
   const passwordHash = await bcrypt.hash(seedPassword, 10);
-  const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!existing) {
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        name: "Admin",
-        role: "SUPERADMIN",
-        isActive: true,
-        passwordHash,
-      },
-    });
-    console.log(`   ✓ Created admin user: ${adminEmail} (password from SEED_ADMIN_PASSWORD or default)`);
-  } else {
-    // Update passwordHash on existing admin to match current seed password
-    await prisma.user.update({
-      where: { email: adminEmail },
-      data: { passwordHash },
-    });
-    console.log(`   ✓ Admin user exists: ${adminEmail} (passwordHash updated)`);
-  }
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { passwordHash, role: "SUPERADMIN", isActive: true },
+    create: {
+      email: adminEmail,
+      name: "Admin",
+      role: "SUPERADMIN",
+      isActive: true,
+      passwordHash,
+    },
+  });
+  console.log(`   ✓ Admin user ready: ${adminEmail} (SUPERADMIN)`);
 
   // NOTE: Default domain and playbook creation removed
   // Use seed-domains.ts and BDD-based seeding for proper domain/playbook setup
