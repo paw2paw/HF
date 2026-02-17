@@ -1,9 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useBranding } from "@/contexts/BrandingContext";
+
+const ENV_STRIPE: Record<string, { color: string; label: string }> = {
+  dev:  { color: '#3b82f6', label: 'DEV' },
+  test: { color: '#8b5cf6', label: 'TEST' },
+  lab:  { color: '#10b981', label: 'LAB' },
+};
+
+function useEnvStripe() {
+  return useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const sub = window.location.hostname.split('.')[0];
+    return ENV_STRIPE[sub] ?? null;
+  }, []);
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +27,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/x";
   const { branding } = useBranding();
+  const envStripe = useEnvStripe();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +58,21 @@ export default function LoginPage() {
 
   return (
     <div className="login-card w-full max-w-md">
+      {/* Environment Stripe */}
+      {envStripe && (
+        <div
+          className="mb-4 flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold tracking-widest"
+          style={{
+            background: `color-mix(in srgb, ${envStripe.color} 15%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${envStripe.color} 30%, transparent)`,
+            color: envStripe.color,
+          }}
+        >
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: envStripe.color }} />
+          {envStripe.label} ENVIRONMENT
+        </div>
+      )}
+
       {/* Logo & Brand */}
       <div className="mb-8 text-center">
         {branding.logoUrl ? (

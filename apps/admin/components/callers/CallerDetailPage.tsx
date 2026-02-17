@@ -413,7 +413,7 @@ export default function CallerDetailPage() {
   const sections: { id: SectionId; label: string; icon: React.ReactNode; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "action" }[] = [
     { id: "calls", label: "Calls", icon: <Smartphone size={13} />, count: data.counts.calls, group: "history" },
     { id: "profile", label: "Profile", icon: <User size={13} />, count: (data.counts.memories || 0) + (data.counts.observations || 0), group: "caller" },
-    { id: "progress", label: "Assess", icon: <Gauge size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + (data.counts.callerTargets || 0) + (data.counts.measurements || 0), group: "shared" },
+    { id: "progress", label: "Assess", icon: <Gauge size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + ((data.counts as any).callerTargets || 0) + (data.counts.measurements || 0), group: "shared" },
     { id: "artifacts", label: "Artifacts & Actions", icon: <BookMarked size={13} />, count: (data.counts.artifacts || 0) + (data.counts.actions || 0), group: "shared" },
     { id: "ai-call", label: "Call", icon: <PlayCircle size={13} />, special: true, group: "action" },
   ];
@@ -979,7 +979,7 @@ export default function CallerDetailPage() {
             storageKey="caller-progress"
             sections={[
               { id: "scores", label: "Scores", icon: <BarChart3 size={13} />, count: new Set(data.scores?.map((s: any) => s.parameterId)).size || 0 },
-              { id: "behaviour", label: "Behaviour", icon: <Brain size={13} />, count: (data.counts.callerTargets || 0) + (data.counts.measurements || 0) },
+              { id: "behaviour", label: "Behaviour", icon: <Brain size={13} />, count: ((data.counts as any).callerTargets || 0) + (data.counts.measurements || 0) },
               { id: "goals", label: "Goals", icon: <Target size={13} />, count: data.counts.activeGoals || 0 },
               { id: "topics", label: "Topics", icon: <BookOpen size={13} />, count: (data.memorySummary?.topicCount || 0) + (data.counts.keyFacts || 0) },
               { id: "exam", label: "Exam", icon: <ClipboardCheck size={13} /> },

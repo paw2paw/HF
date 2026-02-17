@@ -120,7 +120,7 @@ export async function PATCH(request: NextRequest) {
 
   await prisma.institution.update({
     where: { id: user.institutionId },
-    data: { terminology: terminologyConfig },
+    data: { terminology: terminologyConfig as unknown as import("@prisma/client").Prisma.InputJsonValue },
   });
 
   const resolved = resolveTerminology(terminologyConfig);

@@ -1046,7 +1046,7 @@ export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, calle
         }
       }
 
-      if (calls.length > 0) {
+      if (calls && calls.length > 0) {
         // Fetch measurements from each call
         const allMeasurements: any[] = [];
         for (const call of calls.slice(0, 10)) {
