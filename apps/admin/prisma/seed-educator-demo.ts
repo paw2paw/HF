@@ -2053,6 +2053,22 @@ export async function main(externalPrisma?: PrismaClient) {
 
   await cleanupExistingData();
 
+  // Ensure Boaz superadmin exists
+  const boazPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
+  const boazHash = await bcrypt.hash(boazPassword, 10);
+  await prisma.user.upsert({
+    where: { email: "boaz@tal.biz" },
+    update: { passwordHash: boazHash, role: "SUPERADMIN", isActive: true },
+    create: {
+      email: "boaz@tal.biz",
+      name: "Boaz Tal",
+      role: "SUPERADMIN",
+      isActive: true,
+      passwordHash: boazHash,
+    },
+  });
+  console.log("   ✓ Admin user ready: boaz@tal.biz (SUPERADMIN)");
+
   const subjectMap = await createSubjects();
   await createParameters();
   const schoolMap = await createSchools(subjectMap);
