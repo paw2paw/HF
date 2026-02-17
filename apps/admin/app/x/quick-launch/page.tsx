@@ -943,7 +943,13 @@ export default function QuickLaunchPage() {
       // Transition to review
       setPhase("review");
     } catch (err: any) {
-      setError(err.message || "Analysis failed");
+      const msg = err.message || "Analysis failed";
+      const isNetworkError = msg === "Load failed" || msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource.";
+      setError(
+        isNetworkError
+          ? "Connection lost — the server may have restarted. Check your tunnel and try again."
+          : msg
+      );
       setPhase("form");
     }
   };
@@ -1018,7 +1024,14 @@ export default function QuickLaunchPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || "Creation failed");
+      const msg = err.message || "Creation failed";
+      // Translate browser network errors to user-friendly messages
+      const isNetworkError = msg === "Load failed" || msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource.";
+      setError(
+        isNetworkError
+          ? "Connection lost — the server may have restarted. Check your tunnel and try again."
+          : msg
+      );
       setPhase("review");
     }
   };
@@ -1338,9 +1351,31 @@ export default function QuickLaunchPage() {
             fontSize: 15,
             fontWeight: 500,
             marginBottom: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
           }}
         >
-          {error}
+          <span>{error}</span>
+          <button
+            onClick={() => setError(null)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "var(--status-error-text)",
+              padding: "0 4px",
+              lineHeight: 1,
+              flexShrink: 0,
+              opacity: 0.7,
+            }}
+            title="Dismiss"
+          >
+            &times;
+          </button>
         </div>
       )}
 
