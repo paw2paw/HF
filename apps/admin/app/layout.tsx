@@ -11,7 +11,7 @@ import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
 import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
-import EnvironmentBanner, { envSidebarColor, envLabel } from '@/components/shared/EnvironmentBanner';
+import EnvironmentBanner, { envSidebarColor, envSidebarWidth, envLabel } from '@/components/shared/EnvironmentBanner';
 import MasqueradeBanner, { MASQUERADE_BANNER_HEIGHT, MASQUERADE_COLOR } from '@/components/shared/MasqueradeBanner';
 import { TourOverlay } from '@/src/components/shared/TourOverlay';
 import { ErrorCaptureProvider } from '@/contexts/ErrorCaptureContext';
@@ -253,7 +253,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               style={{
                 background: 'var(--surface-primary)',
                 borderRight: '1px solid var(--border-default)',
-                borderLeft: envSidebarColor ? `3px solid ${envSidebarColor}` : undefined,
+                borderLeft: envSidebarColor ? `${envSidebarWidth}px solid ${envSidebarColor}` : undefined,
               }}
             >
               <div className="h-full px-2 py-4">
@@ -311,7 +311,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         style={{
           background: 'var(--surface-primary)',
           borderRight: collapsed ? 'none' : '1px solid var(--border-subtle)',
-          borderLeft: envSidebarColor ? `3px solid ${envSidebarColor}` : undefined,
+          borderLeft: envSidebarColor ? `${envSidebarWidth}px solid ${envSidebarColor}` : undefined,
         }}
       >
         <div className="h-full px-2 py-4">

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { AccountPanel } from "@/components/shared/AccountPanel";
-import { envSidebarColor } from "@/components/shared/EnvironmentBanner";
+import { envSidebarColor, envSidebarWidth } from "@/components/shared/EnvironmentBanner";
 import { MASQUERADE_BANNER_HEIGHT } from "@/components/shared/MasqueradeBanner";
 
 // ============================================================================
@@ -534,7 +534,7 @@ export default function SimpleSidebarNav({
           style={{
             position: "fixed",
             top: isMasquerading ? MASQUERADE_BANNER_HEIGHT : 0,
-            left: envSidebarColor ? 3 : 0,
+            left: envSidebarColor ? envSidebarWidth : 0,
             bottom: 0,
             width: 280,
             zIndex: 55,
