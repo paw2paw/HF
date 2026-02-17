@@ -10,6 +10,12 @@ interface Domain {
   slug: string;
 }
 
+interface PlaybookOption {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -22,7 +28,7 @@ export default function NewClassroomPage() {
   const router = useRouter();
   const { terms, plural, lower, lowerPlural } = useTerminology();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [domainId, setDomainId] = useState("");
@@ -34,6 +40,11 @@ export default function NewClassroomPage() {
     joinToken: string;
   } | null>(null);
   const [error, setError] = useState("");
+
+  // Course picker state
+  const [playbooks, setPlaybooks] = useState<PlaybookOption[]>([]);
+  const [selectedPlaybooks, setSelectedPlaybooks] = useState<Set<string>>(new Set());
+  const [loadingPlaybooks, setLoadingPlaybooks] = useState(false);
 
   useEffect(() => {
     fetchApi("/api/domains")
@@ -48,13 +59,37 @@ export default function NewClassroomPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Load playbooks when domain changes
+  useEffect(() => {
+    if (!domainId) {
+      setPlaybooks([]);
+      setSelectedPlaybooks(new Set());
+      return;
+    }
+    setLoadingPlaybooks(true);
+    fetchApi(`/api/educator/playbooks?domainId=${domainId}`)
+      .then((res: { ok: boolean; playbooks?: PlaybookOption[] }) => {
+        if (res?.ok && res.playbooks) {
+          setPlaybooks(res.playbooks);
+          // Pre-select all
+          setSelectedPlaybooks(new Set(res.playbooks.map((p) => p.id)));
+        }
+      })
+      .finally(() => setLoadingPlaybooks(false));
+  }, [domainId]);
+
   const handleCreate = async () => {
     setCreating(true);
     setError("");
 
     const res = await fetchApi("/api/educator/classrooms", {
       method: "POST",
-      body: JSON.stringify({ name, description, domainId }),
+      body: JSON.stringify({
+        name,
+        description,
+        domainId,
+        playbookIds: [...selectedPlaybooks],
+      }),
     });
 
     if (res?.ok) {
@@ -62,7 +97,7 @@ export default function NewClassroomPage() {
         id: res.classroom.id,
         joinToken: res.classroom.joinToken,
       });
-      setStep(3);
+      setStep(4);
     } else {
       setError(res?.error ?? `Failed to create ${lower("cohort")}`);
     }
@@ -74,11 +109,23 @@ export default function NewClassroomPage() {
     ? `${window.location.origin}/join/${created.joinToken}`
     : "";
 
-  const [copied, setCopied] = useState(false);
+  const selectedDomain = domains.find((d) => d.id === domainId);
+
+  const inviteMessage = `You're invited to join ${name}${selectedDomain ? ` (${selectedDomain.name})` : ""}!\n\nJoin here: ${joinUrl}`;
+
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedMessage, setCopiedMessage] = useState(false);
+
   const copyLink = () => {
     navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const copyMessage = () => {
+    navigator.clipboard.writeText(inviteMessage);
+    setCopiedMessage(true);
+    setTimeout(() => setCopiedMessage(false), 2000);
   };
 
   if (loading) {
@@ -113,7 +160,7 @@ export default function NewClassroomPage() {
           marginBottom: 32,
         }}
       >
-        {[1, 2, 3].map((s) => (
+        {[1, 2, 3, 4].map((s) => (
           <div
             key={s}
             style={{
@@ -281,8 +328,184 @@ export default function NewClassroomPage() {
         </div>
       )}
 
-      {/* Step 2: Review */}
+      {/* Step 2: Courses */}
       {step === 2 && (
+        <div
+          style={{
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 12,
+            padding: 24,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              marginBottom: 8,
+            }}
+          >
+            Courses
+          </h2>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--text-muted)",
+              marginBottom: 20,
+            }}
+          >
+            Select which courses to include in this {lower("cohort")}. All are selected by default.
+          </p>
+
+          {loadingPlaybooks ? (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
+              Loading courses...
+            </div>
+          ) : playbooks.length === 0 ? (
+            <div
+              style={{
+                padding: 16,
+                background: "var(--surface-secondary)",
+                borderRadius: 8,
+                textAlign: "center",
+                color: "var(--text-muted)",
+                fontSize: 14,
+                marginBottom: 20,
+              }}
+            >
+              No published courses for this domain. Your {lowerPlural("learner")} can still join — courses can be added later.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              {playbooks.map((pb) => (
+                <button
+                  key={pb.id}
+                  onClick={() => {
+                    setSelectedPlaybooks((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(pb.id)) next.delete(pb.id);
+                      else next.add(pb.id);
+                      return next;
+                    });
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    padding: 12,
+                    border: `1px solid ${
+                      selectedPlaybooks.has(pb.id)
+                        ? "var(--accent-primary)"
+                        : "var(--border-default)"
+                    }`,
+                    borderRadius: 8,
+                    background: selectedPlaybooks.has(pb.id)
+                      ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
+                      : "var(--surface-secondary)",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 4,
+                      border: `2px solid ${
+                        selectedPlaybooks.has(pb.id)
+                          ? "var(--accent-primary)"
+                          : "var(--border-default)"
+                      }`,
+                      background: selectedPlaybooks.has(pb.id)
+                        ? "var(--accent-primary)"
+                        : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      marginTop: 2,
+                    }}
+                  >
+                    {selectedPlaybooks.has(pb.id) && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M2.5 6L5 8.5L9.5 4"
+                          stroke="white"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      {pb.name}
+                    </div>
+                    {pb.description && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-muted)",
+                          marginTop: 2,
+                        }}
+                      >
+                        {pb.description}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={() => setStep(1)}
+              style={{
+                flex: 1,
+                padding: "10px 20px",
+                background: "var(--surface-secondary)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border-default)",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Back
+            </button>
+            <button
+              onClick={() => setStep(3)}
+              style={{
+                flex: 2,
+                padding: "10px 20px",
+                background: "var(--button-primary-bg)",
+                color: "var(--button-primary-text)",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Review & Create */}
+      {step === 3 && (
         <div
           style={{
             background: "var(--surface-primary)",
@@ -318,17 +541,33 @@ export default function NewClassroomPage() {
                 {description}
               </div>
             )}
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                padding: "4px 10px",
-                background: "var(--surface-primary)",
-                borderRadius: 6,
-                display: "inline-block",
-              }}
-            >
-              {domains.find((d) => d.id === domainId)?.name}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  padding: "4px 10px",
+                  background: "var(--surface-primary)",
+                  borderRadius: 6,
+                  display: "inline-block",
+                }}
+              >
+                {selectedDomain?.name}
+              </div>
+              {selectedPlaybooks.size > 0 && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    padding: "4px 10px",
+                    background: "var(--surface-primary)",
+                    borderRadius: 6,
+                    display: "inline-block",
+                  }}
+                >
+                  {selectedPlaybooks.size} course{selectedPlaybooks.size !== 1 ? "s" : ""}
+                </div>
+              )}
             </div>
           </div>
 
@@ -349,7 +588,7 @@ export default function NewClassroomPage() {
 
           <div style={{ display: "flex", gap: 12 }}>
             <button
-              onClick={() => setStep(1)}
+              onClick={() => setStep(2)}
               style={{
                 flex: 1,
                 padding: "10px 20px",
@@ -385,78 +624,142 @@ export default function NewClassroomPage() {
         </div>
       )}
 
-      {/* Step 3: Invite */}
-      {step === 3 && created && (
+      {/* Step 4: Invite */}
+      {step === 4 && created && (
         <div
           style={{
             background: "var(--surface-primary)",
             border: "1px solid var(--border-default)",
             borderRadius: 12,
             padding: 24,
-            textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-          <h2
-            style={{
-              fontSize: 20,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              marginBottom: 8,
-            }}
-          >
-            {terms.cohort} Created!
-          </h2>
-          <p
-            style={{
-              fontSize: 14,
-              color: "var(--text-muted)",
-              marginBottom: 24,
-            }}
-          >
-            Share this link with your {lowerPlural("learner")} to join:
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              marginBottom: 24,
-              padding: "12px 16px",
-              background: "var(--surface-secondary)",
-              borderRadius: 8,
-              alignItems: "center",
-            }}
-          >
-            <input
-              type="text"
-              readOnly
-              value={joinUrl}
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>&#127881;</div>
+            <h2
               style={{
-                flex: 1,
-                border: "none",
-                background: "transparent",
-                fontSize: 14,
-                color: "var(--text-primary)",
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={copyLink}
-              style={{
-                padding: "6px 16px",
-                background: copied ? "#10b981" : "var(--button-primary-bg)",
-                color: "var(--button-primary-text)",
-                border: "none",
-                borderRadius: 6,
-                fontSize: 13,
+                fontSize: 20,
                 fontWeight: 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "background 0.2s",
+                color: "var(--text-primary)",
+                marginBottom: 4,
               }}
             >
-              {copied ? "Copied!" : "Copy Link"}
+              {terms.cohort} Created!
+            </h2>
+            <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+              Invite your {lowerPlural("learner")} to join.
+            </p>
+          </div>
+
+          {/* Join Link */}
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--text-muted)",
+                marginBottom: 6,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              Join Link
+            </label>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                padding: "10px 12px",
+                background: "var(--surface-secondary)",
+                borderRadius: 8,
+                alignItems: "center",
+              }}
+            >
+              <input
+                type="text"
+                readOnly
+                value={joinUrl}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  background: "transparent",
+                  fontSize: 13,
+                  color: "var(--text-primary)",
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={copyLink}
+                style={{
+                  padding: "6px 14px",
+                  background: copiedLink ? "#10b981" : "var(--button-primary-bg)",
+                  color: "var(--button-primary-text)",
+                  border: "none",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "background 0.2s",
+                }}
+              >
+                {copiedLink ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+          </div>
+
+          {/* Invite Message */}
+          <div style={{ marginBottom: 24 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--text-muted)",
+                marginBottom: 6,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              Invite Message
+            </label>
+            <div
+              style={{
+                padding: 12,
+                background: "var(--surface-secondary)",
+                borderRadius: 8,
+                marginBottom: 8,
+              }}
+            >
+              <pre
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  margin: 0,
+                  fontFamily: "inherit",
+                }}
+              >
+                {inviteMessage}
+              </pre>
+            </div>
+            <button
+              onClick={copyMessage}
+              style={{
+                padding: "6px 14px",
+                background: copiedMessage ? "#10b981" : "var(--surface-secondary)",
+                color: copiedMessage ? "white" : "var(--text-secondary)",
+                border: copiedMessage ? "none" : "1px solid var(--border-default)",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+            >
+              {copiedMessage ? "Copied!" : "Copy Message"}
             </button>
           </div>
 
@@ -483,6 +786,7 @@ export default function NewClassroomPage() {
                 setDescription("");
                 setDomainId(domains.length === 1 ? domains[0].id : "");
                 setCreated(null);
+                setSelectedPlaybooks(new Set());
                 setStep(1);
               }}
               style={{

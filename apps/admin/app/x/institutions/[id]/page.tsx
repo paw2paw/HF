@@ -41,7 +41,7 @@ export default function InstitutionDetailPage() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
   // Terminology state
-  const [termPreset, setTermPreset] = useState<TerminologyPresetId>("school");
+  const [termPreset, setTermPreset] = useState<TerminologyPresetId>("corporate");
   const [termOverrides, setTermOverrides] = useState<TerminologyOverrides>({});
   const [showTermCustomize, setShowTermCustomize] = useState(false);
 
@@ -70,7 +70,7 @@ export default function InstitutionDetailPage() {
           setSecondaryColor(inst.secondaryColor || "#3b82f6");
           setWelcomeMessage(inst.welcomeMessage || "");
           if (inst.terminology) {
-            setTermPreset(inst.terminology.preset || "school");
+            setTermPreset(inst.terminology.preset || "corporate");
             setTermOverrides(inst.terminology.overrides || {});
           }
         } else if (res && !res.ok) {

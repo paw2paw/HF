@@ -6948,6 +6948,18 @@ Save sidebar visibility rules
 
 ---
 
+### `GET` /api/educator/playbooks
+
+**Auth**: EDUCATOR
+
+---
+
+### `GET` /api/educator/readiness
+
+**Auth**: EDUCATOR
+
+---
+
 ### `POST` /api/educator/students/:id/artifacts
 
 **Auth**: EDUCATOR
@@ -7058,6 +7070,12 @@ Accept a classroom join link. Creates User + Caller + sets session.
 
 ---
 
+### `POST` /api/student/goals
+
+**Auth**: STUDENT
+
+---
+
 ### `GET` /api/student/media
 
 **Auth**: STUDENT
@@ -7090,6 +7108,24 @@ Accept a classroom join link. Creates User + Caller + sets session.
 ### `GET` /api/system/ini
 
 **Auth**: SUPERADMIN
+
+---
+
+### `GET` /api/testimony/export
+
+**Auth**: OPERATOR
+
+---
+
+### `GET` /api/testimony/specs
+
+**Auth**: OPERATOR
+
+---
+
+### `GET` /api/testimony/specs/[specId]
+
+**Auth**: OPERATOR
 
 ---
 
@@ -10695,7 +10731,7 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 271 |
-| Files with annotations | 271 |
+| Route files found | 277 |
+| Files with annotations | 277 |
 | Files missing annotations | 0 |
 | Coverage | 100.0% |

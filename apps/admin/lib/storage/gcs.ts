@@ -10,7 +10,6 @@ import { config } from "@/lib/config";
 import type { StorageAdapter, UploadOptions, UploadResult } from "./adapter";
 import { storageKeyFromHash } from "./utils";
 
-const DEFAULT_EXPIRY_SECONDS = 3600; // 1 hour
 
 let storageClient: Storage | null = null;
 
@@ -45,7 +44,7 @@ export class GCSStorageAdapter implements StorageAdapter {
     return { storageKey };
   }
 
-  async getSignedUrl(storageKey: string, expirySeconds = DEFAULT_EXPIRY_SECONDS): Promise<string> {
+  async getSignedUrl(storageKey: string, expirySeconds = config.storage.signedUrlExpirySec): Promise<string> {
     const bucket = getBucket();
     const blob = bucket.file(storageKey);
 

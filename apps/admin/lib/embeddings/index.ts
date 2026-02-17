@@ -1,6 +1,6 @@
 import { logExternalAPIUsage } from "@/lib/metering";
+import { config } from "@/lib/config";
 
-const DEFAULT_MODEL = "text-embedding-3-small";
 const DEFAULT_BATCH_SIZE = 100;
 
 /**
@@ -9,7 +9,7 @@ const DEFAULT_BATCH_SIZE = 100;
  */
 export async function openAiEmbed(
   texts: string[],
-  model: string = DEFAULT_MODEL
+  model: string = config.ai.openai.embeddingModel
 ): Promise<number[][]> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not set");
@@ -42,7 +42,7 @@ export async function openAiEmbed(
 /** Embed a single text string. Returns the embedding vector. */
 export async function embedText(
   text: string,
-  model: string = DEFAULT_MODEL
+  model: string = config.ai.openai.embeddingModel
 ): Promise<number[]> {
   const [embedding] = await openAiEmbed([text], model);
   if (!embedding) throw new Error("No embedding returned");
@@ -56,7 +56,7 @@ export async function embedText(
 export async function embedTexts(
   texts: string[],
   batchSize: number = DEFAULT_BATCH_SIZE,
-  model: string = DEFAULT_MODEL
+  model: string = config.ai.openai.embeddingModel
 ): Promise<number[][]> {
   const results: number[][] = [];
 
@@ -148,7 +148,7 @@ export async function embedChunksForDoc(docId: string): Promise<{ embedded: numb
       const ve = await prisma.vectorEmbedding.create({
         data: {
           chunkId: rows[i].id,
-          model: DEFAULT_MODEL,
+          model: config.ai.openai.embeddingModel,
           dimensions: emb.length,
           embeddingData: null as any,
         },

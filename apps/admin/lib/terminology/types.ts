@@ -70,7 +70,7 @@ export const TERMINOLOGY_PRESETS: Record<
   },
 };
 
-export const DEFAULT_PRESET: TerminologyPresetId = "school";
+export const DEFAULT_PRESET: TerminologyPresetId = "corporate";
 export const DEFAULT_TERMINOLOGY: TerminologyProfile =
   TERMINOLOGY_PRESETS[DEFAULT_PRESET];
 

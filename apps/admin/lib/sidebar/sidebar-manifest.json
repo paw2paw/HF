@@ -19,7 +19,8 @@
     "items": [
       { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User" },
       { "id": "sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
-      { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true }
+      { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
+      { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR", "tag": "GF" }
     ]
   },
   {

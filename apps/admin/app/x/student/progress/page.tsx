@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TrendingUp, Target, Phone, BookOpen, Lightbulb } from "lucide-react";
+import StudentOnboarding from "@/components/student/StudentOnboarding";
 
 interface TopicEntry {
   topic: string;
@@ -24,6 +25,10 @@ interface ProgressData {
   totalCalls: number;
   classroom: string | null;
   domain: string | null;
+  teacherName: string | null;
+  institutionName: string | null;
+  institutionLogo: string | null;
+  welcomeMessage: string | null;
   topTopics: TopicEntry[];
   topicCount: number;
   keyFactCount: number;
@@ -32,12 +37,20 @@ interface ProgressData {
 export default function StudentProgressPage() {
   const [data, setData] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     fetch("/api/student/progress")
       .then((r) => r.json())
       .then((d) => {
-        if (d.ok) setData(d);
+        if (d.ok) {
+          setData(d);
+          // Show onboarding for first-run students
+          const onboardingSeen = localStorage.getItem("onboarding-seen");
+          if (d.totalCalls === 0 && !onboardingSeen) {
+            setShowOnboarding(true);
+          }
+        }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -62,6 +75,21 @@ export default function StudentProgressPage() {
       <div className="p-6">
         <p style={{ color: "var(--text-muted)" }}>Unable to load progress data.</p>
       </div>
+    );
+  }
+
+  // Show onboarding wizard for first-run students
+  if (showOnboarding) {
+    return (
+      <StudentOnboarding
+        goals={data.goals}
+        teacherName={data.teacherName}
+        institutionName={data.institutionName}
+        institutionLogo={data.institutionLogo}
+        welcomeMessage={data.welcomeMessage}
+        domain={data.domain}
+        onComplete={() => setShowOnboarding(false)}
+      />
     );
   }
 

@@ -22,9 +22,7 @@ test.describe('Golden Path — Upload → Call → Prompt Evolution', () => {
   let callerId: string;
   let prompt0: any;
 
-  test.beforeEach(async ({ loginAs }) => {
-    await loginAs('admin@test.com');
-  });
+  // Cloud project uses storageState from global setup — already authenticated
 
   test('upload content → call → prompt evolves', async ({ page }) => {
     test.slow(); // Multiple AI calls — 3x timeout

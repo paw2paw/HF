@@ -21,7 +21,7 @@ export default function EducatorSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [termPreset, setTermPreset] = useState<TerminologyPresetId>("school");
+  const [termPreset, setTermPreset] = useState<TerminologyPresetId>("corporate");
   const [termOverrides, setTermOverrides] = useState<TerminologyOverrides>({});
   const [showTermCustomize, setShowTermCustomize] = useState(false);
 

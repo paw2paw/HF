@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import EducatorReadiness from "@/components/educator/EducatorReadiness";
 
 interface DashboardData {
   classrooms: {
@@ -285,6 +286,11 @@ export default function EducatorDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Readiness Card */}
+      {hasClassrooms && (
+        <EducatorReadiness institutionId={selectedInstitutionId ?? undefined} />
+      )}
 
       {/* Quick Actions */}
       <div style={{ marginBottom: 32 }}>

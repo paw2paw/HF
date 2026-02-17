@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   resolveTerminology,
   DEFAULT_TERMINOLOGY,
+  DEFAULT_PRESET,
   type TerminologyConfig,
   type TerminologyPresetId,
   type TermKey,
@@ -14,7 +15,7 @@ import {
  * @api GET /api/institution/terminology
  * @auth VIEWER (any authenticated user)
  * @description Get resolved terminology for the current user's institution.
- *   Returns default (school) terminology if user has no institution or no config.
+ *   Returns default terminology if user has no institution or no config.
  */
 export async function GET() {
   const auth = await requireAuth("VIEWER");
@@ -35,7 +36,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       terminology: DEFAULT_TERMINOLOGY,
-      preset: "school",
+      preset: DEFAULT_PRESET,
       overrides: null,
     });
   }
@@ -46,7 +47,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     terminology: resolved,
-    preset: config?.preset ?? "school",
+    preset: config?.preset ?? DEFAULT_PRESET,
     overrides: config?.overrides ?? null,
   });
 }

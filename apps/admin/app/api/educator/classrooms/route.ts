@@ -98,6 +98,7 @@ export async function GET(request: NextRequest) {
  * @body name string - Classroom name (required)
  * @body description string - Optional description
  * @body domainId string - Domain to associate (required)
+ * @body playbookIds string[] - Optional list of playbook IDs to assign. If omitted, all published playbooks for the domain are assigned.
  * @response 200 { ok: true, classroom: { id, name, description, domain, memberCount, joinToken, createdAt } }
  * @response 400 { ok: false, error: "Classroom name is required" }
  * @response 404 { ok: false, error: "Domain not found" }
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
   if (isEducatorAuthError(auth)) return auth.error;
 
   const body = await request.json();
-  const { name, description, domainId } = body;
+  const { name, description, domainId, playbookIds } = body;
 
   if (!name?.trim()) {
     return NextResponse.json(
@@ -154,13 +155,19 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Auto-assign domain's published playbooks to new classroom
-  const publishedPlaybooks = await prisma.playbook.findMany({
-    where: { domainId, status: "PUBLISHED" },
-    select: { id: true },
-  });
-  for (const pb of publishedPlaybooks) {
-    await assignPlaybookToCohort(classroom.id, pb.id, "classroom-creation", false);
+  // Assign playbooks: use provided list or fall back to all published
+  if (Array.isArray(playbookIds) && playbookIds.length > 0) {
+    for (const pbId of playbookIds) {
+      await assignPlaybookToCohort(classroom.id, pbId, "classroom-creation", false);
+    }
+  } else {
+    const publishedPlaybooks = await prisma.playbook.findMany({
+      where: { domainId, status: "PUBLISHED" },
+      select: { id: true },
+    });
+    for (const pb of publishedPlaybooks) {
+      await assignPlaybookToCohort(classroom.id, pb.id, "classroom-creation", false);
+    }
   }
 
   return NextResponse.json({

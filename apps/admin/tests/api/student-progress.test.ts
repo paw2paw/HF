@@ -47,7 +47,12 @@ describe("GET /api/student/progress", () => {
     mockPrisma.call.count.mockResolvedValue(10);
     mockPrisma.caller.findUnique.mockResolvedValue({
       name: "Alice",
-      cohortGroup: { name: "Year 9", domain: { name: "English" } },
+      cohortGroup: {
+        name: "Year 9",
+        domain: { name: "English" },
+        owner: { name: "Mr Smith" },
+        institution: { name: "Test School", logoUrl: null, welcomeMessage: null },
+      },
     });
     mockPrisma.callerMemorySummary.findUnique.mockResolvedValue({
       topTopics: [{ topic: "ISA allowances", lastMentioned: "2026-02-15T10:00:00Z" }],
@@ -69,6 +74,8 @@ describe("GET /api/student/progress", () => {
     expect(body.topTopics[0].topic).toBe("ISA allowances");
     expect(body.topicCount).toBe(3);
     expect(body.keyFactCount).toBe(5);
+    expect(body.teacherName).toBe("Mr Smith");
+    expect(body.institutionName).toBe("Test School");
   });
 
   it("returns null profile when none exists", async () => {
@@ -77,7 +84,12 @@ describe("GET /api/student/progress", () => {
     mockPrisma.call.count.mockResolvedValue(0);
     mockPrisma.caller.findUnique.mockResolvedValue({
       name: "Bob",
-      cohortGroup: { name: "Year 10", domain: { name: "Maths" } },
+      cohortGroup: {
+        name: "Year 10",
+        domain: { name: "Maths" },
+        owner: { name: "Mrs Jones" },
+        institution: null,
+      },
     });
     mockPrisma.callerMemorySummary.findUnique.mockResolvedValue(null);
     mockPrisma.conversationArtifact.count.mockResolvedValue(0);

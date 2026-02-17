@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET, PATCH } from "@/app/api/institution/terminology/route";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_TERMINOLOGY } from "@/lib/terminology/types";
+import { DEFAULT_TERMINOLOGY, DEFAULT_PRESET } from "@/lib/terminology/types";
 import { requireAuth } from "@/lib/permissions";
 
 vi.mock("@/lib/permissions", () => ({
@@ -27,7 +27,7 @@ describe("GET /api/institution/terminology", () => {
 
     expect(body.ok).toBe(true);
     expect(body.terminology).toEqual(DEFAULT_TERMINOLOGY);
-    expect(body.preset).toBe("school");
+    expect(body.preset).toBe(DEFAULT_PRESET);
     expect(body.overrides).toBeNull();
   });
 
@@ -42,7 +42,7 @@ describe("GET /api/institution/terminology", () => {
 
     expect(body.ok).toBe(true);
     expect(body.terminology).toEqual(DEFAULT_TERMINOLOGY);
-    expect(body.preset).toBe("school");
+    expect(body.preset).toBe(DEFAULT_PRESET);
   });
 
   it("returns resolved terminology for corporate preset", async () => {

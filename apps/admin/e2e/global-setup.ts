@@ -50,8 +50,9 @@ async function globalSetup(config: FullConfig) {
     // Submit login form
     await page.locator('button[type="submit"]').click();
 
-    // Wait for successful redirect to /x
-    await page.waitForURL(/\/x/, { timeout: 15000 });
+    // Wait for successful redirect to /x (cloud/tunnel needs more time for first page compile)
+    const isCloud = !!process.env.CLOUD_E2E;
+    await page.waitForURL(/\/x/, { timeout: isCloud ? 60000 : 15000 });
 
     console.log('[Global Setup] Login successful, saving auth state...');
 

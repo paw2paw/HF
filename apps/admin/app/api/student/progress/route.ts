@@ -39,6 +39,14 @@ export async function GET() {
           select: {
             name: true,
             domain: { select: { name: true } },
+            owner: { select: { name: true } },
+            institution: {
+              select: {
+                name: true,
+                logoUrl: true,
+                welcomeMessage: true,
+              },
+            },
           },
         },
       },
@@ -65,6 +73,10 @@ export async function GET() {
     totalCalls: callCount,
     classroom: caller?.cohortGroup?.name ?? null,
     domain: caller?.cohortGroup?.domain?.name ?? null,
+    teacherName: caller?.cohortGroup?.owner?.name ?? null,
+    institutionName: caller?.cohortGroup?.institution?.name ?? null,
+    institutionLogo: caller?.cohortGroup?.institution?.logoUrl ?? null,
+    welcomeMessage: caller?.cohortGroup?.institution?.welcomeMessage ?? null,
     topTopics: (memorySummary?.topTopics as Array<{ topic: string; lastMentioned: string }>) ?? [],
     topicCount: memorySummary?.topicCount ?? 0,
     keyFactCount,

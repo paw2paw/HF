@@ -9,11 +9,11 @@ import {
 } from "@/lib/terminology/types";
 
 describe("resolveTerminology", () => {
-  it("returns school defaults for null config", () => {
+  it("returns corporate defaults for null config", () => {
     expect(resolveTerminology(null)).toEqual(DEFAULT_TERMINOLOGY);
   });
 
-  it("returns school defaults for undefined config", () => {
+  it("returns corporate defaults for undefined config", () => {
     expect(resolveTerminology(undefined)).toEqual(DEFAULT_TERMINOLOGY);
   });
 

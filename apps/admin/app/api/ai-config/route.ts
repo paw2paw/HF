@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { clearAIConfigCache } from "@/lib/ai/config-loader";
 import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
+import { config } from "@/lib/config";
 
 // =====================================================
 // CALL POINT DEFINITIONS
@@ -28,7 +29,7 @@ export const AI_CALL_POINTS = [
     label: "Pipeline - MEASURE",
     description: "Scores caller parameters from transcript (Big 5 personality, engagement, etc.)",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
     defaultTranscriptLimit: 4000,
   },
   {
@@ -36,7 +37,7 @@ export const AI_CALL_POINTS = [
     label: "Pipeline - LEARN",
     description: "Extracts facts and memories about the caller from transcript",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
     defaultTranscriptLimit: 4000,
   },
   {
@@ -44,7 +45,7 @@ export const AI_CALL_POINTS = [
     label: "Pipeline - SCORE_AGENT",
     description: "Evaluates agent behavior against targets (warmth, empathy, etc.)",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
     defaultTranscriptLimit: 4000,
   },
   {
@@ -52,7 +53,7 @@ export const AI_CALL_POINTS = [
     label: "Pipeline - ADAPT",
     description: "Computes personalized behavior targets based on caller profile",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 2000,
   },
   {
@@ -60,7 +61,7 @@ export const AI_CALL_POINTS = [
     label: "Pipeline - Goal Extraction",
     description: "Extracts learner goals from transcript",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 3000,
   },
   {
@@ -68,7 +69,7 @@ export const AI_CALL_POINTS = [
     label: "Pipeline - Artifact Extraction",
     description: "Extracts conversation artifacts (summaries, facts, exercises) to share with the learner",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 4000,
   },
   {
@@ -76,7 +77,7 @@ export const AI_CALL_POINTS = [
     label: "Pipeline - Action Extraction",
     description: "Extracts actionable items (homework, follow-ups, tasks, reminders) from call transcripts",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 4000,
   },
   {
@@ -84,147 +85,147 @@ export const AI_CALL_POINTS = [
     label: "Prompt Composition",
     description: "Generates personalized agent guidance prompts",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "analysis.measure",
     label: "Analysis - MEASURE",
     description: "Standalone parameter scoring (used by /api/analysis/run)",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
   },
   {
     callPoint: "analysis.learn",
     label: "Analysis - LEARN",
     description: "Standalone memory extraction (used by /api/analysis/run)",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
   },
   {
     callPoint: "parameter.enrich",
     label: "Parameter Enrichment",
     description: "Enriches parameter definitions with KB context",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
   },
   {
     callPoint: "bdd.parse",
     label: "BDD Parser",
     description: "Parses BDD specifications into structured data",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "chat.stream",
     label: "Chat (Streaming)",
     description: "Interactive chat completions with streaming",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "spec.assistant",
     label: "Spec Creation Assistant",
     description: "AI assistant for creating and editing BDD specifications",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "spec.view",
     label: "Spec View Assistant",
     description: "AI assistant for viewing and understanding BDD specifications",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "spec.extract",
     label: "Spec Structure Extraction",
     description: "Converts raw documents into structured BDD specification JSON",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "spec.parse",
     label: "Spec Document Parser",
     description: "Detects document type for BDD spec conversion (CURRICULUM, MEASURE, etc.)",
     defaultProvider: "claude",
-    defaultModel: "claude-3-haiku-20240307",
+    defaultModel: config.ai.claude.lightModel,
   },
   {
     callPoint: "chat.data",
     label: "Chat - Data",
     description: "Data exploration mode with tool calling in the chat panel",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "chat.call",
     label: "Chat - Call Analysis",
     description: "Call analysis mode in the chat panel",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "assistant.chat",
     label: "AI Assistant - General",
     description: "General-purpose AI assistant with system context awareness",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "assistant.tasks",
     label: "AI Assistant - Tasks",
     description: "Task-focused AI assistant for workflow completion",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "assistant.data",
     label: "AI Assistant - Data",
     description: "Data exploration AI assistant for querying and understanding system data",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "assistant.spec",
     label: "AI Assistant - Spec",
     description: "Spec-focused AI assistant for spec creation and troubleshooting",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "content-trust.extract",
     label: "Content Trust - Extraction",
     description: "Extracts assertions from training materials for content trust verification",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "workflow.classify",
     label: "Workflow - Discovery & Planning",
     description: "Multi-turn discovery conversation that understands user intent and generates guided workflow plans",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "workflow.step",
     label: "Workflow - Step Guidance",
     description: "Per-step AI guidance during workflow execution (field suggestions, validation help, context)",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "content-trust.curriculum",
     label: "Content Trust - Curriculum",
     description: "Generates structured curriculum from extracted assertions",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "content-trust.curriculum-from-goals",
     label: "Content Trust - Curriculum from Goals",
     description: "Generates structured curriculum from subject + persona + learning goals (no document upload)",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "quick-launch.suggest-name",
@@ -238,30 +239,30 @@ export const AI_CALL_POINTS = [
     label: "Quick Launch - Identity",
     description: "Generates agent identity configuration from domain assertions",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "test-harness.system",
     label: "Test Harness - System Agent",
     description: "System agent turns in simulated conversations",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "test-harness.caller",
     label: "Test Harness - Caller Persona",
     description: "Caller persona turns in simulated conversations",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
   {
     callPoint: "test-harness.greeting",
     label: "Test Harness - Greeting",
     description: "Initial AI greeting for onboarding calls",
     defaultProvider: "claude",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: config.ai.claude.model,
   },
-] as const;
+];
 
 // Hardcoded fallback models (used if DB is empty)
 // These are seeded to the AIModel table on first access via /api/ai-models
@@ -317,7 +318,7 @@ async function getAvailableModels(): Promise<Record<string, Array<{ id: string; 
   }
 }
 
-export type CallPointId = typeof AI_CALL_POINTS[number]["callPoint"];
+export type CallPointId = string;
 
 // =====================================================
 // GET - List all configurations

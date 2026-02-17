@@ -192,6 +192,18 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // Terminology
+  // ---------------------------------------------------------------------------
+  terminology: {
+    /** Default terminology preset when no institution config exists.
+     *  One of: school, corporate, coaching, healthcare.
+     *  Can be overridden via TERMINOLOGY_DEFAULT_PRESET env var. */
+    get defaultPreset(): string {
+      return optional("TERMINOLOGY_DEFAULT_PRESET", "corporate");
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // Canonical Specs (Architectural Dependencies)
   // ---------------------------------------------------------------------------
   specs: {
@@ -362,6 +374,10 @@ export const config = {
     /** Maximum file size in bytes (default: 20MB) */
     get maxFileSize(): number {
       return optionalInt("STORAGE_MAX_FILE_SIZE", 20971520);
+    },
+    /** GCS signed URL expiry in seconds (default: 3600 = 1 hour) */
+    get signedUrlExpirySec(): number {
+      return optionalInt("STORAGE_SIGNED_URL_EXPIRY_SECONDS", 3600);
     },
     /** Comma-separated list of allowed MIME types */
     get allowedMimeTypes(): string[] {
@@ -546,6 +562,9 @@ export function getConfigSummary(): Record<string, unknown> {
     },
     features: {
       opsEnabled: config.features.opsEnabled,
+    },
+    terminology: {
+      defaultPreset: config.terminology.defaultPreset,
     },
     specs: {
       onboarding: config.specs.onboarding,

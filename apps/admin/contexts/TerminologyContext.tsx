@@ -34,7 +34,7 @@ export function TerminologyProvider({
   children: React.ReactNode;
 }) {
   const [terms, setTerms] = useState<TerminologyProfile>(DEFAULT_TERMINOLOGY);
-  const [preset, setPreset] = useState<TerminologyPresetId>("school");
+  const [preset, setPreset] = useState<TerminologyPresetId>("corporate");
   const [loading, setLoading] = useState(true);
 
   const fetchTerminology = useCallback(async () => {
@@ -85,7 +85,7 @@ export function useTerminology(): TerminologyContextValue {
   if (!context) {
     return {
       terms: DEFAULT_TERMINOLOGY,
-      preset: "school",
+      preset: "corporate",
       loading: false,
       plural: (key) => pluralize(DEFAULT_TERMINOLOGY[key]),
       lower: (key) => lc(DEFAULT_TERMINOLOGY[key]),
