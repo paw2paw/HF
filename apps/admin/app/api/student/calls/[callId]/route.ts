@@ -1,18 +1,18 @@
 /**
  * @api GET /api/student/calls/:callId
- * @auth STUDENT
+ * @auth STUDENT | OPERATOR+ (with callerId param)
  * @desc Returns a single call detail with transcript (ownership enforced)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireStudent, isStudentAuthError } from "@/lib/student-access";
+import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ callId: string }> }
 ) {
-  const auth = await requireStudent();
+  const auth = await requireStudentOrAdmin(request);
   if (isStudentAuthError(auth)) return auth.error;
 
   const { callId } = await params;

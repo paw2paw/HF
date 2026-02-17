@@ -48,11 +48,11 @@
       { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["ADMIN", "SUPERADMIN"] },
-      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "SUPERADMIN"] },
-      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "SUPERADMIN"] },
-      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "SUPERADMIN"], "tag": "GF" },
-      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "SUPERADMIN"] },
-      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "SUPERADMIN"] }
+      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"], "tag": "GF" },
+      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
   {

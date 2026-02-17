@@ -65,7 +65,8 @@ export class SimPage extends BasePage {
   /** Send a message and wait for it to appear */
   async sendMessage(text: string): Promise<void> {
     await this.messageInput.fill(text);
-    await this.sendButton.click();
+    // Force click — floating toasts/badges can intercept pointer events
+    await this.sendButton.click({ force: true });
   }
 
   /** Wait for AI to finish streaming a response */

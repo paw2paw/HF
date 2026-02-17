@@ -797,24 +797,53 @@ async function cleanupExistingData() {
     await prisma.goal.deleteMany({
       where: { callerId: { in: demoCallerIds } },
     });
+    // CallerPlaybook enrollments (FK: callerId, playbookId)
+    await prisma.callerPlaybook.deleteMany({
+      where: { callerId: { in: demoCallerIds } },
+    });
   }
 
-  // 4. Callers (pupils) — must come before CohortGroups (FK: caller.cohortGroupId)
+  // 4. CohortPlaybook assignments (before CohortGroups and Playbooks)
+  const demoCohorts = await prisma.cohortGroup.findMany({
+    where: { domain: { slug: { in: schoolSlugs } } },
+    select: { id: true },
+  });
+  if (demoCohorts.length > 0) {
+    await prisma.cohortPlaybook.deleteMany({
+      where: { cohortGroupId: { in: demoCohorts.map((c) => c.id) } },
+    });
+  }
+
+  // 5. Callers (pupils) — must come before CohortGroups (FK: caller.cohortGroupId)
   await prisma.caller.deleteMany({
     where: { externalId: { startsWith: "edu-demo-" } },
   });
 
-  // 5. CohortGroups — must come before teacher callers (FK: cohortGroup.ownerId)
+  // 6. CohortGroups — must come before teacher callers (FK: cohortGroup.ownerId)
   await prisma.cohortGroup.deleteMany({
     where: { domain: { slug: { in: schoolSlugs } } },
   });
 
-  // 6. Teacher callers
+  // 7. Teacher callers
   await prisma.caller.deleteMany({
     where: { externalId: { startsWith: "edu-teacher-" } },
   });
 
-  // 7. Users (teachers)
+  // 8. MediaAssets (CC worksheets) — SubjectMedia first, then MediaAsset (before Users due to FK: uploadedBy)
+  const demoMedia = await prisma.mediaAsset.findMany({
+    where: { contentHash: { startsWith: "edu-demo-" } },
+    select: { id: true },
+  });
+  if (demoMedia.length > 0) {
+    await prisma.subjectMedia.deleteMany({
+      where: { mediaAssetId: { in: demoMedia.map((m) => m.id) } },
+    });
+    await prisma.mediaAsset.deleteMany({
+      where: { id: { in: demoMedia.map((m) => m.id) } },
+    });
+  }
+
+  // 9. Users (teachers)
   // Delete accounts first (FK)
   const teacherUsers = await prisma.user.findMany({
     where: { email: { in: teacherEmails } },
@@ -832,7 +861,40 @@ async function cleanupExistingData() {
     where: { email: { in: teacherEmails } },
   });
 
-  // 8. SubjectDomains → Subjects
+  // 10. Content assertions → SubjectSources → ContentSources (demo-tagged)
+  const demoSources = await prisma.contentSource.findMany({
+    where: { slug: { startsWith: "edu-demo-" } },
+    select: { id: true },
+  });
+  const demoSourceIds = demoSources.map((s) => s.id);
+  if (demoSourceIds.length > 0) {
+    await prisma.contentAssertion.deleteMany({
+      where: { sourceId: { in: demoSourceIds } },
+    });
+    await prisma.subjectSource.deleteMany({
+      where: { sourceId: { in: demoSourceIds } },
+    });
+  }
+  await prisma.contentSource.deleteMany({
+    where: { slug: { startsWith: "edu-demo-" } },
+  });
+
+  // 11. PlaybookItems → Playbooks (for demo schools)
+  const demoPlaybooks = await prisma.playbook.findMany({
+    where: { domain: { slug: { in: schoolSlugs } } },
+    select: { id: true },
+  });
+  const demoPlaybookIds = demoPlaybooks.map((p) => p.id);
+  if (demoPlaybookIds.length > 0) {
+    await prisma.playbookItem.deleteMany({
+      where: { playbookId: { in: demoPlaybookIds } },
+    });
+  }
+  await prisma.playbook.deleteMany({
+    where: { domain: { slug: { in: schoolSlugs } } },
+  });
+
+  // 12. SubjectDomains → Subjects
   await prisma.subjectDomain.deleteMany({
     where: { domain: { slug: { in: schoolSlugs } } },
   });
@@ -840,12 +902,12 @@ async function cleanupExistingData() {
     where: { slug: { in: ["creative-comprehension", "spag"] } },
   });
 
-  // 9. Domains (schools)
+  // 13. Domains (schools)
   await prisma.domain.deleteMany({
     where: { slug: { in: schoolSlugs } },
   });
 
-  // 10. Parameters
+  // 14. Parameters
   await prisma.parameter.deleteMany({
     where: { computedBy: "educator-demo" },
   });
@@ -1453,6 +1515,502 @@ async function createGoals(
 }
 
 // ══════════════════════════════════════════════════════════
+// PLAYBOOKS & CONTENT
+// ══════════════════════════════════════════════════════════
+
+async function createPlaybooks(
+  schoolMap: Map<string, string>
+): Promise<Map<string, string>> {
+  console.log("  Creating playbooks...");
+  const playbookMap = new Map<string, string>(); // schoolSlug → playbookId
+
+  // Find system specs to enable in playbook config
+  const systemSpecs = await prisma.analysisSpec.findMany({
+    where: { specType: "SYSTEM", isActive: true },
+    select: { id: true },
+  });
+
+  const systemSpecToggles: Record<string, { isEnabled: boolean }> = {};
+  for (const ss of systemSpecs) {
+    systemSpecToggles[ss.id] = { isEnabled: true };
+  }
+
+  // Find the TUT-001 identity spec (base archetype for schools)
+  const identitySpec = await prisma.analysisSpec.findFirst({
+    where: { slug: { contains: "tut-001", mode: "insensitive" }, isActive: true },
+    select: { id: true, name: true },
+  });
+
+  for (const school of SCHOOLS) {
+    const domainId = schoolMap.get(school.slug)!;
+
+    const playbook = await prisma.playbook.create({
+      data: {
+        name: `${school.name} Programme`,
+        description: `Learning programme for ${school.name} — Creative Comprehension and SPAG`,
+        domainId,
+        status: "PUBLISHED",
+        version: "1.0",
+        publishedAt: new Date(),
+        publishedBy: "educator-demo",
+        config: { systemSpecToggles },
+        measureSpecCount: 2,
+        learnSpecCount: 1,
+        adaptSpecCount: 1,
+        parameterCount: 12,
+      },
+    });
+
+    playbookMap.set(school.slug, playbook.id);
+
+    // Add identity spec to playbook
+    if (identitySpec) {
+      await prisma.playbookItem.create({
+        data: {
+          playbookId: playbook.id,
+          itemType: "SPEC",
+          specId: identitySpec.id,
+          isEnabled: true,
+          sortOrder: 0,
+        },
+      });
+    }
+
+    console.log(`    Playbook: ${school.name} Programme (${playbook.id})`);
+  }
+
+  console.log(`    System specs toggled: ${systemSpecs.length}`);
+  return playbookMap;
+}
+
+// ── Content assertion definitions for CC ──
+const CC_ASSERTIONS = [
+  // Inference
+  { assertion: "Pupils should identify implied meanings from textual clues without explicit statement", category: "rule", tags: ["inference", "comprehension"], param: "CC-INFERENCE" },
+  { assertion: "Readers should deduce character feelings and motivations from actions and dialogue", category: "rule", tags: ["inference", "character"], param: "CC-INFERENCE" },
+  { assertion: "Inference requires combining background knowledge with textual evidence to reach conclusions", category: "definition", tags: ["inference"], param: "CC-INFERENCE" },
+  // Retrieval
+  { assertion: "Pupils should locate specific information from text, maps, charts, and images accurately", category: "rule", tags: ["retrieval", "comprehension"], param: "CC-RETRIEVAL" },
+  { assertion: "Scanning and skimming techniques support efficient information retrieval from multiple source types", category: "rule", tags: ["retrieval", "technique"], param: "CC-RETRIEVAL" },
+  { assertion: "Retrieval questions require direct evidence from the text, not personal opinion", category: "definition", tags: ["retrieval"], param: "CC-RETRIEVAL" },
+  // Cross-Source
+  { assertion: "Pupils should compare and contrast information presented across at least two different source types", category: "rule", tags: ["cross-source", "analysis"], param: "CC-CROSS-SRC" },
+  { assertion: "Cross-referencing text with visual sources (maps, diagrams, images) strengthens analytical responses", category: "rule", tags: ["cross-source", "visual"], param: "CC-CROSS-SRC" },
+  { assertion: "Pupils should identify where sources agree, contradict, or complement one another", category: "rule", tags: ["cross-source", "evaluation"], param: "CC-CROSS-SRC" },
+  // Literary Devices
+  { assertion: "Pupils should identify metaphor, simile, personification, alliteration, and onomatopoeia in texts", category: "rule", tags: ["literary-devices", "identification"], param: "CC-LITERARY" },
+  { assertion: "Identifying a literary device is insufficient — pupils must explain the effect on the reader", category: "rule", tags: ["literary-devices", "effect"], param: "CC-LITERARY" },
+  { assertion: "A simile compares two things using 'like' or 'as'; a metaphor states one thing is another", category: "definition", tags: ["literary-devices", "simile", "metaphor"], param: "CC-LITERARY" },
+  // Vocabulary
+  { assertion: "Pupils should define unfamiliar words using surrounding context, morphology, and semantic clues", category: "rule", tags: ["vocabulary", "context"], param: "CC-VOCAB" },
+  { assertion: "Word roots, prefixes, and suffixes provide reliable clues for deducing unfamiliar vocabulary", category: "rule", tags: ["vocabulary", "morphology"], param: "CC-VOCAB" },
+  { assertion: "Contextual vocabulary questions assess whether pupils can work out meanings without a dictionary", category: "definition", tags: ["vocabulary"], param: "CC-VOCAB" },
+  // PEA
+  { assertion: "Written responses should follow Point-Evidence-Analysis structure for full marks", category: "rule", tags: ["PEA", "structure"], param: "CC-PEA" },
+  { assertion: "Evidence must be a direct quotation or close paraphrase from the text, not a general reference", category: "rule", tags: ["PEA", "evidence"], param: "CC-PEA" },
+  { assertion: "Analysis should explain why the evidence supports the point, not merely restate it", category: "rule", tags: ["PEA", "analysis"], param: "CC-PEA" },
+  // Summarising
+  { assertion: "Pupils should capture main ideas concisely in their own words, omitting minor details", category: "rule", tags: ["summarising"], param: "CC-SUMMARY" },
+  { assertion: "A good summary distinguishes key points from supporting or illustrative detail", category: "rule", tags: ["summarising", "key-points"], param: "CC-SUMMARY" },
+  { assertion: "Summaries should not copy sentences verbatim — paraphrasing demonstrates comprehension", category: "rule", tags: ["summarising", "paraphrase"], param: "CC-SUMMARY" },
+  // Opinion
+  { assertion: "Pupils should form personal opinions about texts and justify them with specific textual evidence", category: "rule", tags: ["opinion", "justification"], param: "CC-OPINION" },
+  { assertion: "An opinion response must distinguish between personal reaction and factual statement", category: "rule", tags: ["opinion", "fact-vs-opinion"], param: "CC-OPINION" },
+  { assertion: "Higher-level responses consider alternative viewpoints before reaching a personal conclusion", category: "rule", tags: ["opinion", "evaluation"], param: "CC-OPINION" },
+];
+
+// ── Content assertion definitions for SPAG ──
+const SPAG_ASSERTIONS = [
+  // Spelling
+  { assertion: "Pupils should spell all Year 5/6 statutory words correctly, including exception words", category: "rule", tags: ["spelling", "statutory"], param: "SPAG-SPELL" },
+  { assertion: "Common spelling patterns include: -ough, -tion/-sion, -ible/-able, -cious/-tious", category: "fact", tags: ["spelling", "patterns"], param: "SPAG-SPELL" },
+  { assertion: "Prefixes (un-, dis-, mis-, re-, pre-) do not change the spelling of the root word", category: "rule", tags: ["spelling", "prefix"], param: "SPAG-SPELL" },
+  { assertion: "When adding suffixes beginning with a vowel to words ending in -e, the -e is usually dropped", category: "rule", tags: ["spelling", "suffix"], param: "SPAG-SPELL" },
+  // Punctuation
+  { assertion: "Commas should separate items in a list, after fronted adverbials, and around embedded clauses", category: "rule", tags: ["punctuation", "commas"], param: "SPAG-PUNCT" },
+  { assertion: "Apostrophes mark omission (don't, it's) and possession (the dog's bone, the children's toys)", category: "rule", tags: ["punctuation", "apostrophe"], param: "SPAG-PUNCT" },
+  { assertion: "Speech marks enclose the exact words spoken; a comma or question mark precedes the closing mark", category: "rule", tags: ["punctuation", "speech"], param: "SPAG-PUNCT" },
+  { assertion: "Semicolons join two closely related independent clauses without a conjunction", category: "rule", tags: ["punctuation", "semicolon"], param: "SPAG-PUNCT" },
+  // Grammar
+  { assertion: "Subject and verb must agree in number: 'the children were' not 'the children was'", category: "rule", tags: ["grammar", "agreement"], param: "SPAG-GRAM" },
+  { assertion: "Active voice: the subject performs the action. Passive voice: the subject receives the action", category: "definition", tags: ["grammar", "voice"], param: "SPAG-GRAM" },
+  { assertion: "Modal verbs (can, could, may, might, should, would, must) express possibility, permission, or obligation", category: "definition", tags: ["grammar", "modal"], param: "SPAG-GRAM" },
+  // Sentence Structure
+  { assertion: "A simple sentence has one main clause with a subject and verb: 'The cat sat.'", category: "definition", tags: ["sentence", "simple"], param: "SPAG-SENT" },
+  { assertion: "A compound sentence joins two main clauses with a coordinating conjunction (and, but, or, so)", category: "definition", tags: ["sentence", "compound"], param: "SPAG-SENT" },
+  { assertion: "A complex sentence uses a subordinate clause (because, although, when, if) with a main clause", category: "definition", tags: ["sentence", "complex"], param: "SPAG-SENT" },
+  { assertion: "Fronted adverbials (e.g. 'Cautiously, the fox...') add variety to sentence openers", category: "rule", tags: ["sentence", "fronted-adverbial"], param: "SPAG-SENT" },
+];
+
+async function createContentSources(
+  schoolMap: Map<string, string>,
+  subjectMap: Map<string, string>
+): Promise<Map<string, string>> {
+  console.log("  Creating content sources...");
+  const sourceMap = new Map<string, string>(); // "schoolSlug/subjectSlug" → sourceId
+
+  const ccSubjectId = subjectMap.get("creative-comprehension")!;
+  const spagSubjectId = subjectMap.get("spag")!;
+
+  for (const school of SCHOOLS) {
+    // CC syllabus
+    const ccSource = await prisma.contentSource.create({
+      data: {
+        slug: `edu-demo-cc-syllabus-${school.slug}`,
+        name: "11+ Creative Comprehension Syllabus",
+        description: "GL Assessment and CEM-aligned comprehension curriculum covering inference, retrieval, cross-source analysis, literary devices, vocabulary, PEA technique, summarising, and opinion forming.",
+        trustLevel: "EXPERT_CURATED",
+        documentType: "CURRICULUM",
+        documentTypeSource: "educator-demo",
+        publisherOrg: "GL Assessment / CEM",
+        qualificationRef: "11+ Creative Comprehension",
+        moduleCoverage: CC_PARAMETERS.map((p) => p.parameterId),
+        isActive: true,
+      },
+    });
+    sourceMap.set(`${school.slug}/creative-comprehension`, ccSource.id);
+
+    // Link CC source to CC subject
+    await prisma.subjectSource.create({
+      data: { subjectId: ccSubjectId, sourceId: ccSource.id },
+    });
+
+    // SPAG syllabus
+    const spagSource = await prisma.contentSource.create({
+      data: {
+        slug: `edu-demo-spag-syllabus-${school.slug}`,
+        name: "KS2 SPAG Curriculum Guide",
+        description: "National Curriculum-aligned spelling, punctuation, grammar, and sentence structure guide for Key Stage 2 assessments.",
+        trustLevel: "EXPERT_CURATED",
+        documentType: "CURRICULUM",
+        documentTypeSource: "educator-demo",
+        publisherOrg: "Department for Education",
+        qualificationRef: "KS2 SPAG",
+        moduleCoverage: SPAG_PARAMETERS.map((p) => p.parameterId),
+        isActive: true,
+      },
+    });
+    sourceMap.set(`${school.slug}/spag`, spagSource.id);
+
+    // Link SPAG source to SPAG subject
+    await prisma.subjectSource.create({
+      data: { subjectId: spagSubjectId, sourceId: spagSource.id },
+    });
+
+    console.log(`    ${school.name}: CC syllabus + SPAG guide`);
+  }
+
+  return sourceMap;
+}
+
+async function createContentAssertions(
+  sourceMap: Map<string, string>
+): Promise<number> {
+  console.log("  Creating content assertions...");
+  let totalAssertions = 0;
+
+  const assertionBatch: Array<{
+    sourceId: string;
+    assertion: string;
+    category: string;
+    tags: string[];
+    createdBy: string;
+  }> = [];
+
+  for (const school of SCHOOLS) {
+    const ccSourceId = sourceMap.get(`${school.slug}/creative-comprehension`);
+    const spagSourceId = sourceMap.get(`${school.slug}/spag`);
+
+    if (ccSourceId) {
+      for (const a of CC_ASSERTIONS) {
+        assertionBatch.push({
+          sourceId: ccSourceId,
+          assertion: a.assertion,
+          category: a.category,
+          tags: [...a.tags, a.param],
+          createdBy: "educator-demo",
+        });
+        totalAssertions++;
+      }
+    }
+
+    if (spagSourceId) {
+      for (const a of SPAG_ASSERTIONS) {
+        assertionBatch.push({
+          sourceId: spagSourceId,
+          assertion: a.assertion,
+          category: a.category,
+          tags: [...a.tags, a.param],
+          createdBy: "educator-demo",
+        });
+        totalAssertions++;
+      }
+    }
+  }
+
+  // Batch insert
+  for (let i = 0; i < assertionBatch.length; i += 500) {
+    const chunk = assertionBatch.slice(i, i + 500);
+    await prisma.contentAssertion.createMany({ data: chunk });
+  }
+
+  console.log(`    Total assertions: ${totalAssertions}`);
+  return totalAssertions;
+}
+
+// ══════════════════════════════════════════════════════════
+// ONBOARDING (identity spec + flow phases + CC worksheet)
+// ══════════════════════════════════════════════════════════
+
+/**
+ * CC Practice Worksheet — delivered to pupils at the start of their first session.
+ * The AI tutor shares this during the "first-topic" onboarding phase so the pupil
+ * has a comprehension passage + questions to work through together.
+ */
+const CC_WORKSHEET_CONTENT = `
+═══════════════════════════════════════════════════════════════
+  CREATIVE COMPREHENSION — PRACTICE WORKSHEET
+  11+ Preparation: Inference, Retrieval & Analysis
+═══════════════════════════════════════════════════════════════
+
+PASSAGE A — "The Secret Garden" (adapted from Frances Hodgson Burnett)
+
+  When Mary first stepped through the hidden door, she could hardly
+  believe her eyes. The garden had been locked for ten years, and
+  nature had woven a wild tapestry across every wall and pathway.
+  Climbing roses had scrambled over the grey stones like green
+  curtains, and beneath them, tiny green points were pushing through
+  the dark earth — determined little shoots that refused to give up.
+
+  "It isn't quite dead," Mary whispered, dropping to her knees.
+  Her heart hammered with a feeling she had never known before —
+  something between excitement and fierce protectiveness, as though
+  the garden had chosen her to bring it back to life.
+
+
+PASSAGE B — Garden Restoration Data (non-fiction)
+
+  | Year | Plants Identified | Species Recovered | Visitor Interest |
+  |------|------------------|-------------------|-----------------|
+  | 1911 |        12        |         3         |      Low        |
+  | 1912 |        34        |        12         |    Growing      |
+  | 1913 |        67        |        28         |      High       |
+
+  The Royal Horticultural Society notes that abandoned gardens can
+  recover within 2-3 growing seasons if root systems remain intact.
+  "Roses are particularly resilient," explains Dr Sarah Chen.
+  "Their root networks can survive decades of neglect."
+
+
+QUESTIONS
+
+  1. RETRIEVAL: According to Passage A, how long had the garden
+     been locked? Find the exact detail in the text.  [1 mark]
+
+  2. INFERENCE: What does the phrase "fierce protectiveness" tell
+     us about how Mary feels towards the garden? What can we
+     infer about her character from this reaction?   [2 marks]
+
+  3. LITERARY DEVICES: Identify the simile in the first paragraph
+     and explain its effect on the reader.           [2 marks]
+
+  4. VOCABULARY: What does "tapestry" mean in context? How do the
+     surrounding words help you work out the meaning? [2 marks]
+
+  5. CROSS-SOURCE: Using both passages, explain why there is hope
+     for the garden's recovery. Use evidence from both the fiction
+     and non-fiction texts.                           [3 marks]
+
+  6. PEA PRACTICE: Write a Point-Evidence-Analysis paragraph
+     answering: "How does the author make the reader feel
+     hopeful about the garden?"                      [3 marks]
+
+  7. OPINION: Do you think Mary is the right person to look after
+     the garden? Give your opinion with evidence.    [2 marks]
+
+═══════════════════════════════════════════════════════════════
+  Total: 15 marks  |  Time guide: work through with your AI tutor
+═══════════════════════════════════════════════════════════════
+`.trim();
+
+async function createOnboarding(
+  schoolMap: Map<string, string>,
+  subjectMap: Map<string, string>,
+  teacherMap: Map<string, { userId: string; callerId: string }>
+): Promise<void> {
+  console.log("  Configuring onboarding...");
+
+  // Find the TUT-001 identity spec for onboarding
+  const identitySpec = await prisma.analysisSpec.findFirst({
+    where: { slug: { contains: "tut-001", mode: "insensitive" }, isActive: true },
+    select: { id: true },
+  });
+
+  const ccSubjectId = subjectMap.get("creative-comprehension")!;
+
+  for (const school of SCHOOLS) {
+    const domainId = schoolMap.get(school.slug)!;
+
+    // Find an admin teacher for this school (needed as MediaAsset uploader)
+    const adminTeacher = TEACHERS.find((t) => t.schoolSlug === school.slug && t.userRole === "ADMIN");
+    const adminData = adminTeacher ? teacherMap.get(adminTeacher.email) : null;
+
+    // Create CC worksheet MediaAsset for this school
+    let worksheetId: string | undefined;
+    if (adminData) {
+      const worksheet = await prisma.mediaAsset.create({
+        data: {
+          fileName: "cc-practice-worksheet.txt",
+          fileSize: CC_WORKSHEET_CONTENT.length,
+          mimeType: "text/plain",
+          contentHash: `edu-demo-cc-worksheet-${school.slug}`, // Unique per school
+          storageKey: `edu-demo/worksheets/${school.slug}/cc-practice-worksheet.txt`,
+          storageType: "seed", // Indicates this is seed data, not a real upload
+          title: "Creative Comprehension Practice Worksheet",
+          description: "11+ preparation worksheet covering inference, retrieval, cross-source analysis, literary devices, vocabulary, PEA technique, and opinion — based on The Secret Garden.",
+          tags: ["worksheet", "comprehension", "11+", "inference", "retrieval", "PEA"],
+          uploadedBy: adminData.userId,
+          trustLevel: "EXPERT_CURATED",
+        },
+      });
+      worksheetId = worksheet.id;
+
+      // Link worksheet to CC subject
+      await prisma.subjectMedia.create({
+        data: { subjectId: ccSubjectId, mediaAssetId: worksheet.id },
+      });
+    }
+
+    // Build onboarding flow phases — tailored for 11+ Creative Comprehension
+    const flowPhases = {
+      phases: [
+        {
+          phase: "welcome",
+          duration: "2-3 minutes",
+          goals: [
+            `Welcome the pupil to ${school.name}'s AI tutoring programme`,
+            "Introduce yourself as their personal AI tutor",
+            "Make them feel comfortable and safe — this isn't a test",
+            "Explain that you'll be practising comprehension skills together",
+          ],
+        },
+        {
+          phase: "discovery",
+          duration: "3-5 minutes",
+          goals: [
+            "Ask what they enjoy reading (fiction, non-fiction, comics, etc.)",
+            "Find out how they feel about comprehension exercises",
+            "Discover which areas they find tricky (inference, vocabulary, PEA, etc.)",
+            "Learn about their 11+ preparation goals and timeline",
+          ],
+        },
+        {
+          phase: "first-topic",
+          duration: "8-12 minutes",
+          goals: [
+            "Share the practice worksheet and work through it together",
+            "Start with the retrieval question (Question 1) to build confidence",
+            "Move to inference (Question 2) — model how to 'read between the lines'",
+            "Attempt at least one PEA paragraph together (Question 6)",
+            "Praise effort and explain how each skill connects to the 11+ exam",
+          ],
+          ...(worksheetId ? {
+            content: [
+              {
+                mediaId: worksheetId,
+                instruction: "Share this worksheet at the start of the phase. Say something like: 'I've got a practice passage for us to work through together — take a look!'",
+              },
+            ],
+          } : {}),
+        },
+        {
+          phase: "wrap-up",
+          duration: "2-3 minutes",
+          goals: [
+            "Summarise what skills they practised today",
+            "Highlight one specific thing they did well",
+            "Preview what they'll work on next session",
+            "End on an encouraging note about their 11+ preparation",
+          ],
+        },
+      ],
+    };
+
+    // Update domain with onboarding config
+    await prisma.domain.update({
+      where: { id: domainId },
+      data: {
+        onboardingIdentitySpecId: identitySpec?.id || null,
+        onboardingFlowPhases: flowPhases,
+      },
+    });
+
+    console.log(`    ${school.name}: onboarding configured${worksheetId ? " + CC worksheet" : ""}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// ENROLLMENTS (CallerPlaybook + CohortPlaybook)
+// ══════════════════════════════════════════════════════════
+
+async function createEnrollments(
+  pupils: PupilRecord[],
+  playbookMap: Map<string, string>,
+  classroomMap: Map<string, string>
+): Promise<{ callerEnrollments: number; cohortEnrollments: number }> {
+  console.log("  Creating enrollments...");
+
+  // 1. CohortPlaybook — link each classroom to its school's playbook
+  let cohortEnrollments = 0;
+  for (const c of CLASSROOMS) {
+    const classKey = `${c.schoolSlug}/${c.name}`;
+    const cohortGroupId = classroomMap.get(classKey);
+    const playbookId = playbookMap.get(c.schoolSlug);
+
+    if (cohortGroupId && playbookId) {
+      await prisma.cohortPlaybook.create({
+        data: {
+          cohortGroupId,
+          playbookId,
+          assignedBy: "educator-demo",
+        },
+      });
+      cohortEnrollments++;
+    }
+  }
+
+  // 2. CallerPlaybook — enroll each pupil in their school's playbook
+  const enrollmentBatch: Array<{
+    callerId: string;
+    playbookId: string;
+    status: "ACTIVE";
+    enrolledBy: string;
+  }> = [];
+
+  for (const pupil of pupils) {
+    const playbookId = playbookMap.get(pupil.schoolSlug);
+    if (playbookId) {
+      enrollmentBatch.push({
+        callerId: pupil.id,
+        playbookId,
+        status: "ACTIVE",
+        enrolledBy: "educator-demo",
+      });
+    }
+  }
+
+  // Batch insert
+  for (let i = 0; i < enrollmentBatch.length; i += 500) {
+    const chunk = enrollmentBatch.slice(i, i + 500);
+    await prisma.callerPlaybook.createMany({ data: chunk });
+  }
+
+  console.log(`    Cohort enrollments: ${cohortEnrollments}`);
+  console.log(`    Pupil enrollments: ${enrollmentBatch.length}`);
+  return { callerEnrollments: enrollmentBatch.length, cohortEnrollments };
+}
+
+// ══════════════════════════════════════════════════════════
 // MAIN
 // ══════════════════════════════════════════════════════════
 
@@ -1477,6 +2035,13 @@ async function main() {
   const totalProfiles = await createPersonalityProfiles(pupils, pupilCallIds);
   const totalGoals = await createGoals(pupils);
 
+  // Playbooks, content, onboarding, enrollments (makes schools "Ready for learners")
+  const playbookMap = await createPlaybooks(schoolMap);
+  const sourceMap = await createContentSources(schoolMap, subjectMap);
+  const totalAssertions = await createContentAssertions(sourceMap);
+  await createOnboarding(schoolMap, subjectMap, teacherMap);
+  const { callerEnrollments, cohortEnrollments } = await createEnrollments(pupils, playbookMap, classroomMap);
+
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
   console.log("\n══════════════════════════════════════════════");
@@ -1493,6 +2058,11 @@ async function main() {
   console.log(`  Memories:     ${totalMemories}`);
   console.log(`  Profiles:     ${totalProfiles}`);
   console.log(`  Goals:        ${totalGoals}`);
+  console.log(`  Playbooks:    ${playbookMap.size}`);
+  console.log(`  Sources:      ${sourceMap.size}`);
+  console.log(`  Assertions:   ${totalAssertions}`);
+  console.log(`  Enrollments:  ${callerEnrollments} pupils + ${cohortEnrollments} cohorts`);
+  console.log(`  Onboarding:   ${SCHOOLS.length} schools (with CC worksheet)`);
   console.log(`  Time:         ${elapsed}s`);
   console.log("══════════════════════════════════════════════");
   console.log(`\n  Login as: j.chen@oakwood.sch.uk / (SEED_ADMIN_PASSWORD)\n`);

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { Inbox, GraduationCap, Phone, ChevronDown, ChevronUp } from "lucide-react";
+import { useStudentCallerId } from "@/hooks/useStudentCallerId";
 
 interface Artifact {
   id: string;
@@ -33,13 +34,23 @@ const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string }
 };
 
 export default function StudentStuffPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><div className="animate-pulse h-8 w-48 rounded bg-[var(--surface-secondary)]" /></div>}>
+      <StudentStuffContent />
+    </Suspense>
+  );
+}
+
+function StudentStuffContent() {
+  const { isAdmin, hasSelection, buildUrl } = useStudentCallerId();
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({ total: 0, unread: 0 });
 
   const fetchArtifacts = useCallback(async () => {
+    if (isAdmin && !hasSelection) { setLoading(false); return; }
     try {
-      const res = await fetch("/api/student/artifacts");
+      const res = await fetch(buildUrl("/api/student/artifacts"));
       const data = await res.json();
       if (data.ok) {
         setArtifacts(data.artifacts);
@@ -50,7 +61,7 @@ export default function StudentStuffPage() {
           .filter((a: Artifact) => a.status === "DELIVERED" || a.status === "SENT")
           .map((a: Artifact) => a.id);
         if (unreadIds.length > 0) {
-          fetch("/api/student/artifacts/mark-read", {
+          fetch(buildUrl("/api/student/artifacts/mark-read"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ artifactIds: unreadIds }),
@@ -62,11 +73,21 @@ export default function StudentStuffPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin, hasSelection, buildUrl]);
 
   useEffect(() => {
     fetchArtifacts();
   }, [fetchArtifacts]);
+
+  if (isAdmin && !hasSelection) {
+    return (
+      <div className="p-6">
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Select a learner above to view their study materials.
+        </p>
+      </div>
+    );
+  }
 
   const teacherArtifacts = artifacts.filter((a) => a.callId === null);
   const sessionArtifacts = artifacts.filter((a) => a.callId !== null);

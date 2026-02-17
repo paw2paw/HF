@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { Paperclip } from "lucide-react";
 import { MediaLibrary, type SharedMediaItem } from "@/components/shared/MediaLibrary";
+import { useStudentCallerId } from "@/hooks/useStudentCallerId";
 
 export default function StudentFilesPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><div className="animate-pulse h-8 w-48 rounded bg-[var(--surface-secondary)]" /></div>}>
+      <StudentFilesContent />
+    </Suspense>
+  );
+}
+
+function StudentFilesContent() {
+  const { isAdmin, hasSelection, buildUrl } = useStudentCallerId();
   const [items, setItems] = useState<SharedMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<"date" | "name" | "type">("date");
@@ -12,10 +22,10 @@ export default function StudentFilesPage() {
   const [filter, setFilter] = useState<"all" | "image" | "pdf" | "audio">("all");
 
   const fetchMedia = useCallback(async () => {
+    if (isAdmin && !hasSelection) { setLoading(false); return; }
     setLoading(true);
     try {
-      const params = new URLSearchParams({ sort, order, type: filter });
-      const res = await fetch(`/api/student/media?${params}`);
+      const res = await fetch(buildUrl("/api/student/media", { sort, order, type: filter }));
       if (res.ok) {
         const data = await res.json();
         if (data.ok) setItems(data.media || []);
@@ -25,11 +35,21 @@ export default function StudentFilesPage() {
     } finally {
       setLoading(false);
     }
-  }, [sort, order, filter]);
+  }, [sort, order, filter, isAdmin, hasSelection, buildUrl]);
 
   useEffect(() => {
     fetchMedia();
   }, [fetchMedia]);
+
+  if (isAdmin && !hasSelection) {
+    return (
+      <div className="p-6">
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Select a learner above to view their files.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-3xl">

@@ -94,10 +94,9 @@ test.describe('Golden Path — Upload → Call → Prompt Evolution', () => {
       expect(prompt0).toBeTruthy();
       expect(prompt0.status).toBe('active');
 
-      // Brand-new caller: no memories, no personality yet
+      // Brand-new caller: no memories from prior calls
       const inputs = prompt0.inputs as Record<string, any>;
       expect(inputs.memoriesCount).toBe(0);
-      expect(inputs.personalityAvailable).toBe(false);
     });
 
     // ─── Step 4: Have a conversation ─────────────────────

@@ -9,8 +9,8 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth, isAuthError } from "@/lib/permissions";
-import { NextResponse } from "next/server";
+import { requireAuth, isAuthError, ROLE_LEVEL } from "@/lib/permissions";
+import { NextResponse, type NextRequest } from "next/server";
 import type { Session } from "next-auth";
 
 type EducatorAuthSuccess = {
@@ -66,6 +66,89 @@ export async function requireEducator(): Promise<EducatorAuthResult> {
     session,
     callerId: caller.id,
     institutionId: caller.user?.institutionId ?? null,
+  };
+}
+
+/**
+ * Like requireEducator() but also allows ADMIN+ users with an explicit institutionId param.
+ * - EDUCATOR: resolves own linked TEACHER caller (same as requireEducator)
+ * - ADMIN+: reads institutionId from query param, verifies it exists
+ *   Returns callerId as null since admin isn't a teacher entity.
+ */
+export async function requireEducatorOrAdmin(
+  request: NextRequest
+): Promise<EducatorAuthResult> {
+  const authResult = await requireAuth("EDUCATOR");
+  if (isAuthError(authResult)) return { error: authResult.error };
+
+  const { session } = authResult;
+  const role = session.user.role;
+
+  // Path A: Actual EDUCATOR — resolve their TEACHER caller
+  if (role === "EDUCATOR") {
+    const caller = await prisma.caller.findFirst({
+      where: { userId: session.user.id, role: "TEACHER" },
+      select: {
+        id: true,
+        user: { select: { institutionId: true } },
+      },
+    });
+
+    if (!caller) {
+      return {
+        error: NextResponse.json(
+          { ok: false, error: "No educator profile found. Please complete setup." },
+          { status: 403 }
+        ),
+      };
+    }
+
+    return {
+      session,
+      callerId: caller.id,
+      institutionId: caller.user?.institutionId ?? null,
+    };
+  }
+
+  // Path B: ADMIN+ — require explicit institutionId query param
+  if (ROLE_LEVEL[role] >= ROLE_LEVEL.ADMIN) {
+    const institutionId = request.nextUrl.searchParams.get("institutionId");
+
+    if (!institutionId) {
+      return {
+        error: NextResponse.json(
+          { ok: false, error: "institutionId query parameter required for admin access" },
+          { status: 400 }
+        ),
+      };
+    }
+
+    const institution = await prisma.institution.findUnique({
+      where: { id: institutionId },
+      select: { id: true },
+    });
+
+    if (!institution) {
+      return {
+        error: NextResponse.json(
+          { ok: false, error: "Institution not found" },
+          { status: 404 }
+        ),
+      };
+    }
+
+    return {
+      session,
+      callerId: "", // Admin isn't a teacher entity
+      institutionId: institution.id,
+    };
+  }
+
+  return {
+    error: NextResponse.json(
+      { ok: false, error: "Educator or admin access required" },
+      { status: 403 }
+    ),
   };
 }
 

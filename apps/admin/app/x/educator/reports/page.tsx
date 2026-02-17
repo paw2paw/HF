@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface ReportData {
   classrooms: { id: string; name: string }[];
@@ -15,6 +16,16 @@ interface ReportData {
 }
 
 export default function ReportsPage() {
+  return (
+    <Suspense fallback={<div style={{ fontSize: 15, color: "var(--text-muted)", padding: 32 }}>Loading reports...</div>}>
+      <ReportsContent />
+    </Suspense>
+  );
+}
+
+function ReportsContent() {
+  const searchParams = useSearchParams();
+  const institutionId = searchParams.get("institutionId");
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCohort, setSelectedCohort] = useState<string>("");
@@ -22,14 +33,16 @@ export default function ReportsPage() {
   const loadReports = useCallback(
     async (cohortId: string) => {
       setLoading(true);
-      const url = cohortId
-        ? `/api/educator/reports?cohortId=${cohortId}`
-        : "/api/educator/reports";
+      const params = new URLSearchParams();
+      if (cohortId) params.set("cohortId", cohortId);
+      if (institutionId) params.set("institutionId", institutionId);
+      const qs = params.toString();
+      const url = qs ? `/api/educator/reports?${qs}` : "/api/educator/reports";
       const res = await fetch(url).then((r) => r.json());
       if (res?.ok) setData(res);
       setLoading(false);
     },
-    []
+    [institutionId]
   );
 
   useEffect(() => {

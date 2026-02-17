@@ -1,15 +1,15 @@
 /**
  * @api POST /api/student/artifacts/mark-read
- * @auth STUDENT
+ * @auth STUDENT | OPERATOR+ (with callerId param)
  * @desc Batch mark artifacts as READ
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireStudent, isStudentAuthError } from "@/lib/student-access";
+import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireStudent();
+  const auth = await requireStudentOrAdmin(request);
   if (isStudentAuthError(auth)) return auth.error;
 
   const body = await request.json();

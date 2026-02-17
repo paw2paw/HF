@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSession } from "next-auth/react";
 import { useStudentNotifications } from "@/hooks/useStudentNotifications";
+import { AdminCallerBanner } from "@/components/student/AdminCallerBanner";
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { hasNew, unreadCount, clearNew } = useStudentNotifications(true);
+  const { data: session } = useSession();
+  const isStudent = session?.user?.role === "STUDENT";
+
+  // Only poll notifications for actual students
+  const { hasNew, unreadCount, clearNew } = useStudentNotifications(isStudent);
   const [toastVisible, setToastVisible] = useState(false);
 
   useEffect(() => {
@@ -18,6 +24,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   return (
     <>
+      <Suspense fallback={null}>
+        <AdminCallerBanner />
+      </Suspense>
       {children}
       {toastVisible && (
         <div

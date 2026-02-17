@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Bug, Send, X, Loader2, Trash2, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { Bug, Send, X, Loader2, Trash2, ChevronDown, ChevronUp, AlertCircle, Copy, Check } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useErrorCapture } from "@/contexts/ErrorCaptureContext";
 import { useEntityContext } from "@/contexts";
 import ReactMarkdown from "react-markdown";
+
+const BUG_REPORTER_KEY = "ui.bugReporter";
 
 export function BugReportButton() {
   const { data: session } = useSession();
@@ -22,12 +24,29 @@ export function BugReportButton() {
     { role: string; content: string }[]
   >([]);
   const [showContext, setShowContext] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [disabledByUser, setDisabledByUser] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Read localStorage toggle + listen for changes from settings page
+  useEffect(() => {
+    const stored = localStorage.getItem(BUG_REPORTER_KEY);
+    if (stored === "false") setDisabledByUser(true);
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === BUG_REPORTER_KEY) {
+        setDisabledByUser(e.newValue === "false");
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const userRole = session?.user?.role;
   const isHidden =
+    disabledByUser ||
     !userRole ||
     !["OPERATOR", "ADMIN", "SUPERADMIN"].includes(userRole as string) ||
     pathname?.startsWith("/x/sim") ||
@@ -237,6 +256,28 @@ export function BugReportButton() {
               )}
             </div>
             <div style={{ display: "flex", gap: 4 }}>
+              {response && !isStreaming && (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`Bug reporter:\n\n${response}`);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 4,
+                    borderRadius: 6,
+                    color: copied ? "#22c55e" : "var(--text-tertiary)",
+                    display: "flex",
+                    transition: "color 0.15s",
+                  }}
+                  title={copied ? "Copied!" : "Copy diagnosis to clipboard"}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              )}
               {(response || conversationHistory.length > 0) && (
                 <button
                   onClick={handleReset}

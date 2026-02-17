@@ -1,6 +1,6 @@
 /**
  * @api GET /api/student/media
- * @auth STUDENT
+ * @auth STUDENT | OPERATOR+ (with callerId param)
  * @desc Returns all media shared with the student across their calls. Supports sort, order, and type filter.
  * @query sort - Sort field: date (default), name, type
  * @query order - Sort order: desc (default), asc
@@ -11,10 +11,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireStudent, isStudentAuthError } from "@/lib/student-access";
+import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireStudent();
+  const auth = await requireStudentOrAdmin(request);
   if (isStudentAuthError(auth)) return auth.error;
 
   const url = new URL(request.url);

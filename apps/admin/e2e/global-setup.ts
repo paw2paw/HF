@@ -39,11 +39,12 @@ async function globalSetup(config: FullConfig) {
   const page = await context.newPage();
 
   try {
-    // Navigate to login page and wait for full render (cloud tunnel can be slow)
+    // Navigate to login page and wait for form to render
     const isCloud = !!process.env.CLOUD_E2E;
     console.log(`[Global Setup] baseURL=${baseURL}, isCloud=${isCloud}`);
     await page.goto(`${baseURL}/login`, { timeout: isCloud ? 60000 : 30000 });
-    await page.waitForLoadState('networkidle', { timeout: isCloud ? 30000 : 15000 });
+    // Wait for email input to appear (Turbopack may be compiling on first hit)
+    await page.locator('#email').waitFor({ state: 'visible', timeout: isCloud ? 60000 : 15000 });
     console.log(`[Global Setup] Login page loaded at ${page.url()}`);
 
     // Fill in credentials (using default admin user)

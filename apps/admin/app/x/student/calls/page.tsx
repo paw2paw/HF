@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { Phone } from "lucide-react";
+import { useStudentCallerId } from "@/hooks/useStudentCallerId";
 
 interface CallItem {
   id: string;
@@ -12,17 +13,37 @@ interface CallItem {
 }
 
 export default function StudentCallsPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><div className="animate-pulse h-8 w-36 rounded bg-[var(--surface-secondary)]" /></div>}>
+      <StudentCallsContent />
+    </Suspense>
+  );
+}
+
+function StudentCallsContent() {
+  const { isAdmin, hasSelection, buildUrl } = useStudentCallerId();
   const [calls, setCalls] = useState<CallItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/student/calls")
+    if (isAdmin && !hasSelection) { setLoading(false); return; }
+    fetch(buildUrl("/api/student/calls"))
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) setCalls(d.calls);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAdmin, hasSelection, buildUrl]);
+
+  if (isAdmin && !hasSelection) {
+    return (
+      <div className="p-6">
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Select a learner above to view their call history.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

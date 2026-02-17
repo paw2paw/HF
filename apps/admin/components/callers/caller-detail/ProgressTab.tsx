@@ -1019,10 +1019,10 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
 
 // Top-Level Targets Section - shows behavior targets for this caller
 // Top-Level Behaviour Section - shows targets + measurements across all calls
-export function TopLevelAgentBehaviorSection({ callerId }: { callerId: string }) {
+export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, callerTargets: propCallerTargets }: { callerId: string; calls?: any[]; callerTargets?: any[] }) {
   const { isAdvanced } = useViewMode();
   const [measurements, setMeasurements] = useState<any[]>([]);
-  const [callerTargets, setCallerTargets] = useState<any[]>([]);
+  const [callerTargets, setCallerTargets] = useState<any[]>(propCallerTargets || []);
   const [behaviorTargets, setBehaviorTargets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1033,38 +1033,42 @@ export function TopLevelAgentBehaviorSection({ callerId }: { callerId: string })
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch caller data and calls
-      const res = await fetch(`/api/callers/${callerId}`);
-      const data = await res.json();
+      // Use calls from props if available, otherwise fetch
+      let calls = propCalls;
+      if (!calls) {
+        const res = await fetch(`/api/callers/${callerId}`);
+        const data = await res.json();
+        if (data.ok) {
+          calls = data.calls || [];
+          setCallerTargets(data.callerTargets || []);
+        } else {
+          calls = [];
+        }
+      }
 
-      if (data.ok) {
-        // CallerTargets - personalized adjustments computed by ADAPT specs
-        setCallerTargets(data.callerTargets || []);
-
-        if (data.calls.length > 0) {
-          // Fetch measurements from each call
-          const allMeasurements: any[] = [];
-          for (const call of data.calls.slice(0, 10)) {
-            const callRes = await fetch(`/api/calls/${call.id}`);
-            const callData = await callRes.json();
-            if (callData.ok && callData.measurements) {
-              allMeasurements.push(
-                ...callData.measurements.map((m: any) => ({
-                  ...m,
-                  callCreatedAt: call.createdAt,
-                }))
-              );
-            }
+      if (calls.length > 0) {
+        // Fetch measurements from each call
+        const allMeasurements: any[] = [];
+        for (const call of calls.slice(0, 10)) {
+          const callRes = await fetch(`/api/calls/${call.id}`);
+          const callData = await callRes.json();
+          if (callData.ok && callData.measurements) {
+            allMeasurements.push(
+              ...callData.measurements.map((m: any) => ({
+                ...m,
+                callCreatedAt: call.createdAt,
+              }))
+            );
           }
-          setMeasurements(allMeasurements);
+        }
+        setMeasurements(allMeasurements);
 
-          // Fetch behavior targets from the most recent call
-          const mostRecentCall = data.calls[0];
-          const callDetailRes = await fetch(`/api/calls/${mostRecentCall.id}`);
-          const callDetail = await callDetailRes.json();
-          if (callDetail.ok) {
-            setBehaviorTargets(callDetail.effectiveTargets || []);
-          }
+        // Fetch behavior targets from the most recent call
+        const mostRecentCall = calls[0];
+        const callDetailRes = await fetch(`/api/calls/${mostRecentCall.id}`);
+        const callDetail = await callDetailRes.json();
+        if (callDetail.ok) {
+          setBehaviorTargets(callDetail.effectiveTargets || []);
         }
       }
     } catch (err) {

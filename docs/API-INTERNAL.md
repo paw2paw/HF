@@ -4978,7 +4978,7 @@ Invite another educator (teacher) to the platform. Creates an EDUCATOR-role invi
 
 Aggregated analytics across all classrooms or filtered to a specific one. Includes student count, total/recent calls, engagement rate, and 30-day calls-per-day trend.
 
-**Auth**: Bearer token · **Scope**: `educator:read`
+**Auth**: EDUCATOR | ADMIN+ (with institutionId param) · **Scope**: `educator:read`
 
 **Response** `200`
 ```json
@@ -7048,37 +7048,37 @@ Accept a classroom join link. Creates User + Caller + sets session.
 
 ### `GET` /api/student/artifacts
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 
 ### `POST` /api/student/artifacts/mark-read
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 
 ### `GET` /api/student/calls
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 
 ### `GET` /api/student/calls/:callId
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 
 ### `POST` /api/student/goals
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 
 ### `GET` /api/student/media
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 **Response** `200`
 ```json
@@ -7089,19 +7089,19 @@ Accept a classroom join link. Creates User + Caller + sets session.
 
 ### `GET` /api/student/notifications
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 
 ### `GET` /api/student/progress
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 
 ### `GET` /api/student/teacher
 
-**Auth**: STUDENT
+**Auth**: STUDENT | OPERATOR+ (with callerId param)
 
 ---
 

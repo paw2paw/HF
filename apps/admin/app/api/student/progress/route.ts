@@ -1,15 +1,15 @@
 /**
  * @api GET /api/student/progress
- * @auth STUDENT
+ * @auth STUDENT | OPERATOR+ (with callerId param)
  * @desc Returns the student's learning profile: personality, goals, call count, classroom info
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireStudent, isStudentAuthError } from "@/lib/student-access";
+import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access";
 
-export async function GET() {
-  const auth = await requireStudent();
+export async function GET(request: NextRequest) {
+  const auth = await requireStudentOrAdmin(request);
   if (isStudentAuthError(auth)) return auth.error;
 
   const { callerId } = auth;

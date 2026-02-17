@@ -1,15 +1,15 @@
 /**
  * @api POST /api/student/goals
- * @auth STUDENT
+ * @auth STUDENT | OPERATOR+ (with callerId param)
  * @desc Create a custom learning goal for the student's caller
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireStudent, isStudentAuthError } from "@/lib/student-access";
+import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireStudent();
+  const auth = await requireStudentOrAdmin(request);
   if (isStudentAuthError(auth)) return auth.error;
 
   const { callerId } = auth;

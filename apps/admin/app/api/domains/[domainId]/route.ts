@@ -82,6 +82,13 @@ export async function GET(
             },
           },
         },
+        onboardingIdentitySpec: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+          },
+        },
         _count: {
           select: {
             callers: true,

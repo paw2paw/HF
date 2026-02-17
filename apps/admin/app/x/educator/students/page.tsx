@@ -44,7 +44,7 @@ export default function StudentsPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [institutionId]);
 
   const filtered = search
     ? students.filter(

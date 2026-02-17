@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { TrendingUp, Target, Phone, BookOpen, Lightbulb } from "lucide-react";
 import StudentOnboarding from "@/components/student/StudentOnboarding";
+import { useStudentCallerId } from "@/hooks/useStudentCallerId";
 
 interface TopicEntry {
   topic: string;
@@ -35,25 +36,47 @@ interface ProgressData {
 }
 
 export default function StudentProgressPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><div className="animate-pulse h-8 w-48 rounded bg-[var(--surface-secondary)]" /></div>}>
+      <StudentProgressContent />
+    </Suspense>
+  );
+}
+
+function StudentProgressContent() {
+  const { isAdmin, hasSelection, buildUrl } = useStudentCallerId();
   const [data, setData] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    fetch("/api/student/progress")
+    if (isAdmin && !hasSelection) { setLoading(false); return; }
+    fetch(buildUrl("/api/student/progress"))
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) {
           setData(d);
-          // Show onboarding for first-run students
-          const onboardingSeen = localStorage.getItem("onboarding-seen");
-          if (d.totalCalls === 0 && !onboardingSeen) {
-            setShowOnboarding(true);
+          // Show onboarding for first-run students (not for admin preview)
+          if (!isAdmin) {
+            const onboardingSeen = localStorage.getItem("onboarding-seen");
+            if (d.totalCalls === 0 && !onboardingSeen) {
+              setShowOnboarding(true);
+            }
           }
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAdmin, hasSelection, buildUrl]);
+
+  if (isAdmin && !hasSelection) {
+    return (
+      <div className="p-6">
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Select a learner above to view their progress.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -75,39 +75,40 @@ export async function loadReadinessChecks(): Promise<ReadinessCheck[]> {
   }
 
   // Fallback: return a minimal set so readiness works even before spec is seeded
+  // Labels are written for teachers, not engineers — avoid jargon
   return [
     {
       id: "playbook_published",
-      name: "Published Playbook",
-      description: "Domain has at least one published playbook",
+      name: "Learning Programme Ready",
+      description: "Your school's learning programme needs to be set up and activated before pupils can start practising",
       severity: "critical",
       query: "playbook",
-      fixAction: { label: "Create Playbook", href: "/x/domains?tab=playbooks" },
+      fixAction: { label: "Set Up Programme", href: "/x/domains?tab=playbooks" },
     },
     {
       id: "identity_spec",
-      name: "Identity Spec",
-      description: "Playbook includes an IDENTITY spec",
+      name: "AI Tutor Personality Set",
+      description: "The AI tutor needs a personality and teaching style configured for your school",
       severity: "critical",
       query: "playbook_spec_role",
       queryArgs: { specRole: "IDENTITY" },
-      fixAction: { label: "Create Identity Spec", href: "/x/specs/new" },
+      fixAction: { label: "Configure Tutor", href: "/x/specs/new" },
     },
     {
       id: "ai_keys",
-      name: "AI Keys Configured",
-      description: "At least one AI provider has an API key",
+      name: "AI Service Connected",
+      description: "The AI service your tutor uses needs to be connected by an administrator",
       severity: "critical",
       query: "ai_keys",
-      fixAction: { label: "Configure AI Keys", href: "/x/settings" },
+      fixAction: { label: "Connect AI Service", href: "/x/settings" },
     },
     {
       id: "content_curriculum_valid",
-      name: "Curriculum Structure",
-      description: "CONTENT spec has valid curriculum metadata for progress tracking",
+      name: "Curriculum Linked",
+      description: "Your curriculum topics and learning objectives need to be linked to the programme",
       severity: "recommended",
       query: "content_spec_curriculum",
-      fixAction: { label: "Edit Content Spec", href: "/x/specs" },
+      fixAction: { label: "Review Curriculum", href: "/x/specs" },
     },
   ];
 }
@@ -133,8 +134,8 @@ const checkExecutors: Record<string, CheckExecutor> = {
       select: { id: true, name: true },
     });
     return playbook
-      ? { passed: true, detail: `Published: "${playbook.name}"` }
-      : { passed: false, detail: "No published playbook found" };
+      ? { passed: true, detail: `Active: "${playbook.name}"` }
+      : { passed: false, detail: "No learning programme has been published yet" };
   },
 
   // Playbook contains a spec with the given specRole (domain items + system spec toggles)
@@ -182,9 +183,16 @@ const checkExecutors: Record<string, CheckExecutor> = {
     }
 
     const allSpecs = [...domainSpecs.map((s) => s!.name), ...systemSpecs.map((s) => s.name)];
+    const roleLabels: Record<string, string> = {
+      IDENTITY: "tutor personality",
+      CONTENT: "curriculum content",
+      EXTRACT: "assessment",
+      SYNTHESISE: "analysis",
+    };
+    const roleLabel = roleLabels[specRole] || specRole.toLowerCase();
     return allSpecs.length > 0
-      ? { passed: true, detail: `${allSpecs.length} ${specRole} spec(s): ${allSpecs.join(", ")}` }
-      : { passed: false, detail: `No ${specRole} spec in published playbook` };
+      ? { passed: true, detail: `${allSpecs.length} ${roleLabel} configuration(s) active` }
+      : { passed: false, detail: `No ${roleLabel} configuration in the learning programme` };
   },
 
   // Domain's subjects have content sources linked
@@ -197,8 +205,8 @@ const checkExecutors: Record<string, CheckExecutor> = {
       },
     });
     return count > 0
-      ? { passed: true, detail: `${count} content source(s) linked` }
-      : { passed: false, detail: "No content sources linked to domain subjects" };
+      ? { passed: true, detail: `${count} teaching material(s) linked` }
+      : { passed: false, detail: "No teaching materials linked to your subjects yet" };
   },
 
   // ContentAssertions exist for domain's content sources
@@ -214,7 +222,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
     });
 
     if (sourceIds.length === 0) {
-      return { passed: false, detail: "No content sources to extract from" };
+      return { passed: false, detail: "Add teaching materials first, then extract key points" };
     }
 
     const count = await prisma.contentAssertion.count({
@@ -222,8 +230,8 @@ const checkExecutors: Record<string, CheckExecutor> = {
     });
 
     return count > 0
-      ? { passed: true, detail: `${count} teaching point(s) extracted` }
-      : { passed: false, detail: "No teaching points extracted from documents" };
+      ? { passed: true, detail: `${count} teaching point(s) ready for the AI tutor` }
+      : { passed: false, detail: "Key facts and concepts need to be extracted from your materials" };
   },
 
   // Domain has onboarding configured
@@ -240,12 +248,12 @@ const checkExecutors: Record<string, CheckExecutor> = {
     const hasPhases = !!domain?.onboardingFlowPhases;
 
     if (hasIdentity && hasPhases) {
-      return { passed: true, detail: "Identity spec + flow phases configured" };
+      return { passed: true, detail: "Pupil welcome experience configured" };
     }
     const missing = [];
-    if (!hasIdentity) missing.push("identity spec");
-    if (!hasPhases) missing.push("flow phases");
-    return { passed: false, detail: `Missing: ${missing.join(", ")}` };
+    if (!hasIdentity) missing.push("tutor greeting");
+    if (!hasPhases) missing.push("welcome steps");
+    return { passed: false, detail: `Needs setup: ${missing.join(", ")}` };
   },
 
   // System spec is active and not dirty
@@ -286,8 +294,8 @@ const checkExecutors: Record<string, CheckExecutor> = {
       where: { domainId },
     });
     return count > 0
-      ? { passed: true, detail: `${count} caller(s) in domain` }
-      : { passed: false, detail: "No callers assigned to this domain" };
+      ? { passed: true, detail: `${count} learner(s) enrolled` }
+      : { passed: false, detail: "No learners have been added yet" };
   },
 
   // CONTENT spec has valid curriculum metadata for pipeline progress tracking
@@ -316,7 +324,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
 
     if (!contentSpec) {
       // No CONTENT spec is fine — domain may not have a curriculum
-      return { passed: true, detail: "No CONTENT spec in playbook (curriculum not required)" };
+      return { passed: true, detail: "No curriculum structure required for this programme" };
     }
 
     const config = contentSpec.config as Record<string, any> | null;
@@ -324,7 +332,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
     if (!meta) {
       return {
         passed: false,
-        detail: `${contentSpec.name} is missing metadata.curriculum section`,
+        detail: `"${contentSpec.name}" needs curriculum topics and objectives configured`,
       };
     }
 
@@ -332,7 +340,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
     if (missing.length > 0) {
       return {
         passed: false,
-        detail: `${contentSpec.name} curriculum metadata missing: ${missing.join(", ")}`,
+        detail: `Curriculum setup incomplete — missing: ${missing.join(", ")}`,
       };
     }
 
@@ -343,7 +351,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
     if (matchingModules.length === 0) {
       return {
         passed: false,
-        detail: `No parameters match moduleSelector "${meta.moduleSelector}" in ${contentSpec.name}`,
+        detail: `No curriculum topics found — check the programme's content configuration`,
       };
     }
 
@@ -355,13 +363,13 @@ const checkExecutors: Record<string, CheckExecutor> = {
     if (withLOs.length === 0) {
       return {
         passed: true,
-        detail: `${matchingModules.length} modules but no learningOutcomes — mastery scoring will be limited`,
+        detail: `${matchingModules.length} topic(s) linked (add learning outcomes for mastery tracking)`,
       };
     }
 
     return {
       passed: true,
-      detail: `${matchingModules.length} modules, ${withLOs.length} with learning outcomes`,
+      detail: `${matchingModules.length} topic(s), ${withLOs.length} with learning outcomes`,
     };
   },
 };

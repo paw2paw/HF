@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
@@ -18,14 +18,25 @@ interface Classroom {
 }
 
 export default function TryItPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 32 }}><div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading...</div></div>}>
+      <TryItContent />
+    </Suspense>
+  );
+}
+
+function TryItContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const institutionId = searchParams.get("institutionId");
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchApi("/api/educator/classrooms")
+    const instQuery = institutionId ? `?institutionId=${institutionId}` : "";
+    fetchApi(`/api/educator/classrooms${instQuery}`)
       .then((res: { ok: boolean; classrooms: Classroom[] }) => {
         if (res?.ok) {
           setClassrooms(res.classrooms);
@@ -35,7 +46,7 @@ export default function TryItPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [institutionId]);
 
   const handleStart = async () => {
     setStarting(true);

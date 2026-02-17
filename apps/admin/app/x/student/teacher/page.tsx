@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { GraduationCap, School, Building2 } from "lucide-react";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import { useStudentCallerId } from "@/hooks/useStudentCallerId";
 
 interface TeacherData {
   teacher: {
@@ -18,18 +19,38 @@ interface TeacherData {
 }
 
 export default function StudentTeacherPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><div className="animate-pulse h-8 w-40 rounded bg-[var(--surface-secondary)]" /></div>}>
+      <StudentTeacherContent />
+    </Suspense>
+  );
+}
+
+function StudentTeacherContent() {
+  const { isAdmin, hasSelection, buildUrl } = useStudentCallerId();
   const [data, setData] = useState<TeacherData | null>(null);
   const [loading, setLoading] = useState(true);
   const { terms } = useTerminology();
 
   useEffect(() => {
-    fetch("/api/student/teacher")
+    if (isAdmin && !hasSelection) { setLoading(false); return; }
+    fetch(buildUrl("/api/student/teacher"))
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) setData(d);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAdmin, hasSelection, buildUrl]);
+
+  if (isAdmin && !hasSelection) {
+    return (
+      <div className="p-6">
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Select a learner above to view their teacher information.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

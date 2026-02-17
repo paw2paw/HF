@@ -1,34 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
+import { requireEducatorOrAdmin, isEducatorAuthError } from "@/lib/educator-access";
+import { ROLE_LEVEL } from "@/lib/permissions";
 
 /**
  * @api GET /api/educator/reports
  * @visibility internal
  * @scope educator:read
- * @auth bearer
+ * @auth EDUCATOR | ADMIN+ (with institutionId param)
  * @tags educator, analytics, reports
  * @description Aggregated analytics across all classrooms or filtered to a specific one. Includes student count, total/recent calls, engagement rate, and 30-day calls-per-day trend.
  * @query cohortId? string - Filter to a specific classroom
+ * @query institutionId? string - Admin: filter to a specific institution
  * @response 200 { ok: true, classrooms: [...], stats: { totalStudents, totalCalls, callsThisWeek, activeStudents7d, engagementRate }, callsPerDay: [{ date, count }] }
  */
 export async function GET(request: NextRequest) {
-  const auth = await requireEducator();
+  const auth = await requireEducatorOrAdmin(request);
   if (isEducatorAuthError(auth)) return auth.error;
 
   const cohortId = request.nextUrl.searchParams.get("cohortId");
+  const isAdmin = ROLE_LEVEL[auth.session.user.role] >= ROLE_LEVEL.ADMIN;
+
+  // Build ownership/institution scope filter
+  const scopeFilter = isAdmin && auth.institutionId
+    ? { institutionId: auth.institutionId, isActive: true }
+    : { ownerId: auth.callerId, isActive: true };
 
   // Get classrooms for the dropdown
   const classrooms = await prisma.cohortGroup.findMany({
-    where: { ownerId: auth.callerId, isActive: true },
+    where: scopeFilter,
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
 
   // Build cohort filter
   const cohortFilter = cohortId
-    ? { cohortGroupId: cohortId, cohortGroup: { ownerId: auth.callerId } }
-    : { cohortGroup: { ownerId: auth.callerId, isActive: true } };
+    ? { cohortGroupId: cohortId, cohortGroup: scopeFilter }
+    : { cohortGroup: scopeFilter };
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
