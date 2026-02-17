@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const AUTH_FILE = '.playwright/auth.json';
 const isCloud = !!process.env.CLOUD_E2E;
-const TEST_PORT = process.env.PORT || '3001';
+const TEST_PORT = process.env.PORT || (isCloud ? '3000' : '3001');
 const TEST_BASE_URL = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${TEST_PORT}`;
 
 /**
@@ -110,8 +110,9 @@ export default defineConfig({
     },
   ],
 
-  /* Run test server on separate port so dev server stays untouched */
-  webServer: process.env.CI ? undefined : {
+  /* Run test server on separate port so dev server stays untouched.
+   * Skip for CI (handles its own server) and cloud E2E (uses SSH tunnel). */
+  webServer: (process.env.CI || isCloud) ? undefined : {
     command: `NODE_ENV=test npm run dev -- --port ${TEST_PORT}`,
     url: TEST_BASE_URL,
     reuseExistingServer: true,

@@ -56,6 +56,15 @@ export class QuickLaunchPage extends BasePage {
     this.viewDomainButton = this.viewAgentButton;
   }
 
+  /** Dismiss the "Resume previous launch?" prompt by clicking Start Fresh (if visible) */
+  async dismissResumePrompt(): Promise<void> {
+    const startFresh = this.page.getByRole('button', { name: 'Start Fresh' });
+    if (await startFresh.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await startFresh.click();
+      await this.page.waitForTimeout(500);
+    }
+  }
+
   /** Fill the description textarea (brief) */
   async fillBrief(description: string): Promise<void> {
     await this.briefInput.fill(description);

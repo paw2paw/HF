@@ -8,7 +8,7 @@ const AUTH_FILE = '.playwright/auth.json';
  * Runs prisma migrate deploy which is fast and idempotent.
  */
 function ensureTestDb() {
-  if (process.env.CI) return;
+  if (process.env.CI || process.env.CLOUD_E2E) return;
 
   console.log('[Global Setup] Running Prisma migrate deploy on test DB...');
   try {

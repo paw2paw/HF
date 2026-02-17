@@ -32,6 +32,9 @@ test.describe('Golden Path — Upload → Call → Prompt Evolution', () => {
       const ql = new QuickLaunchPage(page);
       await ql.goto();
 
+      // Dismiss stale in-progress launch from previous runs
+      await ql.dismissResumePrompt();
+
       // Fill form with timestamp-unique name
       await ql.fillForm(
         `E2E Golden Path ${suffix} — teaching photosynthesis`,

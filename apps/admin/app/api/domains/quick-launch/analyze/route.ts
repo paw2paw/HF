@@ -113,15 +113,17 @@ export async function POST(req: NextRequest) {
     // ── Step 1: Resolve or create domain + subject (fast, sync) ──
 
     let domain;
+    let slug: string;
     if (existingDomainId) {
       // Use existing domain (new class in existing school)
       domain = await prisma.domain.findUnique({ where: { id: existingDomainId } });
       if (!domain) {
         return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
       }
+      slug = domain.slug;
     } else {
       // Create or find domain from subject name
-      const slug = subjectName
+      slug = subjectName
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
