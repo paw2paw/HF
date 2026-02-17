@@ -77,7 +77,7 @@ async function main() {
   }
 
   // Verification table
-  const [specs, params, domains, institutions, users, callers, calls, scores, memories, goals, configs] =
+  const [specs, params, domains, institutions, users, callers, calls, scores, memories, goals, profiles] =
     await Promise.all([
       prisma.analysisSpec.count(),
       prisma.parameter.count(),
@@ -89,7 +89,7 @@ async function main() {
       prisma.callScore.count(),
       prisma.callerMemory.count(),
       prisma.goal.count(),
-      prisma.analysisRunConfig.count(),
+      prisma.analysisProfile.count(),
     ]);
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
@@ -108,7 +108,7 @@ async function main() {
   CallScores:     ${scores}
   Memories:       ${memories}
   Goals:          ${goals}
-  Run Configs:    ${configs}
+  Profiles:       ${profiles}
   Time:           ${elapsed}s
 `);
 
