@@ -26,19 +26,12 @@ export function BugReportButton() {
   const responseRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Only show for OPERATOR+ roles
   const userRole = session?.user?.role;
-  if (
+  const isHidden =
     !userRole ||
-    !["OPERATOR", "ADMIN", "SUPERADMIN"].includes(userRole as string)
-  ) {
-    return null;
-  }
-
-  // Don't show on sim or auth pages
-  if (pathname?.startsWith("/x/sim") || pathname?.startsWith("/login")) {
-    return null;
-  }
+    !["OPERATOR", "ADMIN", "SUPERADMIN"].includes(userRole as string) ||
+    pathname?.startsWith("/x/sim") ||
+    pathname?.startsWith("/login");
 
   const handleSubmit = async () => {
     if (!description.trim() || isStreaming) return;
@@ -145,6 +138,8 @@ export function BugReportButton() {
   }, [expanded]);
 
   const recentErrors = getRecentErrors();
+
+  if (isHidden) return null;
 
   return (
     <div

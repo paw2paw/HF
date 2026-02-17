@@ -41,17 +41,31 @@ async function globalSetup(config: FullConfig) {
   try {
     // Navigate to login page and wait for full render (cloud tunnel can be slow)
     const isCloud = !!process.env.CLOUD_E2E;
+    console.log(`[Global Setup] baseURL=${baseURL}, isCloud=${isCloud}`);
     await page.goto(`${baseURL}/login`, { timeout: isCloud ? 60000 : 30000 });
     await page.waitForLoadState('networkidle', { timeout: isCloud ? 30000 : 15000 });
+    console.log(`[Global Setup] Login page loaded at ${page.url()}`);
 
     // Fill in credentials (using default admin user)
+    const password = process.env.SEED_ADMIN_PASSWORD || 'admin123';
     await page.locator('#email').fill('admin@test.com');
-    await page.locator('#password').fill(process.env.SEED_ADMIN_PASSWORD || 'admin123');
+    await page.locator('#password').fill(password);
 
     // Submit login form
     await page.locator('button[type="submit"]').click();
+    console.log('[Global Setup] Form submitted, waiting for redirect...');
 
-    // Wait for successful redirect to /x (domcontentloaded — dashboard has long-lived connections that block 'load')
+    // Wait a moment then check URL
+    await page.waitForTimeout(5000);
+    console.log(`[Global Setup] After 5s: url=${page.url()}`);
+
+    // Check for error message
+    const errorEl = page.locator('text=Invalid email or password');
+    if (await errorEl.isVisible()) {
+      console.error('[Global Setup] ERROR: Invalid email or password shown!');
+    }
+
+    // Wait for successful redirect to /x
     await page.waitForURL(/\/x/, { timeout: isCloud ? 60000 : 15000, waitUntil: 'domcontentloaded' });
 
     console.log('[Global Setup] Login successful, saving auth state...');
