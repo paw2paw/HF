@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
             learningGoals: overrides.learningGoals ?? input.learningGoals,
             qualificationRef: input.qualificationRef,
             mode: input.mode,
+            domainId, // Forward so scaffold knows this is an existing domain
           },
           sendEvent,
         );

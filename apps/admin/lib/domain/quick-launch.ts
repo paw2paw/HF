@@ -23,6 +23,7 @@ import {
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
+import { enrollCaller } from "@/lib/enrollment";
 import type { SpecConfig } from "@/lib/types/json-fields";
 
 // ── Types ──────────────────────────────────────────────
@@ -45,6 +46,7 @@ export interface QuickLaunchInput {
   file?: File;
   qualificationRef?: string;
   mode?: "upload" | "generate";
+  domainId?: string; // Use existing domain instead of creating new one
 }
 
 export interface ProgressEvent {
@@ -125,36 +127,54 @@ export async function loadLaunchSteps(): Promise<LaunchStep[]> {
 
 const stepExecutors: Record<string, StepExecutor> = {
   /**
-   * Step 1: Create Domain + Subject + link them
+   * Step 1: Resolve or create Domain + Subject + link them.
+   * If input.domainId is provided, uses that existing domain (new playbook in existing school).
+   * Otherwise creates a new domain from subjectName (original behavior).
    */
   create_domain: async (ctx) => {
-    const { subjectName, brief, qualificationRef } = ctx.input;
+    const { subjectName, brief, qualificationRef, domainId: existingDomainId } = ctx.input;
 
-    // Generate slug from subject name
-    const slug = subjectName
+    let domain;
+
+    if (existingDomainId) {
+      // Use existing domain — creating a new playbook (class) within it
+      domain = await prisma.domain.findUnique({
+        where: { id: existingDomainId },
+      });
+      if (!domain) {
+        throw new Error(`Domain not found: ${existingDomainId}`);
+      }
+    } else {
+      // Create or find domain from subject name (original behavior)
+      const slug = subjectName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      domain = await prisma.domain.findFirst({ where: { slug } });
+      if (!domain) {
+        domain = await prisma.domain.create({
+          data: {
+            slug,
+            name: subjectName,
+            description: brief || `Quick-launched domain for ${subjectName}`,
+            isActive: true,
+          },
+        });
+      }
+    }
+
+    // Create or find subject (always, even for existing domains)
+    const subjectSlug = subjectName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    // Create or find domain
-    let domain = await prisma.domain.findFirst({ where: { slug } });
-    if (!domain) {
-      domain = await prisma.domain.create({
-        data: {
-          slug,
-          name: subjectName,
-          description: brief || `Quick-launched domain for ${subjectName}`,
-          isActive: true,
-        },
-      });
-    }
-
-    // Create or find subject
-    let subject = await prisma.subject.findFirst({ where: { slug } });
+    let subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
     if (!subject) {
       subject = await prisma.subject.create({
         data: {
-          slug,
+          slug: subjectSlug,
           name: subjectName,
           qualificationRef: qualificationRef || null,
           isActive: true,
@@ -177,6 +197,7 @@ const stepExecutors: Record<string, StepExecutor> = {
     ctx.results.domainName = domain.name;
     ctx.results.subjectId = subject.id;
     ctx.results.subjectSlug = subject.slug;
+    ctx.results.useExistingDomain = !!existingDomainId;
     ctx.results.warnings = [];
   },
 
@@ -339,6 +360,8 @@ const stepExecutors: Record<string, StepExecutor> = {
 
   /**
    * Step 5: Scaffold domain (identity spec, playbook, onboarding)
+   * When using an existing domain, forceNewPlaybook creates a new playbook
+   * alongside existing ones (new class in the same school).
    */
   scaffold_domain: async (ctx) => {
     const domainId = ctx.results.domainId!;
@@ -349,6 +372,8 @@ const stepExecutors: Record<string, StepExecutor> = {
     const scaffoldResult = await scaffoldDomain(domainId, {
       identityConfig: ctx.results.identityConfig || undefined,
       flowPhases: flowPhases || undefined,
+      forceNewPlaybook: !!ctx.results.useExistingDomain,
+      playbookName: ctx.results.useExistingDomain ? ctx.input.subjectName : undefined,
     });
 
     if (scaffoldResult.identitySpec) {
@@ -539,6 +564,11 @@ const stepExecutors: Record<string, StepExecutor> = {
     }
 
     ctx.results.goalCount = learningGoals.length;
+
+    // Enroll caller in the newly created playbook
+    if (ctx.results.playbookId) {
+      await enrollCaller(caller.id, ctx.results.playbookId, "quick-launch");
+    }
   },
 };
 

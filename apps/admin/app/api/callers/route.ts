@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/access-control";
+import { enrollCallerInCohortPlaybooks, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 
 /**
  * @api GET /api/callers
@@ -182,7 +183,7 @@ export async function POST(req: Request) {
     if (isEntityAuthError(authResult)) return authResult.error;
 
     const body = await req.json();
-    let { name, email, phone, domainId, role } = body;
+    let { name, email, phone, domainId, role, cohortGroupId } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -208,6 +209,7 @@ export async function POST(req: Request) {
         email: email || null,
         phone: phone || null,
         domainId: domainId || null,
+        cohortGroupId: cohortGroupId || null,
         role: role || "LEARNER",
         externalId: `playground-${Date.now()}`,
       },
@@ -217,6 +219,13 @@ export async function POST(req: Request) {
         },
       },
     });
+
+    // Auto-enroll in playbooks (cohort-specific if cohort provided, otherwise domain-wide)
+    if (cohortGroupId && caller.domainId) {
+      await enrollCallerInCohortPlaybooks(caller.id, cohortGroupId, caller.domainId, "auto");
+    } else if (caller.domainId) {
+      await enrollCallerInDomainPlaybooks(caller.id, caller.domainId, "auto");
+    }
 
     return NextResponse.json({
       ok: true,

@@ -106,9 +106,12 @@ export async function getSpecsByOutputType(
 }
 
 /**
- * Get DOMAIN specs from the caller's domain's published playbook.
- * Only returns specs with scope=DOMAIN (not SYSTEM).
- * Falls back to all active DOMAIN specs if no playbook is published.
+ * Get DOMAIN specs from the caller's enrolled playbooks (or domain fallback).
+ *
+ * Resolution order:
+ * 1. CallerPlaybook enrollments (ACTIVE) → use enrolled PUBLISHED playbooks
+ * 2. Domain-based fallback → first PUBLISHED playbook in caller's domain
+ * 3. Global fallback → all active DOMAIN specs
  */
 export async function getPlaybookSpecs(
   callerId: string,
@@ -120,6 +123,76 @@ export async function getPlaybookSpecs(
   playbookName: string | null;
   fallback: boolean;
 }> {
+  // 1. Check CallerPlaybook enrollments first
+  const enrollments = await prisma.callerPlaybook.findMany({
+    where: { callerId, status: "ACTIVE" },
+    select: { playbookId: true },
+  });
+
+  if (enrollments.length > 0) {
+    const enrolledIds = enrollments.map((e) => e.playbookId);
+    const playbooks = await prisma.playbook.findMany({
+      where: {
+        id: { in: enrolledIds },
+        status: "PUBLISHED",
+      },
+      select: {
+        id: true,
+        name: true,
+        sortOrder: true,
+        items: {
+          where: {
+            itemType: "SPEC",
+            isEnabled: true,
+            spec: {
+              scope: "DOMAIN",
+              outputType: { in: outputTypes as AnalysisOutputType[] },
+              isActive: true,
+              isDirty: false,
+            },
+          },
+          select: {
+            spec: {
+              select: { id: true, slug: true, outputType: true },
+            },
+          },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    if (playbooks.length > 0) {
+      // Collect specs from all enrolled playbooks, deduplicate by spec ID
+      const seenIds = new Set<string>();
+      const specs: Array<{ id: string; slug: string; outputType: string }> = [];
+      for (const pb of playbooks) {
+        for (const item of pb.items) {
+          if (item.spec && !seenIds.has(item.spec.id)) {
+            seenIds.add(item.spec.id);
+            specs.push(item.spec);
+          }
+        }
+      }
+
+      const primary = playbooks[0];
+      log.info(`Using ${playbooks.length} enrolled playbook(s), primary: "${primary.name}"`, {
+        playbookId: primary.id,
+        enrolledCount: playbooks.length,
+        specCount: specs.length,
+        outputTypes,
+      });
+
+      return {
+        specs,
+        playbookId: primary.id,
+        playbookName: primary.name,
+        fallback: false,
+      };
+    }
+  }
+
+  // 2. Domain-based fallback (no enrollments or no published enrolled playbooks)
   const caller = await prisma.caller.findUnique({
     where: { id: callerId },
     select: { domainId: true, domain: { select: { slug: true, name: true } } },
@@ -186,7 +259,7 @@ export async function getPlaybookSpecs(
     .filter((item) => item.spec)
     .map((item) => item.spec!);
 
-  log.info(`Using playbook "${playbook.name}" for domain "${caller.domain?.slug}"`, {
+  log.info(`Using playbook "${playbook.name}" for domain "${caller.domain?.slug}" (domain fallback)`, {
     playbookId: playbook.id,
     specCount: specs.length,
     outputTypes,

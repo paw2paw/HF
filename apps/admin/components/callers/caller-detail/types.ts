@@ -1,0 +1,216 @@
+// Shared types for CallerDetailPage and its sub-components
+
+export type Domain = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  isDefault: boolean;
+};
+
+export type CallerProfile = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  externalId: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+  domainId: string | null;
+  domain: Domain | null;
+};
+
+export type PersonalityProfile = {
+  parameterValues: Record<string, number>; // Dynamic parameter values (Big Five, VARK, etc.)
+  lastUpdatedAt: string | null;
+};
+
+export type PersonalityObservation = {
+  id: string;
+  callId: string;
+  openness: number | null;
+  conscientiousness: number | null;
+  extraversion: number | null;
+  agreeableness: number | null;
+  neuroticism: number | null;
+  confidence: number | null;
+  observedAt: string;
+};
+
+export type Memory = {
+  id: string;
+  category: string;
+  key: string;
+  value: string;
+  normalizedKey: string | null;
+  evidence: string | null;
+  confidence: number;
+  decayFactor: number | null;
+  extractedAt: string;
+  expiresAt: string | null;
+};
+
+export type MemorySummary = {
+  factCount: number;
+  preferenceCount: number;
+  eventCount: number;
+  topicCount: number;
+  keyFacts: { key: string; value: string; confidence: number }[];
+  preferences: Record<string, string>;
+  topTopics: { topic: string; lastMentioned?: string }[];
+};
+
+export type Call = {
+  id: string;
+  source: string;
+  externalId: string | null;
+  transcript: string;
+  createdAt: string;
+  callSequence?: number | null;
+  // Analysis status (persistent - from database)
+  hasScores?: boolean;
+  hasMemories?: boolean;
+  hasBehaviorMeasurements?: boolean;
+  hasRewardScore?: boolean;
+  hasPrompt?: boolean;
+};
+
+export type CallerIdentity = {
+  id: string;
+  name: string | null;
+  externalId: string | null;
+  nextPrompt: string | null;
+  nextPromptComposedAt: string | null;
+  nextPromptInputs: Record<string, any> | null;
+  segmentId: string | null;
+  segment: { name: string } | null;
+};
+
+export type CallScore = {
+  id: string;
+  callId: string;
+  parameterId: string;
+  score: number;
+  confidence: number;
+  evidence: string[] | null;
+  reasoning: string | null;
+  scoredBy: string | null;
+  scoredAt: string;
+  analysisSpecId: string | null;
+  createdAt: string;
+  parameter: { name: string; definition: string | null };
+  analysisSpec: { id: string; slug: string; name: string; outputType: string } | null;
+  call: { createdAt: string };
+};
+
+export type CurriculumModule = {
+  id: string;
+  name: string;
+  description: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  mastery: number;
+  sequence: number;
+};
+
+export type CurriculumProgress = {
+  name: string | null;
+  hasData: boolean;
+  modules: CurriculumModule[];
+  nextModule: string | null;
+  totalModules: number;
+  completedCount: number;
+  estimatedProgress: number;
+};
+
+export type LearnerProfile = {
+  learningStyle: string | null;
+  pacePreference: string | null;
+  interactionStyle: string | null;
+  priorKnowledge: Record<string, string>;
+  preferredModality: string | null;
+  questionFrequency: string | null;
+  sessionLength: string | null;
+  feedbackStyle: string | null;
+  lastUpdated: string | null;
+};
+
+export type Goal = {
+  id: string;
+  type: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: number;
+  progress: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  targetDate: string | null;
+  playbook: {
+    id: string;
+    name: string;
+    version: string;
+  } | null;
+  contentSpec: {
+    id: string;
+    slug: string;
+    name: string;
+  } | null;
+};
+
+export type CallerData = {
+  caller: CallerProfile;
+  personality: PersonalityProfile | null;
+  observations: PersonalityObservation[];
+  memories: Memory[];
+  memorySummary: MemorySummary | null;
+  calls: Call[];
+  identities: CallerIdentity[];
+  scores: CallScore[];
+  callerTargets?: any[];
+  curriculum?: CurriculumProgress | null;
+  learnerProfile?: LearnerProfile | null;
+  goals?: Goal[];
+  counts: {
+    calls: number;
+    memories: number;
+    observations: number;
+    prompts: number;
+    targets: number;
+    measurements: number;
+    artifacts?: number;
+    actions?: number;
+    curriculumModules?: number;
+    curriculumCompleted?: number;
+    goals?: number;
+    activeGoals?: number;
+    keyFacts?: number;
+  };
+};
+
+export type SectionId = "calls" | "profile" | "progress" | "artifacts" | "ai-call";
+
+export type ComposedPrompt = {
+  id: string;
+  prompt: string;
+  llmPrompt: Record<string, any> | null;  // LLM-friendly structured JSON version
+  triggerType: string;
+  triggerCallId: string | null;
+  model: string | null;
+  status: string;
+  composedAt: string;
+  inputs: Record<string, any> | null;
+  triggerCall?: { id: string; createdAt: string; source: string } | null;
+};
+
+export type ParamDisplayInfo = {
+  parameterId: string;
+  label: string;
+  description: string;
+  color: string;
+  section: string;
+};
+
+export type ParamConfig = {
+  grouped: Record<string, ParamDisplayInfo[]>;
+  params: Record<string, ParamDisplayInfo>;
+} | null;

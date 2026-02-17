@@ -310,8 +310,53 @@ registerLoader("goals", async (callerId) => {
   });
 });
 
-registerLoader("playbooks", async (callerId, config?: { playbookIds?: string[] }) => {
-  // Get caller's domain, then find ALL published playbooks (stacked)
+registerLoader("playbooks", async (callerId, loaderConfig?: { playbookIds?: string[] }) => {
+  const specSelect = {
+    id: true,
+    slug: true,
+    name: true,
+    description: true,
+    specRole: true,
+    outputType: true,
+    config: true,
+    promptTemplate: true,
+    domain: true,
+    extendsAgent: true,
+  };
+
+  const itemInclude = {
+    where: { isEnabled: true, itemType: "SPEC" as const },
+    orderBy: { sortOrder: "asc" as const },
+    include: { spec: { select: specSelect } },
+  };
+
+  // 1. Check CallerPlaybook enrollments (ACTIVE)
+  const enrollments = await prisma.callerPlaybook.findMany({
+    where: { callerId, status: "ACTIVE" },
+    select: { playbookId: true },
+  });
+
+  if (enrollments.length > 0) {
+    let playbookIds = enrollments.map((e) => e.playbookId);
+
+    // If caller explicitly requests specific playbooks, intersect with enrollments
+    if (loaderConfig?.playbookIds && loaderConfig.playbookIds.length > 0) {
+      const requested = new Set(loaderConfig.playbookIds);
+      playbookIds = playbookIds.filter((id) => requested.has(id));
+    }
+
+    if (playbookIds.length > 0) {
+      const playbooks = await prisma.playbook.findMany({
+        where: { id: { in: playbookIds }, status: "PUBLISHED" },
+        orderBy: { sortOrder: "asc" },
+        include: { domain: true, items: itemInclude },
+      });
+
+      if (playbooks.length > 0) return playbooks;
+    }
+  }
+
+  // 2. Domain-based fallback (no enrollments or no published enrolled playbooks)
   const callerWithDomain = await prisma.caller.findUnique({
     where: { id: callerId },
     select: { domainId: true },
@@ -319,47 +364,19 @@ registerLoader("playbooks", async (callerId, config?: { playbookIds?: string[] }
 
   if (!callerWithDomain?.domainId) return [];
 
-  // Build where clause - optionally filter to specific playbooks
-  const whereClause: any = {
+  const whereClause: Record<string, unknown> = {
     domainId: callerWithDomain.domainId,
-    status: "PUBLISHED", // Only PUBLISHED playbooks stack
+    status: "PUBLISHED",
   };
 
-  // If playbookIds specified, filter to only those playbooks
-  if (config?.playbookIds && config.playbookIds.length > 0) {
-    whereClause.id = { in: config.playbookIds };
+  if (loaderConfig?.playbookIds && loaderConfig.playbookIds.length > 0) {
+    whereClause.id = { in: loaderConfig.playbookIds };
   }
 
-  // Load all PUBLISHED playbooks for domain, ordered by sortOrder (lower = higher priority)
   return prisma.playbook.findMany({
     where: whereClause,
-    orderBy: { sortOrder: "asc" }, // First playbook wins on conflicts
-    include: {
-      domain: true,
-      items: {
-        where: {
-          isEnabled: true,
-          itemType: "SPEC",
-        },
-        orderBy: { sortOrder: "asc" },
-        include: {
-          spec: {
-            select: {
-              id: true,
-              slug: true,
-              name: true,
-              description: true,
-              specRole: true,
-              outputType: true,
-              config: true,
-              promptTemplate: true,
-              domain: true,
-              extendsAgent: true,
-            },
-          },
-        },
-      },
-    },
+    orderBy: { sortOrder: "asc" },
+    include: { domain: true, items: itemInclude },
   });
 });
 

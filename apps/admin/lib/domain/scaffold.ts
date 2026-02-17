@@ -21,6 +21,10 @@ export interface ScaffoldOptions {
   identityConfig?: Record<string, any>;
   /** Persona-specific onboarding flow phases (from INIT-001). If omitted, uses DEFAULT_FLOW_PHASES. */
   flowPhases?: any;
+  /** When true, always create a new playbook even if one already exists (new class in existing school). */
+  forceNewPlaybook?: boolean;
+  /** Custom playbook name (used when forceNewPlaybook=true). Falls back to "{domain.name} Playbook". */
+  playbookName?: string;
 }
 
 export interface ScaffoldResult {
@@ -51,19 +55,22 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // 2. Check for existing published playbook — already scaffolded
-  const existingPublished = await prisma.playbook.findFirst({
-    where: { domainId, status: "PUBLISHED" },
-    select: { id: true, name: true },
-  });
+  //    Skip this check when forceNewPlaybook=true (new class in existing school)
+  if (!options?.forceNewPlaybook) {
+    const existingPublished = await prisma.playbook.findFirst({
+      where: { domainId, status: "PUBLISHED" },
+      select: { id: true, name: true },
+    });
 
-  if (existingPublished) {
-    return {
-      identitySpec: null,
-      playbook: { id: existingPublished.id, name: existingPublished.name },
-      published: false,
-      onboardingConfigured: false,
-      skipped: ["Published playbook already exists — skipping scaffold"],
-    };
+    if (existingPublished) {
+      return {
+        identitySpec: null,
+        playbook: { id: existingPublished.id, name: existingPublished.name },
+        published: false,
+        onboardingConfigured: false,
+        skipped: ["Published playbook already exists — skipping scaffold"],
+      };
+    }
   }
 
   // 3. Find or create Identity spec
@@ -126,23 +133,30 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // 4. Find or create Playbook
-  let playbook = await prisma.playbook.findFirst({
-    where: { domainId, status: "DRAFT" },
-    select: { id: true, name: true },
-  });
+  //    When forceNewPlaybook=true, always create a new playbook (new class)
+  const pbName = options?.playbookName || `${domain.name} Playbook`;
+  let playbook: { id: string; name: string } | null = null;
+
+  if (!options?.forceNewPlaybook) {
+    playbook = await prisma.playbook.findFirst({
+      where: { domainId, status: "DRAFT" },
+      select: { id: true, name: true },
+    });
+    if (playbook) {
+      skipped.push("Reusing existing DRAFT playbook");
+    }
+  }
 
   if (!playbook) {
     playbook = await prisma.playbook.create({
       data: {
-        name: `${domain.name} Playbook`,
+        name: pbName,
         domainId,
         status: "DRAFT",
         version: "1.0",
       },
       select: { id: true, name: true },
     });
-  } else {
-    skipped.push("Reusing existing DRAFT playbook");
   }
 
   // 5. Add Identity spec to playbook (if not already linked)
@@ -193,15 +207,19 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     },
   });
 
-  // 7. Publish playbook (archive any other published, set status)
-  await prisma.playbook.updateMany({
-    where: {
-      domainId,
-      status: "PUBLISHED",
-      id: { not: playbook.id },
-    },
-    data: { status: "ARCHIVED" },
-  });
+  // 7. Publish playbook
+  //    When forceNewPlaybook=true, keep existing published playbooks (multiple classes coexist).
+  //    Otherwise archive them (original behavior — one published playbook per domain).
+  if (!options?.forceNewPlaybook) {
+    await prisma.playbook.updateMany({
+      where: {
+        domainId,
+        status: "PUBLISHED",
+        id: { not: playbook.id },
+      },
+      data: { status: "ARCHIVED" },
+    });
+  }
 
   await prisma.playbook.update({
     where: { id: playbook.id },

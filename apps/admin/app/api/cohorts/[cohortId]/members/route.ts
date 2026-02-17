@@ -5,6 +5,7 @@ import {
   requireCohortOwnership,
   isCohortOwnershipError,
 } from "@/lib/cohort-access";
+import { enrollCallerInCohortPlaybooks } from "@/lib/enrollment";
 
 /**
  * @api POST /api/cohorts/:cohortId/members
@@ -107,6 +108,11 @@ export async function POST(
       where: { id: { in: callerIds } },
       data: { cohortGroupId: cohortId },
     });
+
+    // Auto-enroll added callers in cohort's assigned playbooks
+    for (const cid of callerIds) {
+      await enrollCallerInCohortPlaybooks(cid, cohortId, cohort.domainId, "cohort-add");
+    }
 
     return NextResponse.json({ ok: true, added: result.count });
   } catch (error: any) {

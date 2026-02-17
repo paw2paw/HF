@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
 import { randomUUID } from "crypto";
+import { assignPlaybookToCohort } from "@/lib/enrollment";
 
 /**
  * @api GET /api/educator/classrooms
@@ -152,6 +153,15 @@ export async function POST(request: NextRequest) {
       _count: { select: { members: true } },
     },
   });
+
+  // Auto-assign domain's published playbooks to new classroom
+  const publishedPlaybooks = await prisma.playbook.findMany({
+    where: { domainId, status: "PUBLISHED" },
+    select: { id: true },
+  });
+  for (const pb of publishedPlaybooks) {
+    await assignPlaybookToCohort(classroom.id, pb.id, "classroom-creation", false);
+  }
 
   return NextResponse.json({
     ok: true,

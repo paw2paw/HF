@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { encode } from "next-auth/jwt";
 import { validateBody, joinPostSchema } from "@/lib/validation";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
+import { enrollCallerInCohortPlaybooks } from "@/lib/enrollment";
 
 /** Separate rate-limit key for GET (token probing) vs POST (account creation) */
 const RATE_LIMIT_KEY_VERIFY = "join-verify";
@@ -143,7 +144,7 @@ export async function POST(
     }
 
     // Add existing user to this cohort
-    await prisma.caller.create({
+    const newCaller = await prisma.caller.create({
       data: {
         name: `${firstName.trim()} ${lastName.trim()}`,
         email: email.trim().toLowerCase(),
@@ -154,6 +155,11 @@ export async function POST(
         externalId: `join-${existingUser.id}-${cohort.id}`,
       },
     });
+
+    // Auto-enroll in cohort's playbooks (falls back to domain-wide if none assigned)
+    if (cohort.domainId) {
+      await enrollCallerInCohortPlaybooks(newCaller.id, cohort.id, cohort.domainId, "join");
+    }
 
     return NextResponse.json({
       ok: true,
@@ -177,7 +183,7 @@ export async function POST(
       },
     });
 
-    await tx.caller.create({
+    const newCaller = await tx.caller.create({
       data: {
         name: `${firstName.trim()} ${lastName.trim()}`,
         email: email.trim().toLowerCase(),
@@ -188,6 +194,11 @@ export async function POST(
         externalId: `join-${newUser.id}`,
       },
     });
+
+    // Auto-enroll in cohort's playbooks (falls back to domain-wide if none assigned)
+    if (cohort.domainId) {
+      await enrollCallerInCohortPlaybooks(newCaller.id, cohort.id, cohort.domainId, "join", tx);
+    }
 
     return newUser;
   });

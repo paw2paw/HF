@@ -499,6 +499,10 @@ export default function QuickLaunchPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [launchMode, setLaunchMode] = useState<"upload" | "generate">("generate");
 
+  // Domain picker — use existing domain or create new
+  const [domains, setDomains] = useState<{ id: string; slug: string; name: string }[]>([]);
+  const [selectedDomainId, setSelectedDomainId] = useState<string>("");
+
   // Personas from API
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [personasLoading, setPersonasLoading] = useState(true);
@@ -525,7 +529,7 @@ export default function QuickLaunchPage() {
   // Autosave debounce ref
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Load personas ──────────────────────────────────
+  // ── Load personas + domains ────────────────────────
 
   useEffect(() => {
     fetch("/api/onboarding/personas")
@@ -542,6 +546,20 @@ export default function QuickLaunchPage() {
         setPersona("tutor");
       })
       .finally(() => setPersonasLoading(false));
+
+    // Load domains for domain picker
+    fetch("/api/domains?activeOnly=true")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.domains) {
+          setDomains(data.domains.map((d: any) => ({
+            id: d.id,
+            slug: d.slug,
+            name: d.name,
+          })));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // ── Check for resumable task ──────────────────────
@@ -864,6 +882,9 @@ export default function QuickLaunchPage() {
     formData.append("subjectName", subjectName.trim());
     formData.append("persona", persona);
     formData.append("mode", launchMode);
+    if (selectedDomainId) {
+      formData.append("domainId", selectedDomainId);
+    }
     if (brief.trim()) {
       formData.append("brief", brief.trim());
     }
@@ -1778,6 +1799,40 @@ export default function QuickLaunchPage() {
           {/* Step 1: Describe what you're building */}
           <FormCard>
             <StepMarker number={1} label="Describe what you're building" completed={!!subjectName.trim()} />
+
+            {/* Domain picker — use existing domain or create new */}
+            {domains.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+                  Organisation / Domain
+                </label>
+                <select
+                  value={selectedDomainId}
+                  onChange={(e) => setSelectedDomainId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    border: "1px solid var(--input-border)",
+                    fontSize: 14,
+                    background: "var(--input-bg)",
+                    color: "var(--text-primary)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="">Create new domain</option>
+                  {domains.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {selectedDomainId && (
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                    A new playbook (class) will be created within this domain.
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
               Tell us what you&apos;re creating &mdash; a tutor, coach, support agent, or anything else.
             </div>

@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file") as File | null;
   const goalsRaw = formData.get("learningGoals") as string | null;
   const qualificationRef = formData.get("qualificationRef") as string | null;
+  const existingDomainId = formData.get("domainId") as string | null;
 
   // Validate required fields
   if (!subjectName?.trim()) {
@@ -109,31 +110,47 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // ── Step 1: Create domain + subject (fast, sync) ──
+    // ── Step 1: Resolve or create domain + subject (fast, sync) ──
 
-    const slug = subjectName
+    let domain;
+    if (existingDomainId) {
+      // Use existing domain (new class in existing school)
+      domain = await prisma.domain.findUnique({ where: { id: existingDomainId } });
+      if (!domain) {
+        return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
+      }
+    } else {
+      // Create or find domain from subject name
+      const slug = subjectName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      domain = await prisma.domain.findFirst({ where: { slug } });
+      if (!domain) {
+        domain = await prisma.domain.create({
+          data: {
+            slug,
+            name: subjectName.trim(),
+            description: brief?.trim() || `Quick-launched domain for ${subjectName.trim()}`,
+            isActive: true,
+          },
+        });
+      }
+    }
+
+    const subjectSlug = subjectName
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    let domain = await prisma.domain.findFirst({ where: { slug } });
-    if (!domain) {
-      domain = await prisma.domain.create({
-        data: {
-          slug,
-          name: subjectName.trim(),
-          description: brief?.trim() || `Quick-launched domain for ${subjectName.trim()}`,
-          isActive: true,
-        },
-      });
-    }
-
-    let subject = await prisma.subject.findFirst({ where: { slug } });
+    let subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
     if (!subject) {
       subject = await prisma.subject.create({
         data: {
-          slug,
+          slug: subjectSlug,
           name: subjectName.trim(),
           qualificationRef: qualificationRef?.trim() || null,
           isActive: true,

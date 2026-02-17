@@ -136,6 +136,14 @@ enum GoalStatus {
   ARCHIVED // No longer relevant
 }
 
+// CallerPlaybook enrollment status — tracks a caller's relationship to a specific playbook
+enum CallerPlaybookStatus {
+  ACTIVE // Currently enrolled, specs run in pipeline
+  COMPLETED // Finished the course/playbook
+  PAUSED // Temporarily suspended
+  DROPPED // Explicitly withdrawn
+}
+
 // Caller role - what function this person serves in the learning platform
 enum CallerRole {
   LEARNER // Default — uses the system as a student/participant
@@ -829,6 +837,9 @@ model Caller {
   // Caller's goals (learn, achieve, connect, etc.)
   goals Goal[]
 
+  // Playbook enrollments — explicit links to specific playbooks (class roster)
+  enrollments CallerPlaybook[]
+
   // Conversation artifacts (content shared after calls)
   artifacts       ConversationArtifact[]
   actions         CallAction[]
@@ -904,6 +915,9 @@ model CohortGroup {
 
   // Invites linked to this cohort
   invites Invite[]
+
+  // Playbooks assigned to this cohort (courses this classroom teaches)
+  playbooks CohortPlaybook[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1064,6 +1078,60 @@ model Goal {
   @@index([callerId, status])
   @@index([type])
   @@index([status])
+  @@index([playbookId])
+}
+
+// CallerPlaybook — Explicit enrollment of a caller in a specific playbook.
+// Replaces the implicit "caller inherits all domain playbooks" pattern.
+// Organisers manage class rosters by enrolling callers in specific playbooks.
+model CallerPlaybook {
+  id String @id @default(uuid())
+
+  callerId String
+  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+
+  playbookId String
+  playbook   Playbook @relation(fields: [playbookId], references: [id])
+
+  status CallerPlaybookStatus @default(ACTIVE)
+
+  // Lifecycle timestamps
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+  pausedAt    DateTime?
+  droppedAt   DateTime?
+
+  // Source tracking — how this enrollment was created
+  enrolledBy String? // "quick-launch" | "invite" | "auto" | "manual" | "migration"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([callerId, playbookId])
+  @@index([callerId, status])
+  @@index([playbookId])
+}
+
+// CohortPlaybook — Links a classroom (CohortGroup) to specific playbooks (courses).
+// When students join the cohort, they auto-enroll in these playbooks.
+// If a cohort has no CohortPlaybook records, falls back to domain-wide enrollment.
+model CohortPlaybook {
+  id String @id @default(uuid())
+
+  cohortGroupId String
+  cohortGroup   CohortGroup @relation(fields: [cohortGroupId], references: [id], onDelete: Cascade)
+
+  playbookId String
+  playbook   Playbook @relation(fields: [playbookId], references: [id])
+
+  // Who assigned this playbook to the cohort
+  assignedBy String? // "auto" | "manual" | "quick-launch" | userId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cohortGroupId, playbookId])
+  @@index([cohortGroupId])
   @@index([playbookId])
 }
 
@@ -2328,6 +2396,12 @@ model Playbook {
 
   // Goals instantiated from this playbook template
   goals Goal[]
+
+  // Caller enrollments — who is enrolled in this playbook (class roster)
+  enrollments CallerPlaybook[]
+
+  // Cohort assignments — which classrooms use this playbook (course)
+  cohortAssignments CohortPlaybook[]
 
   @@index([domainId])
   @@index([domainId, sortOrder])

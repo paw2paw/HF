@@ -55,7 +55,7 @@ export async function GET(
             createdAt: true,
             updatedAt: true,
             _count: {
-              select: { items: true },
+              select: { items: true, enrollments: true },
             },
           },
         },

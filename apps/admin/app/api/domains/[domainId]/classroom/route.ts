@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { randomUUID } from "crypto";
+import { assignPlaybookToCohort } from "@/lib/enrollment";
 
 /**
  * @api POST /api/domains/:domainId/classroom
@@ -98,6 +99,15 @@ export async function POST(
         where: { id: cohort.id },
         data: { joinToken },
       });
+    }
+
+    // 5. Auto-assign domain's published playbooks to this cohort
+    const publishedPlaybooks = await prisma.playbook.findMany({
+      where: { domainId, status: "PUBLISHED" },
+      select: { id: true },
+    });
+    for (const pb of publishedPlaybooks) {
+      await assignPlaybookToCohort(cohort.id, pb.id, "classroom-creation", false);
     }
 
     return NextResponse.json({ ok: true, cohort, joinToken });

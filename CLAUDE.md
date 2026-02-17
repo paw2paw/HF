@@ -180,6 +180,25 @@ docker build --target migrate .   # migrate — prisma migrate deploy only
 
 The runner image CANNOT run seeds — use the seed target or SSH tunnel.
 
+## VM Deploy Commands
+
+After every code change, tell the user which command to run:
+
+- **`/vm-cp`** — Commit + push + pull on VM. Use for:
+  - React components, pages, layouts (`app/`, `components/`)
+  - API routes (`app/api/**/route.ts`)
+  - CSS / Tailwind changes
+  - Lib code (`lib/*.ts`) — config, utils, pipeline, prompt
+  - Test files
+- **`/vm-cpp`** — Commit + push + migrate + pull + restart. Use for:
+  - Prisma schema or migration changes
+  - `next.config.ts` (CSP, redirects, env exposure)
+  - `middleware.ts`
+  - New dependencies in `package.json`
+  - Environment variable changes
+
+**Always state which command is needed at the end of every change**, e.g. "Ready for `/vm-cp`" or "This needs `/vm-cpp` (migration)".
+
 ## Deployment
 
 Production runs on **GCP Cloud Run** (europe-west2) with **Cloud SQL** (PostgreSQL 16). Full deployment procedures, data safety guarantees, rollback steps, and GCP resource details are in `docs/CLOUD-DEPLOYMENT.md`. Use `/deploy` for an interactive deployment menu or `/deploy-check` for pre-flight validation.

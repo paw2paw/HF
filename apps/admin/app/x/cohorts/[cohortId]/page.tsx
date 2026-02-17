@@ -21,6 +21,10 @@ import {
   Copy,
   RefreshCw,
   X,
+  BookOpen,
+  Plus,
+  Trash2,
+  RefreshCcw,
 } from "lucide-react";
 
 // ==============================
@@ -87,10 +91,11 @@ type ActivityItem = {
 // Main Component
 // ==============================
 
-type TabId = "roster" | "activity" | "invite" | "settings";
+type TabId = "roster" | "playbooks" | "activity" | "invite" | "settings";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "roster", label: "Roster", icon: <Users size={14} /> },
+  { id: "playbooks", label: "Courses", icon: <BookOpen size={14} /> },
   { id: "activity", label: "Activity", icon: <Activity size={14} /> },
   { id: "invite", label: "Invite", icon: <Mail size={14} /> },
   { id: "settings", label: "Settings", icon: <Settings size={14} /> },
@@ -303,6 +308,7 @@ export default function CohortDashboardPage() {
         {activeTab === "roster" && (
           <RosterTab pupils={pupils} cohortId={cohortId} />
         )}
+        {activeTab === "playbooks" && <PlaybooksTab cohortId={cohortId} />}
         {activeTab === "activity" && <ActivityTab cohortId={cohortId} />}
         {activeTab === "invite" && <InviteTab cohortId={cohortId} />}
         {activeTab === "settings" && (
@@ -626,6 +632,356 @@ function RosterTab({
                 </div>
               </div>
             </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==============================
+// Playbooks (Courses) Tab
+// ==============================
+
+type CohortPlaybookItem = {
+  id: string;
+  name: string;
+  status: string;
+  version: number | null;
+  assignedAt: string;
+  assignedBy: string | null;
+  enrolledCount: number;
+};
+
+type AvailablePlaybook = {
+  id: string;
+  name: string;
+  status: string;
+  version: number | null;
+};
+
+function PlaybooksTab({ cohortId }: { cohortId: string }) {
+  const [playbooks, setPlaybooks] = useState<CohortPlaybookItem[]>([]);
+  const [available, setAvailable] = useState<AvailablePlaybook[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const fetchPlaybooks = useCallback(() => {
+    setLoading(true);
+    fetch(`/api/cohorts/${cohortId}/playbooks`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          setPlaybooks(data.playbooks || []);
+          setAvailable(data.available || []);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [cohortId]);
+
+  useEffect(() => {
+    fetchPlaybooks();
+  }, [fetchPlaybooks]);
+
+  const handleAssign = async (playbookId: string) => {
+    try {
+      const res = await fetch(`/api/cohorts/${cohortId}/playbooks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playbookIds: [playbookId], autoEnrollMembers: true }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMessage(`Assigned. ${data.enrolled} student${data.enrolled !== 1 ? "s" : ""} enrolled.`);
+        setShowPicker(false);
+        fetchPlaybooks();
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        setMessage(data.error || "Failed to assign");
+      }
+    } catch (err: any) {
+      setMessage(err.message || "Failed to assign");
+    }
+  };
+
+  const handleRemove = async (playbookId: string, playbookName: string) => {
+    if (!confirm(`Remove "${playbookName}" from this cohort? Member enrollments will be kept.`)) return;
+
+    try {
+      const res = await fetch(`/api/cohorts/${cohortId}/playbooks/${playbookId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMessage("Removed");
+        fetchPlaybooks();
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        setMessage(data.error || "Failed to remove");
+      }
+    } catch (err: any) {
+      setMessage(err.message || "Failed to remove");
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/cohorts/${cohortId}/playbooks/sync`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMessage(`Synced ${data.synced} enrollment${data.synced !== 1 ? "s" : ""}${data.errors.length > 0 ? ` (${data.errors.length} errors)` : ""}`);
+        fetchPlaybooks();
+        setTimeout(() => setMessage(""), 3000);
+      }
+    } catch (err: any) {
+      setMessage(err.message || "Sync failed");
+    }
+    setSyncing(false);
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
+        Loading courses...
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Actions Bar */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
+        <button
+          onClick={() => setShowPicker(!showPicker)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "6px 14px",
+            background: "var(--button-primary-bg)",
+            color: "var(--button-primary-text)",
+            border: "none",
+            borderRadius: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={14} />
+          Assign Course
+        </button>
+        {playbooks.length > 0 && (
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 14px",
+              border: "1px solid var(--border-default)",
+              borderRadius: 6,
+              background: "transparent",
+              fontSize: 13,
+              color: "var(--text-muted)",
+              cursor: syncing ? "not-allowed" : "pointer",
+            }}
+          >
+            <RefreshCcw size={14} />
+            {syncing ? "Syncing..." : "Sync Members"}
+          </button>
+        )}
+        {message && (
+          <span
+            style={{
+              fontSize: 13,
+              marginLeft: "auto",
+              color: message.includes("Failed") || message.includes("error")
+                ? "var(--status-error-text)"
+                : "var(--status-success-text)",
+            }}
+          >
+            {message}
+          </span>
+        )}
+      </div>
+
+      {/* Picker */}
+      {showPicker && available.length > 0 && (
+        <div
+          style={{
+            border: "1px solid var(--border-default)",
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 16,
+            background: "var(--surface-secondary)",
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+            Available Courses
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {available.map((pb) => (
+              <div
+                key={pb.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 12px",
+                  background: "var(--surface-primary)",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: 6,
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 500 }}>
+                    {pb.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      marginLeft: 8,
+                      background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)",
+                      color: "var(--status-success-text)",
+                      borderRadius: 4,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {pb.status}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleAssign(pb.id)}
+                  style={{
+                    padding: "4px 10px",
+                    fontSize: 12,
+                    border: "1px solid var(--accent-primary)",
+                    borderRadius: 4,
+                    background: "transparent",
+                    color: "var(--accent-primary)",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  Assign
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {showPicker && available.length === 0 && (
+        <div
+          style={{
+            padding: 16,
+            marginBottom: 16,
+            background: "var(--surface-secondary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: 8,
+            fontSize: 13,
+            color: "var(--text-muted)",
+            textAlign: "center",
+          }}
+        >
+          All domain courses are already assigned to this cohort
+        </div>
+      )}
+
+      {/* Assigned Playbooks */}
+      {playbooks.length === 0 ? (
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            background: "var(--surface-secondary)",
+            borderRadius: 10,
+            border: "1px solid var(--border-default)",
+          }}
+        >
+          <BookOpen
+            size={36}
+            style={{ color: "var(--text-placeholder)", marginBottom: 12 }}
+          />
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>
+            No courses assigned
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+            Students joining this cohort will receive all domain courses as a fallback.
+            Assign specific courses to control what students are enrolled in.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {playbooks.map((pb) => (
+            <div
+              key={pb.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "14px 16px",
+                background: "var(--surface-primary)",
+                border: "1px solid var(--border-default)",
+                borderRadius: 8,
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <BookOpen size={14} style={{ color: "var(--accent-primary)" }} />
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                    {pb.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      background:
+                        pb.status === "PUBLISHED"
+                          ? "color-mix(in srgb, var(--status-success-text) 15%, transparent)"
+                          : "var(--surface-tertiary)",
+                      color:
+                        pb.status === "PUBLISHED"
+                          ? "var(--status-success-text)"
+                          : "var(--text-muted)",
+                      borderRadius: 4,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {pb.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 12 }}>
+                  <span>{pb.enrolledCount} enrolled</span>
+                  <span>Assigned {new Date(pb.assignedAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleRemove(pb.id, pb.name)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 10px",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: 4,
+                  background: "transparent",
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                <Trash2 size={12} />
+                Remove
+              </button>
+            </div>
           ))}
         </div>
       )}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { encode } from "next-auth/jwt";
 import { validateBody, inviteAcceptSchema } from "@/lib/validation";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
+import { enrollCallerInCohortPlaybooks, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 
 /**
  * @api POST /api/invite/accept
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       // Auto-create Caller if invite specifies a callerRole
       // (EDUCATOR invites create TEACHER callers, student invites create LEARNER callers)
       if (invite.callerRole) {
-        await tx.caller.create({
+        const newCaller = await tx.caller.create({
           data: {
             name: `${firstName.trim()} ${lastName.trim()}`,
             email: invite.email,
@@ -80,6 +81,13 @@ export async function POST(request: NextRequest) {
             externalId: `invite-${newUser.id}`,
           },
         });
+
+        // Auto-enroll in cohort playbooks (or domain-wide fallback)
+        if (invite.cohortGroupId && invite.domainId) {
+          await enrollCallerInCohortPlaybooks(newCaller.id, invite.cohortGroupId, invite.domainId, "invite", tx);
+        } else if (invite.domainId) {
+          await enrollCallerInDomainPlaybooks(newCaller.id, invite.domainId, "invite", tx);
+        }
       }
 
       await tx.invite.update({
