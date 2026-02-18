@@ -4,11 +4,13 @@ import {
   extractText,
   extractAssertions,
   chunkText,
-  type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
 import type { DocumentType } from "@/lib/content-trust/resolve-config";
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 import { classifyDocument, fetchFewShotExamples } from "@/lib/content-trust/classify-document";
+import { segmentDocument } from "@/lib/content-trust/segment-document";
+import { extractAssertionsSegmented } from "@/lib/content-trust/extract-assertions";
+import { saveAssertions } from "@/lib/content-trust/save-assertions";
 import { createJob, getJob, updateJob } from "@/lib/content-trust/extraction-jobs";
 // Note: createJob/getJob/updateJob now delegate to UserTask DB storage
 import { requireAuth, isAuthError } from "@/lib/permissions";
@@ -67,7 +69,7 @@ export async function POST(
 
     // Validate file type
     const name = file.name.toLowerCase();
-    const validExtensions = [".pdf", ".txt", ".md", ".markdown", ".json"];
+    const validExtensions = [".pdf", ".txt", ".md", ".markdown", ".json", ".docx"];
     if (!validExtensions.some((ext) => name.endsWith(ext))) {
       return NextResponse.json(
         { ok: false, error: `Unsupported file type. Supported: ${validExtensions.join(", ")}` },
@@ -258,14 +260,20 @@ export async function POST(
       }
     }
 
-    const result = await extractAssertions(text, {
+    // Try section segmentation for composite documents
+    const syncSegmentation = await segmentDocument(text, file.name);
+    const extractionOptions = {
       sourceSlug: source.slug,
       sourceId: source.id,
       documentType: syncDocumentType,
       qualificationRef: source.qualificationRef || undefined,
       focusChapters,
       maxAssertions,
-    });
+    };
+
+    const result = syncSegmentation.isComposite && syncSegmentation.sections.length > 1
+      ? await extractAssertionsSegmented(text, syncSegmentation.sections, extractionOptions)
+      : await extractAssertions(text, extractionOptions);
 
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error, warnings: result.warnings }, { status: 422 });
@@ -339,54 +347,6 @@ export async function GET(
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-async function saveAssertions(
-  sourceId: string,
-  assertions: ExtractedAssertion[]
-): Promise<{ created: number; duplicatesSkipped: number }> {
-  const existingHashes = new Set(
-    (
-      await prisma.contentAssertion.findMany({
-        where: { sourceId },
-        select: { contentHash: true },
-      })
-    )
-      .map((a) => a.contentHash)
-      .filter(Boolean)
-  );
-
-  const toCreate: ExtractedAssertion[] = [];
-  let duplicatesSkipped = 0;
-
-  for (const assertion of assertions) {
-    if (existingHashes.has(assertion.contentHash)) {
-      duplicatesSkipped++;
-      continue;
-    }
-    toCreate.push(assertion);
-  }
-
-  if (toCreate.length > 0) {
-    await prisma.contentAssertion.createMany({
-      data: toCreate.map((a) => ({
-        sourceId,
-        assertion: a.assertion,
-        category: a.category,
-        chapter: a.chapter || null,
-        section: a.section || null,
-        tags: a.tags,
-        examRelevance: a.examRelevance ?? null,
-        learningOutcomeRef: a.learningOutcomeRef || null,
-        validFrom: null,
-        validUntil: a.validUntil ? new Date(a.validUntil) : null,
-        taxYear: a.taxYear || null,
-        contentHash: a.contentHash,
-      })),
-    });
-  }
-
-  return { created: toCreate.length, duplicatesSkipped };
-}
-
 async function runBackgroundExtraction(
   jobId: string,
   source: { id: string; slug: string; qualificationRef: string | null },
@@ -396,16 +356,34 @@ async function runBackgroundExtraction(
   pages: number | undefined,
   options: { sourceSlug: string; sourceId?: string; documentType?: DocumentType; qualificationRef?: string; focusChapters?: string[]; maxAssertions?: number }
 ) {
-  const result = await extractAssertions(text, {
-    ...options,
-    onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
-      updateJob(jobId, {
-        currentChunk: chunkIndex + 1,
-        totalChunks,
-        extractedCount: extractedSoFar,
-      });
-    },
-  });
+  // Try section segmentation for composite documents
+  const segmentation = await segmentDocument(text, fileName);
+
+  let result;
+  if (segmentation.isComposite && segmentation.sections.length > 1) {
+    console.log(`[import] Composite document detected: ${segmentation.sections.length} sections in "${fileName}"`);
+    result = await extractAssertionsSegmented(text, segmentation.sections, {
+      ...options,
+      onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
+        updateJob(jobId, {
+          currentChunk: chunkIndex + 1,
+          totalChunks,
+          extractedCount: extractedSoFar,
+        });
+      },
+    });
+  } else {
+    result = await extractAssertions(text, {
+      ...options,
+      onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
+        updateJob(jobId, {
+          currentChunk: chunkIndex + 1,
+          totalChunks,
+          extractedCount: extractedSoFar,
+        });
+      },
+    });
+  }
 
   if (!result.ok) {
     await updateJob(jobId, {

@@ -169,14 +169,16 @@ Rules:
   },
   classification: {
     systemPrompt: `You are a document classification specialist for an educational content system.
-Given a text sample from a document and its filename, classify the document into one of these types:
+You receive a multi-point sample from a document (start, middle, and end sections) plus the filename. Classify the document into one of these types:
 
 - CURRICULUM: A formal syllabus, curriculum specification, or qualification framework. Contains Learning Outcomes (LOs), Assessment Criteria (ACs), range statements, or module descriptors. Highly structured. Examples: CII R04 syllabus, Ofqual qualification spec, awarding body curriculum.
 - TEXTBOOK: A published study text, training manual, or dense reference material. Contains detailed explanations, chapters, worked examples. The primary teaching content. Examples: Sprenger food safety textbook, BFT study guide.
-- WORKSHEET: A learner-facing activity sheet or exercise. Something the learner looks at or works through during a lesson. Contains questions, tasks, fill-in-the-blank, case studies for completion. Examples: "The Black Death" worksheet, lab exercise sheet.
+- WORKSHEET: A learner-facing activity sheet or exercise. Something the learner looks at or works through during a lesson. Contains questions, tasks, fill-in-the-blank, case studies for completion. May include a mix of reading passages, exercises, and answer keys. Examples: "The Black Death" worksheet, lab exercise sheet, British Council LearnEnglish worksheet.
 - EXAMPLE: An illustrative or case-study document used as source material for discussion. Something the AI will talk ABOUT with the learner. Examples: sample cross-contamination report, case study document, sample complaint letter.
 - ASSESSMENT: Test, quiz, or exam material. Contains questions with expected answers, mark schemes, past papers. Examples: mock exam paper, end-of-module test, practice quiz.
 - REFERENCE: Quick reference card, glossary, cheat sheet, or summary table. Flat lookup material. Examples: tax rate card, food temperature reference chart, glossary of terms.
+
+IMPORTANT: Many teaching documents are COMPOSITE — they contain reading passages, vocabulary exercises, comprehension questions, and answer keys all in one file. Look at ALL sections (start, middle, AND end) before classifying. A worksheet with embedded exercises and answers is still a WORKSHEET. A document that is primarily assessment questions with a mark scheme is an ASSESSMENT.
 
 Return a JSON object:
 {
@@ -233,24 +235,42 @@ Return ONLY valid JSON.`,
       extraction: {
         systemPrompt: `You are extracting from a learner worksheet or activity sheet.
 This document is something a learner looks at and works through during a lesson.
-Capture the worksheet structure: title, sections, questions, activities, reference material, and any key information presented.
-Do NOT extract standalone teaching facts — extract what the learner sees and interacts with.
+It may contain MULTIPLE section types: reading passages, vocabulary exercises, comprehension questions, discussion prompts, and answer keys.
+
+Capture EACH distinct element with its appropriate category. Pay special attention to:
+- Vocabulary exercises: Extract each term+definition as a pair (e.g., "to clash — to be in conflict")
+- True/False questions: Extract the statement AND the correct answer (e.g., "Statement: X. Answer: False")
+- Matching exercises: Extract the paired items (e.g., "Joey takes the orange → Win-lose negotiation")
+- Discussion prompts: Extract the open-ended question
+- Answer keys: Extract each answer linked to its question number
 
 Categories:
-- question: A question or task for the learner
+- question: A general question or task for the learner
+- true_false: A True/False statement with its correct answer
+- matching_exercise: A matching pair (term→definition, situation→type)
+- vocabulary_exercise: A vocabulary term paired with its definition
 - activity: An activity or exercise instruction
-- information: Key information or context presented on the worksheet
-- reference: Reference data, tables, or source material on the worksheet
+- discussion_prompt: An open-ended discussion question
+- information: Key teaching content or context from a reading passage
+- reference: Reference data, tables, or source material
+- answer_key_item: An answer from an answer key section
 
 Return a JSON array with: assertion, category, chapter, section, tags, examRelevance, learningOutcomeRef.
+For true_false items, include the correct answer in the assertion text (e.g., "Negotiating is about insisting on our point of view. [Answer: False]").
+For matching items, use arrow notation (e.g., "to clash → to be in conflict").
 Return ONLY valid JSON.`,
         categories: [
-          { id: "question", label: "Question/Task", description: "A question or task for the learner" },
+          { id: "question", label: "Question/Task", description: "A general question or task for the learner" },
+          { id: "true_false", label: "True/False", description: "A True/False statement with correct answer" },
+          { id: "matching_exercise", label: "Matching", description: "A matching pair (term→definition, situation→type)" },
+          { id: "vocabulary_exercise", label: "Vocabulary", description: "A vocabulary term paired with its definition" },
           { id: "activity", label: "Activity", description: "An activity or exercise instruction" },
-          { id: "information", label: "Information", description: "Key information presented on the worksheet" },
+          { id: "discussion_prompt", label: "Discussion", description: "An open-ended discussion question" },
+          { id: "information", label: "Information", description: "Key teaching content from a reading passage" },
           { id: "reference", label: "Reference Data", description: "Tables, sources, or reference material" },
+          { id: "answer_key_item", label: "Answer Key", description: "An answer from an answer key section" },
         ],
-        maxAssertionsPerDocument: 100,
+        maxAssertionsPerDocument: 200,
       },
     },
     EXAMPLE: {
@@ -282,19 +302,30 @@ Return ONLY valid JSON.`,
         systemPrompt: `You are extracting from assessment or quiz material.
 Capture each question, the correct answer(s), common misconceptions, and which Learning Outcome is being tested.
 
+For True/False questions, extract the statement AND correct answer together.
+For matching questions, extract each pair.
+For multiple choice, extract the question and all options with the correct one marked.
+
 Categories:
-- question: An assessment question
+- question: A general assessment question
 - answer: The correct answer or mark scheme point
+- true_false: A True/False statement with its correct answer
+- matching_item: A matching pair from a matching exercise
 - misconception: A common wrong answer or misunderstanding
 - fact: A factual statement used in the question context
+- mark_scheme: A marking criterion or rubric point
 
 Return a JSON array with: assertion, category, chapter, section, tags, examRelevance, learningOutcomeRef.
+For true_false items, include the correct answer (e.g., "Statement: X. Answer: False").
 Return ONLY valid JSON.`,
         categories: [
-          { id: "question", label: "Question", description: "An assessment question" },
+          { id: "question", label: "Question", description: "A general assessment question" },
           { id: "answer", label: "Correct Answer", description: "The correct answer or mark scheme point" },
+          { id: "true_false", label: "True/False", description: "A True/False statement with correct answer" },
+          { id: "matching_item", label: "Matching Item", description: "A matching pair from an exercise" },
           { id: "misconception", label: "Misconception", description: "A common wrong answer" },
           { id: "fact", label: "Factual Statement", description: "A fact used in question context" },
+          { id: "mark_scheme", label: "Mark Scheme", description: "A marking criterion or rubric point" },
         ],
       },
     },

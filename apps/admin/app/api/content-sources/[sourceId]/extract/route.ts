@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   extractAssertions,
+  extractAssertionsSegmented,
   extractTextFromBuffer,
   chunkText,
 } from "@/lib/content-trust/extract-assertions";
+import { segmentDocument } from "@/lib/content-trust/segment-document";
+import { saveAssertions } from "@/lib/content-trust/save-assertions";
 import {
   createExtractionTask,
   updateJob,
@@ -115,12 +118,14 @@ export async function POST(
     await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
     // Fire-and-forget background extraction with document type
+    const fileName = source.mediaAssets[0]?.fileName || source.name;
     runBackgroundExtraction(
       job.id,
       sourceId,
       subjectId,
       userId,
       text,
+      fileName,
       {
         sourceSlug: subjectSlug,
         sourceId,
@@ -159,6 +164,7 @@ async function runBackgroundExtraction(
   subjectId: string | undefined,
   userId: string,
   text: string,
+  fileName: string,
   opts: {
     sourceSlug: string;
     sourceId: string;
@@ -167,16 +173,34 @@ async function runBackgroundExtraction(
     maxAssertions: number;
   },
 ) {
-  const result = await extractAssertions(text, {
-    ...opts,
-    onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
-      updateJob(jobId, {
-        currentChunk: chunkIndex + 1,
-        totalChunks,
-        extractedCount: extractedSoFar,
-      });
-    },
-  });
+  // Try section segmentation for composite documents
+  const segmentation = await segmentDocument(text, fileName);
+
+  let result;
+  if (segmentation.isComposite && segmentation.sections.length > 1) {
+    console.log(`[extract] Composite document detected: ${segmentation.sections.length} sections`);
+    result = await extractAssertionsSegmented(text, segmentation.sections, {
+      ...opts,
+      onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
+        updateJob(jobId, {
+          currentChunk: chunkIndex + 1,
+          totalChunks,
+          extractedCount: extractedSoFar,
+        });
+      },
+    });
+  } else {
+    result = await extractAssertions(text, {
+      ...opts,
+      onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
+        updateJob(jobId, {
+          currentChunk: chunkIndex + 1,
+          totalChunks,
+          extractedCount: extractedSoFar,
+        });
+      },
+    });
+  }
 
   if (!result.ok) {
     updateJob(jobId, {
@@ -187,48 +211,20 @@ async function runBackgroundExtraction(
     return;
   }
 
-  // Save to DB
+  // Save to DB using shared helper
   updateJob(jobId, { status: "importing", extractedCount: result.assertions.length, warnings: result.warnings });
 
-  const existingHashes = new Set(
-    (await prisma.contentAssertion.findMany({
-      where: { sourceId },
-      select: { contentHash: true },
-    }))
-      .map((a) => a.contentHash)
-      .filter(Boolean),
-  );
-
-  const toCreate = result.assertions.filter((a) => !existingHashes.has(a.contentHash));
-  const duplicatesSkipped = result.assertions.length - toCreate.length;
-
-  if (toCreate.length > 0) {
-    await prisma.contentAssertion.createMany({
-      data: toCreate.map((a) => ({
-        sourceId,
-        assertion: a.assertion,
-        category: a.category,
-        chapter: a.chapter || null,
-        section: a.section || null,
-        tags: a.tags,
-        examRelevance: a.examRelevance ?? null,
-        learningOutcomeRef: a.learningOutcomeRef || null,
-        validUntil: a.validUntil ? new Date(a.validUntil) : null,
-        taxYear: a.taxYear || null,
-        contentHash: a.contentHash,
-      })),
-    });
-  }
+  const { created, duplicatesSkipped } = await saveAssertions(sourceId, result.assertions);
 
   await updateJob(jobId, {
     status: "done",
-    importedCount: toCreate.length,
+    importedCount: created,
     duplicatesSkipped,
     extractedCount: result.assertions.length,
   });
 
   // Embed new assertions in background (non-blocking)
-  if (toCreate.length > 0) {
+  if (created > 0) {
     embedAssertionsForSource(sourceId).catch((err) =>
       console.error(`[extract] Embedding failed for source ${sourceId}:`, err)
     );

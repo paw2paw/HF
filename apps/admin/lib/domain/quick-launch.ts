@@ -66,6 +66,7 @@ export interface QuickLaunchResult {
   domainSlug: string;
   domainName: string;
   subjectId: string;
+  sourceId?: string;
   callerId: string;
   callerName: string;
   identitySpecId?: string;
@@ -1102,6 +1103,7 @@ export async function quickLaunchCommit(
     domainSlug: effectiveDomainSlug,
     domainName: effectiveDomainName,
     subjectId: preview.subjectId,
+    sourceId: ctx.results.sourceId || preview.sourceId || undefined,
     callerId: ctx.results.callerId!,
     callerName: ctx.results.callerName || effectiveCallerName,
     identitySpecId: ctx.results.identitySpecId,

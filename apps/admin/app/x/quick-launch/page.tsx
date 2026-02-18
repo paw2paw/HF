@@ -30,6 +30,7 @@ type LaunchResult = {
   domainSlug: string;
   domainName: string;
   subjectId?: string;
+  sourceId?: string;
   callerId: string;
   callerName: string;
   assertionCount: number;
@@ -39,6 +40,16 @@ type LaunchResult = {
   identitySpecId?: string;
   contentSpecId?: string;
   playbookId?: string;
+};
+
+type CourseCheck = {
+  id: string;
+  name: string;
+  description: string;
+  severity: "critical" | "recommended" | "optional";
+  passed: boolean;
+  detail: string;
+  fixAction?: { label: string; href: string };
 };
 
 type ResumeTask = {
@@ -1101,11 +1112,35 @@ export default function QuickLaunchPage() {
   const [classroom, setClassroom] = useState<{ cohortId: string; joinToken: string; joinUrl: string } | null>(null);
   const [creatingClassroom, setCreatingClassroom] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [courseChecks, setCourseChecks] = useState<CourseCheck[]>([]);
+  const [courseReady, setCourseReady] = useState(false);
+  const [checksLoading, setChecksLoading] = useState(false);
 
-  // Fetch onboarding data when result screen appears
+  // Fetch course readiness checks + onboarding data when result screen appears
+  const fetchCourseReadiness = useCallback(async () => {
+    if (!result) return;
+    setChecksLoading(true);
+    try {
+      const params = new URLSearchParams({ callerId: result.callerId });
+      if (result.sourceId) params.set("sourceId", result.sourceId);
+      if (result.subjectId) params.set("subjectId", result.subjectId);
+      const res = await fetch(`/api/domains/${result.domainId}/course-readiness?${params}`);
+      const data = await res.json();
+      if (data.ok) {
+        setCourseChecks(data.checks || []);
+        setCourseReady(data.ready ?? false);
+      }
+    } catch (e) {
+      console.warn("[QuickLaunch] Course readiness fetch failed:", e);
+    } finally {
+      setChecksLoading(false);
+    }
+  }, [result]);
+
   useEffect(() => {
     if (phase === "result" && result) {
       setEditDomainName(result.domainName);
+      fetchCourseReadiness();
       fetch(`/api/domains/${result.domainId}/onboarding`)
         .then((r) => r.json())
         .then((data) => {
@@ -1115,7 +1150,14 @@ export default function QuickLaunchPage() {
         })
         .catch((e) => console.warn("[QuickLaunch] Failed to load domain welcome:", e));
     }
-  }, [phase, result]);
+  }, [phase, result, fetchCourseReadiness]);
+
+  // Poll readiness every 10s while on result page (admin may complete steps in other tabs)
+  useEffect(() => {
+    if (phase !== "result" || !result) return;
+    const interval = setInterval(fetchCourseReadiness, 10_000);
+    return () => clearInterval(interval);
+  }, [phase, result, fetchCourseReadiness]);
 
   const handleSaveDomainName = async (name: string) => {
     if (!result || name === result.domainName) return;
@@ -1562,72 +1604,132 @@ export default function QuickLaunchPage() {
               {result.goalCount > 0 && `, ${result.goalCount} learning goals`}
             </div>
 
+            {/* ── Course Readiness Checklist (COURSE-READY-001) ── */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 10 }}>
+                Review Steps
+              </div>
+              {checksLoading && courseChecks.length === 0 ? (
+                <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>Loading checks...</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {courseChecks.map((check) => (
+                    <div
+                      key={check.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 14px",
+                        borderRadius: 8,
+                        background: check.passed
+                          ? "color-mix(in srgb, var(--status-success-bg) 50%, transparent)"
+                          : "var(--surface-secondary)",
+                        border: `1px solid ${check.passed ? "var(--status-success-border)" : "var(--border-default)"}`,
+                        cursor: check.fixAction?.href ? "pointer" : "default",
+                        transition: "background 0.15s",
+                      }}
+                      onClick={() => {
+                        if (check.fixAction?.href) router.push(check.fixAction.href);
+                      }}
+                    >
+                      <div style={{
+                        width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        background: check.passed ? "var(--status-success-text)" : check.severity === "critical" ? "var(--status-error-text)" : "var(--border-default)",
+                        color: "#fff",
+                      }}>
+                        {check.passed ? "\u2713" : check.severity === "critical" ? "!" : "\u2022"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                          {check.name}
+                          {check.severity === "critical" && !check.passed && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--status-error-text)", marginLeft: 6 }}>REQUIRED</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{check.detail}</div>
+                      </div>
+                      {check.fixAction?.href && (
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)", whiteSpace: "nowrap", flexShrink: 0 }}>
+                          {check.fixAction.label} &rarr;
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Start Lesson (primary CTA, gated by critical checks) ── */}
+            <button
+              onClick={() => router.push(`/x/sim/${result.callerId}`)}
+              disabled={!courseReady && courseChecks.length > 0}
+              title={!courseReady && courseChecks.length > 0 ? "Complete required steps above first" : undefined}
+              style={{
+                width: "100%",
+                padding: "14px 24px",
+                borderRadius: 10,
+                background: courseReady || courseChecks.length === 0 ? "var(--accent-primary)" : "var(--border-default)",
+                color: courseReady || courseChecks.length === 0 ? "white" : "var(--text-muted)",
+                border: "none",
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: courseReady || courseChecks.length === 0 ? "pointer" : "not-allowed",
+                letterSpacing: "-0.01em",
+                transition: "all 0.2s",
+              }}
+            >
+              Start Lesson
+            </button>
+
+            {/* ── Secondary actions ── */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 onClick={() => router.push(`/x/domains?selected=${result.domainId}`)}
                 style={{
-                  padding: "12px 24px",
-                  borderRadius: 10,
-                  background: "var(--accent-primary)",
-                  color: "white",
-                  border: "none",
-                  fontSize: 15,
-                  fontWeight: 700,
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  background: "transparent",
+                  border: "1px solid var(--border-default)",
+                  fontSize: 13,
+                  fontWeight: 600,
                   cursor: "pointer",
-                  letterSpacing: "-0.01em",
+                  color: "var(--text-secondary)",
                 }}
               >
                 View Agent
-              </button>
-              <button
-                onClick={() => router.push(`/x/callers/${result.callerId}`)}
-                style={{
-                  padding: "12px 24px",
-                  borderRadius: 10,
-                  background: "var(--surface-primary)",
-                  border: "2px solid var(--border-default)",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                View Test Caller
               </button>
               {result.identitySpecId && (
                 <button
                   onClick={() => router.push(`/x/specs/${result.identitySpecId}`)}
                   style={{
-                    padding: "12px 24px",
-                    borderRadius: 10,
-                    background: "var(--surface-primary)",
-                    border: "2px solid var(--border-default)",
-                    fontSize: 15,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid var(--border-default)",
+                    fontSize: 13,
                     fontWeight: 600,
                     cursor: "pointer",
+                    color: "var(--text-secondary)",
                   }}
                 >
                   Edit Identity
                 </button>
               )}
               <button
-                onClick={() => {
-                  const params = new URLSearchParams();
-                  if (result.domainId) params.set("domainId", result.domainId);
-                  if (result.subjectId) params.set("subjectId", result.subjectId);
-                  router.push(`/x/content-wizard?${params.toString()}`);
-                }}
+                onClick={() => router.push(`/x/callers/${result.callerId}`)}
                 style={{
-                  padding: "12px 24px",
-                  borderRadius: 10,
-                  background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-                  border: "2px solid var(--accent-primary)",
-                  color: "var(--accent-primary)",
-                  fontSize: 15,
-                  fontWeight: 700,
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  background: "transparent",
+                  border: "1px solid var(--border-default)",
+                  fontSize: 13,
+                  fontWeight: 600,
                   cursor: "pointer",
+                  color: "var(--text-secondary)",
                 }}
               >
-                Add Content →
+                View Test Caller
               </button>
             </div>
 

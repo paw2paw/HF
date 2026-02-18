@@ -33,6 +33,7 @@ vi.mock("@/lib/permissions", () => ({
 vi.mock("@/lib/content-trust/extract-assertions", () => ({
   extractText: mocks.extractText,
   extractAssertions: vi.fn(),
+  extractAssertionsSegmented: vi.fn(),
   chunkText: vi.fn().mockReturnValue(["chunk1"]),
 }));
 
@@ -58,6 +59,14 @@ vi.mock("@/lib/content-trust/extraction-jobs", () => ({
   createJob: vi.fn().mockResolvedValue({ id: "job-1" }),
   getJob: vi.fn(),
   updateJob: vi.fn(),
+}));
+
+vi.mock("@/lib/content-trust/segment-document", () => ({
+  segmentDocument: vi.fn().mockResolvedValue({ isComposite: false, sections: [] }),
+}));
+
+vi.mock("@/lib/content-trust/save-assertions", () => ({
+  saveAssertions: vi.fn().mockResolvedValue({ created: 0, duplicatesSkipped: 0 }),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -222,15 +231,15 @@ describe("POST /api/content-sources/:sourceId/import (mode=classify)", () => {
     expect(data.textLength).toBe(extractedText.length);
 
     // Verify source was updated with classification
-    expect(mocks.sourceUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "src-1" },
-        data: {
-          documentType: "CURRICULUM",
-          documentTypeSource: "ai:0.92",
-        },
-      })
-    );
+    expect(mocks.sourceUpdate).toHaveBeenCalledWith({
+      where: { id: "src-1" },
+      data: {
+        documentType: "CURRICULUM",
+        documentTypeSource: "ai:0.92",
+        textSample: extractedText.substring(0, 1000),
+        aiClassification: "CURRICULUM:0.92",
+      },
+    });
 
     // Verify file was stored
     expect(mocks.computeContentHash).toHaveBeenCalled();

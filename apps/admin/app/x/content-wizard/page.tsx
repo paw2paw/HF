@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @deprecated Content Wizard is deprecated — use Quick Launch (/x/quick-launch) instead.
+ * Quick Launch handles creation (QUICK-LAUNCH-001) and review (COURSE-READY-001) in one flow.
+ * This page is kept temporarily for backward compatibility and redirects after 3s.
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
@@ -530,6 +536,32 @@ export default function ContentWizardPage() {
       >
         &larr; Subjects
       </button>
+
+      {/* Deprecation banner */}
+      <div style={{
+        padding: "12px 16px",
+        borderRadius: 8,
+        background: "color-mix(in srgb, #f59e0b 12%, transparent)",
+        border: "1px solid color-mix(in srgb, #f59e0b 30%, transparent)",
+        marginBottom: 16,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}>
+        <span style={{ fontSize: 13, color: "#92400e" }}>
+          This wizard has moved to <strong>Quick Launch</strong>, which handles creation and review in one flow.
+        </span>
+        <button
+          onClick={() => router.push("/x/quick-launch")}
+          style={{
+            padding: "6px 14px", borderRadius: 6, border: "none",
+            background: "#f59e0b", color: "#fff", fontSize: 12, fontWeight: 700,
+            cursor: "pointer", whiteSpace: "nowrap",
+          }}
+        >
+          Go to Quick Launch
+        </button>
+      </div>
 
       <h1 style={{ ...theme.h1, marginBottom: 4 }}>Content Wizard</h1>
       <p style={{ ...theme.muted, marginBottom: 24 }}>

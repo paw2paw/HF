@@ -1,0 +1,114 @@
+{
+  "id": "COURSE-READY-001",
+  "title": "Course Readiness Checklist",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-18",
+  "domain": "system",
+  "name": "Course Readiness Checklist",
+  "description": "Post-creation review checklist for course content quality. Admin reviews AI-generated teaching points, lesson plan, onboarding, and prompt before the first lesson. Checks are spec-driven — add, remove, reorder, or tune without code changes.",
+  "specType": "SYSTEM",
+  "specRole": "ORCHESTRATE",
+  "outputType": "SUPERVISE",
+  "isDeletable": false,
+
+  "story": {
+    "asA": "course administrator",
+    "iWant": "to review and approve AI-generated course content before the first lesson",
+    "soThat": "I'm confident the teaching quality is correct and the student experience is right"
+  },
+
+  "context": {
+    "applies": "After Quick Launch or manual course creation, before the first lesson",
+    "dependsOn": ["QUICK-LAUNCH-001", "DOMAIN-READY-001", "COMP-001"],
+    "assumptions": [
+      "Quick Launch has created domain, content source, assertions, identity, playbook, curriculum, and test caller",
+      "Existing review UIs handle the actual editing — this spec just checks completion status",
+      "Critical checks gate 'Start Lesson'. Recommended checks are advisory.",
+      "Action hrefs use ${variable} templates resolved at runtime from context"
+    ]
+  },
+
+  "parameters": [
+    {
+      "id": "readiness_checks",
+      "name": "Course Readiness Checks",
+      "description": "Ordered list of content quality checks. Each has severity, a query for the executor, and an action link to the review UI.",
+      "config": {
+        "checks": [
+          {
+            "id": "assertions_reviewed",
+            "name": "Review Teaching Points",
+            "description": "Review AI-extracted teaching points for accuracy — edit, remove, or approve",
+            "severity": "recommended",
+            "query": "assertions_reviewed",
+            "fixAction": { "label": "Review Points", "hrefTemplate": "/x/content-sources/${sourceId}" }
+          },
+          {
+            "id": "lesson_plan_set",
+            "name": "Review Lesson Plan",
+            "description": "Check the generated lesson plan — session types, order, and module mapping",
+            "severity": "recommended",
+            "query": "lesson_plan",
+            "fixAction": { "label": "Review Plan", "hrefTemplate": "/x/domains/${domainId}?tab=onboarding" }
+          },
+          {
+            "id": "onboarding_configured",
+            "name": "Configure Onboarding",
+            "description": "Set the welcome message and flow for the student's first call",
+            "severity": "recommended",
+            "query": "onboarding",
+            "fixAction": { "label": "Configure", "hrefTemplate": "/x/domains/${domainId}?tab=onboarding" }
+          },
+          {
+            "id": "prompt_composed",
+            "name": "Preview First Prompt",
+            "description": "Preview what the AI tutor will see and say in the first lesson",
+            "severity": "critical",
+            "query": "prompt_composed",
+            "fixAction": { "label": "Preview Prompt", "hrefTemplate": "/x/callers/${callerId}?tab=prompt" }
+          }
+        ]
+      }
+    }
+  ],
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "title": "Critical checks gate Start Lesson",
+      "given": "A course with a failing critical check (e.g. no prompt composed)",
+      "when": "The admin views the course readiness checklist",
+      "then": "The 'Start Lesson' button is disabled and the fix action is shown"
+    },
+    {
+      "id": "AC-2",
+      "title": "Recommended checks are advisory",
+      "given": "A course with all critical checks passing but some recommended failing",
+      "when": "The admin views the course readiness checklist",
+      "then": "The 'Start Lesson' button is enabled, but warnings highlight unreviewed items"
+    },
+    {
+      "id": "AC-3",
+      "title": "All checks pass shows fully ready",
+      "given": "A course with all checks passing",
+      "when": "The admin views the course readiness checklist",
+      "then": "All items show green and 'Start Lesson' is prominently available"
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "C-1",
+      "type": "performance",
+      "description": "Readiness check should complete in under 500ms (all queries parallelized)",
+      "severity": "warning"
+    }
+  ],
+
+  "related": [
+    { "id": "QUICK-LAUNCH-001", "title": "Quick Launch Orchestrator", "relationship": "Runs before this — creates the course content to be reviewed" },
+    { "id": "DOMAIN-READY-001", "title": "Domain Readiness Checklist", "relationship": "Parallel readiness spec — checks infrastructure while this checks content quality" },
+    { "id": "COMP-001", "title": "Prompt Composition", "relationship": "Prompt composition check verifies COMP-001 has produced a prompt" }
+  ]
+}

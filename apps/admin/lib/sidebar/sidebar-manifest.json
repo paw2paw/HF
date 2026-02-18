@@ -4,7 +4,7 @@
     "defaultHiddenFor": ["STUDENT"],
     "items": [
       { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
-      { "id": "content-wizard", "href": "/x/content-wizard", "label": "Content Wizard", "icon": "BookPlus", "requiredRole": "OPERATOR" },
+      { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle" },
       { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
       { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" },
       { "id": "messages", "href": "/x/messages", "label": "Messages", "icon": "Mail" },

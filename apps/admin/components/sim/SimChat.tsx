@@ -104,6 +104,7 @@ export function SimChat({
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [actions, setActions] = useState<any[]>([]);
   const [callEnded, setCallEnded] = useState(false);
+  const [newPromptId, setNewPromptId] = useState<string | null>(null);
   const [showContentPicker, setShowContentPicker] = useState(false);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
 
@@ -497,21 +498,29 @@ export function SimChat({
             if (!data.ok) console.error('[sim] Pipeline failed:', data.error, data.logs);
             else {
               console.log('[sim] Pipeline complete:', data.message);
-              // Fetch artifacts + actions after pipeline completes
+              // Fetch artifacts + actions + new prompt after pipeline completes
               Promise.all([
                 fetch(`/api/callers/${callerId}/artifacts?callId=${callId}`).then(r => r.json()).catch(() => null),
                 fetch(`/api/callers/${callerId}/actions?callId=${callId}`).then(r => r.json()).catch(() => null),
-              ]).then(([artData, actData]) => {
+                fetch(`/api/callers/${callerId}/compose-prompt`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ triggerType: 'post-call' }),
+                }).then(r => r.json()).catch(() => null),
+              ]).then(([artData, actData, promptData]) => {
                 const artCount = artData?.ok && artData.artifacts?.length > 0 ? artData.artifacts.length : 0;
                 const actCount = actData?.ok && actData.actions?.length > 0 ? actData.actions.length : 0;
                 if (artCount > 0) setArtifacts(artData.artifacts);
                 if (actCount > 0) setActions(actData.actions);
-                if (artCount + actCount > 0) {
-                  const parts = [];
-                  if (artCount > 0) parts.push(`${artCount} artifact${artCount > 1 ? 's' : ''}`);
-                  if (actCount > 0) parts.push(`${actCount} action${actCount > 1 ? 's' : ''}`);
-                  showToast(`${parts.join(' & ')} shared`);
+                if (promptData?.prompt?.id) {
+                  setNewPromptId(promptData.prompt.id);
+                  console.log('[sim] New prompt composed:', promptData.prompt.id);
                 }
+                const parts = [];
+                if (artCount > 0) parts.push(`${artCount} artifact${artCount > 1 ? 's' : ''}`);
+                if (actCount > 0) parts.push(`${actCount} action${actCount > 1 ? 's' : ''}`);
+                if (promptData?.prompt?.id) parts.push('new prompt');
+                if (parts.length > 0) showToast(`${parts.join(' & ')} generated`);
               });
             }
           })
@@ -653,6 +662,29 @@ export function SimChat({
 
         {isStreaming && messages[messages.length - 1]?.content === '' && (
           <TypingIndicator />
+        )}
+
+        {/* Post-call: new prompt notification */}
+        {newPromptId && (
+          <div style={{
+            alignSelf: 'center',
+            background: 'linear-gradient(135deg, #ecfdf5, #f0fdf4)',
+            border: '1px solid #86efac',
+            padding: '10px 16px',
+            borderRadius: 10,
+            fontSize: 13,
+            color: '#166534',
+            margin: '12px 16px 4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            cursor: 'pointer',
+          }}
+            onClick={() => window.open(`/x/callers/${callerId}?tab=prompt`, '_blank')}
+          >
+            <span style={{ fontWeight: 700 }}>Prompt 1 generated</span>
+            <span style={{ fontSize: 12, color: '#15803d' }}>View &rarr;</span>
+          </div>
         )}
 
         {/* Post-call content — artifacts & actions from pipeline */}

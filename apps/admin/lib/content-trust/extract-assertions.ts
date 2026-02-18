@@ -15,6 +15,7 @@
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { resolveExtractionConfig, type ExtractionConfig, type DocumentType } from "./resolve-config";
+import type { DocumentSection } from "./segment-document";
 import crypto from "crypto";
 
 // ------------------------------------------------------------------
@@ -71,6 +72,16 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string
 }
 
 /**
+ * Extract text from a DOCX buffer using mammoth.
+ */
+export async function extractTextFromDocx(buffer: Buffer): Promise<{ text: string }> {
+  // Dynamic import to avoid bundling issues
+  const mammoth = await import("mammoth");
+  const result = await mammoth.extractRawText({ buffer });
+  return { text: result.value };
+}
+
+/**
  * Extract text from various file types.
  */
 export async function extractText(
@@ -82,6 +93,12 @@ export async function extractText(
     const buffer = Buffer.from(await file.arrayBuffer());
     const { text, pages } = await extractTextFromPdf(buffer);
     return { text, pages, fileType: "pdf" };
+  }
+
+  if (name.endsWith(".docx")) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { text } = await extractTextFromDocx(buffer);
+    return { text, fileType: "docx" };
   }
 
   // Text-based formats
@@ -107,6 +124,11 @@ export async function extractTextFromBuffer(
   if (name.endsWith(".pdf")) {
     const { text, pages } = await extractTextFromPdf(buffer);
     return { text, pages, fileType: "pdf" };
+  }
+
+  if (name.endsWith(".docx")) {
+    const { text } = await extractTextFromDocx(buffer);
+    return { text, fileType: "docx" };
   }
 
   const text = buffer.toString("utf-8");
@@ -339,6 +361,85 @@ export async function extractAssertions(
 
   if (deduplicated.length < allAssertions.length) {
     warnings.push(`Removed ${allAssertions.length - deduplicated.length} duplicate assertions`);
+  }
+
+  return {
+    ok: true,
+    assertions: deduplicated,
+    warnings,
+  };
+}
+
+// ------------------------------------------------------------------
+// Segmented extraction (composite documents)
+// ------------------------------------------------------------------
+
+/**
+ * Extract assertions from a composite document by processing each
+ * section independently with its own type-specific prompt.
+ *
+ * Each section's assertions are enriched with:
+ * - `chapter` set to the section title
+ * - `role:ROLE` tag for pedagogical filtering
+ *
+ * Falls back to standard extraction if only one section.
+ */
+export async function extractAssertionsSegmented(
+  fullText: string,
+  sections: DocumentSection[],
+  options: ExtractionOptions,
+): Promise<ExtractionResult> {
+  const allAssertions: ExtractedAssertion[] = [];
+  const warnings: string[] = [];
+  let totalChunksProcessed = 0;
+
+  for (let sIdx = 0; sIdx < sections.length; sIdx++) {
+    const section = sections[sIdx];
+    const sectionText = fullText.substring(section.startOffset, section.endOffset);
+
+    if (!sectionText.trim()) continue;
+
+    // Extract with section-specific document type
+    const sectionResult = await extractAssertions(sectionText, {
+      ...options,
+      documentType: section.sectionType,
+      // Don't fire chunk progress for individual sections — we track overall
+      onChunkDone: undefined,
+    });
+
+    if (!sectionResult.ok) {
+      warnings.push(`Section "${section.title}" extraction failed: ${sectionResult.error}`);
+      continue;
+    }
+
+    // Enrich assertions with section metadata
+    for (const assertion of sectionResult.assertions) {
+      assertion.chapter = assertion.chapter || section.title;
+      assertion.tags = [
+        ...assertion.tags,
+        `role:${section.pedagogicalRole}`,
+        ...(section.hasAnswerKey ? ["has-answers"] : []),
+      ];
+    }
+
+    allAssertions.push(...sectionResult.assertions);
+    warnings.push(...sectionResult.warnings.map((w) => `[${section.title}] ${w}`));
+    totalChunksProcessed++;
+
+    // Report overall progress
+    options.onChunkDone?.(sIdx, sections.length, allAssertions.length);
+  }
+
+  // Deduplicate across sections
+  const seen = new Set<string>();
+  const deduplicated = allAssertions.filter((a) => {
+    if (seen.has(a.contentHash)) return false;
+    seen.add(a.contentHash);
+    return true;
+  });
+
+  if (deduplicated.length < allAssertions.length) {
+    warnings.push(`Removed ${allAssertions.length - deduplicated.length} cross-section duplicates`);
   }
 
   return {

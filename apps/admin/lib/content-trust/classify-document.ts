@@ -2,7 +2,8 @@
  * Document Type Classification
  *
  * Classifies uploaded documents into pedagogical types before extraction.
- * Uses a lightweight AI call on the first N characters of extracted text.
+ * Uses multi-point sampling (start + middle + end) for better coverage
+ * of composite documents.
  *
  * Types: CURRICULUM, TEXTBOOK, WORKSHEET, EXAMPLE, ASSESSMENT, REFERENCE
  *
@@ -148,14 +149,57 @@ export async function fetchFewShotExamples(
 }
 
 // ------------------------------------------------------------------
+// Multi-point sampling
+// ------------------------------------------------------------------
+
+/**
+ * Build a multi-point sample from document text.
+ *
+ * Instead of only reading the first N characters (which misses answer keys,
+ * exercises, and other sections later in the document), samples from three
+ * positions: start (40%), middle (30%), end (30%).
+ *
+ * This ensures the classifier sees the full pedagogical structure of
+ * composite documents (e.g., worksheets with reading + exercises + answers).
+ */
+export function buildMultiPointSample(fullText: string, totalSize: number): string {
+  if (fullText.length <= totalSize) return fullText;
+
+  const startSize = Math.floor(totalSize * 0.4);
+  const middleSize = Math.floor(totalSize * 0.3);
+  const endSize = totalSize - startSize - middleSize;
+
+  const startSample = fullText.substring(0, startSize);
+
+  const midPoint = Math.floor(fullText.length / 2);
+  const middleStart = Math.max(startSize, midPoint - Math.floor(middleSize / 2));
+  const middleSample = fullText.substring(middleStart, middleStart + middleSize);
+
+  const endStart = Math.max(middleStart + middleSize, fullText.length - endSize);
+  const endSample = fullText.substring(endStart);
+
+  return [
+    "[START OF DOCUMENT]",
+    startSample,
+    "",
+    "[MIDDLE OF DOCUMENT]",
+    middleSample,
+    "",
+    "[END OF DOCUMENT]",
+    endSample,
+  ].join("\n");
+}
+
+// ------------------------------------------------------------------
 // Classification
 // ------------------------------------------------------------------
 
 /**
  * Classify a document's type using AI.
  *
- * Examines a text sample and filename to determine the pedagogical role
- * of the document. Returns the classified type with confidence score.
+ * Uses multi-point sampling (start + middle + end) for better coverage
+ * of composite documents. Examines the text sample and filename to
+ * determine the pedagogical role of the document.
  *
  * When fewShotExamples are provided, they are appended to the user prompt
  * so the AI can learn from past admin corrections.
@@ -169,7 +213,7 @@ export async function classifyDocument(
   fewShotExamples?: ClassificationExample[],
 ): Promise<ClassificationResult> {
   const { classification } = extractionConfig;
-  const sample = textSample.substring(0, classification.sampleSize);
+  const sample = buildMultiPointSample(textSample, classification.sampleSize);
 
   // Build few-shot section if examples are available
   const fewShotSection = fewShotExamples?.length

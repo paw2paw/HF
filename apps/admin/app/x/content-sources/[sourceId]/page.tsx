@@ -65,29 +65,36 @@ const TRUST_LEVELS = [
 
 const CATEGORIES = [
   // Textbook categories
-  { value: "fact", label: "Fact", color: "#2563EB" },
-  { value: "definition", label: "Definition", color: "#7C3AED" },
-  { value: "threshold", label: "Threshold", color: "#D97706" },
-  { value: "rule", label: "Rule", color: "#DC2626" },
-  { value: "process", label: "Process", color: "#059669" },
-  { value: "example", label: "Example", color: "#6B7280" },
+  { value: "fact", label: "Fact", color: "#2563EB", icon: "\u2139\uFE0F" },
+  { value: "definition", label: "Definition", color: "#7C3AED", icon: "\uD83D\uDCD6" },
+  { value: "threshold", label: "Threshold", color: "#D97706", icon: "\uD83D\uDCCF" },
+  { value: "rule", label: "Rule", color: "#DC2626", icon: "\u26A0\uFE0F" },
+  { value: "process", label: "Process", color: "#059669", icon: "\u2699\uFE0F" },
+  { value: "example", label: "Example", color: "#6B7280", icon: "\uD83D\uDCC4" },
   // Worksheet categories
-  { value: "question", label: "Question", color: "#2563EB" },
-  { value: "activity", label: "Activity", color: "#059669" },
-  { value: "information", label: "Information", color: "#7C3AED" },
-  { value: "reference", label: "Reference", color: "#D97706" },
+  { value: "question", label: "Question", color: "#2563EB", icon: "\u2753" },
+  { value: "true_false", label: "True/False", color: "#0891B2", icon: "\u2696\uFE0F" },
+  { value: "matching_exercise", label: "Matching", color: "#7C3AED", icon: "\uD83D\uDD17" },
+  { value: "vocabulary_exercise", label: "Vocabulary", color: "#9333EA", icon: "\uD83D\uDCDA" },
+  { value: "discussion_prompt", label: "Discussion", color: "#DB2777", icon: "\uD83D\uDCAC" },
+  { value: "activity", label: "Activity", color: "#059669", icon: "\u270D\uFE0F" },
+  { value: "information", label: "Information", color: "#6366F1", icon: "\uD83D\uDCD6" },
+  { value: "reference", label: "Reference", color: "#D97706", icon: "\uD83D\uDCD1" },
+  { value: "answer_key_item", label: "Answer Key", color: "#16A34A", icon: "\uD83D\uDD11" },
   // Curriculum categories
-  { value: "learning_outcome", label: "Learning Outcome", color: "#2563EB" },
-  { value: "assessment_criterion", label: "Assessment Criterion", color: "#059669" },
-  { value: "range", label: "Range/Scope", color: "#D97706" },
+  { value: "learning_outcome", label: "Learning Outcome", color: "#2563EB", icon: "\uD83C\uDFAF" },
+  { value: "assessment_criterion", label: "Assessment Criterion", color: "#059669", icon: "\uD83D\uDCCB" },
+  { value: "range", label: "Range/Scope", color: "#D97706", icon: "\uD83D\uDCCF" },
   // Assessment categories
-  { value: "answer", label: "Answer", color: "#16a34a" },
-  { value: "misconception", label: "Misconception", color: "#DC2626" },
+  { value: "answer", label: "Answer", color: "#16A34A", icon: "\u2705" },
+  { value: "matching_item", label: "Matching Item", color: "#7C3AED", icon: "\uD83D\uDD17" },
+  { value: "misconception", label: "Misconception", color: "#DC2626", icon: "\u274C" },
+  { value: "mark_scheme", label: "Mark Scheme", color: "#EA580C", icon: "\uD83D\uDCDD" },
   // Example categories
-  { value: "concept", label: "Concept", color: "#2563EB" },
-  { value: "observation", label: "Observation", color: "#059669" },
-  { value: "discussion_point", label: "Discussion Point", color: "#7C3AED" },
-  { value: "context", label: "Context", color: "#6B7280" },
+  { value: "concept", label: "Concept", color: "#2563EB", icon: "\uD83D\uDCA1" },
+  { value: "observation", label: "Observation", color: "#059669", icon: "\uD83D\uDC41\uFE0F" },
+  { value: "discussion_point", label: "Discussion Point", color: "#7C3AED", icon: "\uD83D\uDCAC" },
+  { value: "context", label: "Context", color: "#6B7280", icon: "\uD83D\uDCCC" },
 ];
 
 const DOCUMENT_TYPES: Record<string, { label: string; icon: string }> = {
@@ -115,8 +122,10 @@ function TrustBadge({ level }: { level: string }) {
 function CategoryBadge({ category }: { category: string }) {
   const cfg = CATEGORIES.find((c) => c.value === category);
   const color = cfg?.color || "#6B7280";
+  const icon = cfg?.icon;
   return (
-    <span style={{ display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, textTransform: "uppercase" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, textTransform: "uppercase" }}>
+      {icon && <span style={{ fontSize: 11, lineHeight: 1 }}>{icon}</span>}
       {cfg?.label || category}
     </span>
   );

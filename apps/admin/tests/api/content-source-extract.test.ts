@@ -31,8 +31,17 @@ vi.mock("@/lib/permissions", () => ({
 
 vi.mock("@/lib/content-trust/extract-assertions", () => ({
   extractAssertions: mocks.extractAssertions,
+  extractAssertionsSegmented: vi.fn(),
   extractTextFromBuffer: mocks.extractTextFromBuffer,
   chunkText: mocks.chunkText,
+}));
+
+vi.mock("@/lib/content-trust/segment-document", () => ({
+  segmentDocument: vi.fn().mockResolvedValue({ isComposite: false, sections: [] }),
+}));
+
+vi.mock("@/lib/content-trust/save-assertions", () => ({
+  saveAssertions: vi.fn().mockResolvedValue({ created: 0, duplicatesSkipped: 0 }),
 }));
 
 vi.mock("@/lib/content-trust/extraction-jobs", () => ({
