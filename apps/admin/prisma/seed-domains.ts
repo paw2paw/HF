@@ -5,11 +5,11 @@ let prisma: PrismaClient;
 /**
  * Seed initial domains for caller segmentation.
  *
- * Domains represent distinct use cases or personas:
- * - Tutor (default): Educational/tutoring conversations
- * - Support: Customer support interactions
- * - Sales: Sales and lead conversations
- * - Wellness: Mental health and wellness coaching
+ * Domains represent distinct learning programmes offered by professional institutions:
+ * - Meridian Academy (default): K-12 adaptive tutoring
+ * - Northbridge Business School: Professional development and leadership coaching
+ * - Wellspring Institute: Mental health and wellness support
+ * - Harbour Languages: Modern foreign language acquisition
  */
 export async function main(externalPrisma?: PrismaClient) {
   prisma = externalPrisma || new PrismaClient();
@@ -17,30 +17,30 @@ export async function main(externalPrisma?: PrismaClient) {
 
   const domains = [
     {
-      slug: "tutor",
-      name: "Tutor",
-      description: "Educational and tutoring conversations. Default domain for new callers.",
+      slug: "meridian-academy",
+      name: "Meridian Academy",
+      description: "K-12 adaptive tutoring across mathematics, science, and literacy. Personalised learning paths for every student.",
       isDefault: true,
       isActive: true,
     },
     {
-      slug: "support",
-      name: "Support",
-      description: "Customer support interactions focused on issue resolution and satisfaction.",
+      slug: "northbridge-business-school",
+      name: "Northbridge Business School",
+      description: "Professional development, leadership coaching, and executive communication skills for corporate learners.",
       isDefault: false,
       isActive: true,
     },
     {
-      slug: "sales",
-      name: "Sales",
-      description: "Sales and lead qualification conversations.",
+      slug: "wellspring-institute",
+      name: "Wellspring Institute",
+      description: "Mental health awareness, resilience building, and wellness coaching programmes for individuals and organisations.",
       isDefault: false,
       isActive: true,
     },
     {
-      slug: "wellness",
-      name: "Wellness",
-      description: "Mental health, wellness coaching, and supportive conversations.",
+      slug: "harbour-languages",
+      name: "Harbour Languages",
+      description: "Modern foreign language acquisition through immersive conversational practice. French, Spanish, German, and Mandarin.",
       isDefault: false,
       isActive: true,
     },
@@ -71,9 +71,9 @@ export async function main(externalPrisma?: PrismaClient) {
   });
 
   if (defaultDomains.length > 1) {
-    console.warn(`  Warning: Multiple default domains found. Setting only "tutor" as default.`);
+    console.warn(`  Warning: Multiple default domains found. Setting only "meridian-academy" as default.`);
     await prisma.domain.updateMany({
-      where: { isDefault: true, slug: { not: "tutor" } },
+      where: { isDefault: true, slug: { not: "meridian-academy" } },
       data: { isDefault: false },
     });
   }
