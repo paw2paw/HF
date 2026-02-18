@@ -149,7 +149,7 @@ export default function DemonstratePage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/domains");
+        const res = await fetch("/api/domains?onlyInstitution=true");
         const data = await res.json();
         if (data.ok) {
           const list: DomainInfo[] = data.domains || [];

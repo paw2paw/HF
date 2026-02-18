@@ -137,6 +137,7 @@ export async function POST(req: NextRequest) {
             name: subjectName.trim(),
             description: brief?.trim() || `Quick-launched domain for ${subjectName.trim()}`,
             isActive: true,
+            institutionId: session.user.institutionId ?? undefined,
           },
         });
       }

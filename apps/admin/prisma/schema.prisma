@@ -440,6 +440,10 @@ model Domain {
   onboardingFlowPhases     Json? // Custom first-call flow phases (optional override of INIT-001 defaults)
   onboardingDefaultTargets Json? // Custom default behavior targets for first call
 
+  // Institution ownership (null = demo/system/test domain, not a real institution)
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -458,6 +462,7 @@ model Domain {
   @@index([isDefault])
   @@index([isActive])
   @@index([onboardingIdentitySpecId])
+  @@index([institutionId])
 }
 
 // =========================
@@ -634,6 +639,7 @@ model Institution {
   // Relations
   users        User[]
   cohortGroups CohortGroup[]
+  domains      Domain[]
 
   @@index([slug])
 }

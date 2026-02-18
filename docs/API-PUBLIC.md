@@ -1973,6 +1973,7 @@ List all domains with caller counts and playbook info
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
 | includeInactive | query | boolean | No | Include inactive domains (default: false) |
+| onlyInstitution | query | boolean | No | Only return domains linked to an institution (default: false) |
 
 **Response** `200`
 ```json
@@ -1998,6 +1999,7 @@ Create a new domain
 | name | body | string | No | Display name |
 | description | body | string | No | Optional description |
 | isDefault | body | boolean | No | Set as default domain |
+| institutionId | body | string | No | Optional institution ID to link this domain to |
 
 **Response** `200`
 ```json

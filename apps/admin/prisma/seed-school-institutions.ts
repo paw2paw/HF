@@ -76,6 +76,18 @@ export async function main(externalPrisma?: PrismaClient) {
     console.log(`Institution: ${institution.name} (${institution.id})`);
     console.log(`  Colors: ${institution.primaryColor} / ${institution.secondaryColor}`);
 
+    // Link domain to institution (if a domain with matching slug exists)
+    const linkedDomain = await prisma.domain.findUnique({
+      where: { slug: school.slug },
+    });
+    if (linkedDomain) {
+      await prisma.domain.update({
+        where: { slug: school.slug },
+        data: { institutionId: institution.id },
+      });
+      console.log(`  Linked domain: ${linkedDomain.name}`);
+    }
+
     // Reassign users by email domain
     const userResult = await prisma.user.updateMany({
       where: {

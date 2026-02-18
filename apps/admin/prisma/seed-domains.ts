@@ -78,6 +78,27 @@ export async function main(externalPrisma?: PrismaClient) {
     });
   }
 
+  // Link the 4 main institution domains to the default institution (HumanFirst)
+  const humanfirst = await prisma.institution.findUnique({
+    where: { slug: "humanfirst" },
+  });
+  if (humanfirst) {
+    console.log(`  Linking institution domains to HumanFirst (${humanfirst.id})...`);
+    await prisma.domain.updateMany({
+      where: {
+        slug: {
+          in: [
+            "meridian-academy",
+            "northbridge-business-school",
+            "wellspring-institute",
+            "harbour-languages",
+          ],
+        },
+      },
+      data: { institutionId: humanfirst.id },
+    });
+  }
+
   const count = await prisma.domain.count();
   console.log(`Done. ${count} domains in database.`);
 }

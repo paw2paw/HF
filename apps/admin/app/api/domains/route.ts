@@ -10,6 +10,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @tags domains
  * @description List all domains with caller counts and playbook info
  * @query includeInactive boolean - Include inactive domains (default: false)
+ * @query onlyInstitution boolean - Only return domains linked to an institution (default: false)
  * @response 200 { ok: true, domains: Domain[], count: number }
  * @response 500 { ok: false, error: "..." }
  */
@@ -20,9 +21,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
+    const onlyInstitution = searchParams.get("onlyInstitution") === "true";
 
     const domains = await prisma.domain.findMany({
-      where: includeInactive ? {} : { isActive: true },
+      where: {
+        ...(includeInactive ? {} : { isActive: true }),
+        ...(onlyInstitution ? { institutionId: { not: null } } : {}),
+      },
       orderBy: [{ isDefault: "desc" }, { name: "asc" }],
       include: {
         _count: {
@@ -52,6 +57,7 @@ export async function GET(request: NextRequest) {
       publishedPlaybook: domain.playbooks[0] || null,
       _count: undefined,
       playbooks: undefined,
+      institutionId: domain.institutionId,
     }));
 
     return NextResponse.json({
@@ -79,6 +85,7 @@ export async function GET(request: NextRequest) {
  * @body name string - Display name
  * @body description string - Optional description
  * @body isDefault boolean - Set as default domain
+ * @body institutionId string - Optional institution ID to link this domain to
  * @response 200 { ok: true, domain: Domain }
  * @response 400 { ok: false, error: "slug and name are required" }
  * @response 409 { ok: false, error: "Domain with slug ... already exists" }
@@ -88,9 +95,10 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth("OPERATOR");
     if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const body = await request.json();
-    const { slug, name, description, isDefault } = body;
+    const { slug, name, description, isDefault, institutionId } = body;
 
     if (!slug || !name) {
       return NextResponse.json(
@@ -126,6 +134,7 @@ export async function POST(request: NextRequest) {
         description: description || null,
         isDefault: isDefault || false,
         isActive: true,
+        institutionId: institutionId || session?.user?.institutionId || undefined,
       },
     });
 
