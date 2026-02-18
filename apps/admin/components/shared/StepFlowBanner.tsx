@@ -6,6 +6,7 @@
  * Shows step progress + PREV/NEXT on flow page, "Back to flow" on other pages.
  */
 
+import { useEffect } from 'react';
 import { useStepFlow } from '@/contexts/StepFlowContext';
 import { useMasquerade } from '@/contexts/MasqueradeContext';
 import { MASQUERADE_BANNER_HEIGHT } from '@/components/shared/MasqueradeBanner';
@@ -22,32 +23,30 @@ export default function StepFlowBanner() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Compute flow context membership before any early returns (hooks must not be conditional)
+  const returnPath = state?.returnPath ?? '';
+  const flowId = state?.flowId ?? '';
+  const isOnFlowPage = !!pathname && (pathname === returnPath || pathname.startsWith(returnPath + '?'));
+  const isFlowChild = (() => {
+    if (flowId === 'content-sources') return pathname?.startsWith('/x/content-sources') ?? false;
+    if (flowId === 'domain-setup') return pathname?.startsWith('/x/domain-setup') ?? false;
+    return false;
+  })();
+  const shouldDismiss = isActive && !!state && !isOnFlowPage && !isFlowChild
+    && !pathname?.startsWith('/x/sim') && !pathname?.startsWith('/login');
+
+  // Auto-dismiss when user navigates away from the flow context (must be in effect, not render)
+  useEffect(() => {
+    if (shouldDismiss) endFlow();
+  }, [shouldDismiss, endFlow]);
+
   if (!isActive || !state) return null;
 
   // Hide on sim pages, auth pages, embed mode
-  const isSimPage = pathname?.startsWith('/x/sim');
-  const isAuthPage = pathname?.startsWith('/login');
-  if (isSimPage || isAuthPage) return null;
+  if (pathname?.startsWith('/x/sim') || pathname?.startsWith('/login')) return null;
 
-  // Auto-dismiss flow if user navigates to a page unrelated to the flow
-  // (i.e., not the flow page itself, and not a direct child of returnPath)
-  const { returnPath, flowId } = state;
-  const isOnFlowPage = pathname === returnPath || pathname?.startsWith(returnPath + '?');
-
-  // Only check for flow-specific child pages
-  let isFlowChild = false;
-  if (flowId === 'content-sources') {
-    isFlowChild = pathname?.startsWith('/x/content-sources') ?? false;
-  } else if (flowId === 'domain-setup') {
-    isFlowChild = pathname?.startsWith('/x/domain-setup') ?? false;
-  }
-  // demonstrate flow has no child pages
-
-  if (!isOnFlowPage && !isFlowChild) {
-    // User navigated away from the flow context entirely (e.g., to Inbox, Domains, etc.)
-    endFlow();
-    return null;
-  }
+  // Still rendering during the effect tick — suppress until dismissed
+  if (shouldDismiss) return null;
 
   const { currentStep, steps } = state;
   const totalSteps = steps.length;
