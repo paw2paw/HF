@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useState, useRef, useCallback } from 'react
 import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
-import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding, ViewModeProvider } from '@/contexts';
+import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding, ViewModeProvider, StepFlowProvider, useStepFlow } from '@/contexts';
 import { TerminologyProvider } from '@/contexts/TerminologyContext';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
@@ -13,6 +13,7 @@ import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
 import EnvironmentBanner, { envSidebarColor, envSidebarWidth, envLabel } from '@/components/shared/EnvironmentBanner';
 import MasqueradeBanner, { MASQUERADE_BANNER_HEIGHT, MASQUERADE_COLOR } from '@/components/shared/MasqueradeBanner';
+import StepFlowBanner, { STEP_FLOW_BANNER_HEIGHT } from '@/components/shared/StepFlowBanner';
 import { TourOverlay } from '@/src/components/shared/TourOverlay';
 import { ErrorCaptureProvider } from '@/contexts/ErrorCaptureContext';
 import { BugReportButton } from '@/components/shared/BugReportButton';
@@ -84,6 +85,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const { isOpen, chatLayout } = useChatContext();
   const { isMobile, showDesktop } = useResponsive();
   const { isMasquerading } = useMasquerade();
+  const { isActive: isStepFlowActive } = useStepFlow();
   const { branding } = useBranding();
 
   // Hydration guard is now centralized in MasqueradeContext — isMasquerading
@@ -197,8 +199,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Sidebar width config
   const effectiveSidebarWidth = collapsed ? COLLAPSED_WIDTH : sidebarWidth;
 
-  // Height accounts for fixed banners (MasqueradeBanner only — env banner removed)
-  const bannerHeight = showMasqueradeChrome ? MASQUERADE_BANNER_HEIGHT : 0;
+  // Height accounts for fixed banners (MasqueradeBanner + StepFlowBanner)
+  const showStepFlowBar = isStepFlowActive && !isSimPage && !isAuthPage && !isEmbed;
+  const bannerHeight =
+    (showMasqueradeChrome ? MASQUERADE_BANNER_HEIGHT : 0) +
+    (showStepFlowBar ? STEP_FLOW_BANNER_HEIGHT : 0);
   const layoutHeight = bannerHeight > 0 ? `calc(100vh - ${bannerHeight}px)` : '100vh';
 
   // Auth pages, embed mode, and sim pages render without sidebar/chrome
@@ -374,8 +379,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <BrandingProvider>
               <TerminologyProvider>
               <MasqueradeProvider>
+              <StepFlowProvider>
               <ViewModeProvider>
               <MasqueradeBanner />
+              <StepFlowBanner />
               <EntityProvider>
                 <GuidanceProvider>
                   <ChatProvider>
@@ -397,6 +404,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </GuidanceProvider>
               </EntityProvider>
               </ViewModeProvider>
+              </StepFlowProvider>
               </MasqueradeProvider>
               </TerminologyProvider>
               </BrandingProvider>

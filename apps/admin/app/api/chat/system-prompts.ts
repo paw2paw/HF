@@ -162,12 +162,40 @@ async function buildEntityContext(breadcrumbs: EntityBreadcrumb[]): Promise<stri
         const domainContext = await getDomainContext(crumb.id);
         if (domainContext) parts.push(domainContext);
         break;
+      case "flow":
+        const flowContext = buildFlowContext(crumb);
+        if (flowContext) parts.push(flowContext);
+        break;
       default:
         parts.push(`**${crumb.type}:** ${crumb.label}`);
     }
   }
 
   return parts.join("\n\n");
+}
+
+/**
+ * Build context for an active step flow (e.g., Demonstrate flow).
+ * Reads flow state from the entity breadcrumb data field.
+ */
+function buildFlowContext(crumb: EntityBreadcrumb): string | null {
+  const data = crumb.data || {};
+  const flowId = crumb.id;
+
+  if (flowId === "demonstrate") {
+    const parts = [`## Active Demonstrate Flow`,
+      `The admin is preparing to demonstrate a teaching session.`,
+      `- Current step: ${data.stepLabel || `Step ${(data.step as number ?? 0) + 1}`}`,
+    ];
+    if (data.goal) parts.push(`- Session goal: "${data.goal}"`);
+    if (data.domainId) parts.push(`- Domain selected: ${data.domainId}`);
+    if (data.callerId) parts.push(`- Caller selected: ${data.callerId}`);
+    parts.push("", "You can help them:", "- Refine their session goal", "- Explain what readiness checks mean and how to fix them", "- Suggest teaching strategies for this domain and caller", "- Navigate to the right pages to resolve issues");
+    return parts.join("\n");
+  }
+
+  // Generic flow fallback
+  return `## Active Flow: ${crumb.label}\n- Flow ID: ${flowId}\n- Step: ${data.step ?? "unknown"}`;
 }
 
 /**
@@ -696,6 +724,10 @@ async function getDomainContext(domainId: string): Promise<string | null> {
  */
 async function buildCallSimPrompt(entityContext: EntityBreadcrumb[]): Promise<string> {
   const callerEntity = entityContext.find((e) => e.type === "caller");
+  const goalEntity = entityContext.find((e) => e.type === "demonstrationGoal");
+  const goalPrefix = goalEntity?.label
+    ? `\nADMIN SESSION GOAL: "${goalEntity.label}"\nOrient the conversation toward this goal while maintaining your natural voice and teaching style.\n\n`
+    : "";
 
   if (!callerEntity) {
     return `You are simulating a VAPI voice AI call.
@@ -717,8 +749,7 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
       const voicePrompt = renderVoicePrompt(composedPrompt.llmPrompt as any);
       return `You are simulating a VAPI voice AI call. This is the EXACT prompt the voice AI receives.
 Keep responses SHORT (1-3 sentences) — this is voice, not text.
-
-${voicePrompt}`;
+${goalPrefix}${voicePrompt}`;
     }
 
     // Fallback: no composed prompt — use basic caller info

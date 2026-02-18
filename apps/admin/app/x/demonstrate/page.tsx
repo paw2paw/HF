@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FancySelect } from "@/components/shared/FancySelect";
 import type { FancySelectOption } from "@/components/shared/FancySelect";
+import { useStepFlow } from "@/contexts/StepFlowContext";
+import { useEntityContext } from "@/contexts/EntityContext";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
 
@@ -30,11 +33,23 @@ type CallerInfo = {
   name: string;
 };
 
+// ── Step definitions ──────────────────────────────
+
+const DEMONSTRATE_STEPS = [
+  { id: "domain", label: "Select Domain & Caller", activeLabel: "Selecting Domain & Caller" },
+  { id: "goal", label: "Set Your Goal", activeLabel: "Setting Your Goal" },
+  { id: "readiness", label: "Readiness Checks", activeLabel: "Checking Readiness" },
+  { id: "launch", label: "Launch", activeLabel: "Ready to Launch" },
+];
+
 // ── Page ───────────────────────────────────────────
 
 export default function DemonstratePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { state, isActive, startFlow, setStep, setData, getData, endFlow } = useStepFlow();
+  const { pushEntity } = useEntityContext();
+  const flowInitialized = useRef(false);
 
   // Domain selector state
   const [domains, setDomains] = useState<DomainInfo[]>([]);
@@ -42,10 +57,13 @@ export default function DemonstratePage() {
   const [selectedDomainId, setSelectedDomainId] = useState("");
   const [loadingDomains, setLoadingDomains] = useState(true);
 
-  // Caller for the selected domain (needed for prompt check + Start Lesson)
+  // Caller for the selected domain
   const [callers, setCallers] = useState<CallerInfo[]>([]);
   const [selectedCallerId, setSelectedCallerId] = useState("");
   const [callerOptions, setCallerOptions] = useState<FancySelectOption[]>([]);
+
+  // Goal text
+  const [goalText, setGoalText] = useState("");
 
   // Course readiness
   const [checks, setChecks] = useState<CourseCheck[]>([]);
@@ -53,6 +71,52 @@ export default function DemonstratePage() {
   const [checksLoading, setChecksLoading] = useState(false);
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState<"ready" | "almost" | "incomplete">("incomplete");
+
+  // AI goal suggestions
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  const currentStep = state?.currentStep ?? 0;
+
+  // ── Initialize step flow ──
+  useEffect(() => {
+    if (flowInitialized.current) return;
+    flowInitialized.current = true;
+
+    if (!isActive) {
+      startFlow({
+        flowId: "demonstrate",
+        steps: DEMONSTRATE_STEPS,
+        returnPath: "/x/demonstrate",
+      });
+    } else {
+      // Returning from a fix-action page — restore state from context
+      const savedDomainId = getData<string>("domainId");
+      const savedCallerId = getData<string>("callerId");
+      const savedGoal = getData<string>("goal");
+      if (savedDomainId) setSelectedDomainId(savedDomainId);
+      if (savedCallerId) setSelectedCallerId(savedCallerId);
+      if (savedGoal) setGoalText(savedGoal);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Push flow breadcrumb for Cmd+K awareness ──
+  useEffect(() => {
+    if (isActive) {
+      pushEntity({
+        type: "flow",
+        id: "demonstrate",
+        label: "Demonstrate Flow",
+        data: {
+          step: currentStep,
+          stepLabel: DEMONSTRATE_STEPS[currentStep]?.label,
+          goal: goalText,
+          domainId: selectedDomainId,
+          callerId: selectedCallerId,
+        },
+      });
+    }
+  }, [isActive, currentStep, goalText, selectedDomainId, selectedCallerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load domains on mount ──
   useEffect(() => {
@@ -71,10 +135,13 @@ export default function DemonstratePage() {
               badge: d.isDefault ? "Default" : undefined,
             })),
           );
-          // Auto-select from URL param or default domain
+          // Auto-select: URL param > context data > default domain > only domain
           const urlDomainId = searchParams.get("domainId");
+          const ctxDomainId = getData<string>("domainId");
           if (urlDomainId && list.some((d) => d.id === urlDomainId)) {
             setSelectedDomainId(urlDomainId);
+          } else if (ctxDomainId && list.some((d) => d.id === ctxDomainId)) {
+            setSelectedDomainId(ctxDomainId);
           } else {
             const defaultDomain = list.find((d) => d.isDefault);
             if (defaultDomain) setSelectedDomainId(defaultDomain.id);
@@ -87,7 +154,7 @@ export default function DemonstratePage() {
         setLoadingDomains(false);
       }
     })();
-  }, [searchParams]);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load callers when domain changes ──
   useEffect(() => {
@@ -116,10 +183,13 @@ export default function DemonstratePage() {
               label: c.name,
             })),
           );
-          // Auto-select first caller, or from URL param
+          // Auto-select: URL param > context data > first caller
           const urlCallerId = searchParams.get("callerId");
+          const ctxCallerId = getData<string>("callerId");
           if (urlCallerId && list.some((c) => c.id === urlCallerId)) {
             setSelectedCallerId(urlCallerId);
+          } else if (ctxCallerId && list.some((c) => c.id === ctxCallerId)) {
+            setSelectedCallerId(ctxCallerId);
           } else if (list.length > 0) {
             setSelectedCallerId(list[0].id);
           } else {
@@ -130,7 +200,36 @@ export default function DemonstratePage() {
         console.warn("[Demonstrate] Failed to load callers:", e);
       }
     })();
-  }, [selectedDomainId, searchParams]);
+  }, [selectedDomainId, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch AI goal suggestions ──
+  const fetchSuggestions = useCallback(async () => {
+    if (!selectedDomainId || !selectedCallerId) return;
+    setLoadingSuggestions(true);
+    try {
+      const params = new URLSearchParams({
+        domainId: selectedDomainId,
+        callerId: selectedCallerId,
+      });
+      if (goalText) params.set("currentGoal", goalText);
+      const res = await fetch(`/api/demonstrate/suggest?${params}`);
+      const data = await res.json();
+      if (data.ok && data.suggestions) {
+        setSuggestions(data.suggestions);
+      }
+    } catch {
+      // Non-critical — suggestions are optional
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, [selectedDomainId, selectedCallerId, goalText]);
+
+  // Fetch suggestions when entering step 1 (goal) with domain+caller selected
+  useEffect(() => {
+    if (currentStep === 1 && selectedDomainId && selectedCallerId) {
+      fetchSuggestions();
+    }
+  }, [currentStep, selectedDomainId, selectedCallerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch course readiness ──
   const fetchReadiness = useCallback(async () => {
@@ -154,17 +253,17 @@ export default function DemonstratePage() {
     }
   }, [selectedDomainId, selectedCallerId]);
 
-  // Fetch on domain/caller change
+  // Fetch readiness when entering step 2
   useEffect(() => {
-    if (selectedDomainId) fetchReadiness();
-  }, [selectedDomainId, selectedCallerId, fetchReadiness]);
+    if (currentStep === 2 && selectedDomainId) fetchReadiness();
+  }, [currentStep, selectedDomainId, selectedCallerId, fetchReadiness]);
 
-  // Poll every 10s
+  // Poll readiness every 10s while on step 2
   useEffect(() => {
-    if (!selectedDomainId) return;
+    if (currentStep !== 2 || !selectedDomainId) return;
     const interval = setInterval(fetchReadiness, 10_000);
     return () => clearInterval(interval);
-  }, [selectedDomainId, fetchReadiness]);
+  }, [currentStep, selectedDomainId, fetchReadiness]);
 
   // ── Helpers ──
   const selectedDomain = domains.find((d) => d.id === selectedDomainId);
@@ -178,6 +277,83 @@ export default function DemonstratePage() {
 
   const levelLabel =
     level === "ready" ? "Ready" : level === "almost" ? "Almost Ready" : "Incomplete";
+
+  // Can advance from step 0 (domain)?
+  const canAdvanceFromDomain = !!selectedDomainId && !!selectedCallerId;
+  // Can advance from step 1 (goal)?
+  const canAdvanceFromGoal = goalText.trim().length > 0;
+
+  const handleNext = () => {
+    if (currentStep === 0) {
+      setData("domainId", selectedDomainId);
+      setData("callerId", selectedCallerId);
+      setData("domainName", selectedDomain?.name || "");
+    } else if (currentStep === 1) {
+      setData("goal", goalText.trim());
+    }
+    setStep(currentStep + 1);
+  };
+
+  const handlePrev = () => {
+    setStep(currentStep - 1);
+  };
+
+  const handleStartLesson = () => {
+    if (!selectedCallerId || !ready) return;
+    const goal = goalText.trim();
+    const url = goal
+      ? `/x/sim/${selectedCallerId}?goal=${encodeURIComponent(goal)}`
+      : `/x/sim/${selectedCallerId}`;
+    endFlow();
+    router.push(url);
+  };
+
+  // ── Shared styles ──
+  const sectionStyle: React.CSSProperties = {
+    padding: 24,
+    borderRadius: 14,
+    background: "var(--surface-primary)",
+    border: "1px solid var(--border-default)",
+    marginBottom: 20,
+  };
+
+  const sectionLabelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
+    color: "var(--text-muted)",
+    marginBottom: 8,
+  };
+
+  const nextBtnStyle = (enabled: boolean): React.CSSProperties => ({
+    padding: "12px 28px",
+    borderRadius: 10,
+    background: enabled ? "var(--accent-primary)" : "var(--border-default)",
+    color: enabled ? "white" : "var(--text-muted)",
+    border: "none",
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: enabled ? "pointer" : "not-allowed",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    transition: "all 0.15s",
+  });
+
+  const backBtnStyle: React.CSSProperties = {
+    padding: "12px 20px",
+    borderRadius: 10,
+    background: "transparent",
+    border: "1px solid var(--border-default)",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    color: "var(--text-secondary)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+  };
 
   // ── Render ───────────────────────────────────────
 
@@ -233,91 +409,184 @@ export default function DemonstratePage() {
             lineHeight: 1.5,
           }}
         >
-          Pick a domain and review readiness before starting a live lesson.
+          {DEMONSTRATE_STEPS[currentStep]?.label || "Prepare and launch a live lesson."}
         </p>
       </div>
 
-      {/* ── Domain Selector ── */}
-      <div
-        style={{
-          padding: 24,
-          borderRadius: 14,
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: "var(--text-muted)",
-            marginBottom: 8,
-          }}
-        >
-          Domain
-        </div>
-        {loadingDomains ? (
-          <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
-            Loading domains...
-          </div>
-        ) : domainOptions.length === 0 ? (
-          <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
-            No domains found.{" "}
-            <span
-              style={{ color: "var(--accent-primary)", cursor: "pointer", fontWeight: 600 }}
-              onClick={() => router.push("/x/quick-launch")}
-            >
-              Create one with Quick Launch
-            </span>
-          </div>
-        ) : (
-          <FancySelect
-            value={selectedDomainId}
-            onChange={setSelectedDomainId}
-            options={domainOptions}
-            placeholder="Select a domain..."
-            searchable={domainOptions.length > 5}
-          />
-        )}
-
-        {/* Caller selector (when domain has multiple callers) */}
-        {callerOptions.length > 1 && (
-          <div style={{ marginTop: 12 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "var(--text-muted)",
-                marginBottom: 8,
-              }}
-            >
-              Test Caller
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* STEP 0: Select Domain & Caller                      */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {currentStep === 0 && (
+        <div style={sectionStyle}>
+          <div style={sectionLabelStyle}>Domain</div>
+          {loadingDomains ? (
+            <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
+              Loading domains...
             </div>
+          ) : domainOptions.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
+              No domains found.{" "}
+              <span
+                style={{ color: "var(--accent-primary)", cursor: "pointer", fontWeight: 600 }}
+                onClick={() => router.push("/x/quick-launch")}
+              >
+                Create one with Quick Launch
+              </span>
+            </div>
+          ) : (
             <FancySelect
-              value={selectedCallerId}
-              onChange={setSelectedCallerId}
-              options={callerOptions}
-              placeholder="Select a caller..."
-              searchable={callerOptions.length > 5}
+              value={selectedDomainId}
+              onChange={setSelectedDomainId}
+              options={domainOptions}
+              placeholder="Select a domain..."
+              searchable={domainOptions.length > 5}
             />
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* ── Readiness Checklist ── */}
-      {selectedDomainId && (
+          {/* Caller selector */}
+          {callerOptions.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={sectionLabelStyle}>
+                {callerOptions.length > 1 ? "Test Caller" : "Caller"}
+              </div>
+              {callerOptions.length === 1 ? (
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", padding: "4px 0" }}>
+                  {callerOptions[0].label}
+                </div>
+              ) : (
+                <FancySelect
+                  value={selectedCallerId}
+                  onChange={setSelectedCallerId}
+                  options={callerOptions}
+                  placeholder="Select a caller..."
+                  searchable={callerOptions.length > 5}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Step navigation */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+            <button
+              onClick={canAdvanceFromDomain ? handleNext : undefined}
+              disabled={!canAdvanceFromDomain}
+              style={nextBtnStyle(canAdvanceFromDomain)}
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* STEP 1: Set Your Goal                               */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {currentStep === 1 && (
+        <div style={sectionStyle}>
+          <div style={sectionLabelStyle}>Session Goal</div>
+          <textarea
+            value={goalText}
+            onChange={(e) => setGoalText(e.target.value)}
+            placeholder="What do you want to demonstrate? e.g., Teach fractions to a student who struggles with word problems"
+            rows={3}
+            style={{
+              width: "100%",
+              padding: 14,
+              borderRadius: 10,
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-secondary)",
+              color: "var(--text-primary)",
+              fontSize: 14,
+              lineHeight: 1.5,
+              resize: "vertical",
+              fontFamily: "inherit",
+              outline: "none",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "var(--accent-primary)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "var(--border-default)";
+            }}
+          />
+
+          {/* AI suggestions */}
+          {(loadingSuggestions || suggestions.length > 0) && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
+                Suggested goals
+              </div>
+              {loadingSuggestions ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        height: 32,
+                        width: 120 + i * 20,
+                        borderRadius: 16,
+                        background: "var(--surface-secondary)",
+                        animation: "pulse 1.5s ease-in-out infinite",
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setGoalText(s)}
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: 16,
+                        background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+                        color: "var(--accent-primary)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "color-mix(in srgb, var(--accent-primary) 18%, transparent)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "color-mix(in srgb, var(--accent-primary) 10%, transparent)";
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step navigation */}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
+            <button onClick={handlePrev} style={backBtnStyle}>
+              <ChevronLeft size={16} /> Back
+            </button>
+            <button
+              onClick={canAdvanceFromGoal ? handleNext : undefined}
+              disabled={!canAdvanceFromGoal}
+              style={nextBtnStyle(canAdvanceFromGoal)}
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* STEP 2: Readiness Checks                            */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {currentStep === 2 && selectedDomainId && (
         <div
           style={{
-            padding: 24,
-            borderRadius: 14,
-            background: "var(--surface-primary)",
+            ...sectionStyle,
             border: `1px solid ${level === "ready" ? "var(--status-success-border)" : "var(--border-default)"}`,
-            marginBottom: 20,
             transition: "border-color 0.3s",
           }}
         >
@@ -330,24 +599,8 @@ export default function DemonstratePage() {
               marginBottom: 16,
             }}
           >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "var(--text-muted)",
-              }}
-            >
-              Course Readiness
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
+            <div style={sectionLabelStyle}>Course Readiness</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
                   fontSize: 12,
@@ -360,13 +613,7 @@ export default function DemonstratePage() {
               >
                 {levelLabel}
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                }}
-              >
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
                 {score}%
               </div>
             </div>
@@ -425,13 +672,7 @@ export default function DemonstratePage() {
                     {check.passed ? "\u2713" : check.severity === "critical" ? "!" : "\u2022"}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                      }}
-                    >
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
                       {check.name}
                       {check.severity === "critical" && !check.passed && (
                         <span
@@ -468,47 +709,110 @@ export default function DemonstratePage() {
             </div>
           )}
 
-          {/* Start Lesson CTA */}
-          {checks.length > 0 && (
-            <button
-              onClick={() => {
-                if (selectedCallerId) router.push(`/x/sim/${selectedCallerId}`);
-              }}
-              disabled={!ready || !selectedCallerId}
-              title={
-                !selectedCallerId
-                  ? "No caller available for this domain"
-                  : !ready
-                    ? "Complete required steps above first"
-                    : undefined
-              }
-              style={{
-                width: "100%",
-                padding: "14px 24px",
-                borderRadius: 10,
-                marginTop: 16,
-                background:
-                  ready && selectedCallerId
-                    ? "var(--accent-primary)"
-                    : "var(--border-default)",
-                color:
-                  ready && selectedCallerId ? "white" : "var(--text-muted)",
-                border: "none",
-                fontSize: 16,
-                fontWeight: 700,
-                cursor:
-                  ready && selectedCallerId ? "pointer" : "not-allowed",
-                letterSpacing: "-0.01em",
-                transition: "all 0.2s",
-              }}
-            >
-              Start Lesson
+          {/* Step navigation */}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
+            <button onClick={handlePrev} style={backBtnStyle}>
+              <ChevronLeft size={16} /> Back
             </button>
-          )}
+            <button
+              onClick={ready ? handleNext : undefined}
+              disabled={!ready}
+              style={nextBtnStyle(ready)}
+              title={!ready ? "Complete required checks above first" : undefined}
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       )}
 
-      {/* ── Quick actions ── */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* STEP 3: Launch                                      */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {currentStep === 3 && (
+        <div style={sectionStyle}>
+          {/* Summary */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={sectionLabelStyle}>Session Summary</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Domain:</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                  {selectedDomain?.name || "—"}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Caller:</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                  {callers.find((c) => c.id === selectedCallerId)?.name || "—"}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Goal:</span>
+                <span style={{ fontSize: 14, color: "var(--text-primary)", fontStyle: goalText ? "normal" : "italic" }}>
+                  {goalText || "—"}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Ready:</span>
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: levelColor,
+                  }}
+                >
+                  {levelLabel} ({score}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Start Lesson button */}
+          <button
+            onClick={handleStartLesson}
+            disabled={!ready || !selectedCallerId}
+            title={
+              !selectedCallerId
+                ? "No caller available for this domain"
+                : !ready
+                  ? "Complete required readiness checks first"
+                  : undefined
+            }
+            style={{
+              width: "100%",
+              padding: "16px 24px",
+              borderRadius: 12,
+              background:
+                ready && selectedCallerId
+                  ? "linear-gradient(135deg, var(--accent-primary), var(--accent-primary-hover))"
+                  : "var(--border-default)",
+              color: ready && selectedCallerId ? "white" : "var(--text-muted)",
+              border: "none",
+              fontSize: 18,
+              fontWeight: 700,
+              cursor: ready && selectedCallerId ? "pointer" : "not-allowed",
+              letterSpacing: "-0.01em",
+              transition: "all 0.2s",
+              boxShadow:
+                ready && selectedCallerId
+                  ? "0 4px 16px color-mix(in srgb, var(--accent-primary) 30%, transparent)"
+                  : "none",
+            }}
+          >
+            Start Lesson
+          </button>
+
+          {/* Back */}
+          <div style={{ display: "flex", justifyContent: "flex-start", marginTop: 16 }}>
+            <button onClick={handlePrev} style={backBtnStyle}>
+              <ChevronLeft size={16} /> Back
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Quick actions (visible on all steps) ── */}
       {selectedDomainId && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button

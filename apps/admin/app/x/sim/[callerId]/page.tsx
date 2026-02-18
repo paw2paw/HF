@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useResponsive } from '@/hooks/useResponsive';
 import { WhatsAppHeader } from '@/components/sim/WhatsAppHeader';
 import { SimChat } from '@/components/sim/SimChat';
@@ -20,7 +20,9 @@ interface CallerInfo {
 export default function SimConversationPage() {
   const router = useRouter();
   const { callerId } = useParams<{ callerId: string }>();
+  const searchParams = useSearchParams();
   const { isDesktop } = useResponsive();
+  const sessionGoal = searchParams.get('goal') || undefined;
 
   const [caller, setCaller] = useState<CallerInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +87,7 @@ export default function SimConversationPage() {
       domainName={caller.domain?.name}
       pastCalls={caller.pastCalls}
       mode="standalone"
+      sessionGoal={sessionGoal}
       onBack={isDesktop ? undefined : () => router.push('/x/sim')}
     />
   );

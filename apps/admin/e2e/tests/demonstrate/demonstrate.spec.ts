@@ -3,48 +3,39 @@ import { DemonstratePage } from '../../page-objects';
 
 /**
  * Demonstrate Page Tests
- * Tests the /x/demonstrate page — domain-driven course readiness checklist
+ * Tests the /x/demonstrate page — step-based flow with domain, goal, readiness, and launch
  */
 test.describe('Demonstrate Page', () => {
   test.beforeEach(async ({ page, loginAs }) => {
     await loginAs('admin@test.com');
   });
 
-  test('should load page with heading and domain selector', async ({ page }) => {
+  test('should load page with heading and step 1 (domain selector)', async ({ page }) => {
     await page.goto('/x/demonstrate');
     await page.waitForLoadState('domcontentloaded');
 
     const demonstratePage = new DemonstratePage(page);
     await expect(demonstratePage.heading).toBeVisible();
+    // Step 1 shows domain selector
     await expect(page.getByText('Domain')).toBeVisible();
   });
 
-  test('should show course readiness checklist when domain selected', async ({ page }) => {
+  test('should show step flow banner', async ({ page }) => {
     await page.goto('/x/demonstrate');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // If domains exist, readiness section should appear
-    const readinessText = page.getByText('Course Readiness');
-    const noDomains = page.getByText('No domains found');
-
-    // Either we see readiness checks or a "no domains" message
-    const hasReadiness = await readinessText.isVisible().catch(() => false);
-    const hasNoDomains = await noDomains.isVisible().catch(() => false);
-
-    expect(hasReadiness || hasNoDomains).toBe(true);
+    // The step flow banner should be visible
+    const banner = page.getByRole('navigation', { name: /flow/i });
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText('Step 1 of 4');
   });
 
-  test('should show Start Lesson button when checks are loaded', async ({ page }) => {
+  test('should show Next button on step 1', async ({ page }) => {
     await page.goto('/x/demonstrate');
     await page.waitForLoadState('networkidle');
 
-    const startLesson = page.getByRole('button', { name: 'Start Lesson' });
-    const hasButton = await startLesson.isVisible().catch(() => false);
-
-    // Start Lesson only appears if domain has readiness checks
-    if (hasButton) {
-      await expect(startLesson).toBeVisible();
-    }
+    const nextBtn = page.getByRole('button', { name: /next/i });
+    await expect(nextBtn).toBeVisible();
   });
 
   test('should show quick action buttons when domain selected', async ({ page }) => {

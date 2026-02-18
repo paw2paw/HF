@@ -10753,7 +10753,11 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 278 |
+| Route files found | 279 |
 | Files with annotations | 278 |
-| Files missing annotations | 0 |
-| Coverage | 100.0% |
+| Files missing annotations | 1 |
+| Coverage | 99.6% |
+
+### Files missing `@api` annotations
+
+- `app/api/demonstrate/suggest/route.ts`

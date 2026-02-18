@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
 // Entity types that can be tracked in breadcrumbs
-export type EntityType = "caller" | "call" | "spec" | "playbook" | "domain" | "transcript" | "memory";
+export type EntityType = "caller" | "call" | "spec" | "playbook" | "domain" | "transcript" | "memory" | "flow";
 
 export interface EntityBreadcrumb {
   type: EntityType;
@@ -174,4 +174,5 @@ export const ENTITY_COLORS: Record<EntityType, { bg: string; text: string; borde
   domain: { bg: "#fce7f3", text: "#be185d", border: "#f9a8d4" },
   transcript: { bg: "#e5e7eb", text: "#374151", border: "#d1d5db" },
   memory: { bg: "#cffafe", text: "#0e7490", border: "#67e8f9" },
+  flow: { bg: "#cffafe", text: "#155e75", border: "#22d3ee" },
 };

@@ -26,6 +26,7 @@ export interface SimChatProps {
   domainName?: string;
   pastCalls?: { transcript: string; createdAt: string }[];
   mode: 'standalone' | 'embedded';
+  sessionGoal?: string;
   onCallEnd?: () => void;
   onNewCall?: () => void;
   onBack?: () => void;
@@ -88,6 +89,7 @@ export function SimChat({
   domainName,
   pastCalls,
   mode,
+  sessionGoal,
   onCallEnd,
   onNewCall,
   onBack,
@@ -254,7 +256,9 @@ export function SimChat({
             // Active call exists but has no messages (e.g. greeting was aborted) — re-send greeting
             console.log('[sim] Active call has no messages, sending greeting');
             await streamAIResponse(
-              'The user just opened the chat. Greet them warmly as if answering a phone call. Be brief and natural.',
+              sessionGoal
+                ? `The user just opened the chat. The admin has set a session goal: "${sessionGoal}". Greet them warmly as if answering a phone call, and gently orient toward this goal. Be brief and natural.`
+                : 'The user just opened the chat. Greet them warmly as if answering a phone call. Be brief and natural.',
               []
             );
           }
@@ -299,7 +303,9 @@ export function SimChat({
         // AI sends greeting
         if (!cancelled) {
           await streamAIResponse(
-            'The user just opened the chat. Greet them warmly as if answering a phone call. Be brief and natural.',
+            sessionGoal
+                ? `The user just opened the chat. The admin has set a session goal: "${sessionGoal}". Greet them warmly as if answering a phone call, and gently orient toward this goal. Be brief and natural.`
+                : 'The user just opened the chat. Greet them warmly as if answering a phone call. Be brief and natural.',
             []
           );
         }
@@ -344,6 +350,7 @@ export function SimChat({
           mode: 'CALL',
           entityContext: [
             { type: 'caller', id: callerId, label: callerName },
+            ...(sessionGoal ? [{ type: 'demonstrationGoal', id: 'goal', label: sessionGoal }] : []),
           ],
           conversationHistory: history.slice(-10),
           callId: callIdRef.current,
