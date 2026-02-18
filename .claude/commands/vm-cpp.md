@@ -2,7 +2,9 @@
 description: Commit locally + push + migrate + pull + restart on VM
 ---
 
-Commit local changes, push to remote, then pull on the hf-dev VM with database migration and dev server restart. The full deploy-to-dev cycle.
+Commit local changes, push to remote, then pull on the hf-dev VM with database migration and dev server restart. The full deploy-to-VM cycle.
+
+**NOTE:** This updates the hf-dev VM only (localhost:3000 via SSH tunnel). It does NOT deploy to Cloud Run environments (dev/test/prod). To deploy to `dev.humanfirstfoundation.com` etc., use `/deploy`.
 
 ## 1. Check local status
 

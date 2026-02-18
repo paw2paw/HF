@@ -4,6 +4,8 @@ description: Run full seed on hf-dev VM
 
 Run the full seed orchestrator on the hf-dev VM to populate all data.
 
+**NOTE:** This seeds the VM's local database only. To seed Cloud Run databases (dev/test/prod), use `/deploy` with "Full deploy" option, which runs the appropriate Cloud Run seed job (`hf-seed-dev`, `hf-seed-test`, `hf-seed`).
+
 ## 1. Run full seed
 
 ```bash

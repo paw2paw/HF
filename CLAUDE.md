@@ -180,9 +180,21 @@ docker build --target migrate .   # migrate — prisma migrate deploy only
 
 The runner image CANNOT run seeds — use the seed target or SSH tunnel.
 
-## VM Deploy Commands
+## Cloud Architecture (3 environments)
 
-After every code change, tell the user which command to run:
+All public URLs route through a Cloudflare Tunnel to separate Cloud Run services:
+
+| Env | Domain | Cloud Run Service | Seed Job | Migrate Job |
+|-----|--------|-------------------|----------|-------------|
+| DEV | `dev.humanfirstfoundation.com` | `hf-admin-dev` | `hf-seed-dev` | `hf-migrate-dev` |
+| TEST | `test.humanfirstfoundation.com` | `hf-admin-test` | `hf-seed-test` | `hf-migrate-test` |
+| PROD | `lab.humanfirstfoundation.com` | `hf-admin` | `hf-seed` | `hf-migrate` |
+
+**Docker is NOT available locally or on the VM.** Use Cloud Build for all image builds.
+
+## VM Deploy Commands (hf-dev VM only)
+
+These commands update the hf-dev VM (localhost:3000 via SSH tunnel). They do NOT affect Cloud Run deployments. For Cloud Run, use `/deploy`.
 
 - **`/vm-cp`** — Commit + push + pull on VM. Use for:
   - React components, pages, layouts (`app/`, `components/`)
@@ -198,6 +210,8 @@ After every code change, tell the user which command to run:
   - Environment variable changes
 
 **Always state which command is needed at the end of every change**, e.g. "Ready for `/vm-cp`" or "This needs `/vm-cpp` (migration)".
+
+For Cloud Run deployment, use `/deploy` which asks which environment (dev/test/prod) and handles Cloud Build, seed jobs, and Cloudflare cache purge.
 
 ## Deployment
 
