@@ -372,4 +372,91 @@ describe("POST /api/curricula/:curriculumId/lesson-plan (generate)", () => {
       })
     );
   });
+
+  it("passes durationMins to AI prompt", async () => {
+    mockAuth();
+    mockPrisma.curriculum.findUnique.mockResolvedValue({
+      id: CURRICULUM_ID,
+      name: "Test",
+      notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: [] }] },
+      subjectId: null,
+    });
+    mockAICompletion.mockResolvedValue({
+      content: JSON.stringify({
+        reasoning: "Duration-aware plan",
+        entries: [{ session: 1, type: "onboarding", label: "Welcome" }],
+      }),
+    });
+
+    await POST(makeRequest("POST", { durationMins: 45 }), { params: PARAMS });
+
+    expect(mockAICompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "system",
+            content: expect.stringContaining("45 minutes"),
+          }),
+        ]),
+      })
+    );
+  });
+
+  it("passes emphasis=depth to AI prompt", async () => {
+    mockAuth();
+    mockPrisma.curriculum.findUnique.mockResolvedValue({
+      id: CURRICULUM_ID,
+      name: "Test",
+      notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: [] }] },
+      subjectId: null,
+    });
+    mockAICompletion.mockResolvedValue({
+      content: JSON.stringify({
+        reasoning: "Depth-first plan",
+        entries: [{ session: 1, type: "onboarding", label: "Welcome" }],
+      }),
+    });
+
+    await POST(makeRequest("POST", { emphasis: "depth" }), { params: PARAMS });
+
+    expect(mockAICompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "system",
+            content: expect.stringContaining("DEPTH-FIRST"),
+          }),
+        ]),
+      })
+    );
+  });
+
+  it("passes includeAssessments=none to AI prompt", async () => {
+    mockAuth();
+    mockPrisma.curriculum.findUnique.mockResolvedValue({
+      id: CURRICULUM_ID,
+      name: "Test",
+      notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: [] }] },
+      subjectId: null,
+    });
+    mockAICompletion.mockResolvedValue({
+      content: JSON.stringify({
+        reasoning: "No assessments",
+        entries: [{ session: 1, type: "onboarding", label: "Welcome" }],
+      }),
+    });
+
+    await POST(makeRequest("POST", { includeAssessments: "none" }), { params: PARAMS });
+
+    expect(mockAICompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "system",
+            content: expect.stringContaining("Do NOT include any"),
+          }),
+        ]),
+      })
+    );
+  });
 });

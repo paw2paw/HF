@@ -191,7 +191,7 @@ export async function PUT(
  * @auth session (OPERATOR+)
  * @tags curricula, lesson-plan
  * @description AI-generate a lesson plan from curriculum modules and assertion counts.
- * @body { totalSessionTarget?: number }
+ * @body { totalSessionTarget?: number, durationMins?: number, emphasis?: "breadth"|"depth"|"balanced", includeAssessments?: "formal"|"light"|"none" }
  * @response 200 { ok: true, plan: LessonPlanEntry[], estimatedSessions: number, reasoning: string }
  * @response 404 { ok: false, error: "Curriculum not found" }
  */
@@ -206,6 +206,9 @@ export async function POST(
     const { curriculumId } = await params;
     const body = await request.json().catch(() => ({}));
     const totalSessionTarget = body.totalSessionTarget || null;
+    const durationMins = body.durationMins || null;
+    const emphasis: string = body.emphasis || "balanced";
+    const includeAssessments: string = body.includeAssessments || "light";
 
     // Load curriculum with modules
     const curriculum = await prisma.curriculum.findUnique({
@@ -264,6 +267,22 @@ export async function POST(
       ? `The educator has requested approximately ${totalSessionTarget} sessions total.`
       : "Propose a reasonable number of sessions based on the content depth.";
 
+    const durationHint = durationMins
+      ? `Target session duration: ${durationMins} minutes. Adjust content density per session accordingly — shorter sessions need less content per session, longer sessions can cover more.`
+      : "";
+
+    const emphasisHint = emphasis === "breadth"
+      ? "Teaching emphasis: BREADTH-FIRST. Cover all topics at surface level first with \"introduce\" sessions, then circle back with \"deepen\" sessions."
+      : emphasis === "depth"
+        ? "Teaching emphasis: DEPTH-FIRST. Go deep on each module before moving to the next — pair each \"introduce\" immediately with \"deepen\" sessions."
+        : "Teaching emphasis: BALANCED. Mix breadth and depth as you see fit per module.";
+
+    const assessmentHint = includeAssessments === "formal"
+      ? "Include formal \"assess\" sessions — at least one mid-course assessment and one final assessment."
+      : includeAssessments === "none"
+        ? "Do NOT include any \"assess\" sessions. Skip formal assessments entirely."
+        : "Include light assessment checks — one \"assess\" session near the end is sufficient.";
+
     const systemPrompt = `You are a curriculum planning assistant. Given a set of teaching modules, propose a structured lesson plan — an ordered sequence of call sessions that covers all modules effectively.
 
 Rules:
@@ -271,8 +290,11 @@ Rules:
 - First session should always be onboarding
 - Each module should have at least an "introduce" session, and larger modules (more assertions) should also have "deepen" sessions
 - Include periodic "review" sessions every 3-4 modules
-- End with an "assess" and "consolidate" session
+- End with a "consolidate" session
 - ${targetHint}
+- ${durationHint}
+- ${emphasisHint}
+- ${assessmentHint}
 
 Respond with ONLY a JSON object (no markdown, no explanation outside JSON):
 {
