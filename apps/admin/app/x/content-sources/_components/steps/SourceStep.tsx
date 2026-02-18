@@ -154,18 +154,28 @@ export default function SourceStep({ setData, getData, onNext }: StepProps) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("mode", "classify");
-        const classifyRes = await fetch(`/api/content-sources/${newSourceId}/import`, {
-          method: "POST",
-          body: formData,
-        });
-        const classifyData = await classifyRes.json();
-        if (classifyRes.ok && classifyData.classification) {
-          setClassificationResult({
-            type: classifyData.classification.documentType,
-            confidence: Math.round(classifyData.classification.confidence * 100),
+        try {
+          const classifyRes = await fetch(`/api/content-sources/${newSourceId}/import`, {
+            method: "POST",
+            body: formData,
           });
+          const classifyData = await classifyRes.json();
+          if (!classifyRes.ok) {
+            throw new Error(classifyData.error || "Failed to upload file");
+          }
+          if (classifyData.classification) {
+            setClassificationResult({
+              type: classifyData.classification.documentType,
+              confidence: Math.round(classifyData.classification.confidence * 100),
+            });
+          }
+          // Store file in context so ExtractStep can re-upload if needed
+          setData("file", file);
+        } catch (uploadErr: any) {
+          throw new Error(`File upload failed: ${uploadErr.message}`);
+        } finally {
+          setClassifying(false);
         }
-        setClassifying(false);
       }
 
       // 3. Link to subject

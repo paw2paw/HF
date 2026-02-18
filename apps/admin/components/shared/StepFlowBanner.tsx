@@ -31,9 +31,17 @@ export default function StepFlowBanner() {
 
   // Auto-dismiss flow if user navigates to a page unrelated to the flow
   // (i.e., not the flow page itself, and not a direct child of returnPath)
-  const { returnPath } = state;
+  const { returnPath, flowId } = state;
   const isOnFlowPage = pathname === returnPath || pathname?.startsWith(returnPath + '?');
-  const isFlowChild = pathname?.startsWith('/x/content-sources') || pathname?.startsWith('/x/domain-setup');
+
+  // Only check for flow-specific child pages
+  let isFlowChild = false;
+  if (flowId === 'content-sources') {
+    isFlowChild = pathname?.startsWith('/x/content-sources') ?? false;
+  } else if (flowId === 'domain-setup') {
+    isFlowChild = pathname?.startsWith('/x/domain-setup') ?? false;
+  }
+  // demonstrate flow has no child pages
 
   if (!isOnFlowPage && !isFlowChild) {
     // User navigated away from the flow context entirely (e.g., to Inbox, Domains, etc.)

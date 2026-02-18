@@ -101,6 +101,32 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
     setPhase("extracting");
     setError(null);
     try {
+      // First, ensure media asset is linked by checking if it exists
+      // If not, re-upload the file from context
+      const sourceRes = await fetch(`/api/content-sources/${sourceId}`);
+      const sourceData = await sourceRes.json();
+
+      if (!sourceData.source?.mediaAssets?.[0]) {
+        // No media asset linked — try to re-upload from stored file
+        const file = getData<File>("file");
+        if (file) {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("mode", "classify");
+          const uploadRes = await fetch(`/api/content-sources/${sourceId}/import`, {
+            method: "POST",
+            body: formData,
+          });
+          if (!uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            throw new Error(`File re-upload failed: ${uploadData.error}`);
+          }
+        } else {
+          throw new Error("No media asset found and no file available to upload");
+        }
+      }
+
+      // Now proceed with extraction
       const res = await fetch(`/api/content-sources/${sourceId}/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
