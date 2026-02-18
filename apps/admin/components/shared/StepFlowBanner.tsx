@@ -17,7 +17,7 @@ const BANNER_BG = '#0891b2';       // Cyan-600 — distinct from purple masquera
 const BANNER_BORDER = '#0e7490';   // Cyan-700
 
 export default function StepFlowBanner() {
-  const { state, isActive, prevStep, nextStep } = useStepFlow();
+  const { state, isActive, prevStep, nextStep, endFlow } = useStepFlow();
   const { isMasquerading } = useMasquerade();
   const pathname = usePathname();
   const router = useRouter();
@@ -29,10 +29,21 @@ export default function StepFlowBanner() {
   const isAuthPage = pathname?.startsWith('/login');
   if (isSimPage || isAuthPage) return null;
 
-  const { currentStep, steps, returnPath, flowId } = state;
+  // Auto-dismiss flow if user navigates to a page unrelated to the flow
+  // (i.e., not the flow page itself, and not a direct child of returnPath)
+  const { returnPath } = state;
+  const isOnFlowPage = pathname === returnPath || pathname?.startsWith(returnPath + '?');
+  const isFlowChild = pathname?.startsWith('/x/content-sources') || pathname?.startsWith('/x/domain-setup');
+
+  if (!isOnFlowPage && !isFlowChild) {
+    // User navigated away from the flow context entirely (e.g., to Inbox, Domains, etc.)
+    endFlow();
+    return null;
+  }
+
+  const { currentStep, steps, flowId } = state;
   const totalSteps = steps.length;
   const stepDef = steps[currentStep];
-  const isOnFlowPage = pathname === returnPath || pathname?.startsWith(returnPath + '?');
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
 
