@@ -49,7 +49,7 @@ export default function StepFlowBanner() {
     return null;
   }
 
-  const { currentStep, steps, flowId } = state;
+  const { currentStep, steps } = state;
   const totalSteps = steps.length;
   const stepDef = steps[currentStep];
   const isFirstStep = currentStep === 0;
