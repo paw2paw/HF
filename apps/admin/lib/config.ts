@@ -427,7 +427,7 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
-  // Seed Mode
+  // Seed Mode & Profile
   // ---------------------------------------------------------------------------
   seed: {
     /**
@@ -446,6 +446,20 @@ export const config = {
     /** Whether running in prod seed mode */
     get isProd(): boolean {
       return this.mode === "prod";
+    },
+    /**
+     * SEED_PROFILE controls which seed steps run.
+     *   "full" (default) — All steps including educator demo, school data, e2e fixtures (DEV/VM)
+     *   "test"           — Core + demo domains + e2e fixtures (TEST)
+     *   "core"           — Specs, domains, demo domains, run configs only (PROD)
+     */
+    get profile(): "full" | "test" | "core" {
+      const val = optional("SEED_PROFILE", "full");
+      if (val !== "full" && val !== "test" && val !== "core") {
+        console.warn(`Invalid SEED_PROFILE "${val}", defaulting to "full"`);
+        return "full";
+      }
+      return val;
     },
     /**
      * Spec featureIds to exclude in prod mode.

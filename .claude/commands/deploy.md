@@ -19,11 +19,11 @@ Options:
 
 ## Environment Map
 
-| Env | Domain | Service | Seed Job | Migrate Job | DB Secret |
-|-----|--------|---------|----------|-------------|-----------|
-| DEV | dev.humanfirstfoundation.com | `hf-admin-dev` | `hf-seed-dev` | `hf-migrate-dev` | `DATABASE_URL_DEV` |
-| TEST | test.humanfirstfoundation.com | `hf-admin-test` | `hf-seed-test` | `hf-migrate-test` | `DATABASE_URL_TEST` |
-| PROD | lab.humanfirstfoundation.com | `hf-admin` | `hf-seed` | `hf-migrate` | `DATABASE_URL` |
+| Env | Domain | Service | Seed Job | Migrate Job | DB Secret | Seed Profile |
+|-----|--------|---------|----------|-------------|-----------|--------------|
+| DEV | dev.humanfirstfoundation.com | `hf-admin-dev` | `hf-seed-dev` | `hf-migrate-dev` | `DATABASE_URL_DEV` | `full` |
+| TEST | test.humanfirstfoundation.com | `hf-admin-test` | `hf-seed-test` | `hf-migrate-test` | `DATABASE_URL_TEST` | `test` |
+| PROD | lab.humanfirstfoundation.com | `hf-admin` | `hf-seed` | `hf-migrate` | `DATABASE_URL` | `core` |
 
 All environments:
 - **GCP Project**: `hf-admin-prod`
@@ -164,8 +164,11 @@ cd apps/admin
 gcloud builds submit --config /tmp/cloudbuild-seed.yaml --project hf-admin-prod --region europe-west2 .
 ```
 
-Run the environment-specific seed job:
+Run the environment-specific seed job (set SEED_PROFILE from the Environment Map above):
 ```bash
+gcloud run jobs update $SEED_JOB \
+  --set-env-vars=SEED_PROFILE=$SEED_PROFILE \
+  --region=europe-west2 --project=hf-admin-prod
 gcloud run jobs execute $SEED_JOB --region=europe-west2 --project=hf-admin-prod --wait
 ```
 

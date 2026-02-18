@@ -88,6 +88,7 @@ jobs:
         run: |
           gcloud run jobs update hf-seed \
             --image=${{ env.REGISTRY }}/hf-seed:latest \
+            --set-env-vars=SEED_PROFILE=core \
             --region=${{ env.REGION }}
           gcloud run jobs execute hf-seed \
             --region=${{ env.REGION }} --wait
