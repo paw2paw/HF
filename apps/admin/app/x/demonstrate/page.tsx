@@ -55,7 +55,7 @@ const GOAL_TYPE_EMOJI: Record<string, string> = {
 // ── Step definitions ──────────────────────────────
 
 const DEMONSTRATE_STEPS = [
-  { id: "domain", label: "Select Domain & Caller", activeLabel: "Selecting Domain & Caller" },
+  { id: "domain", label: "Select Institution & Caller", activeLabel: "Selecting Institution & Caller" },
   { id: "goal", label: "Set Your Goal", activeLabel: "Setting Your Goal" },
   { id: "readiness", label: "Readiness Checks", activeLabel: "Checking Readiness" },
   { id: "launch", label: "Launch", activeLabel: "Ready to Launch" },
@@ -535,14 +535,14 @@ export default function DemonstratePage() {
       {/* ═══════════════════════════════════════════════════ */}
       {currentStep === 0 && (
         <div style={sectionStyle}>
-          <div style={sectionLabelStyle}>Domain</div>
+          <div style={sectionLabelStyle}>Institution</div>
           {loadingDomains ? (
             <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
-              Loading domains...
+              Loading institutions...
             </div>
           ) : domainOptions.length === 0 ? (
             <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
-              No domains found.{" "}
+              No institutions found.{" "}
               <span
                 style={{ color: "var(--accent-primary)", cursor: "pointer", fontWeight: 600 }}
                 onClick={() => router.push("/x/quick-launch")}
@@ -555,7 +555,7 @@ export default function DemonstratePage() {
               value={selectedDomainId}
               onChange={setSelectedDomainId}
               options={domainOptions}
-              placeholder="Select a domain..."
+              placeholder="Select an institution..."
               searchable={domainOptions.length > 5}
             />
           )}
@@ -1006,7 +1006,7 @@ export default function DemonstratePage() {
             <div style={sectionLabelStyle}>Session Summary</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Domain:</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Institution:</span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                   {selectedDomain?.name || "—"}
                 </span>
@@ -1086,7 +1086,10 @@ export default function DemonstratePage() {
       {selectedDomainId && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
-            onClick={() => router.push(`/x/domains?selected=${selectedDomainId}`)}
+            onClick={() => {
+              endFlow();
+              router.push(`/x/domains?selected=${selectedDomainId}`);
+            }}
             style={{
               padding: "8px 16px",
               borderRadius: 8,
@@ -1098,11 +1101,14 @@ export default function DemonstratePage() {
               color: "var(--text-secondary)",
             }}
           >
-            View Domain
+            View Institution
           </button>
           {selectedCallerId && (
             <button
-              onClick={() => router.push(`/x/callers/${selectedCallerId}`)}
+              onClick={() => {
+                endFlow();
+                router.push(`/x/callers/${selectedCallerId}`);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: 8,
@@ -1118,7 +1124,10 @@ export default function DemonstratePage() {
             </button>
           )}
           <button
-            onClick={() => router.push("/x/quick-launch")}
+            onClick={() => {
+              endFlow();
+              router.push("/x/quick-launch");
+            }}
             style={{
               padding: "8px 16px",
               borderRadius: 8,
