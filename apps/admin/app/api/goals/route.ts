@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { GoalType } from "@prisma/client";
 
 /**
  * @api GET /api/goals
@@ -111,4 +112,83 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * @api POST /api/goals
+ * @visibility public
+ * @scope goals:write
+ * @auth session
+ * @tags goals
+ * @description Create a new goal for a caller.
+ * @body { callerId: string, name: string, description?: string, type?: GoalType }
+ * @response 201 { ok: true, goal: Goal }
+ * @response 400 { ok: false, error: string }
+ */
+export async function POST(request: NextRequest) {
+  const authResult = await requireAuth("OPERATOR");
+  if (isAuthError(authResult)) return authResult.error;
+
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
+
+  const { callerId, name, description, type } = body;
+
+  if (!callerId) {
+    return NextResponse.json(
+      { ok: false, error: "callerId is required" },
+      { status: 400 }
+    );
+  }
+
+  if (!name?.trim()) {
+    return NextResponse.json(
+      { ok: false, error: "Goal name is required" },
+      { status: 400 }
+    );
+  }
+
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { id: true },
+  });
+
+  if (!caller) {
+    return NextResponse.json(
+      { ok: false, error: "Caller not found" },
+      { status: 404 }
+    );
+  }
+
+  const goalType = type && Object.values(GoalType).includes(type) ? type : "LEARN";
+
+  const goal = await prisma.goal.create({
+    data: {
+      callerId,
+      name: name.trim(),
+      description: description?.trim() || null,
+      type: goalType,
+      status: "ACTIVE",
+      progress: 0,
+      priority: 5,
+    },
+    include: {
+      caller: {
+        select: {
+          id: true,
+          name: true,
+          domain: { select: { id: true, slug: true, name: true } },
+        },
+      },
+    },
+  });
+
+  return NextResponse.json({ ok: true, goal }, { status: 201 });
 }

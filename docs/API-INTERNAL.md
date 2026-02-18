@@ -5066,6 +5066,95 @@ Fetch all goals across all callers with filtering options. Includes related call
 
 ---
 
+### `POST` /api/goals
+
+Create a new goal for a caller.
+
+**Auth**: Session · **Scope**: `goals:write`
+
+**Response** `201`
+```json
+{ ok: true, goal: Goal }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+---
+
+### `DELETE` /api/goals/:goalId
+
+Delete a goal.
+
+**Auth**: Session · **Scope**: `goals:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| goalId | path | string | Yes | The goal ID |
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: string }
+```
+
+---
+
+### `GET` /api/goals/:goalId
+
+Fetch a single goal with related caller, playbook, and content spec data.
+
+**Auth**: Session · **Scope**: `goals:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| goalId | path | string | Yes | The goal ID |
+
+**Response** `200`
+```json
+{ ok: true, goal: Goal }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: string }
+```
+
+---
+
+### `PATCH` /api/goals/:goalId
+
+Update a goal (name, description, type, status, priority, targetDate).
+
+**Auth**: Session · **Scope**: `goals:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| goalId | path | string | Yes | The goal ID |
+
+**Response** `200`
+```json
+{ ok: true, goal: Goal }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: string }
+```
+
+---
+
 ## Invites
 
 ### `POST` /api/invite/accept
@@ -10753,8 +10842,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 279 |
-| Files with annotations | 278 |
+| Route files found | 280 |
+| Files with annotations | 279 |
 | Files missing annotations | 1 |
 | Coverage | 99.6% |
 

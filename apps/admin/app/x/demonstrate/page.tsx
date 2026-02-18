@@ -6,7 +6,7 @@ import { FancySelect } from "@/components/shared/FancySelect";
 import type { FancySelectOption } from "@/components/shared/FancySelect";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import { useEntityContext } from "@/contexts/EntityContext";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft, Pencil, Trash2, Save, X, Plus } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
 
@@ -31,6 +31,25 @@ type DomainInfo = {
 type CallerInfo = {
   id: string;
   name: string;
+};
+
+type CallerGoal = {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  status: string;
+  progress: number;
+  priority: number;
+};
+
+const GOAL_TYPE_EMOJI: Record<string, string> = {
+  LEARN: "\uD83D\uDCDA",
+  ACHIEVE: "\uD83C\uDFC6",
+  CHANGE: "\uD83D\uDD04",
+  CONNECT: "\uD83E\uDD1D",
+  SUPPORT: "\uD83D\uDCAA",
+  CREATE: "\uD83C\uDFA8",
 };
 
 // ── Step definitions ──────────────────────────────
@@ -75,6 +94,14 @@ export default function DemonstratePage() {
   // AI goal suggestions
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const lastSuggestText = useRef("");
+
+  // Caller goals (CRUD)
+  const [callerGoals, setCallerGoals] = useState<CallerGoal[]>([]);
+  const [loadingGoals, setLoadingGoals] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [editGoalName, setEditGoalName] = useState("");
+  const [savingGoal, setSavingGoal] = useState(false);
 
   const currentStep = state?.currentStep ?? 0;
 
@@ -203,15 +230,19 @@ export default function DemonstratePage() {
   }, [selectedDomainId, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch AI goal suggestions ──
-  const fetchSuggestions = useCallback(async () => {
+  const fetchSuggestions = useCallback(async (forceText?: string) => {
     if (!selectedDomainId || !selectedCallerId) return;
+    const text = forceText ?? goalText;
+    // Skip if same text was already fetched
+    if (text === lastSuggestText.current && suggestions.length > 0) return;
+    lastSuggestText.current = text;
     setLoadingSuggestions(true);
     try {
       const params = new URLSearchParams({
         domainId: selectedDomainId,
         callerId: selectedCallerId,
       });
-      if (goalText) params.set("currentGoal", goalText);
+      if (text) params.set("currentGoal", text);
       const res = await fetch(`/api/demonstrate/suggest?${params}`);
       const data = await res.json();
       if (data.ok && data.suggestions) {
@@ -222,14 +253,100 @@ export default function DemonstratePage() {
     } finally {
       setLoadingSuggestions(false);
     }
-  }, [selectedDomainId, selectedCallerId, goalText]);
+  }, [selectedDomainId, selectedCallerId, goalText, suggestions.length]);
 
   // Fetch suggestions when entering step 1 (goal) with domain+caller selected
   useEffect(() => {
     if (currentStep === 1 && selectedDomainId && selectedCallerId) {
-      fetchSuggestions();
+      fetchSuggestions("");
     }
   }, [currentStep, selectedDomainId, selectedCallerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch caller goals ──
+  const fetchCallerGoals = useCallback(async () => {
+    if (!selectedCallerId) {
+      setCallerGoals([]);
+      return;
+    }
+    setLoadingGoals(true);
+    try {
+      const res = await fetch(`/api/goals?callerId=${selectedCallerId}&status=ACTIVE`);
+      const data = await res.json();
+      if (data.ok) {
+        setCallerGoals(data.goals || []);
+      }
+    } catch {
+      // Non-critical
+    } finally {
+      setLoadingGoals(false);
+    }
+  }, [selectedCallerId]);
+
+  // Load caller goals when entering step 1 or caller changes on step 1
+  useEffect(() => {
+    if (currentStep === 1 && selectedCallerId) {
+      fetchCallerGoals();
+    }
+  }, [currentStep, selectedCallerId, fetchCallerGoals]);
+
+  // ── Goal CRUD handlers ──
+  const handleSaveAsGoal = async () => {
+    if (!goalText.trim() || !selectedCallerId || savingGoal) return;
+    setSavingGoal(true);
+    try {
+      const res = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callerId: selectedCallerId,
+          name: goalText.trim(),
+          type: "LEARN",
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.goal) {
+        setCallerGoals((prev) => [data.goal, ...prev]);
+      }
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
+  const handleUpdateGoal = async (goalId: string) => {
+    if (!editGoalName.trim()) return;
+    try {
+      const res = await fetch(`/api/goals/${goalId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editGoalName.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok && data.goal) {
+        setCallerGoals((prev) =>
+          prev.map((g) => (g.id === goalId ? { ...g, name: data.goal.name } : g)),
+        );
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setEditingGoalId(null);
+      setEditGoalName("");
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    try {
+      const res = await fetch(`/api/goals/${goalId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        setCallerGoals((prev) => prev.filter((g) => g.id !== goalId));
+      }
+    } catch {
+      // Silently fail
+    }
+  };
 
   // ── Fetch course readiness ──
   const fetchReadiness = useCallback(async () => {
@@ -507,6 +624,10 @@ export default function DemonstratePage() {
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = "var(--border-default)";
+              // Trigger AI suggestions on tab-out when text has content
+              if (goalText.trim()) {
+                fetchSuggestions(goalText.trim());
+              }
             }}
           />
 
@@ -557,6 +678,155 @@ export default function DemonstratePage() {
                     >
                       {s}
                     </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Save as Goal button */}
+          {goalText.trim() && (
+            <div style={{ marginTop: 12 }}>
+              <button
+                onClick={handleSaveAsGoal}
+                disabled={savingGoal}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  background: "transparent",
+                  border: "1px dashed var(--border-default)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: savingGoal ? "wait" : "pointer",
+                  color: "var(--text-secondary)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.15s",
+                }}
+              >
+                <Plus size={14} />
+                {savingGoal ? "Saving..." : "Save as Goal"}
+              </button>
+            </div>
+          )}
+
+          {/* ── Caller Goals (CRUD) ── */}
+          {(callerGoals.length > 0 || loadingGoals) && (
+            <div style={{ marginTop: 20, borderTop: "1px solid var(--border-default)", paddingTop: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+                Caller&apos;s Goals
+              </div>
+              {loadingGoals ? (
+                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading goals...</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {callerGoals.map((goal) => (
+                    <div
+                      key={goal.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: goalText === goal.name
+                          ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
+                          : "var(--surface-secondary)",
+                        border: `1px solid ${goalText === goal.name ? "color-mix(in srgb, var(--accent-primary) 20%, transparent)" : "var(--border-default)"}`,
+                        cursor: editingGoalId === goal.id ? "default" : "pointer",
+                        transition: "all 0.15s",
+                      }}
+                      onClick={() => {
+                        if (editingGoalId !== goal.id) {
+                          setGoalText(goal.name);
+                        }
+                      }}
+                    >
+                      {/* Type emoji */}
+                      <span style={{ fontSize: 14, flexShrink: 0 }}>
+                        {GOAL_TYPE_EMOJI[goal.type] || "\uD83C\uDFAF"}
+                      </span>
+
+                      {/* Name (inline edit or display) */}
+                      {editingGoalId === goal.id ? (
+                        <input
+                          value={editGoalName}
+                          onChange={(e) => setEditGoalName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleUpdateGoal(goal.id);
+                            if (e.key === "Escape") {
+                              setEditingGoalId(null);
+                              setEditGoalName("");
+                            }
+                          }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            flex: 1,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            border: "1px solid var(--accent-primary)",
+                            background: "var(--surface-primary)",
+                            color: "var(--text-primary)",
+                            fontSize: 13,
+                            fontFamily: "inherit",
+                            outline: "none",
+                          }}
+                        />
+                      ) : (
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "var(--text-primary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {goal.name}
+                        </span>
+                      )}
+
+                      {/* Progress bar */}
+                      {goal.progress > 0 && editingGoalId !== goal.id && (
+                        <div style={{ width: 40, height: 4, borderRadius: 2, background: "var(--border-default)", flexShrink: 0 }}>
+                          <div style={{ width: `${goal.progress * 100}%`, height: "100%", borderRadius: 2, background: "var(--status-success-text)" }} />
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      {editingGoalId === goal.id ? (
+                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleUpdateGoal(goal.id)}
+                            style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "var(--status-success-text)", display: "flex" }}
+                            title="Save"
+                          >
+                            <Save size={14} />
+                          </button>
+                          <button
+                            onClick={() => { setEditingGoalId(null); setEditGoalName(""); }}
+                            style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex" }}
+                            title="Cancel"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 2, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              setEditingGoalId(goal.id);
+                              setEditGoalName(goal.name);
+                            }}
+                            style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex" }}
+                            title="Edit goal"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteGoal(goal.id)}
+                            style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "var(--status-error-text)", display: "flex" }}
+                            title="Delete goal"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
