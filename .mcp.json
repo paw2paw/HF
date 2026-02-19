@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "hf-graph": {
+      "command": "npx",
+      "args": ["tsx", "tools/hf-graph.ts", "mcp"],
+      "cwd": "$REPO"
+    }
+  }
+}
