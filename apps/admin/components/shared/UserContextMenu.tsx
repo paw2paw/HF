@@ -47,7 +47,7 @@ export function UserContextMenu({
   masqueradeOptions,
 }: UserContextMenuProps) {
   const { data: session } = useSession();
-  const { theme, setTheme } = useTheme();
+  const { preference: theme, setPreference: setTheme } = useTheme();
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [stepInOpen, setStepInOpen] = useState(false);
   const [stepInSearch, setStepInSearch] = useState("");
@@ -238,11 +238,11 @@ export function UserContextMenu({
             {/* Appearance submenu items */}
             {appearanceOpen && (
               <div className="mx-2 mb-1 p-1.5 rounded-lg bg-[var(--surface-secondary)]">
-                {["light", "dark", "auto"].map((mode) => (
+                {["light", "dark", "system"].map((mode) => (
                   <button
                     key={mode}
                     onClick={() => {
-                      setTheme(mode as "light" | "dark" | "auto");
+                      setTheme(mode as "light" | "dark" | "system");
                       setAppearanceOpen(false);
                     }}
                     className="w-full text-left flex items-center gap-3 px-3 py-2 text-[13px] rounded-md transition-colors"
@@ -258,8 +258,8 @@ export function UserContextMenu({
                   >
                     {mode === "light" && <Sun className="w-4 h-4" />}
                     {mode === "dark" && <Moon className="w-4 h-4" />}
-                    {mode === "auto" && <Monitor className="w-4 h-4" />}
-                    <span className="capitalize">{mode === "auto" ? "System" : mode}</span>
+                    {mode === "system" && <Monitor className="w-4 h-4" />}
+                    <span className="capitalize">{mode === "system" ? "System" : mode}</span>
                   </button>
                 ))}
               </div>

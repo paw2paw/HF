@@ -26,9 +26,15 @@ This starts the dev server via nohup (survives SSH disconnect), logging to `/tmp
 
 Wait ~5 seconds for the server to start, then proceed to step 3.
 
-## Step 3: Open tunnel
+## Step 3: Kill stale tunnels and open new tunnel
 
-Run this in the background:
+**Always** kill any existing SSH tunnels before opening a new one — stale tunnels hold port 3000 and cause "address already in use" errors:
+
+```bash
+pkill -f "ssh.*hf-dev.*3000" 2>/dev/null; sleep 1
+```
+
+Then open the tunnel in the background:
 
 ```bash
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- -L 3000:localhost:3000 -N
