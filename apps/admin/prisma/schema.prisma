@@ -28,20 +28,37 @@ enum ContentTrustLevel {
   REGULATORY_STANDARD // L5: Exam board syllabus, regulatory handbook (e.g., CII R04 syllabus, FCA COBS)
   ACCREDITED_MATERIAL // L4: Approved study text (e.g., BFT/ActEd texts accredited by CII)
   PUBLISHED_REFERENCE // L3: Academic textbook, peer-reviewed journal
-  EXPERT_CURATED      // L2: Content by qualified professional/instructor
-  AI_ASSISTED         // L1: AI-generated, human-reviewed
-  UNVERIFIED          // L0: Unreviewed submissions, user notes (default)
+  EXPERT_CURATED // L2: Content by qualified professional/instructor
+  AI_ASSISTED // L1: AI-generated, human-reviewed
+  UNVERIFIED // L0: Unreviewed submissions, user notes (default)
 }
 
 // Document classification - intrinsic type of a content source document
 // Determines extraction strategy, categories, and pyramid structure
 enum DocumentType {
-  CURRICULUM  // Formal syllabus with LOs/ACs — auto-structures pyramid
-  TEXTBOOK    // Dense reference material — full extraction + structuring
-  WORKSHEET   // Learner activity sheet — structure/questions extraction
-  EXAMPLE     // Illustrative document — light concept extraction
-  ASSESSMENT  // Test/quiz material — questions/answers/misconceptions
-  REFERENCE   // Glossary/cheat sheet — flat term extraction
+  // --- Existing (6) ---
+  CURRICULUM // Formal syllabus with LOs/ACs — auto-structures pyramid
+  TEXTBOOK // Dense reference material — full extraction + structuring
+  WORKSHEET // Fill-in / write-up / production sheet (student completes it)
+  EXAMPLE // Illustrative document — light concept extraction
+  ASSESSMENT // Test/quiz material — questions/answers/misconceptions
+  REFERENCE // Glossary/cheat sheet — flat term extraction
+  // --- New (3) ---
+  COMPREHENSION // Reading passage + comprehension questions + answers (Black Death, Negotiating)
+  LESSON_PLAN // Teacher's plan: objectives, activities, timing, resources
+  POLICY_DOCUMENT // Regulatory/compliance/safety procedure (Pest Control, HACCP)
+}
+
+// Question types for ContentQuestion model
+enum QuestionType {
+  MCQ // Multiple choice (A/B/C/D)
+  TRUE_FALSE // True or false
+  MATCHING // Match items from two columns
+  FILL_BLANK // Fill in the blank
+  SHORT_ANSWER // Short written answer
+  OPEN // Open-ended discussion question
+  UNSCRAMBLE // Rearrange letters/words
+  ORDERING // Put items in correct order
 }
 
 // Conversation artifact types - content worth sharing from a call
@@ -93,17 +110,17 @@ enum GoalType {
 // Call action types - actionable items that emerge from calls
 enum CallActionType {
   SEND_MEDIA // Send doc/image/media to caller
-  HOMEWORK   // Practice/study assignment for the caller
-  TASK       // Generic actionable task
-  FOLLOWUP   // Follow up on something discussed
-  REMINDER   // Remember to do/check something
+  HOMEWORK // Practice/study assignment for the caller
+  TASK // Generic actionable task
+  FOLLOWUP // Follow up on something discussed
+  REMINDER // Remember to do/check something
 }
 
 // Who needs to act on a call action
 enum CallActionAssignee {
-  CALLER   // Learner needs to do this
+  CALLER // Learner needs to do this
   OPERATOR // Admin/operator needs to fulfill
-  AGENT    // AI agent should do this next call
+  AGENT // AI agent should do this next call
 }
 
 // Call action completion lifecycle
@@ -125,7 +142,7 @@ enum CallActionPriority {
 // How the action was created
 enum CallActionSource {
   EXTRACTED // AI extracted from call transcript
-  MANUAL    // Operator/admin created
+  MANUAL // Operator/admin created
 }
 
 // Goal lifecycle status
@@ -156,7 +173,7 @@ enum CallerRole {
 // Domain kind - whether a domain is an institution or community
 enum DomainKind {
   INSTITUTION // Educational institution or business
-  COMMUNITY   // Purpose-led group of individuals
+  COMMUNITY // Purpose-led group of individuals
 }
 
 model Parameter {
@@ -463,7 +480,7 @@ model Domain {
   onboardingSessions OnboardingSession[] // Track onboarding per domain
   invites            Invite[] // Field tester invites locked to this domain
   subjects           SubjectDomain[] // Subjects taught in this domain
-  assignedUsers      User[] @relation("AssignedUsers") // Users scoped to this domain
+  assignedUsers      User[]              @relation("AssignedUsers") // Users scoped to this domain
   cohortGroups       CohortGroup[] // Cohort groups in this domain
   channelConfigs     ChannelConfig[] // Delivery channel configs for this domain
 
@@ -635,7 +652,7 @@ model BehaviorMeasurement {
 model InstitutionType {
   id          String  @id @default(uuid())
   slug        String  @unique // "school", "corporate", "community", etc.
-  name        String          // "School", "Corporate", "Community"
+  name        String // "School", "Corporate", "Community"
   description String?
   isActive    Boolean @default(true)
 
@@ -672,7 +689,7 @@ model Institution {
   primaryColor   String? // Hex color for accent (e.g., "#4f46e5")
   secondaryColor String? // Hex color for hover/secondary accent
   welcomeMessage String? // Custom welcome text for join pages
-  terminology    Json?   // Legacy: per-institution terminology overrides (deprecated — use type.terminology)
+  terminology    Json? // Legacy: per-institution terminology overrides (deprecated — use type.terminology)
   isActive       Boolean @default(true)
 
   // Institution type — drives terminology, wizard, and defaults
@@ -683,10 +700,10 @@ model Institution {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users             User[]
-  activeUsers       User[] @relation("ActiveInstitution")
-  cohortGroups      CohortGroup[]
-  domains           Domain[]
+  users        User[]
+  activeUsers  User[]        @relation("ActiveInstitution")
+  cohortGroups CohortGroup[]
+  domains      Domain[]
 
   @@index([slug])
   @@index([typeId])
@@ -818,7 +835,7 @@ model Invite {
   firstName String? // Pre-fill name on accept form
   lastName  String? // Pre-fill name on accept form
   domainId  String? // Lock tester to specific domain (null = domain chooser)
-  domain    Domain? @relation(fields: [domainId], references: [id])
+  domain    Domain?   @relation(fields: [domainId], references: [id])
   sentAt    DateTime? // When invite email was sent
 
   // Educator invite extensions
@@ -902,7 +919,7 @@ model Caller {
   artifacts       ConversationArtifact[]
   actions         CallAction[]
   inboundMessages InboundMessage[]
-  artifactConsent Boolean @default(true) // true for sim, explicit opt-in for WhatsApp
+  artifactConsent Boolean                @default(true) // true for sim, explicit opt-in for WhatsApp
 
   // Onboarding tracking per domain
   onboardingSessions OnboardingSession[]
@@ -2173,14 +2190,14 @@ model Curriculum {
   version String @default("1.0")
 
   // === Content Trust & Source Authority ===
-  trustLevel         ContentTrustLevel @default(UNVERIFIED)
-  primarySourceId    String?           // FK to ContentSource (main authority for this curriculum)
-  primarySource      ContentSource?    @relation("CurriculumPrimarySource", fields: [primarySourceId], references: [id], onDelete: SetNull)
-  qualificationBody  String?           // "CII", "Highfield", "Ofqual"
-  qualificationNumber String?          // "603/4937/2" or "R04"
-  qualificationLevel String?           // "Level 2", "Diploma", "Certificate"
-  validFrom          DateTime?         // When this curriculum version becomes active
-  validUntil         DateTime?         // When this curriculum version expires
+  trustLevel          ContentTrustLevel @default(UNVERIFIED)
+  primarySourceId     String? // FK to ContentSource (main authority for this curriculum)
+  primarySource       ContentSource?    @relation("CurriculumPrimarySource", fields: [primarySourceId], references: [id], onDelete: SetNull)
+  qualificationBody   String? // "CII", "Highfield", "Ofqual"
+  qualificationNumber String? // "603/4937/2" or "R04"
+  qualificationLevel  String? // "Level 2", "Diploma", "Certificate"
+  validFrom           DateTime? // When this curriculum version becomes active
+  validUntil          DateTime? // When this curriculum version expires
 
   // Subject linkage
   subjectId String?
@@ -3630,51 +3647,51 @@ model UserTask {
 
 // A registered source of authority (a book, syllabus, handbook)
 model ContentSource {
-  id          String @id @default(uuid())
+  id String @id @default(uuid())
 
   // Identification
-  slug        String @unique // e.g., "cii-r04-syllabus-2025", "sprenger-food-safety-37th"
-  name        String         // "CII R04 Syllabus 2025/26"
+  slug        String  @unique // e.g., "cii-r04-syllabus-2025", "sprenger-food-safety-37th"
+  name        String // "CII R04 Syllabus 2025/26"
   description String? @db.Text
 
   // Trust classification
-  trustLevel  ContentTrustLevel @default(UNVERIFIED)
+  trustLevel ContentTrustLevel @default(UNVERIFIED)
 
   // Document classification
   documentType            DocumentType @default(TEXTBOOK)
-  documentTypeSource      String?  // "ai:0.92" or "admin:manual" — provenance of classification
-  textSample              String?  @db.Text  // First ~1000 chars for few-shot classification learning
-  aiClassification        String?            // Original AI guess "TYPE:confidence" (never mutated after set)
-  classificationCorrected Boolean  @default(false) // True when admin overrode AI's classification
+  documentTypeSource      String? // "ai:0.92" or "admin:manual" — provenance of classification
+  textSample              String?      @db.Text // First ~1000 chars for few-shot classification learning
+  aiClassification        String? // Original AI guess "TYPE:confidence" (never mutated after set)
+  classificationCorrected Boolean      @default(false) // True when admin overrode AI's classification
 
   // Publisher / authority chain
-  publisherOrg    String?  // "Chartered Insurance Institute", "Highfield Publications"
-  accreditingBody String?  // "CII", "Ofqual" - body that accredits this source
+  publisherOrg     String? // "Chartered Insurance Institute", "Highfield Publications"
+  accreditingBody  String? // "CII", "Ofqual" - body that accredits this source
   accreditationRef String? // "CII/R04/2025" or qualification number
 
   // Bibliographic metadata
   authors         String[]
   isbn            String?
   doi             String?
-  edition         String?  // "37th Edition"
+  edition         String? // "37th Edition"
   publicationYear Int?
 
   // Validity window (critical for regulated content)
-  validFrom   DateTime?
-  validUntil  DateTime?
+  validFrom  DateTime?
+  validUntil DateTime?
 
   // Qualification coverage
-  qualificationRef String?  // "CII R04", "Highfield L2 Food Safety"
+  qualificationRef String? // "CII R04", "Highfield L2 Food Safety"
   moduleCoverage   String[] // ["R04-LO1", "R04-LO2"] or ["all"]
 
   // Verification
-  verifiedBy        String?   // User ID who verified trust level
+  verifiedBy        String? // User ID who verified trust level
   verifiedAt        DateTime?
-  verificationNotes String? @db.Text
+  verificationNotes String?   @db.Text
 
   // Lifecycle
-  isActive       Boolean @default(true)
-  supersededById String? @unique // If a newer edition replaces this
+  isActive       Boolean        @default(true)
+  supersededById String?        @unique // If a newer edition replaces this
   supersededBy   ContentSource? @relation("SourceSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
   supersedes     ContentSource? @relation("SourceSupersession")
 
@@ -3682,10 +3699,12 @@ model ContentSource {
   updatedAt DateTime @updatedAt
 
   // Relations
-  assertions ContentAssertion[]
-  curricula  Curriculum[] @relation("CurriculumPrimarySource")
-  subjects   SubjectSource[] // Subjects this source belongs to
-  mediaAssets MediaAsset[]   // Media files from this content source
+  assertions  ContentAssertion[]
+  questions   ContentQuestion[]
+  vocabulary  ContentVocabulary[]
+  curricula   Curriculum[]        @relation("CurriculumPrimarySource")
+  subjects    SubjectSource[] // Subjects this source belongs to
+  mediaAssets MediaAsset[] // Media files from this content source
 
   @@index([trustLevel])
   @@index([documentType])
@@ -3715,31 +3734,35 @@ model ContentAssertion {
   trustLevel ContentTrustLevel?
 
   // Content classification
-  category String   // "fact", "definition", "threshold", "rule", "process", "example"
+  category String // "fact", "definition", "threshold", "rule", "process", "example"
   tags     String[] // ["tax", "isa", "allowance", "annual_limit"]
 
   // Validity (overrides source-level validity for time-bound facts)
   validFrom  DateTime?
   validUntil DateTime?
-  taxYear    String?   // "2024/25" - for tax-year-specific facts
+  taxYear    String? // "2024/25" - for tax-year-specific facts
 
   // Exam relevance
-  examRelevance      Float?  // 0.0-1.0 how likely to appear in exam
+  examRelevance      Float? // 0.0-1.0 how likely to appear in exam
   learningOutcomeRef String? // "R04-LO2-AC2.3"
 
   // Content hash for dedup/change detection
   contentHash String?
 
   // Pyramid hierarchy (spec-driven depth/breadth)
-  depth      Int?     // Pyramid level (meaning defined by CONTENT-EXTRACT spec levels config)
-  parentId   String?  // Self-referential FK for tree structure
+  depth      Int? // Pyramid level (meaning defined by CONTENT-EXTRACT spec levels config)
+  parentId   String? // Self-referential FK for tree structure
   parent     ContentAssertion?  @relation("AssertionHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children   ContentAssertion[] @relation("AssertionHierarchy")
-  orderIndex Int      @default(0) // Sort order among siblings
-  topicSlug  String?  // Stable topic identifier (e.g., "temperature-control")
+  orderIndex Int                @default(0) // Sort order among siblings
+  topicSlug  String? // Stable topic identifier (e.g., "temperature-control")
 
   // Vector embedding for semantic search (pgvector)
   embedding Unsupported("vector(1536)")?
+
+  // Linked questions and vocabulary
+  questions  ContentQuestion[]
+  vocabulary ContentVocabulary[]
 
   // Review chain
   createdBy  String? // User ID or "system:import"
@@ -3760,6 +3783,88 @@ model ContentAssertion {
 }
 
 // =========================
+// CONTENT QUESTIONS (Extracted Q&A pairs)
+// =========================
+
+// A question extracted from a content source with answer, options, and linked assertion
+model ContentQuestion {
+  id       String        @id @default(uuid())
+  sourceId String
+  source   ContentSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  // Question content
+  questionText      String       @db.Text
+  questionType      QuestionType
+  options           Json? // [{ label: "A", text: "1347", isCorrect: true }, ...]
+  correctAnswer     String?      @db.Text
+  answerExplanation String?      @db.Text
+  markScheme        String?      @db.Text
+
+  // Linked teaching point
+  assertionId String?
+  assertion   ContentAssertion? @relation(fields: [assertionId], references: [id], onDelete: SetNull)
+
+  // Curriculum reference
+  learningOutcomeRef String?
+  difficulty         Int? // 1-5
+  pageRef            String?
+  chapter            String?
+  section            String?
+  tags               String[]
+  sortOrder          Int                          @default(0)
+  contentHash        String?
+  embedding          Unsupported("vector(1536)")?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sourceId])
+  @@index([questionType])
+  @@index([assertionId])
+  @@index([learningOutcomeRef])
+}
+
+// =========================
+// CONTENT VOCABULARY (Extracted term/definition pairs)
+// =========================
+
+// A vocabulary term extracted from a content source with definition, usage, and linked assertion
+model ContentVocabulary {
+  id       String        @id @default(uuid())
+  sourceId String
+  source   ContentSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  // Vocabulary content
+  term          String
+  definition    String  @db.Text
+  partOfSpeech  String? // "verb", "noun", "adjective"
+  exampleUsage  String? @db.Text
+  pronunciation String?
+
+  // Classification
+  topic      String?
+  difficulty Int? // 1-5
+  chapter    String?
+  pageRef    String?
+  tags       String[]
+
+  // Linked teaching point
+  assertionId String?
+  assertion   ContentAssertion? @relation(fields: [assertionId], references: [id], onDelete: SetNull)
+
+  contentHash String?
+  embedding   Unsupported("vector(1536)")?
+  sortOrder   Int                          @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceId, term])
+  @@index([sourceId])
+  @@index([topic])
+}
+
+// =========================
 // SUBJECTS (Content Grouping)
 // =========================
 
@@ -3767,16 +3872,16 @@ model ContentAssertion {
 model Subject {
   id          String  @id @default(uuid())
   slug        String  @unique // "food-safety-l2"
-  name        String          // "Food Safety Level 2"
+  name        String // "Food Safety Level 2"
   description String? @db.Text
 
   // Default trust level for documents uploaded to this subject
   defaultTrustLevel ContentTrustLevel @default(UNVERIFIED)
 
   // Optional qualification metadata
-  qualificationBody  String?  // "Highfield", "CII"
-  qualificationRef   String?  // "Highfield L2 Food Safety"
-  qualificationLevel String?  // "Level 2"
+  qualificationBody  String? // "Highfield", "CII"
+  qualificationRef   String? // "Highfield L2 Food Safety"
+  qualificationLevel String? // "Level 2"
 
   // Teaching point pyramid depth override (null = use CONTENT-EXTRACT spec default)
   teachingDepth Int?
@@ -3797,7 +3902,7 @@ model Subject {
 
 // Many-to-many: which content sources belong to a subject
 model SubjectSource {
-  id        String @id @default(uuid())
+  id        String        @id @default(uuid())
   subjectId String
   sourceId  String
   subject   Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
@@ -3807,7 +3912,7 @@ model SubjectSource {
   trustLevelOverride ContentTrustLevel?
 
   // Tags: what this document is used for (can be both)
-  tags      String[] @default(["content"]) // "syllabus", "content"
+  tags String[] @default(["content"]) // "syllabus", "content"
 
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -3819,7 +3924,7 @@ model SubjectSource {
 
 // Many-to-many: which domains teach which subjects
 model SubjectDomain {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   subjectId String
   domainId  String
   subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
@@ -3845,7 +3950,7 @@ model ConversationArtifact {
   callId   String?
   call     Call?   @relation(fields: [callId], references: [id], onDelete: Cascade)
   callerId String
-  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+  caller   Caller  @relation(fields: [callerId], references: [id], onDelete: Cascade)
 
   // Provenance — userId of creator (educator, operator); null for AI-extracted
   createdBy String?
@@ -3853,7 +3958,7 @@ model ConversationArtifact {
   // Content
   type      ConversationArtifactType // SUMMARY, KEY_FACT, FORMULA, EXERCISE, etc.
   title     String // Short descriptive title
-  content   String @db.Text // Markdown text body
+  content   String                   @db.Text // Markdown text body
   mediaUrl  String? // For images/PDFs — URL to stored media (legacy, use mediaId)
   mediaType String? // MIME type: image/png, application/pdf, audio/mpeg
 
@@ -3866,15 +3971,15 @@ model ConversationArtifact {
   trustLevel          ArtifactTrustLevel @default(INFERRED)
 
   // Extraction metadata
-  confidence Float @default(0.8) // 0-1: extraction confidence
+  confidence Float   @default(0.8) // 0-1: extraction confidence
   evidence   String? @db.Text // Transcript excerpt that triggered extraction
 
   // Delivery
-  status             ArtifactStatus @default(PENDING)
-  channel            String         @default("sim") // "sim" | "whatsapp"
-  externalMessageId  String? // WhatsApp message ID (Phase 2)
-  deliveredAt        DateTime?
-  readAt             DateTime?
+  status            ArtifactStatus @default(PENDING)
+  channel           String         @default("sim") // "sim" | "whatsapp"
+  externalMessageId String? // WhatsApp message ID (Phase 2)
+  deliveredAt       DateTime?
+  readAt            DateTime?
 
   // Actions that reference this artifact
   actions CallAction[]
@@ -3898,12 +4003,12 @@ model CallAction {
   callId   String?
   call     Call?   @relation(fields: [callId], references: [id], onDelete: SetNull)
   callerId String
-  caller   Caller @relation(fields: [callerId], references: [id], onDelete: Cascade)
+  caller   Caller  @relation(fields: [callerId], references: [id], onDelete: Cascade)
 
   // Action content
   type        CallActionType
   title       String
-  description String? @db.Text
+  description String?        @db.Text
 
   // Optional media attachment
   mediaUrl  String?
@@ -3924,7 +4029,7 @@ model CallAction {
   // Extraction metadata
   source     CallActionSource @default(MANUAL)
   confidence Float            @default(1.0) // 1.0 for manual, 0-1 for extracted
-  evidence   String?          @db.Text      // Transcript excerpt
+  evidence   String?          @db.Text // Transcript excerpt
 
   // Notes
   notes String? @db.Text
@@ -3986,9 +4091,9 @@ model MediaAsset {
   tags        String[]
 
   uploadedBy String
-  uploader   User   @relation(fields: [uploadedBy], references: [id])
+  uploader   User              @relation(fields: [uploadedBy], references: [id])
   sourceId   String?
-  source     ContentSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  source     ContentSource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   trustLevel ContentTrustLevel @default(UNVERIFIED)
 
   createdAt DateTime @default(now())

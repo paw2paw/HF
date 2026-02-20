@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -20,6 +20,7 @@ import { UserAvatar, ROLE_COLORS } from "./UserAvatar";
 interface UserContextMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
   unreadCount?: number;
   masqueradeOptions?: {
     isRealAdmin: boolean;
@@ -40,6 +41,7 @@ const ROLE_LABELS: Record<string, string> = {
 export function UserContextMenu({
   isOpen,
   onClose,
+  anchorRef,
   masqueradeOptions,
 }: UserContextMenuProps) {
   const { data: session } = useSession();
@@ -47,13 +49,32 @@ export function UserContextMenu({
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { isMasquerading } = useMasquerade();
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
 
-  // Close on outside click
+  // Calculate fixed position from anchor button
+  useEffect(() => {
+    if (!isOpen || !anchorRef.current) {
+      setPos(null);
+      return;
+    }
+    const rect = anchorRef.current.getBoundingClientRect();
+    setPos({
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+    });
+  }, [isOpen, anchorRef]);
+
+  // Close on outside click / escape
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        anchorRef.current &&
+        !anchorRef.current.contains(e.target as Node)
+      ) {
         onClose();
       }
     };
@@ -71,9 +92,9 @@ export function UserContextMenu({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, anchorRef]);
 
-  if (!isOpen || !session?.user) return null;
+  if (!isOpen || !session?.user || !pos) return null;
 
   const userName = session.user.name || session.user.email || "User";
   const userRole = session.user.role;
@@ -88,15 +109,15 @@ export function UserContextMenu({
         style={{ background: "transparent" }}
       />
 
-      {/* Menu popover — positioned below avatar at top-right */}
+      {/* Menu popover — fixed position calculated from anchor button */}
       <div
         ref={menuRef}
         className="fixed z-50 w-56 rounded-lg shadow-lg border"
         style={{
           background: "var(--surface-primary)",
           borderColor: "var(--border-default)",
-          top: "calc(100% + 4px)",
-          right: "24px",
+          top: pos.top,
+          right: pos.right,
           boxShadow:
             "0 10px 25px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.1)",
         }}

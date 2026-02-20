@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useMasquerade } from "@/contexts/MasqueradeContext";
@@ -12,6 +12,7 @@ export function TopBar() {
   const { data: session } = useSession();
   const [showMenu, setShowMenu] = useState(false);
   const { isMasquerading, effectiveRole } = useMasquerade();
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Close menu on pathname change
   useEffect(() => {
@@ -32,8 +33,9 @@ export function TopBar() {
         zIndex: 25,
       }}
     >
-      <div className="ml-auto relative">
+      <div className="ml-auto">
         <button
+          ref={triggerRef}
           onClick={() => setShowMenu((v) => !v)}
           className="p-1 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
           title="Account"
@@ -42,13 +44,14 @@ export function TopBar() {
           <UserAvatar
             name={session.user.name || session.user.email || "?"}
             role={realRole}
-            size={28}
+            size={32}
           />
         </button>
 
         <UserContextMenu
           isOpen={showMenu}
           onClose={() => setShowMenu(false)}
+          anchorRef={triggerRef}
           masqueradeOptions={realIsAdmin ? { isRealAdmin: true } : undefined}
         />
       </div>
