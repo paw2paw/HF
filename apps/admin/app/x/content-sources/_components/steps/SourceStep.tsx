@@ -202,8 +202,12 @@ export default function SourceStep({ setData, getData, onNext }: StepProps) {
             // Classification is async, store taskId and poll
             setClassifyTaskId(classifyData.taskId);
           }
-          // Store file in context so ExtractStep can re-upload if needed
-          setData("file", file);
+          // Fetch source to get mediaAssetId and store it (File objects don't serialize)
+          const sourceRes = await fetch(`/api/content-sources/${newSourceId}`);
+          const sourceData = await sourceRes.json();
+          if (sourceData.source?.mediaAssets?.[0]?.id) {
+            setData("mediaAssetId", sourceData.source.mediaAssets[0].id);
+          }
         } catch (uploadErr: any) {
           throw new Error(`File upload failed: ${uploadErr.message}`);
         } finally {

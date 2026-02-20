@@ -2018,33 +2018,6 @@ Redirect or JSON response depending on the auth action
 
 ---
 
-### `POST` /api/auth/forgot-password
-
-Request a password reset link. Always returns 200 to prevent email enumeration. Only sends email if user exists and is active.
-
-**Auth**: None
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| email | body | string | No | User email address (required) |
-
-**Response** `200`
-```json
-{ ok: true, message: "If an account exists, a reset link has been sent." }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "Email is required" }
-```
-
-**Response** `429`
-```json
-{ ok: false, error: "Too many requests" }
-```
-
----
-
 ### `POST` /api/auth/login
 
 Validates a superadmin bearer token and returns access credentials. Used for programmatic/API access.
@@ -2073,61 +2046,6 @@ Validates a superadmin bearer token and returns access credentials. Used for pro
 **Response** `500`
 ```json
 { error: "Server misconfigured" }
-```
-
----
-
-### `POST` /api/auth/reset-password
-
-Reset a user's password using a valid reset token. Hashes the new password with bcrypt.
-
-**Auth**: None
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| token | body | string | No | Valid password reset token (required) |
-| password | body | string | No | New password, min 8 chars (required) |
-
-**Response** `200`
-```json
-{ ok: true }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "Invalid or expired reset link" | "Password is required" }
-```
-
-**Response** `429`
-```json
-{ ok: false, error: "Too many requests" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "An error occurred" }
-```
-
----
-
-### `GET` /api/auth/verify-reset-token
-
-Verify that a password reset token is valid and not expired. Used by reset-password page to show form or error state.
-
-**Auth**: None
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| token | query | string | No | Reset token (required) |
-
-**Response** `200`
-```json
-{ ok: true, email: "user@example.com" }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "Invalid or expired reset link" }
 ```
 
 ---
@@ -10998,10 +10916,10 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 286 |
-| Files with annotations | 285 |
+| Route files found | 283 |
+| Files with annotations | 282 |
 | Files missing annotations | 1 |
-| Coverage | 99.7% |
+| Coverage | 99.6% |
 
 ### Files missing `@api` annotations
 
