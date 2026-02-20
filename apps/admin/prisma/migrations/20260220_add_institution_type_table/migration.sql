@@ -1,3 +1,10 @@
+-- CreateEnum (if not exists)
+DO $$ BEGIN
+    CREATE TYPE "DomainKind" AS ENUM ('INSTITUTION', 'COMMUNITY');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 -- CreateTable
 CREATE TABLE "InstitutionType" (
     "id" TEXT NOT NULL,
