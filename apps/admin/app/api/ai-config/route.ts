@@ -468,7 +468,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert the configuration
-    const config = await prisma.aIConfig.upsert({
+    const aiConfig = await prisma.aIConfig.upsert({
       where: { callPoint: body.callPoint },
       create: {
         callPoint: body.callPoint,
@@ -496,7 +496,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      config,
+      config: aiConfig,
       message: `Updated AI config for ${callPointDef.label}`,
     });
   } catch (error) {
