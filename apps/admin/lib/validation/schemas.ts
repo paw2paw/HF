@@ -35,3 +35,14 @@ export const joinPostSchema = z.object({
 export const authLoginSchema = z.object({
   token: z.string().min(1, "Token is required"),
 });
+
+/** POST /api/auth/forgot-password */
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+/** POST /api/auth/reset-password */
+export const resetPasswordSchema = z.object({
+  token: tokenSchema,
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+});

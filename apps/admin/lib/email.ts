@@ -129,3 +129,44 @@ export async function sendInviteEmail({
     html,
   });
 }
+
+// ── Password reset email ────────────────────────────────────
+
+interface SendPasswordResetEmailParams {
+  to: string;
+  resetUrl: string;
+}
+
+export async function sendPasswordResetEmail({
+  to,
+  resetUrl,
+}: SendPasswordResetEmailParams) {
+  let settings: EmailTemplateSettings;
+  try {
+    settings = await getEmailTemplateSettings();
+  } catch {
+    settings = EMAIL_TEMPLATE_DEFAULTS;
+  }
+
+  const fromAddress = process.env.EMAIL_FROM || `${settings.sharedFromName} <noreply@example.com>`;
+
+  const html = renderEmailHtml({
+    heading: settings.passwordResetHeading,
+    bodyHtml: `<p style="margin: 0 0 16px;">${settings.passwordResetBody}</p>`,
+    buttonText: settings.passwordResetButtonText,
+    buttonUrl: resetUrl,
+    footer: settings.passwordResetFooter,
+    brandColorStart: settings.sharedBrandColorStart,
+    brandColorEnd: settings.sharedBrandColorEnd,
+  });
+
+  const text = `${settings.passwordResetBody}\n\nReset password: ${resetUrl}\n\n${settings.passwordResetFooter}`;
+
+  await transporter.sendMail({
+    from: fromAddress,
+    to,
+    subject: settings.passwordResetSubject,
+    text,
+    html,
+  });
+}
