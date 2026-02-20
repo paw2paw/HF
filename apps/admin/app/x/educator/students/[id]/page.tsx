@@ -93,11 +93,11 @@ export default function StudentDetailPage() {
             width: 56,
             height: 56,
             borderRadius: "50%",
-            background: "#ec4899",
+            background: "var(--badge-pink-text)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "#fff",
+            color: "white",
             fontSize: 24,
             fontWeight: 700,
             flexShrink: 0,
@@ -108,7 +108,7 @@ export default function StudentDetailPage() {
         <div>
           <h1
             style={{
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: 700,
               color: "var(--text-primary)",
               marginBottom: 4,
@@ -144,7 +144,7 @@ export default function StudentDetailPage() {
             borderRadius: 8,
             border: "none",
             background: "var(--accent-primary)",
-            color: "#fff",
+            color: "white",
             fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",
@@ -173,7 +173,7 @@ export default function StudentDetailPage() {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 28, fontWeight: 700, color: "#3b82f6" }}>{calls.length}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "var(--accent-primary)" }}>{calls.length}</div>
           <div style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "uppercase" }}>
             Total Calls
           </div>
@@ -187,7 +187,7 @@ export default function StudentDetailPage() {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 28, fontWeight: 700, color: "#10b981" }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "var(--status-success-text)" }}>
             {goals.filter((g) => g.status === "COMPLETED").length}
           </div>
           <div style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "uppercase" }}>
@@ -203,7 +203,7 @@ export default function StudentDetailPage() {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 28, fontWeight: 700, color: "#8b5cf6" }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "var(--badge-purple-text)" }}>
             {calls.length > 0
               ? new Date(calls[0].createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
               : "—"}
@@ -292,10 +292,10 @@ export default function StudentDetailPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {goals.map((g) => {
                 const colors: Record<string, string> = {
-                  ACTIVE: "#3b82f6",
-                  COMPLETED: "#10b981",
-                  PAUSED: "#f59e0b",
-                  ARCHIVED: "#6b7280",
+                  ACTIVE: "var(--accent-primary)",
+                  COMPLETED: "var(--status-success-text)",
+                  PAUSED: "var(--status-warning-text)",
+                  ARCHIVED: "var(--text-muted)",
                 };
                 return (
                   <div key={g.id}>
@@ -312,7 +312,7 @@ export default function StudentDetailPage() {
                       <span
                         style={{
                           fontSize: 11,
-                          color: colors[g.status] || "#6b7280",
+                          color: colors[g.status] || "var(--text-muted)",
                           textTransform: "uppercase",
                         }}
                       >
@@ -331,7 +331,7 @@ export default function StudentDetailPage() {
                         style={{
                           height: "100%",
                           width: `${(g.progress ?? 0) * 100}%`,
-                          background: colors[g.status] || "#6b7280",
+                          background: colors[g.status] || "var(--text-muted)",
                           borderRadius: 2,
                           transition: "width 0.3s",
                         }}

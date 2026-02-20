@@ -51,7 +51,7 @@ export default function MessagesPage() {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
             Inbox
             {tab === "inbox" && unreadCount > 0 && (
               <span
@@ -751,10 +751,10 @@ function MessageThreadModal({
               <div
                 style={{
                   padding: 12,
-                  background: "#fee2e2",
-                  border: "1px solid #fecaca",
+                  background: "var(--status-error-bg)",
+                  border: "1px solid var(--status-error-border)",
                   borderRadius: 6,
-                  color: "#991b1b",
+                  color: "var(--status-error-text)",
                   fontSize: 14,
                   marginBottom: 16,
                 }}

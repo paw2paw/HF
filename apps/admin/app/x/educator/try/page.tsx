@@ -88,7 +88,7 @@ function TryItContent() {
         <div style={{ fontSize: 64, marginBottom: 16 }}>🎧</div>
         <h1
           style={{
-            fontSize: 28,
+            fontSize: 24,
             fontWeight: 700,
             color: "var(--text-primary)",
             marginBottom: 8,
@@ -99,7 +99,7 @@ function TryItContent() {
         <p
           style={{
             fontSize: 15,
-            color: "var(--text-muted)",
+            color: "var(--text-secondary)",
             maxWidth: 400,
             margin: "0 auto",
             lineHeight: 1.6,

@@ -109,7 +109,7 @@ export default function EducatorSettingsPage() {
       <div style={{ marginBottom: 24 }}>
         <h1
           style={{
-            fontSize: 28,
+            fontSize: 24,
             fontWeight: 700,
             color: "var(--text-primary)",
             marginBottom: 4,
@@ -117,7 +117,7 @@ export default function EducatorSettingsPage() {
         >
           Settings
         </h1>
-        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           Configure terminology for your {terms.domain.toLowerCase()}
         </p>
       </div>

@@ -548,14 +548,14 @@ export default function ContentWizardPage() {
         alignItems: "center",
         gap: 10,
       }}>
-        <span style={{ fontSize: 13, color: "#92400e" }}>
+        <span style={{ fontSize: 13, color: "var(--status-warning-text)" }}>
           This wizard has moved to <strong>Quick Launch</strong>, which handles creation and review in one flow.
         </span>
         <button
           onClick={() => router.push("/x/quick-launch")}
           style={{
             padding: "6px 14px", borderRadius: 6, border: "none",
-            background: "#f59e0b", color: "#fff", fontSize: 12, fontWeight: 700,
+            background: "var(--status-warning-text)", color: "white", fontSize: 12, fontWeight: 700,
             cursor: "pointer", whiteSpace: "nowrap",
           }}
         >

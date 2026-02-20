@@ -15,7 +15,7 @@ export default function ContentSourcesPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
             {viewMode === "wizard" ? "Content Sources" : "Content Library"}
           </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
             {viewMode === "wizard"
               ? "Turn documents into teaching content \u2014 step by step."
               : "Manage all content sources, upload documents, and review assertions."}

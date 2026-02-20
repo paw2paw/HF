@@ -144,7 +144,7 @@ function CategoryBadge({ category }: { category: string }) {
 
 function ReviewBadge({ reviewed }: { reviewed: boolean }) {
   return reviewed ? (
-    <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Reviewed</span>
+    <span style={{ fontSize: 11, color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
   ) : (
     <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Pending</span>
   );
@@ -330,7 +330,7 @@ export default function SourceDetailPage() {
       {/* Source header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
             {source.name}
           </h1>
           <TrustBadge level={source.trustLevel} />
@@ -398,8 +398,8 @@ export default function SourceDetailPage() {
                   height: "100%",
                   borderRadius: 3,
                   background: aggPct === 100
-                    ? "#16a34a"
-                    : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                    ? "var(--status-success-text)"
+                    : "linear-gradient(90deg, var(--accent-primary), var(--badge-indigo-text))",
                   width: `${aggPct}%`,
                   transition: "width 0.5s ease-out",
                 }} />
@@ -418,8 +418,8 @@ export default function SourceDetailPage() {
           fontSize: 13,
           fontWeight: 500,
           ...(feedback.type === "error"
-            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid #FFCDD2" }
-            : { background: "#E8F5E9", color: "#2E7D32", border: "1px solid #C8E6C9" }),
+            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid var(--status-error-border)" }
+            : { background: "var(--status-success-bg)", color: "var(--status-success-text)", border: "1px solid var(--status-success-border)" }),
         }}>
           {feedback.message}
         </div>
@@ -496,7 +496,7 @@ export default function SourceDetailPage() {
                 disabled={bulkLoading}
                 style={{
                   padding: "7px 14px", borderRadius: 6, border: "none",
-                  background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 600,
+                  background: "var(--status-success-text)", color: "white", fontSize: 12, fontWeight: 600,
                   cursor: bulkLoading ? "not-allowed" : "pointer",
                   opacity: bulkLoading ? 0.6 : 1,
                 }}
@@ -875,7 +875,7 @@ function DetailView({
           <div style={labelStyle}>Review Status</div>
           {a.reviewedAt ? (
             <div style={{ fontSize: 12 }}>
-              <span style={{ color: "#16a34a", fontWeight: 600 }}>Reviewed</span>
+              <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
               <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>
                 by {a.reviewer?.name || a.reviewer?.email || "unknown"} on {new Date(a.reviewedAt).toLocaleDateString()}
               </span>
@@ -899,7 +899,7 @@ function DetailView({
           <button
             onClick={handleMarkReviewed}
             disabled={reviewing}
-            style={{ ...actionBtnStyle, background: "#16a34a", color: "#fff", border: "none", opacity: reviewing ? 0.6 : 1 }}
+            style={{ ...actionBtnStyle, background: "var(--status-success-text)", color: "white", border: "none", opacity: reviewing ? 0.6 : 1 }}
           >
             {reviewing ? "..." : "Mark Reviewed"}
           </button>
@@ -1106,7 +1106,7 @@ function EditForm({
         <button
           onClick={() => handleSave(false)}
           disabled={saving}
-          style={{ ...actionBtnStyle, background: "var(--accent-primary)", color: "#fff", border: "none", opacity: saving ? 0.6 : 1 }}
+          style={{ ...actionBtnStyle, background: "var(--accent-primary)", color: "white", border: "none", opacity: saving ? 0.6 : 1 }}
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -1114,7 +1114,7 @@ function EditForm({
           <button
             onClick={() => handleSave(true)}
             disabled={saving}
-            style={{ ...actionBtnStyle, background: "#16a34a", color: "#fff", border: "none", opacity: saving ? 0.6 : 1 }}
+            style={{ ...actionBtnStyle, background: "var(--status-success-text)", color: "white", border: "none", opacity: saving ? 0.6 : 1 }}
           >
             Save & Mark Reviewed
           </button>
@@ -1132,7 +1132,7 @@ function EditForm({
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  style={{ ...actionBtnStyle, background: "var(--status-error-text)", color: "#fff", border: "none", fontSize: 11, opacity: deleting ? 0.6 : 1 }}
+                  style={{ ...actionBtnStyle, background: "var(--status-error-text)", color: "white", border: "none", fontSize: 11, opacity: deleting ? 0.6 : 1 }}
                 >
                   {deleting ? "..." : "Confirm"}
                 </button>
@@ -1147,7 +1147,7 @@ function EditForm({
           ) : (
             <button
               onClick={() => setConfirmDelete(true)}
-              style={{ ...actionBtnStyle, color: "var(--status-error-text)", borderColor: "#FFCDD2" }}
+              style={{ ...actionBtnStyle, color: "var(--status-error-text)", borderColor: "var(--status-error-border)" }}
             >
               Delete
             </button>

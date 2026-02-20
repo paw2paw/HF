@@ -143,7 +143,7 @@ export default function ContentExplorerPage() {
   if (loading) {
     return (
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
           Content Explorer
         </h1>
         <p style={{ color: "var(--text-muted)" }}>Loading fragments...</p>
@@ -154,10 +154,10 @@ export default function ContentExplorerPage() {
   if (error) {
     return (
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
           Content Explorer
         </h1>
-        <p style={{ color: "#dc2626" }}>Error: {error}</p>
+        <p style={{ color: "var(--status-error-text)" }}>Error: {error}</p>
       </div>
     );
   }
@@ -169,7 +169,7 @@ export default function ContentExplorerPage() {
       <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
           Content Explorer
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
@@ -388,7 +388,7 @@ export default function ContentExplorerPage() {
                 {/* Prompt consumed indicator */}
                 <div style={{ textAlign: "center" }}>
                   {fragment.isPromptConsumed ? (
-                    <span style={{ color: "#059669", fontWeight: 600 }}>YES</span>
+                    <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>YES</span>
                   ) : (
                     <span style={{ color: "var(--text-muted)", opacity: 0.5 }}>no</span>
                   )}
@@ -454,8 +454,8 @@ export default function ContentExplorerPage() {
                           fontSize: 12,
                           border: "none",
                           borderRadius: 6,
-                          background: "#059669",
-                          color: "#fff",
+                          background: "var(--status-success-text)",
+                          color: "white",
                           fontWeight: 600,
                           cursor: "pointer",
                         }}

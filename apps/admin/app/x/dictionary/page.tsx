@@ -302,9 +302,9 @@ export default function DictionaryPage() {
             padding: "8px 14px",
             fontSize: 13,
             fontWeight: 500,
-            background: "rgba(139, 92, 246, 0.1)",
-            color: "#8b5cf6",
-            border: "1px solid rgba(139, 92, 246, 0.2)",
+            background: "var(--badge-purple-bg)",
+            color: "var(--badge-purple-text)",
+            border: "1px solid color-mix(in srgb, var(--badge-purple-text) 20%, transparent)",
             borderRadius: 6,
             cursor: "pointer",
             display: "flex",
@@ -521,7 +521,7 @@ export default function DictionaryPage() {
                                 width: 8,
                                 height: 8,
                                 borderRadius: "50%",
-                                background: param.isActive ? "#059669" : "var(--border-default)",
+                                background: param.isActive ? "var(--status-success-text)" : "var(--border-default)",
                                 flexShrink: 0,
                               }}
                               title={param.isActive ? "Active" : "Inactive"}

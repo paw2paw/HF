@@ -64,10 +64,10 @@ export default function AIKnowledgePage() {
       {/* Header */}
       <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-            🧠 AI Knowledge Dashboard
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+            AI Knowledge Dashboard
           </h1>
-          <p style={{ fontSize: 16, color: "var(--text-muted)", marginTop: 8 }}>
+          <p style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 8 }}>
             What the AI has learned from user interactions
           </p>
         </div>
@@ -146,7 +146,7 @@ export default function AIKnowledgePage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
                 SUCCESS RATE
               </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: "#10b981" }}>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "var(--status-success-text)" }}>
                 {(knowledge.stats.successRate * 100).toFixed(1)}%
               </div>
             </div>
@@ -162,7 +162,7 @@ export default function AIKnowledgePage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
                 LEARNED PATTERNS
               </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: "#8b5cf6" }}>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "var(--badge-purple-text)" }}>
                 {knowledge.patterns.length}
               </div>
             </div>
@@ -352,8 +352,8 @@ export default function AIKnowledgePage() {
                                 fontWeight: 600,
                                 padding: "2px 8px",
                                 borderRadius: 4,
-                                background: "rgba(139, 92, 246, 0.1)",
-                                color: "#8b5cf6",
+                                background: "color-mix(in srgb, var(--badge-purple-text) 10%, transparent)",
+                                color: "var(--badge-purple-text)",
                               }}
                             >
                               {pattern.domain}
@@ -369,10 +369,10 @@ export default function AIKnowledgePage() {
                             fontWeight: 800,
                             color:
                               pattern.confidence >= 0.7
-                                ? "#10b981"
+                                ? "var(--status-success-text)"
                                 : pattern.confidence >= 0.5
-                                ? "#f59e0b"
-                                : "#ef4444",
+                                ? "var(--status-warning-text)"
+                                : "var(--status-error-text)",
                           }}
                         >
                           {(pattern.confidence * 100).toFixed(0)}%

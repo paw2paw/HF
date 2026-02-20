@@ -413,7 +413,7 @@ function SourceAuthorityPanel({
                   <button
                     type="button"
                     onClick={removePrimarySource}
-                    style={{ marginLeft: "auto", fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}
+                    style={{ marginLeft: "auto", fontSize: 10, color: "var(--status-error-text)", background: "none", border: "none", cursor: "pointer" }}
                   >
                     Remove
                   </button>
@@ -472,7 +472,7 @@ function SourceAuthorityPanel({
                   <button
                     type="button"
                     onClick={() => removeSecondarySource(src.slug)}
-                    style={{ marginLeft: "auto", fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}
+                    style={{ marginLeft: "auto", fontSize: 10, color: "var(--status-error-text)", background: "none", border: "none", cursor: "pointer" }}
                   >
                     Remove
                   </button>
@@ -1350,7 +1350,7 @@ export default function SpecsPage() {
               style={{
                 padding: "6px 12px",
                 background: "var(--accent-primary)",
-                color: "#fff",
+                color: "white",
                 border: "none",
                 borderRadius: 6,
                 fontWeight: 500,
@@ -1368,9 +1368,9 @@ export default function SpecsPage() {
                 href="/x/admin/spec-sync"
                 style={{
                   padding: "4px 10px",
-                  background: "#fef3c7",
-                  color: "#92400e",
-                  border: "1px solid #fcd34d",
+                  background: "var(--status-warning-bg)",
+                  color: "var(--status-warning-text)",
+                  border: "1px solid var(--status-warning-border)",
                   borderRadius: 6,
                   fontWeight: 600,
                   fontSize: 11,
@@ -1383,8 +1383,8 @@ export default function SpecsPage() {
               >
                 <span
                   style={{
-                    background: "#f59e0b",
-                    color: "#fff",
+                    background: "var(--status-warning-text)",
+                    color: "white",
                     borderRadius: 10,
                     padding: "1px 6px",
                     fontSize: 10,
@@ -1424,7 +1424,7 @@ export default function SpecsPage() {
                 style={{
                   padding: "6px 12px",
                   background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                  color: "#fff",
+                  color: "white",
                   border: "none",
                   borderRadius: 6,
                   fontWeight: 500,
@@ -1555,18 +1555,18 @@ export default function SpecsPage() {
             padding: "8px 14px",
             marginBottom: 12,
             borderRadius: 8,
-            background: freshness.expired > 0 ? "#fef2f2" : "#fffbeb",
-            border: `1px solid ${freshness.expired > 0 ? "#fca5a5" : "#fcd34d"}`,
+            background: freshness.expired > 0 ? "var(--status-error-bg)" : "var(--status-warning-bg)",
+            border: `1px solid ${freshness.expired > 0 ? "var(--status-error-border)" : "var(--status-warning-border)"}`,
             fontSize: 12,
           }}
         >
-          <span style={{ fontWeight: 600, color: freshness.expired > 0 ? "#991b1b" : "#92400e" }}>
+          <span style={{ fontWeight: 600, color: freshness.expired > 0 ? "var(--status-error-text)" : "var(--status-warning-text)" }}>
             {freshness.expired > 0
               ? `${freshness.expired} expired source${freshness.expired > 1 ? "s" : ""}`
               : `${freshness.expiring} source${freshness.expiring > 1 ? "s" : ""} expiring soon`}
           </span>
           {freshness.expired > 0 && freshness.expiring > 0 && (
-            <span style={{ color: "#92400e" }}>
+            <span style={{ color: "var(--status-warning-text)" }}>
               + {freshness.expiring} expiring soon
             </span>
           )}
@@ -1576,7 +1576,7 @@ export default function SpecsPage() {
               marginLeft: "auto",
               fontSize: 11,
               fontWeight: 600,
-              color: freshness.expired > 0 ? "#991b1b" : "#92400e",
+              color: freshness.expired > 0 ? "var(--status-error-text)" : "var(--status-warning-text)",
               textDecoration: "underline",
             }}
           >
@@ -1741,8 +1741,8 @@ export default function SpecsPage() {
                               fontSize: 10,
                               fontWeight: 600,
                               padding: "2px 6px",
-                              background: outputTypeColors[s.outputType]?.bg || "#e5e7eb",
-                              color: outputTypeColors[s.outputType]?.text || "#374151",
+                              background: outputTypeColors[s.outputType]?.bg || "var(--border-default)",
+                              color: outputTypeColors[s.outputType]?.text || "var(--text-primary)",
                               borderRadius: 4,
                             }}
                           >
@@ -1854,17 +1854,17 @@ export default function SpecsPage() {
                   <DomainPill label={spec.domain} size="compact" />
                 )}
                 {featureSet && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#d1fae5", color: "#065f46" }}>
+                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--status-success-bg)", color: "var(--status-success-text)" }}>
                     Has Source Spec
                   </span>
                 )}
                 {spec.isLocked && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#fee2e2", color: "#b91c1c" }}>
+                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--status-error-bg)", color: "var(--status-error-text)" }}>
                     Locked
                   </span>
                 )}
                 {spec.isDeletable === false && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--status-warning-bg)", color: "var(--status-warning-text)", fontWeight: 600 }}>
                     🔒 Cannot Delete
                   </span>
                 )}
@@ -1903,18 +1903,18 @@ export default function SpecsPage() {
 
               {/* Data Flow Overview */}
               {featureSet && (
-                <div style={{ background: "linear-gradient(to right, #eff6ff, var(--surface-selected))", border: "1px solid #bfdbfe", borderRadius: 8, padding: 12, marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1e3a8a", marginBottom: 8 }}>Data Flow</div>
+                <div style={{ background: "linear-gradient(to right, var(--status-info-bg), var(--surface-selected))", border: "1px solid var(--status-info-border)", borderRadius: 8, padding: 12, marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)", marginBottom: 8 }}>Data Flow</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexWrap: "wrap" }}>
-                    <span style={{ background: "#dbeafe", color: "#1e40af", padding: "3px 8px", borderRadius: 4, fontFamily: "monospace" }}>
+                    <span style={{ background: "var(--status-info-bg)", color: "var(--accent-primary)", padding: "3px 8px", borderRadius: 4, fontFamily: "monospace" }}>
                       {featureSet.featureId}.spec.json
                     </span>
-                    <span style={{ color: "#93c5fd" }}>→</span>
-                    <span style={{ background: "#e9d5ff", color: "#6b21a8", padding: "3px 8px", borderRadius: 4 }}>
+                    <span style={{ color: "var(--accent-primary)" }}>→</span>
+                    <span style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", padding: "3px 8px", borderRadius: 4 }}>
                       BDDFeatureSet
                     </span>
-                    <span style={{ color: "#c4b5fd" }}>→</span>
-                    <span style={{ background: "#e0e7ff", color: "#3730a3", padding: "3px 8px", borderRadius: 4 }}>
+                    <span style={{ color: "var(--badge-purple-text)" }}>→</span>
+                    <span style={{ background: "var(--status-info-bg)", color: "var(--button-primary-bg)", padding: "3px 8px", borderRadius: 4 }}>
                       AnalysisSpec
                     </span>
                     <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
@@ -1976,7 +1976,7 @@ export default function SpecsPage() {
                         <label style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
                           Compiled Prompt Template
                           {isMeasureSpec && (
-                            <span style={{ marginLeft: 8, fontSize: 10, background: "#dcfce7", color: "#166534", padding: "2px 6px", borderRadius: 4 }}>
+                            <span style={{ marginLeft: 8, fontSize: 10, background: "var(--status-success-bg)", color: "var(--status-success-text)", padding: "2px 6px", borderRadius: 4 }}>
                               Primary output for MEASURE specs
                             </span>
                           )}
@@ -2012,7 +2012,7 @@ export default function SpecsPage() {
                         <label style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
                           Config
                           {isIdentityOrContent && (
-                            <span style={{ marginLeft: 8, fontSize: 10, background: "#e0e7ff", color: "#3730a3", padding: "2px 6px", borderRadius: 4 }}>
+                            <span style={{ marginLeft: 8, fontSize: 10, background: "var(--status-info-bg)", color: "var(--button-primary-bg)", padding: "2px 6px", borderRadius: 4 }}>
                               Primary output for {spec.specRole} specs
                             </span>
                           )}
@@ -2050,7 +2050,7 @@ export default function SpecsPage() {
                         border: "none",
                         cursor: saving || spec.isLocked || !hasChanges ? "not-allowed" : "pointer",
                         background: saving || spec.isLocked || !hasChanges ? "var(--surface-disabled)" : "var(--accent-primary)",
-                        color: saving || spec.isLocked || !hasChanges ? "var(--text-placeholder)" : "#fff",
+                        color: saving || spec.isLocked || !hasChanges ? "var(--text-placeholder)" : "white",
                       }}
                     >
                       {saving ? "Saving..." : "Save Changes"}
@@ -2066,8 +2066,8 @@ export default function SpecsPage() {
                           fontSize: 13,
                           border: "none",
                           cursor: recompiling || spec.isLocked ? "not-allowed" : "pointer",
-                          background: recompiling || spec.isLocked ? "var(--surface-disabled)" : "#d97706",
-                          color: recompiling || spec.isLocked ? "var(--text-placeholder)" : "#fff",
+                          background: recompiling || spec.isLocked ? "var(--surface-disabled)" : "var(--status-warning-text)",
+                          color: recompiling || spec.isLocked ? "var(--text-placeholder)" : "white",
                         }}
                       >
                         {recompiling ? "Recompiling..." : "Recompile from Source"}
@@ -2084,8 +2084,8 @@ export default function SpecsPage() {
                           fontSize: 13,
                           border: "none",
                           cursor: exporting || spec.isLocked ? "not-allowed" : "pointer",
-                          background: exporting || spec.isLocked ? "var(--surface-disabled)" : "#dc2626",
-                          color: exporting || spec.isLocked ? "var(--text-placeholder)" : "#fff",
+                          background: exporting || spec.isLocked ? "var(--surface-disabled)" : "var(--status-error-text)",
+                          color: exporting || spec.isLocked ? "var(--text-placeholder)" : "white",
                         }}
                         title="Writes config parameters back to the .spec.json file on disk, then re-seeds the full pipeline"
                       >
@@ -2154,9 +2154,9 @@ export default function SpecsPage() {
                               <tr>
                                 <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: 28 }}>#</th>
                                 <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: "14%" }}>Name</th>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "#7c3aed", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Given</th>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "#2563eb", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>When</th>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "#16a34a", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Then</th>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--badge-purple-text)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Given</th>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--accent-primary)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>When</th>
+                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--status-success-text)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Then</th>
                                 <th style={{ padding: "6px 8px", textAlign: "center", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: 44 }}></th>
                               </tr>
                             </thead>
@@ -2246,7 +2246,7 @@ export default function SpecsPage() {
                                               background: "transparent",
                                               fontSize: 12,
                                               cursor: "pointer",
-                                              color: "#dc2626",
+                                              color: "var(--status-error-text)",
                                               opacity: 0.6,
                                             }}
                                             onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; }}
@@ -2277,8 +2277,8 @@ export default function SpecsPage() {
                                               fontWeight: 600,
                                               padding: "1px 5px",
                                               borderRadius: 3,
-                                              background: spec.outputType === "LEARN" ? "#fef3c7" : "#e0e7ff",
-                                              color: spec.outputType === "LEARN" ? "#92400e" : "#3730a3",
+                                              background: spec.outputType === "LEARN" ? "var(--status-warning-bg)" : "var(--status-info-bg)",
+                                              color: spec.outputType === "LEARN" ? "var(--status-warning-text)" : "var(--button-primary-bg)",
                                             }}>
                                               {badgeLabel}{aIdx + 1}
                                             </span>
@@ -2400,7 +2400,7 @@ export default function SpecsPage() {
                                                   color: "var(--text-muted)",
                                                   opacity: 0.5,
                                                 }}
-                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; (e.target as HTMLElement).style.color = "#dc2626"; }}
+                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; (e.target as HTMLElement).style.color = "var(--status-error-text)"; }}
                                                 onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = "0.5"; (e.target as HTMLElement).style.color = "var(--text-muted)"; }}
                                               >
                                                 ✕
@@ -2477,7 +2477,7 @@ export default function SpecsPage() {
                                 <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{param.id}</div>
                               </div>
                               {param.targetRange && (
-                                <span style={{ fontSize: 11, background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: 4 }}>
+                                <span style={{ fontSize: 11, background: "var(--status-success-bg)", color: "var(--status-success-text)", padding: "2px 8px", borderRadius: 4 }}>
                                   Target: {param.targetRange.min}-{param.targetRange.max}
                                 </span>
                               )}
@@ -2489,13 +2489,13 @@ export default function SpecsPage() {
                               <div style={{ marginTop: 8 }}>
                                 <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Interpretation Scale:</div>
                                 <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
-                                  <span style={{ background: "#fef2f2", color: "#b91c1c", padding: "2px 8px", borderRadius: 4 }}>
+                                  <span style={{ background: "var(--status-error-bg)", color: "var(--status-error-text)", padding: "2px 8px", borderRadius: 4 }}>
                                     Low: {param.interpretationScale.low}
                                   </span>
-                                  <span style={{ background: "#fefce8", color: "#a16207", padding: "2px 8px", borderRadius: 4 }}>
+                                  <span style={{ background: "var(--status-warning-bg)", color: "var(--status-warning-text)", padding: "2px 8px", borderRadius: 4 }}>
                                     Mid: {param.interpretationScale.mid}
                                   </span>
-                                  <span style={{ background: "#f0fdf4", color: "#166534", padding: "2px 8px", borderRadius: 4 }}>
+                                  <span style={{ background: "var(--status-success-bg)", color: "var(--status-success-text)", padding: "2px 8px", borderRadius: 4 }}>
                                     High: {param.interpretationScale.high}
                                   </span>
                                 </div>
@@ -2552,11 +2552,11 @@ export default function SpecsPage() {
                             <div style={{ fontWeight: 500, color: "var(--text-primary)", marginBottom: 8 }}>{guidance.parameterId}</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 12 }}>
                               <div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "#16a34a", marginBottom: 4 }}>When High:</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--status-success-text)", marginBottom: 4 }}>When High:</div>
                                 <p style={{ color: "var(--text-secondary)", margin: 0 }}>{guidance.whenHigh}</p>
                               </div>
                               <div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "#dc2626", marginBottom: 4 }}>When Low:</div>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--status-error-text)", marginBottom: 4 }}>When Low:</div>
                                 <p style={{ color: "var(--text-secondary)", margin: 0 }}>{guidance.whenLow}</p>
                               </div>
                             </div>
@@ -2587,7 +2587,7 @@ export default function SpecsPage() {
                       Raw Spec JSON (Source)
                     </button>
                     {showRawSpec && featureSet.rawSpec && (
-                      <pre style={{ background: "#1f2937", color: "#e5e7eb", fontSize: 11, fontFamily: "monospace", padding: 12, borderRadius: 8, overflow: "auto", maxHeight: 400 }}>
+                      <pre style={{ background: "var(--code-block-bg)", color: "var(--code-block-text)", fontSize: 11, fontFamily: "monospace", padding: 12, borderRadius: 8, overflow: "auto", maxHeight: 400 }}>
                         {JSON.stringify(featureSet.rawSpec, null, 2)}
                       </pre>
                     )}
@@ -2622,7 +2622,7 @@ export default function SpecsPage() {
                       </div>
                       <div>
                         <div style={{ color: "var(--text-muted)" }}>Status</div>
-                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: featureSet.isActive ? "#dcfce7" : "#f3f4f6", color: featureSet.isActive ? "#166534" : "#6b7280" }}>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: featureSet.isActive ? "var(--status-success-bg)" : "var(--surface-secondary)", color: featureSet.isActive ? "var(--status-success-text)" : "var(--text-muted)" }}>
                           {featureSet.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
@@ -2826,7 +2826,7 @@ function TriggerFormModal({
         </p>
 
         {error && (
-          <div style={{ padding: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, marginBottom: 16, fontSize: 12, color: "#dc2626" }}>
+          <div style={{ padding: 10, background: "var(--status-error-bg)", border: "1px solid var(--status-error-border)", borderRadius: 8, marginBottom: 16, fontSize: 12, color: "var(--status-error-text)" }}>
             {error}
           </div>
         )}
@@ -2845,7 +2845,7 @@ function TriggerFormModal({
         {/* Given */}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>
-            <span style={{ color: "#7c3aed" }}>Given</span> *
+            <span style={{ color: "var(--badge-purple-text)" }}>Given</span> *
           </label>
           <textarea
             value={given}
@@ -2859,7 +2859,7 @@ function TriggerFormModal({
         {/* When */}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>
-            <span style={{ color: "#2563eb" }}>When</span> *
+            <span style={{ color: "var(--accent-primary)" }}>When</span> *
           </label>
           <textarea
             value={when}
@@ -2873,7 +2873,7 @@ function TriggerFormModal({
         {/* Then */}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>
-            <span style={{ color: "#16a34a" }}>Then</span> *
+            <span style={{ color: "var(--status-success-text)" }}>Then</span> *
           </label>
           <textarea
             value={thenVal}
@@ -2947,7 +2947,7 @@ function TriggerFormModal({
                     border: "none",
                     background: "transparent",
                     fontSize: 11,
-                    color: "#dc2626",
+                    color: "var(--status-error-text)",
                     cursor: "pointer",
                   }}
                 >
@@ -3061,7 +3061,7 @@ function TriggerFormModal({
               background: canSubmit ? "var(--accent-primary)" : "var(--surface-disabled)",
               fontSize: 12,
               fontWeight: 600,
-              color: canSubmit ? "#fff" : "var(--text-muted)",
+              color: canSubmit ? "white" : "var(--text-muted)",
               cursor: canSubmit ? "pointer" : "default",
             }}
           >

@@ -181,7 +181,7 @@ export default function NewClassroomPage() {
         Create {terms.cohort}
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
       </h1>
-      <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 32 }}>
+      <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 32 }}>
         Set up a new {lower("cohort")} for your {lowerPlural("caller")}.
       </p>
 
@@ -726,7 +726,7 @@ export default function NewClassroomPage() {
                 onClick={copyLink}
                 style={{
                   padding: "6px 14px",
-                  background: copiedLink ? "#10b981" : "var(--button-primary-bg)",
+                  background: copiedLink ? "var(--status-success-text)" : "var(--button-primary-bg)",
                   color: "var(--button-primary-text)",
                   border: "none",
                   borderRadius: 6,
@@ -782,7 +782,7 @@ export default function NewClassroomPage() {
               onClick={copyMessage}
               style={{
                 padding: "6px 14px",
-                background: copiedMessage ? "#10b981" : "var(--surface-secondary)",
+                background: copiedMessage ? "var(--status-success-text)" : "var(--surface-secondary)",
                 color: copiedMessage ? "white" : "var(--text-secondary)",
                 border: copiedMessage ? "none" : "1px solid var(--border-default)",
                 borderRadius: 6,

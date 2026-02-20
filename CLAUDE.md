@@ -188,6 +188,37 @@ import { config } from "@/lib/config";
 - **Hardcoded slugs**: Use `config.specs.*` — all env-overridable
 - **Unmetered AI**: All AI calls must go through metered wrappers
 
+## UI Gold Standard (Settings Page)
+
+All UI must follow the Settings page styling standard. CSS utility classes are defined in `app/globals.css` under the "HF Design System" section.
+
+**Mandatory rules:**
+- **No hardcoded hex colors** — Use CSS custom properties (`var(--text-primary)`, `var(--surface-secondary)`, etc.). Hardcoded hex breaks dark mode.
+- **Page titles**: `fontSize: 24, fontWeight: 700, color: var(--text-primary)` — or use `className="hf-page-title"`
+- **Page subtitles**: `fontSize: 14, color: var(--text-secondary)` — or use `className="hf-page-subtitle"`
+- **Cards/panels**: `borderRadius: 16, padding: 24` — or use `className="hf-card"` / `"hf-card-compact"` (12px radius)
+- **Section titles**: `fontSize: 15, fontWeight: 600` — or use `className="hf-section-title"`
+- **Inputs**: `borderRadius: 10` — or use `className="hf-input"`
+- **Alpha/opacity**: Always `color-mix(in srgb, var(--color) 60%, transparent)` — never hex opacity (`#fff9`)
+- **Info footers**: `className="hf-info-footer"` with `className="hf-icon-box"` for the icon container
+
+**CSS classes available** (all in `globals.css`):
+`hf-page-title`, `hf-page-subtitle`, `hf-card`, `hf-card-compact`, `hf-section-title`, `hf-section-desc`, `hf-info-footer`, `hf-icon-box`, `hf-icon-box-lg`, `hf-label`, `hf-input`, `hf-btn` + `hf-btn-primary` / `hf-btn-secondary` / `hf-btn-destructive`, `hf-spinner`, `hf-empty`, `hf-list-row`, `hf-banner` + `hf-banner-info` / `hf-banner-warning` / `hf-banner-success` / `hf-banner-error`, `hf-category-label`
+
+**Common color mappings** (hex → CSS var):
+| Hex | CSS Variable |
+|-----|-------------|
+| `#6b7280`, `#9ca3af` | `var(--text-muted)` |
+| `#374151`, `#1f2937` | `var(--text-primary)` |
+| `#f3f4f6`, `#f9fafb` | `var(--surface-secondary)` |
+| `#e5e7eb`, `#d1d5db` | `var(--border-default)` |
+| `#fff`, `#ffffff` | `var(--surface-primary)` |
+| `#2563eb`, `#3b82f6` | `var(--accent-primary)` |
+| `#ef4444`, `#dc2626` | `var(--status-error-text)` |
+| `#10b981`, `#22c55e` | `var(--status-success-text)` |
+
+**Gold reference**: `app/x/settings/settingsclient.tsx` + `app/x/account/page.tsx`
+
 ## RBAC
 
 **SUPERADMIN (5) > ADMIN (4) > OPERATOR (3) > SUPER_TESTER (2) > TESTER/VIEWER (1) > DEMO (0)** — higher roles inherit lower permissions.

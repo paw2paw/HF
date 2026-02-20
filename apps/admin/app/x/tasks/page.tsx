@@ -728,7 +728,7 @@ export default function TasksPage() {
                               alignItems: "center",
                               justifyContent: "center",
                               fontSize: 11,
-                              color: "#fff",
+                              color: "white",
                               fontWeight: 700,
                               flexShrink: 0,
                             }}
@@ -856,7 +856,7 @@ export default function TasksPage() {
                               alignItems: "center",
                               justifyContent: "center",
                               fontSize: 11,
-                              color: "#fff",
+                              color: "white",
                               fontWeight: 700,
                               flexShrink: 0,
                             }}

@@ -505,7 +505,7 @@ export default function TeachPage() {
               "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
           }}
         >
-          <span style={{ fontSize: 24, color: "#fff" }}>👨‍🏫</span>
+          <span style={{ fontSize: 24, color: "white" }}>👨‍🏫</span>
         </div>
         <h1
           style={{
@@ -938,7 +938,7 @@ export default function TeachPage() {
                         : check.severity === "critical"
                           ? "var(--status-error-text)"
                           : "var(--border-default)",
-                      color: "#fff",
+                      color: "white",
                     }}
                   >
                     {check.passed ? "✓" : check.severity === "critical" ? "!" : "•"}

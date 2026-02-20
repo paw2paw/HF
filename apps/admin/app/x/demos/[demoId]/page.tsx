@@ -128,7 +128,7 @@ export default function DemoPlayerPage() {
                     : "transparent",
                 color:
                   viewMode === mode
-                    ? "#fff"
+                    ? "white"
                     : "var(--text-muted, #888)",
               }}
             >

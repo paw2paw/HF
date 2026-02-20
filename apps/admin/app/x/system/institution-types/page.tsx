@@ -216,12 +216,12 @@ export default function InstitutionTypesPage() {
 
       {/* Messages */}
       {error && (
-        <div style={{ padding: "10px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#991b1b", fontSize: 13, marginBottom: 16 }}>
+        <div style={{ padding: "10px 16px", background: "var(--status-error-bg)", border: "1px solid var(--status-error-border)", borderRadius: 8, color: "var(--status-error-text)", fontSize: 13, marginBottom: 16 }}>
           {error}
         </div>
       )}
       {success && (
-        <div style={{ padding: "10px 16px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 8, color: "#065f46", fontSize: 13, marginBottom: 16 }}>
+        <div style={{ padding: "10px 16px", background: "var(--status-success-bg)", border: "1px solid var(--status-success-border)", borderRadius: 8, color: "var(--status-success-text)", fontSize: 13, marginBottom: 16 }}>
           <Check size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
           {success}
         </div>
@@ -468,8 +468,8 @@ export default function InstitutionTypesPage() {
                       fontWeight: 600,
                       padding: "2px 8px",
                       borderRadius: 4,
-                      background: "#fef2f2",
-                      color: "#991b1b",
+                      background: "var(--status-error-bg)",
+                      color: "var(--status-error-text)",
                     }}>
                       Inactive
                     </span>
@@ -539,7 +539,7 @@ export default function InstitutionTypesPage() {
                       border: "1px solid var(--border-default)",
                       borderRadius: 6,
                       cursor: "pointer",
-                      color: "#dc2626",
+                      color: "var(--status-error-text)",
                     }}
                   >
                     <Trash2 size={14} />

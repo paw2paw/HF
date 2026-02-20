@@ -1522,10 +1522,10 @@ export default function CreateSpecPage() {
                     <div style={{
                       padding: "10px 14px",
                       borderRadius: 8,
-                      background: "#eef2ff",
-                      border: "1px solid #c7d2fe",
+                      background: "var(--status-info-bg)",
+                      border: "1px solid var(--status-info-border)",
                       fontSize: 12,
-                      color: "#4338ca",
+                      color: "var(--button-primary-bg)",
                       lineHeight: 1.5,
                     }}>
                       Module selector: <strong>{formData.metadata.curriculum.moduleSelector}</strong> — parameters with <code>section=&quot;content&quot;</code> are treated as curriculum modules.
@@ -1808,19 +1808,19 @@ export default function CreateSpecPage() {
 
                 <div
                   style={{
-                    background: "#1e1e2e",
+                    background: "var(--code-block-bg)",
                     borderRadius: 16,
                     padding: 20,
                     maxHeight: 320,
                     overflow: "auto",
-                    border: "1px solid #313244",
+                    border: "1px solid var(--code-block-border)",
                   }}
                 >
                   <pre
                     style={{
                       fontSize: 12,
                       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                      color: "#cdd6f4",
+                      color: "var(--code-block-text)",
                       whiteSpace: "pre-wrap",
                       margin: 0,
                       lineHeight: 1.6,

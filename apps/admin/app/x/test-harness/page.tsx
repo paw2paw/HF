@@ -482,9 +482,10 @@ export default function TestHarnessPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
           Test Harness
         </h1>
+
         <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           Generate test data and run automated AI simulations
         </p>
@@ -545,7 +546,7 @@ export default function TestHarnessPage() {
               borderRadius: 8,
               border: "none",
               background: generatingCallers ? "var(--border-default)" : "var(--button-primary-bg)",
-              color: "#fff",
+              color: "white",
               fontSize: 14,
               fontWeight: 600,
               cursor: generatingCallers ? "not-allowed" : "pointer",
@@ -638,7 +639,7 @@ export default function TestHarnessPage() {
                 !onboardCallerId || generatingOnboarding
                   ? "var(--border-default)"
                   : "var(--button-primary-bg)",
-              color: "#fff",
+              color: "white",
               fontSize: 14,
               fontWeight: 600,
               cursor: !onboardCallerId || generatingOnboarding ? "not-allowed" : "pointer",
@@ -752,7 +753,7 @@ export default function TestHarnessPage() {
                     : !simCallerId
                       ? "var(--border-default)"
                       : "var(--button-primary-bg)",
-                color: "#fff",
+                color: "white",
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: !simCallerId && !runningSim ? "not-allowed" : "pointer",

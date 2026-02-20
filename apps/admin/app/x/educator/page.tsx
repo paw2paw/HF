@@ -132,10 +132,10 @@ export default function EducatorDashboard() {
     return (
       <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
             Select a {terms.domain}
           </h1>
-          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>
             As an admin, choose which {lower("domain")} dashboard to view.
           </p>
         </div>
@@ -219,7 +219,7 @@ export default function EducatorDashboard() {
         )}
         <h1
           style={{
-            fontSize: 28,
+            fontSize: 24,
             fontWeight: 700,
             color: "var(--text-primary)",
             marginBottom: 8,
@@ -231,7 +231,7 @@ export default function EducatorDashboard() {
           {viewingSchoolName ?? `My ${terms.domain}`}
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
         </h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>
           {hasClassrooms
             ? `${stats.totalStudents} ${stats.totalStudents !== 1 ? lowerPlural("caller") : lower("caller")} across ${stats.classroomCount} ${stats.classroomCount !== 1 ? lowerPlural("cohort") : lower("cohort")}`
             : `Get started by creating your first ${lower("cohort")}`}

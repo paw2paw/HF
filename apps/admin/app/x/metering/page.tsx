@@ -308,7 +308,7 @@ export default function MeteringPage() {
       <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Resource Metering</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Resource Metering</h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
           Track usage and costs across AI, database, compute, storage, and external services
         </p>
@@ -507,14 +507,14 @@ export default function MeteringPage() {
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#1d4ed8" }}>
+                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--accent-primary)" }}>
                   AI Usage
                 </h2>
                 <a
                   href="/x/ai-config"
                   style={{
                     fontSize: 12,
-                    color: "#3b82f6",
+                    color: "var(--accent-primary)",
                     textDecoration: "none",
                   }}
                 >
@@ -669,8 +669,8 @@ export default function MeteringPage() {
                   style={{
                     marginTop: 16,
                     padding: 12,
-                    background: "#fef3c7",
-                    border: "1px solid #fcd34d",
+                    background: "var(--status-warning-bg)",
+                    border: "1px solid var(--status-warning-border)",
                     borderRadius: 8,
                     display: "flex",
                     alignItems: "center",
@@ -679,15 +679,15 @@ export default function MeteringPage() {
                 >
                   <span style={{ fontSize: 18 }}>⚠️</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "#92400e" }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--status-warning-text)" }}>
                       Uncategorized AI Usage
                     </div>
-                    <div style={{ fontSize: 12, color: "#a16207", marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: "var(--status-warning-text)", marginTop: 2 }}>
                       {summary?.uncategorizedAI?.eventCount.toLocaleString()} AI calls (${summary?.uncategorizedAI?.costDollars})
                       are not tagged with a call point. These won&apos;t appear in the breakdown above.
                     </div>
                   </div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#92400e" }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--status-warning-text)" }}>
                     ${summary?.uncategorizedAI?.costDollars}
                   </div>
                 </div>
@@ -698,17 +698,17 @@ export default function MeteringPage() {
                 style={{
                   marginTop: 16,
                   paddingTop: 12,
-                  borderTop: "1px solid #e2e8f0",
+                  borderTop: "1px solid var(--border-default)",
                   display: "flex",
                   gap: 16,
                   flexWrap: "wrap",
                 }}
               >
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>Providers:</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Providers:</span>
                 {Object.entries(PROVIDER_COLORS).map(([key, val]) => (
                   <div key={key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <ProviderDot provider={key} size={6} />
-                    <span style={{ fontSize: 11, color: "#64748b" }}>{val.label}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{val.label}</span>
                   </div>
                 ))}
               </div>
@@ -1203,7 +1203,7 @@ export default function MeteringPage() {
                             top: 0,
                             bottom: 0,
                             width: `${barWidth}%`,
-                            background: "#dbeafe",
+                            background: "var(--status-info-bg)",
                             opacity: 0.25,
                             borderRadius: 4,
                             pointerEvents: "none" as const,
@@ -1236,8 +1236,8 @@ export default function MeteringPage() {
                               style={{
                                 fontSize: 11,
                                 fontWeight: 500,
-                                color: "#4338ca",
-                                background: "#e0e7ff",
+                                color: "var(--badge-indigo-text)",
+                                background: "var(--badge-indigo-bg)",
                                 padding: "2px 8px",
                                 borderRadius: 10,
                               }}
@@ -1343,7 +1343,7 @@ export default function MeteringPage() {
                             top: 0,
                             bottom: 0,
                             width: `${barWidth}%`,
-                            background: isNoDomain ? "#e5e7eb" : "#e0e7ff",
+                            background: isNoDomain ? "var(--surface-tertiary)" : "var(--badge-indigo-bg)",
                             opacity: 0.3,
                             borderRadius: 4,
                             pointerEvents: "none" as const,

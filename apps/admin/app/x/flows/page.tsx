@@ -203,13 +203,13 @@ function PipelineLiveView() {
         {data && (
           <div style={{ display: "flex", gap: 12 }}>
             <span style={{ fontSize: 11, color: "var(--text-secondary, #6b7280)" }}>
-              <strong style={{ color: "#4f46e5" }}>{data.counts.stages}</strong> stages
+              <strong style={{ color: "var(--button-primary-bg)" }}>{data.counts.stages}</strong> stages
             </span>
             <span style={{ fontSize: 11, color: "var(--text-secondary, #6b7280)" }}>
-              <strong style={{ color: "#2563eb" }}>{data.counts.systemSpecs}</strong> system
+              <strong style={{ color: "var(--accent-primary)" }}>{data.counts.systemSpecs}</strong> system
             </span>
             <span style={{ fontSize: 11, color: "var(--text-secondary, #6b7280)" }}>
-              <strong style={{ color: "#16a34a" }}>{data.counts.domainSpecs}</strong> domain
+              <strong style={{ color: "var(--status-success-text)" }}>{data.counts.domainSpecs}</strong> domain
             </span>
           </div>
         )}
@@ -221,7 +221,7 @@ function PipelineLiveView() {
           <Suspense
             fallback={
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
-                <div style={{ width: 32, height: 32, border: "4px solid #e5e7eb", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                <div style={{ width: 32, height: 32, border: "4px solid var(--border-default)", borderTopColor: "var(--button-primary-bg)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
               </div>
             }
           >
@@ -233,7 +233,7 @@ function PipelineLiveView() {
           <Suspense
             fallback={
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
-                <div style={{ width: 32, height: 32, border: "4px solid #e5e7eb", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                <div style={{ width: 32, height: 32, border: "4px solid var(--border-default)", borderTopColor: "var(--button-primary-bg)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
               </div>
             }
           >
@@ -245,10 +245,10 @@ function PipelineLiveView() {
           <div>
             {loading ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
-                <div style={{ width: 32, height: 32, border: "4px solid #e5e7eb", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                <div style={{ width: 32, height: 32, border: "4px solid var(--border-default)", borderTopColor: "var(--button-primary-bg)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
               </div>
             ) : error ? (
-              <div style={{ padding: 16, borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", fontSize: 13 }}>
+              <div style={{ padding: 16, borderRadius: 8, background: "var(--status-error-bg)", border: "1px solid var(--status-error-border)", color: "var(--status-error-text)", fontSize: 13 }}>
                 Error: {error}
               </div>
             ) : !data ? (
@@ -292,7 +292,7 @@ function PipelineLiveView() {
                       <div style={{ fontSize: 11, color: "var(--text-tertiary, #9ca3af)", marginBottom: 2 }}>Supervise Spec</div>
                       <Link
                         href={`/x/specs?id=${data.superviseSpec.id}`}
-                        style={{ fontSize: 12, fontWeight: 500, color: "#4f46e5", textDecoration: "none" }}
+                        style={{ fontSize: 12, fontWeight: 500, color: "var(--button-primary-bg)", textDecoration: "none" }}
                       >
                         {data.superviseSpec.slug}
                       </Link>
@@ -330,12 +330,12 @@ function PipelineLiveView() {
                               {stage.order}. {stage.name}
                             </span>
                             {stage.batched && (
-                              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "#ede9fe", color: "#5b21b6", fontWeight: 500 }}>
+                              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", fontWeight: 500 }}>
                                 BATCHED
                               </span>
                             )}
                             {stage.requiresMode && (
-                              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "#fffbeb", color: "#92400e", fontWeight: 500 }}>
+                              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "var(--status-warning-bg)", color: "var(--status-warning-text)", fontWeight: 500 }}>
                                 {stage.requiresMode.toUpperCase()} ONLY
                               </span>
                             )}
@@ -755,8 +755,8 @@ export default function FlowsPage() {
             right: 20,
             padding: "10px 16px",
             borderRadius: 8,
-            background: toast.type === "success" ? "#166534" : "#dc2626",
-            color: "#fff",
+            background: toast.type === "success" ? "var(--status-success-text)" : "var(--status-error-text)",
+            color: "white",
             fontSize: 12,
             fontWeight: 500,
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",

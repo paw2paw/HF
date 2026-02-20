@@ -322,7 +322,7 @@ export default function UsersPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
             Team Members
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
@@ -364,24 +364,24 @@ export default function UsersPage() {
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "3px 10px", borderRadius: 6, fontSize: 12,
-              background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "#dcfce7"
-                : appConfig.source === "NEXTAUTH_URL" ? "#fef9c3"
-                : "#fee2e2",
-              color: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "#166534"
-                : appConfig.source === "NEXTAUTH_URL" ? "#854d0e"
-                : "#991b1b",
+              background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "var(--status-success-bg)"
+                : appConfig.source === "NEXTAUTH_URL" ? "var(--status-warning-bg)"
+                : "var(--status-error-bg)",
+              color: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "var(--status-success-text)"
+                : appConfig.source === "NEXTAUTH_URL" ? "var(--status-warning-text)"
+                : "var(--status-error-text)",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%",
-                background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "#22c55e"
-                  : appConfig.source === "NEXTAUTH_URL" ? "#eab308"
-                  : "#ef4444",
+                background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "var(--status-success-text)"
+                  : appConfig.source === "NEXTAUTH_URL" ? "var(--status-warning-text)"
+                  : "var(--status-error-text)",
               }} />
               Links &rarr; {appConfig.baseUrl}
             </span>
           )}
         </div>
 
-        {inviteError && <p style={{ marginBottom: 12, fontSize: 13, color: "#ef4444", margin: "0 0 12px" }}>{inviteError}</p>}
+        {inviteError && <p style={{ marginBottom: 12, fontSize: 13, color: "var(--status-error-text)", margin: "0 0 12px" }}>{inviteError}</p>}
 
         {/* Step 1: Form */}
         {inviteStep === "form" && (
@@ -545,37 +545,37 @@ export default function UsersPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{
               padding: 16, borderRadius: 8,
-              background: "#dcfce7", border: "1px solid #bbf7d0",
+              background: "var(--status-success-bg)", border: "1px solid var(--status-success-border)",
             }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#166534", marginBottom: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-success-text)", marginBottom: 8 }}>
                 Invite created for {newInviteEmail}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
                 <span style={{
                   padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
-                  background: lastEmailSent ? "#22c55e" : "#f59e0b",
+                  background: lastEmailSent ? "var(--status-success-text)" : "var(--status-warning-text)",
                   color: "#fff",
                 }}>
                   {lastEmailSent ? "Email sent" : "Email not sent"}
                 </span>
                 {!lastEmailSent && (
-                  <span style={{ fontSize: 12, color: "#854d0e" }}>Share the link below manually</span>
+                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>Share the link below manually</span>
                 )}
               </div>
               <div style={{
                 padding: "10px 14px", borderRadius: 8,
-                background: "#fff", border: "1px solid #bbf7d0",
+                background: "var(--surface-primary)", border: "1px solid var(--status-success-border)",
                 display: "flex", alignItems: "center", gap: 8,
               }}>
-                <code style={{ flex: 1, fontSize: 13, color: "#166534", wordBreak: "break-all" }}>
+                <code style={{ flex: 1, fontSize: 13, color: "var(--status-success-text)", wordBreak: "break-all" }}>
                   {lastInviteUrl}
                 </code>
                 <button
                   onClick={() => { navigator.clipboard.writeText(lastInviteUrl); }}
                   style={{
                     padding: "6px 14px", fontSize: 12, fontWeight: 600, borderRadius: 6,
-                    border: "1px solid #22c55e", background: "#f0fdf4",
-                    color: "#166534", cursor: "pointer", whiteSpace: "nowrap",
+                    border: "1px solid var(--status-success-text)", background: "var(--status-success-bg)",
+                    color: "var(--status-success-text)", cursor: "pointer", whiteSpace: "nowrap",
                   }}
                 >
                   Copy
@@ -647,7 +647,7 @@ export default function UsersPage() {
                           {invite.domain.name}
                         </span>
                       )}
-                      <span style={{ fontSize: 10, color: invite.sentAt ? "#22c55e" : "#f59e0b" }}>
+                      <span style={{ fontSize: 10, color: invite.sentAt ? "var(--status-success-text)" : "var(--status-warning-text)" }}>
                         {invite.sentAt ? "Email sent" : "Not sent"}
                       </span>
                     </div>
@@ -657,8 +657,8 @@ export default function UsersPage() {
                   onClick={() => handleDeleteInvite(invite.id)}
                   style={{
                     padding: "4px 10px", fontSize: 12, borderRadius: 6,
-                    background: "transparent", border: "1px solid #ef4444",
-                    color: "#ef4444", cursor: "pointer",
+                    background: "transparent", border: "1px solid var(--status-error-text)",
+                    color: "var(--status-error-text)", cursor: "pointer",
                   }}
                 >
                   Revoke
@@ -756,7 +756,7 @@ export default function UsersPage() {
               disabled={auditLoading}
               style={{
                 position: "relative", width: 44, height: 24, borderRadius: 12,
-                background: auditEnabled ? "#22c55e" : "var(--border-default)",
+                background: auditEnabled ? "var(--status-success-text)" : "var(--border-default)",
                 border: "none", cursor: auditLoading ? "wait" : "pointer",
                 opacity: auditLoading ? 0.5 : 1, transition: "background 0.2s",
               }}
@@ -857,7 +857,7 @@ function UserCard({
       style={{
         padding: 20, borderRadius: 12, position: "relative",
         background: "var(--surface-primary)",
-        border: `1px solid ${user.isActive ? "var(--border-default)" : "#ef444433"}`,
+        border: `1px solid ${user.isActive ? "var(--border-default)" : "color-mix(in srgb, var(--status-error-text) 20%, transparent)"}`,
         opacity: user.isActive ? 1 : 0.6,
         cursor: "pointer",
         transition: "box-shadow 0.2s, border-color 0.2s",
@@ -868,7 +868,7 @@ function UserCard({
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = user.isActive ? "var(--border-default)" : "#ef444433";
+        e.currentTarget.style.borderColor = user.isActive ? "var(--border-default)" : "color-mix(in srgb, var(--status-error-text) 20%, transparent)";
       }}
     >
       {/* Top row: avatar + name */}
@@ -922,7 +922,7 @@ function UserCard({
         <div style={{
           position: "absolute", top: 12, right: 12,
           padding: "2px 8px", fontSize: 10, fontWeight: 600, borderRadius: 999,
-          background: "#ef444422", color: "#ef4444",
+          background: "color-mix(in srgb, var(--status-error-text) 13%, transparent)", color: "var(--status-error-text)",
         }}>
           INACTIVE
         </div>
@@ -1145,7 +1145,7 @@ function UserEditorModal({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Status</div>
-                <div style={{ fontSize: 13, color: user.isActive ? "#22c55e" : "#ef4444", fontWeight: 500 }}>
+                <div style={{ fontSize: 13, color: user.isActive ? "var(--status-success-text)" : "var(--status-error-text)", fontWeight: 500 }}>
                   {user.isActive ? "Active" : "Inactive"}
                 </div>
               </div>
@@ -1154,7 +1154,7 @@ function UserEditorModal({
                 style={{
                   padding: "6px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8,
                   border: "1px solid var(--border-default)", background: "transparent",
-                  color: user.isActive ? "#f59e0b" : "#22c55e", cursor: "pointer",
+                  color: user.isActive ? "var(--status-warning-text)" : "var(--status-success-text)", cursor: "pointer",
                 }}
               >
                 {user.isActive ? "Deactivate" : "Reactivate"}
@@ -1184,8 +1184,8 @@ function UserEditorModal({
                   onClick={() => setConfirmDelete(true)}
                   style={{
                     padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                    border: "1px solid #ef444444", background: "transparent",
-                    color: "#ef4444", cursor: "pointer",
+                    border: "1px solid color-mix(in srgb, var(--status-error-text) 27%, transparent)", background: "transparent",
+                    color: "var(--status-error-text)", cursor: "pointer",
                   }}
                 >
                   Delete User
@@ -1196,7 +1196,7 @@ function UserEditorModal({
                     onClick={onDelete}
                     style={{
                       padding: "8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
-                      border: "none", background: "#ef4444", color: "#fff", cursor: "pointer",
+                      border: "none", background: "var(--status-error-text)", color: "#fff", cursor: "pointer",
                     }}
                   >
                     Confirm Delete

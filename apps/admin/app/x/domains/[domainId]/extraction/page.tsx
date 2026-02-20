@@ -337,7 +337,7 @@ export default function ExtractionConfigPage() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Extraction Config</h1>
+            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Extraction Config</h1>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
               {domainName}
               {hasOverride && (
@@ -347,7 +347,7 @@ export default function ExtractionConfigPage() {
                   fontSize: 10,
                   fontWeight: 600,
                   background: "var(--badge-purple-bg)",
-                  color: "#7c3aed",
+                  color: "var(--badge-purple-text)",
                   borderRadius: 4,
                 }}>
                   OVERRIDE
@@ -358,7 +358,7 @@ export default function ExtractionConfigPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {saveMessage && (
-            <span style={{ fontSize: 13, color: "#10b981", fontWeight: 500 }}>{saveMessage}</span>
+            <span style={{ fontSize: 13, color: "var(--status-success-text)", fontWeight: 500 }}>{saveMessage}</span>
           )}
           {error && (
             <span style={{ fontSize: 13, color: "var(--status-error-text)" }}>{error}</span>
@@ -625,7 +625,7 @@ export default function ExtractionConfigPage() {
                   />
                   <button
                     onClick={() => removeCategory(i)}
-                    style={{ ...iconButtonStyle, color: "#ef4444" }}
+                    style={{ ...iconButtonStyle, color: "var(--status-error-text)" }}
                     title="Remove"
                   >
                     <Trash2 size={14} />
@@ -850,7 +850,7 @@ function Toggle({
           height: 22,
           borderRadius: 11,
           border: "none",
-          background: checked ? "#10b981" : "var(--surface-tertiary)",
+          background: checked ? "var(--status-success-text)" : "var(--surface-tertiary)",
           cursor: "pointer",
           position: "relative",
           flexShrink: 0,
@@ -903,7 +903,7 @@ function OffsetSlider({
         fontSize: 13,
         fontWeight: 600,
         fontFamily: "monospace",
-        color: value === 0 ? "var(--text-muted)" : "#f59e0b",
+        color: value === 0 ? "var(--text-muted)" : "var(--status-warning-text)",
         width: 30,
         textAlign: "center",
       }}>

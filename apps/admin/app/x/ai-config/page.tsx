@@ -429,7 +429,7 @@ export default function AIConfigPage() {
       {/* Header */}
       <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>AI Model Configuration</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>AI Model Configuration</h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
             Configure which AI provider and model to use for each operation. Changes take effect
             immediately at runtime.

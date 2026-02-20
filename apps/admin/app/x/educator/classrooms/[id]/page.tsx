@@ -209,7 +209,7 @@ export default function ClassroomDetailPage() {
               borderRadius: 8,
               border: "none",
               background: "var(--accent-primary)",
-              color: "#fff",
+              color: "white",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
@@ -242,7 +242,7 @@ export default function ClassroomDetailPage() {
             onClick={copyLink}
             style={{
               padding: "4px 12px",
-              background: copied ? "#10b981" : "var(--button-primary-bg)",
+              background: copied ? "var(--status-success-text)" : "var(--button-primary-bg)",
               color: "var(--button-primary-text)",
               border: "none",
               borderRadius: 6,
@@ -387,7 +387,7 @@ export default function ClassroomDetailPage() {
                     const lastCall = m.lastCallAt ? new Date(m.lastCallAt).getTime() : 0;
                     const isActive = lastCall > sevenDaysAgo;
                     const neverCalled = !m.lastCallAt;
-                    const statusColor = neverCalled ? "#6b7280" : isActive ? "#10b981" : "#f59e0b";
+                    const statusColor = neverCalled ? "var(--text-muted)" : isActive ? "var(--status-success-text)" : "var(--status-warning-text)";
                     const statusLabel = neverCalled ? "Not started" : isActive ? "Active" : "Inactive";
 
                     return (
@@ -426,15 +426,15 @@ export default function ClassroomDetailPage() {
                                 gap: 6,
                                 fontSize: 12,
                                 fontWeight: 600,
-                                color: "#059669",
+                                color: "var(--status-success-text)",
                                 textDecoration: "none",
                                 padding: "2px 8px",
-                                background: "#ecfdf5",
+                                background: "var(--status-success-bg)",
                                 borderRadius: 6,
-                                border: "1px solid #a7f3d0",
+                                border: "1px solid var(--status-success-border)",
                               }}
                             >
-                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#059669" }} />
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-success-text)" }} />
                               In Call
                             </Link>
                           ) : (

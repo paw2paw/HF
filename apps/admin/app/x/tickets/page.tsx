@@ -62,13 +62,13 @@ export default function TicketsPage() {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Tickets</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Tickets</h1>
           <button
             onClick={() => setShowCreate(true)}
             style={{
               padding: "10px 20px",
-              background: "#8b5cf6",
-              color: "#fff",
+              background: "var(--badge-purple-text)",
+              color: "white",
               border: "none",
               borderRadius: 8,
               fontSize: 14,
@@ -338,7 +338,7 @@ function TicketCard({ ticket, onClick }: { ticket: Ticket; onClick: () => void }
                 width: 24,
                 height: 24,
                 borderRadius: "50%",
-                background: "#6b7280",
+                background: "var(--text-muted)",
                 color: "white",
                 display: "flex",
                 alignItems: "center",
@@ -362,7 +362,7 @@ function TicketCard({ ticket, onClick }: { ticket: Ticket; onClick: () => void }
                     width: 24,
                     height: 24,
                     borderRadius: "50%",
-                    background: "#3b82f6",
+                    background: "var(--accent-primary)",
                     color: "white",
                     display: "flex",
                     alignItems: "center",
@@ -673,12 +673,12 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
               ))}
             </select>
             {usersError && (
-              <div style={{ marginTop: 4, fontSize: 12, color: "#ef4444" }}>
+              <div style={{ marginTop: 4, fontSize: 12, color: "var(--status-error-text)" }}>
                 Error: {usersError}
               </div>
             )}
             {!usersLoading && !usersError && users.length === 0 && (
-              <div style={{ marginTop: 4, fontSize: 12, color: "#f59e0b" }}>
+              <div style={{ marginTop: 4, fontSize: 12, color: "var(--status-warning-text)" }}>
                 No users found. Check console for details.
               </div>
             )}
@@ -706,8 +706,8 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
               disabled={loading || !title.trim() || !description.trim()}
               style={{
                 padding: "8px 16px",
-                background: loading || !title.trim() || !description.trim() ? "var(--surface-disabled)" : "#8b5cf6",
-                color: loading || !title.trim() || !description.trim() ? "var(--text-muted)" : "#fff",
+                background: loading || !title.trim() || !description.trim() ? "var(--surface-disabled)" : "var(--badge-purple-text)",
+                color: loading || !title.trim() || !description.trim() ? "var(--text-muted)" : "white",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 14,
@@ -1062,7 +1062,7 @@ function TicketDetailModal({
                         width: 28,
                         height: 28,
                         borderRadius: "50%",
-                        background: "#6b7280",
+                        background: "var(--text-muted)",
                         color: "white",
                         display: "flex",
                         alignItems: "center",
@@ -1114,10 +1114,10 @@ function TicketDetailModal({
               <div
                 style={{
                   padding: 12,
-                  background: "#fee2e2",
-                  border: "1px solid #fecaca",
+                  background: "var(--status-error-bg)",
+                  border: "1px solid var(--status-error-border)",
                   borderRadius: 6,
-                  color: "#991b1b",
+                  color: "var(--status-error-text)",
                   fontSize: 14,
                   marginBottom: 12,
                 }}
@@ -1156,8 +1156,8 @@ function TicketDetailModal({
                 disabled={loading || !commentContent.trim()}
                 style={{
                   padding: "8px 16px",
-                  background: loading || !commentContent.trim() ? "var(--surface-disabled)" : "#8b5cf6",
-                  color: loading || !commentContent.trim() ? "var(--text-muted)" : "#fff",
+                  background: loading || !commentContent.trim() ? "var(--surface-disabled)" : "var(--badge-purple-text)",
+                  color: loading || !commentContent.trim() ? "var(--text-muted)" : "white",
                   border: "none",
                   borderRadius: 6,
                   fontSize: 14,

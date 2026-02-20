@@ -107,7 +107,7 @@ function ReportsContent() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
             Reports
           </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
             Track engagement and progress across your classrooms
           </p>
         </div>
@@ -144,11 +144,11 @@ function ReportsContent() {
           {/* Stats Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
             {[
-              { label: "Students", value: stats.totalStudents, color: "#ec4899" },
-              { label: "Total Calls", value: stats.totalCalls, color: "#3b82f6" },
-              { label: "Calls This Week", value: stats.callsThisWeek, color: "#10b981" },
-              { label: "Active (7d)", value: stats.activeStudents7d, color: "#8b5cf6" },
-              { label: "Engagement", value: `${stats.engagementRate}%`, color: "#06b6d4" },
+              { label: "Students", value: stats.totalStudents, color: "var(--badge-pink-text)" },
+              { label: "Total Calls", value: stats.totalCalls, color: "var(--accent-primary)" },
+              { label: "Calls This Week", value: stats.callsThisWeek, color: "var(--status-success-text)" },
+              { label: "Active (7d)", value: stats.activeStudents7d, color: "var(--badge-purple-text)" },
+              { label: "Engagement", value: `${stats.engagementRate}%`, color: "var(--badge-cyan-text)" },
             ].map((s) => (
               <div
                 key={s.label}

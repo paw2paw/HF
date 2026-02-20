@@ -57,14 +57,14 @@ function FreshnessBadge({ validUntil }: { validUntil: string | null }) {
   const days = Math.floor((new Date(validUntil).getTime() - Date.now()) / 86400000);
   if (days < 0) {
     return (
-      <span style={{ fontSize: 10, fontWeight: 600, color: "#991b1b", background: "#fef2f2", padding: "2px 6px", borderRadius: 4 }}>
+      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--status-error-text)", background: "var(--status-error-bg)", padding: "2px 6px", borderRadius: 4 }}>
         Expired {Math.abs(days)}d ago
       </span>
     );
   }
   if (days <= 60) {
     return (
-      <span style={{ fontSize: 10, fontWeight: 600, color: "#92400e", background: "#fffbeb", padding: "2px 6px", borderRadius: 4 }}>
+      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--status-warning-text)", background: "var(--status-warning-bg)", padding: "2px 6px", borderRadius: 4 }}>
         Expires in {days}d
       </span>
     );
@@ -194,15 +194,15 @@ export default function ContentReviewPage() {
           style={{
             flex: 1,
             padding: "12px 16px",
-            background: needsReview.length > 0 ? "#fef2f2" : "var(--surface-primary)",
-            border: `1px solid ${needsReview.length > 0 ? "#fca5a5" : "var(--border-default)"}`,
+            background: needsReview.length > 0 ? "var(--status-error-bg)" : "var(--surface-primary)",
+            border: `1px solid ${needsReview.length > 0 ? "var(--status-error-border)" : "var(--border-default)"}`,
             borderRadius: 8,
           }}
         >
-          <div style={{ fontSize: 24, fontWeight: 700, color: needsReview.length > 0 ? "#991b1b" : "var(--text-primary)" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: needsReview.length > 0 ? "var(--status-error-text)" : "var(--text-primary)" }}>
             {needsReview.length}
           </div>
-          <div style={{ fontSize: 11, color: needsReview.length > 0 ? "#991b1b" : "var(--text-muted)", fontWeight: 500 }}>
+          <div style={{ fontSize: 11, color: needsReview.length > 0 ? "var(--status-error-text)" : "var(--text-muted)", fontWeight: 500 }}>
             Needs Review (L0/L1)
           </div>
         </div>
@@ -210,15 +210,15 @@ export default function ContentReviewPage() {
           style={{
             flex: 1,
             padding: "12px 16px",
-            background: expired.length > 0 ? "#fffbeb" : "var(--surface-primary)",
-            border: `1px solid ${expired.length > 0 ? "#fcd34d" : "var(--border-default)"}`,
+            background: expired.length > 0 ? "var(--status-warning-bg)" : "var(--surface-primary)",
+            border: `1px solid ${expired.length > 0 ? "var(--status-warning-border)" : "var(--border-default)"}`,
             borderRadius: 8,
           }}
         >
-          <div style={{ fontSize: 24, fontWeight: 700, color: expired.length > 0 ? "#92400e" : "var(--text-primary)" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: expired.length > 0 ? "var(--status-warning-text)" : "var(--text-primary)" }}>
             {expired.length}
           </div>
-          <div style={{ fontSize: 11, color: expired.length > 0 ? "#92400e" : "var(--text-muted)", fontWeight: 500 }}>
+          <div style={{ fontSize: 11, color: expired.length > 0 ? "var(--status-warning-text)" : "var(--text-muted)", fontWeight: 500 }}>
             Expired / Expiring
           </div>
         </div>
@@ -249,9 +249,9 @@ export default function ContentReviewPage() {
             borderRadius: 6,
             fontSize: 12,
             fontWeight: 500,
-            background: saveMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
-            color: saveMessage.type === "success" ? "#166534" : "#991b1b",
-            border: `1px solid ${saveMessage.type === "success" ? "#86efac" : "#fca5a5"}`,
+            background: saveMessage.type === "success" ? "var(--status-success-bg)" : "var(--status-error-bg)",
+            color: saveMessage.type === "success" ? "var(--status-success-text)" : "var(--status-error-text)",
+            border: `1px solid ${saveMessage.type === "success" ? "var(--status-success-border)" : "var(--status-error-border)"}`,
           }}
         >
           {saveMessage.text}
@@ -369,9 +369,9 @@ export default function ContentReviewPage() {
                     padding: "4px 10px",
                     fontSize: 11,
                     fontWeight: 600,
-                    background: "#f0fdf4",
-                    color: "#166534",
-                    border: "1px solid #86efac",
+                    background: "var(--status-success-bg)",
+                    color: "var(--status-success-text)",
+                    border: "1px solid var(--status-success-border)",
                     borderRadius: 6,
                     cursor: "pointer",
                   }}
@@ -504,7 +504,7 @@ export default function ContentReviewPage() {
 
             {/* Error from save */}
             {saveMessage?.type === "error" && (
-              <div style={{ padding: "6px 10px", background: "#fef2f2", color: "#991b1b", borderRadius: 6, fontSize: 11, marginBottom: 12 }}>
+              <div style={{ padding: "6px 10px", background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 6, fontSize: 11, marginBottom: 12 }}>
                 {saveMessage.text}
               </div>
             )}
@@ -533,8 +533,8 @@ export default function ContentReviewPage() {
                   padding: "8px 16px",
                   fontSize: 12,
                   fontWeight: 600,
-                  background: !newTrustLevel || !notes.trim() || saving ? "var(--surface-secondary)" : "#166534",
-                  color: !newTrustLevel || !notes.trim() || saving ? "var(--text-muted)" : "#fff",
+                  background: !newTrustLevel || !notes.trim() || saving ? "var(--surface-secondary)" : "var(--status-success-text)",
+                  color: !newTrustLevel || !notes.trim() || saving ? "var(--text-muted)" : "white",
                   border: "none",
                   borderRadius: 6,
                   cursor: !newTrustLevel || !notes.trim() || saving ? "not-allowed" : "pointer",

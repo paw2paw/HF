@@ -82,7 +82,7 @@ export default function NewInstitutionPage() {
         >
           &larr; Back to Institutions
         </button>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
           New Institution
         </h1>
       </div>

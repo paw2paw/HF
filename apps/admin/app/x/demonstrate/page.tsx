@@ -503,7 +503,7 @@ export default function DemonstratePage() {
               "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
           }}
         >
-          <span style={{ fontSize: 24, color: "#fff" }}>&#127916;</span>
+          <span style={{ fontSize: 24, color: "white" }}>&#127916;</span>
         </div>
         <h1
           style={{
@@ -936,7 +936,7 @@ export default function DemonstratePage() {
                         : check.severity === "critical"
                           ? "var(--status-error-text)"
                           : "var(--border-default)",
-                      color: "#fff",
+                      color: "white",
                     }}
                   >
                     {check.passed ? "\u2713" : check.severity === "critical" ? "!" : "\u2022"}

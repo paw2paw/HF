@@ -795,7 +795,7 @@ export default function SimpleSidebarNav({
                         {!collapsed && (rawItem as any).wizard && (
                           <Sparkles
                             className="w-[11px] h-[11px] flex-shrink-0 ml-0.5"
-                            style={{ color: "#f59e0b", opacity: 0.75 }}
+                            style={{ color: "var(--status-warning-text)", opacity: 0.75 }}
                             title="Guided flow"
                           />
                         )}
@@ -826,7 +826,7 @@ export default function SimpleSidebarNav({
                           <span
                             className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
                             style={{
-                              background: "#2563eb",
+                              background: "var(--accent-primary)",
                               opacity: active ? 0.8 : 1,
                             }}
                           >
@@ -850,10 +850,10 @@ export default function SimpleSidebarNav({
                             style={{
                               background:
                                 systemHealthRag === "green"
-                                  ? "#10b981"
+                                  ? "var(--status-success-text)"
                                   : systemHealthRag === "amber"
-                                    ? "#f59e0b"
-                                    : "#dc2626",
+                                    ? "var(--status-warning-text)"
+                                    : "var(--status-error-text)",
                             }}
                             title={`System: ${systemHealthRag}`}
                           />

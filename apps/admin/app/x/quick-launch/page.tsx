@@ -71,7 +71,7 @@ function StepMarker({ number, label, completed }: { number: number; label: strin
           background: completed
             ? "var(--status-success-text)"
             : "var(--accent-primary)",
-          color: "#fff",
+          color: "white",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -376,7 +376,7 @@ function FancySelect({
                           height: 22,
                           borderRadius: "50%",
                           background: "var(--accent-primary)",
-                          color: "#fff",
+                          color: "white",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -437,7 +437,7 @@ function ProgressBar({ progress, label }: { progress: number; label: string }) {
         style={{
           width: 20,
           height: 20,
-          border: "2px solid rgba(37, 99, 235, 0.3)",
+          border: "2px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
           borderTopColor: "var(--accent-primary)",
           borderRadius: "50%",
           animation: progress < 100 ? "spin 0.8s linear infinite" : "none",
@@ -446,7 +446,7 @@ function ProgressBar({ progress, label }: { progress: number; label: string }) {
           alignItems: "center",
           justifyContent: "center",
           fontSize: 12,
-          color: "#fff",
+          color: "white",
           fontWeight: 700,
           flexShrink: 0,
         }}
@@ -1285,7 +1285,7 @@ export default function QuickLaunchPage() {
             boxShadow: "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
           }}
         >
-          <span style={{ fontSize: 24, color: "#fff" }}>&#9889;</span>
+          <span style={{ fontSize: 24, color: "white" }}>&#9889;</span>
         </div>
         <h1
           style={{
@@ -1351,7 +1351,7 @@ export default function QuickLaunchPage() {
                 padding: "10px 20px",
                 borderRadius: 10,
                 background: "var(--accent-primary)",
-                color: "#fff",
+                color: "white",
                 border: "none",
                 fontSize: 14,
                 fontWeight: 700,
@@ -1508,7 +1508,7 @@ export default function QuickLaunchPage() {
                         : step.status === "active"
                           ? "var(--accent-primary)"
                           : "var(--surface-tertiary)",
-                  color: step.status === "pending" ? "var(--text-muted)" : "#fff",
+                  color: step.status === "pending" ? "var(--text-muted)" : "white",
                 }}
               >
                 {step.status === "done" && "\u2713"}
@@ -1519,7 +1519,7 @@ export default function QuickLaunchPage() {
                       width: 14,
                       height: 14,
                       border: "2px solid rgba(255,255,255,0.3)",
-                      borderTopColor: "#fff",
+                      borderTopColor: "white",
                       borderRadius: "50%",
                       animation: "spin 0.8s linear infinite",
                     }}
@@ -1644,7 +1644,7 @@ export default function QuickLaunchPage() {
                       <div style={{
                         width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0,
                         background: check.passed ? "var(--status-success-text)" : check.severity === "critical" ? "var(--status-error-text)" : "var(--border-default)",
-                        color: "#fff",
+                        color: "white",
                       }}>
                         {check.passed ? "\u2713" : check.severity === "critical" ? "!" : "\u2022"}
                       </div>
@@ -1889,7 +1889,7 @@ export default function QuickLaunchPage() {
                       background: "var(--surface-primary)",
                       fontSize: 12,
                       fontWeight: 600,
-                      color: copied ? "#10b981" : "var(--text-secondary)",
+                      color: copied ? "var(--status-success-text)" : "var(--text-secondary)",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                       transition: "color 0.2s",

@@ -120,7 +120,7 @@ export default function LogsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Logs</h1>
-          <p style={{ color: "#666", margin: "4px 0 0" }}>
+          <p style={{ color: "var(--text-secondary)", margin: "4px 0 0" }}>
             {logs.length} entries
             {aiLogs.length > 0 && ` | ${totalTokens.toLocaleString()} tokens | ~$${estimatedCost.toFixed(4)}`}
           </p>
@@ -134,7 +134,7 @@ export default function LogsPage() {
             />
             Logging {loggingEnabled ? "ON" : "OFF"}
           </label>
-          <span style={{ color: "#d1d5db" }}>|</span>
+          <span style={{ color: "var(--border-default)" }}>|</span>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
             <input
               type="checkbox"
@@ -147,7 +147,7 @@ export default function LogsPage() {
             onClick={fetchLogs}
             style={{
               padding: "8px 16px",
-              background: "#4f46e5",
+              background: "var(--button-primary-bg)",
               color: "white",
               border: "none",
               borderRadius: 6,
@@ -161,7 +161,7 @@ export default function LogsPage() {
             disabled={logs.length === 0}
             style={{
               padding: "8px 16px",
-              background: copied === "all" ? "#059669" : "#6b7280",
+              background: copied === "all" ? "var(--status-success-text)" : "var(--text-muted)",
               color: "white",
               border: "none",
               borderRadius: 6,
@@ -178,7 +178,7 @@ export default function LogsPage() {
             }}
             style={{
               padding: "8px 16px",
-              background: "#dc2626",
+              background: "var(--status-error-text)",
               color: "white",
               border: "none",
               borderRadius: 6,
@@ -202,8 +202,8 @@ export default function LogsPage() {
               style={{
                 padding: "4px 12px",
                 background: isActive ? colors.bg : "transparent",
-                color: isActive ? colors.text : "#666",
-                border: `1px solid ${isActive ? colors.text : "#d1d5db"}`,
+                color: isActive ? colors.text : "var(--text-muted)",
+                border: `1px solid ${isActive ? colors.text : "var(--border-default)"}`,
                 borderRadius: 16,
                 fontSize: 13,
                 fontWeight: 500,
@@ -218,9 +218,9 @@ export default function LogsPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "#666" }}>Loading...</div>
+        <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>Loading...</div>
       ) : logs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40, color: "#666" }}>
+        <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
           No logs yet. Activity will appear here.
         </div>
       ) : (
@@ -269,8 +269,8 @@ export default function LogsPage() {
                     <span
                       style={{
                         padding: "2px 8px",
-                        background: "#f3f4f6",
-                        color: "#374151",
+                        background: "var(--surface-secondary)",
+                        color: "var(--text-primary)",
                         borderRadius: 4,
                         fontSize: 12,
                         fontWeight: 500,
@@ -278,11 +278,11 @@ export default function LogsPage() {
                     >
                       {log.stage}
                     </span>
-                    <span style={{ fontSize: 13, color: "#666" }}>
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
                       {new Date(log.timestamp).toLocaleTimeString()}
                     </span>
                     {log.message && (
-                      <span style={{ fontSize: 13, color: "#374151" }}>
+                      <span style={{ fontSize: 13, color: "var(--text-primary)" }}>
                         {log.message.slice(0, 50)}
                         {log.message.length > 50 ? "..." : ""}
                       </span>
@@ -297,13 +297,13 @@ export default function LogsPage() {
                         <span title="Output tokens">
                           <strong>{outputTokens.toLocaleString()}</strong> out
                         </span>
-                        <span style={{ color: "#666" }}>
+                        <span style={{ color: "var(--text-muted)" }}>
                           {(log.promptLength || 0).toLocaleString()} chars
                         </span>
                       </>
                     )}
                     {log.durationMs && (
-                      <span style={{ color: "#666" }}>{log.durationMs}ms</span>
+                      <span style={{ color: "var(--text-muted)" }}>{log.durationMs}ms</span>
                     )}
                     <span>{isExpanded ? "▼" : "▶"}</span>
                   </div>
@@ -321,8 +321,8 @@ export default function LogsPage() {
                           }}
                           style={{
                             padding: "4px 12px",
-                            background: copied === String(idx) ? "#059669" : "#e5e7eb",
-                            color: copied === String(idx) ? "white" : "#374151",
+                            background: copied === String(idx) ? "var(--status-success-text)" : "var(--border-default)",
+                            color: copied === String(idx) ? "white" : "var(--text-primary)",
                             border: "none",
                             borderRadius: 4,
                             cursor: "pointer",
@@ -336,13 +336,13 @@ export default function LogsPage() {
                       {/* AI-specific: prompt and response */}
                       {logType === "ai" && log.promptPreview && (
                         <div style={{ marginBottom: 12 }}>
-                          <strong style={{ fontSize: 12, color: "#666" }}>
+                          <strong style={{ fontSize: 12, color: "var(--text-muted)" }}>
                             PROMPT ({log.promptLength || 0} chars)
                           </strong>
                           <pre
                             style={{
-                              background: "#1e1e1e",
-                              color: "#d4d4d4",
+                              background: "var(--code-block-bg)",
+                              color: "var(--code-block-text)",
                               padding: 12,
                               borderRadius: 6,
                               fontSize: 11,
@@ -359,13 +359,13 @@ export default function LogsPage() {
                       )}
                       {logType === "ai" && log.responsePreview && (
                         <div style={{ marginBottom: 12 }}>
-                          <strong style={{ fontSize: 12, color: "#666" }}>
+                          <strong style={{ fontSize: 12, color: "var(--text-muted)" }}>
                             RESPONSE ({log.responseLength || 0} chars)
                           </strong>
                           <pre
                             style={{
-                              background: "#1e1e1e",
-                              color: "#d4d4d4",
+                              background: "var(--code-block-bg)",
+                              color: "var(--code-block-text)",
                               padding: 12,
                               borderRadius: 6,
                               fontSize: 11,
@@ -384,11 +384,11 @@ export default function LogsPage() {
                       {/* Metadata for all types */}
                       {log.metadata && Object.keys(log.metadata).length > 0 && (
                         <div>
-                          <strong style={{ fontSize: 12, color: "#666" }}>METADATA</strong>
+                          <strong style={{ fontSize: 12, color: "var(--text-muted)" }}>METADATA</strong>
                           <pre
                             style={{
-                              background: "#1e1e1e",
-                              color: "#d4d4d4",
+                              background: "var(--code-block-bg)",
+                              color: "var(--code-block-text)",
                               padding: 12,
                               borderRadius: 6,
                               fontSize: 11,

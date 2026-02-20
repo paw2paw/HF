@@ -283,7 +283,7 @@ export default function SubjectsPage() {
             fontSize: 13,
             fontWeight: 600,
             background: "var(--button-primary-bg)",
-            color: "#fff",
+            color: "white",
             border: "none",
             borderRadius: 6,
             cursor: "pointer",
@@ -541,7 +541,7 @@ export default function SubjectsPage() {
                 style={{
                   padding: "10px 20px", borderRadius: 6,
                   border: "none", background: "var(--button-primary-bg)",
-                  color: "#fff", fontWeight: 600, cursor: creating ? "wait" : "pointer",
+                  color: "white", fontWeight: 600, cursor: creating ? "wait" : "pointer",
                   opacity: creating || !newName.trim() ? 0.5 : 1, fontSize: 14,
                 }}
               >

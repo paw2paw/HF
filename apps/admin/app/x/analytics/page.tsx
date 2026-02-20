@@ -369,7 +369,7 @@ export default function AnalyticsPage() {
       <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
           Analytics
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
@@ -687,7 +687,7 @@ export default function AnalyticsPage() {
                 style={{
                   width: `${goals.averageProgress * 100}%`,
                   height: "100%",
-                  background: "#3b82f6",
+                  background: "var(--accent-primary)",
                   borderRadius: 4,
                 }}
               />
@@ -698,7 +698,7 @@ export default function AnalyticsPage() {
             <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
               Completed (7d):
             </span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#10b981" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--status-success-text)" }}>
               {goals.recentlyCompleted}
             </span>
           </div>
@@ -736,7 +736,7 @@ export default function AnalyticsPage() {
               textAlign: "center",
             }}
           >
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#10b981" }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "var(--status-success-text)" }}>
               {pct(onboarding.completionRate)}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Completion Rate</div>
@@ -875,7 +875,7 @@ export default function AnalyticsPage() {
               style={{
                 fontSize: 24,
                 fontWeight: 700,
-                color: pipeline.successRate >= 0.9 ? "#10b981" : pipeline.successRate >= 0.7 ? "#f59e0b" : "#ef4444",
+                color: pipeline.successRate >= 0.9 ? "var(--status-success-text)" : pipeline.successRate >= 0.7 ? "var(--status-warning-text)" : "var(--status-error-text)",
               }}
             >
               {pct(pipeline.successRate)}
@@ -907,7 +907,7 @@ export default function AnalyticsPage() {
               style={{
                 fontSize: 24,
                 fontWeight: 700,
-                color: pipeline.failedCount > 0 ? "#ef4444" : "var(--text-primary)",
+                color: pipeline.failedCount > 0 ? "var(--status-error-text)" : "var(--text-primary)",
               }}
             >
               {pipeline.failedCount}
@@ -991,7 +991,7 @@ export default function AnalyticsPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Active (7d):</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#3b82f6" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent-primary)" }}>
                 {activity.activeCallers7d.toLocaleString()}
               </span>
             </div>

@@ -91,7 +91,7 @@ function StudentTeacherContent() {
               className="w-10 h-10 rounded-full flex items-center justify-center"
               style={{ background: "color-mix(in srgb, #059669 15%, transparent)" }}
             >
-              <GraduationCap size={20} style={{ color: "#059669" }} />
+              <GraduationCap size={20} style={{ color: "var(--status-success-text)" }} />
             </div>
             <div>
               <p className="font-semibold" style={{ color: "var(--text-primary)" }}>

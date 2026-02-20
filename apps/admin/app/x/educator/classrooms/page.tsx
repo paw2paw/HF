@@ -56,7 +56,7 @@ export default function ClassroomsPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
             {plural("cohort")}
           </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
             {classrooms.length} {classrooms.length !== 1 ? lowerPlural("cohort") : lower("cohort")}
           </p>
         </div>
@@ -130,7 +130,7 @@ export default function ClassroomsPage() {
                 borderRadius: 12,
                 textDecoration: "none",
                 transition: "all 0.2s",
-                borderLeft: `3px solid ${classroom.isActive ? "#3b82f6" : "#6b7280"}`,
+                borderLeft: `3px solid ${classroom.isActive ? "var(--accent-primary)" : "var(--text-muted)"}`,
               }}
               className="home-stat-card"
             >

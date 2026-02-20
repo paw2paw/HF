@@ -80,7 +80,7 @@ export default function StudentsPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
             Students
           </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
             {students.length} student{students.length !== 1 ? "s" : ""}
             {students.some((s) => !s.classroom) && (
               <> &middot; {students.filter((s) => !s.classroom).length} unassigned</>
@@ -150,11 +150,11 @@ export default function StudentsPage() {
                 const isActive = lastCall > threeDaysAgo;
                 const isModerate = !neverCalled && lastCall > sevenDaysAgo;
 
-                let statusColor = "#ef4444"; // red — 7+ days
+                let statusColor = "var(--status-error-text)"; // red — 7+ days
                 let statusLabel = "Inactive 7d+";
-                if (neverCalled) { statusColor = "#6b7280"; statusLabel = "Not started"; }
-                else if (isActive) { statusColor = "#10b981"; statusLabel = "Active"; }
-                else if (isModerate) { statusColor = "#f59e0b"; statusLabel = "3-7 days ago"; }
+                if (neverCalled) { statusColor = "var(--text-muted)"; statusLabel = "Not started"; }
+                else if (isActive) { statusColor = "var(--status-success-text)"; statusLabel = "Active"; }
+                else if (isModerate) { statusColor = "var(--status-warning-text)"; statusLabel = "3-7 days ago"; }
 
                 return (
                   <tr key={s.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -190,9 +190,9 @@ export default function StudentsPage() {
                         <span
                           style={{
                             fontSize: 12,
-                            color: "#d97706",
+                            color: "var(--status-warning-text)",
                             padding: "2px 8px",
-                            background: "#fef3c7",
+                            background: "var(--status-warning-bg)",
                             borderRadius: 4,
                             fontWeight: 500,
                           }}
@@ -219,15 +219,15 @@ export default function StudentsPage() {
                             gap: 6,
                             fontSize: 12,
                             fontWeight: 600,
-                            color: "#059669",
+                            color: "var(--status-success-text)",
                             textDecoration: "none",
                             padding: "2px 8px",
-                            background: "#ecfdf5",
+                            background: "var(--status-success-bg)",
                             borderRadius: 6,
-                            border: "1px solid #a7f3d0",
+                            border: "1px solid var(--status-success-border)",
                           }}
                         >
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#059669", animation: "pulse 2s infinite" }} />
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-success-text)", animation: "pulse 2s infinite" }} />
                           In Call — Observe
                         </Link>
                       ) : (

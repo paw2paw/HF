@@ -63,7 +63,7 @@ export default function SimConversationPage() {
       <>
         <WhatsAppHeader title="Error" onBack={isDesktop ? undefined : () => router.push('/x/sim')} />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <p style={{ color: '#667781', textAlign: 'center' }}>{error}</p>
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{error}</p>
         </div>
       </>
     );
@@ -74,7 +74,7 @@ export default function SimConversationPage() {
       <>
         <WhatsAppHeader title="Loading..." />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ color: '#667781' }}>Starting conversation...</p>
+          <p style={{ color: 'var(--text-muted)' }}>Starting conversation...</p>
         </div>
       </>
     );

@@ -180,10 +180,10 @@ export default function InstitutionDetailPage() {
         >
           &larr; Back to Institutions
         </button>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
           {institution.name}
         </h1>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "monospace" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", fontFamily: "monospace" }}>
           {institution.slug}
         </p>
       </div>
@@ -211,7 +211,7 @@ export default function InstitutionDetailPage() {
             }}
           />
         ) : (
-          <div style={{ width: 40, height: 40, borderRadius: 8, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 18 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 8, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 18 }}>
             {name.charAt(0)}
           </div>
         )}

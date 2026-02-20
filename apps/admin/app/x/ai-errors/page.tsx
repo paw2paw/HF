@@ -94,10 +94,10 @@ export default function AIErrorsPage() {
       {/* Header */}
       <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
             AI Error Monitor
           </h1>
-          <p style={{ fontSize: 16, color: "var(--text-muted)", marginTop: 8 }}>
+          <p style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 8 }}>
             Pipeline LLM failures and fallback tracking
           </p>
         </div>
@@ -134,8 +134,8 @@ export default function AIErrorsPage() {
       {data?.stats.alertThresholdExceeded && (
         <div
           style={{
-            background: "#fef2f2",
-            border: "1px solid #dc2626",
+            background: "var(--status-error-bg)",
+            border: "1px solid var(--status-error-text)",
             borderRadius: 12,
             padding: 16,
             marginBottom: 24,
@@ -146,10 +146,10 @@ export default function AIErrorsPage() {
         >
           <span style={{ fontSize: 20 }}>!!</span>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#dc2626" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--status-error-text)" }}>
               High failure rate detected
             </div>
-            <div style={{ fontSize: 13, color: "#991b1b", marginTop: 2 }}>
+            <div style={{ fontSize: 13, color: "var(--status-error-text)", marginTop: 2 }}>
               One or more pipeline call points exceed 20% failure rate. Check AI configuration at /x/ai-config
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function AIErrorsPage() {
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          backgroundColor: "#ef4444",
+                          backgroundColor: "var(--status-error-text)",
                           flexShrink: 0,
                         }}
                       />
@@ -434,7 +434,7 @@ export default function AIErrorsPage() {
                         </div>
                         <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
                           <strong>Error:</strong>{" "}
-                          <span style={{ color: "#ef4444" }}>{f.aiResponse}</span>
+                          <span style={{ color: "var(--status-error-text)" }}>{f.aiResponse}</span>
                         </div>
                         {f.metadata && (
                           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
