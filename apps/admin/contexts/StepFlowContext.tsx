@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 const STORAGE_KEY = "hf.stepflow.state";
 
@@ -28,6 +29,7 @@ interface StartFlowConfig {
 interface StepFlowContextValue {
   state: StepFlowState | null;
   isActive: boolean;
+  isOnFlowPage: boolean;  // true when pathname === returnPath
   startFlow: (config: StartFlowConfig) => void;
   setStep: (step: number) => void;
   nextStep: () => void;
@@ -68,6 +70,7 @@ function writeStorage(state: StepFlowState | null): void {
 export function StepFlowProvider({ children }: { children: React.ReactNode }) {
   const [flowState, setFlowState] = useState<StepFlowState | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const pathname = usePathname();
 
   // Initialize from sessionStorage on mount — deferred to avoid hydration mismatch
   useEffect(() => {
@@ -134,10 +137,12 @@ export function StepFlowProvider({ children }: { children: React.ReactNode }) {
 
   // Gate on hydration to prevent SSR mismatch
   const active = hydrated ? flowState : null;
+  const isOnFlowPage = active?.active === true && pathname === active?.returnPath;
 
   const value: StepFlowContextValue = {
     state: active,
     isActive: active?.active === true,
+    isOnFlowPage,
     startFlow,
     setStep,
     nextStep,

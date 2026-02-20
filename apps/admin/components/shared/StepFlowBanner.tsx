@@ -18,7 +18,7 @@ const BANNER_BG = '#0891b2';       // Cyan-600 — distinct from purple masquera
 const BANNER_BORDER = '#0e7490';   // Cyan-700
 
 export default function StepFlowBanner() {
-  const { state, isActive, prevStep, nextStep, endFlow } = useStepFlow();
+  const { state, isActive, isOnFlowPage, prevStep, nextStep, endFlow } = useStepFlow();
   const { isMasquerading } = useMasquerade();
   const pathname = usePathname();
   const router = useRouter();
@@ -26,7 +26,6 @@ export default function StepFlowBanner() {
   // Compute flow context membership before any early returns (hooks must not be conditional)
   const returnPath = state?.returnPath ?? '';
   const flowId = state?.flowId ?? '';
-  const isOnFlowPage = !!pathname && (pathname === returnPath || pathname.startsWith(returnPath + '?'));
   const isFlowChild = (() => {
     if (flowId === 'content-sources') return pathname?.startsWith('/x/content-sources') ?? false;
     if (flowId === 'demonstrate') return pathname?.startsWith('/x/demonstrate') ?? false;
@@ -43,6 +42,9 @@ export default function StepFlowBanner() {
   }, [shouldDismiss, endFlow]);
 
   if (!isActive || !state) return null;
+
+  // Hide banner when on the wizard home page (inline ProgressStepper handles progress)
+  if (isOnFlowPage) return null;
 
   // Hide on sim pages, auth pages, embed mode
   if (pathname?.startsWith('/x/sim') || pathname?.startsWith('/login')) return null;

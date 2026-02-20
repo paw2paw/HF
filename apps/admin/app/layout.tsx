@@ -199,8 +199,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Sidebar width config
   const effectiveSidebarWidth = collapsed ? COLLAPSED_WIDTH : sidebarWidth;
 
+  // Get isOnFlowPage from context to suppress banner height on wizard home pages
+  const { isOnFlowPage } = useStepFlow();
+
   // Height accounts for fixed banners (MasqueradeBanner + StepFlowBanner)
-  const showStepFlowBar = isStepFlowActive && !isSimPage && !isAuthPage && !isEmbed;
+  const showStepFlowBar = isStepFlowActive && !isOnFlowPage && !isSimPage && !isAuthPage && !isEmbed;
   const bannerHeight =
     (showMasqueradeChrome ? MASQUERADE_BANNER_HEIGHT : 0) +
     (showStepFlowBar ? STEP_FLOW_BANNER_HEIGHT : 0);
