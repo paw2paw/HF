@@ -17,12 +17,14 @@ declare module "next-auth" {
       image: string | null;
       role: UserRole;
       assignedDomainId: string | null;
+      institutionId: string | null;
     };
   }
 
   interface User {
     role: UserRole;
     assignedDomainId?: string | null;
+    institutionId?: string | null;
   }
 }
 
@@ -59,6 +61,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            passwordHash: true,
+            isActive: true,
+            role: true,
+            assignedDomainId: true,
+            institutionId: true,
+          },
         });
 
         console.log("[Auth] User found:", user?.email, "active:", user?.isActive);
@@ -156,6 +168,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.role = user.role;
         token.assignedDomainId = user.assignedDomainId ?? null;
+        token.institutionId = user.institutionId ?? null;
       }
       return token;
     },
@@ -166,6 +179,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
         session.user.assignedDomainId = (token.assignedDomainId as string) ?? null;
+        session.user.institutionId = (token.institutionId as string) ?? null;
       }
       return session;
     },

@@ -45,6 +45,7 @@ export default function MasqueradeBanner() {
       <VenetianMask size={14} />
       <span>
         STEPPED IN AS: {displayName} ({masquerade.role})
+        {masquerade.institutionName && ` · ${masquerade.institutionName}`}
       </span>
       <button
         onClick={(e) => {

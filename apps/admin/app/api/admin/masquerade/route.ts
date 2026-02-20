@@ -66,6 +66,8 @@ export async function POST(request: Request) {
       role: true,
       isActive: true,
       assignedDomainId: true,
+      institutionId: true,
+      institution: { select: { name: true } },
     },
   });
 
@@ -88,6 +90,8 @@ export async function POST(request: Request) {
     name: targetUser.name,
     role: targetUser.role,
     assignedDomainId: targetUser.assignedDomainId,
+    institutionId: targetUser.institutionId,
+    institutionName: targetUser.institution?.name ?? null,
     startedAt: new Date().toISOString(),
     startedBy: session.user.id,
   };

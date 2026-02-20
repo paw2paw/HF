@@ -22,10 +22,12 @@ import {
   PlayCircle,
   Settings2,
   ListChecks,
+  Building2,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { useMasquerade } from "@/contexts/MasqueradeContext";
+import { useBranding } from "@/contexts/BrandingContext";
 import { TourTrigger } from "@/src/components/shared/TourTrigger";
 import { UserAvatar, ROLE_COLORS } from "./UserAvatar";
 import { envSidebarColor, envLabel } from "./EnvironmentBanner";
@@ -87,6 +89,42 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+    </div>
+  );
+}
+
+/* ── Institution badge in profile card ── */
+function InstitutionBadge() {
+  const { branding, loading } = useBranding();
+
+  if (loading) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+      {branding.primaryColor && (
+        <div
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 2,
+            background: branding.primaryColor,
+            flexShrink: 0,
+          }}
+        />
+      )}
+      {branding.logoUrl && (
+        <img
+          src={branding.logoUrl}
+          alt=""
+          style={{
+            height: 14,
+            width: "auto",
+            maxWidth: 80,
+            flexShrink: 0,
+          }}
+        />
+      )}
+      <span className="truncate">{branding.name}</span>
     </div>
   );
 }
@@ -191,6 +229,158 @@ interface PickerUser {
   role: string;
   assignedDomainId: string | null;
   assignedDomain: { id: string; name: string } | null;
+}
+
+/* ── Institution switcher (for ADMIN+) ── */
+interface Institution {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  primaryColor: string | null;
+}
+
+function InstitutionSwitcher() {
+  const { data: session } = useSession();
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [activeInstitutionId, setActiveInstitutionId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Check if user is ADMIN+
+  const isAdmin = session?.user?.role && ["ADMIN", "SUPERADMIN"].includes(session.user.role);
+
+  // Fetch institutions on mount
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    let cancelled = false;
+    async function fetchInstitutions() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/user/institutions");
+        if (!res.ok) throw new Error("Failed to load institutions");
+        const data = await res.json();
+        if (!cancelled) {
+          setInstitutions(data.institutions || []);
+          // Set active to user's activeInstitutionId or institutionId
+          const activeId = (session?.user as any)?.activeInstitutionId || (session?.user as any)?.institutionId;
+          setActiveInstitutionId(activeId || null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError((e as Error).message);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchInstitutions();
+    return () => { cancelled = true; };
+  }, [isAdmin, session]);
+
+  const handleSwitch = async (institutionId: string) => {
+    setError(null);
+    try {
+      const res = await fetch("/api/user/active-institution", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ institutionId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to switch institution");
+      }
+      setActiveInstitutionId(institutionId);
+      // Reload to refresh session with new activeInstitutionId
+      window.location.reload();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  // Only show if ADMIN+ and has 2+ institutions
+  if (!isAdmin || institutions.length <= 1) return null;
+
+  const activeInstitution = institutions.find((i) => i.id === activeInstitutionId);
+
+  return (
+    <div className="mx-3">
+      {/* Current institution display */}
+      {activeInstitution && (
+        <div
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mb-1"
+          style={{
+            background: `color-mix(in srgb, #059669 8%, transparent)`,
+            border: `1px solid color-mix(in srgb, #059669 15%, transparent)`,
+          }}
+        >
+          <Building2
+            className="h-4 w-4 flex-shrink-0"
+            style={{ color: "#059669" }}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-[12px] font-medium truncate" style={{ color: "#059669" }}>
+              {activeInstitution.name}
+            </div>
+            <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+              Active institution
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Switcher button */}
+      {institutions.length > 1 && (
+        <div className="space-y-1.5">
+          {institutions.map((inst) => {
+            const isActive = inst.id === activeInstitutionId;
+            return (
+              <button
+                key={inst.id}
+                onClick={() => !isActive && handleSwitch(inst.id)}
+                disabled={isActive}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px] transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-50 disabled:cursor-default"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {/* Color swatch */}
+                {inst.primaryColor && (
+                  <div
+                    className="h-3 w-3 rounded flex-shrink-0"
+                    style={{ background: inst.primaryColor }}
+                  />
+                )}
+                {/* Logo or fallback */}
+                {inst.logoUrl ? (
+                  <img src={inst.logoUrl} alt="" style={{ height: 14, width: "auto", maxWidth: 50, flexShrink: 0 }} />
+                ) : (
+                  <div className="h-4 w-4 flex-shrink-0 flex items-center justify-center rounded" style={{ background: "#059669" }}>
+                    <span className="text-[10px] font-bold text-white">{inst.name[0]}</span>
+                  </div>
+                )}
+                {/* Name */}
+                <span className="flex-1 truncate">{inst.name}</span>
+                {/* Active indicator */}
+                {isActive && (
+                  <span className="text-[9px] font-bold rounded px-1.5 py-0.5 flex-shrink-0" style={{ background: "#059669", color: "#fff" }}>
+                    Current
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-2 px-3 py-2 text-[11px] rounded-lg" style={{ background: "var(--status-error-bg)", color: "var(--status-error-text)" }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function StepInSection() {
@@ -514,6 +704,9 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
         >
           {ROLE_LABELS[role] || role}
         </span>
+
+        {/* Institution badge */}
+        <InstitutionBadge />
       </div>
 
       {/* ─── Notifications ─── */}
@@ -538,6 +731,9 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
         <PanelLink href="/x/account" icon={User} label="My Account" onClick={handleNavigate} />
         <PanelLink href="/x/demos" icon={PlayCircle} label="Demos" onClick={handleNavigate} />
       </div>
+
+      {/* ─── Organization — institution switcher for ADMIN+ with 2+ institutions ─── */}
+      <InstitutionSwitcher />
 
       {/* ─── Step In (masquerade) — admin only ─── */}
       {masqueradeOptions?.isRealAdmin && (

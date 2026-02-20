@@ -2,20 +2,10 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import type { UserRole } from "@prisma/client";
+import type { MasqueradeState } from "@/lib/masquerade";
 
 const COOKIE_NAME = "hf.masquerade";
 const BROADCAST_CHANNEL = "hf.masquerade";
-
-export interface MasqueradeState {
-  userId: string;
-  email: string;
-  name: string | null;
-  role: UserRole;
-  assignedDomainId: string | null;
-  startedAt: string;
-  startedBy: string;
-}
 
 interface MasqueradeContextValue {
   /** Current masquerade state, or null if not masquerading */

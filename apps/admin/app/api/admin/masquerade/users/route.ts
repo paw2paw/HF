@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
       role: true,
       assignedDomainId: true,
       assignedDomain: { select: { id: true, name: true } },
+      institutionId: true,
+      institution: { select: { id: true, name: true, primaryColor: true } },
     },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     take: 50,

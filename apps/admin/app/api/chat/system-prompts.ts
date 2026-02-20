@@ -182,16 +182,21 @@ function buildFlowContext(crumb: EntityBreadcrumb): string | null {
   const data = crumb.data || {};
   const flowId = crumb.id;
 
-  if (flowId === "demonstrate") {
-    const parts = [`## Active Demonstrate Flow`,
-      `The admin is preparing to demonstrate a teaching session.`,
+  if (flowId === "teach") {
+    const parts = [`## Active Teach Flow`,
+      `The educator is preparing to teach a live session.`,
       `- Current step: ${data.stepLabel || `Step ${(data.step as number ?? 0) + 1}`}`,
     ];
     if (data.goal) parts.push(`- Session goal: "${data.goal}"`);
-    if (data.domainId) parts.push(`- Domain selected: ${data.domainId}`);
-    if (data.callerId) parts.push(`- Caller selected: ${data.callerId}`);
-    parts.push("", "You can help them:", "- Refine their session goal", "- Explain what readiness checks mean and how to fix them", "- Suggest teaching strategies for this domain and caller", "- Navigate to the right pages to resolve issues");
+    if (data.domainId) parts.push(`- Institution selected: ${data.domainId}`);
+    if (data.callerId) parts.push(`- Learner selected: ${data.callerId}`);
+    parts.push("", "You can help them:", "- Refine their session goal", "- Explain what readiness checks mean and how to fix them", "- Suggest teaching strategies for this institution and learner", "- Navigate to the right pages to resolve issues");
     return parts.join("\n");
+  }
+
+  // Legacy demonstrate flow (backwards compatibility)
+  if (flowId === "demonstrate") {
+    return buildFlowContext({ ...crumb, id: "teach" });
   }
 
   // Generic flow fallback

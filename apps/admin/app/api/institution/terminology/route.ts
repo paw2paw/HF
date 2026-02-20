@@ -65,6 +65,7 @@ const VALID_TERM_KEYS: TermKey[] = [
   "learner",
   "instructor",
   "supervisor",
+  "session",
 ];
 
 /**

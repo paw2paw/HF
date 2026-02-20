@@ -1,17 +1,17 @@
 import { test, expect } from '../../fixtures';
-import { DemonstratePage } from '../../page-objects';
+import { TeachPage } from '../../page-objects';
 
 /**
- * Demonstrate Flow Tests
- * Tests the multi-step demonstrate flow: Domain → Goal → Readiness → Launch
+ * Teach Flow Tests
+ * Tests the multi-step teach flow: Institution → Goal → Readiness → Launch
  */
-test.describe('Demonstrate Flow', () => {
+test.describe('Teach Flow', () => {
   test.beforeEach(async ({ page, loginAs }) => {
     await loginAs('admin@test.com');
   });
 
   test('step flow banner persists across navigation', async ({ page }) => {
-    await page.goto('/x/demonstrate');
+    await page.goto('/x/teach');
     await page.waitForLoadState('networkidle');
 
     // Step flow banner should be visible
@@ -22,15 +22,15 @@ test.describe('Demonstrate Flow', () => {
     await page.goto('/x/domains');
     await page.waitForLoadState('domcontentloaded');
 
-    // Banner should still be visible with "Back to Demonstrate" button
+    // Banner should still be visible with "Back to Teach" button
     await expect(banner).toBeVisible();
-    const backBtn = banner.getByRole('button', { name: /back to demonstrate/i });
+    const backBtn = banner.getByRole('button', { name: /back to teach/i });
     await expect(backBtn).toBeVisible();
   });
 
   test('step flow banner not visible on sim pages', async ({ page }) => {
     // Start the flow first
-    await page.goto('/x/demonstrate');
+    await page.goto('/x/teach');
     await page.waitForLoadState('domcontentloaded');
 
     // Navigate to a sim page
@@ -43,10 +43,10 @@ test.describe('Demonstrate Flow', () => {
   });
 
   test('goal input visible on step 2', async ({ page }) => {
-    await page.goto('/x/demonstrate');
+    await page.goto('/x/teach');
     await page.waitForLoadState('networkidle');
 
-    // Check if domains exist and Next is enabled
+    // Check if institutions exist and Next is enabled
     const nextBtn = page.getByRole('button', { name: /next/i });
     const isEnabled = await nextBtn.isEnabled().catch(() => false);
 
@@ -55,7 +55,7 @@ test.describe('Demonstrate Flow', () => {
       await nextBtn.click();
 
       // Goal textarea should be visible
-      const goalInput = page.getByPlaceholder(/what do you want to demonstrate/i);
+      const goalInput = page.getByPlaceholder(/what do you want to teach/i);
       await expect(goalInput).toBeVisible();
 
       // Banner should show step 2
@@ -65,7 +65,7 @@ test.describe('Demonstrate Flow', () => {
   });
 
   test('back button returns to previous step', async ({ page }) => {
-    await page.goto('/x/demonstrate');
+    await page.goto('/x/teach');
     await page.waitForLoadState('networkidle');
 
     const nextBtn = page.getByRole('button', { name: /next/i });

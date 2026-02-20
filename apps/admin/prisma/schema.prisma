@@ -637,9 +637,10 @@ model Institution {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users        User[]
-  cohortGroups CohortGroup[]
-  domains      Domain[]
+  users             User[]
+  activeUsers       User[] @relation("ActiveInstitution")
+  cohortGroups      CohortGroup[]
+  domains           Domain[]
 
   @@index([slug])
 }
@@ -697,6 +698,10 @@ model User {
   // Institution scope (null = no institution)
   institutionId String?
   institution   Institution? @relation(fields: [institutionId], references: [id])
+
+  // Active institution for multi-institutional ADMIN+ users (persisted switcher preference)
+  activeInstitutionId String?
+  activeInstitution   Institution? @relation("ActiveInstitution", fields: [activeInstitutionId], references: [id])
 
   // Field tester → Caller link
   callers Caller[]

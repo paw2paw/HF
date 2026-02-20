@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { PlaybookPill, CallerPill, StatusBadge } from "@/src/components/shared/EntityPill";
@@ -33,6 +34,13 @@ export default function DomainsPage() {
   const [search, setSearch] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"name" | "callers" | "playbooks">("name");
+  const [showInactive, setShowInactive] = useState(false);
+
+  // RBAC
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes(
+    (session?.user?.role as string) || ""
+  );
 
   // Detail state
   const [domain, setDomain] = useState<DomainDetail | null>(null);
@@ -63,7 +71,8 @@ export default function DomainsPage() {
   const [showPromptPreview, setShowPromptPreview] = useState(false);
 
   const fetchDomains = () => {
-    fetch("/api/domains")
+    const query = showInactive ? "?includeInactive=true" : "";
+    fetch(`/api/domains${query}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) setDomains(data.domains || []);
@@ -78,7 +87,7 @@ export default function DomainsPage() {
 
   useEffect(() => {
     fetchDomains();
-  }, []);
+  }, [showInactive]);
 
   // Fetch detail when selectedId changes
   useEffect(() => {
@@ -125,6 +134,30 @@ export default function DomainsPage() {
         setShowDeleteConfirm(false);
         setDomain(null);
         router.push("/x/domains", { scroll: false });
+        fetchDomains();
+      } else {
+        setDeleteError(data.error);
+      }
+    } catch (e: any) {
+      setDeleteError(e.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleReactivateDomain = async () => {
+    if (!domain) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/domains/${domain.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDomain((prev) => prev ? { ...prev, isActive: true } : prev);
         fetchDomains();
       } else {
         setDeleteError(data.error);
@@ -405,14 +438,26 @@ export default function DomainsPage() {
                 colors={statusColors.active}
                 onClick={() => toggleStatus("active")}
               />
-              <FilterPill
-                label="INACTIVE"
-                icon={statusColors.inactive.icon}
-                tooltip={statusColors.inactive.desc}
-                isActive={selectedStatuses.has("inactive")}
-                colors={statusColors.inactive}
-                onClick={() => toggleStatus("inactive")}
-              />
+              <button
+                onClick={() => setShowInactive(!showInactive)}
+                title={showInactive ? "Hide inactive institutions" : "Show inactive institutions"}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: showInactive ? "1px solid color-mix(in srgb, var(--status-warning-text) 25%, transparent)" : "1px solid var(--border-default)",
+                  borderRadius: 5,
+                  cursor: "pointer",
+                  background: showInactive ? "var(--status-warning-bg)" : "var(--surface-secondary)",
+                  color: showInactive ? "var(--status-warning-text)" : "var(--text-muted)",
+                  transition: "all 0.15s",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                {showInactive ? "Showing Inactive" : "Show Inactive"}
+              </button>
             </div>
           </div>
 
@@ -464,7 +509,8 @@ export default function DomainsPage() {
                     borderRadius: 8,
                     padding: 14,
                     cursor: "pointer",
-                    transition: "border-color 0.15s, box-shadow 0.15s",
+                    transition: "border-color 0.15s, box-shadow 0.15s, opacity 0.15s",
+                    opacity: !d.isActive ? 0.6 : 1,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -567,27 +613,50 @@ export default function DomainsPage() {
                     <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>{domain.description}</p>
                   )}
                 </div>
-                {!domain.isDefault && (
-                  <button
-                    onClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      background: "transparent",
-                      color: "#dc2626",
-                      border: "1px solid #fca5a5",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Delete Domain
-                  </button>
+                {!domain.isDefault && isOperator && (
+                  <>
+                    {domain.isActive ? (
+                      <button
+                        onClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          background: "transparent",
+                          color: "#dc2626",
+                          border: "1px solid #fca5a5",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Deactivate Institution
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleReactivateDomain}
+                        disabled={deleting}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          background: "#3b82f6",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 6,
+                          cursor: deleting ? "not-allowed" : "pointer",
+                          whiteSpace: "nowrap",
+                          opacity: deleting ? 0.7 : 1,
+                        }}
+                      >
+                        {deleting ? "Reactivating..." : "Reactivate Institution"}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 
-              {/* Delete Confirmation */}
+              {/* Deactivate Confirmation */}
               {showDeleteConfirm && (
                 <div style={{
                   padding: 16,
@@ -597,13 +666,13 @@ export default function DomainsPage() {
                   marginBottom: 16,
                 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "#991b1b", marginBottom: 8 }}>
-                    Delete &ldquo;{domain.name}&rdquo;?
+                    Deactivate &ldquo;{domain.name}&rdquo;?
                   </div>
                   {domain._count.callers > 0 ? (
                     <div>
                       <p style={{ fontSize: 13, color: "#991b1b", margin: "0 0 8px 0" }}>
-                        Cannot delete this domain — it has {domain._count.callers} caller{domain._count.callers !== 1 ? "s" : ""} assigned.
-                        Reassign callers to another domain first.
+                        Cannot deactivate this institution — it has {domain._count.callers} caller{domain._count.callers !== 1 ? "s" : ""} assigned.
+                        Reassign callers to another institution first.
                       </p>
                       <button
                         onClick={() => setShowDeleteConfirm(false)}
@@ -624,8 +693,8 @@ export default function DomainsPage() {
                   ) : (
                     <div>
                       <p style={{ fontSize: 13, color: "#7f1d1d", margin: "0 0 12px 0" }}>
-                        This will deactivate the domain{domain._count.playbooks > 0 ? ` and its ${domain._count.playbooks} playbook${domain._count.playbooks !== 1 ? "s" : ""} will become orphaned` : ""}.
-                        This action cannot be easily undone.
+                        This will deactivate the institution{domain._count.playbooks > 0 ? ` and its ${domain._count.playbooks} course${domain._count.playbooks !== 1 ? "s" : ""} will become inactive` : ""}.
+                        You can reactivate it at any time.
                       </p>
                       {deleteError && (
                         <p style={{ fontSize: 12, color: "#dc2626", margin: "0 0 8px 0" }}>{deleteError}</p>
@@ -646,7 +715,7 @@ export default function DomainsPage() {
                             opacity: deleting ? 0.7 : 1,
                           }}
                         >
-                          {deleting ? "Deleting..." : "Yes, Delete"}
+                          {deleting ? "Deactivating..." : "Yes, Deactivate"}
                         </button>
                         <button
                           onClick={() => setShowDeleteConfirm(false)}

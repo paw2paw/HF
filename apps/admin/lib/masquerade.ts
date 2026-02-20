@@ -22,6 +22,8 @@ export interface MasqueradeState {
   name: string | null;
   role: UserRole;
   assignedDomainId: string | null;
+  institutionId: string | null;
+  institutionName: string | null;
   startedAt: string;
   startedBy: string;
 }

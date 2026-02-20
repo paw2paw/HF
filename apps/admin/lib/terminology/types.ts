@@ -13,7 +13,8 @@ export type TermKey =
   | "cohort"
   | "learner"
   | "instructor"
-  | "supervisor";
+  | "supervisor"
+  | "session";
 
 /** A complete terminology profile — all keys present, all strings */
 export type TerminologyProfile = Record<TermKey, string>;
@@ -46,6 +47,7 @@ export const TERMINOLOGY_PRESETS: Record<
     learner: "Student",
     instructor: "Teacher",
     supervisor: "My Teacher",
+    session: "Lesson",
   },
   corporate: {
     institution: "Organization",
@@ -53,6 +55,7 @@ export const TERMINOLOGY_PRESETS: Record<
     learner: "Employee",
     instructor: "Trainer",
     supervisor: "My Manager",
+    session: "Training Session",
   },
   coaching: {
     institution: "Practice",
@@ -60,6 +63,7 @@ export const TERMINOLOGY_PRESETS: Record<
     learner: "Client",
     instructor: "Coach",
     supervisor: "My Coach",
+    session: "Coaching Session",
   },
   healthcare: {
     institution: "Facility",
@@ -67,6 +71,7 @@ export const TERMINOLOGY_PRESETS: Record<
     learner: "Patient",
     instructor: "Provider",
     supervisor: "My Provider",
+    session: "Patient Session",
   },
 };
 

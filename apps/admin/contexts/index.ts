@@ -11,7 +11,7 @@ export { PaletteProvider, usePalette, palettePresets, darkPalettePresets } from 
 export type { PalettePreset } from "./PaletteContext";
 
 export { MasqueradeProvider, useMasquerade } from "./MasqueradeContext";
-export type { MasqueradeState } from "./MasqueradeContext";
+export type { MasqueradeState } from "@/lib/masquerade";
 
 export { BrandingProvider, useBranding } from "./BrandingContext";
 

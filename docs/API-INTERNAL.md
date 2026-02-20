@@ -67,6 +67,7 @@
   - [Test Harness](#test-harness)
   - [Tickets](#tickets)
   - [Transcripts](#transcripts)
+  - [User](#user)
   - [Users](#users)
   - [Vapi](#vapi)
   - [Visualizations](#visualizations)
@@ -10532,6 +10533,24 @@ Lists raw transcript files from the sources/transcripts/raw directory. Recursive
 
 ---
 
+## User
+
+### `PATCH` /api/user/active-institution
+
+Set the active institution for this user (persisted preference)
+
+**Auth**: Bearer token · **Scope**: `user:write`
+
+---
+
+### `GET` /api/user/institutions
+
+Get institutions the current user can access
+
+**Auth**: Bearer token · **Scope**: `user:read`
+
+---
+
 ## Users
 
 ### `DELETE` /api/invites
@@ -10916,8 +10935,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 283 |
-| Files with annotations | 282 |
+| Route files found | 285 |
+| Files with annotations | 284 |
 | Files missing annotations | 1 |
 | Coverage | 99.6% |
 

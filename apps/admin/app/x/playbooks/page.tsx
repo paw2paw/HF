@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { EntityPill, DomainPill, PlaybookPill, SpecPill, StatusBadge } from "@/src/components/shared/EntityPill";
@@ -106,6 +107,13 @@ export default function PlaybooksPage() {
   const [publishing, setPublishing] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archivingList, setArchivingList] = useState<Set<string>>(new Set());
+
+  // RBAC
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes(
+    (session?.user?.role as string) || ""
+  );
 
   const fetchPlaybooks = () => {
     Promise.all([
@@ -199,7 +207,7 @@ export default function PlaybooksPage() {
 
   const handleArchive = async () => {
     if (!playbook) return;
-    if (!confirm("Archive this playbook? It will no longer be available to callers.")) return;
+    if (!confirm("Archive this course? It will no longer be available to learners.")) return;
     setArchiving(true);
     try {
       const res = await fetch(`/api/playbooks/${playbook.id}`, {
@@ -221,9 +229,90 @@ export default function PlaybooksPage() {
     }
   };
 
+  const handleRestore = async () => {
+    if (!playbook) return;
+    setArchiving(true);
+    try {
+      const res = await fetch(`/api/playbooks/${playbook.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DRAFT" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setPlaybook({ ...playbook, status: "DRAFT" });
+        fetchPlaybooks();
+      } else {
+        alert(data.error);
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleArchiveListItem = async (playbookId: string) => {
+    setArchivingList((prev) => new Set([...prev, playbookId]));
+    try {
+      const res = await fetch(`/api/playbooks/${playbookId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ARCHIVED" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        fetchPlaybooks();
+        // If this is the currently selected playbook, update it
+        if (playbook?.id === playbookId) {
+          setPlaybook({ ...playbook, status: "ARCHIVED" });
+        }
+      } else {
+        alert(data.error);
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setArchivingList((prev) => {
+        const next = new Set(prev);
+        next.delete(playbookId);
+        return next;
+      });
+    }
+  };
+
+  const handleRestoreListItem = async (playbookId: string) => {
+    setArchivingList((prev) => new Set([...prev, playbookId]));
+    try {
+      const res = await fetch(`/api/playbooks/${playbookId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DRAFT" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        fetchPlaybooks();
+        // If this is the currently selected playbook, update it
+        if (playbook?.id === playbookId) {
+          setPlaybook({ ...playbook, status: "DRAFT" });
+        }
+      } else {
+        alert(data.error);
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setArchivingList((prev) => {
+        const next = new Set(prev);
+        next.delete(playbookId);
+        return next;
+      });
+    }
+  };
+
   const handleDelete = async () => {
     if (!playbook) return;
-    if (!confirm("Delete this playbook? This cannot be undone.")) return;
+    if (!confirm("Delete this course? This cannot be undone.")) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/playbooks/${playbook.id}`, { method: "DELETE" });
@@ -541,7 +630,8 @@ export default function PlaybooksPage() {
                             borderRadius: 8,
                             padding: 12,
                             cursor: "pointer",
-                            transition: "border-color 0.15s",
+                            transition: "border-color 0.15s, opacity 0.15s",
+                            opacity: pb.status === "ARCHIVED" ? 0.6 : 1,
                           }}
                         >
                           <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
@@ -562,7 +652,55 @@ export default function PlaybooksPage() {
                           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
                             {pb.name}
                           </div>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{pb._count.items} specs</div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>{pb._count.items} specs</div>
+                          {isOperator && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ display: "flex", gap: 4, paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}
+                            >
+                              {pb.status !== "ARCHIVED" ? (
+                                <button
+                                  onClick={() => handleArchiveListItem(pb.id)}
+                                  disabled={archivingList.has(pb.id)}
+                                  title="Archive course"
+                                  style={{
+                                    flex: 1,
+                                    padding: "4px 8px",
+                                    fontSize: 11,
+                                    fontWeight: 500,
+                                    background: "var(--status-warning-bg)",
+                                    color: "var(--status-warning-text)",
+                                    border: "none",
+                                    borderRadius: 4,
+                                    cursor: archivingList.has(pb.id) ? "not-allowed" : "pointer",
+                                    opacity: archivingList.has(pb.id) ? 0.6 : 1,
+                                  }}
+                                >
+                                  {archivingList.has(pb.id) ? "..." : "📦"}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleRestoreListItem(pb.id)}
+                                  disabled={archivingList.has(pb.id)}
+                                  title="Restore course"
+                                  style={{
+                                    flex: 1,
+                                    padding: "4px 8px",
+                                    fontSize: 11,
+                                    fontWeight: 500,
+                                    background: "var(--status-info-bg)",
+                                    color: "var(--status-info-text)",
+                                    border: "none",
+                                    borderRadius: 4,
+                                    cursor: archivingList.has(pb.id) ? "not-allowed" : "pointer",
+                                    opacity: archivingList.has(pb.id) ? 0.6 : 1,
+                                  }}
+                                >
+                                  {archivingList.has(pb.id) ? "..." : "📤"}
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -734,7 +872,7 @@ export default function PlaybooksPage() {
                       {publishing ? "Publishing..." : "Publish"}
                     </button>
                   )}
-                  {playbook.status !== "ARCHIVED" && (
+                  {playbook.status !== "ARCHIVED" && isOperator && (
                     <button
                       onClick={handleArchive}
                       disabled={archiving}
@@ -750,10 +888,29 @@ export default function PlaybooksPage() {
                         opacity: archiving ? 0.7 : 1,
                       }}
                     >
-                      {archiving ? "Archiving..." : "Archive"}
+                      {archiving ? "Archiving Course..." : "Archive Course"}
                     </button>
                   )}
-                  {playbook.status === "DRAFT" && (
+                  {playbook.status === "ARCHIVED" && isOperator && (
+                    <button
+                      onClick={handleRestore}
+                      disabled={archiving}
+                      style={{
+                        padding: "8px 16px",
+                        background: "var(--status-info-bg)",
+                        color: "var(--status-info-text)",
+                        border: "none",
+                        borderRadius: 6,
+                        fontWeight: 500,
+                        fontSize: 13,
+                        cursor: archiving ? "not-allowed" : "pointer",
+                        opacity: archiving ? 0.7 : 1,
+                      }}
+                    >
+                      {archiving ? "Restoring Course..." : "Restore Course"}
+                    </button>
+                  )}
+                  {playbook.status === "DRAFT" && isOperator && (
                     <button
                       onClick={handleDelete}
                       disabled={deleting}
@@ -769,7 +926,7 @@ export default function PlaybooksPage() {
                         opacity: deleting ? 0.7 : 1,
                       }}
                     >
-                      {deleting ? "Deleting..." : "Delete"}
+                      {deleting ? "Deleting..." : "Delete Course"}
                     </button>
                   )}
                 </div>

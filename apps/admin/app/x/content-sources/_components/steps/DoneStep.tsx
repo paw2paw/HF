@@ -184,7 +184,7 @@ export default function DoneStep({ getData, endFlow }: StepProps) {
           <ActionLink href={`/x/domains?id=${domainId}`} label="Go to Domain" onClick={endFlow} />
         )}
         {domainId && (
-          <ActionLink href={`/x/demonstrate?domainId=${domainId}`} label="Teach This" primary onClick={endFlow} />
+          <ActionLink href={`/x/teach?domainId=${domainId}`} label="Teach This" primary onClick={endFlow} />
         )}
         <button
           onClick={endFlow}

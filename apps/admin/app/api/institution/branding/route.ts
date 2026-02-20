@@ -17,7 +17,18 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: {
+    select: {
+      activeInstitutionId: true,
+      institutionId: true,
+      activeInstitution: {
+        select: {
+          name: true,
+          logoUrl: true,
+          primaryColor: true,
+          secondaryColor: true,
+          welcomeMessage: true,
+        },
+      },
       institution: {
         select: {
           name: true,
@@ -30,18 +41,21 @@ export async function GET() {
     },
   });
 
-  if (!user?.institution) {
+  // Prioritize activeInstitution (user's current selection) over institution (default assignment)
+  const branding = user?.activeInstitution || user?.institution;
+
+  if (!branding) {
     return NextResponse.json({ ok: true, branding: DEFAULT_BRANDING });
   }
 
   return NextResponse.json({
     ok: true,
     branding: {
-      name: user.institution.name,
-      logoUrl: user.institution.logoUrl,
-      primaryColor: user.institution.primaryColor,
-      secondaryColor: user.institution.secondaryColor,
-      welcomeMessage: user.institution.welcomeMessage,
+      name: branding.name,
+      logoUrl: branding.logoUrl,
+      primaryColor: branding.primaryColor,
+      secondaryColor: branding.secondaryColor,
+      welcomeMessage: branding.welcomeMessage,
     },
   });
 }
