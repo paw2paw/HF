@@ -4,7 +4,11 @@
   "title": "Classroom Setup Wizard",
   "name": "Classroom Setup Wizard",
   "version": "1.0.0",
-  "story": "As an educator, I want to create a classroom with courses and invite students via a join link",
+  "story": {
+    "asA": "educator",
+    "iWant": "to create a classroom with courses and invite students via a join link",
+    "soThat": "I can organise learners into groups and share access quickly"
+  },
   "description": "Multi-step wizard for creating a classroom (cohort) with name, learning focus, courses, and invite link generation",
   "specRole": "ORCHESTRATE",
   "domain": "wizard",
