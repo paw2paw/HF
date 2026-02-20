@@ -73,6 +73,7 @@ const VALID_ROLES: PedagogicalRole[] = [
 
 const VALID_SECTION_TYPES: DocumentType[] = [
   "CURRICULUM", "TEXTBOOK", "WORKSHEET", "EXAMPLE", "ASSESSMENT", "REFERENCE",
+  "COMPREHENSION", "LESSON_PLAN", "POLICY_DOCUMENT",
 ];
 
 // ------------------------------------------------------------------
@@ -87,12 +88,15 @@ For each section, identify:
 1. title: The section heading or a descriptive title
 2. startText: The first ~30 characters of the section (for offset matching)
 3. sectionType: The best extraction type for this section:
-   - TEXTBOOK: Dense teaching content, reading passages, explanatory text
-   - WORKSHEET: Learner activity, exercise, fill-in-the-blank
+   - TEXTBOOK: Dense teaching content, explanatory text
+   - COMPREHENSION: Reading passage with comprehension questions, vocab exercises
+   - WORKSHEET: Fill-in activity, exercise requiring learner to write/produce
    - ASSESSMENT: Questions with expected answers, quizzes, tests
    - REFERENCE: Answer key, glossary, teacher notes, quick reference
    - CURRICULUM: Formal learning outcomes, assessment criteria
    - EXAMPLE: Case study, sample document for discussion
+   - LESSON_PLAN: Teacher-facing plan with objectives, activities, timing
+   - POLICY_DOCUMENT: Safety procedure, regulatory compliance, hazards
 4. pedagogicalRole: The teaching purpose:
    - ACTIVATE: Pre-reading activity, warm-up, vocabulary prep
    - INPUT: Main teaching content, reading passage, core material
@@ -110,7 +114,7 @@ Return a JSON object:
     {
       "title": "string",
       "startText": "first ~30 chars of section",
-      "sectionType": "TEXTBOOK|WORKSHEET|ASSESSMENT|REFERENCE|CURRICULUM|EXAMPLE",
+      "sectionType": "TEXTBOOK|COMPREHENSION|WORKSHEET|ASSESSMENT|REFERENCE|CURRICULUM|EXAMPLE|LESSON_PLAN|POLICY_DOCUMENT",
       "pedagogicalRole": "ACTIVATE|INPUT|CHECK|PRODUCE|REFLECT|REFERENCE",
       "hasQuestions": true/false,
       "hasAnswerKey": true/false

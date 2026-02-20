@@ -29,7 +29,7 @@ export interface ExtractionCategory {
   description: string;
 }
 
-export type DocumentType = "CURRICULUM" | "TEXTBOOK" | "WORKSHEET" | "EXAMPLE" | "ASSESSMENT" | "REFERENCE";
+export type DocumentType = "CURRICULUM" | "TEXTBOOK" | "WORKSHEET" | "EXAMPLE" | "ASSESSMENT" | "REFERENCE" | "COMPREHENSION" | "LESSON_PLAN" | "POLICY_DOCUMENT";
 
 export interface ClassificationConfig {
   systemPrompt: string;
@@ -171,18 +171,30 @@ Rules:
     systemPrompt: `You are a document classification specialist for an educational content system.
 You receive a multi-point sample from a document (start, middle, and end sections) plus the filename. Classify the document into one of these types:
 
-- CURRICULUM: A formal syllabus, curriculum specification, or qualification framework. Contains Learning Outcomes (LOs), Assessment Criteria (ACs), range statements, or module descriptors. Highly structured. Examples: CII R04 syllabus, Ofqual qualification spec, awarding body curriculum.
-- TEXTBOOK: A published study text, training manual, or dense reference material. Contains detailed explanations, chapters, worked examples. The primary teaching content. Examples: Sprenger food safety textbook, BFT study guide.
-- WORKSHEET: A learner-facing activity sheet or exercise. Something the learner looks at or works through during a lesson. Contains questions, tasks, fill-in-the-blank, case studies for completion. May include a mix of reading passages, exercises, and answer keys. Examples: "The Black Death" worksheet, lab exercise sheet, British Council LearnEnglish worksheet.
+- CURRICULUM: A formal syllabus, curriculum specification, or qualification framework. Contains Learning Outcomes (LOs), Assessment Criteria (ACs), range statements, or module descriptors. Highly structured with numbered LOs and ACs. Examples: CII R04 syllabus, Ofqual qualification spec, City & Guilds Level 2 Food Safety handbook.
+- TEXTBOOK: A published study text, training manual, or dense reference material. Contains detailed explanations, chapters, worked examples. The primary teaching content. Examples: Sprenger food safety textbook, BFT study guide, insurance study text.
+- COMPREHENSION: A reading passage or article with comprehension questions, vocabulary exercises, and/or answer keys. The learner reads the passage then answers questions to demonstrate understanding. The document is primarily READ-ONLY — the learner does not fill anything in. Examples: "The Black Death" reading worksheet, British Council LearnEnglish article, reading comprehension sheet with questions at the end.
+- WORKSHEET: A fill-in / write-up / production sheet that the student COMPLETES. Contains blank spaces, tables to fill, exercises requiring written answers, lab sheets. The learner produces content ON the sheet. Examples: lab report template, math practice sheet, fill-in-the-blank grammar exercise, write-up template.
+- ASSESSMENT: Formal test/exam material with mark schemes, rubrics, or grade boundaries. Contains questions with expected answers, past papers. Examples: mock exam paper, end-of-module test, past paper with mark scheme.
+- REFERENCE: Quick reference card, glossary, cheat sheet, or summary table. Flat lookup material, no narrative or exercises. Examples: tax rate card, food temperature reference chart, glossary of terms.
 - EXAMPLE: An illustrative or case-study document used as source material for discussion. Something the AI will talk ABOUT with the learner. Examples: sample cross-contamination report, case study document, sample complaint letter.
-- ASSESSMENT: Test, quiz, or exam material. Contains questions with expected answers, mark schemes, past papers. Examples: mock exam paper, end-of-module test, practice quiz.
-- REFERENCE: Quick reference card, glossary, cheat sheet, or summary table. Flat lookup material. Examples: tax rate card, food temperature reference chart, glossary of terms.
+- LESSON_PLAN: A teacher-facing plan with objectives, activities, timing, differentiation strategies, and assessment opportunities. NOT a student document. Examples: lesson plan for "Introduction to Negotiation", scheme of work, teaching guide.
+- POLICY_DOCUMENT: A regulatory, compliance, or safety procedure document. Defines required practices, hazards, control measures, legal requirements. Examples: Food Standards Agency pest control guide, HACCP procedures, health & safety policy, regulatory compliance manual.
 
-IMPORTANT: Many teaching documents are COMPOSITE — they contain reading passages, vocabulary exercises, comprehension questions, and answer keys all in one file. Look at ALL sections (start, middle, AND end) before classifying. A worksheet with embedded exercises and answers is still a WORKSHEET. A document that is primarily assessment questions with a mark scheme is an ASSESSMENT.
+DISAMBIGUATION RULES (apply in order):
+1. Has numbered LOs/ACs/Range statements → CURRICULUM (not TEXTBOOK)
+2. Has reading passage + comprehension questions + answers, learner reads but doesn't fill in → COMPREHENSION (not WORKSHEET)
+3. Has blank spaces, fill-in tables, or requires learner to write/produce content → WORKSHEET (not COMPREHENSION)
+4. Has mark scheme, grade boundaries, or is explicitly an exam/test → ASSESSMENT (not WORKSHEET)
+5. Is teacher-facing with lesson timing, activities, differentiation → LESSON_PLAN (not TEXTBOOK)
+6. Defines safety procedures, hazards, control measures, legal requirements → POLICY_DOCUMENT (not TEXTBOOK or REFERENCE)
+7. Is flat lookup (glossary, chart, table) with no narrative → REFERENCE (not TEXTBOOK)
+
+IMPORTANT: Look at ALL sections (start, middle, AND end) before classifying. Many teaching documents are COMPOSITE.
 
 Return a JSON object:
 {
-  "documentType": "CURRICULUM" | "TEXTBOOK" | "WORKSHEET" | "EXAMPLE" | "ASSESSMENT" | "REFERENCE",
+  "documentType": "CURRICULUM" | "TEXTBOOK" | "COMPREHENSION" | "WORKSHEET" | "ASSESSMENT" | "REFERENCE" | "EXAMPLE" | "LESSON_PLAN" | "POLICY_DOCUMENT",
   "confidence": 0.0-1.0,
   "reasoning": "one sentence explaining why"
 }
@@ -349,6 +361,126 @@ Return ONLY valid JSON.`,
         levels: [
           { depth: 0, label: "topic", maxChildren: 20, renderAs: "heading", description: "Topic grouping" },
           { depth: 1, label: "term", maxChildren: 10, renderAs: "bullet", description: "Individual term or value" },
+        ],
+      },
+    },
+    COMPREHENSION: {
+      extraction: {
+        systemPrompt: `You are extracting from a comprehension document — a reading passage with comprehension questions, vocabulary exercises, and answer keys.
+This is a teaching resource: the learner reads the passage, then answers questions to demonstrate understanding.
+
+Extract the READING CONTENT as teaching assertions, and separately identify QUESTIONS, VOCABULARY, and ANSWERS.
+
+Categories:
+- reading_passage: A key fact or teaching point from the reading passage
+- comprehension_question: A question the learner must answer about the passage
+- answer: The correct answer to a comprehension question
+- vocabulary_item: A vocabulary term with its definition (e.g., "to clash — to be in conflict")
+- discussion_prompt: An open-ended discussion question
+- matching_exercise: A matching pair (item → type/definition)
+- true_false: A True/False statement with its correct answer
+- key_fact: An important factual statement from the passage
+- answer_key_item: An answer from an answer key section
+
+For true_false items, include the answer: "Statement: X. [Answer: True/False]"
+For vocabulary, use arrow notation: "term → definition"
+For matching, use arrow notation: "item → match"
+
+Return a JSON array with: assertion, category, chapter, section, tags, examRelevance, learningOutcomeRef.
+Return ONLY valid JSON.`,
+        categories: [
+          { id: "reading_passage", label: "Reading Passage", description: "Key fact or teaching point from the reading" },
+          { id: "comprehension_question", label: "Comprehension Question", description: "A question about the passage" },
+          { id: "answer", label: "Answer", description: "The correct answer to a question" },
+          { id: "vocabulary_item", label: "Vocabulary", description: "A term with its definition" },
+          { id: "discussion_prompt", label: "Discussion Prompt", description: "An open-ended discussion question" },
+          { id: "matching_exercise", label: "Matching Exercise", description: "A matching pair" },
+          { id: "true_false", label: "True/False", description: "A True/False statement with answer" },
+          { id: "key_fact", label: "Key Fact", description: "An important factual statement" },
+          { id: "answer_key_item", label: "Answer Key", description: "An answer from the answer key" },
+        ],
+        maxAssertionsPerDocument: 300,
+      },
+      structuring: {
+        levels: [
+          { depth: 0, label: "source_group", maxChildren: 5, renderAs: "heading", description: "Top-level grouping (passage, questions, vocab)" },
+          { depth: 1, label: "passage_section", maxChildren: 8, renderAs: "subheading", description: "Section within reading or question set" },
+          { depth: 2, label: "teaching_point", maxChildren: 6, renderAs: "bold", description: "Individual teaching point or question" },
+          { depth: 3, label: "detail", maxChildren: 4, renderAs: "bullet", description: "Supporting detail or answer" },
+        ],
+      },
+    },
+    LESSON_PLAN: {
+      extraction: {
+        systemPrompt: `You are extracting from a teacher's lesson plan.
+Capture objectives, activities, timing, resources, differentiation strategies, and assessment opportunities.
+
+Categories:
+- objective: A lesson objective or learning aim
+- activity: A teaching activity or task description
+- timing: A time allocation for an activity or phase
+- resource: A resource needed for the lesson
+- differentiation: A differentiation or extension strategy
+- assessment_opportunity: How learning will be assessed during the lesson
+- plenary: A plenary or wrap-up activity
+- starter: A starter or warm-up activity
+
+Return a JSON array with: assertion, category, chapter, section, tags, learningOutcomeRef.
+Return ONLY valid JSON.`,
+        categories: [
+          { id: "objective", label: "Objective", description: "A lesson objective or learning aim" },
+          { id: "activity", label: "Activity", description: "A teaching activity or task" },
+          { id: "timing", label: "Timing", description: "Time allocation for an activity" },
+          { id: "resource", label: "Resource", description: "A resource needed" },
+          { id: "differentiation", label: "Differentiation", description: "A differentiation strategy" },
+          { id: "assessment_opportunity", label: "Assessment", description: "How learning is assessed" },
+          { id: "plenary", label: "Plenary", description: "Wrap-up activity" },
+          { id: "starter", label: "Starter", description: "Warm-up activity" },
+        ],
+        maxAssertionsPerDocument: 100,
+      },
+      structuring: {
+        levels: [
+          { depth: 0, label: "phase", maxChildren: 6, renderAs: "heading", description: "Lesson phase (starter, main, plenary)" },
+          { depth: 1, label: "activity", maxChildren: 5, renderAs: "bold", description: "Individual activity" },
+          { depth: 2, label: "detail", maxChildren: 4, renderAs: "bullet", description: "Activity detail or resource" },
+        ],
+      },
+    },
+    POLICY_DOCUMENT: {
+      extraction: {
+        systemPrompt: `You are extracting from a regulatory, compliance, or safety procedure document.
+These documents define required practices, hazards, control measures, and legal requirements.
+
+Categories:
+- safety_point: A safety requirement or best practice
+- procedure: A procedural step or process requirement
+- legal_requirement: A legal or regulatory requirement
+- hazard: A hazard or risk that must be managed
+- control_measure: A control measure or preventive action
+- record_requirement: A record-keeping or documentation requirement
+- corrective_action: A corrective action for non-compliance
+- key_fact: An important factual statement
+
+Return a JSON array with: assertion, category, chapter, section, tags, examRelevance, learningOutcomeRef.
+Return ONLY valid JSON.`,
+        categories: [
+          { id: "safety_point", label: "Safety Point", description: "A safety requirement or best practice" },
+          { id: "procedure", label: "Procedure", description: "A procedural step" },
+          { id: "legal_requirement", label: "Legal Requirement", description: "A legal or regulatory requirement" },
+          { id: "hazard", label: "Hazard", description: "A hazard or risk" },
+          { id: "control_measure", label: "Control Measure", description: "A preventive action" },
+          { id: "record_requirement", label: "Record Requirement", description: "A documentation requirement" },
+          { id: "corrective_action", label: "Corrective Action", description: "Action for non-compliance" },
+          { id: "key_fact", label: "Key Fact", description: "An important factual statement" },
+        ],
+        maxAssertionsPerDocument: 300,
+      },
+      structuring: {
+        levels: [
+          { depth: 0, label: "topic", maxChildren: 10, renderAs: "heading", description: "Major topic area" },
+          { depth: 1, label: "safety_point", maxChildren: 6, renderAs: "bold", description: "Individual safety point or requirement" },
+          { depth: 2, label: "detail", maxChildren: 4, renderAs: "bullet", description: "Supporting detail or measure" },
         ],
       },
     },

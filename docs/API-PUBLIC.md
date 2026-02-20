@@ -1997,6 +1997,234 @@ Poll the status of a background extraction job.
 
 ---
 
+### `POST` /api/v1/content-sources/:sourceId/lesson-plan
+
+Generate a lesson plan from a content source's assertions, questions, and vocabulary.
+
+**Auth**: OPERATOR · **Scope**: `content-sources:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| sourceId | path | string | Yes |  |
+| sessionLength | body | number | No | Target minutes per session (default 30) |
+| includeAssessment | body | boolean | No | Include assessment session (default true) |
+| includeReview | body | boolean | No | Include review session (default true) |
+
+**Response** `200`
+```json
+{ ok, plan }
+```
+
+---
+
+### `DELETE` /api/v1/content-sources/:sourceId/questions
+
+Delete all questions for a content source (for re-extraction).
+
+**Auth**: OPERATOR · **Scope**: `content-sources:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| sourceId | path | string | Yes |  |
+
+**Response** `200`
+```json
+{ ok, deleted }
+```
+
+---
+
+### `GET` /api/v1/content-sources/:sourceId/questions
+
+List extracted questions for a content source with filtering.
+
+**Auth**: Session · **Scope**: `content-sources:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| sourceId | path | string | Yes |  |
+| questionType | query | string | No | Filter by type (MCQ, TRUE_FALSE, MATCHING, etc.) |
+| search | query | string | No | Search question text (case-insensitive) |
+| reviewed | query | string | No | Filter by review status ("true" or "false") |
+| limit | query | number | No | Max results (default 50, max 500) |
+| offset | query | number | No | Pagination offset (default 0) |
+
+**Response** `200`
+```json
+{ ok, questions, total, reviewedCount, reviewProgress }
+```
+
+---
+
+### `DELETE` /api/v1/content-sources/:sourceId/questions/:questionId
+
+Delete an individual content question.
+
+**Auth**: session (ADMIN+) · **Scope**: `content-sources:delete`
+
+**Response** `200`
+```json
+{ ok: true, deleted: { id: string } }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Question not found" }
+```
+
+---
+
+### `PATCH` /api/v1/content-sources/:sourceId/questions/:questionId
+
+Update an individual content question. Can modify text, type, answer, options,
+
+**Auth**: session (OPERATOR+) · **Scope**: `content-sources:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| questionText | body | string | No | Updated question text (5-5000 chars) |
+| questionType | body | string | No | Question type enum |
+| markReviewed | body | boolean | No | When true, sets reviewedBy/reviewedAt from session |
+
+**Response** `200`
+```json
+{ ok: true, question: ContentQuestion }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Question not found" }
+```
+
+---
+
+### `POST` /api/v1/content-sources/:sourceId/questions/bulk-review
+
+Mark multiple questions as reviewed in a single transaction.
+
+**Auth**: session (OPERATOR+) · **Scope**: `content-sources:write`
+
+**Response** `200`
+```json
+{ ok: true, updated: number }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `DELETE` /api/v1/content-sources/:sourceId/vocabulary
+
+Delete all vocabulary for a content source (for re-extraction).
+
+**Auth**: OPERATOR · **Scope**: `content-sources:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| sourceId | path | string | Yes |  |
+
+**Response** `200`
+```json
+{ ok, deleted }
+```
+
+---
+
+### `GET` /api/v1/content-sources/:sourceId/vocabulary
+
+List extracted vocabulary for a content source with filtering.
+
+**Auth**: Session · **Scope**: `content-sources:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| sourceId | path | string | Yes |  |
+| topic | query | string | No | Filter by topic |
+| search | query | string | No | Search term or definition (case-insensitive) |
+| reviewed | query | string | No | Filter by review status ("true" or "false") |
+| limit | query | number | No | Max results (default 50, max 500) |
+| offset | query | number | No | Pagination offset (default 0) |
+
+**Response** `200`
+```json
+{ ok, vocabulary, total, reviewedCount, reviewProgress }
+```
+
+---
+
+### `DELETE` /api/v1/content-sources/:sourceId/vocabulary/:vocabId
+
+Delete an individual vocabulary entry.
+
+**Auth**: session (ADMIN+) · **Scope**: `content-sources:delete`
+
+**Response** `200`
+```json
+{ ok: true, deleted: { id: string } }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Vocabulary entry not found" }
+```
+
+---
+
+### `PATCH` /api/v1/content-sources/:sourceId/vocabulary/:vocabId
+
+Update an individual vocabulary entry. Can modify term, definition, part of speech,
+
+**Auth**: session (OPERATOR+) · **Scope**: `content-sources:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| term | body | string | No | Updated term (1-500 chars) |
+| definition | body | string | No | Updated definition (1-5000 chars) |
+| markReviewed | body | boolean | No | When true, sets reviewedBy/reviewedAt from session |
+
+**Response** `200`
+```json
+{ ok: true, vocabulary: ContentVocabulary }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Vocabulary entry not found" }
+```
+
+---
+
+### `POST` /api/v1/content-sources/:sourceId/vocabulary/bulk-review
+
+Mark multiple vocabulary entries as reviewed in a single transaction.
+
+**Auth**: session (OPERATOR+) · **Scope**: `content-sources:write`
+
+**Response** `200`
+```json
+{ ok: true, updated: number }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ## Curricula
 
 ### `GET` /api/v1/curricula/:curriculumId/lesson-plan

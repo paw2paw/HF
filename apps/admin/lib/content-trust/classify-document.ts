@@ -5,7 +5,7 @@
  * Uses multi-point sampling (start + middle + end) for better coverage
  * of composite documents.
  *
- * Types: CURRICULUM, TEXTBOOK, WORKSHEET, EXAMPLE, ASSESSMENT, REFERENCE
+ * Types: CURRICULUM, TEXTBOOK, WORKSHEET, EXAMPLE, ASSESSMENT, REFERENCE, COMPREHENSION, LESSON_PLAN, POLICY_DOCUMENT
  *
  * The classification prompt is spec-driven via CONTENT-EXTRACT-001 config.
  *
@@ -37,6 +37,7 @@ export interface ClassificationExample {
 
 const VALID_TYPES: DocumentType[] = [
   "CURRICULUM", "TEXTBOOK", "WORKSHEET", "EXAMPLE", "ASSESSMENT", "REFERENCE",
+  "COMPREHENSION", "LESSON_PLAN", "POLICY_DOCUMENT",
 ];
 
 // ------------------------------------------------------------------

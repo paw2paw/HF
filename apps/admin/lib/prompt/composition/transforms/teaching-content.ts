@@ -363,13 +363,34 @@ registerTransform("renderTeachingContent", (
   // Collect unique sources for metadata
   const sources = [...new Set(assertions.map((a) => a.sourceName))];
 
+  // Render vocabulary section if available
+  const vocabulary = context.loadedData.curriculumVocabulary || [];
+  let vocabularySection = "";
+  if (vocabulary.length > 0) {
+    const vocabLines = vocabulary.map((v) => {
+      const pos = v.partOfSpeech ? ` (${v.partOfSpeech})` : "";
+      return `- ${v.term}${pos}: ${v.definition}`;
+    });
+    vocabularySection = `\n\nKEY VOCABULARY:\n${vocabLines.join("\n")}`;
+  }
+
+  // Append vocabulary to teaching points
+  const fullTeachingPoints = vocabularySection
+    ? `${teachingPoints}${vocabularySection}`
+    : teachingPoints;
+
+  // Question metadata for prompt awareness
+  const questions = context.loadedData.curriculumQuestions || [];
+
   return {
     hasTeachingContent: true,
     totalAssertions: assertions.length,
-    teachingPoints,
+    teachingPoints: fullTeachingPoints,
     categories,
     sources,
     highExamRelevanceCount: assertions.filter((a) => (a.examRelevance ?? 0) > 0.7).length,
+    questionCount: questions.length,
+    vocabularyCount: vocabulary.length,
     currentModule: currentModule ? {
       id: currentModule.id,
       name: currentModule.name || currentModule.title,

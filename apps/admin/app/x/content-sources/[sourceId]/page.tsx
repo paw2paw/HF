@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { DraggableTabs, type TabDefinition } from "@/components/shared/DraggableTabs";
+import { ReviewTabBadge } from "./_components/ReviewTabBadge";
+import QuestionsPanel from "./_components/QuestionsPanel";
+import VocabularyPanel from "./_components/VocabularyPanel";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -27,6 +31,10 @@ type ContentSource = {
   isActive: boolean;
   createdAt: string;
   assertionCount: number;
+  questionCount: number;
+  vocabularyCount: number;
+  questionReviewedCount: number;
+  vocabularyReviewedCount: number;
   freshnessStatus: "valid" | "expiring" | "expired" | "unknown";
 };
 
@@ -101,9 +109,12 @@ const DOCUMENT_TYPES: Record<string, { label: string; icon: string }> = {
   TEXTBOOK: { label: "Textbook", icon: "\uD83D\uDCD6" },
   CURRICULUM: { label: "Curriculum", icon: "\uD83C\uDF93" },
   WORKSHEET: { label: "Worksheet", icon: "\uD83D\uDCDD" },
+  COMPREHENSION: { label: "Comprehension", icon: "\uD83D\uDCDA" },
   EXAMPLE: { label: "Example", icon: "\uD83D\uDCC4" },
   ASSESSMENT: { label: "Assessment", icon: "\u2705" },
   REFERENCE: { label: "Reference", icon: "\uD83D\uDCD1" },
+  LESSON_PLAN: { label: "Lesson Plan", icon: "\uD83D\uDCCB" },
+  POLICY_DOCUMENT: { label: "Policy Document", icon: "\uD83C\uDFDB\uFE0F" },
 };
 
 const PAGE_SIZE = 50;
@@ -174,6 +185,13 @@ export default function SourceDetailPage() {
 
   // Error / success feedback
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState("assertions");
+  const [qTotal, setQTotal] = useState(0);
+  const [qReviewed, setQReviewed] = useState(0);
+  const [vTotal, setVTotal] = useState(0);
+  const [vReviewed, setVReviewed] = useState(0);
 
   // ── Fetch source detail ──
   const fetchSource = useCallback(async () => {
@@ -358,28 +376,37 @@ export default function SourceDetailPage() {
           </p>
         )}
 
-        {/* Review progress bar */}
-        <div style={{ marginTop: 12, maxWidth: 400 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-              Review Progress
-            </span>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              {reviewedCount}/{source.assertionCount} reviewed ({reviewProgress}%)
-            </span>
-          </div>
-          <div style={{ height: 6, borderRadius: 3, background: "var(--surface-tertiary)", overflow: "hidden" }}>
-            <div style={{
-              height: "100%",
-              borderRadius: 3,
-              background: reviewProgress === 100
-                ? "#16a34a"
-                : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
-              width: `${reviewProgress}%`,
-              transition: "width 0.5s ease-out",
-            }} />
-          </div>
-        </div>
+        {/* Aggregate review progress */}
+        {(() => {
+          const totalItems = (source.assertionCount || 0) + (qTotal || source.questionCount || 0) + (vTotal || source.vocabularyCount || 0);
+          const totalReviewed = reviewedCount + (qReviewed || source.questionReviewedCount || 0) + (vReviewed || source.vocabularyReviewedCount || 0);
+          const aggPct = totalItems > 0 ? Math.round((totalReviewed / totalItems) * 100) : 0;
+          return (
+            <div style={{ marginTop: 12, maxWidth: 500 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                  Review Progress
+                </span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  {reviewedCount}/{source.assertionCount} points
+                  {(source.questionCount || 0) > 0 && <> &middot; {qReviewed || source.questionReviewedCount || 0}/{qTotal || source.questionCount || 0} questions</>}
+                  {(source.vocabularyCount || 0) > 0 && <> &middot; {vReviewed || source.vocabularyReviewedCount || 0}/{vTotal || source.vocabularyCount || 0} vocab</>}
+                </span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--surface-tertiary)", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  borderRadius: 3,
+                  background: aggPct === 100
+                    ? "#16a34a"
+                    : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                  width: `${aggPct}%`,
+                  transition: "width 0.5s ease-out",
+                }} />
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Feedback banner */}
@@ -398,146 +425,192 @@ export default function SourceDetailPage() {
         </div>
       )}
 
-      {/* Controls row */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          type="text"
-          placeholder="Search assertions..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
-            backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: 220,
-          }}
-        />
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          style={{
-            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
-            backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
-          }}
-        >
-          <option value="">All categories</option>
-          {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-        </select>
-        <select
-          value={filterReview}
-          onChange={(e) => setFilterReview(e.target.value)}
-          style={{
-            padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
-            backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
-          }}
-        >
-          <option value="">All review status</option>
-          <option value="true">Reviewed</option>
-          <option value="false">Pending review</option>
-        </select>
+      {/* Tabs */}
+      <DraggableTabs
+        storageKey="source-detail-tabs"
+        tabs={[
+          {
+            id: "assertions",
+            label: <span>Teaching Points <ReviewTabBadge reviewed={reviewedCount} total={total} /></span>,
+            count: source.assertionCount || null,
+          },
+          ...((source.questionCount || 0) > 0 ? [{
+            id: "questions",
+            label: <span>Questions <ReviewTabBadge reviewed={qReviewed || source.questionReviewedCount || 0} total={qTotal || source.questionCount || 0} /></span>,
+            count: source.questionCount || null,
+          }] : []),
+          ...((source.vocabularyCount || 0) > 0 ? [{
+            id: "vocabulary",
+            label: <span>Vocabulary <ReviewTabBadge reviewed={vReviewed || source.vocabularyReviewedCount || 0} total={vTotal || source.vocabularyCount || 0} /></span>,
+            count: source.vocabularyCount || null,
+          }] : []),
+        ] as TabDefinition[]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        containerStyle={{ marginBottom: 16 }}
+      />
 
-        {/* Bulk action */}
-        {selected.size > 0 && (
-          <button
-            onClick={handleBulkReview}
-            disabled={bulkLoading}
-            style={{
-              padding: "7px 14px", borderRadius: 6, border: "none",
-              background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 600,
-              cursor: bulkLoading ? "not-allowed" : "pointer",
-              opacity: bulkLoading ? 0.6 : 1,
-            }}
-          >
-            {bulkLoading ? "Reviewing..." : `Mark ${selected.size} Reviewed`}
-          </button>
-        )}
-
-        <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
-          {total} assertion{total !== 1 ? "s" : ""}
-        </span>
-      </div>
-
-      {/* Assertions table */}
-      {assertionsLoading && assertions.length === 0 ? (
-        <p style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading assertions...</p>
-      ) : assertions.length === 0 ? (
-        <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
-          {search || filterCategory || filterReview ? "No assertions match your filters." : "No assertions extracted yet."}
-        </p>
-      ) : (
+      {/* ── Assertions Tab ── */}
+      {activeTab === "assertions" && (
         <>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
-                  <th style={{ width: 36, padding: "8px 4px 8px 8px" }}>
-                    <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} />
-                  </th>
-                  <th style={thStyle}>Assertion</th>
-                  <SortTh field="category" current={sortBy} dir={sortDir} onClick={handleSort}>Category</SortTh>
-                  <SortTh field="chapter" current={sortBy} dir={sortDir} onClick={handleSort}>Location</SortTh>
-                  <th style={{ ...thStyle, width: 80, textAlign: "center" }}>Review</th>
-                </tr>
-              </thead>
-              <tbody>
-                {assertions.map((a) => (
-                  <AssertionRow
-                    key={a.id}
-                    assertion={a}
-                    sourceId={sourceId}
-                    isSelected={selected.has(a.id)}
-                    isExpanded={expandedId === a.id}
-                    isEditing={editId === a.id}
-                    onToggleSelect={() => toggleSelect(a.id)}
-                    onToggleExpand={() => {
-                      setExpandedId(expandedId === a.id ? null : a.id);
-                      if (editId === a.id) setEditId(null);
-                    }}
-                    onStartEdit={() => setEditId(a.id)}
-                    onCancelEdit={() => setEditId(null)}
-                    onSaved={() => {
-                      setEditId(null);
-                      setFeedback({ type: "success", message: "Assertion updated" });
-                      fetchAssertions();
-                    }}
-                    onDeleted={() => {
-                      setExpandedId(null);
-                      setEditId(null);
-                      setFeedback({ type: "success", message: "Assertion deleted" });
-                      fetchAssertions();
-                    }}
-                    onReviewed={() => {
-                      setFeedback({ type: "success", message: "Marked as reviewed" });
-                      fetchAssertions();
-                    }}
-                    onError={(msg) => setFeedback({ type: "error", message: msg })}
-                  />
-                ))}
-              </tbody>
-            </table>
+          {/* Controls row */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Search assertions..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
+                backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: 220,
+              }}
+            />
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              style={{
+                padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
+                backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
+              }}
+            >
+              <option value="">All categories</option>
+              {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+            <select
+              value={filterReview}
+              onChange={(e) => setFilterReview(e.target.value)}
+              style={{
+                padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
+                backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
+              }}
+            >
+              <option value="">All review status</option>
+              <option value="true">Reviewed</option>
+              <option value="false">Pending review</option>
+            </select>
+
+            {/* Bulk action */}
+            {selected.size > 0 && (
+              <button
+                onClick={handleBulkReview}
+                disabled={bulkLoading}
+                style={{
+                  padding: "7px 14px", borderRadius: 6, border: "none",
+                  background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 600,
+                  cursor: bulkLoading ? "not-allowed" : "pointer",
+                  opacity: bulkLoading ? 0.6 : 1,
+                }}
+              >
+                {bulkLoading ? "Reviewing..." : `Mark ${selected.size} Reviewed`}
+              </button>
+            )}
+
+            <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
+              {total} assertion{total !== 1 ? "s" : ""}
+            </span>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>
-              <button
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-                style={paginationBtnStyle(page === 0)}
-              >
-                Prev
-              </button>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                Page {page + 1} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                disabled={page >= totalPages - 1}
-                style={paginationBtnStyle(page >= totalPages - 1)}
-              >
-                Next
-              </button>
-            </div>
+          {/* Assertions table */}
+          {assertionsLoading && assertions.length === 0 ? (
+            <p style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading assertions...</p>
+          ) : assertions.length === 0 ? (
+            <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+              {search || filterCategory || filterReview ? "No assertions match your filters." : "No assertions extracted yet."}
+            </p>
+          ) : (
+            <>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
+                      <th style={{ width: 36, padding: "8px 4px 8px 8px" }}>
+                        <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} />
+                      </th>
+                      <th style={thStyle}>Assertion</th>
+                      <SortTh field="category" current={sortBy} dir={sortDir} onClick={handleSort}>Category</SortTh>
+                      <SortTh field="chapter" current={sortBy} dir={sortDir} onClick={handleSort}>Location</SortTh>
+                      <th style={{ ...thStyle, width: 80, textAlign: "center" }}>Review</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assertions.map((a) => (
+                      <AssertionRow
+                        key={a.id}
+                        assertion={a}
+                        sourceId={sourceId}
+                        isSelected={selected.has(a.id)}
+                        isExpanded={expandedId === a.id}
+                        isEditing={editId === a.id}
+                        onToggleSelect={() => toggleSelect(a.id)}
+                        onToggleExpand={() => {
+                          setExpandedId(expandedId === a.id ? null : a.id);
+                          if (editId === a.id) setEditId(null);
+                        }}
+                        onStartEdit={() => setEditId(a.id)}
+                        onCancelEdit={() => setEditId(null)}
+                        onSaved={() => {
+                          setEditId(null);
+                          setFeedback({ type: "success", message: "Assertion updated" });
+                          fetchAssertions();
+                        }}
+                        onDeleted={() => {
+                          setExpandedId(null);
+                          setEditId(null);
+                          setFeedback({ type: "success", message: "Assertion deleted" });
+                          fetchAssertions();
+                        }}
+                        onReviewed={() => {
+                          setFeedback({ type: "success", message: "Marked as reviewed" });
+                          fetchAssertions();
+                        }}
+                        onError={(msg) => setFeedback({ type: "error", message: msg })}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>
+                  <button
+                    onClick={() => setPage(Math.max(0, page - 1))}
+                    disabled={page === 0}
+                    style={paginationBtnStyle(page === 0)}
+                  >
+                    Prev
+                  </button>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    Page {page + 1} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                    disabled={page >= totalPages - 1}
+                    style={paginationBtnStyle(page >= totalPages - 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
+      )}
+
+      {/* ── Questions Tab ── */}
+      {activeTab === "questions" && (
+        <QuestionsPanel
+          sourceId={sourceId}
+          onCountChange={(t, r) => { setQTotal(t); setQReviewed(r); }}
+        />
+      )}
+
+      {/* ── Vocabulary Tab ── */}
+      {activeTab === "vocabulary" && (
+        <VocabularyPanel
+          sourceId={sourceId}
+          onCountChange={(t, r) => { setVTotal(t); setVReviewed(r); }}
+        />
       )}
     </div>
   );

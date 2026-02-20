@@ -8,6 +8,10 @@ import {
 } from "@/lib/content-trust/extract-assertions";
 import { segmentDocument } from "@/lib/content-trust/segment-document";
 import { saveAssertions } from "@/lib/content-trust/save-assertions";
+import { saveQuestions } from "@/lib/content-trust/save-questions";
+import { saveVocabulary } from "@/lib/content-trust/save-vocabulary";
+import { getExtractor } from "@/lib/content-trust/extractors/registry";
+import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 import {
   createExtractionTask,
   updateJob,
@@ -180,13 +184,20 @@ async function runBackgroundExtraction(
     maxAssertions: number;
   },
 ) {
-  // Try section segmentation for composite documents
-  const segmentation = await segmentDocument(text, fileName);
+  // Check if this document type has a specialist extractor
+  const SPECIALIST_TYPES: DocumentType[] = ["CURRICULUM", "COMPREHENSION", "ASSESSMENT"];
+  const useSpecialist = SPECIALIST_TYPES.includes(opts.documentType);
 
-  let result;
-  if (segmentation.isComposite && segmentation.sections.length > 1) {
-    console.log(`[extract] Composite document detected: ${segmentation.sections.length} sections`);
-    result = await extractAssertionsSegmented(text, segmentation.sections, {
+  let assertionResult: { ok: boolean; assertions: any[]; warnings: string[]; error?: string };
+  let extractedQuestions: any[] = [];
+  let extractedVocabulary: any[] = [];
+
+  if (useSpecialist) {
+    // Use specialist extractor (returns assertions + questions + vocabulary)
+    const extractor = getExtractor(opts.documentType);
+    const extractionConfig = await resolveExtractionConfig(opts.sourceId, opts.documentType);
+
+    const fullResult = await extractor.extract(text, {
       ...opts,
       onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
         updateJob(jobId, {
@@ -195,40 +206,77 @@ async function runBackgroundExtraction(
           extractedCount: extractedSoFar,
         });
       },
-    });
+    }, extractionConfig);
+
+    assertionResult = fullResult;
+    extractedQuestions = fullResult.questions || [];
+    extractedVocabulary = fullResult.vocabulary || [];
   } else {
-    result = await extractAssertions(text, {
-      ...opts,
-      onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
-        updateJob(jobId, {
-          currentChunk: chunkIndex + 1,
-          totalChunks,
-          extractedCount: extractedSoFar,
-        });
-      },
-    });
+    // Use existing pipeline (segment → extract assertions)
+    const segmentation = await segmentDocument(text, fileName);
+
+    if (segmentation.isComposite && segmentation.sections.length > 1) {
+      console.log(`[extract] Composite document detected: ${segmentation.sections.length} sections`);
+      assertionResult = await extractAssertionsSegmented(text, segmentation.sections, {
+        ...opts,
+        onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
+          updateJob(jobId, {
+            currentChunk: chunkIndex + 1,
+            totalChunks,
+            extractedCount: extractedSoFar,
+          });
+        },
+      });
+    } else {
+      assertionResult = await extractAssertions(text, {
+        ...opts,
+        onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
+          updateJob(jobId, {
+            currentChunk: chunkIndex + 1,
+            totalChunks,
+            extractedCount: extractedSoFar,
+          });
+        },
+      });
+    }
   }
 
-  if (!result.ok) {
+  if (!assertionResult.ok) {
     updateJob(jobId, {
       status: "error",
-      error: result.error || "Extraction failed",
-      warnings: result.warnings,
+      error: assertionResult.error || "Extraction failed",
+      warnings: assertionResult.warnings,
     });
     return;
   }
 
-  // Save to DB using shared helper
-  updateJob(jobId, { status: "importing", extractedCount: result.assertions.length, warnings: result.warnings });
+  // Save to DB
+  updateJob(jobId, { status: "importing", extractedCount: assertionResult.assertions.length, warnings: assertionResult.warnings });
 
-  const { created, duplicatesSkipped } = await saveAssertions(sourceId, result.assertions);
+  const { created, duplicatesSkipped } = await saveAssertions(sourceId, assertionResult.assertions);
+
+  // Save questions and vocabulary (from specialist extractors)
+  let questionsCreated = 0;
+  let vocabularyCreated = 0;
+
+  if (extractedQuestions.length > 0) {
+    const qResult = await saveQuestions(sourceId, extractedQuestions);
+    questionsCreated = qResult.created;
+  }
+
+  if (extractedVocabulary.length > 0) {
+    const vResult = await saveVocabulary(sourceId, extractedVocabulary);
+    vocabularyCreated = vResult.created;
+  }
 
   await updateJob(jobId, {
     status: "done",
     importedCount: created,
     duplicatesSkipped,
-    extractedCount: result.assertions.length,
+    extractedCount: assertionResult.assertions.length,
   });
+
+  console.log(`[extract] Source ${sourceId}: ${created} assertions, ${questionsCreated} questions, ${vocabularyCreated} vocabulary items`);
 
   // Embed new assertions in background (non-blocking)
   if (created > 0) {

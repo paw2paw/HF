@@ -776,6 +776,10 @@ model User {
   // Media uploads
   mediaUploads MediaAsset[]
 
+  // Content review
+  reviewedQuestions  ContentQuestion[]   @relation("QuestionReviewer")
+  reviewedVocabulary ContentVocabulary[] @relation("VocabularyReviewer")
+
   @@index([email])
   @@index([role])
   @@index([assignedDomainId])
@@ -3818,6 +3822,11 @@ model ContentQuestion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Review
+  reviewedBy String?
+  reviewedAt DateTime?
+  reviewer   User?     @relation("QuestionReviewer", fields: [reviewedBy], references: [id])
+
   @@index([sourceId])
   @@index([questionType])
   @@index([assertionId])
@@ -3858,6 +3867,11 @@ model ContentVocabulary {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Review
+  reviewedBy String?
+  reviewedAt DateTime?
+  reviewer   User?     @relation("VocabularyReviewer", fields: [reviewedBy], references: [id])
 
   @@unique([sourceId, term])
   @@index([sourceId])

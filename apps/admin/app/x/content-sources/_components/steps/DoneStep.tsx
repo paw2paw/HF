@@ -38,6 +38,8 @@ export default function DoneStep({ getData, endFlow }: StepProps) {
   const lessonCount = getData<number>("lessonCount");
   const reviewedCount = getData<number>("reviewedCount");
   const assertionCount = getData<number>("assertionCount");
+  const questionCount = getData<number>("questionCount");
+  const vocabCount = getData<number>("vocabCount");
   const curriculumId = getData<string>("curriculumId");
 
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
@@ -83,10 +85,12 @@ export default function DoneStep({ getData, endFlow }: StepProps) {
         {/* Content card */}
         <SummaryCard title="Content" icon="\uD83D\uDCDA">
           <SummaryRow label="Source" value={sourceName || "—"} />
-          {assertionCount != null && <SummaryRow label="Assertions" value={String(assertionCount)} />}
+          {assertionCount != null && <SummaryRow label="Teaching points" value={String(assertionCount)} />}
           {reviewedCount != null && (
             <SummaryRow label="Reviewed" value={assertionCount ? `${reviewedCount}/${assertionCount}` : String(reviewedCount)} />
           )}
+          {(questionCount ?? 0) > 0 && <SummaryRow label="Questions" value={String(questionCount)} />}
+          {(vocabCount ?? 0) > 0 && <SummaryRow label="Vocabulary terms" value={String(vocabCount)} />}
         </SummaryCard>
 
         {/* Curriculum card */}

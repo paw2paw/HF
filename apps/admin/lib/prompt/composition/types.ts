@@ -84,6 +84,10 @@ export interface LoadedDataContext {
   onboardingSession?: any;
   /** Curriculum assertions (approved teaching points) from ContentAssertion table */
   curriculumAssertions?: CurriculumAssertionData[];
+  /** Extracted questions from ContentQuestion table */
+  curriculumQuestions?: CurriculumQuestionData[];
+  /** Extracted vocabulary from ContentVocabulary table */
+  curriculumVocabulary?: CurriculumVocabularyData[];
   /** Teaching depth from Subject config (null = use spec default) */
   teachingDepth?: number | null;
   /** Open actions (pending/in-progress) for prompt awareness */
@@ -120,6 +124,26 @@ export interface CurriculumAssertionData {
   parentId: string | null;
   orderIndex: number;
   topicSlug: string | null;
+}
+
+export interface CurriculumQuestionData {
+  id: string;
+  questionText: string;
+  questionType: string;
+  options: any;
+  correctAnswer: string | null;
+  chapter: string | null;
+  learningOutcomeRef: string | null;
+  difficulty: number | null;
+}
+
+export interface CurriculumVocabularyData {
+  id: string;
+  term: string;
+  definition: string;
+  partOfSpeech: string | null;
+  exampleUsage: string | null;
+  topic: string | null;
 }
 
 /** INIT-001 onboarding spec shape */

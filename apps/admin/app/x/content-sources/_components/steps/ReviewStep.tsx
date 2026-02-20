@@ -36,6 +36,8 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
   const [total, setTotal] = useState(0);
   const [reviewed, setReviewed] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [vocabCount, setVocabCount] = useState(0);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [reviewFilter, setReviewFilter] = useState("");
@@ -68,6 +70,18 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
   useEffect(() => {
     fetchAssertions();
   }, [sourceId, search, categoryFilter, reviewFilter, offset]);
+
+  // Fetch Q&V counts on mount
+  useEffect(() => {
+    if (!sourceId) return;
+    Promise.all([
+      fetch(`/api/content-sources/${sourceId}/questions?limit=1`).then((r) => r.json()),
+      fetch(`/api/content-sources/${sourceId}/vocabulary?limit=1`).then((r) => r.json()),
+    ]).then(([qData, vData]) => {
+      setQuestionCount(qData.total || 0);
+      setVocabCount(vData.total || 0);
+    }).catch(() => {});
+  }, [sourceId]);
 
   async function handleMarkReviewed(id: string) {
     await fetch(`/api/content-sources/${sourceId}/assertions/${id}?markReviewed=true`, {
@@ -109,6 +123,26 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
       <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "0 0 16px" }}>
         Review extracted assertions from <strong>{sourceName}</strong>. You can skip this step if you trust the extraction.
       </p>
+
+      {/* Extraction summary */}
+      {(questionCount > 0 || vocabCount > 0) && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8,
+          background: "color-mix(in srgb, var(--accent-primary) 5%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+          marginBottom: 12, fontSize: 13, color: "var(--text-secondary)",
+        }}>
+          <span>{total} teaching points</span>
+          {questionCount > 0 && <span>&middot; {questionCount} questions</span>}
+          {vocabCount > 0 && <span>&middot; {vocabCount} vocabulary terms</span>}
+          <Link
+            href={`/x/content-sources/${sourceId}`}
+            style={{ marginLeft: "auto", fontSize: 12, color: "var(--accent-primary)", textDecoration: "none", fontWeight: 600 }}
+          >
+            Review All &rarr;
+          </Link>
+        </div>
+      )}
 
       {/* Review progress bar */}
       <div style={{ marginBottom: 16 }}>

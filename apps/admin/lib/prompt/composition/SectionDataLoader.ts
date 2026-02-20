@@ -51,6 +51,8 @@ export async function loadAllData(
     onboardingSession,
     subjectSources,
     curriculumAssertions,
+    curriculumQuestions,
+    curriculumVocabulary,
     openActions,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
@@ -69,6 +71,8 @@ export async function loadAllData(
     loaderRegistry.get("onboardingSession")!(callerId),
     loaderRegistry.get("subjectSources")!(callerId),
     loaderRegistry.get("curriculumAssertions")!(callerId),
+    loaderRegistry.get("curriculumQuestions")!(callerId),
+    loaderRegistry.get("curriculumVocabulary")!(callerId),
     loaderRegistry.get("openActions")!(callerId),
   ]);
 
@@ -89,6 +93,8 @@ export async function loadAllData(
     onboardingSession: onboardingSession || null,
     subjectSources: subjectSources || null,
     curriculumAssertions: curriculumAssertions || [],
+    curriculumQuestions: curriculumQuestions || [],
+    curriculumVocabulary: curriculumVocabulary || [],
     openActions: openActions || [],
   };
 }
@@ -657,6 +663,74 @@ registerLoader("curriculumAssertions", async (callerId) => {
   (result as any).__teachingDepth = teachingDepth;
 
   return result;
+});
+
+/**
+ * Curriculum questions — extracted Q&A pairs from content sources
+ * linked to the caller's domain. Available for practice and assessment.
+ */
+registerLoader("curriculumQuestions", async (callerId) => {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return [];
+
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    select: { subject: { select: { sources: { select: { sourceId: true } } } } },
+  });
+  const sourceIds = subjectDomains.flatMap((sd) => sd.subject.sources.map((s) => s.sourceId));
+  if (sourceIds.length === 0) return [];
+
+  return prisma.contentQuestion.findMany({
+    where: { sourceId: { in: [...new Set(sourceIds)] } },
+    orderBy: [{ sortOrder: "asc" }],
+    take: 100,
+    select: {
+      id: true,
+      questionText: true,
+      questionType: true,
+      options: true,
+      correctAnswer: true,
+      chapter: true,
+      learningOutcomeRef: true,
+      difficulty: true,
+    },
+  });
+});
+
+/**
+ * Curriculum vocabulary — extracted term/definition pairs from content sources
+ * linked to the caller's domain.
+ */
+registerLoader("curriculumVocabulary", async (callerId) => {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return [];
+
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    select: { subject: { select: { sources: { select: { sourceId: true } } } } },
+  });
+  const sourceIds = subjectDomains.flatMap((sd) => sd.subject.sources.map((s) => s.sourceId));
+  if (sourceIds.length === 0) return [];
+
+  return prisma.contentVocabulary.findMany({
+    where: { sourceId: { in: [...new Set(sourceIds)] } },
+    orderBy: [{ sortOrder: "asc" }, { term: "asc" }],
+    take: 100,
+    select: {
+      id: true,
+      term: true,
+      definition: true,
+      partOfSpeech: true,
+      exampleUsage: true,
+      topic: true,
+    },
+  });
 });
 
 /**

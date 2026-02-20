@@ -8,7 +8,11 @@ import {
   searchAssertionsHybrid,
   searchAssertions,
   searchCallerMemories,
+  searchQuestions,
+  searchVocabulary,
   formatAssertion,
+  formatQuestion,
+  formatVocabulary,
 } from "@/lib/knowledge/assertions";
 
 export const runtime = "nodejs";
@@ -80,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Run retrieval strategies in parallel
-    const [knowledgeResults, assertionResults, memoryResults] = await Promise.all([
+    const [knowledgeResults, assertionResults, memoryResults, questionResults, vocabularyResults] = await Promise.all([
       // 1. Knowledge chunks (vector + keyword hybrid)
       retrieveKnowledgeForPrompt({
         queryText,
@@ -97,6 +101,12 @@ export async function POST(request: NextRequest) {
 
       // 3. Caller memories relevant to current topic
       callerId ? searchCallerMemories(callerId, queryText, ks.memoryLimit) : Promise.resolve([]),
+
+      // 4. Questions (for practice/assessment)
+      searchQuestions(queryText, 5),
+
+      // 5. Vocabulary (for term definitions)
+      searchVocabulary(queryText, 5),
     ]);
 
     // Merge and rank results
@@ -126,6 +136,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Add questions (slightly lower base relevance — used when topic matches)
+    for (const q of questionResults) {
+      results.push({
+        content: formatQuestion(q),
+        similarity: q.relevanceScore * 0.9,
+      });
+    }
+
+    // Add vocabulary (slightly lower base relevance)
+    for (const v of vocabularyResults) {
+      results.push({
+        content: formatVocabulary(v),
+        similarity: v.relevanceScore * 0.85,
+      });
+    }
+
     // Sort by similarity, take top N
     results.sort((a, b) => b.similarity - a.similarity);
     const topResults = results.slice(0, ks.topResults);
@@ -133,7 +159,7 @@ export async function POST(request: NextRequest) {
     const elapsed = Date.now() - startMs;
     console.log(
       `[vapi/knowledge] ${topResults.length} results in ${elapsed}ms ` +
-        `(assertions: ${assertionResults.length}, chunks: ${knowledgeResults.length}, memories: ${memoryResults.length}, vector: ${!!queryEmbedding})`,
+        `(assertions: ${assertionResults.length}, chunks: ${knowledgeResults.length}, memories: ${memoryResults.length}, questions: ${questionResults.length}, vocab: ${vocabularyResults.length}, vector: ${!!queryEmbedding})`,
     );
 
     return NextResponse.json({ results: topResults });

@@ -4,7 +4,8 @@ import { ContentTrustLevel, DocumentType } from "@prisma/client";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 
 const VALID_DOCUMENT_TYPES: DocumentType[] = [
-  "CURRICULUM", "TEXTBOOK", "WORKSHEET", "EXAMPLE", "ASSESSMENT", "REFERENCE",
+  "CURRICULUM", "TEXTBOOK", "WORKSHEET", "COMPREHENSION", "EXAMPLE",
+  "ASSESSMENT", "REFERENCE", "LESSON_PLAN", "POLICY_DOCUMENT",
 ];
 
 // Trust level hierarchy for validation (can only promote, not demote without admin)
@@ -38,7 +39,7 @@ export async function GET(
     const source = await prisma.contentSource.findUnique({
       where: { id: sourceId },
       include: {
-        _count: { select: { assertions: true } },
+        _count: { select: { assertions: true, questions: true, vocabulary: true } },
         mediaAssets: { select: { id: true, storageKey: true, mimeType: true, fileName: true }, take: 1 },
         supersededBy: { select: { id: true, slug: true, name: true } },
         supersedes: { select: { id: true, slug: true, name: true } },
@@ -58,12 +59,26 @@ export async function GET(
       else freshnessStatus = "valid";
     }
 
+    // Compute review counts for questions and vocabulary
+    const [questionReviewedCount, vocabularyReviewedCount] = await Promise.all([
+      source._count.questions > 0
+        ? prisma.contentQuestion.count({ where: { sourceId, reviewedAt: { not: null } } })
+        : 0,
+      source._count.vocabulary > 0
+        ? prisma.contentVocabulary.count({ where: { sourceId, reviewedAt: { not: null } } })
+        : 0,
+    ]);
+
     return NextResponse.json({
       ok: true,
       source: {
         ...source,
         freshnessStatus,
         assertionCount: source._count.assertions,
+        questionCount: source._count.questions,
+        vocabularyCount: source._count.vocabulary,
+        questionReviewedCount,
+        vocabularyReviewedCount,
       },
     });
   } catch (error: any) {

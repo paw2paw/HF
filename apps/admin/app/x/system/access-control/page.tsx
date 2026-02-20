@@ -2,11 +2,21 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Lock } from 'lucide-react';
+import { Lock, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
-interface RBACMatrixState {
+interface InstitutionTypeSummary {
+  id: string;
+  slug: string;
+  name: string;
+  terminology: Record<string, string>;
+  institutionCount: number;
+}
+
+interface PageState {
   rbac: Record<string, Record<string, string>>;
-  terminology: Record<string, Record<string, string>>;
+  technicalTerms: Record<string, string>;
+  institutionTypes: InstitutionTypeSummary[];
 }
 
 const ROLE_LEVEL: Record<string, number> = {
@@ -20,16 +30,27 @@ const ROLE_LEVEL: Record<string, number> = {
   DEMO: 0,
 };
 
+const TERM_KEY_LABELS: Record<string, string> = {
+  domain: 'Domain',
+  playbook: 'Playbook',
+  spec: 'Spec',
+  caller: 'Caller',
+  cohort: 'Cohort',
+  instructor: 'Instructor',
+  session: 'Session',
+};
+
 /**
  * Access Control Matrix Editor
- * Displays editable RBAC and Terminology matrices for authorized roles.
+ * Displays editable RBAC matrix and read-only terminology summary.
  */
 export default function AccessControlPage() {
   const { data: session } = useSession();
   const [currentTab, setCurrentTab] = useState<'rbac' | 'terminology'>('rbac');
-  const [state, setState] = useState<RBACMatrixState>({
+  const [state, setState] = useState<PageState>({
     rbac: {},
-    terminology: {},
+    technicalTerms: {},
+    institutionTypes: [],
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,15 +81,14 @@ export default function AccessControlPage() {
 
         if (termRes.ok) {
           const termData = await termRes.json();
-          if (termData.contract?.terms) {
-            setState((prev) => ({
-              ...prev,
-              terminology: termData.contract.terms,
-            }));
-          }
+          setState((prev) => ({
+            ...prev,
+            technicalTerms: termData.technicalTerms || {},
+            institutionTypes: termData.types || [],
+          }));
         }
       } catch (err) {
-        setError('Failed to load matrices');
+        setError('Failed to load data');
         console.error(err);
       } finally {
         setLoading(false);
@@ -102,30 +122,6 @@ export default function AccessControlPage() {
     }
   }, [state.rbac]);
 
-  const handleSaveTerminology = useCallback(async () => {
-    setIsSaving(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/admin/terminology', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ terms: state.terminology }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save');
-      }
-
-      setSuccess('Terminology saved successfully');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [state.terminology]);
-
   if (loading) return <div className="p-6">Loading...</div>;
 
   return (
@@ -133,7 +129,7 @@ export default function AccessControlPage() {
       <div>
         <h1 className="text-2xl font-bold">Access Control & Terminology</h1>
         <p className="text-sm text-gray-600 mt-2">
-          Configure entity access permissions and terminology labels. You can only modify settings for roles below your authority level.
+          Configure entity access permissions. Terminology is managed per institution type.
         </p>
       </div>
 
@@ -207,36 +203,11 @@ export default function AccessControlPage() {
       )}
 
       {/* Terminology Tab */}
-      {currentTab === 'terminology' && state.terminology && Object.keys(state.terminology).length > 0 && (
-        <>
-          <TerminologyTab
-            terms={state.terminology}
-            userRole={userRole}
-            userLevel={userLevel}
-            onChange={(termKey, role, value) => {
-              setState((prev) => ({
-                ...prev,
-                terminology: {
-                  ...prev.terminology,
-                  [termKey]: {
-                    ...prev.terminology[termKey],
-                    [role]: value,
-                  },
-                },
-              }));
-            }}
-            isSaving={isSaving}
-          />
-          <div className="flex justify-end gap-3 mt-6">
-            <button
-              onClick={handleSaveTerminology}
-              disabled={isSaving}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {isSaving ? 'Saving...' : 'Save Terminology'}
-            </button>
-          </div>
-        </>
+      {currentTab === 'terminology' && (
+        <TerminologyTab
+          technicalTerms={state.technicalTerms}
+          institutionTypes={state.institutionTypes}
+        />
       )}
     </div>
   );
@@ -324,97 +295,93 @@ function RBACMatrixTab({
         </tbody>
       </table>
       <p className="text-xs text-gray-600 mt-3 px-3 py-2">
-        Format: SCOPE:OPS (e.g., "ALL:CRUD", "DOMAIN:CR", "OWN:R", "NONE"). 🔒 Locked cells cannot be edited.
+        Format: SCOPE:OPS (e.g., &quot;ALL:CRUD&quot;, &quot;DOMAIN:CR&quot;, &quot;OWN:R&quot;, &quot;NONE&quot;).
       </p>
     </div>
   );
 }
 
 /**
- * Terminology Editor Tab
+ * Terminology Summary Tab — read-only view of institution type terminology.
+ * Editing happens at /x/system/institution-types.
  */
 function TerminologyTab({
-  terms,
-  userRole,
-  userLevel,
-  onChange,
-  isSaving,
+  technicalTerms,
+  institutionTypes,
 }: {
-  terms: Record<string, Record<string, string>>;
-  userRole: string;
-  userLevel: number;
-  onChange: (termKey: string, role: string, value: string) => void;
-  isSaving: boolean;
+  technicalTerms: Record<string, string>;
+  institutionTypes: InstitutionTypeSummary[];
 }) {
-  const termKeys = Object.keys(terms).sort();
-  const roles = ['SUPERADMIN', 'ADMIN', 'OPERATOR', 'EDUCATOR', 'SUPER_TESTER', 'TESTER', 'STUDENT', 'DEMO'];
+  const termKeys = Object.keys(TERM_KEY_LABELS);
 
   return (
-    <div className="overflow-x-auto border border-gray-300 rounded-lg">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-100 border-b border-gray-300">
-            <th className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold w-32">
-              Term
-            </th>
-            {roles.map((role) => {
-              const targetLevel = ROLE_LEVEL[role] || 0;
-              const canEdit = targetLevel < userLevel;
-              return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          Terminology labels per institution type. Admin roles always see technical terms.
+        </p>
+        <Link
+          href="/x/system/institution-types"
+          className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+        >
+          Manage Institution Types <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+
+      <div className="overflow-x-auto border border-gray-300 rounded-lg">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100 border-b border-gray-300">
+              <th className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold w-40">
+                Term
+              </th>
+              <th className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold min-w-[120px] bg-indigo-50">
+                Technical (Admin)
+              </th>
+              {institutionTypes.map((type) => (
                 <th
-                  key={role}
-                  className={`border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold min-w-[140px] ${
-                    !canEdit ? 'bg-gray-200 opacity-70' : ''
-                  }`}
+                  key={type.id}
+                  className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold min-w-[120px]"
                 >
-                  <div className="flex items-center gap-1">
-                    {role}
-                    {!canEdit && <Lock className="w-3 h-3" />}
+                  <div>{type.name}</div>
+                  <div className="text-xs font-normal text-gray-500">
+                    {type.institutionCount} institution{type.institutionCount !== 1 ? 's' : ''}
                   </div>
                 </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {termKeys.map((termKey) => (
-            <tr key={termKey} className="hover:bg-gray-50 border-b border-gray-300">
-              <td className="border-r border-gray-300 px-3 py-2 font-medium text-sm bg-gray-50">
-                {termKey}
-              </td>
-              {roles.map((role) => {
-                const value = terms[termKey]?.[role] || '';
-                const targetLevel = ROLE_LEVEL[role] || 0;
-                const canEdit = targetLevel < userLevel;
-
-                return (
-                  <td
-                    key={`${termKey}-${role}`}
-                    className={`border-r border-gray-300 px-2 py-1 ${
-                      !canEdit ? 'bg-gray-100' : ''
-                    }`}
-                  >
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => canEdit && onChange(termKey, role, e.target.value)}
-                      disabled={isSaving || !canEdit}
-                      placeholder="Label"
-                      maxLength={100}
-                      className={`w-full px-2 py-1 border border-gray-300 rounded text-sm ${
-                        !canEdit ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
-                      }`}
-                    />
-                  </td>
-                );
-              })}
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="text-xs text-gray-600 mt-3 px-3 py-2">
-        User-friendly labels for each term in each role's perspective. 🔒 Locked cells cannot be edited.
-      </p>
+          </thead>
+          <tbody>
+            {termKeys.map((key) => (
+              <tr key={key} className="hover:bg-gray-50 border-b border-gray-300">
+                <td className="border-r border-gray-300 px-3 py-2 font-medium text-sm bg-gray-50">
+                  {TERM_KEY_LABELS[key]}
+                </td>
+                <td className="border-r border-gray-300 px-3 py-2 text-sm font-mono text-gray-500 bg-indigo-50/50">
+                  {technicalTerms[key] || '—'}
+                </td>
+                {institutionTypes.map((type) => (
+                  <td
+                    key={`${key}-${type.id}`}
+                    className="border-r border-gray-300 px-3 py-2 text-sm"
+                  >
+                    {type.terminology[key] || '—'}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {institutionTypes.length === 0 && (
+        <div className="text-center py-8 text-gray-500 text-sm">
+          No institution types configured.{' '}
+          <Link href="/x/system/institution-types" className="text-indigo-600 hover:underline">
+            Create one
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

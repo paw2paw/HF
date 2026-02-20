@@ -233,3 +233,142 @@ export function formatAssertion(a: {
   if (a.trustLevel) parts.push(`[Trust: ${a.trustLevel}]`);
   return parts.join(" ");
 }
+
+// ------------------------------------------------------------------
+// Question search
+// ------------------------------------------------------------------
+
+export type QuestionResult = {
+  questionText: string;
+  questionType: string;
+  correctAnswer: string | null;
+  difficulty: number | null;
+  tags: string[];
+  relevanceScore: number;
+};
+
+/**
+ * Search ContentQuestions by keyword matching.
+ * Used by VAPI knowledge endpoint when learner asks for practice/assessment.
+ */
+export async function searchQuestions(
+  queryText: string,
+  limit: number,
+): Promise<QuestionResult[]> {
+  const words = queryText
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2);
+
+  if (words.length === 0) return [];
+
+  const questions = await prisma.contentQuestion.findMany({
+    where: {
+      OR: [
+        ...words.slice(0, 5).map((w) => ({
+          questionText: { contains: w, mode: "insensitive" as const },
+        })),
+        { tags: { hasSome: words.slice(0, 10) } },
+      ],
+    },
+    take: limit * 2,
+  });
+
+  return questions
+    .map((q) => {
+      const lower = q.questionText.toLowerCase();
+      const tagSet = new Set((q.tags || []).map((t) => t.toLowerCase()));
+      const matches = words.filter((w) => lower.includes(w) || tagSet.has(w)).length;
+      return {
+        questionText: q.questionText,
+        questionType: q.questionType,
+        correctAnswer: q.correctAnswer,
+        difficulty: q.difficulty,
+        tags: q.tags || [],
+        relevanceScore: Math.min(1, matches / words.length * 0.8 + 0.2),
+      };
+    })
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, limit);
+}
+
+/**
+ * Format a question for AI consumption (VAPI knowledge result).
+ */
+export function formatQuestion(q: QuestionResult): string {
+  const parts = [`[QUESTION: ${q.questionType}]`];
+  parts.push(q.questionText);
+  if (q.correctAnswer) parts.push(`→ ${q.correctAnswer}`);
+  if (q.difficulty) parts.push(`[Difficulty: ${q.difficulty}]`);
+  return parts.join(" ");
+}
+
+// ------------------------------------------------------------------
+// Vocabulary search
+// ------------------------------------------------------------------
+
+export type VocabularyResult = {
+  term: string;
+  definition: string;
+  partOfSpeech: string | null;
+  topic: string | null;
+  relevanceScore: number;
+};
+
+/**
+ * Search ContentVocabulary by keyword matching.
+ * Used by VAPI knowledge endpoint when learner asks "what does X mean?"
+ */
+export async function searchVocabulary(
+  queryText: string,
+  limit: number,
+): Promise<VocabularyResult[]> {
+  const words = queryText
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2);
+
+  if (words.length === 0) return [];
+
+  const vocabulary = await prisma.contentVocabulary.findMany({
+    where: {
+      OR: [
+        ...words.slice(0, 5).map((w) => ({
+          term: { contains: w, mode: "insensitive" as const },
+        })),
+        ...words.slice(0, 5).map((w) => ({
+          definition: { contains: w, mode: "insensitive" as const },
+        })),
+        { tags: { hasSome: words.slice(0, 10) } },
+      ],
+    },
+    take: limit * 2,
+  });
+
+  return vocabulary
+    .map((v) => {
+      const lowerTerm = v.term.toLowerCase();
+      const lowerDef = v.definition.toLowerCase();
+      const termMatches = words.filter((w) => lowerTerm.includes(w)).length;
+      const defMatches = words.filter((w) => lowerDef.includes(w)).length;
+      return {
+        term: v.term,
+        definition: v.definition,
+        partOfSpeech: v.partOfSpeech,
+        topic: v.topic,
+        relevanceScore: Math.min(1, (termMatches * 2 + defMatches) / words.length * 0.7 + 0.3),
+      };
+    })
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, limit);
+}
+
+/**
+ * Format a vocabulary item for AI consumption (VAPI knowledge result).
+ */
+export function formatVocabulary(v: VocabularyResult): string {
+  const pos = v.partOfSpeech ? ` (${v.partOfSpeech})` : "";
+  return `[VOCABULARY] ${v.term}${pos}: ${v.definition}`;
+}

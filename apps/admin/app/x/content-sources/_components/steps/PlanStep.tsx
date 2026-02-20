@@ -22,6 +22,8 @@ type LessonEntry = {
   notes?: string;
   estimatedDurationMins?: number;
   assertionCount?: number;
+  questionCount?: number;
+  vocabularyCount?: number;
 };
 
 const SESSION_TYPES = [
@@ -556,6 +558,13 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
                     {entry.moduleLabel && (
                       <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
                         {entry.moduleLabel}
+                      </span>
+                    )}
+                    {(entry.assertionCount || entry.questionCount || entry.vocabularyCount) && (
+                      <span style={{ fontSize: 10, color: "var(--text-muted)", display: "inline-flex", gap: 4 }}>
+                        {entry.assertionCount ? `${entry.assertionCount} pts` : null}
+                        {entry.questionCount ? `${entry.questionCount} Q` : null}
+                        {entry.vocabularyCount ? `${entry.vocabularyCount} vocab` : null}
                       </span>
                     )}
                     {entry.estimatedDurationMins && (

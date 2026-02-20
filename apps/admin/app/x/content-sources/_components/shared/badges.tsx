@@ -8,9 +8,12 @@ export const DOCUMENT_TYPES = [
   { value: "TEXTBOOK", label: "Textbook", icon: "\uD83D\uDCD6" },
   { value: "CURRICULUM", label: "Curriculum", icon: "\uD83C\uDF93" },
   { value: "WORKSHEET", label: "Worksheet", icon: "\uD83D\uDCDD" },
+  { value: "COMPREHENSION", label: "Comprehension", icon: "\uD83D\uDCDA" },
   { value: "EXAMPLE", label: "Example", icon: "\uD83D\uDCC4" },
   { value: "ASSESSMENT", label: "Assessment", icon: "\u2705" },
   { value: "REFERENCE", label: "Reference", icon: "\uD83D\uDCD1" },
+  { value: "LESSON_PLAN", label: "Lesson Plan", icon: "\uD83D\uDCCB" },
+  { value: "POLICY_DOCUMENT", label: "Policy Document", icon: "\uD83C\uDFDB\uFE0F" },
 ];
 
 export const TRUST_LEVELS = [

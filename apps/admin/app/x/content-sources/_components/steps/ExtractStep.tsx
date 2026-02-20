@@ -19,6 +19,8 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
   const [phase, setPhase] = useState<"confirm" | "extracting" | "done" | "error">("confirm");
   const [documentType, setDocumentType] = useState("");
   const [extractedCount, setExtractedCount] = useState(0);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [vocabCount, setVocabCount] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [chunkProgress, setChunkProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -83,14 +85,26 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
           setExtractedCount(ctx.extractedCount || 0);
           setChunkProgress({ current: ctx.currentChunk || 0, total: ctx.totalChunks || 0 });
         } else {
-          // Job finished — fetch final assertion count
+          // Job finished — fetch final counts for assertions, questions, vocabulary
           if (pollRef.current) clearInterval(pollRef.current);
           if (tickRef.current) clearInterval(tickRef.current);
-          const countRes = await fetch(`/api/content-sources/${sourceId}/assertions?limit=1`);
-          const countData = await countRes.json();
+          const [countRes, qRes, vRes] = await Promise.all([
+            fetch(`/api/content-sources/${sourceId}/assertions?limit=1`),
+            fetch(`/api/content-sources/${sourceId}/questions?limit=1`),
+            fetch(`/api/content-sources/${sourceId}/vocabulary?limit=1`),
+          ]);
+          const [countData, qData, vData] = await Promise.all([
+            countRes.json(), qRes.json(), vRes.json(),
+          ]);
           const finalCount = countData.total || extractedCount;
+          const qTotal = qData.total || 0;
+          const vTotal = vData.total || 0;
           setExtractedCount(finalCount);
+          setQuestionCount(qTotal);
+          setVocabCount(vTotal);
           setData("assertionCount", finalCount);
+          setData("questionCount", qTotal);
+          setData("vocabCount", vTotal);
           setPhase("done");
         }
       } catch {}
@@ -233,8 +247,18 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
         }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>{"\u2705"}</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
-            {extractedCount} assertions extracted
+            {extractedCount} teaching points extracted
           </div>
+          {(questionCount > 0 || vocabCount > 0) && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 4, fontSize: 14, color: "var(--text-secondary)" }}>
+              {questionCount > 0 && (
+                <span>{"\uD83D\uDCDD"} {questionCount} question{questionCount !== 1 ? "s" : ""}</span>
+              )}
+              {vocabCount > 0 && (
+                <span>{"\uD83D\uDCDA"} {vocabCount} vocabulary term{vocabCount !== 1 ? "s" : ""}</span>
+              )}
+            </div>
+          )}
           <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
             Ready for review.
           </div>
