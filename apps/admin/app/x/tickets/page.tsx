@@ -65,15 +65,8 @@ export default function TicketsPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Tickets</h1>
           <button
             onClick={() => setShowCreate(true)}
+            className="hf-btn hf-btn-primary"
             style={{
-              padding: "10px 20px",
-              background: "var(--badge-purple-text)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
               display: "flex",
               alignItems: "center",
               gap: 8,

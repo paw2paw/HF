@@ -81,7 +81,7 @@ export default function ContentSourceWizard() {
     onClick: i < currentStep ? () => handleGoToStep(i) : undefined,
   }));
 
-  const stepProps = { setData, getData, onNext: handleNext, onPrev: handlePrev, endFlow };
+  const stepProps = { setData, getData, onNext: handleNext, onPrev: handlePrev, endFlow, setStep: handleGoToStep };
 
   return (
     <div>
@@ -94,7 +94,12 @@ export default function ContentSourceWizard() {
       {currentStep === 0 && <SourceStep {...stepProps} />}
       {currentStep === 1 && <ExtractStep {...stepProps} />}
       {currentStep === 2 && <ReviewStep {...stepProps} />}
-      {currentStep === 3 && <PlanStep {...stepProps} />}
+      {currentStep === 3 && (
+        <PlanStep
+          {...stepProps}
+          onPrev={getData<boolean>("existingSource") ? () => handleGoToStep(0) : handlePrev}
+        />
+      )}
       {currentStep === 4 && <OnboardStep {...stepProps} />}
       {currentStep === 5 && <PreviewStep {...stepProps} />}
       {currentStep === 6 && <DoneStep {...stepProps} />}

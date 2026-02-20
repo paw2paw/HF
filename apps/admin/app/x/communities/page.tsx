@@ -62,7 +62,7 @@ export default function CommunitiesPage() {
         </div>
         <button
           onClick={handleNewCommunity}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="hf-btn hf-btn-primary flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
           New Community
@@ -92,7 +92,7 @@ export default function CommunitiesPage() {
           </p>
           <button
             onClick={handleNewCommunity}
-            className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+            className="hf-btn hf-btn-primary flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Create First Community
