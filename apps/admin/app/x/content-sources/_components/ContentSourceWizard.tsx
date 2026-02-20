@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { ProgressStepper } from "@/components/shared/ProgressStepper";
@@ -25,19 +25,46 @@ const CONTENT_STEPS: StepDefinition[] = [
 export default function ContentSourceWizard() {
   const { state, isActive, startFlow, setStep, nextStep, prevStep, setData, getData, endFlow } = useStepFlow();
   const flowInitialized = useRef(false);
+  const [wizardTaskId, setWizardTaskId] = useState<string | null>(null);
 
-  // Start the flow on mount (if not already active with this flowId)
+  // Load wizard steps from spec and start the flow
   useEffect(() => {
     if (flowInitialized.current) return;
     flowInitialized.current = true;
 
-    if (!isActive || state?.flowId !== "content-sources") {
-      startFlow({
-        flowId: "content-sources",
-        steps: CONTENT_STEPS,
-        returnPath: "/x/content-sources",
-      });
-    }
+    const initializeWizard = async () => {
+      // Load steps from spec
+      let stepsToUse = CONTENT_STEPS;
+      try {
+        const response = await fetch("/api/wizard-steps?slug=CONTENT-SOURCE-SETUP-001");
+        const data = await response.json();
+
+        if (data.ok && data.steps && data.steps.length > 0) {
+          // Convert WizardStep to StepDefinition
+          stepsToUse = data.steps.map((step: any) => ({
+            id: step.id,
+            label: step.label,
+            activeLabel: step.activeLabel,
+          }));
+        }
+      } catch (err) {
+        console.warn("[ContentSourceWizard] Failed to load spec steps, using defaults", err);
+      }
+
+      // Start the flow with loaded or default steps
+      if (!isActive || state?.flowId !== "content-sources") {
+        startFlow({
+          flowId: "content-sources",
+          steps: stepsToUse,
+          returnPath: "/x/content-sources",
+        });
+      }
+
+      // Create a wizard-level task (for global visibility in /x/tasks)
+      // This is optional - the individual steps already track their own tasks (extraction, curriculum_generation)
+    };
+
+    initializeWizard();
   }, [isActive, state?.flowId, startFlow]);
 
   const currentStep = state?.currentStep ?? 0;

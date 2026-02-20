@@ -1,0 +1,54 @@
+{
+  "contractId": "TERMINOLOGY_V1",
+  "version": "1.0",
+  "status": "active",
+  "description": "Terminology Mapping — defines per-role entity labels. Different roles see different user-friendly names for the same entities. Loaded by lib/terminology.ts at runtime via ContractRegistry.",
+  "terms": {
+    "domain": {
+      "SUPERADMIN": "Domain",
+      "ADMIN": "Domain",
+      "OPERATOR": "Domain",
+      "EDUCATOR": "Institution",
+      "SUPER_TESTER": "Domain",
+      "TESTER": "Institution",
+      "STUDENT": "Institution",
+      "DEMO": "Institution"
+    },
+    "playbook": {
+      "SUPERADMIN": "Playbook",
+      "ADMIN": "Playbook",
+      "OPERATOR": "Course",
+      "EDUCATOR": "Course",
+      "SUPER_TESTER": "Playbook",
+      "TESTER": "Course",
+      "STUDENT": "Course",
+      "DEMO": "Course"
+    },
+    "spec": {
+      "SUPERADMIN": "Spec",
+      "ADMIN": "Spec",
+      "OPERATOR": "Content",
+      "EDUCATOR": "Content",
+      "SUPER_TESTER": "Spec",
+      "TESTER": "Content",
+      "STUDENT": "Content",
+      "DEMO": "Content"
+    },
+    "caller": {
+      "SUPERADMIN": "Caller",
+      "ADMIN": "Caller",
+      "OPERATOR": "Student",
+      "EDUCATOR": "Student",
+      "SUPER_TESTER": "Caller",
+      "TESTER": "Student",
+      "STUDENT": "Learner",
+      "DEMO": "Student"
+    }
+  },
+  "metadata": {
+    "standardizeUILabels": {
+      "description": "Per-role terminology enables user-centred language without hardcoding UI labels. ADMIN/SUPER_TESTER see technical terms; educators/students see user-friendly terminology.",
+      "implemented": true
+    }
+  }
+}

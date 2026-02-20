@@ -1,105 +1,129 @@
-import { describe, it, expect } from "vitest";
-import {
-  resolveTerminology,
-  pluralize,
-  lc,
-  DEFAULT_TERMINOLOGY,
-  TERMINOLOGY_PRESETS,
-  type TerminologyConfig,
-} from "@/lib/terminology/types";
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { getTerminologyForRole, getTermLabel, getTerminologyContract } from '@/lib/terminology';
 
-describe("resolveTerminology", () => {
-  it("returns corporate defaults for null config", () => {
-    expect(resolveTerminology(null)).toEqual(DEFAULT_TERMINOLOGY);
+vi.mock('@/lib/contracts/registry', () => ({
+  ContractRegistry: {
+    getContract: vi.fn(),
+  },
+}));
+
+import { ContractRegistry } from '@/lib/contracts/registry';
+
+describe('lib/terminology', () => {
+  const mockContract = {
+    contractId: 'TERMINOLOGY_V1',
+    version: '1.0',
+    status: 'active',
+    terms: {
+      domain: {
+        ADMIN: 'Domain',
+        OPERATOR: 'Domain',
+        EDUCATOR: 'Institution',
+        TESTER: 'Institution',
+      },
+      playbook: {
+        ADMIN: 'Playbook',
+        OPERATOR: 'Course',
+        EDUCATOR: 'Course',
+        TESTER: 'Course',
+      },
+      spec: {
+        ADMIN: 'Spec',
+        OPERATOR: 'Content',
+        EDUCATOR: 'Content',
+        TESTER: 'Content',
+      },
+      caller: {
+        ADMIN: 'Caller',
+        OPERATOR: 'Student',
+        EDUCATOR: 'Student',
+        STUDENT: 'Learner',
+        TESTER: 'Student',
+      },
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("returns corporate defaults for undefined config", () => {
-    expect(resolveTerminology(undefined)).toEqual(DEFAULT_TERMINOLOGY);
+  describe('getTerminologyForRole', () => {
+    it('should return terminology for ADMIN role', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+
+      const terms = await getTerminologyForRole('ADMIN');
+
+      expect(terms.domain).toBe('Domain');
+      expect(terms.playbook).toBe('Playbook');
+      expect(terms.spec).toBe('Spec');
+      expect(terms.caller).toBe('Caller');
+    });
+
+    it('should return terminology for EDUCATOR role', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+
+      const terms = await getTerminologyForRole('EDUCATOR');
+
+      expect(terms.domain).toBe('Institution');
+      expect(terms.playbook).toBe('Course');
+      expect(terms.spec).toBe('Content');
+      expect(terms.caller).toBe('Student');
+    });
+
+    it('should use ADMIN terms for SUPERADMIN', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+
+      const terms = await getTerminologyForRole('SUPERADMIN');
+
+      expect(terms.domain).toBe('Domain');
+      expect(terms.playbook).toBe('Playbook');
+    });
+
+    it('should use TESTER for VIEWER (alias)', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+
+      const terms = await getTerminologyForRole('VIEWER');
+
+      expect(terms.domain).toBe('Institution');
+      expect(terms.playbook).toBe('Course');
+    });
   });
 
-  it("returns full corporate profile for preset only", () => {
-    const config: TerminologyConfig = { preset: "corporate" };
-    expect(resolveTerminology(config)).toEqual(TERMINOLOGY_PRESETS.corporate);
+  describe('getTermLabel', () => {
+    it('should return singular label', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+
+      const label = await getTermLabel('domain', 'EDUCATOR');
+
+      expect(label).toBe('Institution');
+    });
+
+    it('should return plural label', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+
+      const label = await getTermLabel('domain', 'EDUCATOR', true);
+
+      expect(label).toBe('Institutions');
+    });
   });
 
-  it("returns full coaching profile for preset only", () => {
-    const config: TerminologyConfig = { preset: "coaching" };
-    expect(resolveTerminology(config)).toEqual(TERMINOLOGY_PRESETS.coaching);
-  });
+  describe('getTerminologyContract', () => {
+    it('should return full contract', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
 
-  it("returns full healthcare profile for preset only", () => {
-    const config: TerminologyConfig = { preset: "healthcare" };
-    expect(resolveTerminology(config)).toEqual(TERMINOLOGY_PRESETS.healthcare);
-  });
+      const contract = await getTerminologyContract();
 
-  it("merges overrides with preset base", () => {
-    const config: TerminologyConfig = {
-      preset: "school",
-      overrides: { learner: "Pupil" },
-    };
-    const result = resolveTerminology(config);
-    expect(result.learner).toBe("Pupil");
-    expect(result.institution).toBe("School"); // unchanged
-    expect(result.cohort).toBe("Classroom"); // unchanged
-  });
+      expect(contract.contractId).toBe('TERMINOLOGY_V1');
+      expect(contract.terms).toBeDefined();
+    });
 
-  it("ignores empty string overrides", () => {
-    const config: TerminologyConfig = {
-      preset: "corporate",
-      overrides: { cohort: "" },
-    };
-    const result = resolveTerminology(config);
-    expect(result.cohort).toBe("Team"); // falls back to preset
-  });
+    it('should use defaults if contract not found', async () => {
+      vi.mocked(ContractRegistry.getContract).mockResolvedValue(null);
 
-  it("ignores null overrides", () => {
-    const config: TerminologyConfig = {
-      preset: "corporate",
-      overrides: { cohort: undefined },
-    };
-    const result = resolveTerminology(config);
-    expect(result.cohort).toBe("Team");
-  });
+      const contract = await getTerminologyContract();
 
-  it("falls back to default for unknown preset", () => {
-    const config = { preset: "unknown" as any };
-    const result = resolveTerminology(config);
-    expect(result).toEqual(DEFAULT_TERMINOLOGY);
-  });
-});
-
-describe("pluralize", () => {
-  it("adds s to regular words", () => {
-    expect(pluralize("Student")).toBe("Students");
-    expect(pluralize("Team")).toBe("Teams");
-    expect(pluralize("Group")).toBe("Groups");
-  });
-
-  it("handles words ending in y (consonant + y)", () => {
-    expect(pluralize("Facility")).toBe("Facilities");
-  });
-
-  it("does not change y when preceded by vowel", () => {
-    expect(pluralize("Key")).toBe("Keys");
-  });
-
-  it("handles words ending in ch/sh", () => {
-    expect(pluralize("Coach")).toBe("Coaches");
-  });
-
-  it("handles words ending in s", () => {
-    expect(pluralize("Class")).toBe("Classes");
-  });
-});
-
-describe("lc", () => {
-  it("lowercases first character only", () => {
-    expect(lc("School")).toBe("school");
-    expect(lc("My Teacher")).toBe("my Teacher");
-    expect(lc("organization")).toBe("organization");
-  });
-
-  it("handles single character", () => {
-    expect(lc("A")).toBe("a");
+      expect(contract.contractId).toBe('TERMINOLOGY_V1');
+      expect(contract.terms).toBeDefined();
+    });
   });
 });

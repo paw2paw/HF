@@ -26,42 +26,71 @@ export default function CoursesPage() {
   const [showWizard, setShowWizard] = useState(false);
 
   // Load courses on mount
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/courses');
+      if (!res.ok) throw new Error('Failed to load courses');
+      const data = await res.json();
+      setCourses(data.courses || []);
+    } catch (err) {
+      console.error('Error loading courses:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadCourses = async () => {
-      try {
-        const res = await fetch('/api/courses');
-        if (!res.ok) throw new Error('Failed to load courses');
-        const data = await res.json();
-        setCourses(data.courses || []);
-      } catch (err) {
-        console.error('Error loading courses:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadCourses();
   }, []);
 
-  const handleNewCourse = () => {
+  const handleNewCourse = async () => {
+    // Load wizard steps from spec
+    let stepsToUse = [
+      { id: 'intent', label: 'Intent', activeLabel: 'Setting Intent' },
+      { id: 'content', label: 'Content', activeLabel: 'Adding Content' },
+      { id: 'teaching-points', label: 'Teaching Points', activeLabel: 'Reviewing Teaching Points' },
+      { id: 'lesson-structure', label: 'Lesson Structure', activeLabel: 'Planning Lessons' },
+      { id: 'students', label: 'Students', activeLabel: 'Adding Students' },
+      { id: 'course-config', label: 'Course Config', activeLabel: 'Configuring Course' },
+      { id: 'done', label: 'Done', activeLabel: 'Complete' },
+    ];
+
+    try {
+      const response = await fetch('/api/wizard-steps?slug=COURSE-SETUP-001');
+      const data = await response.json();
+
+      if (data.ok && data.steps && data.steps.length > 0) {
+        // Convert WizardStep to StepDefinition
+        stepsToUse = data.steps.map((step: any) => ({
+          id: step.id,
+          label: step.label,
+          activeLabel: step.activeLabel,
+        }));
+      }
+    } catch (err) {
+      console.warn('[CoursesPage] Failed to load spec steps, using defaults', err);
+    }
+
     // Start the wizard flow using StepFlowContext
     startFlow({
       flowId: 'create-course',
-      steps: [
-        { id: 'intent', label: 'Intent', activeLabel: 'Setting Intent' },
-        { id: 'content', label: 'Content', activeLabel: 'Adding Content' },
-        { id: 'teaching-points', label: 'Teaching Points', activeLabel: 'Reviewing Teaching Points' },
-        { id: 'lesson-structure', label: 'Lesson Structure', activeLabel: 'Planning Lessons' },
-        { id: 'students', label: 'Students', activeLabel: 'Adding Students' },
-        { id: 'course-config', label: 'Course Config', activeLabel: 'Configuring Course' },
-        { id: 'done', label: 'Done', activeLabel: 'Complete' },
-      ],
+      steps: stepsToUse,
       returnPath: '/x/courses',
     });
     setShowWizard(true);
   };
 
   if (showWizard && isSetupFlowActive) {
-    return <CourseSetupWizard onComplete={() => setShowWizard(false)} />;
+    return (
+      <CourseSetupWizard
+        onComplete={async () => {
+          setShowWizard(false);
+          // Reload courses after wizard completes
+          await loadCourses();
+        }}
+      />
+    );
   }
 
   return (

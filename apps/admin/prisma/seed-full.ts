@@ -18,15 +18,16 @@
  *
  * Steps (full profile):
  *   1.  seed-clean              → 51 specs, 160 params, admin user, contracts
- *   2.  seed-domains            → 4 professional domains
- *   3.  seed-default-institution → "HumanFirst" institution
- *   4.  seed-demo-domains       → 12 demo callers + 4 playbooks (3 per domain)
- *   5.  seed-run-configs        → 8 analysis run config templates
- *   6.  seed (dedup)            → Parameter deduplication cleanup
- *   7.  seed-e2e                → E2E test fixtures                    [test, full]
- *   8.  seed-educator-demo      → 3 schools, 10 teachers, 210 pupils   [full only]
- *   9.  seed-school-institutions → School institution records           [full only]
- *   10. seed-demo-fixtures      → "Paul" demo caller, QM overlay       [full only]
+ *   2.  seed-institution-types  → 5 institution types (school, corporate, community, coaching, healthcare)
+ *   3.  seed-domains            → 4 professional domains
+ *   4.  seed-default-institution → "HumanFirst" institution
+ *   5.  seed-demo-domains       → 12 demo callers + 4 playbooks (3 per domain)
+ *   6.  seed-run-configs        → 8 analysis run config templates
+ *   7.  seed (dedup)            → Parameter deduplication cleanup
+ *   8.  seed-e2e                → E2E test fixtures                    [test, full]
+ *   9.  seed-educator-demo      → 3 schools, 10 teachers, 210 pupils   [full only]
+ *   10. seed-school-institutions → School institution records           [full only]
+ *   11. seed-demo-fixtures      → "Paul" demo caller, QM overlay       [full only]
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -41,6 +42,7 @@ import { main as seedE2E } from "./seed-e2e";
 import { main as seedEducatorDemo } from "./seed-educator-demo";
 import { main as seedSchoolInstitutions } from "./seed-school-institutions";
 import { main as seedDemoFixtures } from "./seed-demo-fixtures";
+import { main as seedInstitutionTypes } from "./seed-institution-types";
 
 type Profile = "core" | "test" | "full";
 
@@ -54,6 +56,7 @@ interface Step {
 const ALL_STEPS: Step[] = [
   // ── Core (runs in every profile) ──────────────────────
   { name: "seed-clean", fn: seedClean },
+  { name: "seed-institution-types", fn: seedInstitutionTypes },
   { name: "seed-domains", fn: seedDomains },
   { name: "seed-default-institution", fn: seedDefaultInstitution },
   { name: "seed-demo-domains", fn: seedDemoDomains },

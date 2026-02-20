@@ -185,8 +185,8 @@ describe("educator-access", () => {
 
       const result = await requireEducatorCohortOwnership("missing-id", "teacher-caller-1");
 
-      expect("error" in result).toBe(true);
-      if ("error" in result) {
+      expect(isEducatorAuthError(result)).toBe(true);
+      if (isEducatorAuthError(result)) {
         const body = await result.error.json();
         expect(body.error).toBe("Classroom not found");
         expect(result.error.status).toBe(404);
@@ -198,8 +198,8 @@ describe("educator-access", () => {
 
       const result = await requireEducatorCohortOwnership("cohort-1", "other-teacher");
 
-      expect("error" in result).toBe(true);
-      if ("error" in result) {
+      expect(isEducatorAuthError(result)).toBe(true);
+      if (isEducatorAuthError(result)) {
         const body = await result.error.json();
         expect(body.error).toBe("Forbidden");
         expect(result.error.status).toBe(403);
@@ -211,8 +211,8 @@ describe("educator-access", () => {
 
       const result = await requireEducatorCohortOwnership("cohort-1", "teacher-caller-1");
 
-      expect("error" in result).toBe(false);
-      if (!("error" in result)) {
+      expect(isEducatorAuthError(result)).toBe(false);
+      if (!isEducatorAuthError(result)) {
         expect(result.cohort.id).toBe("cohort-1");
         expect(result.cohort.ownerId).toBe("teacher-caller-1");
         expect(result.cohort._count.members).toBe(12);
@@ -257,8 +257,8 @@ describe("educator-access", () => {
 
       const result = await requireEducatorStudentAccess("missing-id", "teacher-caller-1");
 
-      expect("error" in result).toBe(true);
-      if ("error" in result) {
+      expect(isEducatorAuthError(result)).toBe(true);
+      if (isEducatorAuthError(result)) {
         const body = await result.error.json();
         expect(body.error).toBe("Student not found");
         expect(result.error.status).toBe(404);
@@ -275,8 +275,8 @@ describe("educator-access", () => {
 
       const result = await requireEducatorStudentAccess("student-1", "teacher-caller-1");
 
-      expect("error" in result).toBe(true);
-      if ("error" in result) {
+      expect(isEducatorAuthError(result)).toBe(true);
+      if (isEducatorAuthError(result)) {
         const body = await result.error.json();
         expect(body.error).toBe("Forbidden");
         expect(result.error.status).toBe(403);
@@ -296,8 +296,8 @@ describe("educator-access", () => {
 
       const result = await requireEducatorStudentAccess("student-1", "teacher-caller-1");
 
-      expect("error" in result).toBe(true);
-      if ("error" in result) {
+      expect(isEducatorAuthError(result)).toBe(true);
+      if (isEducatorAuthError(result)) {
         const body = await result.error.json();
         expect(body.error).toBe("Forbidden");
         expect(result.error.status).toBe(403);
@@ -309,8 +309,8 @@ describe("educator-access", () => {
 
       const result = await requireEducatorStudentAccess("student-1", "teacher-caller-1");
 
-      expect("error" in result).toBe(false);
-      if (!("error" in result)) {
+      expect(isEducatorAuthError(result)).toBe(false);
+      if (!isEducatorAuthError(result)) {
         expect(result.student.id).toBe("student-1");
         expect(result.student.cohortGroup?.ownerId).toBe("teacher-caller-1");
       }

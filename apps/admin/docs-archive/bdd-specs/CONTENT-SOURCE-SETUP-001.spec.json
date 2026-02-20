@@ -1,0 +1,98 @@
+{
+  "id": "content-source-setup-001",
+  "slug": "CONTENT-SOURCE-SETUP-001",
+  "title": "Content Source Setup Wizard",
+  "name": "Content Source Setup Wizard",
+  "version": "1.0.0",
+  "story": "As an educator, I want to upload course materials and extract teaching points into a domain",
+  "description": "Multi-step wizard for uploading, extracting, and configuring content sources into a domain",
+  "specRole": "ORCHESTRATE",
+  "domain": "wizard",
+  "outputType": "ORCHESTRATE",
+  "specType": "SYSTEM",
+  "isActive": true,
+  "isDirty": false,
+  "isDeletable": true,
+  "triggers": [
+    {
+      "given": "A user initiates the content source setup workflow",
+      "when": "The user navigates to /x/content-sources with the wizard view",
+      "then": "The wizard steps are loaded from this spec and the flow progresses through all steps",
+      "name": "Content Source Wizard Execution",
+      "sortOrder": 0
+    }
+  ],
+  "parameters": [
+    {
+      "id": "wizard_steps",
+      "name": "Wizard Step Definitions",
+      "description": "Defines the sequence and configuration of wizard steps",
+      "section": "orchestration",
+      "config": {
+        "steps": [
+          {
+            "id": "source",
+            "label": "Add Source",
+            "activeLabel": "Adding Source",
+            "order": 1,
+            "skippable": false,
+            "description": "Create or upload a content source document"
+          },
+          {
+            "id": "extract",
+            "label": "Extract",
+            "activeLabel": "Extracting Content",
+            "order": 2,
+            "skippable": true,
+            "skipWhen": "!hasFile",
+            "taskType": "extraction",
+            "description": "Extract teaching points from the uploaded document"
+          },
+          {
+            "id": "review",
+            "label": "Review",
+            "activeLabel": "Reviewing Assertions",
+            "order": 3,
+            "skippable": true,
+            "description": "Review and approve extracted teaching points"
+          },
+          {
+            "id": "plan",
+            "label": "Plan Lessons",
+            "activeLabel": "Planning Lessons",
+            "order": 4,
+            "skippable": true,
+            "taskType": "curriculum_generation",
+            "description": "Generate lesson plan and curriculum structure"
+          },
+          {
+            "id": "onboard",
+            "label": "Onboard",
+            "activeLabel": "Configuring Onboarding",
+            "order": 5,
+            "skippable": true,
+            "description": "Configure domain and first-call onboarding"
+          },
+          {
+            "id": "preview",
+            "label": "Preview",
+            "activeLabel": "Previewing Prompt",
+            "order": 6,
+            "skippable": true,
+            "description": "Preview the AI tutor's first prompt"
+          },
+          {
+            "id": "done",
+            "label": "Done",
+            "activeLabel": "Complete",
+            "order": 7,
+            "skippable": false,
+            "description": "Review summary and check course readiness"
+          }
+        ]
+      }
+    }
+  ],
+  "createdAt": "2026-02-20T00:00:00Z",
+  "updatedAt": "2026-02-20T00:00:00Z"
+}

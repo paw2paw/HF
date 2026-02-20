@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { invalidateAccessCache } from "@/lib/access-control";
+import { auditLog, AuditAction } from "@/lib/audit";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -52,6 +53,16 @@ export async function POST() {
   });
 
   invalidateAccessCache();
+
+  // Log the reset
+  const { session } = authResult;
+  await auditLog({
+    userId: session.user.id,
+    userEmail: session.user.email,
+    action: AuditAction.RESET_ENTITY_ACCESS,
+    entityType: "EntityAccessMatrix",
+    metadata: { reason: "Reset to seed defaults" },
+  });
 
   return NextResponse.json({ ok: true });
 }

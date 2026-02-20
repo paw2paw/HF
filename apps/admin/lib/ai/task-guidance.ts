@@ -242,13 +242,34 @@ async function generateSuggestions(task: TaskContext): Promise<GuidanceSuggestio
       if (task.currentStep === 1) {
         suggestions.push({
           type: "tip",
-          message: "Upload PDF, TXT, or MD documents — the AI will extract teaching points automatically",
+          message: "Create a new content source or upload PDF, TXT, or MD documents",
         });
       }
-      if (task.currentStep === 3) {
+      if (task.currentStep === 2) {
+        suggestions.push({
+          type: "tip",
+          message: "The AI is extracting teaching points from your document — this usually takes 1-3 minutes",
+        });
+      }
+      if (task.currentStep === 4) {
         suggestions.push({
           type: "best-practice",
           message: "Pick a template or enter a custom session count. AI will distribute onboarding, teaching, review, and assessment phases.",
+        });
+      }
+      break;
+
+    case "course_setup":
+      if (task.currentStep === 1) {
+        suggestions.push({
+          type: "tip",
+          message: "Enter your course name, learning outcomes, and preferred teaching style",
+        });
+      }
+      if (task.currentStep === 5) {
+        suggestions.push({
+          type: "tip",
+          message: "Student invitations are being sent — they'll receive an email with signup instructions",
         });
       }
       break;
@@ -530,8 +551,8 @@ const TASK_STEP_MAPS: Record<string, Record<number, TaskStep>> = {
   },
   content_wizard: {
     1: {
-      title: "Add Content",
-      description: "Upload documents or select existing sources for your subject",
+      title: "Add Source",
+      description: "Create or upload a content source document",
       estimated: "2 min",
     },
     2: {
@@ -540,14 +561,56 @@ const TASK_STEP_MAPS: Record<string, Record<number, TaskStep>> = {
       estimated: "1-3 min",
     },
     3: {
+      title: "Review",
+      description: "Review and approve extracted teaching points",
+      estimated: "2 min",
+    },
+    4: {
       title: "Plan Lessons",
       description: "Set session count and generate a lesson plan",
       estimated: "2 min",
     },
-    4: {
-      title: "Attach to Domains",
-      description: "Link the subject to domains where it will be taught",
+    5: {
+      title: "Onboard",
+      description: "Configure domain and first-call onboarding",
+      estimated: "2 min",
+    },
+    6: {
+      title: "Preview",
+      description: "Preview the AI tutor's first prompt",
       estimated: "1 min",
+    },
+    7: {
+      title: "Done",
+      description: "Review summary and check course readiness",
+      estimated: "1 min",
+    },
+  },
+  course_setup: {
+    1: {
+      title: "Setting up course",
+      description: "Creating institution and subject",
+      estimated: "30 sec",
+    },
+    2: {
+      title: "Building curriculum",
+      description: "Generating lesson structure",
+      estimated: "1-2 min",
+    },
+    3: {
+      title: "Configuring AI tutor",
+      description: "Scaffolding identity and playbook",
+      estimated: "30 sec",
+    },
+    4: {
+      title: "Configuring onboarding",
+      description: "Welcome message and flow phases",
+      estimated: "10 sec",
+    },
+    5: {
+      title: "Inviting students",
+      description: "Sending student invitations",
+      estimated: "30 sec",
     },
   },
 };

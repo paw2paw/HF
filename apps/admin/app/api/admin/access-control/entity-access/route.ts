@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth, isAuthError } from "@/lib/permissions";
+import { requireAuth, isAuthError, ROLE_LEVEL } from "@/lib/permissions";
+import { requireEntityAccess, isEntityAuthError, invalidateAccessCache } from "@/lib/access-control";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { prisma } from "@/lib/prisma";
-import { invalidateAccessCache } from "@/lib/access-control";
+import { auditLog, AuditAction } from "@/lib/audit";
+import type { UserRole } from "@prisma/client";
 
 const VALID_SCOPES = ["ALL", "DOMAIN", "OWN", "NONE"];
 const VALID_OPS = ["C", "R", "U", "D"];
@@ -30,12 +32,15 @@ export async function GET() {
 
 /**
  * @api POST /api/admin/access-control/entity-access
- * @auth ADMIN
- * @description Update the ENTITY_ACCESS_V1 contract matrix
+ * @auth rbac_policy:U
+ * @description Update the ENTITY_ACCESS_V1 contract matrix (meta-RBAC: caller can only modify roles strictly below their authority level)
  */
 export async function POST(req: Request) {
-  const authResult = await requireAuth("ADMIN");
-  if (isAuthError(authResult)) return authResult.error;
+  // Meta-RBAC: permission to modify the access matrix is itself governed by the access matrix
+  const authResult = await requireEntityAccess("rbac_policy", "U");
+  if (isEntityAuthError(authResult)) return authResult.error;
+
+  const { session } = authResult;
 
   const body = await req.json();
   const matrix = body.matrix as Record<string, Record<string, string>>;
@@ -45,6 +50,30 @@ export async function POST(req: Request) {
       { ok: false, error: "Missing or invalid 'matrix'" },
       { status: 400 }
     );
+  }
+
+  // Meta-RBAC authority enforcement: caller can only modify roles strictly below their authority level
+  const callerLevel = ROLE_LEVEL[session.user.role];
+  for (const entity of Object.keys(matrix)) {
+    const roles = matrix[entity];
+    if (typeof roles !== "object") {
+      return NextResponse.json(
+        { ok: false, error: `Invalid roles object for entity '${entity}'` },
+        { status: 400 }
+      );
+    }
+    for (const role of Object.keys(roles)) {
+      const targetLevel = ROLE_LEVEL[role as UserRole] ?? -1;
+      if (targetLevel >= callerLevel) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `Cannot modify rules for role '${role}' — same or higher authority level than ${session.user.role}`,
+          },
+          { status: 403 }
+        );
+      }
+    }
   }
 
   // Validate matrix entries
@@ -107,6 +136,18 @@ export async function POST(req: Request) {
 
   // Bust cache so changes take effect immediately
   invalidateAccessCache();
+
+  // Log the change
+  await auditLog({
+    userId: session.user.id,
+    userEmail: session.user.email,
+    action: AuditAction.UPDATED_ENTITY_ACCESS,
+    entityType: "EntityAccessMatrix",
+    metadata: { modifiedRoles: Object.keys(matrix.reduce((acc: Record<string, boolean>, entity: string) => {
+      Object.keys(matrix[entity]).forEach(role => { acc[role] = true; });
+      return acc;
+    }, {})) },
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -7181,9 +7181,9 @@ Load the ENTITY_ACCESS_V1 contract for the access matrix editor
 
 ### `POST` /api/admin/access-control/entity-access
 
-Update the ENTITY_ACCESS_V1 contract matrix
+Update the ENTITY_ACCESS_V1 contract matrix (meta-RBAC: caller can only modify roles strictly below their authority level)
 
-**Auth**: ADMIN
+**Auth**: rbac_policy:U
 
 ---
 
@@ -7208,6 +7208,22 @@ Load sidebar visibility rules (DB-backed, falls back to manifest)
 Save sidebar visibility rules
 
 **Auth**: ADMIN
+
+---
+
+### `GET` /api/admin/terminology
+
+Load the TERMINOLOGY_V1 contract for the terminology editor
+
+**Auth**: terminology:R
+
+---
+
+### `POST` /api/admin/terminology
+
+Update the TERMINOLOGY_V1 contract (meta-RBAC: caller can only modify roles strictly below their authority level)
+
+**Auth**: terminology:U
 
 ---
 
@@ -11087,8 +11103,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 289 |
-| Files with annotations | 288 |
+| Route files found | 290 |
+| Files with annotations | 289 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

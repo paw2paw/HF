@@ -40,7 +40,9 @@ export type EntityName =
   | "messages"
   | "content"
   | "sim"
-  | "invites";
+  | "invites"
+  | "rbac_policy"
+  | "terminology";
 
 export type AccessScope = "ALL" | "DOMAIN" | "OWN" | "NONE";
 export type Operation = "C" | "R" | "U" | "D";

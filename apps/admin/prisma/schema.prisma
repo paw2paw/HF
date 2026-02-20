@@ -626,6 +626,39 @@ model BehaviorMeasurement {
 }
 
 // =========================
+// INSTITUTION TYPES (DB-driven, admin-manageable)
+// =========================
+// Defines categories of institutions (school, corporate, community, etc.)
+// Each type carries its own terminology preset and wizard configuration.
+// Admins can create new types via UI — no migration needed.
+
+model InstitutionType {
+  id          String  @id @default(uuid())
+  slug        String  @unique // "school", "corporate", "community", etc.
+  name        String          // "School", "Corporate", "Community"
+  description String?
+  isActive    Boolean @default(true)
+
+  // Terminology preset — JSON TermMap with 7 keys:
+  // { domain, playbook, spec, caller, cohort, instructor, session }
+  terminology Json
+
+  // Which wizard spec to use for setup (null = default COURSE-SETUP-001)
+  setupSpecSlug String? // "COURSE-SETUP-001" or "COMMUNITY-SETUP-001"
+
+  // Default DomainKind for new domains created under this institution type
+  defaultDomainKind DomainKind @default(INSTITUTION)
+
+  institutions Institution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// =========================
 // INSTITUTIONS
 // =========================
 // An institution represents a school, university, or organization.
@@ -639,8 +672,12 @@ model Institution {
   primaryColor   String? // Hex color for accent (e.g., "#4f46e5")
   secondaryColor String? // Hex color for hover/secondary accent
   welcomeMessage String? // Custom welcome text for join pages
-  terminology    Json?   // Per-institution terminology overrides (TerminologyConfig)
+  terminology    Json?   // Legacy: per-institution terminology overrides (deprecated — use type.terminology)
   isActive       Boolean @default(true)
+
+  // Institution type — drives terminology, wizard, and defaults
+  typeId String?
+  type   InstitutionType? @relation(fields: [typeId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -652,6 +689,7 @@ model Institution {
   domains           Domain[]
 
   @@index([slug])
+  @@index([typeId])
 }
 
 // SYSTEM USERS & CALLERS

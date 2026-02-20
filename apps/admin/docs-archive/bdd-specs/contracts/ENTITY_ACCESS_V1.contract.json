@@ -38,7 +38,9 @@
     "messages":   { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRUD", "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:CRU",    "SUPER_TESTER": "ALL:CRU",   "TESTER": "OWN:CRU",  "STUDENT": "OWN:CRU",  "DEMO": "NONE"     },
     "content":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "EDUCATOR": "NONE",       "SUPER_TESTER": "DOMAIN:R",  "TESTER": "NONE",     "STUDENT": "NONE",     "DEMO": "NONE"     },
     "sim":        { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:CRU",  "EDUCATOR": "OWN:CRUD",   "SUPER_TESTER": "DOMAIN:CRUD","TESTER": "OWN:CRUD", "STUDENT": "OWN:CRUD", "DEMO": "OWN:CR"   },
-    "invites":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "NONE",     "EDUCATOR": "OWN:CR",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "STUDENT": "NONE",     "DEMO": "NONE"     }
+    "invites":    { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "NONE",     "EDUCATOR": "OWN:CR",     "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "STUDENT": "NONE",     "DEMO": "NONE"     },
+    "rbac_policy": { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "STUDENT": "NONE",     "DEMO": "NONE"     },
+    "terminology": { "SUPERADMIN": "ALL:CRUD", "ADMIN": "ALL:CRU",  "OPERATOR": "ALL:R",    "EDUCATOR": "NONE",       "SUPER_TESTER": "NONE",      "TESTER": "NONE",     "STUDENT": "NONE",     "DEMO": "NONE"     }
   },
   "metadata": {
     "gdprReady": {

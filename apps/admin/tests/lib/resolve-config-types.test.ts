@@ -66,12 +66,12 @@ function useDefaults() {
 
 describe("deepMerge", () => {
   it("merges nested objects", () => {
-    const result = deepMerge({ a: { b: 1, c: 2 } }, { a: { b: 99 } });
+    const result = deepMerge({ a: { b: 1, c: 2 } }, { a: { b: 99 } } as any);
     expect(result).toEqual({ a: { b: 99, c: 2 } });
   });
 
   it("replaces arrays (does not concatenate)", () => {
-    const result = deepMerge({ a: [1, 2] }, { a: [3] });
+    const result = deepMerge({ a: [1, 2] }, { a: [3] } as any);
     expect(result).toEqual({ a: [3] });
   });
 });

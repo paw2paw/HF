@@ -47,6 +47,11 @@ export const AuditAction = {
   // Masquerade
   MASQUERADE_START: "masquerade_start",
   MASQUERADE_STOP: "masquerade_stop",
+
+  // RBAC and Terminology
+  UPDATED_ENTITY_ACCESS: "updated_entity_access",
+  RESET_ENTITY_ACCESS: "reset_entity_access",
+  UPDATED_TERMINOLOGY: "updated_terminology",
 } as const;
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];

@@ -1,0 +1,97 @@
+{
+  "id": "course-setup-001",
+  "slug": "COURSE-SETUP-001",
+  "title": "Course Setup Wizard",
+  "name": "Course Setup Wizard",
+  "version": "1.0.0",
+  "story": "As an educator, I want to create a course with learning outcomes, content, and enroll students",
+  "description": "Multi-step wizard for creating a course with content, onboarding, and student enrollment",
+  "specRole": "ORCHESTRATE",
+  "domain": "wizard",
+  "outputType": "ORCHESTRATE",
+  "specType": "SYSTEM",
+  "isActive": true,
+  "isDirty": false,
+  "isDeletable": true,
+  "triggers": [
+    {
+      "given": "A user initiates the course creation workflow",
+      "when": "The user clicks 'New Course' on /x/courses",
+      "then": "The wizard steps are loaded from this spec and the flow progresses through all steps",
+      "name": "Course Setup Wizard Execution",
+      "sortOrder": 0
+    }
+  ],
+  "parameters": [
+    {
+      "id": "wizard_steps",
+      "name": "Wizard Step Definitions",
+      "description": "Defines the sequence and configuration of course setup wizard steps",
+      "section": "orchestration",
+      "config": {
+        "steps": [
+          {
+            "id": "intent",
+            "label": "Course Intent",
+            "activeLabel": "Setting Course Intent",
+            "order": 1,
+            "skippable": false,
+            "description": "Define course name, learning outcomes, and teaching style"
+          },
+          {
+            "id": "content",
+            "label": "Add Content",
+            "activeLabel": "Adding Content",
+            "order": 2,
+            "skippable": true,
+            "description": "Upload or describe course content"
+          },
+          {
+            "id": "teaching-points",
+            "label": "Teaching Points",
+            "activeLabel": "Reviewing Teaching Points",
+            "order": 3,
+            "skippable": true,
+            "taskType": "extraction",
+            "description": "Review extracted teaching points from content"
+          },
+          {
+            "id": "lesson-structure",
+            "label": "Lesson Structure",
+            "activeLabel": "Configuring Lessons",
+            "order": 4,
+            "skippable": true,
+            "description": "Configure lesson count, duration, and assessment style"
+          },
+          {
+            "id": "students",
+            "label": "Students",
+            "activeLabel": "Adding Students",
+            "order": 5,
+            "skippable": true,
+            "description": "Invite students to the course"
+          },
+          {
+            "id": "course-config",
+            "label": "Configure AI",
+            "activeLabel": "Configuring AI",
+            "order": 6,
+            "skippable": true,
+            "description": "Customize the AI tutor's welcome message and persona"
+          },
+          {
+            "id": "done",
+            "label": "Launch",
+            "activeLabel": "Creating Course",
+            "order": 7,
+            "skippable": false,
+            "taskType": "course_setup",
+            "description": "Create the course and complete onboarding"
+          }
+        ]
+      }
+    }
+  ],
+  "createdAt": "2026-02-20T00:00:00Z",
+  "updatedAt": "2026-02-20T00:00:00Z"
+}
