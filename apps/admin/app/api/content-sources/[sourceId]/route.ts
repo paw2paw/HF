@@ -39,6 +39,7 @@ export async function GET(
       where: { id: sourceId },
       include: {
         _count: { select: { assertions: true } },
+        mediaAssets: { select: { id: true, storageKey: true, mimeType: true, fileName: true }, take: 1 },
         supersededBy: { select: { id: true, slug: true, name: true } },
         supersedes: { select: { id: true, slug: true, name: true } },
       },
