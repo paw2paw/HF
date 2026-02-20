@@ -3,7 +3,7 @@
     "id": "home",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
-      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR", "wizard": true },
+      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR", "wizard": true, "terminologyLabel": "playbook_plural" },
       { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users", "requiredRole": "OPERATOR", "wizard": true },
       { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true, "wizard": true },
       { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle", "wizard": true },
@@ -19,7 +19,7 @@
     "href": "/x/callers",
     "defaultHiddenFor": ["TESTER", "STUDENT", "DEMO", "EDUCATOR"],
     "items": [
-      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User" },
+      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural" },
       { "id": "sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
       { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
       { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR" }
@@ -65,9 +65,9 @@
     "defaultHiddenFor": ["EDUCATOR"],
     "advancedOnly": true,
     "items": [
-      { "id": "domains", "href": "/x/domains", "label": "Domains", "icon": "Globe" },
-      { "id": "playbooks", "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen" },
-      { "id": "specs", "href": "/x/specs", "label": "Specs", "icon": "ClipboardList" },
+      { "id": "domains", "href": "/x/domains", "label": "Domains", "icon": "Globe", "terminologyLabel": "domain_plural" },
+      { "id": "playbooks", "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen", "terminologyLabel": "playbook_plural" },
+      { "id": "specs", "href": "/x/specs", "label": "Specs", "icon": "ClipboardList", "terminologyLabel": "spec_plural" },
       { "id": "layers", "href": "/x/layers", "label": "Layers", "icon": "Layers" },
       { "id": "taxonomy-graph", "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" },
       { "id": "flows", "href": "/x/flows", "label": "Flows", "icon": "Workflow" },

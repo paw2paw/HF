@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 interface CreateDomainModalProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface CreateDomainModalProps {
 }
 
 export function CreateDomainModal({ open, onClose, onCreated, onError }: CreateDomainModalProps) {
+  const { terms } = useTerminology();
   const [newDomain, setNewDomain] = useState({ slug: "", name: "", description: "" });
   const [creating, setCreating] = useState(false);
 
@@ -55,7 +57,7 @@ export function CreateDomainModal({ open, onClose, onCreated, onError }: CreateD
         style={{ background: "var(--surface-primary)", borderRadius: 12, padding: 24, width: 400 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New Domain</h2>
+        <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New {terms.domain}</h2>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Slug</label>
           <input

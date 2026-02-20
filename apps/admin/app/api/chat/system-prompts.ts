@@ -60,9 +60,9 @@ export async function buildSystemPrompt(
     case "DATA":
       return DATA_SYSTEM_PROMPT + termBlock + `\n\n${baseContext}`;
     case "CALL":
-      return await buildCallSimPrompt(entityContext, terms);
+      return await buildCallSimPrompt(entityContext, terms, termBlock);
     case "BUG":
-      return await buildBugDiagnosisPrompt(entityContext, bugContext);
+      return await buildBugDiagnosisPrompt(entityContext, bugContext, termBlock);
   }
 }
 
@@ -761,7 +761,7 @@ async function getDomainContext(domainId: string): Promise<string | null> {
  * Uses renderVoicePrompt() for the same voice-optimized format that VAPI receives,
  * giving a realistic simulation of the actual call experience.
  */
-async function buildCallSimPrompt(entityContext: EntityBreadcrumb[], terms?: TermMap): Promise<string> {
+async function buildCallSimPrompt(entityContext: EntityBreadcrumb[], terms?: TermMap, termBlock?: string): Promise<string> {
   const callerEntity = entityContext.find((e) => e.type === "caller");
   const goalEntity = entityContext.find((e) => e.type === "demonstrationGoal");
   const goalPrefix = goalEntity?.label
@@ -788,7 +788,7 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
       const voicePrompt = renderVoicePrompt(composedPrompt.llmPrompt as any);
       return `You are simulating a VAPI voice AI call. This is the EXACT prompt the voice AI receives.
 Keep responses SHORT (1-3 sentences) — this is voice, not text.
-${goalPrefix}${voicePrompt}`;
+${goalPrefix}${voicePrompt}${termBlock || ""}`;
     }
 
     // Fallback: no composed prompt — use basic caller info
@@ -825,12 +825,12 @@ No composed prompt found — run "Compose Prompt" for this caller first for the 
       }
     }
 
-    return parts.join("\n");
+    return parts.join("\n") + (termBlock || "");
   } catch {
     return `You are simulating a VAPI voice AI call with caller ${callerEntity.label}.
 
 Keep responses short (1-3 sentences) and conversational.
-Be helpful, warm, and natural.`;
+Be helpful, warm, and natural.${termBlock || ""}`;
   }
 }
 
@@ -879,9 +879,10 @@ Be specific and actionable. Reference actual file paths and code from the contex
  */
 async function buildBugDiagnosisPrompt(
   entityContext: EntityBreadcrumb[],
-  bugContext?: BugContext
+  bugContext?: BugContext,
+  termBlock?: string
 ): Promise<string> {
-  const parts: string[] = [BUG_SYSTEM_PROMPT];
+  const parts: string[] = [BUG_SYSTEM_PROMPT + (termBlock || "")];
 
   // Architecture context from CLAUDE.md
   const claudeMd = await getClaudeMdContext();

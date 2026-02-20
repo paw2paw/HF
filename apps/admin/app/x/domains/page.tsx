@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { PlaybookPill, CallerPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
@@ -25,6 +26,7 @@ export default function DomainsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
+  const { terms, plural } = useTerminology();
 
   // List state
   const [domains, setDomains] = useState<DomainListItem[]>([]);
@@ -237,14 +239,14 @@ export default function DomainsPage() {
   const statusBadge = (d: DomainListItem | DomainDetail) => {
     if (!d.isActive) {
       return (
-        <span style={{ fontSize: 10, padding: "2px 6px", background: "#fee2e2", color: "#991b1b", borderRadius: 4 }}>
+        <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 4 }}>
           Inactive
         </span>
       );
     }
     if (d.isDefault) {
       return (
-        <span style={{ fontSize: 10, padding: "2px 6px", background: "#dbeafe", color: "#1d4ed8", borderRadius: 4 }}>
+        <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--status-info-bg)", color: "var(--status-info-text)", borderRadius: 4 }}>
           Default
         </span>
       );
@@ -392,9 +394,9 @@ export default function DomainsPage() {
               }}
               style={{
                 padding: "6px 12px",
-                background: "rgba(139, 92, 246, 0.1)",
-                color: "#8b5cf6",
-                border: "1px solid rgba(139, 92, 246, 0.2)",
+                background: "color-mix(in srgb, var(--badge-purple-text) 10%, transparent)",
+                color: "var(--badge-purple-text)",
+                border: "1px solid color-mix(in srgb, var(--badge-purple-text) 20%, transparent)",
                 borderRadius: 6,
                 fontWeight: 500,
                 fontSize: 12,
@@ -471,8 +473,8 @@ export default function DomainsPage() {
             style={{ minWidth: 120 }}
             options={[
               { value: "name", label: "Name" },
-              { value: "callers", label: "Callers" },
-              { value: "playbooks", label: "Playbooks" },
+              { value: "callers", label: plural("caller") },
+              { value: "playbooks", label: plural("playbook") },
             ]}
           />
         </div>
@@ -530,13 +532,13 @@ export default function DomainsPage() {
                       style={{
                         marginTop: 10,
                         padding: "6px 10px",
-                        background: "#f0fdf4",
+                        background: "var(--status-success-bg)",
                         borderRadius: 5,
                         fontSize: 11,
                       }}
                     >
-                      <span style={{ color: "#166534", fontWeight: 500 }}>Published:</span>{" "}
-                      <span style={{ color: "#15803d" }}>
+                      <span style={{ color: "var(--status-success-text)", fontWeight: 500 }}>Published:</span>{" "}
+                      <span style={{ color: "var(--status-success-text)" }}>
                         {d.publishedPlaybook.name} v{d.publishedPlaybook.version}
                       </span>
                     </div>
@@ -546,10 +548,10 @@ export default function DomainsPage() {
                       style={{
                         marginTop: 10,
                         padding: "6px 10px",
-                        background: "#fef3c7",
+                        background: "var(--status-warning-bg)",
                         borderRadius: 5,
                         fontSize: 11,
-                        color: "#92400e",
+                        color: "var(--status-warning-text)",
                       }}
                     >
                       No published playbook
@@ -598,12 +600,12 @@ export default function DomainsPage() {
                       }}
                     />
                     {domain.isDefault && (
-                      <span style={{ padding: "4px 8px", fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 4 }}>
+                      <span style={{ padding: "4px 8px", fontSize: 11, background: "var(--status-info-bg)", color: "var(--status-info-text)", borderRadius: 4 }}>
                         Default
                       </span>
                     )}
                     {!domain.isActive && (
-                      <span style={{ padding: "4px 8px", fontSize: 11, background: "#fee2e2", color: "#991b1b", borderRadius: 4 }}>
+                      <span style={{ padding: "4px 8px", fontSize: 11, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 4 }}>
                         Inactive
                       </span>
                     )}
@@ -623,8 +625,8 @@ export default function DomainsPage() {
                           fontSize: 12,
                           fontWeight: 500,
                           background: "transparent",
-                          color: "#dc2626",
-                          border: "1px solid #fca5a5",
+                          color: "var(--status-error-text)",
+                          border: "1px solid var(--status-error-border)",
                           borderRadius: 6,
                           cursor: "pointer",
                           whiteSpace: "nowrap",
@@ -640,7 +642,7 @@ export default function DomainsPage() {
                           padding: "6px 12px",
                           fontSize: 12,
                           fontWeight: 500,
-                          background: "#3b82f6",
+                          background: "var(--accent-primary)",
                           color: "white",
                           border: "none",
                           borderRadius: 6,
@@ -660,17 +662,17 @@ export default function DomainsPage() {
               {showDeleteConfirm && (
                 <div style={{
                   padding: 16,
-                  background: "#fef2f2",
-                  border: "1px solid #fca5a5",
+                  background: "var(--status-error-bg)",
+                  border: "1px solid var(--status-error-border)",
                   borderRadius: 8,
                   marginBottom: 16,
                 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#991b1b", marginBottom: 8 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--status-error-text)", marginBottom: 8 }}>
                     Deactivate &ldquo;{domain.name}&rdquo;?
                   </div>
                   {domain._count.callers > 0 ? (
                     <div>
-                      <p style={{ fontSize: 13, color: "#991b1b", margin: "0 0 8px 0" }}>
+                      <p style={{ fontSize: 13, color: "var(--status-error-text)", margin: "0 0 8px 0" }}>
                         Cannot deactivate this institution — it has {domain._count.callers} caller{domain._count.callers !== 1 ? "s" : ""} assigned.
                         Reassign callers to another institution first.
                       </p>
@@ -692,12 +694,12 @@ export default function DomainsPage() {
                     </div>
                   ) : (
                     <div>
-                      <p style={{ fontSize: 13, color: "#7f1d1d", margin: "0 0 12px 0" }}>
+                      <p style={{ fontSize: 13, color: "var(--status-error-text)", margin: "0 0 12px 0" }}>
                         This will deactivate the institution{domain._count.playbooks > 0 ? ` and its ${domain._count.playbooks} course${domain._count.playbooks !== 1 ? "s" : ""} will become inactive` : ""}.
                         You can reactivate it at any time.
                       </p>
                       {deleteError && (
-                        <p style={{ fontSize: 12, color: "#dc2626", margin: "0 0 8px 0" }}>{deleteError}</p>
+                        <p style={{ fontSize: 12, color: "var(--status-error-text)", margin: "0 0 8px 0" }}>{deleteError}</p>
                       )}
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
@@ -707,7 +709,7 @@ export default function DomainsPage() {
                             padding: "6px 14px",
                             fontSize: 12,
                             fontWeight: 600,
-                            background: "#dc2626",
+                            background: "var(--status-error-text)",
                             color: "white",
                             border: "none",
                             borderRadius: 6,
@@ -765,8 +767,8 @@ export default function DomainsPage() {
               <DraggableTabs
                 storageKey={`domain-detail-tabs-${domain.id}`}
                 tabs={[
-                  { id: "playbooks", label: "Playbooks", icon: <BookOpen size={14} />, count: domain.playbooks.length },
-                  { id: "callers", label: "Callers", icon: <Users size={14} />, count: domain._count.callers },
+                  { id: "playbooks", label: plural("playbook"), icon: <BookOpen size={14} />, count: domain.playbooks.length },
+                  { id: "callers", label: plural("caller"), icon: <Users size={14} />, count: domain._count.callers },
                   { id: "content", label: "Content", icon: <FileText size={14} />, count: domain._count.subjects ?? 0 },
                   { id: "onboarding", label: "Onboarding", icon: <Rocket size={14} /> },
                 ]}
@@ -801,12 +803,12 @@ export default function DomainsPage() {
                   {publishedPlaybooks.length > 1 && (
                     <div style={{
                       padding: "10px 14px",
-                      background: "#eff6ff",
-                      border: "1px solid #bfdbfe",
+                      background: "var(--status-info-bg)",
+                      border: "1px solid var(--status-info-border)",
                       borderRadius: 6,
                       marginBottom: 16,
                       fontSize: 12,
-                      color: "#1e40af",
+                      color: "var(--status-info-text)",
                     }}>
                       <strong>Stack Order:</strong> {publishedPlaybooks.length} published playbooks will be stacked.
                       First playbook wins on spec conflicts. Use arrows to reorder.
@@ -852,8 +854,8 @@ export default function DomainsPage() {
                               width: 28,
                               height: 28,
                               borderRadius: "50%",
-                              background: isPublished ? "#dcfce7" : "#f3f4f6",
-                              color: isPublished ? "#166534" : "#9ca3af",
+                              background: isPublished ? "var(--status-success-bg)" : "var(--surface-tertiary)",
+                              color: isPublished ? "var(--status-success-text)" : "var(--text-muted)",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -888,7 +890,7 @@ export default function DomainsPage() {
                             {/* Remove confirm (inline) */}
                             {showRemovePlaybookConfirm === playbook.id && (
                               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                <span style={{ fontSize: 11, color: "#991b1b", whiteSpace: "nowrap" }}>
+                                <span style={{ fontSize: 11, color: "var(--status-error-text)", whiteSpace: "nowrap" }}>
                                   {isPublished ? "Archive first" : "Remove?"}
                                 </span>
                                 {!isPublished && (
@@ -899,7 +901,7 @@ export default function DomainsPage() {
                                       padding: "3px 8px",
                                       fontSize: 11,
                                       fontWeight: 600,
-                                      background: "#dc2626",
+                                      background: "var(--status-error-text)",
                                       color: "white",
                                       border: "none",
                                       borderRadius: 4,
@@ -1097,8 +1099,8 @@ export default function DomainsPage() {
                                     padding: "2px 8px",
                                     fontSize: 10,
                                     fontWeight: 600,
-                                    color: "#8b5cf6",
-                                    background: "#ede9fe",
+                                    color: "var(--badge-purple-text)",
+                                    background: "var(--badge-purple-bg)",
                                     borderRadius: 4,
                                     textDecoration: "none",
                                   }}

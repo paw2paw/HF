@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Plus, Zap } from 'lucide-react';
+import { useTerminology } from '@/contexts/TerminologyContext';
 import { CourseCard } from './_components/CourseCard';
 import { CourseSetupWizard } from './_components/CourseSetupWizard';
 import { useStepFlow } from '@/contexts';
@@ -20,6 +21,7 @@ type Course = {
 export default function CoursesPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { terms } = useTerminology();
   const { isActive: isSetupFlowActive, startFlow } = useStepFlow();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,9 +100,9 @@ export default function CoursesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">My Courses</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">My {terms.playbook}s</h1>
           <p className="text-[var(--text-secondary)] mt-1">
-            Create and manage courses for your students
+            Create and manage {terms.playbook.toLowerCase()}s for your {terms.caller.toLowerCase()}s
           </p>
         </div>
         <button
@@ -108,7 +110,7 @@ export default function CoursesPage() {
           className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           <Plus className="w-5 h-5" />
-          New Course
+          New {terms.playbook}
         </button>
       </div>
 
@@ -121,17 +123,17 @@ export default function CoursesPage() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Zap className="w-16 h-16 text-[var(--text-tertiary)] mb-4" />
           <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-            No courses yet
+            No {terms.playbook.toLowerCase()}s yet
           </h2>
           <p className="text-[var(--text-secondary)] mb-6 max-w-md">
-            Create your first course to start teaching. You'll set the curriculum, add students, and launch lessons.
+            Create your first {terms.playbook.toLowerCase()} to start teaching. You'll set the curriculum, add {terms.caller.toLowerCase()}s, and launch lessons.
           </p>
           <button
             onClick={handleNewCourse}
             className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
           >
             <Plus className="w-5 h-5" />
-            Create First Course
+            Create First {terms.playbook}
           </button>
         </div>
       ) : (
