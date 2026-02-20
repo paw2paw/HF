@@ -1,129 +1,183 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getTerminologyForRole, getTermLabel, getTerminologyContract } from '@/lib/terminology';
 
-vi.mock('@/lib/contracts/registry', () => ({
-  ContractRegistry: {
-    getContract: vi.fn(),
+// Mock prisma before importing the module under test
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    institution: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
-import { ContractRegistry } from '@/lib/contracts/registry';
+import { prisma } from '@/lib/prisma';
+import {
+  resolveTerminology,
+  resolveTermLabel,
+  TECHNICAL_TERMS,
+  invalidateTerminologyCache,
+} from '@/lib/terminology';
+import type { TermMap } from '@/lib/terminology/types';
 
-describe('lib/terminology', () => {
-  const mockContract = {
-    contractId: 'TERMINOLOGY_V1',
-    version: '1.0',
-    status: 'active',
-    terms: {
-      domain: {
-        ADMIN: 'Domain',
-        OPERATOR: 'Domain',
-        EDUCATOR: 'Institution',
-        TESTER: 'Institution',
-      },
-      playbook: {
-        ADMIN: 'Playbook',
-        OPERATOR: 'Course',
-        EDUCATOR: 'Course',
-        TESTER: 'Course',
-      },
-      spec: {
-        ADMIN: 'Spec',
-        OPERATOR: 'Content',
-        EDUCATOR: 'Content',
-        TESTER: 'Content',
-      },
-      caller: {
-        ADMIN: 'Caller',
-        OPERATOR: 'Student',
-        EDUCATOR: 'Student',
-        STUDENT: 'Learner',
-        TESTER: 'Student',
-      },
-    },
-  };
+const SCHOOL_TERMS: TermMap = {
+  domain: 'School',
+  playbook: 'Lesson Plan',
+  spec: 'Content',
+  caller: 'Student',
+  cohort: 'Class',
+  instructor: 'Teacher',
+  session: 'Lesson',
+};
 
+describe('lib/terminology (two-tier resolution)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    invalidateTerminologyCache();
   });
 
-  describe('getTerminologyForRole', () => {
-    it('should return terminology for ADMIN role', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
-
-      const terms = await getTerminologyForRole('ADMIN');
-
-      expect(terms.domain).toBe('Domain');
-      expect(terms.playbook).toBe('Playbook');
-      expect(terms.spec).toBe('Spec');
-      expect(terms.caller).toBe('Caller');
+  describe('resolveTerminology', () => {
+    it('should return TECHNICAL_TERMS for ADMIN role', async () => {
+      const terms = await resolveTerminology('ADMIN');
+      expect(terms).toEqual(TECHNICAL_TERMS);
     });
 
-    it('should return terminology for EDUCATOR role', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+    it('should return TECHNICAL_TERMS for SUPERADMIN role', async () => {
+      const terms = await resolveTerminology('SUPERADMIN');
+      expect(terms).toEqual(TECHNICAL_TERMS);
+    });
 
-      const terms = await getTerminologyForRole('EDUCATOR');
+    it('should return TECHNICAL_TERMS for SUPER_TESTER role', async () => {
+      const terms = await resolveTerminology('SUPER_TESTER');
+      expect(terms).toEqual(TECHNICAL_TERMS);
+    });
 
-      expect(terms.domain).toBe('Institution');
-      expect(terms.playbook).toBe('Course');
+    it('should return TECHNICAL_TERMS when no institutionId provided', async () => {
+      const terms = await resolveTerminology('EDUCATOR');
+      expect(terms).toEqual(TECHNICAL_TERMS);
+    });
+
+    it('should return TECHNICAL_TERMS when institutionId is null', async () => {
+      const terms = await resolveTerminology('EDUCATOR', null);
+      expect(terms).toEqual(TECHNICAL_TERMS);
+    });
+
+    it('should return institution type terminology for non-admin with institution', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue({
+        id: 'inst-1',
+        type: { terminology: SCHOOL_TERMS },
+      } as any);
+
+      const terms = await resolveTerminology('EDUCATOR', 'inst-1');
+
+      expect(terms.domain).toBe('School');
+      expect(terms.playbook).toBe('Lesson Plan');
       expect(terms.spec).toBe('Content');
       expect(terms.caller).toBe('Student');
+      expect(terms.cohort).toBe('Class');
+      expect(terms.instructor).toBe('Teacher');
+      expect(terms.session).toBe('Lesson');
     });
 
-    it('should use ADMIN terms for SUPERADMIN', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+    it('should fallback to TECHNICAL_TERMS if institution has no type', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue({
+        id: 'inst-1',
+        type: null,
+      } as any);
 
-      const terms = await getTerminologyForRole('SUPERADMIN');
-
-      expect(terms.domain).toBe('Domain');
-      expect(terms.playbook).toBe('Playbook');
+      const terms = await resolveTerminology('EDUCATOR', 'inst-1');
+      expect(terms).toEqual(TECHNICAL_TERMS);
     });
 
-    it('should use TESTER for VIEWER (alias)', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+    it('should fallback to TECHNICAL_TERMS if institution not found', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue(null);
 
-      const terms = await getTerminologyForRole('VIEWER');
+      const terms = await resolveTerminology('EDUCATOR', 'inst-nonexistent');
+      expect(terms).toEqual(TECHNICAL_TERMS);
+    });
 
-      expect(terms.domain).toBe('Institution');
-      expect(terms.playbook).toBe('Course');
+    it('should merge partial terminology with TECHNICAL_TERMS as fallback', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue({
+        id: 'inst-1',
+        type: {
+          terminology: {
+            domain: 'Organization',
+            // Missing other keys — should fallback
+          },
+        },
+      } as any);
+
+      const terms = await resolveTerminology('EDUCATOR', 'inst-1');
+
+      expect(terms.domain).toBe('Organization');
+      expect(terms.playbook).toBe('Playbook'); // fallback
+      expect(terms.caller).toBe('Caller'); // fallback
+    });
+
+    it('should cache results for same institutionId', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue({
+        id: 'inst-1',
+        type: { terminology: SCHOOL_TERMS },
+      } as any);
+
+      await resolveTerminology('EDUCATOR', 'inst-1');
+      await resolveTerminology('EDUCATOR', 'inst-1');
+
+      // Only one DB call due to caching
+      expect(prisma.institution.findUnique).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not cache for admin roles (they skip DB lookup)', async () => {
+      await resolveTerminology('ADMIN', 'inst-1');
+
+      expect(prisma.institution.findUnique).not.toHaveBeenCalled();
     });
   });
 
-  describe('getTermLabel', () => {
-    it('should return singular label', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
-
-      const label = await getTermLabel('domain', 'EDUCATOR');
-
-      expect(label).toBe('Institution');
+  describe('resolveTermLabel', () => {
+    it('should return singular label for admin', async () => {
+      const label = await resolveTermLabel('domain', 'ADMIN');
+      expect(label).toBe('Domain');
     });
 
-    it('should return plural label', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+    it('should return plural label when requested', async () => {
+      const label = await resolveTermLabel('domain', 'ADMIN', undefined, true);
+      expect(label).toBe('Domains');
+    });
 
-      const label = await getTermLabel('domain', 'EDUCATOR', true);
+    it('should return institution-specific label for educator', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue({
+        id: 'inst-1',
+        type: { terminology: SCHOOL_TERMS },
+      } as any);
 
-      expect(label).toBe('Institutions');
+      const label = await resolveTermLabel('caller', 'EDUCATOR', 'inst-1');
+      expect(label).toBe('Student');
+    });
+
+    it('should return plural institution-specific label', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue({
+        id: 'inst-1',
+        type: { terminology: SCHOOL_TERMS },
+      } as any);
+
+      const label = await resolveTermLabel('caller', 'EDUCATOR', 'inst-1', true);
+      expect(label).toBe('Students');
     });
   });
 
-  describe('getTerminologyContract', () => {
-    it('should return full contract', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(mockContract as any);
+  describe('invalidateTerminologyCache', () => {
+    it('should clear cache so next call hits DB', async () => {
+      vi.mocked(prisma.institution.findUnique).mockResolvedValue({
+        id: 'inst-1',
+        type: { terminology: SCHOOL_TERMS },
+      } as any);
 
-      const contract = await getTerminologyContract();
+      await resolveTerminology('EDUCATOR', 'inst-1');
+      expect(prisma.institution.findUnique).toHaveBeenCalledTimes(1);
 
-      expect(contract.contractId).toBe('TERMINOLOGY_V1');
-      expect(contract.terms).toBeDefined();
-    });
+      invalidateTerminologyCache();
 
-    it('should use defaults if contract not found', async () => {
-      vi.mocked(ContractRegistry.getContract).mockResolvedValue(null);
-
-      const contract = await getTerminologyContract();
-
-      expect(contract.contractId).toBe('TERMINOLOGY_V1');
-      expect(contract.terms).toBeDefined();
+      await resolveTerminology('EDUCATOR', 'inst-1');
+      expect(prisma.institution.findUnique).toHaveBeenCalledTimes(2);
     });
   });
 });

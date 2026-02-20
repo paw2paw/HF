@@ -204,6 +204,101 @@ Toggle audit logging on or off (ADMIN role required)
 
 ---
 
+### `GET` /api/admin/institution-types
+
+List all institution types with terminology and config (ADMIN role required)
+
+**Auth**: Bearer token · **Scope**: `admin:read`
+
+**Response** `200`
+```json
+{ ok: true, types: InstitutionType[] }
+```
+
+---
+
+### `POST` /api/admin/institution-types
+
+Create a new institution type with terminology preset (ADMIN role required)
+
+**Auth**: Bearer token · **Scope**: `admin:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Display name (required) |
+| slug | body | string | No | URL-safe identifier (required, unique) |
+| description | body | string | No | Optional description |
+| terminology | body | object | No | 7-key TermMap (domain, playbook, spec, caller, cohort, instructor, session) |
+| setupSpecSlug | body | string | No | Wizard spec slug for setup flow (optional) |
+| defaultDomainKind | body | string | No | INSTITUTION or COMMUNITY (default: INSTITUTION) |
+
+**Response** `201`
+```json
+{ ok: true, type: InstitutionType }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `409`
+```json
+{ ok: false, error: "Slug already exists" }
+```
+
+---
+
+### `DELETE` /api/admin/institution-types/[id]
+
+Soft-delete an institution type by setting isActive=false (ADMIN role required)
+
+**Auth**: Bearer token · **Scope**: `admin:write`
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Not found" }
+```
+
+---
+
+### `PATCH` /api/admin/institution-types/[id]
+
+Update an institution type's name, terminology, or config (ADMIN role required)
+
+**Auth**: Bearer token · **Scope**: `admin:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Display name |
+| description | body | string | No | Description |
+| terminology | body | object | No | 7-key TermMap |
+| setupSpecSlug | body | string | No | Wizard spec slug |
+| defaultDomainKind | body | string | No | INSTITUTION or COMMUNITY |
+| isActive | body | boolean | No | Whether this type is active |
+
+**Response** `200`
+```json
+{ ok: true, type: InstitutionType }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Not found" }
+```
+
+---
+
 ### `DELETE` /api/admin/masquerade
 
 Stop stepping in — clears masquerade cookie and audit-logs the exit.
@@ -7279,7 +7374,7 @@ Get branding for the current user's institution.
 
 ### `GET` /api/institution/terminology
 
-Get resolved terminology for the current user's institution.
+Get resolved terminology for the current user.
 
 **Auth**: VIEWER (any authenticated user)
 
@@ -7287,7 +7382,7 @@ Get resolved terminology for the current user's institution.
 
 ### `PATCH` /api/institution/terminology
 
-Update terminology config for the current user's institution.
+Update legacy terminology config for the current user's institution.
 
 **Auth**: ADMIN (institution admin)
 
@@ -7411,6 +7506,14 @@ Accept a classroom join link. Creates User + Caller + sets session.
 ### `GET` /api/system/ini
 
 **Auth**: SUPERADMIN
+
+---
+
+### `GET` /api/terminology
+
+Returns resolved terminology for the current user.
+
+**Auth**: VIEWER (any authenticated user)
 
 ---
 
@@ -11103,8 +11206,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 290 |
-| Files with annotations | 289 |
+| Route files found | 293 |
+| Files with annotations | 292 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

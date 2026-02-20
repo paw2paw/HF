@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
 import type { PlaybookConfig } from "@/lib/types/json-fields";
 import { resolveSourceFiles, getClaudeMdContext, type BugContext } from "@/lib/chat/bug-context";
+import { resolveTerminology, TECHNICAL_TERMS, type TermMap } from "@/lib/terminology";
 
 type ChatMode = "DATA" | "CALL" | "BUG";
 
@@ -13,20 +14,53 @@ interface EntityBreadcrumb {
 }
 
 /**
+ * Build a terminology block to inject into system prompts.
+ * Only included when terms differ from technical defaults.
+ */
+function buildTerminologyBlock(terms: TermMap): string {
+  // Skip if terms match technical defaults (admin users)
+  const isDifferent = Object.keys(terms).some(
+    (k) => terms[k as keyof TermMap] !== TECHNICAL_TERMS[k as keyof TermMap]
+  );
+  if (!isDifferent) return "";
+
+  return `\n\n## Terminology (use these labels in your responses)
+The user sees the following labels instead of internal names:
+- Domain → ${terms.domain}
+- Playbook → ${terms.playbook}
+- Spec → ${terms.spec}
+- Caller → ${terms.caller}
+- Cohort → ${terms.cohort}
+- Instructor → ${terms.instructor}
+- Session → ${terms.session}
+
+Always use the user-facing labels above when talking to this user. Never expose internal names like "Domain", "Playbook", "Spec", or "Caller" unless they match the labels above.`;
+}
+
+/**
  * Build mode-specific system prompt with entity context
  */
 export async function buildSystemPrompt(
   mode: ChatMode,
   entityContext: EntityBreadcrumb[],
-  bugContext?: BugContext
+  bugContext?: BugContext,
+  userRole?: string,
+  institutionId?: string | null,
 ): Promise<string> {
+  // Resolve terminology for this user
+  const terms = await resolveTerminology(
+    (userRole as any) || "ADMIN",
+    institutionId,
+  );
+  const termBlock = buildTerminologyBlock(terms);
+
   const baseContext = await buildEntityContext(entityContext);
 
   switch (mode) {
     case "DATA":
-      return DATA_SYSTEM_PROMPT + `\n\n${baseContext}`;
+      return DATA_SYSTEM_PROMPT + termBlock + `\n\n${baseContext}`;
     case "CALL":
-      return await buildCallSimPrompt(entityContext);
+      return await buildCallSimPrompt(entityContext, terms);
     case "BUG":
       return await buildBugDiagnosisPrompt(entityContext, bugContext);
   }
@@ -727,7 +761,7 @@ async function getDomainContext(domainId: string): Promise<string | null> {
  * Uses renderVoicePrompt() for the same voice-optimized format that VAPI receives,
  * giving a realistic simulation of the actual call experience.
  */
-async function buildCallSimPrompt(entityContext: EntityBreadcrumb[]): Promise<string> {
+async function buildCallSimPrompt(entityContext: EntityBreadcrumb[], terms?: TermMap): Promise<string> {
   const callerEntity = entityContext.find((e) => e.type === "caller");
   const goalEntity = entityContext.find((e) => e.type === "demonstrationGoal");
   const goalPrefix = goalEntity?.label

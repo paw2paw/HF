@@ -13,7 +13,7 @@ import { useViewMode } from "@/contexts/ViewModeContext";
 import { useSidebarLayout } from "@/hooks/useSidebarLayout";
 import { ICON_MAP } from "@/lib/sidebar/icons";
 import type { NavSection } from "@/lib/sidebar/types";
-import { pluralize, type TerminologyProfile } from "@/lib/terminology/types";
+import { pluralize, type TermMap } from "@/lib/terminology/types";
 import sidebarManifest from "@/lib/sidebar/sidebar-manifest.json";
 import {
   MoreVertical,
@@ -44,9 +44,9 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
 // ============================================================================
 
 /** Resolve a terminologyLabel key (e.g. "cohort_plural", "supervisor") into a display string */
-function resolveTermLabel(key: string, t: TerminologyProfile): string | null {
+function resolveTermLabel(key: string, t: TermMap): string | null {
   if (key.endsWith("_plural")) {
-    const baseKey = key.replace("_plural", "") as keyof TerminologyProfile;
+    const baseKey = key.replace("_plural", "") as keyof TermMap;
     return baseKey in t ? pluralize(t[baseKey]) : null;
   }
   return (t as Record<string, string>)[key] ?? null;

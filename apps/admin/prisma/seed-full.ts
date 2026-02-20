@@ -28,6 +28,7 @@
  *   9.  seed-educator-demo      → 3 schools, 10 teachers, 210 pupils   [full only]
  *   10. seed-school-institutions → School institution records           [full only]
  *   11. seed-demo-fixtures      → "Paul" demo caller, QM overlay       [full only]
+ *   12. seed-demo-logins        → 5 demo login accounts (non-PROD)     [test, full]
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -43,6 +44,7 @@ import { main as seedEducatorDemo } from "./seed-educator-demo";
 import { main as seedSchoolInstitutions } from "./seed-school-institutions";
 import { main as seedDemoFixtures } from "./seed-demo-fixtures";
 import { main as seedInstitutionTypes } from "./seed-institution-types";
+import { main as seedDemoLogins } from "./seed-demo-logins";
 
 type Profile = "core" | "test" | "full";
 
@@ -70,6 +72,7 @@ const ALL_STEPS: Step[] = [
   { name: "seed-educator-demo", fn: seedEducatorDemo, profiles: ["full"] },
   { name: "seed-school-institutions", fn: seedSchoolInstitutions, profiles: ["full"] },
   { name: "seed-demo-fixtures", fn: seedDemoFixtures, profiles: ["full"] },
+  { name: "seed-demo-logins", fn: seedDemoLogins, profiles: ["test", "full"] },
 ];
 
 function getProfile(): Profile {

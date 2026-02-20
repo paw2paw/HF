@@ -192,6 +192,125 @@ export default function LoginPage() {
           Admin access only. Testers use their invite link.
         </div>
       </div>
+
+      {/* Demo Accounts Panel — non-prod only */}
+      {showEnvBanner && (
+        <DemoAccountsPanel
+          onLogin={(demoEmail) => {
+            setEmail(demoEmail);
+            setPassword("hff2026");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Demo Accounts Panel ─────────────────────────────────
+
+const DEMO_ACCOUNTS = [
+  { email: "school@hff.com", label: "School", role: "Educator" },
+  { email: "corporate@hff.com", label: "Corporate", role: "Educator" },
+  { email: "community@hff.com", label: "Community", role: "Educator" },
+  { email: "coaching@hff.com", label: "Coaching", role: "Educator" },
+  { email: "healthcare@hff.com", label: "Healthcare", role: "Educator" },
+];
+
+function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(label);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  return (
+    <div
+      className="mt-6 rounded-2xl p-6"
+      style={{
+        background: "color-mix(in srgb, var(--login-navy) 50%, transparent)",
+        border: "1px solid color-mix(in srgb, var(--login-blue) 12%, transparent)",
+      }}
+    >
+      <div className="mb-4 text-center">
+        <span className="text-xs font-semibold tracking-wider uppercase" style={{ color: "var(--login-blue)", opacity: 0.7 }}>
+          Demo Accounts
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {DEMO_ACCOUNTS.map((account) => (
+          <div
+            key={account.email}
+            className="flex items-center justify-between rounded-lg px-3 py-2"
+            style={{
+              background: "color-mix(in srgb, var(--login-navy-light) 50%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--login-blue) 8%, transparent)",
+            }}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white truncate">{account.email}</div>
+              <div className="text-[11px]" style={{ color: "var(--login-blue)", opacity: 0.6 }}>
+                {account.label} &middot; {account.role}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => copyToClipboard(account.email, account.email)}
+                title="Copy email"
+                className="p-1.5 rounded-md transition-colors"
+                style={{
+                  color: copied === account.email ? "#10b981" : "var(--login-blue)",
+                  opacity: copied === account.email ? 1 : 0.5,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => onLogin(account.email)}
+                title="Quick login"
+                className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
+                style={{
+                  background: "color-mix(in srgb, var(--login-gold) 20%, transparent)",
+                  color: "var(--login-gold)",
+                  border: "1px solid color-mix(in srgb, var(--login-gold) 30%, transparent)",
+                }}
+              >
+                Login
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Password row */}
+      <div className="mt-3 flex items-center justify-center gap-2">
+        <span className="text-[11px]" style={{ color: "var(--login-blue)", opacity: 0.5 }}>
+          Password: <code className="font-mono">hff2026</code>
+        </span>
+        <button
+          type="button"
+          onClick={() => copyToClipboard("hff2026", "password")}
+          title="Copy password"
+          className="p-1 rounded transition-colors"
+          style={{
+            color: copied === "password" ? "#10b981" : "var(--login-blue)",
+            opacity: copied === "password" ? 1 : 0.4,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

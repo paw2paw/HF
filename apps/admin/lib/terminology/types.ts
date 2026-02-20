@@ -1,14 +1,99 @@
 /**
- * Terminology Profiles — Client-safe types, presets, and resolution logic.
+ * Terminology Types & Helpers — Client-safe (no Prisma dependency)
  *
- * Per-institution configurable labels that replace hardcoded school-centric
- * terminology throughout the app. No Prisma dependency — safe for client import.
+ * The unified 7-key TermMap is the canonical terminology type.
+ * Resolution is now DB-driven via InstitutionType.terminology (see lib/terminology.ts).
+ *
+ * This file provides:
+ * - TermKey / TermMap types (canonical, shared between server and client)
+ * - String helpers: pluralize(), lc()
+ * - Legacy types kept for backwards compatibility (deprecated)
  */
 
-// ── Types ──────────────────────────────────────────────────
+// ── Canonical Types (unified system) ────────────────────────
 
-/** The canonical term keys used across the app */
+/** The 7 canonical term keys used across the app */
 export type TermKey =
+  | "domain"
+  | "playbook"
+  | "spec"
+  | "caller"
+  | "cohort"
+  | "instructor"
+  | "session";
+
+/** A complete terminology map — all 7 keys present, all strings */
+export type TermMap = Record<TermKey, string>;
+
+/** All 7 term keys in canonical order */
+export const TERM_KEYS: TermKey[] = [
+  "domain",
+  "playbook",
+  "spec",
+  "caller",
+  "cohort",
+  "instructor",
+  "session",
+];
+
+/** Human-readable labels for term keys (used in admin UI) */
+export const TERM_KEY_LABELS: Record<TermKey, string> = {
+  domain: "Organization / Institution",
+  playbook: "Curriculum / Plan",
+  spec: "Content / Material",
+  caller: "Learner / Participant",
+  cohort: "Group / Class",
+  instructor: "Teacher / Facilitator",
+  session: "Call / Session",
+};
+
+/**
+ * Technical terms — Prisma model names. Only hardcoded fallback.
+ * Shown to ADMIN/SUPERADMIN/SUPER_TESTER.
+ */
+export const TECHNICAL_TERMS: TermMap = {
+  domain: "Domain",
+  playbook: "Playbook",
+  spec: "Spec",
+  caller: "Caller",
+  cohort: "Cohort",
+  instructor: "Instructor",
+  session: "Session",
+};
+
+// ── String helpers ──────────────────────────────────────────
+
+/**
+ * Simple English pluralization for terminology terms.
+ * Handles common cases: Student→Students, Facility→Facilities, Coach→Coaches.
+ */
+export function pluralize(term: string): string {
+  if (term.endsWith("y") && !/[aeiou]y$/i.test(term)) {
+    return term.slice(0, -1) + "ies";
+  }
+  if (
+    term.endsWith("s") ||
+    term.endsWith("x") ||
+    term.endsWith("ch") ||
+    term.endsWith("sh")
+  ) {
+    return term + "es";
+  }
+  return term + "s";
+}
+
+/** Lowercase the first character (for mid-sentence use). */
+export function lc(term: string): string {
+  return term.charAt(0).toLowerCase() + term.slice(1);
+}
+
+// ── Legacy Types (deprecated — kept for backwards compatibility) ────
+
+/**
+ * @deprecated Use TermKey from the unified system instead.
+ * Old System 1 keys: institution → domain, learner → caller
+ */
+export type LegacyTermKey =
   | "institution"
   | "cohort"
   | "learner"
@@ -16,31 +101,27 @@ export type TermKey =
   | "supervisor"
   | "session";
 
-/** A complete terminology profile — all keys present, all strings */
-export type TerminologyProfile = Record<TermKey, string>;
+/** @deprecated Use TermMap instead */
+export type TerminologyProfile = Record<LegacyTermKey, string>;
 
-/** Partial overrides stored in DB (null keys fall back to preset) */
-export type TerminologyOverrides = Partial<TerminologyProfile>;
-
-/** Preset identifier */
+/** @deprecated Presets are now DB-driven via InstitutionType table */
 export type TerminologyPresetId =
   | "school"
   | "corporate"
   | "coaching"
   | "healthcare";
 
-/** What gets stored on Institution.terminology JSON column */
+/** @deprecated Overrides are now DB-driven */
+export type TerminologyOverrides = Partial<TerminologyProfile>;
+
+/** @deprecated Config is now DB-driven */
 export interface TerminologyConfig {
   preset: TerminologyPresetId;
   overrides?: TerminologyOverrides;
 }
 
-// ── Presets ─────────────────────────────────────────────────
-
-export const TERMINOLOGY_PRESETS: Record<
-  TerminologyPresetId,
-  TerminologyProfile
-> = {
+/** @deprecated Presets are now DB-driven via InstitutionType table */
+export const TERMINOLOGY_PRESETS: Record<TerminologyPresetId, TerminologyProfile> = {
   school: {
     institution: "School",
     cohort: "Classroom",
@@ -75,25 +156,21 @@ export const TERMINOLOGY_PRESETS: Record<
   },
 };
 
+/** @deprecated Use TECHNICAL_TERMS as fallback */
 export const DEFAULT_PRESET: TerminologyPresetId = "corporate";
 export const DEFAULT_TERMINOLOGY: TerminologyProfile =
   TERMINOLOGY_PRESETS[DEFAULT_PRESET];
 
-// ── Resolution ──────────────────────────────────────────────
-
 /**
- * Resolve a TerminologyConfig (from DB) into a complete TerminologyProfile.
- * Merges preset base with any per-term overrides.
+ * @deprecated Use resolveTerminology() from lib/terminology.ts instead.
+ * Kept for backwards compatibility during migration.
  */
 export function resolveTerminology(
   config: TerminologyConfig | null | undefined
 ): TerminologyProfile {
   if (!config) return DEFAULT_TERMINOLOGY;
-
-  const base =
-    TERMINOLOGY_PRESETS[config.preset] ?? DEFAULT_TERMINOLOGY;
+  const base = TERMINOLOGY_PRESETS[config.preset] ?? DEFAULT_TERMINOLOGY;
   if (!config.overrides) return base;
-
   return {
     ...base,
     ...Object.fromEntries(
@@ -104,60 +181,14 @@ export function resolveTerminology(
   } as TerminologyProfile;
 }
 
-// ── String helpers ──────────────────────────────────────────
-
-/**
- * Simple English pluralization for terminology terms.
- * Handles common cases: Student→Students, Facility→Facilities, Coach→Coaches.
- */
-export function pluralize(term: string): string {
-  if (
-    term.endsWith("y") &&
-    !/[aeiou]y$/i.test(term)
-  ) {
-    return term.slice(0, -1) + "ies";
-  }
-  if (
-    term.endsWith("s") ||
-    term.endsWith("x") ||
-    term.endsWith("ch") ||
-    term.endsWith("sh")
-  ) {
-    return term + "es";
-  }
-  return term + "s";
-}
-
-/** Lowercase the first character (for mid-sentence use). */
-export function lc(term: string): string {
-  return term.charAt(0).toLowerCase() + term.slice(1);
-}
-
-// ── Preset metadata (for UI picker) ────────────────────────
-
+/** @deprecated Presets are now DB-driven */
 export const PRESET_OPTIONS: {
   id: TerminologyPresetId;
   label: string;
   description: string;
 }[] = [
-  {
-    id: "school",
-    label: "School",
-    description: "School, Classroom, Student, Teacher",
-  },
-  {
-    id: "corporate",
-    label: "Corporate",
-    description: "Organization, Team, Employee, Trainer",
-  },
-  {
-    id: "coaching",
-    label: "Coaching",
-    description: "Practice, Group, Client, Coach",
-  },
-  {
-    id: "healthcare",
-    label: "Healthcare",
-    description: "Facility, Team, Patient, Provider",
-  },
+  { id: "school", label: "School", description: "School, Classroom, Student, Teacher" },
+  { id: "corporate", label: "Corporate", description: "Organization, Team, Employee, Trainer" },
+  { id: "coaching", label: "Coaching", description: "Practice, Group, Client, Coach" },
+  { id: "healthcare", label: "Healthcare", description: "Facility, Team, Patient, Provider" },
 ];

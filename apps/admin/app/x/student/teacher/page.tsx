@@ -74,7 +74,7 @@ function StudentTeacherContent() {
   return (
     <div className="p-6 max-w-4xl">
       <h1 className="text-xl font-bold mb-6" style={{ color: "var(--text-primary)" }}>
-        {terms.supervisor}
+        {terms.instructor}
       </h1>
 
       <div className="space-y-4">
@@ -140,7 +140,7 @@ function StudentTeacherContent() {
             <div className="flex items-center gap-2 mb-3">
               <Building2 size={14} style={{ color: "var(--text-muted)" }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                {terms.institution}
+                {terms.domain}
               </span>
             </div>
             <div className="flex items-center gap-3">

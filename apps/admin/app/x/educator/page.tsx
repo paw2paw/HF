@@ -122,7 +122,7 @@ export default function EducatorDashboard() {
   if (loading) {
     return (
       <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading your {lower("institution")}...</div>
+        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading your {lower("domain")}...</div>
       </div>
     );
   }
@@ -133,10 +133,10 @@ export default function EducatorDashboard() {
       <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
-            Select a {terms.institution}
+            Select a {terms.domain}
           </h1>
           <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
-            As an admin, choose which {lower("institution")} dashboard to view.
+            As an admin, choose which {lower("domain")} dashboard to view.
           </p>
         </div>
         <div
@@ -178,7 +178,7 @@ export default function EducatorDashboard() {
         </div>
         {institutions.length === 0 && (
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16 }}>
-            No {lowerPlural("institution")} found. Create an {lower("institution")} first.
+            No {lowerPlural("domain")} found. Create an {lower("domain")} first.
           </p>
         )}
       </div>
@@ -214,7 +214,7 @@ export default function EducatorDashboard() {
               marginBottom: 12,
             }}
           >
-            &larr; Change {terms.institution}
+            &larr; Change {terms.domain}
           </button>
         )}
         <h1
@@ -228,12 +228,12 @@ export default function EducatorDashboard() {
             gap: 8,
           }}
         >
-          {viewingSchoolName ?? `My ${terms.institution}`}
+          {viewingSchoolName ?? `My ${terms.domain}`}
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
           {hasClassrooms
-            ? `${stats.totalStudents} ${stats.totalStudents !== 1 ? lowerPlural("learner") : lower("learner")} across ${stats.classroomCount} ${stats.classroomCount !== 1 ? lowerPlural("cohort") : lower("cohort")}`
+            ? `${stats.totalStudents} ${stats.totalStudents !== 1 ? lowerPlural("caller") : lower("caller")} across ${stats.classroomCount} ${stats.classroomCount !== 1 ? lowerPlural("cohort") : lower("cohort")}`
             : `Get started by creating your first ${lower("cohort")}`}
         </p>
       </div>
@@ -248,7 +248,7 @@ export default function EducatorDashboard() {
         }}
       >
         {[
-          { label: plural("learner"), value: stats.totalStudents, color: "var(--button-primary-bg)" },
+          { label: plural("caller"), value: stats.totalStudents, color: "var(--button-primary-bg)" },
           { label: "Active This Week", value: stats.activeThisWeek, color: "var(--status-success-text)" },
           { label: plural("cohort"), value: stats.classroomCount, color: "var(--accent-primary)" },
         ].map((stat) => (
@@ -323,14 +323,14 @@ export default function EducatorDashboard() {
               accent: "var(--accent-primary)",
             },
             {
-              title: `View ${plural("learner")}`,
+              title: `View ${plural("caller")}`,
               description: `Track progress across all ${lowerPlural("cohort")}`,
               href: `/x/educator/students${instQuery}`,
               accent: "var(--button-primary-bg)",
             },
             {
               title: "Try a Call",
-              description: `Experience what your ${lowerPlural("learner")} will`,
+              description: `Experience what your ${lowerPlural("caller")} will`,
               href: `/x/educator/try${instQuery}`,
               accent: "var(--badge-purple-text)",
             },
@@ -515,7 +515,7 @@ export default function EducatorDashboard() {
           </h3>
           {(!data?.recentCalls || data.recentCalls.length === 0) ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              No calls yet. Invite {lowerPlural("learner")} to get started.
+              No calls yet. Invite {lowerPlural("caller")} to get started.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -579,7 +579,7 @@ export default function EducatorDashboard() {
             </h3>
             {(!data?.needsAttention || data.needsAttention.length === 0) ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                All {lowerPlural("learner")} are active. Great work!
+                All {lowerPlural("caller")} are active. Great work!
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -649,7 +649,7 @@ export default function EducatorDashboard() {
               marginBottom: 8,
             }}
           >
-            Welcome to your {lower("institution")}
+            Welcome to your {lower("domain")}
           </h3>
           <p
             style={{
@@ -660,7 +660,7 @@ export default function EducatorDashboard() {
               margin: "0 auto 20px",
             }}
           >
-            Create your first {lower("cohort")}, invite {lowerPlural("learner")}, and start tracking
+            Create your first {lower("cohort")}, invite {lowerPlural("caller")}, and start tracking
             their learning journey.
           </p>
           <Link

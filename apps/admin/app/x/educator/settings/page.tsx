@@ -118,7 +118,7 @@ export default function EducatorSettingsPage() {
           Settings
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-          Configure terminology for your {terms.institution.toLowerCase()}
+          Configure terminology for your {terms.domain.toLowerCase()}
         </p>
       </div>
 
@@ -149,7 +149,7 @@ export default function EducatorSettingsPage() {
             marginBottom: 16,
           }}
         >
-          Choose how your {terms.institution.toLowerCase()} labels key concepts.
+          Choose how your {terms.domain.toLowerCase()} labels key concepts.
           This affects sidebar navigation and dashboard labels for all users.
         </p>
 

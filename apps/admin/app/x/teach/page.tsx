@@ -537,14 +537,14 @@ export default function TeachPage() {
       {/* ═══════════════════════════════════════════════════ */}
       {currentStep === 0 && (
         <div style={sectionStyle}>
-          <div style={sectionLabelStyle}>{terms.institution}</div>
+          <div style={sectionLabelStyle}>{terms.domain}</div>
           {loadingDomains ? (
             <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
-              Loading {terms.institution.toLowerCase()}s...
+              Loading {terms.domain.toLowerCase()}s...
             </div>
           ) : domainOptions.length === 0 ? (
             <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>
-              No {terms.institution.toLowerCase()}s found.{" "}
+              No {terms.domain.toLowerCase()}s found.{" "}
               <span
                 style={{ color: "var(--accent-primary)", cursor: "pointer", fontWeight: 600 }}
                 onClick={() => router.push("/x/quick-launch")}
@@ -557,7 +557,7 @@ export default function TeachPage() {
               value={selectedDomainId}
               onChange={setSelectedDomainId}
               options={domainOptions}
-              placeholder={`Select an ${terms.institution.toLowerCase()}...`}
+              placeholder={`Select an ${terms.domain.toLowerCase()}...`}
               searchable={domainOptions.length > 5}
             />
           )}
@@ -566,7 +566,7 @@ export default function TeachPage() {
           {callerOptions.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={sectionLabelStyle}>
-                {callerOptions.length > 1 ? `Test ${terms.learner}` : terms.learner}
+                {callerOptions.length > 1 ? `Test ${terms.caller}` : terms.caller}
               </div>
               {callerOptions.length === 1 ? (
                 <div style={{ fontSize: 13, color: "var(--text-secondary)", padding: "4px 0" }}>
@@ -577,7 +577,7 @@ export default function TeachPage() {
                   value={selectedCallerId}
                   onChange={setSelectedCallerId}
                   options={callerOptions}
-                  placeholder={`Select a ${terms.learner.toLowerCase()}...`}
+                  placeholder={`Select a ${terms.caller.toLowerCase()}...`}
                   searchable={callerOptions.length > 5}
                 />
               )}
@@ -606,7 +606,7 @@ export default function TeachPage() {
           <textarea
             value={goalText}
             onChange={(e) => setGoalText(e.target.value)}
-            placeholder={`What do you want to teach? e.g., Teach ${terms.learner.toLowerCase()} about fractions using real-world examples`}
+            placeholder={`What do you want to teach? e.g., Teach ${terms.caller.toLowerCase()} about fractions using real-world examples`}
             rows={3}
             style={{
               width: "100%",
@@ -717,7 +717,7 @@ export default function TeachPage() {
           {(callerGoals.length > 0 || loadingGoals) && (
             <div style={{ marginTop: 20, borderTop: "1px solid var(--border-default)", paddingTop: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
-                {terms.learner}&apos;s Goals
+                {terms.caller}&apos;s Goals
               </div>
               {loadingGoals ? (
                 <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading goals...</div>
@@ -1009,7 +1009,7 @@ export default function TeachPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>
-                  {terms.institution}:
+                  {terms.domain}:
                 </span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                   {selectedDomain?.name || "—"}
@@ -1017,7 +1017,7 @@ export default function TeachPage() {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>
-                  {terms.learner}:
+                  {terms.caller}:
                 </span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                   {callers.find((c) => c.id === selectedCallerId)?.name || "—"}
@@ -1050,7 +1050,7 @@ export default function TeachPage() {
             disabled={!ready || !selectedCallerId}
             title={
               !selectedCallerId
-                ? `No ${terms.learner.toLowerCase()} available for this ${terms.institution.toLowerCase()}`
+                ? `No ${terms.caller.toLowerCase()} available for this ${terms.domain.toLowerCase()}`
                 : !ready
                   ? "Complete required readiness checks first"
                   : undefined
@@ -1107,7 +1107,7 @@ export default function TeachPage() {
               color: "var(--text-secondary)",
             }}
           >
-            View {terms.institution}
+            View {terms.domain}
           </button>
           {selectedCallerId && (
             <button
@@ -1126,7 +1126,7 @@ export default function TeachPage() {
                 color: "var(--text-secondary)",
               }}
             >
-              View {terms.learner}
+              View {terms.caller}
             </button>
           )}
           <button

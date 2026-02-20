@@ -1,0 +1,80 @@
+{
+  "id": "community-setup-001",
+  "slug": "COMMUNITY-SETUP-001",
+  "title": "Community Setup Wizard",
+  "name": "Community Setup Wizard",
+  "version": "1.0.0",
+  "story": "As a facilitator, I want to create a community hub with conversation topics and invite members",
+  "description": "Multi-step wizard for creating a community with purpose, guidelines, members, and AI facilitator",
+  "specRole": "ORCHESTRATE",
+  "domain": "wizard",
+  "outputType": "ORCHESTRATE",
+  "specType": "SYSTEM",
+  "isActive": true,
+  "isDirty": false,
+  "isDeletable": true,
+  "triggers": [
+    {
+      "given": "A user initiates the community creation workflow",
+      "when": "The user clicks 'New Community' and their institution type uses COMMUNITY-SETUP-001",
+      "then": "The wizard steps are loaded from this spec and the flow progresses through all steps",
+      "name": "Community Setup Wizard Execution",
+      "sortOrder": 0
+    }
+  ],
+  "parameters": [
+    {
+      "id": "wizard_steps",
+      "name": "Wizard Step Definitions",
+      "description": "Defines the sequence and configuration of community setup wizard steps",
+      "section": "orchestration",
+      "config": {
+        "steps": [
+          {
+            "id": "community-purpose",
+            "label": "Purpose",
+            "activeLabel": "Setting Community Purpose",
+            "order": 1,
+            "skippable": false,
+            "description": "Define community name, theme, and goals"
+          },
+          {
+            "id": "guidelines",
+            "label": "Guidelines",
+            "activeLabel": "Setting Guidelines",
+            "order": 2,
+            "skippable": true,
+            "description": "Set conversation norms and community guidelines"
+          },
+          {
+            "id": "members",
+            "label": "Members",
+            "activeLabel": "Inviting Members",
+            "order": 3,
+            "skippable": true,
+            "description": "Invite members or share a join link"
+          },
+          {
+            "id": "configure-ai",
+            "label": "AI Facilitator",
+            "activeLabel": "Configuring AI Facilitator",
+            "order": 4,
+            "skippable": true,
+            "description": "Customize the AI facilitator persona and welcome message"
+          },
+          {
+            "id": "done",
+            "label": "Launch",
+            "activeLabel": "Creating Community",
+            "order": 5,
+            "skippable": false,
+            "taskType": "community_setup",
+            "description": "Create the community hub and complete setup"
+          }
+        ]
+      }
+    }
+  ],
+  "createdAt": "2026-02-20T00:00:00Z",
+  "updatedAt": "2026-02-20T00:00:00Z"
+}

@@ -1,158 +1,118 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { POST, GET } from '@/app/api/admin/terminology/route';
 
-// Mock dependencies
-vi.mock('@/lib/access-control', () => ({
-  requireEntityAccess: vi.fn(),
-  isEntityAuthError: vi.fn((r: any) => 'error' in r),
-  invalidateAccessCache: vi.fn(),
+// Mock auth
+vi.mock('@/lib/permissions', () => ({
+  requireAuth: vi.fn(),
+  isAuthError: vi.fn((r: any) => 'error' in r),
 }));
 
+// Mock terminology
 vi.mock('@/lib/terminology', () => ({
-  getTerminologyContract: vi.fn(),
-  invalidateTerminologyCache: vi.fn(),
+  resolveTerminology: vi.fn(),
 }));
 
-vi.mock('@/lib/contracts/registry', () => ({
-  ContractRegistry: {
-    getContract: vi.fn(),
-  },
-}));
+import { requireAuth, isAuthError } from '@/lib/permissions';
+import { resolveTerminology } from '@/lib/terminology';
+import { GET } from '@/app/api/terminology/route';
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    systemSetting: {
-      upsert: vi.fn(),
-    },
-  },
-}));
-
-vi.mock('@/lib/audit', () => ({
-  auditLog: vi.fn(),
-  AuditAction: {
-    UPDATED_TERMINOLOGY: 'updated_terminology',
-  },
-}));
-
-import { requireEntityAccess, isEntityAuthError } from '@/lib/access-control';
-import { getTerminologyContract, invalidateTerminologyCache } from '@/lib/terminology';
-import { ContractRegistry } from '@/lib/contracts/registry';
-import { prisma } from '@/lib/prisma';
-import { auditLog } from '@/lib/audit';
-
-describe('POST /api/admin/terminology', () => {
-  const mockSession = {
-    user: { id: 'user-123', email: 'admin@test.com', role: 'ADMIN' },
-  };
-
-  const mockTerms = {
-    domain: {
-      ADMIN: 'Domain',
-      OPERATOR: 'Course',
-      EDUCATOR: 'Institution',
-    },
-  };
-
+describe('GET /api/terminology', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should reject unauthorized users', async () => {
-    vi.mocked(requireEntityAccess).mockResolvedValue({
-      error: new Response('Forbidden', { status: 403 }),
+  it('should reject unauthenticated users', async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      error: new Response('Unauthorized', { status: 401 }),
     } as any);
-    vi.mocked(isEntityAuthError).mockReturnValue(true);
-
-    const req = new Request('http://localhost/api/admin/terminology', {
-      method: 'POST',
-      body: JSON.stringify({ terms: mockTerms }),
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(403);
-  });
-
-  it('should validate required terms field', async () => {
-    vi.mocked(requireEntityAccess).mockResolvedValue({
-      session: mockSession,
-      scope: 'ALL',
-    } as any);
-    vi.mocked(isEntityAuthError).mockReturnValue(false);
-
-    const req = new Request('http://localhost/api/admin/terminology', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-
-    const res = await POST(req);
-    const data = await res.json();
-    expect(res.status).toBe(400);
-    expect(data.error).toBeDefined();
-  });
-
-  it('should successfully update terminology and audit log', async () => {
-    vi.mocked(requireEntityAccess).mockResolvedValue({
-      session: mockSession,
-      scope: 'ALL',
-    } as any);
-    vi.mocked(isEntityAuthError).mockReturnValue(false);
-    vi.mocked(ContractRegistry.getContract).mockResolvedValue({
-      contractId: 'TERMINOLOGY_V1',
-      terms: mockTerms,
-    } as any);
-
-    const req = new Request('http://localhost/api/admin/terminology', {
-      method: 'POST',
-      body: JSON.stringify({ terms: mockTerms }),
-    });
-
-    await POST(req);
-
-    expect(prisma.systemSetting.upsert).toHaveBeenCalled();
-    expect(invalidateTerminologyCache).toHaveBeenCalled();
-    expect(auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: mockSession.user.id,
-        userEmail: mockSession.user.email,
-        action: 'updated_terminology',
-      })
-    );
-  });
-});
-
-describe('GET /api/admin/terminology', () => {
-  const mockContract = {
-    contractId: 'TERMINOLOGY_V1',
-    terms: { domain: { ADMIN: 'Domain' } },
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('should reject unauthorized users', async () => {
-    vi.mocked(requireEntityAccess).mockResolvedValue({
-      error: new Response('Forbidden', { status: 403 }),
-    } as any);
-    vi.mocked(isEntityAuthError).mockReturnValue(true);
+    vi.mocked(isAuthError).mockReturnValue(true);
 
     const res = await GET();
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 
-  it('should return contract on success', async () => {
-    vi.mocked(requireEntityAccess).mockResolvedValue({
-      session: { user: { role: 'OPERATOR' } },
-      scope: 'ALL',
+  it('should return TECHNICAL_TERMS for ADMIN user', async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      session: {
+        user: { role: 'ADMIN', institutionId: null },
+      },
     } as any);
-    vi.mocked(isEntityAuthError).mockReturnValue(false);
-    vi.mocked(getTerminologyContract).mockResolvedValue(mockContract as any);
+    vi.mocked(isAuthError).mockReturnValue(false);
+    vi.mocked(resolveTerminology).mockResolvedValue({
+      domain: 'Domain',
+      playbook: 'Playbook',
+      spec: 'Spec',
+      caller: 'Caller',
+      cohort: 'Cohort',
+      instructor: 'Instructor',
+      session: 'Session',
+    });
 
     const res = await GET();
     const data = await res.json();
 
     expect(res.status).toBe(200);
     expect(data.ok).toBe(true);
-    expect(data.contract).toBeDefined();
+    expect(data.terms.domain).toBe('Domain');
+    expect(data.terms.caller).toBe('Caller');
+    expect(resolveTerminology).toHaveBeenCalledWith('ADMIN', null);
+  });
+
+  it('should return institution type terms for EDUCATOR with institution', async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      session: {
+        user: { role: 'EDUCATOR', institutionId: 'inst-123' },
+      },
+    } as any);
+    vi.mocked(isAuthError).mockReturnValue(false);
+    vi.mocked(resolveTerminology).mockResolvedValue({
+      domain: 'School',
+      playbook: 'Lesson Plan',
+      spec: 'Content',
+      caller: 'Student',
+      cohort: 'Class',
+      instructor: 'Teacher',
+      session: 'Lesson',
+    });
+
+    const res = await GET();
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(data.terms.domain).toBe('School');
+    expect(data.terms.caller).toBe('Student');
+    expect(data.terms.instructor).toBe('Teacher');
+    expect(resolveTerminology).toHaveBeenCalledWith('EDUCATOR', 'inst-123');
+  });
+
+  it('should return all 7 term keys', async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      session: {
+        user: { role: 'VIEWER', institutionId: null },
+      },
+    } as any);
+    vi.mocked(isAuthError).mockReturnValue(false);
+    vi.mocked(resolveTerminology).mockResolvedValue({
+      domain: 'Domain',
+      playbook: 'Playbook',
+      spec: 'Spec',
+      caller: 'Caller',
+      cohort: 'Cohort',
+      instructor: 'Instructor',
+      session: 'Session',
+    });
+
+    const res = await GET();
+    const data = await res.json();
+
+    const keys = Object.keys(data.terms);
+    expect(keys).toContain('domain');
+    expect(keys).toContain('playbook');
+    expect(keys).toContain('spec');
+    expect(keys).toContain('caller');
+    expect(keys).toContain('cohort');
+    expect(keys).toContain('instructor');
+    expect(keys).toContain('session');
+    expect(keys.length).toBe(7);
   });
 });

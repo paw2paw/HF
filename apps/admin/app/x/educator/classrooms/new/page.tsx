@@ -153,7 +153,7 @@ export default function NewClassroomPage() {
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
       </h1>
       <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 32 }}>
-        Set up a new {lower("cohort")} for your {lowerPlural("learner")}.
+        Set up a new {lower("cohort")} for your {lowerPlural("caller")}.
       </p>
 
       {/* Step indicators */}
@@ -378,7 +378,7 @@ export default function NewClassroomPage() {
                 marginBottom: 20,
               }}
             >
-              No published courses for this domain. Your {lowerPlural("learner")} can still join — courses can be added later.
+              No published courses for this domain. Your {lowerPlural("caller")} can still join — courses can be added later.
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
@@ -651,7 +651,7 @@ export default function NewClassroomPage() {
               {terms.cohort} Created!
             </h2>
             <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-              Invite your {lowerPlural("learner")} to join.
+              Invite your {lowerPlural("caller")} to join.
             </p>
           </div>
 

@@ -1,57 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { resolveTerminology, type TermMap } from "@/lib/terminology";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import {
-  resolveTerminology,
-  DEFAULT_TERMINOLOGY,
-  DEFAULT_PRESET,
   type TerminologyConfig,
   type TerminologyPresetId,
-  type TermKey,
   type TerminologyOverrides,
 } from "@/lib/terminology/types";
-
-/**
- * @api GET /api/institution/terminology
- * @auth VIEWER (any authenticated user)
- * @description Get resolved terminology for the current user's institution.
- *   Returns default terminology if user has no institution or no config.
- */
-export async function GET() {
-  const auth = await requireAuth("VIEWER");
-  if (isAuthError(auth)) return auth.error;
-
-  const { session } = auth;
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      institution: {
-        select: { terminology: true },
-      },
-    },
-  });
-
-  if (!user?.institution) {
-    return NextResponse.json({
-      ok: true,
-      terminology: DEFAULT_TERMINOLOGY,
-      preset: DEFAULT_PRESET,
-      overrides: null,
-    });
-  }
-
-  const config = user.institution.terminology as TerminologyConfig | null;
-  const resolved = resolveTerminology(config);
-
-  return NextResponse.json({
-    ok: true,
-    terminology: resolved,
-    preset: config?.preset ?? DEFAULT_PRESET,
-    overrides: config?.overrides ?? null,
-  });
-}
 
 const VALID_PRESETS: TerminologyPresetId[] = [
   "school",
@@ -59,20 +15,56 @@ const VALID_PRESETS: TerminologyPresetId[] = [
   "coaching",
   "healthcare",
 ];
-const VALID_TERM_KEYS: TermKey[] = [
+const VALID_LEGACY_TERM_KEYS = [
   "institution",
   "cohort",
   "learner",
   "instructor",
   "supervisor",
   "session",
-];
+] as const;
+
+/**
+ * @api GET /api/institution/terminology
+ * @auth VIEWER (any authenticated user)
+ * @description Get resolved terminology for the current user.
+ *   Delegates to the unified two-tier resolver (role + institution type from DB).
+ *   Returns both the unified TermMap and a backwards-compatible legacy format.
+ */
+export async function GET() {
+  const auth = await requireAuth("VIEWER");
+  if (isAuthError(auth)) return auth.error;
+
+  const { session } = auth;
+  const terms = await resolveTerminology(
+    session.user.role,
+    session.user.institutionId
+  );
+
+  // Backwards-compatible: map unified keys to legacy keys for existing consumers
+  const legacyTerms = {
+    institution: terms.domain,
+    cohort: terms.cohort,
+    learner: terms.caller,
+    instructor: terms.instructor,
+    supervisor: terms.instructor, // supervisor maps to instructor in unified system
+    session: terms.session,
+  };
+
+  return NextResponse.json({
+    ok: true,
+    terminology: legacyTerms,
+    terms, // unified 7-key TermMap
+    preset: null, // presets are now DB-driven via InstitutionType
+    overrides: null,
+  });
+}
 
 /**
  * @api PATCH /api/institution/terminology
  * @auth ADMIN (institution admin)
- * @description Update terminology config for the current user's institution.
- *   Validates preset is one of 4 valid presets. Overrides are optional per-term customizations.
+ * @description Update legacy terminology config for the current user's institution.
+ *   @deprecated Use /api/admin/institution-types to manage terminology instead.
  */
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth("ADMIN");
@@ -110,7 +102,7 @@ export async function PATCH(request: NextRequest) {
 
   if (overrides && typeof overrides === "object") {
     const cleanOverrides: TerminologyOverrides = {};
-    for (const key of VALID_TERM_KEYS) {
+    for (const key of VALID_LEGACY_TERM_KEYS) {
       if (typeof overrides[key] === "string" && overrides[key].trim()) {
         cleanOverrides[key] = overrides[key].trim();
       }
@@ -125,11 +117,23 @@ export async function PATCH(request: NextRequest) {
     data: { terminology: terminologyConfig as unknown as Prisma.InputJsonValue },
   });
 
-  const resolved = resolveTerminology(terminologyConfig);
+  // Return unified terms from the new system
+  const terms = await resolveTerminology(
+    session.user.role,
+    user.institutionId
+  );
 
   return NextResponse.json({
     ok: true,
-    terminology: resolved,
+    terminology: {
+      institution: terms.domain,
+      cohort: terms.cohort,
+      learner: terms.caller,
+      instructor: terms.instructor,
+      supervisor: terms.instructor,
+      session: terms.session,
+    },
+    terms,
     preset: terminologyConfig.preset,
     overrides: terminologyConfig.overrides ?? null,
   });

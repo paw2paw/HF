@@ -111,7 +111,7 @@ export default function ClassroomDetailPage() {
   };
 
   const handleArchive = async () => {
-    if (!confirm(`Archive this ${lower("cohort")}? ${plural("learner")} will no longer be tracked.`)) return;
+    if (!confirm(`Archive this ${lower("cohort")}? ${plural("caller")} will no longer be tracked.`)) return;
     const res = await fetchApi(`/api/educator/classrooms/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ isActive: false }),
@@ -190,7 +190,7 @@ export default function ClassroomDetailPage() {
               {classroom.name}
             </h1>
             <div style={{ display: "flex", gap: 12, fontSize: 13, color: "var(--text-muted)" }}>
-              <span>{classroom.memberCount} {classroom.memberCount !== 1 ? lowerPlural("learner") : lower("learner")}</span>
+              <span>{classroom.memberCount} {classroom.memberCount !== 1 ? lowerPlural("caller") : lower("caller")}</span>
               <span
                 style={{
                   padding: "1px 8px",
@@ -300,7 +300,7 @@ export default function ClassroomDetailPage() {
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-              Invite {plural("learner")}
+              Invite {plural("caller")}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
@@ -353,7 +353,7 @@ export default function ClassroomDetailPage() {
                 fontSize: 14,
               }}
             >
-              No {lowerPlural("learner")} yet. Share the invite link or send email invites above.
+              No {lowerPlural("caller")} yet. Share the invite link or send email invites above.
             </div>
           ) : (
             <div
@@ -471,7 +471,7 @@ export default function ClassroomDetailPage() {
                               padding: "4px 8px",
                               borderRadius: 4,
                             }}
-                            title={`Remove ${lower("learner")}`}
+                            title={`Remove ${lower("caller")}`}
                           >
                             Remove
                           </button>

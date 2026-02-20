@@ -2,26 +2,24 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import {
-  type TerminologyProfile,
-  type TerminologyPresetId,
-  DEFAULT_TERMINOLOGY,
+  type TermKey,
+  type TermMap,
+  TECHNICAL_TERMS,
   pluralize,
   lc,
 } from "@/lib/terminology/types";
 
 interface TerminologyContextValue {
-  /** The fully resolved terminology profile */
-  terms: TerminologyProfile;
-  /** The active preset ID */
-  preset: TerminologyPresetId;
+  /** The fully resolved terminology map (7 keys) */
+  terms: TermMap;
   /** Whether still loading from API */
   loading: boolean;
-  /** Pluralize a term key (e.g. plural("learner") → "Students") */
-  plural: (key: keyof TerminologyProfile) => string;
-  /** Lowercase a term key (e.g. lower("institution") → "school") */
-  lower: (key: keyof TerminologyProfile) => string;
-  /** Lowercase + plural (e.g. lowerPlural("learner") → "students") */
-  lowerPlural: (key: keyof TerminologyProfile) => string;
+  /** Pluralize a term key (e.g. plural("caller") → "Students") */
+  plural: (key: TermKey) => string;
+  /** Lowercase a term key (e.g. lower("domain") → "school") */
+  lower: (key: TermKey) => string;
+  /** Lowercase + plural (e.g. lowerPlural("caller") → "students") */
+  lowerPlural: (key: TermKey) => string;
   /** Re-fetch terminology from API (e.g., after saving changes) */
   refresh: () => Promise<void>;
 }
@@ -33,21 +31,19 @@ export function TerminologyProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [terms, setTerms] = useState<TerminologyProfile>(DEFAULT_TERMINOLOGY);
-  const [preset, setPreset] = useState<TerminologyPresetId>("corporate");
+  const [terms, setTerms] = useState<TermMap>(TECHNICAL_TERMS);
   const [loading, setLoading] = useState(true);
 
   const fetchTerminology = useCallback(async () => {
     try {
-      const r = await fetch("/api/institution/terminology");
+      const r = await fetch("/api/terminology");
       if (!r.ok) return;
       const res = await r.json();
-      if (res.ok && res.terminology) {
-        setTerms(res.terminology);
-        if (res.preset) setPreset(res.preset);
+      if (res.ok && res.terms) {
+        setTerms(res.terms);
       }
     } catch {
-      // Fallback to current values
+      // Fallback to TECHNICAL_TERMS
     }
   }, []);
 
@@ -65,7 +61,6 @@ export function TerminologyProvider({
 
   const value: TerminologyContextValue = {
     terms,
-    preset,
     loading,
     plural: (key) => pluralize(terms[key]),
     lower: (key) => lc(terms[key]),
@@ -80,16 +75,22 @@ export function TerminologyProvider({
   );
 }
 
+/**
+ * Hook to access resolved terminology for the current user.
+ *
+ * Returns the unified 7-key TermMap resolved by role + institution type.
+ * ADMIN/SUPERADMIN/SUPER_TESTER see technical terms (Domain, Playbook, etc.).
+ * All other roles see their institution type's labels (School, Lesson Plan, etc.).
+ */
 export function useTerminology(): TerminologyContextValue {
   const context = useContext(TerminologyContext);
   if (!context) {
     return {
-      terms: DEFAULT_TERMINOLOGY,
-      preset: "corporate",
+      terms: TECHNICAL_TERMS,
       loading: false,
-      plural: (key) => pluralize(DEFAULT_TERMINOLOGY[key]),
-      lower: (key) => lc(DEFAULT_TERMINOLOGY[key]),
-      lowerPlural: (key) => lc(pluralize(DEFAULT_TERMINOLOGY[key])),
+      plural: (key) => pluralize(TECHNICAL_TERMS[key]),
+      lower: (key) => lc(TECHNICAL_TERMS[key]),
+      lowerPlural: (key) => lc(pluralize(TECHNICAL_TERMS[key])),
       refresh: async () => {},
     };
   }

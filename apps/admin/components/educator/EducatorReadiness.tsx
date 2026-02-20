@@ -111,7 +111,7 @@ export default function EducatorReadiness({ institutionId }: EducatorReadinessPr
           </div>
           <div style={{ fontSize: 12, color: config.text, opacity: 0.8 }}>
             {data.overallReady
-              ? `All domains are ready for ${lowerPlural("learner")}`
+              ? `All domains are ready for ${lowerPlural("caller")}`
               : `${data.domains.filter((d) => !d.ready).length} domain(s) need attention`}
           </div>
         </div>

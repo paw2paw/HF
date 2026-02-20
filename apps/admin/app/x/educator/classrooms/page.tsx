@@ -91,7 +91,7 @@ export default function ClassroomsPage() {
             No {lowerPlural("cohort")} yet
           </h3>
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20 }}>
-            Create your first {lower("cohort")} to start inviting {lowerPlural("learner")}.
+            Create your first {lower("cohort")} to start inviting {lowerPlural("caller")}.
           </p>
           <Link
             href="/x/educator/classrooms/new"
@@ -189,7 +189,7 @@ export default function ClassroomsPage() {
                   marginTop: "auto",
                 }}
               >
-                <span>{classroom.memberCount} {classroom.memberCount !== 1 ? lowerPlural("learner") : lower("learner")}</span>
+                <span>{classroom.memberCount} {classroom.memberCount !== 1 ? lowerPlural("caller") : lower("caller")}</span>
                 <span
                   style={{
                     padding: "1px 6px",

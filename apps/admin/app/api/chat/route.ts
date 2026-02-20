@@ -96,8 +96,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // Build mode-specific system prompt
-    const systemPrompt = await buildSystemPrompt(mode, entityContext, bugContext);
+    // Build mode-specific system prompt with terminology
+    const userInstitutionId = authResult.session.user.institutionId;
+    const systemPrompt = await buildSystemPrompt(mode, entityContext, bugContext, userRole, userInstitutionId);
 
     // Prepare messages with conversation history
     const lastHistoryMessage = conversationHistory[conversationHistory.length - 1];
