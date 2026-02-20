@@ -42,16 +42,16 @@ export interface SourcePageHeaderProps {
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  OK: { bg: "#ecfdf5", text: "#10b981", label: "OK" },
-  RUNNING: { bg: "#dbeafe", text: "#2563eb", label: "Running" },
-  ERROR: { bg: "#fef2f2", text: "#dc2626", label: "Error" },
-  QUEUED: { bg: "#f3f4f6", text: "#6b7280", label: "Queued" },
+  OK: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", label: "OK" },
+  RUNNING: { bg: "var(--status-info-bg)", text: "var(--status-info-text)", label: "Running" },
+  ERROR: { bg: "var(--status-error-bg)", text: "var(--status-error-text)", label: "Error" },
+  QUEUED: { bg: "var(--surface-secondary)", text: "var(--text-muted)", label: "Queued" },
 };
 
 const RELATIONSHIP_LABELS: Record<string, { label: string; color: string }> = {
-  consumer: { label: "reads from", color: "#3b82f6" },
-  producer: { label: "writes to", color: "#10b981" },
-  both: { label: "reads/writes", color: "#8b5cf6" },
+  consumer: { label: "reads from", color: "var(--accent-primary)" },
+  producer: { label: "writes to", color: "var(--status-success-text)" },
+  both: { label: "reads/writes", color: "var(--badge-purple-text)" },
 };
 
 export function SourcePageHeader({
@@ -169,15 +169,15 @@ export function SourcePageHeader({
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {icon && <span style={{ fontSize: 24 }}>{icon}</span>}
-            <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{title}</h1>
+            <h1 className="hf-page-title">{title}</h1>
             {count !== undefined && (
               <span
                 style={{
                   fontSize: 14,
                   padding: "4px 10px",
-                  background: "#f3f4f6",
+                  background: "var(--surface-secondary)",
                   borderRadius: 12,
-                  color: "#6b7280",
+                  color: "var(--text-muted)",
                   fontWeight: 500,
                 }}
               >
@@ -185,7 +185,7 @@ export function SourcePageHeader({
               </span>
             )}
           </div>
-          <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4, marginBottom: 0 }}>
+          <p className="hf-page-subtitle">
             {description}
           </p>
         </div>
@@ -200,13 +200,13 @@ export function SourcePageHeader({
             alignItems: "center",
             gap: 12,
             padding: "12px 16px",
-            background: "#f9fafb",
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
+            background: "var(--surface-secondary)",
+            borderRadius: 10,
+            border: "1px solid var(--border-default)",
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
             Related Agents:
           </span>
 
@@ -228,9 +228,9 @@ export function SourcePageHeader({
                   alignItems: "center",
                   gap: 8,
                   padding: "8px 12px",
-                  background: justFinished ? "#ecfdf5" : hasError ? "#fef2f2" : "#fff",
-                  borderRadius: 6,
-                  border: `1px solid ${justFinished ? "#10b981" : hasError ? "#dc2626" : "#e5e7eb"}`,
+                  background: justFinished ? "var(--status-success-bg)" : hasError ? "var(--status-error-bg)" : "var(--surface-primary)",
+                  borderRadius: 8,
+                  border: `1px solid ${justFinished ? "var(--status-success-text)" : hasError ? "var(--status-error-text)" : "var(--border-default)"}`,
                   transition: "all 0.3s ease",
                 }}
               >
@@ -240,7 +240,7 @@ export function SourcePageHeader({
                   style={{
                     fontSize: 13,
                     fontWeight: 500,
-                    color: "#374151",
+                    color: "var(--text-primary)",
                     textDecoration: "none",
                   }}
                   title={agent.description}
@@ -268,7 +268,7 @@ export function SourcePageHeader({
                   <span
                     style={{
                       fontSize: 10,
-                      color: "#6b7280",
+                      color: "var(--text-muted)",
                       display: "flex",
                       alignItems: "center",
                       gap: 4,
@@ -280,7 +280,7 @@ export function SourcePageHeader({
                         width: 6,
                         height: 6,
                         borderRadius: "50%",
-                        background: statusInfo?.text || "#6b7280",
+                        background: statusInfo?.text || "var(--text-muted)",
                       }}
                     />
                     {formatRelativeTime(agent.latestRun.startedAt)}
@@ -293,8 +293,8 @@ export function SourcePageHeader({
                     style={{
                       fontSize: 10,
                       padding: "2px 8px",
-                      background: "#dbeafe",
-                      color: "#2563eb",
+                      background: "var(--status-info-bg)",
+                      color: "var(--status-info-text)",
                       borderRadius: 4,
                       fontWeight: 600,
                       display: "flex",
@@ -306,7 +306,7 @@ export function SourcePageHeader({
                       style={{
                         width: 8,
                         height: 8,
-                        border: "2px solid #2563eb",
+                        border: "2px solid var(--status-info-text)",
                         borderTopColor: "transparent",
                         borderRadius: "50%",
                         animation: "spin 0.8s linear infinite",
@@ -322,8 +322,8 @@ export function SourcePageHeader({
                     style={{
                       fontSize: 10,
                       padding: "2px 8px",
-                      background: "#ecfdf5",
-                      color: "#10b981",
+                      background: "var(--status-success-bg)",
+                      color: "var(--status-success-text)",
                       borderRadius: 4,
                       fontWeight: 600,
                       display: "flex",
@@ -342,8 +342,8 @@ export function SourcePageHeader({
                     style={{
                       fontSize: 10,
                       padding: "2px 8px",
-                      background: "#fef2f2",
-                      color: "#dc2626",
+                      background: "var(--status-error-bg)",
+                      color: "var(--status-error-text)",
                       borderRadius: 4,
                       fontWeight: 600,
                       maxWidth: 150,
@@ -366,8 +366,8 @@ export function SourcePageHeader({
                       padding: "3px 8px",
                       fontSize: 11,
                       fontWeight: 600,
-                      background: "#2563eb",
-                      color: "#fff",
+                      background: "var(--accent-primary)",
+                      color: "var(--accent-primary-text)",
                       border: "none",
                       borderRadius: 4,
                       cursor: "pointer",
@@ -388,8 +388,8 @@ export function SourcePageHeader({
                     style={{
                       fontSize: 9,
                       padding: "2px 6px",
-                      background: "#f3f4f6",
-                      color: "#9ca3af",
+                      background: "var(--surface-secondary)",
+                      color: "var(--text-muted)",
                       borderRadius: 4,
                       fontWeight: 500,
                     }}
@@ -406,7 +406,7 @@ export function SourcePageHeader({
             href="/agents"
             style={{
               fontSize: 12,
-              color: "#6b7280",
+              color: "var(--text-muted)",
               textDecoration: "none",
               marginLeft: "auto",
             }}

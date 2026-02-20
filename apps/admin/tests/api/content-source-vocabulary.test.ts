@@ -121,6 +121,34 @@ describe("GET /api/content-sources/:sourceId/vocabulary", () => {
     const call = mocks.vocabularyFindMany.mock.calls[0][0];
     expect(call.take).toBe(500);
   });
+
+  it("filters by reviewed=true", async () => {
+    const res = await GET(makeGetRequest({ reviewed: "true" }), { params: makeParams() });
+    expect(res.status).toBe(200);
+
+    const call = mocks.vocabularyFindMany.mock.calls[0][0];
+    expect(call.where.reviewedAt).toEqual({ not: null });
+  });
+
+  it("filters by reviewed=false", async () => {
+    const res = await GET(makeGetRequest({ reviewed: "false" }), { params: makeParams() });
+    expect(res.status).toBe(200);
+
+    const call = mocks.vocabularyFindMany.mock.calls[0][0];
+    expect(call.where.reviewedAt).toBe(null);
+  });
+
+  it("includes reviewedCount and reviewProgress in response", async () => {
+    mocks.vocabularyFindMany.mockResolvedValue([]);
+    mocks.vocabularyCount.mockResolvedValue(10);
+
+    const res = await GET(makeGetRequest(), { params: makeParams() });
+    const data = await res.json();
+
+    expect(data.reviewedCount).toBeDefined();
+    expect(data.reviewProgress).toBeDefined();
+    expect(typeof data.reviewProgress).toBe("number");
+  });
 });
 
 describe("DELETE /api/content-sources/:sourceId/vocabulary", () => {
