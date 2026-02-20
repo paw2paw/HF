@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AIEngine, AIMessage, ContentBlock } from "@/lib/ai/client";
 import { getAIConfig } from "@/lib/ai/config-loader";
+import { classifyAIError, userMessageForError } from "@/lib/ai/error-utils";
 import { getConfiguredMeteredAICompletionStream, getConfiguredMeteredAICompletion } from "@/lib/metering";
 import { buildSystemPrompt } from "./system-prompts";
 import { executeCommand, parseCommand } from "@/lib/chat/commands";
@@ -545,49 +546,32 @@ function logChatRequest(
 /**
  * Parse AI provider errors into user-friendly messages
  */
+/**
+ * Parse AI error to user-friendly message
+ */
 function parseAIError(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return "Unknown error occurred";
-  }
-
-  const message = error.message.toLowerCase();
-
-  if (message.includes("credit balance is too low")) {
-    return "Anthropic API credits exhausted. Please add credits at console.anthropic.com or switch to OpenAI in AI Config.";
-  }
-  if (message.includes("api key") || message.includes("authentication") || message.includes("unauthorized")) {
-    return "API key invalid or not configured. Check your .env.local file.";
-  }
-  if (message.includes("rate limit") || message.includes("too many requests")) {
-    return "Rate limited by AI provider. Please wait a moment and try again.";
-  }
-  if (message.includes("model") && (message.includes("not found") || message.includes("does not exist"))) {
-    return "AI model not available. Check AI Config settings.";
-  }
-  if (message.includes("network") || message.includes("econnrefused") || message.includes("timeout")) {
-    return "Network error connecting to AI provider. Check your internet connection.";
-  }
-  if (message.includes("content policy") || message.includes("safety")) {
-    return "Message blocked by AI safety filters.";
-  }
-
-  return error.message;
+  const code = classifyAIError(error);
+  return userMessageForError(code);
 }
 
 /**
  * Extract error code for frontend handling
  */
 function getErrorCode(error: unknown): string {
-  if (!(error instanceof Error)) return "UNKNOWN";
+  const code = classifyAIError(error);
 
-  const message = error.message.toLowerCase();
+  // Map AIErrorCode to backwards-compatible codes for existing frontend
+  const codeMap: Record<string, string> = {
+    RATE_LIMIT: "RATE_LIMIT",
+    TIMEOUT: "NETWORK",
+    AUTH: "AUTH",
+    BILLING: "BILLING",
+    CONTENT_POLICY: "CONTENT_POLICY",
+    PARSE_ERROR: "API_ERROR",
+    NETWORK: "NETWORK",
+    MODEL: "MODEL",
+    UNKNOWN: "API_ERROR",
+  };
 
-  if (message.includes("credit balance")) return "BILLING";
-  if (message.includes("api key") || message.includes("authentication")) return "AUTH";
-  if (message.includes("rate limit")) return "RATE_LIMIT";
-  if (message.includes("model")) return "MODEL";
-  if (message.includes("network") || message.includes("timeout")) return "NETWORK";
-  if (message.includes("content policy") || message.includes("safety")) return "CONTENT_POLICY";
-
-  return "API_ERROR";
+  return codeMap[code] || "API_ERROR";
 }

@@ -64,9 +64,11 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
     });
 
     if (!institution) {
+      const slug = account.institutionName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       institution = await prisma.institution.create({
         data: {
           name: account.institutionName,
+          slug,
           typeId: instType.id,
         },
       });

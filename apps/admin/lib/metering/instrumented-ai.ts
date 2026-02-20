@@ -19,6 +19,7 @@ import {
   ConfiguredAIOptions,
 } from "@/lib/ai/client";
 import { logAIUsage } from "./usage-logger";
+import { classifyAIError, isRetryable } from "@/lib/ai/error-utils";
 
 export interface MeteringContext {
   userId?: string;
@@ -181,7 +182,9 @@ export function createMeteredStream(
  * Get AI completion with configuration from database and automatic metering.
  * This is the preferred method for production code.
  *
- * @param options - Includes callPoint to load config for
+ * Includes automatic retry logic for transient errors (rate limits, timeouts, network).
+ *
+ * @param options - Includes callPoint to load config for, and optional maxRetries
  * @param context - Metering context (userId, callerId, etc.)
  * @returns Completion result with model info
  */
@@ -189,25 +192,53 @@ export async function getConfiguredMeteredAICompletion(
   options: ConfiguredAIOptions,
   context?: MeteringContext
 ): Promise<AICompletionResult> {
-  const result = await getConfiguredAICompletion(options);
+  const maxRetries = options.maxRetries ?? 2;
+  let lastError: unknown;
 
-  // Log usage if we have token counts (mock doesn't provide these)
-  if (result.usage && result.engine !== "mock") {
-    logAIUsage({
-      engine: result.engine as "claude" | "openai",
-      model: result.model,
-      inputTokens: result.usage.inputTokens,
-      outputTokens: result.usage.outputTokens,
-      userId: context?.userId,
-      callerId: context?.callerId,
-      callId: context?.callId,
-      sourceOp: context?.sourceOp || options.callPoint,
-    }).catch((error) => {
-      console.error("[metering] Failed to log AI usage:", error);
-    });
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await getConfiguredAICompletion(options);
+
+      // Log usage if we have token counts (mock doesn't provide these)
+      if (result.usage && result.engine !== "mock") {
+        logAIUsage({
+          engine: result.engine as "claude" | "openai",
+          model: result.model,
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+          userId: context?.userId,
+          callerId: context?.callerId,
+          callId: context?.callId,
+          sourceOp: context?.sourceOp || options.callPoint,
+        }).catch((error) => {
+          console.error("[metering] Failed to log AI usage:", error);
+        });
+      }
+
+      return result;
+    } catch (err) {
+      lastError = err;
+      const errorCode = classifyAIError(err);
+
+      // Log retry attempt
+      if (attempt < maxRetries) {
+        const backoffMs = 500 * Math.pow(2, attempt);
+        console.warn(
+          `[metering] AI call attempt ${attempt + 1} failed (${errorCode}). Retrying in ${backoffMs}ms...`,
+          { callPoint: options.callPoint, attempt, errorCode }
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      }
+
+      // Only retry if the error is retryable and we have retries left
+      if (!isRetryable(errorCode) || attempt === maxRetries) {
+        throw err;
+      }
+    }
   }
 
-  return result;
+  // Should never reach here, but just in case
+  throw lastError;
 }
 
 /**

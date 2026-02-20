@@ -11,6 +11,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { config } from "@/lib/config";
+import { classifyAIError, userMessageForError } from "./error-utils";
 
 export type AIEngine = "mock" | "claude" | "openai";
 
@@ -52,6 +53,8 @@ export interface AICompletionOptions {
   callPoint?: string;
   /** Optional: tool definitions for function calling */
   tools?: AITool[];
+  /** Optional: timeout in milliseconds (default: 30000) */
+  timeoutMs?: number;
 }
 
 export interface AICompletionResult {
@@ -110,14 +113,14 @@ function getOpenAIClient(): OpenAI {
  * Get AI completion from the specified engine
  */
 export async function getAICompletion(options: AICompletionOptions): Promise<AICompletionResult> {
-  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model, tools } = options;
+  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model, tools, timeoutMs = 30000 } = options;
 
   switch (engine) {
     case "claude":
-      return callClaude(messages, maxTokens, temperature, model, tools);
+      return callClaude(messages, maxTokens, temperature, model, tools, timeoutMs);
 
     case "openai":
-      return callOpenAI(messages, maxTokens, temperature, model);
+      return callOpenAI(messages, maxTokens, temperature, model, timeoutMs);
 
     case "mock":
     default:
@@ -131,6 +134,7 @@ async function callClaude(
   temperature: number,
   model?: string,
   tools?: AITool[],
+  timeoutMs: number = 30000,
 ): Promise<AICompletionResult> {
   const client = getAnthropicClient();
 
@@ -157,75 +161,108 @@ async function callClaude(
     createParams.tools = tools;
   }
 
-  const response = await client.messages.create(createParams);
+  // Add timeout support with AbortController
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Extract text content
-  const textBlocks = response.content.filter((c: any) => c.type === "text");
-  const textContent = textBlocks.map((c: any) => c.text).join("\n");
+  try {
+    const response = await client.messages.create({
+      ...createParams,
+      signal: controller.signal as any,
+    });
 
-  // Extract tool_use blocks
-  const toolUseBlocks = response.content.filter((c: any) => c.type === "tool_use");
-  const toolUses: AIToolUse[] = toolUseBlocks.map((c: any) => ({
-    id: c.id,
-    name: c.name,
-    input: c.input,
-  }));
+    // Extract text content
+    const textBlocks = response.content.filter((c: any) => c.type === "text");
+    const textContent = textBlocks.map((c: any) => c.text).join("\n");
 
-  // Build raw content blocks for feeding back into tool loop
-  const rawContentBlocks: ContentBlock[] = response.content.map((c: any) => {
-    if (c.type === "text") return { type: "text" as const, text: c.text };
-    if (c.type === "tool_use") return { type: "tool_use" as const, id: c.id, name: c.name, input: c.input };
-    return { type: "text" as const, text: "" };
-  });
+    // Extract tool_use blocks
+    const toolUseBlocks = response.content.filter((c: any) => c.type === "tool_use");
+    const toolUses: AIToolUse[] = toolUseBlocks.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      input: c.input,
+    }));
 
-  return {
-    content: textContent,
-    engine: "claude",
-    model: response.model,
-    usage: {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    },
-    stopReason: response.stop_reason as AICompletionResult["stopReason"],
-    toolUses: toolUses.length > 0 ? toolUses : undefined,
-    rawContentBlocks: toolUses.length > 0 ? rawContentBlocks : undefined,
-  };
+    // Build raw content blocks for feeding back into tool loop
+    const rawContentBlocks: ContentBlock[] = response.content.map((c: any) => {
+      if (c.type === "text") return { type: "text" as const, text: c.text };
+      if (c.type === "tool_use") return { type: "tool_use" as const, id: c.id, name: c.name, input: c.input };
+      return { type: "text" as const, text: "" };
+    });
+
+    return {
+      content: textContent,
+      engine: "claude",
+      model: response.model,
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+      stopReason: response.stop_reason as AICompletionResult["stopReason"],
+      toolUses: toolUses.length > 0 ? toolUses : undefined,
+      rawContentBlocks: toolUses.length > 0 ? rawContentBlocks : undefined,
+    };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`AI call timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function callOpenAI(
   messages: AIMessage[],
   maxTokens: number,
   temperature: number,
-  model?: string
+  model?: string,
+  timeoutMs: number = 30000
 ): Promise<AICompletionResult> {
   const client = getOpenAIClient();
 
   // Use provided model or default from config
   const modelId = model || config.ai.openai.model;
 
-  const response = await client.chat.completions.create({
-    model: modelId,
-    max_tokens: maxTokens,
-    temperature,
-    messages: messages.map((m) => ({
-      role: m.role,
-      content: getTextContent(m),
-    })),
-  });
+  // Add timeout support with AbortController
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const choice = response.choices[0];
+  try {
+    const response = await client.chat.completions.create({
+      model: modelId,
+      max_tokens: maxTokens,
+      temperature,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: getTextContent(m),
+      })),
+    },
+    {
+      signal: controller.signal,
+    } as any);
 
-  return {
-    content: choice?.message?.content || "",
-    engine: "openai",
-    model: response.model,
-    usage: response.usage
-      ? {
-          inputTokens: response.usage.prompt_tokens,
-          outputTokens: response.usage.completion_tokens,
-        }
-      : undefined,
-  };
+    const choice = response.choices[0];
+
+    return {
+      content: choice?.message?.content || "",
+      engine: "openai",
+      model: response.model,
+      usage: response.usage
+        ? {
+            inputTokens: response.usage.prompt_tokens,
+            outputTokens: response.usage.completion_tokens,
+          }
+        : undefined,
+    };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`AI call timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function mockCompletion(messages: AIMessage[]): AICompletionResult {
@@ -340,6 +377,8 @@ export interface AIStreamOptions {
   model?: string;
   /** Optional: call point for loading config from database */
   callPoint?: string;
+  /** Optional: timeout in milliseconds (default: 30000) */
+  timeoutMs?: number;
 }
 
 /**
@@ -349,13 +388,13 @@ export interface AIStreamOptions {
 export async function getAICompletionStream(
   options: AIStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
-  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model } = options;
+  const { engine, messages, maxTokens = config.ai.defaults.maxTokens, temperature = config.ai.defaults.temperature, model, timeoutMs = 30000 } = options;
 
   switch (engine) {
     case "claude":
-      return streamClaude(messages, maxTokens, temperature, model);
+      return streamClaude(messages, maxTokens, temperature, model, timeoutMs);
     case "openai":
-      return streamOpenAI(messages, maxTokens, temperature, model);
+      return streamOpenAI(messages, maxTokens, temperature, model, timeoutMs);
     case "mock":
     default:
       return mockStream(messages);
@@ -366,7 +405,8 @@ async function streamClaude(
   messages: AIMessage[],
   maxTokens: number,
   temperature: number,
-  model?: string
+  model?: string,
+  timeoutMs: number = 30000
 ): Promise<ReadableStream<Uint8Array>> {
   const client = getAnthropicClient();
 
@@ -394,8 +434,14 @@ async function streamClaude(
 
   return new ReadableStream({
     async start(controller) {
+      const streamController = new AbortController();
+      const timer = setTimeout(() => streamController.abort(), timeoutMs);
+
       try {
         for await (const event of stream) {
+          if (streamController.signal.aborted) {
+            throw new Error(`AI stream timed out after ${timeoutMs}ms`);
+          }
           if (
             event.type === "content_block_delta" &&
             event.delta.type === "text_delta"
@@ -405,7 +451,22 @@ async function streamClaude(
         }
         controller.close();
       } catch (error) {
-        controller.error(error);
+        // Classify the error and send user-friendly message to stream
+        const errorCode = classifyAIError(error);
+        const userMessage = userMessageForError(errorCode);
+        console.error(`[streamClaude] Stream error: ${errorCode}`, error);
+
+        try {
+          // Send error message as a JSON event
+          const errorEvent = JSON.stringify({ error: userMessage, errorCode });
+          controller.enqueue(encoder.encode(`data: ${errorEvent}\n\n`));
+        } catch {
+          // Ignore encoding errors
+        }
+
+        controller.close();
+      } finally {
+        clearTimeout(timer);
       }
     },
   });
@@ -415,7 +476,8 @@ async function streamOpenAI(
   messages: AIMessage[],
   maxTokens: number,
   temperature: number,
-  model?: string
+  model?: string,
+  timeoutMs: number = 30000
 ): Promise<ReadableStream<Uint8Array>> {
   const client = getOpenAIClient();
 
@@ -437,8 +499,14 @@ async function streamOpenAI(
 
   return new ReadableStream({
     async start(controller) {
+      const streamController = new AbortController();
+      const timer = setTimeout(() => streamController.abort(), timeoutMs);
+
       try {
         for await (const chunk of stream) {
+          if (streamController.signal.aborted) {
+            throw new Error(`AI stream timed out after ${timeoutMs}ms`);
+          }
           const content = chunk.choices[0]?.delta?.content;
           if (content) {
             controller.enqueue(encoder.encode(content));
@@ -446,7 +514,22 @@ async function streamOpenAI(
         }
         controller.close();
       } catch (error) {
-        controller.error(error);
+        // Classify the error and send user-friendly message to stream
+        const errorCode = classifyAIError(error);
+        const userMessage = userMessageForError(errorCode);
+        console.error(`[streamOpenAI] Stream error: ${errorCode}`, error);
+
+        try {
+          // Send error message as a JSON event
+          const errorEvent = JSON.stringify({ error: userMessage, errorCode });
+          controller.enqueue(encoder.encode(`data: ${errorEvent}\n\n`));
+        } catch {
+          // Ignore encoding errors
+        }
+
+        controller.close();
+      } finally {
+        clearTimeout(timer);
       }
     },
   });
@@ -501,6 +584,10 @@ export interface ConfiguredAIOptions {
   engineOverride?: AIEngine;
   /** Optional: tool definitions for function calling */
   tools?: AITool[];
+  /** Optional: timeout in milliseconds (default: 30000) */
+  timeoutMs?: number;
+  /** Optional: number of retries for transient errors (default: 2) */
+  maxRetries?: number;
 }
 
 /**
@@ -514,7 +601,7 @@ export interface ConfiguredAIOptions {
 export async function getConfiguredAICompletion(
   options: ConfiguredAIOptions
 ): Promise<AICompletionResult> {
-  const { callPoint, messages, maxTokens, temperature, engineOverride, tools } = options;
+  const { callPoint, messages, maxTokens, temperature, engineOverride, tools, timeoutMs } = options;
 
   // Load config from database
   const aiConfig = await getAIConfig(callPoint);
@@ -534,6 +621,7 @@ export async function getConfiguredAICompletion(
     temperature: finalTemperature,
     model,
     tools,
+    timeoutMs,
   });
 }
 
@@ -547,7 +635,7 @@ export async function getConfiguredAICompletion(
 export async function getConfiguredAICompletionStream(
   options: ConfiguredAIOptions
 ): Promise<ReadableStream<Uint8Array>> {
-  const { callPoint, messages, maxTokens, temperature, engineOverride } = options;
+  const { callPoint, messages, maxTokens, temperature, engineOverride, timeoutMs } = options;
 
   // Load config from database
   const aiConfig = await getAIConfig(callPoint);
@@ -566,5 +654,6 @@ export async function getConfiguredAICompletionStream(
     maxTokens: finalMaxTokens,
     temperature: finalTemperature,
     model,
+    timeoutMs,
   });
 }

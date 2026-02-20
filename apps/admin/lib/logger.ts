@@ -1,7 +1,10 @@
 /**
  * General Logger - Unified logging system for the application
  *
- * Logs are written to: logs/app.jsonl (one JSON object per line)
+ * In production (Cloud Run): Logs are written to stdout as structured JSON
+ * so Cloud Logging captures them automatically.
+ *
+ * In development: Logs are written to: logs/app.jsonl (one JSON object per line)
  *
  * Log types:
  *   - ai: AI/LLM calls and responses
@@ -21,9 +24,10 @@ import { join } from "path";
 const LOG_DIR = join(process.cwd(), "logs");
 const LOG_FILE = join(LOG_DIR, "app.jsonl");
 const CONFIG_FILE = join(LOG_DIR, "logging-config.json");
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-// Ensure log directory exists
-if (!existsSync(LOG_DIR)) {
+// Ensure log directory exists (dev only)
+if (!IS_PRODUCTION && !existsSync(LOG_DIR)) {
   try {
     mkdirSync(LOG_DIR, { recursive: true });
   } catch {
@@ -148,7 +152,13 @@ export function log(
       metadata: data,
     };
 
-    appendFileSync(LOG_FILE, JSON.stringify(entry) + "\n");
+    if (IS_PRODUCTION) {
+      // In production, write to stdout for Cloud Logging
+      console.log(JSON.stringify(entry));
+    } else {
+      // In development, write to file
+      appendFileSync(LOG_FILE, JSON.stringify(entry) + "\n");
+    }
   } catch (error) {
     console.error("[Logger] Failed to write log:", error);
   }
@@ -188,9 +198,14 @@ export function logAI(
       metadata: options,
     };
 
-    appendFileSync(LOG_FILE, JSON.stringify(entry) + "\n");
-
-    console.log(`[Logger:ai] ${stage} logged (${prompt.length} chars prompt, ${response.length} chars response)`);
+    if (IS_PRODUCTION) {
+      // In production, write to stdout for Cloud Logging
+      console.log(JSON.stringify(entry));
+    } else {
+      // In development, write to file
+      appendFileSync(LOG_FILE, JSON.stringify(entry) + "\n");
+      console.log(`[Logger:ai] ${stage} logged (${prompt.length} chars prompt, ${response.length} chars response)`);
+    }
   } catch (error) {
     console.error("[Logger] Failed to write AI log:", error);
   }
@@ -271,7 +286,11 @@ export function logFullPrompt(stage: string, prompt: string): void {
       metadata: { fullPrompt: true },
     };
 
-    appendFileSync(LOG_FILE, JSON.stringify(entry) + "\n");
+    if (IS_PRODUCTION) {
+      console.log(JSON.stringify(entry));
+    } else {
+      appendFileSync(LOG_FILE, JSON.stringify(entry) + "\n");
+    }
   } catch {
     // Ignore
   }

@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MemoryCategory } from "@prisma/client";
 import { AIEngine, isEngineAvailable } from "@/lib/ai/client";
+import { classifyAIError, userMessageForError } from "@/lib/ai/error-utils";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
@@ -2202,10 +2203,13 @@ export async function POST(
     });
 
   } catch (error: any) {
-    log.error("Pipeline failed", { error: error.message, stack: error.stack });
+    const errorCode = classifyAIError(error);
+    const userMessage = userMessageForError(errorCode);
+    log.error("Pipeline failed", { error: error.message, stack: error.stack, errorCode });
     return NextResponse.json({
       ok: false,
-      error: error.message,
+      error: userMessage,
+      errorCode,
       logs: log.getLogs(),
       duration: log.getDuration(),
     }, { status: 500 });
