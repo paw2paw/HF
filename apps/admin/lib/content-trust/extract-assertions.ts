@@ -344,7 +344,10 @@ export async function extractAssertions(
   }
 
   if (failedChunks > 0) {
-    warnings.push(`${failedChunks} chunk${failedChunks > 1 ? "s" : ""} failed extraction after ${MAX_CHUNK_RETRIES} retries`);
+    const docTypeNote = options.documentType
+      ? ` (type: ${options.documentType})`
+      : " (no document type — try re-uploading via Content Sources for better results)";
+    warnings.push(`${failedChunks} chunk${failedChunks > 1 ? "s" : ""} failed extraction${docTypeNote}`);
   }
 
   if (allAssertions.length >= limit) {

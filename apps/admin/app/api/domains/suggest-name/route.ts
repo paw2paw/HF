@@ -52,11 +52,20 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: "system",
-            content: `You are an expert at setting up AI agents. Given a description, return a JSON object with:
-- "name": a short, clear agent/course name (2-6 words)${personaClause}
+            content: `You are an expert at setting up AI tutoring agents. Given a user's description of what they want to teach, return a JSON object.
+
+Required fields:
+- "name": a short, clear course/tutor name (2-5 words). Distill the essence — do NOT just truncate the input. Drop filler words like "for", "of", "the". The name should stand alone as a label.${personaClause}
 - "goals": an array of 2-4 concise learning goals the user should achieve (each 3-10 words)
 
-Return ONLY valid JSON, no markdown fences, no explanation.`,
+Examples:
+Input: "11+ Creative Comprehension tutor for UK Key Stage 2 pupils aged 9-10"
+→ {"name": "11+ Creative Comprehension", "goals": ["Analyse fiction and non-fiction passages", "Write creative responses under timed conditions", "Build inference and deduction skills"]}
+
+Input: "GCSE Maths revision for Year 11 students"
+→ {"name": "GCSE Maths Revision", "goals": ["Master algebraic equations", "Understand geometric proofs", "Solve word problems confidently"]}
+
+Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
           },
           {
             role: "user",
@@ -78,12 +87,23 @@ Return ONLY valid JSON, no markdown fences, no explanation.`,
     try {
       parsed = JSON.parse(raw);
     } catch {
-      // Fallback: treat entire response as a name (backward compat)
-      const name = raw.replace(/^["']|["']$/g, "").replace(/\.$/, "");
-      parsed = { name: name || undefined };
+      // Try to extract JSON object from within the response text
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch {
+          const name = raw.replace(/^["']|["']$/g, "").replace(/\.$/, "");
+          parsed = { name: name || undefined };
+        }
+      } else {
+        // Fallback: treat entire response as a name (backward compat)
+        const name = raw.replace(/^["']|["']$/g, "").replace(/\.$/, "");
+        parsed = { name: name || undefined };
+      }
     }
 
-    const name = parsed.name?.trim().replace(/^["']|["']$/g, "").replace(/\.$/, "");
+    const name = cleanName(parsed.name?.trim().replace(/^["']|["']$/g, "").replace(/\.$/, "") || "");
 
     return NextResponse.json({
       ok: true,
@@ -103,6 +123,19 @@ Return ONLY valid JSON, no markdown fences, no explanation.`,
       goals: null,
     });
   }
+}
+
+/** Strip trailing prepositions/articles that make names look truncated */
+function cleanName(name: string): string {
+  const trailing = /\s+(?:for|of|the|a|an|and|in|on|to|with|at|by|from|as|is|or)$/i;
+  let cleaned = name;
+  // Strip up to 2 trailing filler words (e.g. "Tutor For The" → "Tutor")
+  for (let i = 0; i < 2; i++) {
+    const next = cleaned.replace(trailing, "");
+    if (next === cleaned) break;
+    cleaned = next;
+  }
+  return cleaned;
 }
 
 /** Fallback: first 5 words, title-cased */

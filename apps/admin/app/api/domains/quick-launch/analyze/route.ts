@@ -8,6 +8,11 @@ import {
   type ExtractedAssertion,
 } from "@/lib/content-trust/extract-assertions";
 import {
+  classifyDocument,
+  fetchFewShotExamples,
+} from "@/lib/content-trust/classify-document";
+import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
+import {
   createJob,
   updateJob,
 } from "@/lib/content-trust/extraction-jobs";
@@ -330,6 +335,7 @@ export async function POST(req: NextRequest) {
       job.id,
       source.id,
       text,
+      file!.name,
       {
         sourceSlug: slug,
         qualificationRef: qualificationRef?.trim() || undefined,
@@ -390,6 +396,7 @@ async function runQuickLaunchBackground(
   jobId: string,
   sourceId: string,
   text: string,
+  fileName: string,
   extractionOpts: {
     sourceSlug: string;
     qualificationRef?: string;
@@ -408,9 +415,43 @@ async function runQuickLaunchBackground(
   },
   taskId: string | null,
 ) {
-  // ── Extract assertions ──
+  // ── Classify document type ──
+  let documentType: import("@/lib/content-trust/resolve-config").DocumentType | undefined;
+  try {
+    const extractionConfig = await resolveExtractionConfig(sourceId);
+    const fewShotExamples = await fetchFewShotExamples(
+      { sourceId },
+      extractionConfig.classification.fewShot,
+    );
+    const classification = await classifyDocument(text, fileName, extractionConfig, fewShotExamples);
+
+    if (classification.confidence > 0) {
+      documentType = classification.documentType;
+      console.log(`[quick-launch:analyze] Classified "${fileName}" as ${documentType} (${(classification.confidence * 100).toFixed(0)}%): ${classification.reasoning}`);
+
+      // Save classification to ContentSource record
+      await prisma.contentSource.update({
+        where: { id: sourceId },
+        data: {
+          documentType: classification.documentType as any,
+          aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
+          textSample: text.substring(0, 2000),
+        },
+      }).catch((err: any) => {
+        console.warn("[quick-launch:analyze] Failed to save classification:", err.message);
+      });
+    }
+  } catch (err: any) {
+    console.warn("[quick-launch:analyze] Classification failed, using default extraction:", err.message);
+  }
+
+  await updateJob(jobId, { status: "extracting" });
+
+  // ── Extract assertions (with classified document type) ──
   const result = await extractAssertions(text, {
     ...extractionOpts,
+    sourceId,
+    documentType,
     onChunkDone: (chunkIndex, totalChunks, extractedSoFar) => {
       updateJob(jobId, {
         currentChunk: chunkIndex + 1,

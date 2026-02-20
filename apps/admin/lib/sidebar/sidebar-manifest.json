@@ -3,14 +3,12 @@
     "id": "home",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
-      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR", "wizard": true, "terminologyLabel": "playbook_plural" },
-      { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users", "requiredRole": "OPERATOR", "wizard": true },
       { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true, "wizard": true },
-      { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle", "wizard": true },
+      { "id": "teach", "href": "/x/teach", "label": "Teach", "icon": "PlayCircle", "wizard": true },
+      { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users", "requiredRole": "OPERATOR", "wizard": true },
+      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR", "wizard": true, "terminologyLabel": "playbook_plural" },
       { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
-      { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" },
-      { "id": "messages", "href": "/x/messages", "label": "Messages", "icon": "Mail" },
-      { "id": "tickets", "href": "/x/tickets", "label": "Tickets", "icon": "Ticket" }
+      { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" }
     ]
   },
   {
@@ -27,7 +25,7 @@
   },
   {
     "id": "content",
-    "title": "Content",
+    "title": "Library",
     "href": "/x/subjects",
     "requiredRole": "OPERATOR",
     "defaultHiddenFor": ["DEMO", "EDUCATOR"],

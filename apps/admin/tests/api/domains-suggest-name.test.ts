@@ -12,7 +12,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 vi.mock("@/lib/metering/instrumented-ai", () => ({
   getConfiguredMeteredAICompletion: vi.fn().mockResolvedValue({
-    content: "Introduction to Quantum Mechanics",
+    content: JSON.stringify({
+      name: "Introduction to Quantum Mechanics",
+      goals: ["Understand quantum superposition", "Apply wave-particle duality", "Solve basic quantum equations"],
+    }),
   }),
 }));
 
@@ -44,7 +47,10 @@ describe("/api/domains/suggest-name", () => {
       "@/lib/metering/instrumented-ai"
     );
     (getConfiguredMeteredAICompletion as any).mockResolvedValue({
-      content: "Introduction to Quantum Mechanics",
+      content: JSON.stringify({
+        name: "Introduction to Quantum Mechanics",
+        goals: ["Understand quantum superposition", "Apply wave-particle duality", "Solve basic quantum equations"],
+      }),
     });
   });
 
@@ -52,7 +58,7 @@ describe("/api/domains/suggest-name", () => {
   // POST — Suggest name
   // ===================================================
   describe("POST", () => {
-    it("should return AI-generated name and slug", async () => {
+    it("should return AI-generated name, slug, and goals", async () => {
       const { POST } = await import(
         "../../app/api/domains/suggest-name/route"
       );
@@ -72,6 +78,11 @@ describe("/api/domains/suggest-name", () => {
       expect(data.ok).toBe(true);
       expect(data.name).toBe("Introduction to Quantum Mechanics");
       expect(data.slug).toBe("introduction-to-quantum-mechanics");
+      expect(data.goals).toEqual([
+        "Understand quantum superposition",
+        "Apply wave-particle duality",
+        "Solve basic quantum equations",
+      ]);
     });
 
     it("should generate a valid slug from the name", async () => {
@@ -79,7 +90,7 @@ describe("/api/domains/suggest-name", () => {
         "@/lib/metering/instrumented-ai"
       );
       (getConfiguredMeteredAICompletion as any).mockResolvedValue({
-        content: "GCSE Maths Year 10",
+        content: JSON.stringify({ name: "GCSE Maths Year 10", goals: ["Pass GCSE exam"] }),
       });
 
       const { POST } = await import(
@@ -275,6 +286,96 @@ describe("/api/domains/suggest-name", () => {
       expect(data.ok).toBe(true);
       expect(data.name).toBe("Creative Writing Workshop");
       expect(data.slug).toBe("creative-writing-workshop");
+    });
+
+    it("should handle plain-string AI response as name with no goals", async () => {
+      const { getConfiguredMeteredAICompletion } = await import(
+        "@/lib/metering/instrumented-ai"
+      );
+      (getConfiguredMeteredAICompletion as any).mockResolvedValue({
+        content: "Sales Coaching Bootcamp",
+      });
+
+      const { POST } = await import(
+        "../../app/api/domains/suggest-name/route"
+      );
+      const request = new Request(
+        "http://localhost/api/domains/suggest-name",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            brief: "A bootcamp for training sales teams to close more deals",
+          }),
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const response = await POST(request as any);
+      const data = await response.json();
+
+      expect(data.ok).toBe(true);
+      expect(data.name).toBe("Sales Coaching Bootcamp");
+      expect(data.goals).toBeNull();
+    });
+
+    it("should strip trailing prepositions from AI-generated name", async () => {
+      const { getConfiguredMeteredAICompletion } = await import(
+        "@/lib/metering/instrumented-ai"
+      );
+      (getConfiguredMeteredAICompletion as any).mockResolvedValue({
+        content: JSON.stringify({
+          name: "11+ Creative Comprehension Tutor For",
+          goals: ["Analyse passages", "Build inference skills"],
+        }),
+      });
+
+      const { POST } = await import(
+        "../../app/api/domains/suggest-name/route"
+      );
+      const request = new Request(
+        "http://localhost/api/domains/suggest-name",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            brief: "11+ Creative Comprehension tutor for UK Key Stage 2 pupils",
+          }),
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const response = await POST(request as any);
+      const data = await response.json();
+
+      expect(data.ok).toBe(true);
+      expect(data.name).toBe("11+ Creative Comprehension Tutor");
+      expect(data.slug).toBe("11-creative-comprehension-tutor");
+    });
+
+    it("should extract JSON from text-wrapped AI response", async () => {
+      const { getConfiguredMeteredAICompletion } = await import(
+        "@/lib/metering/instrumented-ai"
+      );
+      (getConfiguredMeteredAICompletion as any).mockResolvedValue({
+        content: 'Here is the result: {"name": "French for Beginners", "goals": ["Learn basic greetings", "Count to 100"]}',
+      });
+
+      const { POST } = await import(
+        "../../app/api/domains/suggest-name/route"
+      );
+      const request = new Request(
+        "http://localhost/api/domains/suggest-name",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            brief: "A beginner French language course for tourists",
+          }),
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const response = await POST(request as any);
+      const data = await response.json();
+
+      expect(data.ok).toBe(true);
+      expect(data.name).toBe("French for Beginners");
+      expect(data.goals).toEqual(["Learn basic greetings", "Count to 100"]);
     });
   });
 });

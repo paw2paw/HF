@@ -93,15 +93,11 @@ export async function POST(request: NextRequest) {
       }
       parsed = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
-      console.error("Failed to parse AI response:", result.content);
-      // Fallback to CURRICULUM as default
-      parsed = {
-        suggestedType: "CURRICULUM",
-        confidence: 0.5,
-        reasoning: "Could not parse AI response, defaulting to CURRICULUM",
-        detectedElements: [],
-        suggestedId: "SPEC-001",
-      };
+      console.error("[parse-document] Failed to parse AI response:", result.content);
+      return NextResponse.json(
+        { ok: false, error: "AI response was not valid JSON — please try again" },
+        { status: 502 }
+      );
     }
 
     // Log document parsing for AI learning

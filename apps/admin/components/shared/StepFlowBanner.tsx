@@ -29,6 +29,7 @@ export default function StepFlowBanner() {
   const isFlowChild = (() => {
     if (flowId === 'content-sources') return pathname?.startsWith('/x/content-sources') ?? false;
     if (flowId === 'demonstrate') return pathname?.startsWith('/x/demonstrate') ?? false;
+    if (flowId === 'teach') return pathname?.startsWith('/x/teach') ?? false;
     if (flowId === 'domain-setup') return pathname?.startsWith('/x/domain-setup') ?? false;
     if (flowId === 'create-course') return pathname?.startsWith('/x/courses') ?? false;
     return false;
