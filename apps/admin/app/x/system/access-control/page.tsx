@@ -303,7 +303,7 @@ function RBACMatrixTab({
 
 /**
  * Terminology Summary Tab — read-only view of institution type terminology.
- * Editing happens at /x/system/institution-types.
+ * Editing happens at /x/settings#institution_types.
  */
 function TerminologyTab({
   technicalTerms,
@@ -321,7 +321,7 @@ function TerminologyTab({
           Terminology labels per institution type. Admin roles always see technical terms.
         </p>
         <Link
-          href="/x/system/institution-types"
+          href="/x/settings#institution_types"
           className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
         >
           Manage Institution Types <ArrowRight className="w-4 h-4" />
@@ -377,7 +377,7 @@ function TerminologyTab({
       {institutionTypes.length === 0 && (
         <div className="text-center py-8 text-gray-500 text-sm">
           No institution types configured.{' '}
-          <Link href="/x/system/institution-types" className="text-indigo-600 hover:underline">
+          <Link href="/x/settings#institution_types" className="text-indigo-600 hover:underline">
             Create one
           </Link>
         </div>

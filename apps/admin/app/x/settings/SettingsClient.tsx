@@ -25,6 +25,7 @@ import { ChannelsPanel } from "@/components/settings/ChannelsPanel";
 import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { FallbacksPanel } from "@/components/settings/FallbacksPanel";
 import { PanelLayoutPanel } from "@/components/settings/PanelLayoutPanel";
+import { InstitutionTypesPanel } from "@/components/settings/InstitutionTypesPanel";
 
 // ── Build the unified panel registry ────────────────
 
@@ -51,6 +52,12 @@ const CUSTOM_PANELS: SettingsPanel[] = [
     "Per-role CRUD permissions for all system entities",
     "security", SecurityPanel,
     ["access matrix", "CRUD", "permissions", "roles", "SUPERADMIN", "ADMIN", "OPERATOR", "entity access", "scope"],
+  ),
+  registerCustomPanel(
+    "institution_types", "Institution Types", "Building2",
+    "Manage institution types and terminology presets",
+    "system", InstitutionTypesPanel,
+    ["institution", "types", "terminology", "school", "corporate", "community"],
   ),
   registerCustomPanel(
     "fallbacks", "Fallback Defaults", "Shield",

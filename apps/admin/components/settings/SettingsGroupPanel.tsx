@@ -2,7 +2,7 @@
 
 import {
   Activity, Brain, Target, ShieldCheck, Sparkles,
-  Gauge, Shield, Camera, Mail, Search, Phone,
+  Gauge, Shield, Camera, Mail, Search, Phone, Building2,
 } from "lucide-react";
 import { type SettingDef } from "@/lib/system-settings";
 import type { SettingsPanel } from "@/lib/settings-panels";
@@ -12,7 +12,7 @@ import { EmailPreviewPanel } from "./EmailPreviewPanel";
 // ── Icon map ────────────────────────────────────────
 
 const GROUP_ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
-  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Shield, Camera, Mail, Search, Phone,
+  Activity, Brain, Target, ShieldCheck, Sparkles, Gauge, Shield, Camera, Mail, Search, Phone, Building2,
 };
 
 // ── Props ───────────────────────────────────────────

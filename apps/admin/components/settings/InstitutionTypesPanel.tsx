@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Building2, Plus, Pencil, Trash2, Save, X, Check } from "lucide-react";
 import { TERM_KEYS, TERM_KEY_LABELS } from "@/lib/terminology/types";
+import type { PanelProps } from "@/lib/settings-panels";
 
 interface InstitutionType {
   id: string;
@@ -21,7 +22,7 @@ const EMPTY_TERMINOLOGY: Record<string, string> = Object.fromEntries(
   TERM_KEYS.map((k) => [k, ""])
 );
 
-export default function InstitutionTypesPage() {
+export function InstitutionTypesPanel(_props: PanelProps) {
   const [types, setTypes] = useState<InstitutionType[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -168,29 +169,22 @@ export default function InstitutionTypesPage() {
       .replace(/^-|-$/g, "");
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: 32 }}>
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 rounded bg-[var(--surface-secondary)]" />
-          <div className="h-64 rounded-lg bg-[var(--surface-secondary)]" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ padding: 32, maxWidth: 960 }}>
+    <div style={{
+      background: "var(--surface-primary)",
+      border: "1px solid var(--border-default)",
+      borderRadius: 16,
+      padding: 24,
+    }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 10 }}>
-            <Building2 size={24} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ color: "var(--text-muted)" }}>
+            <Building2 size={18} strokeWidth={1.5} />
+          </div>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
             Institution Types
-          </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
-            Manage institution types and their terminology presets. Each type defines what labels users see throughout the app.
-          </p>
+          </h2>
         </div>
         {!creating && !editingId && (
           <button
@@ -199,20 +193,23 @@ export default function InstitutionTypesPage() {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "8px 16px",
+              padding: "6px 14px",
               background: "var(--button-primary-bg)",
               color: "var(--button-primary-text)",
               border: "none",
               borderRadius: 8,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            <Plus size={14} /> New Type
+            <Plus size={13} /> New Type
           </button>
         )}
       </div>
+      <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, marginTop: 0 }}>
+        Each type defines what labels users see throughout the app. Admin roles always see technical terms.
+      </p>
 
       {/* Messages */}
       {error && (
@@ -227,20 +224,27 @@ export default function InstitutionTypesPage() {
         </div>
       )}
 
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="animate-pulse space-y-3">
+          <div className="h-16 rounded bg-[var(--surface-secondary)]" />
+          <div className="h-16 rounded bg-[var(--surface-secondary)]" />
+        </div>
+      )}
+
       {/* Create/Edit Form */}
       {(creating || editingId) && (
         <div style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 12,
-          padding: 24,
-          marginBottom: 24,
+          paddingTop: 16,
+          marginTop: 4,
+          marginBottom: 16,
+          borderTop: "1px solid var(--border-default)",
         }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-            {creating ? "Create New Institution Type" : "Edit Institution Type"}
-          </h2>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14, marginTop: 0 }}>
+            {creating ? "Create New Type" : "Edit Type"}
+          </h3>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
                 Name
@@ -257,7 +261,7 @@ export default function InstitutionTypesPage() {
                   padding: "8px 12px",
                   border: "1px solid var(--border-default)",
                   borderRadius: 8,
-                  fontSize: 14,
+                  fontSize: 13,
                   background: "var(--surface-secondary)",
                   color: "var(--text-primary)",
                 }}
@@ -277,7 +281,7 @@ export default function InstitutionTypesPage() {
                   padding: "8px 12px",
                   border: "1px solid var(--border-default)",
                   borderRadius: 8,
-                  fontSize: 14,
+                  fontSize: 13,
                   background: creating ? "var(--surface-secondary)" : "var(--surface-tertiary, var(--surface-secondary))",
                   color: "var(--text-primary)",
                   opacity: creating ? 1 : 0.7,
@@ -286,7 +290,7 @@ export default function InstitutionTypesPage() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
               Description
             </label>
@@ -299,7 +303,7 @@ export default function InstitutionTypesPage() {
                 padding: "8px 12px",
                 border: "1px solid var(--border-default)",
                 borderRadius: 8,
-                fontSize: 14,
+                fontSize: 13,
                 background: "var(--surface-secondary)",
                 color: "var(--text-primary)",
               }}
@@ -307,23 +311,23 @@ export default function InstitutionTypesPage() {
           </div>
 
           {/* Terminology Editor */}
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 8 }}>
               Terminology Map
             </label>
             <div style={{
               display: "grid",
-              gridTemplateColumns: "120px 1fr",
-              gap: "8px 12px",
+              gridTemplateColumns: "110px 1fr",
+              gap: "6px 10px",
               alignItems: "center",
-              padding: 16,
+              padding: 14,
               background: "var(--surface-secondary)",
               borderRadius: 8,
               border: "1px solid var(--border-default)",
             }}>
               {TERM_KEYS.map((key) => (
                 <div key={key} style={{ display: "contents" }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
                     {TERM_KEY_LABELS[key]}
                   </span>
                   <input
@@ -333,10 +337,10 @@ export default function InstitutionTypesPage() {
                     }
                     placeholder={`e.g. ${key === "domain" ? "School" : key === "playbook" ? "Lesson Plan" : key}`}
                     style={{
-                      padding: "6px 10px",
+                      padding: "5px 10px",
                       border: "1px solid var(--border-default)",
                       borderRadius: 6,
-                      fontSize: 13,
+                      fontSize: 12,
                       background: "var(--surface-primary)",
                       color: "var(--text-primary)",
                     }}
@@ -347,7 +351,7 @@ export default function InstitutionTypesPage() {
           </div>
 
           {/* Config row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
                 Setup Wizard Spec
@@ -361,7 +365,7 @@ export default function InstitutionTypesPage() {
                   padding: "8px 12px",
                   border: "1px solid var(--border-default)",
                   borderRadius: 8,
-                  fontSize: 14,
+                  fontSize: 13,
                   background: "var(--surface-secondary)",
                   color: "var(--text-primary)",
                 }}
@@ -379,7 +383,7 @@ export default function InstitutionTypesPage() {
                   padding: "8px 12px",
                   border: "1px solid var(--border-default)",
                   borderRadius: 8,
-                  fontSize: 14,
+                  fontSize: 13,
                   background: "var(--surface-secondary)",
                   color: "var(--text-primary)",
                 }}
@@ -399,17 +403,17 @@ export default function InstitutionTypesPage() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "8px 20px",
+                padding: "7px 18px",
                 background: saving ? "var(--border-default)" : "var(--button-primary-bg)",
                 color: saving ? "var(--text-muted)" : "var(--button-primary-text)",
                 border: "none",
                 borderRadius: 8,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: saving ? "not-allowed" : "pointer",
               }}
             >
-              <Save size={14} /> {saving ? "Saving..." : creating ? "Create" : "Save Changes"}
+              <Save size={13} /> {saving ? "Saving..." : creating ? "Create" : "Save Changes"}
             </button>
             <button
               onClick={resetForm}
@@ -417,150 +421,151 @@ export default function InstitutionTypesPage() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "8px 16px",
+                padding: "7px 14px",
                 background: "var(--surface-secondary)",
                 color: "var(--text-secondary)",
                 border: "1px solid var(--border-default)",
                 borderRadius: 8,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 500,
                 cursor: "pointer",
               }}
             >
-              <X size={14} /> Cancel
+              <X size={13} /> Cancel
             </button>
           </div>
         </div>
       )}
 
       {/* Types List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {types.map((type) => (
-          <div
-            key={type.id}
-            style={{
-              background: "var(--surface-primary)",
-              border: `1px solid ${editingId === type.id ? "var(--accent-primary)" : "var(--border-default)"}`,
-              borderRadius: 12,
-              padding: 20,
-              opacity: type.isActive ? 1 : 0.5,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
-                    {type.name}
-                  </span>
-                  <span style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-                    color: "var(--accent-primary)",
-                  }}>
-                    {type.slug}
-                  </span>
-                  {!type.isActive && (
+      {!loading && (
+        <div>
+          {types.map((type, i) => (
+            <div
+              key={type.id}
+              style={{
+                padding: "14px 0",
+                borderTop: i === 0 && !creating && !editingId ? "1px solid var(--border-default)" : i > 0 ? "1px solid var(--border-default)" : undefined,
+                opacity: type.isActive ? 1 : 0.5,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                      {type.name}
+                    </span>
                     <span style={{
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: 600,
-                      padding: "2px 8px",
+                      padding: "2px 7px",
                       borderRadius: 4,
-                      background: "var(--status-error-bg)",
-                      color: "var(--status-error-text)",
+                      background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                      color: "var(--accent-primary)",
                     }}>
-                      Inactive
+                      {type.slug}
                     </span>
-                  )}
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    {type._count.institutions} institution{type._count.institutions !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                {type.description && (
-                  <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 8 }}>
-                    {type.description}
-                  </p>
-                )}
-
-                {/* Terminology preview */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                  {TERM_KEYS.map((key) => (
-                    <span
-                      key={key}
-                      style={{
-                        fontSize: 11,
-                        padding: "3px 8px",
+                    {!type.isActive && (
+                      <span style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: "2px 7px",
                         borderRadius: 4,
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-secondary)",
-                        border: "1px solid var(--border-default)",
-                      }}
-                    >
-                      <span style={{ color: "var(--text-muted)" }}>{key}:</span>{" "}
-                      {type.terminology[key] || "—"}
+                        background: "var(--status-error-bg)",
+                        color: "var(--status-error-text)",
+                      }}>
+                        Inactive
+                      </span>
+                    )}
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      {type._count.institutions} institution{type._count.institutions !== 1 ? "s" : ""}
                     </span>
-                  ))}
-                </div>
-
-                {/* Config details */}
-                <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12, color: "var(--text-muted)" }}>
-                  {type.setupSpecSlug && (
-                    <span>Wizard: <strong>{type.setupSpecSlug}</strong></span>
+                  </div>
+                  {type.description && (
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+                      {type.description}
+                    </p>
                   )}
-                  <span>Kind: <strong>{type.defaultDomainKind}</strong></span>
-                </div>
-              </div>
 
-              {/* Actions */}
-              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                <button
-                  onClick={() => startEdit(type)}
-                  title="Edit"
-                  style={{
-                    padding: 6,
-                    background: "transparent",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  <Pencil size={14} />
-                </button>
-                {type.isActive && (
+                  {/* Terminology preview */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                    {TERM_KEYS.map((key) => (
+                      <span
+                        key={key}
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background: "var(--surface-secondary)",
+                          color: "var(--text-secondary)",
+                          border: "1px solid var(--border-default)",
+                        }}
+                      >
+                        <span style={{ color: "var(--text-muted)" }}>{key}:</span>{" "}
+                        {type.terminology[key] || "\u2014"}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Config details */}
+                  <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11, color: "var(--text-muted)" }}>
+                    {type.setupSpecSlug && (
+                      <span>Wizard: <strong>{type.setupSpecSlug}</strong></span>
+                    )}
+                    <span>Kind: <strong>{type.defaultDomainKind}</strong></span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}>
                   <button
-                    onClick={() => handleDeactivate(type.id, type.name)}
-                    title="Deactivate"
+                    onClick={() => startEdit(type)}
+                    title="Edit"
                     style={{
-                      padding: 6,
+                      padding: 5,
                       background: "transparent",
                       border: "1px solid var(--border-default)",
                       borderRadius: 6,
                       cursor: "pointer",
-                      color: "var(--status-error-text)",
+                      color: "var(--text-muted)",
                     }}
                   >
-                    <Trash2 size={14} />
+                    <Pencil size={13} />
                   </button>
-                )}
+                  {type.isActive && (
+                    <button
+                      onClick={() => handleDeactivate(type.id, type.name)}
+                      title="Deactivate"
+                      style={{
+                        padding: 5,
+                        background: "transparent",
+                        border: "1px solid var(--border-default)",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        color: "var(--status-error-text)",
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {types.length === 0 && !loading && (
-          <div style={{
-            textAlign: "center",
-            padding: 48,
-            color: "var(--text-muted)",
-            fontSize: 14,
-          }}>
-            No institution types configured. Click "New Type" to create one.
-          </div>
-        )}
-      </div>
+          {types.length === 0 && (
+            <div style={{
+              textAlign: "center",
+              padding: "32px 0",
+              color: "var(--text-muted)",
+              fontSize: 13,
+              borderTop: "1px solid var(--border-default)",
+            }}>
+              No institution types configured. Click &quot;New Type&quot; to create one.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
