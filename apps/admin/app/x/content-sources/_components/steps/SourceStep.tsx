@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
 import type { FancySelectOption } from "@/components/shared/FancySelect";
 import {
@@ -34,6 +34,9 @@ function SourceCard({
   return (
     <div
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
       style={{
         padding: 16,
         borderRadius: 12,
@@ -41,18 +44,43 @@ function SourceCard({
           ? "2px solid var(--accent-primary)"
           : "1px solid var(--border-default)",
         background: isSelected
-          ? "color-mix(in srgb, var(--accent-primary) 4%, transparent)"
+          ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
           : "var(--surface-secondary)",
         cursor: "pointer",
         transition: "all 0.15s ease",
+        position: "relative",
       }}
     >
+      {/* Selected checkmark */}
+      {isSelected && (
+        <div
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            background: "var(--accent-primary)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 700,
+          }}
+        >
+          {"\u2713"}
+        </div>
+      )}
+
       <div
         style={{
           fontSize: 15,
           fontWeight: 600,
-          color: "var(--text-primary)",
+          color: isSelected ? "var(--accent-primary)" : "var(--text-primary)",
           marginBottom: 8,
+          paddingRight: isSelected ? 28 : 0,
         }}
       >
         {source.name}
@@ -980,6 +1008,7 @@ export default function SourceStep({
   const [newSubjectName, setNewSubjectName] = useState("");
   const [creatingSubject, setCreatingSubject] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const subjectPickerRef = useRef<HTMLDivElement>(null);
 
   // Fetch sources
   useEffect(() => {
@@ -1040,6 +1069,10 @@ export default function SourceStep({
       if (source.subjects?.length === 1 && !selectedSubjectId) {
         setSelectedSubjectId(source.subjects[0].subject.id);
       }
+      // Scroll to subject picker after React re-render
+      setTimeout(() => {
+        subjectPickerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
     }
   }
 
@@ -1225,12 +1258,13 @@ export default function SourceStep({
           {/* Subject selection — visible when a source is selected */}
           {selectedSource && (
             <div
+              ref={subjectPickerRef}
               style={{
                 marginTop: 24,
                 padding: 16,
                 borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
+                border: "1px solid var(--accent-primary)",
+                background: "color-mix(in srgb, var(--accent-primary) 4%, transparent)",
               }}
             >
               <div

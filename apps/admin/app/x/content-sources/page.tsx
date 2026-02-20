@@ -17,7 +17,7 @@ export default function ContentSourcesPage() {
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
             {viewMode === "wizard"
-              ? "Turn documents into teaching content \u2014 step by step."
+              ? "Select a content source or upload a new one to start teaching."
               : "Manage all content sources, upload documents, and review assertions."}
           </p>
         </div>
