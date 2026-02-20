@@ -42,6 +42,52 @@ export function OnboardingTabContent({
   const [onboardingSaveSuccess, setOnboardingSaveSuccess] = useState(false);
   const [availableSpecs, setAvailableSpecs] = useState<Array<{ id: string; slug: string; name: string }>>([]);
 
+  // Scaffolding task tracking
+  const [scaffoldingTasks, setScaffoldingTasks] = useState<Array<{
+    id: string;
+    status: string;
+    context?: Record<string, any>;
+  }>>([]);
+  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // Fetch scaffolding tasks in progress
+  const fetchScaffoldingTasks = async () => {
+    try {
+      const res = await fetch("/api/tasks?status=in_progress");
+      const data = await res.json();
+      if (data.ok && data.tasks) {
+        const tasks = data.tasks.filter((t: any) =>
+          t.taskType === "scaffolding" && t.context?.domainId === domain.id
+        );
+        setScaffoldingTasks(tasks);
+
+        // Stop polling if no more in-progress tasks
+        if (tasks.length === 0 && pollInterval) {
+          clearInterval(pollInterval);
+          setPollInterval(null);
+        }
+      }
+    } catch (err) {
+      console.warn("[OnboardingTab] Failed to fetch scaffolding tasks:", err);
+    }
+  };
+
+  // Poll for scaffolding tasks
+  useEffect(() => {
+    fetchScaffoldingTasks();
+
+    if (scaffoldingTasks.length > 0 && !pollInterval) {
+      const interval = setInterval(() => {
+        fetchScaffoldingTasks();
+      }, 2000);
+      setPollInterval(interval);
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [domain.id]);
+
   // Fetch onboarding data on mount
   useEffect(() => {
     fetch(`/api/domains/${domain.id}/onboarding`)
@@ -222,6 +268,93 @@ export function OnboardingTabContent({
 
   return (
                 <div>
+                  {/* Scaffolding Progress */}
+                  {scaffoldingTasks.length > 0 && (
+                    <div style={{
+                      padding: 16,
+                      background: "#f0f9ff",
+                      border: "1px solid #bfdbfe",
+                      borderRadius: 8,
+                      marginBottom: 20,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                        <div style={{ fontSize: 16 }}>⚙️</div>
+                        <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
+                          Setting up curriculum
+                        </h4>
+                      </div>
+
+                      {scaffoldingTasks.map(task => (
+                        <div key={task.id} style={{
+                          padding: 12,
+                          background: "white",
+                          borderRadius: 6,
+                          marginBottom: 8,
+                          border: "1px solid #dbeafe",
+                        }}>
+                          {/* Task progress */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                            {task.status === "in_progress" && (
+                              <div style={{
+                                animation: "spin 1s linear infinite",
+                                transformOrigin: "center",
+                                display: "inline-block",
+                              }}>
+                                ⟳
+                              </div>
+                            )}
+                            {task.status === "completed" && <div>✅</div>}
+                            {task.status === "abandoned" && <div>⚠️</div>}
+
+                            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                              {task.context?.message || "Processing..."}
+                            </span>
+                          </div>
+
+                          {/* Task steps */}
+                          {task.status === "in_progress" && (
+                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 30 }}>
+                              Step: <strong>{task.context?.step || "..."}</strong>
+                            </div>
+                          )}
+
+                          {/* Completion summary */}
+                          {task.status === "completed" && task.context?.summary && (
+                            <div style={{
+                              fontSize: 12,
+                              color: "var(--text-secondary)",
+                              marginLeft: 30,
+                              padding: "8px 0",
+                            }}>
+                              <div>✓ Playbook: <strong>{task.context.summary.playbook}</strong></div>
+                              <div>✓ {task.context.summary.modules} modules from {task.context.summary.assertions} points</div>
+                            </div>
+                          )}
+
+                          {/* Error state */}
+                          {task.status === "abandoned" && task.context?.error && (
+                            <div style={{
+                              fontSize: 12,
+                              color: "#991b1b",
+                              marginLeft: 30,
+                              padding: "8px 0",
+                            }}>
+                              Error: {task.context.error}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Spinner keyframe animation */}
+                  <style>{`
+                    @keyframes spin {
+                      from { transform: rotate(0deg); }
+                      to { transform: rotate(360deg); }
+                    }
+                  `}</style>
+
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <div>
                       <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
