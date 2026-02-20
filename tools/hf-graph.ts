@@ -58,10 +58,42 @@ function openDb() {
       is_api_route INTEGER,
       pipeline_role TEXT
     );
+    CREATE TABLE IF NOT EXISTS spec_index (
+      id INTEGER PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      title TEXT,
+      spec_role TEXT,
+      domain TEXT,
+      status TEXT,
+      output_type TEXT,
+      version TEXT,
+      depends_on TEXT,
+      param_count INTEGER DEFAULT 0,
+      ac_count INTEGER DEFAULT 0,
+      raw_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS code_todos (
+      id INTEGER PRIMARY KEY,
+      file_path TEXT NOT NULL,
+      line INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      text TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS code_hardcoding (
+      id INTEGER PRIMARY KEY,
+      file_path TEXT NOT NULL,
+      line INTEGER NOT NULL,
+      slug TEXT NOT NULL,
+      context TEXT
+    );
     CREATE INDEX IF NOT EXISTS idx_symbols_file ON symbols(file_id);
     CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_symbol_id);
     CREATE INDEX IF NOT EXISTS idx_hf_auth ON hf_context(requires_auth);
     CREATE INDEX IF NOT EXISTS idx_hf_specs ON hf_context(imports_config_specs);
+    CREATE INDEX IF NOT EXISTS idx_spec_role ON spec_index(spec_role);
+    CREATE INDEX IF NOT EXISTS idx_spec_domain ON spec_index(domain);
+    CREATE INDEX IF NOT EXISTS idx_todo_kind ON code_todos(kind);
+    CREATE INDEX IF NOT EXISTS idx_hardcoding_slug ON code_hardcoding(slug);
   `);
   return db;
 }
@@ -115,6 +147,124 @@ function extractHfContext(relPath: string, sf: any) {
   }
 
   return context;
+}
+
+function indexSpecs(db: any) {
+  const specsDir = path.join(REPO_ROOT, "apps/admin/docs-archive/bdd-specs");
+  const files = fg.sync("*.json", {
+    cwd: specsDir,
+    ignore: ["**/*.registry.json", "**/*.config.json", "**/*.schema.json", "contracts/**"],
+  });
+
+  const insertSpec = db.prepare(`
+    INSERT INTO spec_index(slug,title,spec_role,domain,status,output_type,version,depends_on,param_count,ac_count,raw_json)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(slug) DO UPDATE SET
+      title=excluded.title,spec_role=excluded.spec_role,domain=excluded.domain,
+      status=excluded.status,output_type=excluded.output_type,version=excluded.version,
+      depends_on=excluded.depends_on,param_count=excluded.param_count,ac_count=excluded.ac_count,
+      raw_json=excluded.raw_json
+  `);
+
+  let indexed = 0;
+  for (const file of files) {
+    try {
+      const fullPath = path.join(specsDir, file);
+      const json = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
+      const depends = json.context?.dependsOn || [];
+      insertSpec.run(
+        json.id,
+        json.title || "",
+        json.specRole || "",
+        json.domain || "",
+        json.status || "Active",
+        json.outputType || "",
+        json.version || "",
+        JSON.stringify(depends),
+        json.parameters?.length || 0,
+        json.acceptanceCriteria?.length || 0,
+        JSON.stringify(json)
+      );
+      indexed++;
+    } catch (e) {
+      console.error(`⚠ Error indexing spec ${file}: ${(e as Error).message}`);
+    }
+  }
+  console.error(`✓ Indexed ${indexed} specs`);
+}
+
+function indexTodos(db: any, relPath: string, content: string) {
+  const deleteExisting = db.prepare(
+    `DELETE FROM code_todos WHERE file_path = ?`
+  );
+  deleteExisting.run(relPath);
+
+  const insertTodo = db.prepare(`
+    INSERT INTO code_todos(file_path,line,kind,text) VALUES(?,?,?,?)
+  `);
+
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/\/\/\s*(TODO|FIXME|HACK|NOTE|XXX)[:\s](.+?)$/i);
+    if (match) {
+      insertTodo.run(relPath, i + 1, match[1].toUpperCase(), match[2].trim());
+    }
+  }
+}
+
+function indexHardcoding(db: any, relPath: string, content: string) {
+  // Skip seed files, config, prisma, tests, and comments-only blocks
+  if (
+    relPath.includes("docs-archive") ||
+    relPath.includes("lib/config.ts") ||
+    relPath.includes("prisma/seed") ||
+    relPath.includes("tests/")
+  ) {
+    return;
+  }
+
+  const deleteExisting = db.prepare(
+    `DELETE FROM code_hardcoding WHERE file_path = ?`
+  );
+  deleteExisting.run(relPath);
+
+  const insertHardcoding = db.prepare(`
+    INSERT INTO code_hardcoding(file_path,line,slug,context) VALUES(?,?,?,?)
+  `);
+
+  const slugPattern = /["']([A-Z][A-Z0-9]*-\d+)["']/g;
+  const lines = content.split("\n");
+  const knownSlugs = new Set([
+    "PERS-001", "VARK-001", "MEM-001", "INIT-001", "PIPELINE-001", "GUARD-001",
+    "COMP-001", "TUT-001", "CONTENT-EXTRACT-001", "COURSE-READY-001",
+    "DOMAIN-READY-001", "LEARN-ASSESS-001", "ADAPT-CURR-001", "ADAPT-ENG-001",
+    "ADAPT-LEARN-001", "ADAPT-PERS-001", "ADAPT-VARK-001", "REW-001",
+    "SESSION-001", "SUPV-001", "VOICE-001", "GOAL-001", "COACH-001",
+    "QUICK-LAUNCH-001", "COURSE-SETUP-001", "CONTENT-SOURCE-SETUP-001",
+    "CURR-001", "LEARN-PROF-001", "LEARN-STYLE-001", "STYLE-001",
+    "ACTIVITY-001", "AIKNOW-001", "CA-001", "COMPANION-001",
+    "CURR-FS-L2-001", "ERRMON-001", "FS-TEST-99", "GUARD-VOICEMAIL-001",
+    "INJECT-001", "METER-001", "PIPELINE-001", "QM-CONTENT-001",
+    "TRUST-001", "TUT-QM-001", "TUT-WNF-001", "WNF-CONTENT-001"
+  ]);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim().startsWith("//")) continue; // Skip comment lines
+
+    let match;
+    while ((match = slugPattern.exec(line)) !== null) {
+      const slug = match[1];
+      if (knownSlugs.has(slug)) {
+        // Check if preceded by config.specs
+        const before = line.substring(0, match.index);
+        if (!before.includes("config.specs")) {
+          insertHardcoding.run(relPath, i + 1, slug, line.trim().substring(0, 80));
+        }
+      }
+    }
+  }
 }
 
 function indexRepo() {
@@ -189,6 +339,11 @@ function indexRepo() {
         const sf = project.getSourceFileOrThrow(absPath);
         const hfCtx = extractHfContext(relPath, sf);
 
+        // Read file content for todos and hardcoding checks
+        const content = fs.readFileSync(absPath, "utf-8");
+        indexTodos(db, relPath, content);
+        indexHardcoding(db, relPath, content);
+
         // Exported symbols
         for (const [name, decls] of sf.getExportedDeclarations()) {
           const decl = decls[0];
@@ -227,6 +382,11 @@ function indexRepo() {
     console.error(`✓ Indexed ${indexed} files`);
   });
 
+  // Index specs first
+  console.error(`Indexing BDD specs...`);
+  indexSpecs(db);
+
+  // Then index TypeScript files
   tx();
   db.close();
   console.error(`Done in ${Date.now() - start}ms`);
@@ -287,6 +447,142 @@ function findConfigUsage() {
     .all();
   db.close();
   return rows;
+}
+
+function searchSpecs(q: string, role?: string, domain?: string) {
+  const db = openDb();
+  let query = `
+    SELECT slug, title, spec_role, domain, status, output_type, param_count, ac_count
+    FROM spec_index
+    WHERE 1=1
+  `;
+  const params: any[] = [];
+
+  if (q) {
+    query += ` AND (slug LIKE ? OR title LIKE ?)`;
+    params.push(`%${q}%`, `%${q}%`);
+  }
+  if (role) {
+    query += ` AND spec_role = ?`;
+    params.push(role);
+  }
+  if (domain) {
+    query += ` AND domain = ?`;
+    params.push(domain);
+  }
+
+  query += ` ORDER BY spec_role, domain, slug`;
+
+  const rows = db.prepare(query).all(...params);
+  db.close();
+  return rows;
+}
+
+function getSpecDetail(slug: string) {
+  const db = openDb();
+  const row = db.prepare(`SELECT raw_json FROM spec_index WHERE slug = ?`).get(slug) as any;
+  db.close();
+  return row ? JSON.parse(row.raw_json) : null;
+}
+
+function findTodos(kind?: string) {
+  const db = openDb();
+  let query = `
+    SELECT file_path, line, kind, text
+    FROM code_todos
+  `;
+  const params: any[] = [];
+
+  if (kind) {
+    query += ` WHERE kind = ?`;
+    params.push(kind.toUpperCase());
+  }
+
+  query += ` ORDER BY kind, file_path, line`;
+
+  const rows = db.prepare(query).all(...params);
+  db.close();
+  return rows;
+}
+
+function findHardcoding() {
+  const db = openDb();
+  const rows = db
+    .prepare(
+      `
+    SELECT file_path, line, slug, context
+    FROM code_hardcoding
+    ORDER BY file_path, line
+  `
+    )
+    .all();
+  db.close();
+  return rows;
+}
+
+function findTestGaps() {
+  const apiRoutes = fg.sync("apps/admin/app/api/**/route.ts", {
+    cwd: REPO_ROOT,
+  });
+
+  const gaps: any[] = [];
+
+  for (const route of apiRoutes) {
+    // Derive expected test file paths
+    const parts = route.replace("apps/admin/app/api/", "").replace("/route.ts", "").split("/");
+    const testPath1 = path.join(REPO_ROOT, `apps/admin/tests/api/${parts[0]}.test.ts`);
+    const testPath2 = path.join(REPO_ROOT, `apps/admin/tests/api/${parts.join("-")}.test.ts`);
+
+    if (!fs.existsSync(testPath1) && !fs.existsSync(testPath2)) {
+      gaps.push({
+        route: route.replace("apps/admin/", ""),
+        expectedTest: `tests/api/${parts[0]}.test.ts or tests/api/${parts.join("-")}.test.ts`,
+      });
+    }
+  }
+
+  return gaps;
+}
+
+function parseSchema(modelName?: string) {
+  const schemaPath = path.join(REPO_ROOT, "apps/admin/prisma/schema.prisma");
+  const content = fs.readFileSync(schemaPath, "utf-8");
+
+  if (modelName) {
+    // Get specific model
+    const modelRegex = new RegExp(
+      `model\\s+${modelName}\\s*\\{([^}]+)\\}`,
+      "s"
+    );
+    const match = content.match(modelRegex);
+    if (!match) return null;
+
+    const fields = match[1]
+      .split("\n")
+      .filter((line) => line.trim() && !line.trim().startsWith("@@"));
+
+    return {
+      name: modelName,
+      fieldCount: fields.length,
+      fields: fields.map((f) => f.trim()),
+    };
+  }
+
+  // List all models
+  const modelRegex = /model\s+(\w+)\s*\{([^}]+)\}/g;
+  const models: any[] = [];
+  let match;
+
+  while ((match = modelRegex.exec(content)) !== null) {
+    const fieldCount = match[2].split("\n").filter((l) => l.trim() && !l.trim().startsWith("@@"))
+      .length;
+    models.push({
+      name: match[1],
+      fieldCount,
+    });
+  }
+
+  return models.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function mcp() {
@@ -364,6 +660,214 @@ async function mcp() {
             type: "text",
             text: JSON.stringify(
               { count: usage.length, top: usage.slice(0, 20) },
+              null,
+              1
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "hf_specs_search",
+    {
+      inputSchema: {
+        type: "object",
+        properties: {
+          q: { type: "string", description: "Search term (slug, title, keyword)" },
+          role: {
+            type: "string",
+            enum: ["ORCHESTRATE", "EXTRACT", "SYNTHESISE", "IDENTITY", "CONSTRAIN", "OBSERVE"],
+            description: "Filter by specRole",
+          },
+          domain: { type: "string", description: "Filter by domain" },
+        },
+        required: [],
+      },
+    },
+    async ({ q, role, domain }: any) => {
+      const results = searchSpecs(q || "", role, domain);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                count: results.length,
+                results: results.slice(0, 20),
+              },
+              null,
+              1
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "hf_specs_detail",
+    {
+      inputSchema: {
+        type: "object",
+        properties: {
+          slug: { type: "string", description: "Spec slug (e.g., PERS-001)" },
+        },
+        required: ["slug"],
+      },
+    },
+    async ({ slug }: any) => {
+      const spec = getSpecDetail(slug);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              spec || { error: `Spec ${slug} not found` },
+              null,
+              1
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "hf_todos_list",
+    {
+      inputSchema: {
+        type: "object",
+        properties: {
+          kind: {
+            type: "string",
+            enum: ["TODO", "FIXME", "HACK", "NOTE", "XXX"],
+            description: "Filter by comment type",
+          },
+        },
+        required: [],
+      },
+    },
+    async ({ kind }: any) => {
+      const todos = findTodos(kind);
+      const grouped = todos.reduce((acc: any, todo: any) => {
+        const k = todo.kind;
+        if (!acc[k]) acc[k] = [];
+        acc[k].push(todo);
+        return acc;
+      }, {});
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                total: todos.length,
+                byKind: Object.keys(grouped).map((k) => ({
+                  kind: k,
+                  count: grouped[k].length,
+                })),
+                sample: todos.slice(0, 15),
+              },
+              null,
+              1
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "hf_test_gaps",
+    { inputSchema: {} },
+    async () => {
+      const gaps = findTestGaps();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                total: gaps.length,
+                gaps: gaps.slice(0, 20),
+              },
+              null,
+              1
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "hf_hardcoding_check",
+    { inputSchema: {} },
+    async () => {
+      const issues = findHardcoding();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                total: issues.length,
+                issues: issues.slice(0, 20),
+              },
+              null,
+              1
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "hf_schema_models",
+    { inputSchema: {} },
+    async () => {
+      const models = parseSchema();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                total: (models as any[]).length,
+                models: (models as any[]).slice(0, 30),
+              },
+              null,
+              1
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "hf_schema_model",
+    {
+      inputSchema: {
+        type: "object",
+        properties: {
+          model: { type: "string", description: "Model name (e.g., Caller)" },
+        },
+        required: ["model"],
+      },
+    },
+    async ({ model }: any) => {
+      const detail = parseSchema(model);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              detail || { error: `Model ${model} not found` },
               null,
               1
             ),
