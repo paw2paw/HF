@@ -87,6 +87,14 @@ If a readiness check fails (e.g., "No curriculum content configured"), **the sys
 
 All commands run from `apps/admin/` unless noted.
 
+### Health & Status
+```bash
+npm run ctl ok           # Quick health check (git, types, MCP, server)
+npm run ctl check        # Full checks (lint + types + tests + integration)
+npm run ctl dev:status   # Dev server status
+```
+
+### Dev
 ```bash
 # Dev
 npm run dev              # Start dev server (:3000)

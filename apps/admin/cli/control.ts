@@ -571,6 +571,76 @@ program
   });
 
 program
+  .command('ok')
+  .description('Quick health check: git, types, MCP servers, and dev status')
+  .action(async () => {
+    log('\n🏥 Health Check\n', colors.bright);
+
+    // Git status
+    info('Checking git status...');
+    try {
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+        cwd: path.resolve(ADMIN_ROOT, '..', '..'),
+        encoding: 'utf-8'
+      }).trim();
+      const status = execSync('git status --porcelain', {
+        cwd: path.resolve(ADMIN_ROOT, '..', '..'),
+        encoding: 'utf-8'
+      });
+      const uncommitted = status.split('\n').filter(l => l).length;
+      success(`Branch: ${branch} (${uncommitted} uncommitted files)`);
+    } catch (e) {
+      warn('Could not check git status');
+    }
+
+    // TypeScript
+    info('Type checking...');
+    try {
+      execSync('npx tsc --noEmit', {
+        stdio: 'pipe',
+        cwd: ADMIN_ROOT
+      });
+      success('TypeScript: Clean');
+    } catch (e) {
+      error('TypeScript: Type errors found');
+    }
+
+    // MCP Servers
+    info('Checking MCP servers...');
+    try {
+      const mcpOutput = execSync('claude mcp list', {
+        stdio: 'pipe',
+        encoding: 'utf-8',
+        cwd: path.resolve(ADMIN_ROOT, '..', '..')
+      });
+      const connected = mcpOutput.match(/✓ Connected/g) || [];
+      const failed = mcpOutput.match(/✗ Failed/g) || [];
+
+      if (failed.length === 0) {
+        success(`MCP Servers: ${connected.length} connected`);
+      } else {
+        warn(`MCP Servers: ${connected.length} connected, ${failed.length} failed`);
+      }
+    } catch (e) {
+      warn('Claude Code not accessible (MCP servers may still work)');
+    }
+
+    // Port check
+    info('Checking dev server status...');
+    try {
+      execSync('lsof -ti:3000 > /dev/null 2>&1', { stdio: 'pipe' });
+      success('Dev server: Running on :3000');
+    } catch (e) {
+      warn('Dev server: Not running');
+    }
+
+    log('');
+    success('Health check complete!');
+    info('To start developing: npm run dev');
+    info('To run full checks: npm run ctl check');
+  });
+
+program
   .command('clean')
   .description('Clean build artifacts and node_modules')
   .action(async () => {
