@@ -47,6 +47,7 @@ export interface QuickLaunchInput {
   qualificationRef?: string;
   mode?: "upload" | "generate";
   domainId?: string; // Use existing domain instead of creating new one
+  kind?: "INSTITUTION" | "COMMUNITY"; // Domain kind (defaults to INSTITUTION)
 }
 
 export interface ProgressEvent {
@@ -133,7 +134,7 @@ const stepExecutors: Record<string, StepExecutor> = {
    * Otherwise creates a new domain from subjectName (original behavior).
    */
   create_domain: async (ctx) => {
-    const { subjectName, brief, qualificationRef, domainId: existingDomainId } = ctx.input;
+    const { subjectName, brief, qualificationRef, domainId: existingDomainId, kind } = ctx.input;
 
     let domain;
 
@@ -159,6 +160,7 @@ const stepExecutors: Record<string, StepExecutor> = {
             slug,
             name: subjectName,
             description: brief || `Quick-launched domain for ${subjectName}`,
+            kind: (kind as any) || "INSTITUTION",
             isActive: true,
           },
         });
@@ -578,8 +580,10 @@ const stepExecutors: Record<string, StepExecutor> = {
 /**
  * Load persona-specific flow phases from INIT-001 spec.
  * Returns null if persona or spec not found (scaffold uses its own defaults).
+ *
+ * Exported for use by other wizards (e.g., course-setup.ts).
  */
-async function loadPersonaFlowPhases(persona: string): Promise<any | null> {
+export async function loadPersonaFlowPhases(persona: string): Promise<any | null> {
   const onboardingSlug = config.specs.onboarding.toLowerCase();
 
   const spec = await prisma.analysisSpec.findFirst({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ReviewPanel from "./ReviewPanel";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
 import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
@@ -489,6 +489,8 @@ function ProgressBar({ progress, label }: { progress: number; label: string }) {
 
 export default function QuickLaunchPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const communityMode = searchParams.get("mode") === "community";
 
   // ── Phase state machine ────────────────────────────
   const [phase, setPhase] = useState<Phase>("form");
@@ -876,7 +878,8 @@ export default function QuickLaunchPage() {
 
   // ── Build (Analyze) ─────────────────────────────
 
-  const canLaunch = subjectName.trim() && persona && (launchMode === "generate" || !!file) && phase === "form";
+  // In community mode, content is optional; in institution mode, content is required
+  const canLaunch = subjectName.trim() && persona && (communityMode || launchMode === "generate" || !!file) && phase === "form";
 
   const handleBuild = async () => {
     if (!canLaunch) return;
@@ -893,6 +896,7 @@ export default function QuickLaunchPage() {
     formData.append("subjectName", subjectName.trim());
     formData.append("persona", persona);
     formData.append("mode", launchMode);
+    formData.append("kind", communityMode ? "COMMUNITY" : "INSTITUTION");
     if (selectedDomainId) {
       formData.append("domainId", selectedDomainId);
     }
@@ -988,6 +992,7 @@ export default function QuickLaunchPage() {
             learningGoals: overrides.learningGoals ?? goals,
             qualificationRef: qualificationRef.trim() || undefined,
             mode: launchMode,
+            kind: communityMode ? "COMMUNITY" : "INSTITUTION",
           },
         }),
       });
@@ -1246,7 +1251,8 @@ export default function QuickLaunchPage() {
 
   // ── Form completion ───────────────────────────────
 
-  const formSteps = [!!subjectName.trim(), !!persona, launchMode === "generate" || !!file];
+  // In community mode, step 4 (content) is optional; in institution mode, it's required
+  const formSteps = [!!subjectName.trim(), !!persona, communityMode || launchMode === "generate" || !!file];
   const completedSteps = formSteps.filter(Boolean).length;
 
   const selectedPersona = personas.find((p) => p.slug === persona);
@@ -1291,7 +1297,7 @@ export default function QuickLaunchPage() {
             lineHeight: 1.1,
           }}
         >
-          Quick Launch
+          {communityMode ? "Create Community" : "Quick Launch"}
         </h1>
         <p
           style={{
@@ -1302,11 +1308,13 @@ export default function QuickLaunchPage() {
             lineHeight: 1.5,
           }}
         >
-          {phase === "form" && "Describe what you want to build and launch a working AI agent in one click."}
-          {phase === "building" && "Building your agent..."}
+          {phase === "form" && (communityMode
+            ? "Create a community for individuals to learn together with an AI guide."
+            : "Describe what you want to build and launch a working AI agent in one click.")}
+          {phase === "building" && (communityMode ? "Setting up your community..." : "Building your agent...")}
           {phase === "review" && "Review what AI created and customize before finalizing."}
-          {phase === "committing" && "Creating your agent..."}
-          {phase === "result" && "Your agent is ready!"}
+          {phase === "committing" && (communityMode ? "Creating your community..." : "Creating your agent...")}
+          {phase === "result" && (communityMode ? "Your community is ready!" : "Your agent is ready!")}
         </p>
       </div>
 
@@ -1935,7 +1943,7 @@ export default function QuickLaunchPage() {
         <>
           {/* Step 1: Describe what you're building */}
           <FormCard>
-            <StepMarker number={1} label="Describe what you're building" completed={!!subjectName.trim()} />
+            <StepMarker number={1} label={communityMode ? "Describe your community" : "Describe what you're building"} completed={!!subjectName.trim()} />
 
             {/* Domain picker — use existing domain or create new */}
             {domains.length > 0 && (

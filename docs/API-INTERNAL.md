@@ -32,9 +32,11 @@
   - [Calls](#calls)
   - [Chat](#chat)
   - [Cohorts](#cohorts)
+  - [Communities](#communities)
   - [Content](#content)
   - [Content Sources](#content-sources)
   - [Content Trust](#content-trust)
+  - [Courses](#courses)
   - [Curricula](#curricula)
   - [Data Dictionary](#data-dictionary)
   - [Dev Tools](#dev-tools)
@@ -71,6 +73,7 @@
   - [Users](#users)
   - [Vapi](#vapi)
   - [Visualizations](#visualizations)
+  - [Wizard](#wizard)
   - [Workflow](#workflow)
 - [Architecture Notes](#architecture-notes)
 - [Environment Variables](#environment-variables)
@@ -3612,6 +3615,101 @@ Sync all cohort members to the cohort's assigned playbooks. Enrolls any members 
 
 ---
 
+## Communities
+
+### `GET` /api/communities
+
+List all communities (Domains with kind=COMMUNITY)
+
+**Auth**: Session · **Scope**: `communities:read`
+
+**Response** `200`
+```json
+{ ok: true, communities: Domain[], count: number }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `DELETE` /api/communities/[communityId]
+
+Archive a community (soft delete)
+
+**Auth**: Session · **Scope**: `communities:write`
+
+**Response** `200`
+```json
+{ ok: true, message: "Community archived" }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `GET` /api/communities/[communityId]
+
+Get a single community detail
+
+**Auth**: Session · **Scope**: `communities:read`
+
+**Response** `200`
+```json
+{ ok: true, community: Domain }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `PATCH` /api/communities/[communityId]
+
+Update a community
+
+**Auth**: Session · **Scope**: `communities:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Community name |
+| description | body | string | No | Community description |
+| onboardingWelcome | body | string | No | Welcome message for first call |
+
+**Response** `200`
+```json
+{ ok: true, community: Domain }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ## Content
 
 ### `GET` /api/content-fragments
@@ -3914,6 +4012,31 @@ Upload a document (PDF, text, markdown) and extract ContentAssertions linked to 
 Poll the status of a background extraction job.
 
 **Auth**: Session · **Scope**: `content-sources:read`
+
+---
+
+## Courses
+
+### `POST` /api/courses/setup
+
+Create a course via the setup wizard. Returns a task ID immediately; actual setup runs non-blocking.
+
+**Auth**: OPERATOR+
+
+**Response** `200`
+```json
+{ ok: true, taskId: string }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
 
 ---
 
@@ -10809,6 +10932,35 @@ Returns a hierarchical tree of the full taxonomy:
 
 ---
 
+## Wizard
+
+### `GET` /api/wizard-steps
+
+Load wizard step definitions from a spec. Returns hardcoded fallback if spec not found.
+
+**Auth**: VIEWER+
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| slug | query | string | No | Spec slug (e.g., "CONTENT-SOURCE-SETUP-001") |
+
+**Response** `200`
+```json
+{ ok: true, steps: WizardStep[], source: "database" | "fallback" }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
+
+---
+
 ## Workflow
 
 ### `POST` /api/ai/workflow/classify
@@ -10935,10 +11087,10 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 285 |
-| Files with annotations | 284 |
+| Route files found | 289 |
+| Files with annotations | 288 |
 | Files missing annotations | 1 |
-| Coverage | 99.6% |
+| Coverage | 99.7% |
 
 ### Files missing `@api` annotations
 

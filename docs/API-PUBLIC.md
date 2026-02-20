@@ -32,6 +32,7 @@
   - [Callers](#callers)
   - [Calls](#calls)
   - [Cohorts](#cohorts)
+  - [Communities](#communities)
   - [Content Trust](#content-trust)
   - [Curricula](#curricula)
   - [Domains](#domains)
@@ -1712,6 +1713,101 @@ Sync all cohort members to the cohort's assigned playbooks. Enrolls any members 
 **Response** `404`
 ```json
 { ok: false, error: "Cohort not found" }
+```
+
+---
+
+## Communities
+
+### `GET` /api/v1/communities
+
+List all communities (Domains with kind=COMMUNITY)
+
+**Auth**: Session · **Scope**: `communities:read`
+
+**Response** `200`
+```json
+{ ok: true, communities: Domain[], count: number }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `DELETE` /api/v1/communities/[communityId]
+
+Archive a community (soft delete)
+
+**Auth**: Session · **Scope**: `communities:write`
+
+**Response** `200`
+```json
+{ ok: true, message: "Community archived" }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `GET` /api/v1/communities/[communityId]
+
+Get a single community detail
+
+**Auth**: Session · **Scope**: `communities:read`
+
+**Response** `200`
+```json
+{ ok: true, community: Domain }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `PATCH` /api/v1/communities/[communityId]
+
+Update a community
+
+**Auth**: Session · **Scope**: `communities:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Community name |
+| description | body | string | No | Community description |
+| onboardingWelcome | body | string | No | Welcome message for first call |
+
+**Response** `200`
+```json
+{ ok: true, community: Domain }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
 ```
 
 ---

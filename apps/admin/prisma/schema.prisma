@@ -153,6 +153,12 @@ enum CallerRole {
   MENTOR // Mentor with oversight of mentees
 }
 
+// Domain kind - whether a domain is an institution or community
+enum DomainKind {
+  INSTITUTION // Educational institution or business
+  COMMUNITY   // Purpose-led group of individuals
+}
+
 model Parameter {
   id                   String   @id @default(uuid())
   parameterId          String   @unique
@@ -426,6 +432,9 @@ model Domain {
   slug        String  @unique // e.g., "tutor", "support", "sales", "wellness"
   name        String // Human-readable name
   description String?
+
+  // Domain kind - INSTITUTION or COMMUNITY
+  kind DomainKind @default(INSTITUTION)
 
   // Default domain - new callers go here
   isDefault Boolean @default(false)

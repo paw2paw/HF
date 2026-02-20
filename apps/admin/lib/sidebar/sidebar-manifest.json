@@ -4,6 +4,7 @@
     "defaultHiddenFor": ["STUDENT"],
     "items": [
       { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR", "wizard": true },
+      { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users", "requiredRole": "OPERATOR", "wizard": true },
       { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true, "wizard": true },
       { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle", "wizard": true },
       { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
