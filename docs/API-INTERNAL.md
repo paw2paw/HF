@@ -10892,6 +10892,28 @@ Multi-turn discovery conversation for guided workflow planning.
 
 ---
 
+### `POST` /api/ai/workflow/step-guidance
+
+Per-step guidance during workflow execution.
+
+**Auth**: Session · **Scope**: `workflow:execute`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| message | body | string | No | User's question or request for help |
+| stepType | body | string | No | Type of step (domain, spec, content_source, etc) |
+| stepTitle | body | string | No | Human-readable step title |
+| formState | body | object | No | Current form field values |
+| collectedData | body | object | No | Data from previous steps |
+| history | body | Array | No | Conversation history [{role, content}] |
+
+**Response** `200`
+```json
+{ ok, response, fieldUpdates? }
+```
+
+---
+
 ## Architecture Notes
 
 ### Middleware stack
@@ -10976,10 +10998,10 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 285 |
-| Files with annotations | 284 |
+| Route files found | 286 |
+| Files with annotations | 285 |
 | Files missing annotations | 1 |
-| Coverage | 99.6% |
+| Coverage | 99.7% |
 
 ### Files missing `@api` annotations
 
