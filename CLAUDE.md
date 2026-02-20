@@ -10,13 +10,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. **Auth on every route** — `requireAuth("ROLE")` from `lib/permissions.ts`. CI enforces via `tests/lib/route-auth-coverage.test.ts`.
 3. **DB is source of truth** — Spec JSON files are seed data. After import, the database wins.
 4. **Dynamic parameters** — MEASURE specs → Pipeline → DB → UI. Adding a parameter = activate a spec, zero code changes.
-5. **Test what matters** — Vitest for units, Playwright for e2e. Business logic must be tested.
-6. **Test every route** — Every `app/api/**/route.ts` must have a test. CI enforces via test coverage scanner.
-7. **E2E every feature** — Every new user-facing page or feature must have a Playwright e2e test in `e2e/tests/`. No feature ships without at least a smoke-level e2e spec covering: page loads, key elements visible, primary user flow works.
-8. **Document every API** — All routes listed in `docs/api.md` (route, method, auth, purpose). No undocumented endpoints.
-9. **Honest tests** — Mock only at system boundaries (DB, external APIs). Never mock the unit under test, never stub internal functions, never fabricate request/response shapes that don't match reality.
-10. **AI call registry** — All AI calls go through metered wrappers (ESLint enforces). `docs/ai-calls.md` lists every call site, purpose, and model used.
-11. **No dead tests** — No `test.skip` or `test.todo` in committed code.
+5. **Holographic Intent-Led UX** — All UI surfaces organized around **user intent** (what educators want to accomplish), never internal structures. Same mental model at all detail levels: teacher sees a "Course" (composed of lessons, content, onboarding), system internally composes it from Playbooks + Specs. Hide implementation complexity; auto-scaffold infrastructure (never ask users to manually wire Playbooks to Specs).
+6. **Test what matters** — Vitest for units, Playwright for e2e. Business logic must be tested.
+7. **Test every route** — Every `app/api/**/route.ts` must have a test. CI enforces via test coverage scanner.
+8. **E2E every feature** — Every new user-facing page or feature must have a Playwright e2e test in `e2e/tests/`. No feature ships without at least a smoke-level e2e spec covering: page loads, key elements visible, primary user flow works.
+9. **Document every API** — All routes listed in `docs/api.md` (route, method, auth, purpose). No undocumented endpoints.
+10. **Honest tests** — Mock only at system boundaries (DB, external APIs). Never mock the unit under test, never stub internal functions, never fabricate request/response shapes that don't match reality.
+11. **AI call registry** — All AI calls go through metered wrappers (ESLint enforces). `docs/ai-calls.md` lists every call site, purpose, and model used.
+12. **No dead tests** — No `test.skip` or `test.todo` in committed code.
 
 ## The Adaptive Loop
 
@@ -45,6 +46,32 @@ apps/admin/
 ├── cli/control.ts   ← CLI tool (npx tsx cli/control.ts)
 └── e2e/             ← Playwright tests
 ```
+
+### Intent-Led UX: The Teacher's View
+
+**Teachers never see or interact with Playbooks, Specs, or Roles.** All UI is organized by **educator intent**. The same mental model works at all levels:
+
+```
+Teacher's View                  Internal Composition
+─────────────────              ─────────────────────
+Institution (Domain)           • Domain (1 per school/org)
+└─ Course (Playbook)           • Playbook + auto-created CourseReady overlay
+   ├─ Lessons                   • Composited CONTENT specs (auto-linked)
+   ├─ Content Upload            • EXTRACT-CONTENT specs (annotations, media refs)
+   ├─ Teaching Points (assertions)
+   ├─ Onboarding Setup          • IDENTITY specs + INIT-001 phases + ADAPT targets
+   │  ├─ Welcome Message        • IDENTITY spec (tutor greeting)
+   │  ├─ Flow Phases            • onboardingFlowPhases (auto-generated)
+   │  └─ Default Behavior       • onboardingDefaultTargets (auto-generated)
+   └─ First Call Preview        • Prompt composition from merged specs
+```
+
+**No manual wiring.** When a teacher:
+- **Uploads a document** → System auto-extracts teaching points, creates a CONTENT spec, links it to course
+- **Reviews assertions** → System learns what "good teaching" looks like for this course
+- **Opens Onboarding tab** → System auto-generates welcome message, flow phases, default targets from course profile
+
+If a readiness check fails (e.g., "No curriculum content configured"), **the system auto-scaffolds it** rather than asking the user to understand specs.
 
 ### SpecRole Taxonomy
 

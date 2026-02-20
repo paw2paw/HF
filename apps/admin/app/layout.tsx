@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState, useRef, useCallback } from 'react
 import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
+import { TopBar } from '@/components/shared/TopBar';
 import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding, ViewModeProvider, StepFlowProvider, useStepFlow } from '@/contexts';
 import { TerminologyProvider } from '@/contexts/TerminologyContext';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
@@ -349,10 +350,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className="h-full min-w-0 overflow-auto transition-all duration-200"
+        className="h-full min-w-0 overflow-auto transition-all duration-200 flex flex-col"
         style={getMainStyle()}
       >
-        <div className="py-6" style={{ paddingLeft: collapsed ? 56 : 32, paddingRight: 32 }}>
+        <TopBar />
+        <div className="py-6" style={{ paddingLeft: collapsed ? 56 : 32, paddingRight: 32, flex: 1 }}>
           {children}
         </div>
       </main>

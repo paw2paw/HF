@@ -20,7 +20,6 @@ import { UserAvatar, ROLE_COLORS } from "./UserAvatar";
 interface UserContextMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenSettings: () => void;
   unreadCount?: number;
   masqueradeOptions?: {
     isRealAdmin: boolean;
@@ -41,7 +40,6 @@ const ROLE_LABELS: Record<string, string> = {
 export function UserContextMenu({
   isOpen,
   onClose,
-  onOpenSettings,
   masqueradeOptions,
 }: UserContextMenuProps) {
   const { data: session } = useSession();
@@ -77,11 +75,6 @@ export function UserContextMenu({
 
   if (!isOpen || !session?.user) return null;
 
-  const handleSettingsClick = () => {
-    onOpenSettings();
-    onClose();
-  };
-
   const userName = session.user.name || session.user.email || "User";
   const userRole = session.user.role;
   const roleLabel = ROLE_LABELS[userRole] || userRole;
@@ -95,15 +88,15 @@ export function UserContextMenu({
         style={{ background: "transparent" }}
       />
 
-      {/* Menu popover — positioned above avatar */}
+      {/* Menu popover — positioned below avatar at top-right */}
       <div
         ref={menuRef}
         className="fixed z-50 w-56 rounded-lg shadow-lg border"
         style={{
           background: "var(--surface-primary)",
           borderColor: "var(--border-default)",
-          bottom: "calc(100% + 8px)",
-          left: "16px", // align with sidebar left padding
+          top: "calc(100% + 4px)",
+          right: "24px",
           boxShadow:
             "0 10px 25px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.1)",
         }}
@@ -147,14 +140,15 @@ export function UserContextMenu({
           </Link>
 
           {/* Settings */}
-          <button
-            onClick={handleSettingsClick}
-            className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-[13px] transition-colors hover:bg-[var(--hover-bg)]"
-            style={{ color: "var(--text-secondary)", border: "none", background: "transparent", cursor: "pointer" }}
+          <Link
+            href="/x/settings"
+            onClick={onClose}
+            className="flex items-center gap-3 px-4 py-2.5 text-[13px] transition-colors hover:bg-[var(--hover-bg)]"
+            style={{ color: "var(--text-secondary)" }}
           >
             <Settings2 className="w-4 h-4 flex-shrink-0" />
             Settings
-          </button>
+          </Link>
 
           {/* Appearance submenu */}
           <div>
@@ -227,7 +221,7 @@ export function UserContextMenu({
 
         {/* Sign out */}
         <button
-          onClick={() => signOut()}
+          onClick={() => signOut({ callbackUrl: "/login" })}
           className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-[13px] transition-colors hover:bg-[var(--hover-bg)]"
           style={{ color: "var(--text-secondary)", border: "none", background: "transparent", cursor: "pointer" }}
         >

@@ -188,27 +188,42 @@ const checkExecutors: Record<string, CheckExecutor> = {
   },
 
   /**
-   * Domain has a curriculum with lesson plan configured.
+   * Domain has curriculum content (extracted assertions or a CONTENT spec).
+   *
+   * Intent-led approach: Pass if ANY assertions have been extracted OR
+   * a CONTENT spec exists (system auto-scaffolds playbook/specs on extraction).
+   * Don't require PUBLISHED playbook — that's implementation detail.
    */
   lesson_plan: async (ctx) => {
-    // Check via content spec's deliveryConfig
-    const playbook = await prisma.playbook.findFirst({
-      where: { domainId: ctx.domainId, status: "PUBLISHED" },
-      select: {
-        items: {
-          where: { itemType: "SPEC", isEnabled: true },
-          select: {
-            spec: {
-              select: { specRole: true, config: true, isActive: true },
-            },
+    // First check if any assertions exist (indicates content has been uploaded/extracted)
+    const subjectAssertionCount = await prisma.contentAssertion.count({
+      where: {
+        source: {
+          subjects: {
+            some: { subject: { domains: { some: { domainId: ctx.domainId } } } },
           },
         },
       },
     });
 
-    const contentSpec = playbook?.items.find(
-      (i) => i.spec?.specRole === "CONTENT" && i.spec?.isActive,
-    )?.spec;
+    if (subjectAssertionCount > 0) {
+      return { passed: true, detail: `${subjectAssertionCount} teaching point(s) extracted` };
+    }
+
+    // Fallback: check for CONTENT spec in any playbook (published or draft)
+    const contentSpec = await prisma.analysisSpec.findFirst({
+      where: {
+        specRole: "CONTENT",
+        isActive: true,
+        playbookItems: {
+          some: {
+            playbook: { domainId: ctx.domainId },
+            isEnabled: true,
+          },
+        },
+      },
+      select: { config: true },
+    });
 
     if (!contentSpec) {
       return { passed: false, detail: "No curriculum content configured" };
@@ -224,7 +239,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
 
     const modules = specConfig?.modules;
     if (Array.isArray(modules) && modules.length > 0) {
-      return { passed: true, detail: `${modules.length} module(s) configured (no lesson plan yet)` };
+      return { passed: true, detail: `${modules.length} module(s) configured` };
     }
 
     return { passed: false, detail: "Lesson plan not yet generated" };

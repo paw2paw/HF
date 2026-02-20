@@ -106,6 +106,14 @@ export default function DomainsPage() {
       });
   }, [selectedId]);
 
+  // Set activeTab from URL query param
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && ["callers", "playbooks", "content", "onboarding"].includes(tabParam)) {
+      setActiveTab(tabParam as "callers" | "playbooks" | "content" | "onboarding");
+    }
+  }, [searchParams]);
+
   const handleDeleteDomain = async () => {
     if (!domain) return;
     setDeleting(true);

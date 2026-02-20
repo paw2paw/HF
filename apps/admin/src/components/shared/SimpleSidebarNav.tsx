@@ -25,8 +25,6 @@ import {
   Bot,
   Home,
 } from "lucide-react";
-import { UserAvatar } from "@/components/shared/UserAvatar";
-import { AccountPanel } from "@/components/shared/AccountPanel";
 import { envSidebarColor, envSidebarWidth } from "@/components/shared/EnvironmentBanner";
 import { MASQUERADE_BANNER_HEIGHT } from "@/components/shared/MasqueradeBanner";
 
@@ -343,13 +341,7 @@ export default function SimpleSidebarNav({
     sectionTitle: string;
     timeoutId: ReturnType<typeof setTimeout>;
   } | null>(null);
-  const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
-
-  // Auto-close account panel on navigation
-  useEffect(() => {
-    setShowAccountPanel(false);
-  }, [pathname]);
 
   // Collapsed sections state (persisted to localStorage)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -514,57 +506,9 @@ export default function SimpleSidebarNav({
     setDeleteToast(null);
   }, [deleteToast, undoDeleteSection]);
 
-  // Handle account panel toggle
-  const handleAvatarClick = useCallback(() => {
-    if (showAccountPanel) {
-      setShowAccountPanel(false);
-      return;
-    }
-    if (collapsed && onToggle) {
-      onToggle();
-    }
-    setShowAccountPanel(true);
-  }, [collapsed, onToggle, showAccountPanel]);
 
   return (
     <div className="relative flex h-full flex-col" style={{ color: "var(--text-primary)", zIndex: 50 }}>
-      {/* Fixed flyout: Account panel */}
-      {showAccountPanel && (
-        <div
-          style={{
-            position: "fixed",
-            top: isMasquerading ? MASQUERADE_BANNER_HEIGHT : 0,
-            left: envSidebarColor ? envSidebarWidth : 0,
-            bottom: 0,
-            width: 280,
-            zIndex: 55,
-            background: "var(--surface-primary)",
-            borderRight: "1px solid var(--border-subtle)",
-            boxShadow: "4px 0 24px rgba(0,0,0,0.08)",
-            overflow: "hidden",
-          }}
-        >
-          <AccountPanel
-            onClose={() => setShowAccountPanel(false)}
-            onNavigate={onNavigate}
-            unreadCount={unreadCount}
-            layoutOptions={{
-              isAdmin,
-              hasCustomLayout,
-              hiddenSections: hiddenSectionIds.map((id) => ({
-                id,
-                title: BASE_SECTIONS.find((s) => s.id === id)?.title || id,
-              })),
-              onSavePersonalDefault: setAsPersonalDefault,
-              onSaveGlobalDefault: setAsDefault,
-              onResetLayout: resetLayout,
-              onShowSection: showSection,
-            }}
-            masqueradeOptions={realIsAdmin ? { isRealAdmin: true } : undefined}
-          />
-        </div>
-      )}
-
       {/* Navigation panel */}
       <div className="flex h-full flex-col p-2">
       {/* Header */}
@@ -914,57 +858,9 @@ export default function SimpleSidebarNav({
             );
           })}
         </nav>
-
-        <div className="mt-auto pt-2" style={{ position: "relative" }}>
-          {/* Account avatar trigger */}
-          <button
-            onClick={handleAvatarClick}
-            className="relative flex w-full items-center justify-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--hover-bg)]"
-            title="Account"
-            style={{ border: "none", background: "transparent", cursor: "pointer" }}
-          >
-            <div className="relative flex-shrink-0">
-              <UserAvatar
-                name={session?.user?.name || session?.user?.email || "?"}
-                role={session?.user?.role}
-                size={collapsed ? 28 : 24}
-              />
-              {unreadCount > 0 && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
-                  style={{
-                    background: "var(--accent-primary)",
-                    borderColor: "var(--surface-primary)",
-                  }}
-                />
-              )}
-            </div>
-            {!collapsed && (
-              <span
-                className="truncate text-[11px] font-medium"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {(session?.user as any)?.displayName || session?.user?.name || session?.user?.email}
-              </span>
-            )}
-          </button>
-        </div>
         </div>
       </div>
       {/* End: Navigation panel */}
-
-      {/* Backdrop: click anywhere on main content to close account panel */}
-      {showAccountPanel && (
-        <div
-          onClick={() => setShowAccountPanel(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 40,
-            cursor: "default",
-          }}
-        />
-      )}
 
       {/* Undo delete toast */}
       {deleteToast && (

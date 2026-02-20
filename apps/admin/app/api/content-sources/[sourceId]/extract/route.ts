@@ -16,6 +16,13 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { checkAutoTriggerCurriculum } from "@/lib/jobs/auto-trigger";
 import { embedAssertionsForSource } from "@/lib/embeddings";
 import { getStorageAdapter } from "@/lib/storage";
+import { scaffoldDomain } from "@/lib/domain/scaffold";
+import { generateContentSpec } from "@/lib/domain/generate-content-spec";
+import {
+  startTaskTracking,
+  updateTaskProgress,
+  completeTask,
+} from "@/lib/ai/task-guidance";
 import type { DocumentType } from "@/lib/content-trust/resolve-config";
 
 /**
@@ -237,5 +244,76 @@ async function runBackgroundExtraction(
     } catch (err) {
       console.error(`[content-sources/:id/extract] Auto-trigger error for subject ${subjectId}:`, err);
     }
+  }
+
+  // Auto-scaffold playbook + content spec for each linked domain via task tracking
+  // This ensures teachers can configure onboarding without needing to manually set up specs
+  if (subjectId && created > 0) {
+    try {
+      const linkedDomains = await prisma.domain.findMany({
+        where: {
+          subjects: { some: { subjectId } },
+        },
+        select: { id: true, slug: true, name: true },
+      });
+
+      for (const domain of linkedDomains) {
+        // Create a scaffold task for visibility + persistence
+        const scaffoldTaskId = await startTaskTracking(userId, "scaffolding", {
+          domainId: domain.id,
+          domainName: domain.name,
+          step: "playbook_setup",
+          message: "Setting up curriculum playbook...",
+        });
+
+        // Fire background scaffolding (non-blocking)
+        runScaffoldingTask(scaffoldTaskId, domain.id, userId).catch(async (err) => {
+          console.error(`[extract] Scaffolding task failed for ${domain.slug}:`, err);
+          await updateTaskProgress(scaffoldTaskId, {
+            context: { error: err.message, step: "failed" },
+          });
+          await prisma.userTask.update({
+            where: { id: scaffoldTaskId },
+            data: { status: "abandoned", completedAt: new Date() },
+          });
+        });
+      }
+    } catch (err) {
+      console.error(`[extract] Auto-scaffolding error for subject ${subjectId}:`, err);
+    }
+  }
+}
+
+// ── Scaffolding task runner ──
+
+async function runScaffoldingTask(taskId: string, domainId: string, userId: string) {
+  try {
+    // Step 1: Ensure domain has a playbook
+    await updateTaskProgress(taskId, {
+      context: { step: "playbook_setup", message: "Setting up curriculum playbook..." },
+    });
+    await scaffoldDomain(domainId);
+
+    // Step 2: Generate content spec from assertions
+    await updateTaskProgress(taskId, {
+      context: { step: "content_generation", message: "Generating curriculum structure..." },
+    });
+    const contentResult = await generateContentSpec(domainId);
+
+    // Step 3: Complete
+    await updateTaskProgress(taskId, {
+      context: {
+        step: "completed",
+        message: "Curriculum ready for configuration",
+        summary: {
+          playbook: contentResult.contentSpec?.name || "(auto-scaffolded)",
+          modules: contentResult.moduleCount,
+          assertions: contentResult.assertionCount,
+        },
+      },
+    });
+    await completeTask(taskId);
+  } catch (err: any) {
+    throw err;
   }
 }
