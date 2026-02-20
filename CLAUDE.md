@@ -121,6 +121,45 @@ npm run ctl <command>    # Direct CLI command
 npm run control          # Interactive CLI menu
 ```
 
+## MCP Servers (Model Context Protocol)
+
+The project uses two MCP servers for enhanced code exploration and semantic search:
+
+| Server | Purpose | Config | Check |
+|--------|---------|--------|-------|
+| **hf-graph** | Index code structure (functions, types, imports) for fast navigation | `tools/hf-graph.ts` | `claude mcp list` |
+| **qmd** | Vector + semantic search across codebase with reranking | `qmd` CLI | `qmd status` |
+
+Both are configured in `.mcp.json` at the repo root and auto-connect when you open this project.
+
+**On startup**, verify both are healthy:
+```bash
+./scripts/check-startup.sh
+```
+
+Expected output:
+```
+📡 MCP Servers:
+hf-graph: npx tsx tools/hf-graph.ts mcp - ✓ Connected
+qmd: qmd mcp - ✓ Connected
+
+📚 qmd Index Status:
+MCP: running
+Documents: 1488 files indexed
+Vectors: 10122 embedded
+```
+
+**If MCP servers fail to connect:**
+1. Ensure `qmd` CLI is installed: `qmd --version`
+2. Ensure `.mcp.json` exists at repo root with correct config
+3. Restart Claude Code
+4. For qmd vector search: run `qmd embed` to build embeddings (one-time, takes ~2 min)
+
+**Use in Claude Code:**
+- Ask Claude to use hf-graph for function/type lookups
+- Ask Claude to use qmd for semantic searches across the repo
+- Both tools are invoked automatically when relevant
+
 ## Key Patterns
 
 ```typescript
