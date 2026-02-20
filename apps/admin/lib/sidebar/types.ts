@@ -17,6 +17,8 @@ export type NavItem = {
   terminologyLabel?: string;
   /** Small static tag shown after the label (e.g. "NEW", "WS3") */
   tag?: string;
+  /** If true, shows a sparkles indicator — item leads into a wizard/guided flow */
+  wizard?: boolean;
 };
 
 export type NavSection = {

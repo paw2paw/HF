@@ -24,6 +24,7 @@ import {
   PenLine,
   Bot,
   Home,
+  Sparkles,
 } from "lucide-react";
 import { envSidebarColor, envSidebarWidth } from "@/components/shared/EnvironmentBanner";
 import { MASQUERADE_BANNER_HEIGHT } from "@/components/shared/MasqueradeBanner";
@@ -791,6 +792,13 @@ export default function SimpleSidebarNav({
                           </span>
                         )}
                         {!collapsed && <span className="truncate">{item.label}</span>}
+                        {!collapsed && (rawItem as any).wizard && (
+                          <Sparkles
+                            className="w-[11px] h-[11px] flex-shrink-0 ml-0.5"
+                            style={{ color: "#f59e0b", opacity: 0.75 }}
+                            title="Guided flow"
+                          />
+                        )}
                         {!collapsed && (rawItem as any).tag && (
                           <span
                             className="ml-auto inline-flex items-center justify-center rounded text-[9px] font-bold tracking-wide px-1.5 py-0.5 flex-shrink-0"

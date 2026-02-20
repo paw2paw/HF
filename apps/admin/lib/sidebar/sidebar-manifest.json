@@ -3,9 +3,9 @@
     "id": "home",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
-      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR" },
-      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
-      { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle" },
+      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR", "wizard": true },
+      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true, "wizard": true },
+      { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle", "wizard": true },
       { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
       { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" },
       { "id": "messages", "href": "/x/messages", "label": "Messages", "icon": "Mail" },
@@ -21,7 +21,7 @@
       { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User" },
       { "id": "sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
       { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
-      { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR", "tag": "GF" }
+      { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR" }
     ]
   },
   {
@@ -33,7 +33,7 @@
     "advancedOnly": true,
     "items": [
       { "id": "subjects", "href": "/x/subjects", "label": "Subjects", "icon": "BookMarked" },
-      { "id": "content-sources", "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck" },
+      { "id": "content-sources", "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck", "wizard": true },
       { "id": "content-review", "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" }
     ]
   },
@@ -43,15 +43,15 @@
     "terminologySectionTitle": "institution",
     "defaultHiddenFor": ["OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
     "items": [
-      { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "tag": "GF" },
-      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms", "icon": "School" } }, "tag": "GF" },
+      { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms", "icon": "School" } } },
       { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "learner_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["ADMIN", "SUPERADMIN"] },
       { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"], "tag": "GF" },
+      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]
