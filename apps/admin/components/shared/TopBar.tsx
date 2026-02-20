@@ -26,7 +26,7 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 w-full h-12 flex items-center justify-end px-6 border-b flex-shrink-0"
+      className="sticky top-0 w-full h-12 flex items-center justify-end pl-6 pr-8 border-b flex-shrink-0"
       style={{
         background: "var(--surface-primary)",
         borderColor: "var(--border-subtle)",
