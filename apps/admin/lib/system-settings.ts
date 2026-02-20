@@ -448,6 +448,11 @@ export interface EmailTemplateSettings {
   inviteBody: string;
   inviteButtonText: string;
   inviteFooter: string;
+  passwordResetSubject: string;
+  passwordResetHeading: string;
+  passwordResetBody: string;
+  passwordResetButtonText: string;
+  passwordResetFooter: string;
   sharedFromName: string;
   sharedBrandColorStart: string;
   sharedBrandColorEnd: string;
@@ -464,6 +469,11 @@ export const EMAIL_TEMPLATE_DEFAULTS: EmailTemplateSettings = {
   inviteBody: "{{greeting}} {{context}}",
   inviteButtonText: "Accept Invitation",
   inviteFooter: "This invitation expires in 7 days.",
+  passwordResetSubject: "Reset your password",
+  passwordResetHeading: "Reset Your Password",
+  passwordResetBody: "Click the button below to reset your password. This link expires in 1 hour.",
+  passwordResetButtonText: "Reset Password",
+  passwordResetFooter: "If you didn't request a password reset, ignore this email.",
   sharedFromName: "HF Admin",
   sharedBrandColorStart: "#3b82f6",
   sharedBrandColorEnd: "#9333ea",
@@ -480,6 +490,11 @@ const EMAIL_TEMPLATE_KEYS: Record<keyof EmailTemplateSettings, string> = {
   inviteBody: "email.invite.body",
   inviteButtonText: "email.invite.button_text",
   inviteFooter: "email.invite.footer",
+  passwordResetSubject: "email.password_reset.subject",
+  passwordResetHeading: "email.password_reset.heading",
+  passwordResetBody: "email.password_reset.body",
+  passwordResetButtonText: "email.password_reset.button_text",
+  passwordResetFooter: "email.password_reset.footer",
   sharedFromName: "email.shared.from_name",
   sharedBrandColorStart: "email.shared.brand_color_start",
   sharedBrandColorEnd: "email.shared.brand_color_end",

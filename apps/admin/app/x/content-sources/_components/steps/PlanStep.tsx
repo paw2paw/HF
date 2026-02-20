@@ -102,7 +102,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
     if (!currGenTaskId || curriculumStatus !== "generating") return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/tasks/${currGenTaskId}`);
+        const res = await fetch(`/api/tasks?taskId=${currGenTaskId}`);
         const data = await res.json();
         if (data.task?.status === "completed") {
           clearInterval(interval);

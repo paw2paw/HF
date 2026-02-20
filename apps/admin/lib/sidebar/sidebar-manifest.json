@@ -3,6 +3,7 @@
     "id": "home",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
+      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR" },
       { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true },
       { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle" },
       { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },

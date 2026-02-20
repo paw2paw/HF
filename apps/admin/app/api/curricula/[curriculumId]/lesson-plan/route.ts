@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
+import {
+  startTaskTracking,
+  updateTaskProgress,
+  completeTask,
+} from "@/lib/ai/task-guidance";
 
 type Params = { params: Promise<{ curriculumId: string }> };
 
