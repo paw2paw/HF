@@ -528,17 +528,17 @@ export default function MeteringPage() {
                   style={{
                     marginBottom: 20,
                     padding: 16,
-                    background: summary.aiSummary.mockPercentage > 50 ? "#fef3c7" : "#d1fae5",
-                    border: `1px solid ${summary.aiSummary.mockPercentage > 50 ? "#fcd34d" : "#6ee7b7"}`,
+                    background: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-bg)" : "var(--status-success-bg)",
+                    border: `1px solid ${summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-border)" : "var(--status-success-border)"}`,
                     borderRadius: 10,
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: summary.aiSummary.mockPercentage > 50 ? "#92400e" : "#047857", marginBottom: 4 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-text)" : "var(--status-success-text)", marginBottom: 4 }}>
                         {summary.aiSummary.mockPercentage > 50 ? "⚠️ Mostly Mock Calls" : "✓ Real AI Calls"}
                       </div>
-                      <div style={{ fontSize: 12, color: summary.aiSummary.mockPercentage > 50 ? "#a16207" : "#059669" }}>
+                      <div style={{ fontSize: 12, color: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-text)" : "var(--status-success-text)" }}>
                         {summary.aiSummary.real.eventCount.toLocaleString()} real calls (${summary.aiSummary.real.costDollars})
                         {summary.aiSummary.mock.eventCount > 0 && (
                           <span> &middot; {summary.aiSummary.mock.eventCount.toLocaleString()} mock calls ($0.00)</span>
@@ -546,7 +546,7 @@ export default function MeteringPage() {
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: summary.aiSummary.mockPercentage > 50 ? "#b45309" : "#047857" }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-text)" : "var(--status-success-text)" }}>
                         {100 - summary.aiSummary.mockPercentage}%
                       </div>
                       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>real calls</div>
@@ -558,7 +558,7 @@ export default function MeteringPage() {
                         style={{
                           height: "100%",
                           width: `${100 - summary.aiSummary.mockPercentage}%`,
-                          background: summary.aiSummary.mockPercentage > 50 ? "#fbbf24" : "#10b981",
+                          background: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-border)" : "var(--status-success-text)",
                           borderRadius: 3,
                         }}
                       />

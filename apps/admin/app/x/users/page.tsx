@@ -461,7 +461,7 @@ export default function UsersPage() {
                 type="submit"
                 style={{
                   padding: "8px 24px", fontSize: 14, fontWeight: 500, borderRadius: 8,
-                  background: "var(--button-primary-bg)", color: "#fff", border: "none", cursor: "pointer",
+                  background: "var(--button-primary-bg)", color: "white", border: "none", cursor: "pointer",
                 }}
               >
                 Preview Invite
@@ -531,7 +531,7 @@ export default function UsersPage() {
                 onClick={() => handleSendInvite(true)}
                 style={{
                   padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                  background: "var(--button-primary-bg)", color: "#fff", border: "none", cursor: "pointer",
+                  background: "var(--button-primary-bg)", color: "white", border: "none", cursor: "pointer",
                 }}
               >
                 Create &amp; Send Email
@@ -554,7 +554,7 @@ export default function UsersPage() {
                 <span style={{
                   padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
                   background: lastEmailSent ? "var(--status-success-text)" : "var(--status-warning-text)",
-                  color: "#fff",
+                  color: "white",
                 }}>
                   {lastEmailSent ? "Email sent" : "Email not sent"}
                 </span>
@@ -588,7 +588,7 @@ export default function UsersPage() {
                 onClick={handleResetInviteForm}
                 style={{
                   padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                  background: "var(--button-primary-bg)", color: "#fff", border: "none", cursor: "pointer",
+                  background: "var(--button-primary-bg)", color: "white", border: "none", cursor: "pointer",
                 }}
               >
                 Create Another
@@ -763,7 +763,7 @@ export default function UsersPage() {
             >
               <span style={{
                 position: "absolute", top: 3, left: auditEnabled ? 23 : 3,
-                width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                width: 18, height: 18, borderRadius: "50%", background: "var(--surface-primary)",
                 transition: "left 0.2s",
               }} />
             </button>
@@ -877,7 +877,7 @@ function UserCard({
           width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
           background: getAvatarGradient(user.id),
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, fontWeight: 700, color: "#fff",
+          fontSize: 16, fontWeight: 700, color: "white",
         }}>
           {(user.displayName || user.name || user.email)[0].toUpperCase()}
         </div>
@@ -1027,7 +1027,7 @@ function UserEditorModal({
             width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
             background: getAvatarGradient(user.id),
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 20, fontWeight: 700, color: "#fff",
+            fontSize: 20, fontWeight: 700, color: "white",
           }}>
             {(user.displayName || user.name || user.email)[0].toUpperCase()}
           </div>
@@ -1196,7 +1196,7 @@ function UserEditorModal({
                     onClick={onDelete}
                     style={{
                       padding: "8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
-                      border: "none", background: "var(--status-error-text)", color: "#fff", cursor: "pointer",
+                      border: "none", background: "var(--status-error-text)", color: "white", cursor: "pointer",
                     }}
                   >
                     Confirm Delete
@@ -1234,7 +1234,7 @@ function UserEditorModal({
               style={{
                 padding: "8px 24px", fontSize: 14, fontWeight: 600, borderRadius: 8,
                 border: "none", background: "var(--button-primary-bg)",
-                color: "#fff", cursor: saving ? "wait" : "pointer",
+                color: "white", cursor: saving ? "wait" : "pointer",
                 opacity: saving ? 0.6 : 1,
               }}
             >

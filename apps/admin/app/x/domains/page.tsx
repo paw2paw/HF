@@ -374,7 +374,7 @@ export default function DomainsPage() {
               style={{
                 padding: "6px 12px",
                 background: "var(--button-primary-bg)",
-                color: "#fff",
+                color: "white",
                 border: "none",
                 borderRadius: 6,
                 fontWeight: 500,

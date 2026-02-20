@@ -186,7 +186,7 @@ export default function AIErrorsPage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
                 FAILURES ({hours}h)
               </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: data.stats.totalFailures > 0 ? "#ef4444" : "#10b981" }}>
+              <div style={{ fontSize: 36, fontWeight: 800, color: data.stats.totalFailures > 0 ? "var(--status-error-text)" : "var(--status-success-text)" }}>
                 {data.stats.totalFailures.toLocaleString()}
               </div>
             </div>

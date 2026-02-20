@@ -452,7 +452,7 @@ export default function ImportPage() {
                     fontSize: 15,
                     fontWeight: 600,
                     background: transcriptFiles.length === 0 || transcriptImporting ? "var(--text-placeholder)" : "var(--accent-primary)",
-                    color: transcriptFiles.length === 0 || transcriptImporting ? "var(--text-muted)" : "#fff",
+                    color: transcriptFiles.length === 0 || transcriptImporting ? "var(--text-muted)" : "white",
                     border: "none",
                     borderRadius: 8,
                     cursor: transcriptFiles.length === 0 || transcriptImporting ? "not-allowed" : "pointer",
@@ -601,7 +601,7 @@ export default function ImportPage() {
                     fontSize: 15,
                     fontWeight: 600,
                     background: transcriptImporting ? "var(--text-placeholder)" : "var(--success-text)",
-                    color: "#fff",
+                    color: "white",
                     border: "none",
                     borderRadius: 8,
                     cursor: transcriptImporting ? "not-allowed" : "pointer",
@@ -655,8 +655,8 @@ export default function ImportPage() {
                         }}
                       >
                         {c.name || c.email || c.id.slice(0, 8)}
-                        {c.isNew && <span style={{ fontSize: 10, background: "var(--accent-primary)", color: "#fff", padding: "1px 4px", borderRadius: 3 }}>NEW</span>}
-                        {c.merged && <span style={{ fontSize: 10, background: "var(--warning-text)", color: "#fff", padding: "1px 4px", borderRadius: 3 }}>MERGED</span>}
+                        {c.isNew && <span style={{ fontSize: 10, background: "var(--accent-primary)", color: "white", padding: "1px 4px", borderRadius: 3 }}>NEW</span>}
+                        {c.merged && <span style={{ fontSize: 10, background: "var(--warning-text)", color: "white", padding: "1px 4px", borderRadius: 3 }}>MERGED</span>}
                       </Link>
                     ))}
                   </div>
@@ -792,7 +792,7 @@ export default function ImportPage() {
                     fontSize: 15,
                     fontWeight: 600,
                     background: specFiles.length === 0 || specImporting ? "var(--text-placeholder)" : "var(--warning-text)",
-                    color: specFiles.length === 0 || specImporting ? "var(--text-muted)" : "#fff",
+                    color: specFiles.length === 0 || specImporting ? "var(--text-muted)" : "white",
                     border: "none",
                     borderRadius: 8,
                     cursor: specFiles.length === 0 || specImporting ? "not-allowed" : "pointer",
@@ -845,7 +845,7 @@ export default function ImportPage() {
                                   fontSize: 11,
                                   fontWeight: 600,
                                   background: r.status === "error" ? "var(--error-text)" : r.status === "created" ? "var(--success-text)" : "var(--text-muted)",
-                                  color: "#fff",
+                                  color: "white",
                                 }}
                               >
                                 {r.status.toUpperCase()}

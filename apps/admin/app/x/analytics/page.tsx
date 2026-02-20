@@ -539,7 +539,7 @@ export default function AnalyticsPage() {
                         justifyContent: "center",
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "#fff",
+                        color: "white",
                         minWidth: count > 0 ? 24 : 0,
                       }}
                     >

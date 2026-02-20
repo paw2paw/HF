@@ -206,7 +206,7 @@ export default function AIKnowledgePage() {
                       height: 32,
                       borderRadius: 8,
                       background: "var(--accent-primary)",
-                      color: "#fff",
+                      color: "white",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

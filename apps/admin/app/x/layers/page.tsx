@@ -335,7 +335,7 @@ function LayerStack({
             padding: "10px 12px",
             marginBottom: -1,
             borderRadius: "8px 8px 0 0",
-            border: "1px solid #818cf8",
+            border: "1px solid var(--accent-primary)",
             background: "color-mix(in srgb, var(--surface-primary) 85%, transparent)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",

@@ -191,10 +191,10 @@ export default function AccountPage() {
             marginBottom: 16,
             padding: "10px 16px",
             background: saved
-              ? "color-mix(in srgb, #059669 10%, transparent)"
+              ? "color-mix(in srgb, var(--status-success-text) 10%, transparent)"
               : "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
             border: saved
-              ? "1px solid color-mix(in srgb, #059669 30%, transparent)"
+              ? "1px solid color-mix(in srgb, var(--status-success-text) 30%, transparent)"
               : "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
             borderRadius: 12,
             display: "flex",
@@ -202,7 +202,7 @@ export default function AccountPage() {
             gap: 8,
             fontSize: 13,
             fontWeight: 500,
-            color: saved ? "#059669" : "var(--accent-primary)",
+            color: saved ? "var(--status-success-text)" : "var(--accent-primary)",
             transition: "all 0.2s ease",
           }}
         >
@@ -569,7 +569,7 @@ export default function AccountPage() {
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          background: "#22c55e",
+                          background: "var(--status-success-text)",
                           boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)",
                           flexShrink: 0,
                         }}
@@ -669,7 +669,7 @@ export default function AccountPage() {
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          background: "#22c55e",
+                          background: "var(--status-success-text)",
                           boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)",
                           flexShrink: 0,
                         }}
@@ -846,9 +846,9 @@ export default function AccountPage() {
           width: "100%",
           padding: "14px 16px",
           borderRadius: 12,
-          border: "1px solid color-mix(in srgb, #dc2626 25%, transparent)",
-          background: "color-mix(in srgb, #dc2626 4%, transparent)",
-          color: "#dc2626",
+          border: "1px solid color-mix(in srgb, var(--status-error-text) 25%, transparent)",
+          background: "color-mix(in srgb, var(--status-error-text) 4%, transparent)",
+          color: "var(--status-error-text)",
           fontSize: 14,
           fontWeight: 500,
           cursor: "pointer",
@@ -856,12 +856,12 @@ export default function AccountPage() {
           marginBottom: 24,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "color-mix(in srgb, #dc2626 10%, transparent)";
-          e.currentTarget.style.borderColor = "color-mix(in srgb, #dc2626 40%, transparent)";
+          e.currentTarget.style.background = "color-mix(in srgb, var(--status-error-text) 10%, transparent)";
+          e.currentTarget.style.borderColor = "color-mix(in srgb, var(--status-error-text) 40%, transparent)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "color-mix(in srgb, #dc2626 4%, transparent)";
-          e.currentTarget.style.borderColor = "color-mix(in srgb, #dc2626 25%, transparent)";
+          e.currentTarget.style.background = "color-mix(in srgb, var(--status-error-text) 4%, transparent)";
+          e.currentTarget.style.borderColor = "color-mix(in srgb, var(--status-error-text) 25%, transparent)";
         }}
       >
         <LogOut size={16} />

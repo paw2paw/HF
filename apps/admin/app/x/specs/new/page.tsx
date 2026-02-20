@@ -155,7 +155,7 @@ const StepBadge = ({ number, active = true }: { number: number; active?: boolean
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      color: active ? "#fff" : "var(--text-muted)",
+      color: active ? "white" : "var(--text-muted)",
       fontWeight: 700,
       fontSize: 13,
       boxShadow: active ? "0 2px 8px rgba(99, 102, 241, 0.3)" : "none",
@@ -691,7 +691,7 @@ export default function CreateSpecPage() {
             right: 24,
             zIndex: 1000,
             background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
-            color: "#fff",
+            color: "white",
             padding: "16px 20px",
             borderRadius: 12,
             boxShadow: "0 8px 24px rgba(139, 92, 246, 0.4)",
@@ -781,7 +781,7 @@ export default function CreateSpecPage() {
                     borderRadius: 10,
                     border: "none",
                     background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                    color: "#fff",
+                    color: "white",
                     cursor: "pointer",
                     boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
                   }}
@@ -981,7 +981,7 @@ export default function CreateSpecPage() {
                   borderRadius: 8,
                   border: "1px solid var(--border-default)",
                   background: showFlashSidebar ? "var(--accent-primary)" : "var(--surface-secondary)",
-                  color: showFlashSidebar ? "#fff" : "var(--text-primary)",
+                  color: showFlashSidebar ? "white" : "var(--text-primary)",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -1046,7 +1046,7 @@ export default function CreateSpecPage() {
                   chatLoading || !chatInput.trim()
                     ? "var(--surface-tertiary)"
                     : "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                color: chatLoading || !chatInput.trim() ? "var(--text-muted)" : "#fff",
+                color: chatLoading || !chatInput.trim() ? "var(--text-muted)" : "white",
                 cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer",
                 whiteSpace: "nowrap",
                 boxShadow: chatLoading || !chatInput.trim() ? "none" : "0 4px 12px rgba(99, 102, 241, 0.3)",
@@ -1064,7 +1064,7 @@ export default function CreateSpecPage() {
                       width: 16,
                       height: 16,
                       border: "2px solid rgba(255,255,255,0.3)",
-                      borderTopColor: "#fff",
+                      borderTopColor: "white",
                       borderRadius: "50%",
                       animation: "spin 1s linear infinite",
                     }}
@@ -1195,7 +1195,7 @@ export default function CreateSpecPage() {
                         height: 24,
                         borderRadius: 6,
                         background: activeStep === step.num ? "var(--accent-primary)" : "var(--surface-tertiary)",
-                        color: activeStep === step.num ? "#fff" : "var(--text-muted)",
+                        color: activeStep === step.num ? "white" : "var(--text-muted)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -1563,7 +1563,7 @@ export default function CreateSpecPage() {
                       borderRadius: 10,
                       border: "none",
                       background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                      color: "#fff",
+                      color: "white",
                       cursor: "pointer",
                       boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)",
                     }}
@@ -1625,7 +1625,7 @@ export default function CreateSpecPage() {
                                 height: 28,
                                 borderRadius: 8,
                                 background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                                color: "#fff",
+                                color: "white",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -1895,7 +1895,7 @@ export default function CreateSpecPage() {
                     background: creating
                       ? "var(--surface-tertiary)"
                       : "linear-gradient(135deg, var(--success-text) 0%, #059669 100%)",
-                    color: creating ? "var(--text-muted)" : "#fff",
+                    color: creating ? "var(--text-muted)" : "white",
                     cursor: creating ? "not-allowed" : "pointer",
                     display: "flex",
                     alignItems: "center",
@@ -1909,7 +1909,7 @@ export default function CreateSpecPage() {
                         width: 16,
                         height: 16,
                         border: "2px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "#fff",
+                        borderTopColor: "white",
                         borderRadius: "50%",
                         animation: "spin 1s linear infinite",
                       }}
