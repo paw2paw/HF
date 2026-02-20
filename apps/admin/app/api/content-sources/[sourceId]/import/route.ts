@@ -16,6 +16,126 @@ import { createJob, getJob, updateJob } from "@/lib/content-trust/extraction-job
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { getStorageAdapter, computeContentHash } from "@/lib/storage";
 import { config } from "@/lib/config";
+import {
+  startTaskTracking,
+  updateTaskProgress,
+  completeTask,
+} from "@/lib/ai/task-guidance";
+
+// ── Background: Classify document ──────────────────────
+
+async function runBackgroundClassification(
+  sourceId: string,
+  taskId: string,
+  file: File,
+  fileBuffer: Buffer,
+  userId: string,
+) {
+  try {
+    const source = await prisma.contentSource.findUnique({
+      where: { id: sourceId },
+      select: { id: true, trustLevel: true },
+    });
+
+    if (!source) {
+      await updateTaskProgress(taskId, {
+        context: { error: "Source not found" },
+      });
+      return;
+    }
+
+    // Extract text
+    const { text } = await extractText(file);
+
+    if (!text.trim()) {
+      await updateTaskProgress(taskId, {
+        context: { error: "Could not extract text from document" },
+      });
+      return;
+    }
+
+    // Classify document type via AI
+    const extractionConfig = await resolveExtractionConfig(sourceId);
+    const fewShotConfig = extractionConfig.classification.fewShot;
+    const examples = fewShotConfig?.enabled !== false
+      ? await fetchFewShotExamples({ sourceId }, fewShotConfig)
+      : [];
+    const classification = await classifyDocument(
+      text.substring(0, extractionConfig.classification.sampleSize),
+      file.name,
+      extractionConfig,
+      examples,
+    );
+
+    // Update source with classification
+    await prisma.contentSource.update({
+      where: { id: sourceId },
+      data: {
+        documentType: classification.documentType,
+        documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
+        textSample: text.substring(0, 1000),
+        aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
+      },
+    });
+
+    // Store file as MediaAsset
+    const contentHash = computeContentHash(fileBuffer);
+    const storage = getStorageAdapter();
+    const existingMedia = await prisma.mediaAsset.findUnique({ where: { contentHash } });
+    let mediaId: string;
+
+    if (existingMedia) {
+      mediaId = existingMedia.id;
+      await prisma.mediaAsset.update({
+        where: { id: existingMedia.id },
+        data: { sourceId },
+      });
+    } else {
+      const mimeType = file.type || "application/octet-stream";
+      const { storageKey } = await storage.upload(fileBuffer, {
+        fileName: file.name,
+        mimeType,
+        contentHash,
+      });
+      const media = await prisma.mediaAsset.create({
+        data: {
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType,
+          contentHash,
+          storageKey,
+          storageType: config.storage.backend,
+          uploadedBy: userId,
+          sourceId,
+          trustLevel: source.trustLevel as any,
+        },
+      });
+      mediaId = media.id;
+    }
+
+    console.log(`[classify-background] Classified "${file.name}" as ${classification.documentType} (confidence: ${classification.confidence}) — stored as media ${mediaId}`);
+
+    // Save result to task context
+    await updateTaskProgress(taskId, {
+      context: {
+        classification: {
+          documentType: classification.documentType,
+          confidence: classification.confidence,
+          reasoning: classification.reasoning,
+        },
+        mediaId,
+        textLength: text.length,
+      },
+    });
+
+    await completeTask(taskId);
+  } catch (error: any) {
+    console.error("[classify-background] Error:", error);
+    await updateTaskProgress(taskId, {
+      context: { error: error.message },
+    });
+  }
+}
 
 /**
  * @api POST /api/content-sources/:sourceId/import
@@ -24,7 +144,7 @@ import { config } from "@/lib/config";
  * @auth session
  * @tags content-trust
  * @description Upload a document (PDF, text, markdown) and extract ContentAssertions linked to this source.
- *   - mode=classify: Classify document type (AI) + store file, no extraction (user reviews before extracting)
+ *   - mode=classify: Classify document type (AI) + store file in background, return taskId for polling
  *   - mode=preview: Extract and return assertions without saving (dry run)
  *   - mode=import: Extract and save assertions to database
  *   - mode=background: Start extraction + import in background, return job ID for polling
@@ -32,7 +152,7 @@ import { config } from "@/lib/config";
  * @body mode "classify" | "preview" | "import" | "background" - Whether to classify-only, preview, save, or run in background (default: preview)
  * @body focusChapters string - Comma-separated chapter names to focus on (optional)
  * @body maxAssertions number - Max assertions to extract (default: 500)
- * @response 200 { ok: true, mode: "classify", classification, mediaId } (classify mode)
+ * @response 202 { ok: true, taskId: string } (classify mode - async)
  * @response 200 { ok: true, assertions: ExtractedAssertion[], created: number, duplicatesSkipped: number, warnings: string[] }
  * @response 202 { ok: true, jobId: string } (background mode)
  */
@@ -80,88 +200,28 @@ export async function POST(
     const focusChapters = focusChaptersRaw?.split(",").map((s) => s.trim()).filter(Boolean);
     const maxAssertions = maxAssertionsRaw ? parseInt(maxAssertionsRaw, 10) : 500;
 
-    // ── Classify mode: classify + store file, no extraction ──
+    // ── Classify mode: start background classification ──
     if (mode === "classify") {
-      const { text } = await extractText(file);
-      if (!text.trim()) {
-        return NextResponse.json(
-          { ok: false, error: "Could not extract text from document" },
-          { status: 422 }
-        );
-      }
-
-      // Classify document type via AI (with few-shot learning from corrections)
-      const extractionConfig = await resolveExtractionConfig(source.id);
-      const fewShotConfig = extractionConfig.classification.fewShot;
-      const examples = fewShotConfig?.enabled !== false
-        ? await fetchFewShotExamples({ sourceId: source.id }, fewShotConfig)
-        : [];
-      const classification = await classifyDocument(
-        text.substring(0, extractionConfig.classification.sampleSize),
-        file.name,
-        extractionConfig,
-        examples,
-      );
-
-      await prisma.contentSource.update({
-        where: { id: sourceId },
-        data: {
-          documentType: classification.documentType,
-          documentTypeSource: `ai:${classification.confidence.toFixed(2)}`,
-          textSample: text.substring(0, 1000),
-          aiClassification: `${classification.documentType}:${classification.confidence.toFixed(2)}`,
-        },
-      });
-
-      // Store file as MediaAsset
       const buffer = Buffer.from(await file.arrayBuffer());
-      const contentHash = computeContentHash(buffer);
-      const storage = getStorageAdapter();
-      const existingMedia = await prisma.mediaAsset.findUnique({ where: { contentHash } });
-      let mediaId: string;
 
-      if (existingMedia) {
-        mediaId = existingMedia.id;
-        await prisma.mediaAsset.update({
-          where: { id: existingMedia.id },
-          data: { sourceId },
-        });
-      } else {
-        const mimeType = file.type || "application/octet-stream";
-        const { storageKey } = await storage.upload(buffer, {
-          fileName: file.name,
-          mimeType,
-          contentHash,
-        });
-        const media = await prisma.mediaAsset.create({
-          data: {
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType,
-            contentHash,
-            storageKey,
-            storageType: config.storage.backend,
-            uploadedBy: authResult.session.user.id,
-            sourceId,
-            trustLevel: source.trustLevel as any,
-          },
-        });
-        mediaId = media.id;
-      }
-
-      console.log(`[import] Classified "${file.name}" as ${classification.documentType} (confidence: ${classification.confidence}) — stored as media ${mediaId}`);
-
-      return NextResponse.json({
-        ok: true,
-        mode: "classify",
-        classification: {
-          documentType: classification.documentType,
-          confidence: classification.confidence,
-          reasoning: classification.reasoning,
-        },
-        mediaId,
-        textLength: text.length,
+      // Create task
+      const taskId = await startTaskTracking(authResult.session.user.id, "classification", {
+        sourceId,
+        fileName: file.name,
       });
+
+      // Fire background classification (no await)
+      runBackgroundClassification(sourceId, taskId, file, buffer, authResult.session.user.id).catch(async (err) => {
+        console.error("[classify] Background error:", err);
+        await updateTaskProgress(taskId, {
+          context: { error: err.message },
+        });
+      });
+
+      return NextResponse.json(
+        { ok: true, taskId },
+        { status: 202 }
+      );
     }
 
     // ── Background mode: return immediately, extract in background ──

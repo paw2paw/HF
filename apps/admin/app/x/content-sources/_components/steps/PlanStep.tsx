@@ -153,7 +153,10 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
     }
   }
 
-  // ── Generate lesson plan ─────────────────────────────
+  // Lesson plan task
+  const [planTaskId, setPlanTaskId] = useState<string | null>(null);
+
+  // ── Generate lesson plan (starts async job) ─────────────────────────────
   async function handleGeneratePlan() {
     if (!curriculumId) return;
     setGenerating(true);
@@ -171,21 +174,62 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
         }),
       });
       const data = await res.json();
-      if (data.ok && data.plan) {
-        setEntries(data.plan);
-        setReasoning(data.reasoning || "");
-        setPhase("editing");
+      if (data.taskId) {
+        // Job submitted async, store taskId and poll
+        setPlanTaskId(data.taskId);
       } else {
-        setError(data.error || "Failed to generate lesson plan");
+        setError(data.error || "Failed to start lesson plan generation");
         setPhase("intents");
+        setGenerating(false);
       }
     } catch {
-      setError("Failed to generate lesson plan");
+      setError("Failed to start lesson plan generation");
       setPhase("intents");
-    } finally {
       setGenerating(false);
     }
   }
+
+  // ── Poll lesson plan task ──────────────────────────────
+  useEffect(() => {
+    if (!planTaskId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/tasks?taskId=${planTaskId}`);
+        const data = await res.json();
+        const task = data.task || data.tasks?.[0]; // Handle both response formats
+
+        if (task?.status === "completed") {
+          clearInterval(interval);
+          const ctx = (task.context as Record<string, any>) || {};
+
+          if (ctx.error) {
+            setError(ctx.error);
+            setPhase("intents");
+            setGenerating(false);
+          } else if (ctx.plan && Array.isArray(ctx.plan)) {
+            setEntries(ctx.plan);
+            setReasoning(ctx.reasoning || "");
+            setPhase("editing");
+            setGenerating(false);
+          } else {
+            setError("Lesson plan not found in task result");
+            setPhase("intents");
+            setGenerating(false);
+          }
+          setPlanTaskId(null);
+        } else if (task?.status === "failed") {
+          clearInterval(interval);
+          setError("Lesson plan generation failed. Please try again.");
+          setPhase("intents");
+          setGenerating(false);
+          setPlanTaskId(null);
+        }
+      } catch {
+        // Silent — poll continues
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [planTaskId]);
 
   // ── Intent form → generate ───────────────────────────
   async function handleIntentSubmit() {

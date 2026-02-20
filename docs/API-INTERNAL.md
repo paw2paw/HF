@@ -3973,9 +3973,9 @@ Upload a document (PDF, text, markdown) and extract ContentAssertions linked to 
 | focusChapters | body | string | No | Comma-separated chapter names to focus on (optional) |
 | maxAssertions | body | number | No | Max assertions to extract (default: 500) |
 
-**Response** `200`
+**Response** `202`
 ```json
-{ ok: true, mode: "classify", classification, mediaId } (classify mode)
+{ ok: true, taskId: string } (classify mode - async)
 ```
 
 **Response** `200`

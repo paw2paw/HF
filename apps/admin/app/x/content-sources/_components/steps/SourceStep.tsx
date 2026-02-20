@@ -32,6 +32,7 @@ export default function SourceStep({ setData, getData, onNext }: StepProps) {
   const [dragOver, setDragOver] = useState(false);
   const [classifying, setClassifying] = useState(false);
   const [classificationResult, setClassificationResult] = useState<{ type: string; confidence: number } | null>(null);
+  const [classifyTaskId, setClassifyTaskId] = useState<string | null>(null);
 
   const [sourceCreated, setSourceCreated] = useState(false);
   const [sourceId, setSourceId] = useState<string | null>(getData<string>("sourceId") || null);
@@ -56,6 +57,40 @@ export default function SourceStep({ setData, getData, onNext }: StepProps) {
       }
     }).catch(() => {});
   }, []);
+
+  // Poll classification task
+  useEffect(() => {
+    if (!classifyTaskId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/tasks?taskId=${classifyTaskId}`);
+        const data = await res.json();
+        const task = data.task || data.tasks?.[0]; // Handle both response formats
+
+        if (task?.status === "completed") {
+          clearInterval(interval);
+          const ctx = (task.context as Record<string, any>) || {};
+
+          if (ctx.error) {
+            setError(ctx.error);
+          } else if (ctx.classification) {
+            setClassificationResult({
+              type: ctx.classification.documentType,
+              confidence: Math.round(ctx.classification.confidence * 100),
+            });
+          }
+          setClassifyTaskId(null);
+        } else if (task?.status === "failed") {
+          clearInterval(interval);
+          setError("Classification failed. Please try again.");
+          setClassifyTaskId(null);
+        }
+      } catch {
+        // Silent — poll continues
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [classifyTaskId]);
 
   // AI Suggest from description
   async function handleSuggest() {
@@ -148,7 +183,7 @@ export default function SourceStep({ setData, getData, onNext }: StepProps) {
       setData("sourceName", form.name);
       setData("hasFile", !!file);
 
-      // 2. If file, upload + classify
+      // 2. If file, upload + classify (async)
       if (file) {
         setClassifying(true);
         const formData = new FormData();
@@ -161,13 +196,11 @@ export default function SourceStep({ setData, getData, onNext }: StepProps) {
           });
           const classifyData = await classifyRes.json();
           if (!classifyRes.ok) {
-            throw new Error(classifyData.error || "Failed to upload file");
+            throw new Error(classifyData.error || "Failed to start classification");
           }
-          if (classifyData.classification) {
-            setClassificationResult({
-              type: classifyData.classification.documentType,
-              confidence: Math.round(classifyData.classification.confidence * 100),
-            });
+          if (classifyData.taskId) {
+            // Classification is async, store taskId and poll
+            setClassifyTaskId(classifyData.taskId);
           }
           // Store file in context so ExtractStep can re-upload if needed
           setData("file", file);

@@ -187,34 +187,17 @@ export async function PUT(
   }
 }
 
-// ── POST — AI-generate lesson plan ─────────────────────
+// ── Background: AI-generate lesson plan ────────────────
 
-/**
- * @api POST /api/curricula/:curriculumId/lesson-plan
- * @visibility public
- * @scope curricula:write
- * @auth session (OPERATOR+)
- * @tags curricula, lesson-plan
- * @description AI-generate a lesson plan from curriculum modules and assertion counts.
- * @body { totalSessionTarget?: number, durationMins?: number, emphasis?: "breadth"|"depth"|"balanced", includeAssessments?: "formal"|"light"|"none" }
- * @response 200 { ok: true, plan: LessonPlanEntry[], estimatedSessions: number, reasoning: string }
- * @response 404 { ok: false, error: "Curriculum not found" }
- */
-export async function POST(
-  request: NextRequest,
-  { params }: Params,
+async function runBackgroundLessonPlanGeneration(
+  curriculumId: string,
+  taskId: string,
+  totalSessionTarget: number | null,
+  durationMins: number | null,
+  emphasis: string,
+  includeAssessments: string,
 ) {
   try {
-    const auth = await requireAuth("OPERATOR");
-    if (isAuthError(auth)) return auth.error;
-
-    const { curriculumId } = await params;
-    const body = await request.json().catch(() => ({}));
-    const totalSessionTarget = body.totalSessionTarget || null;
-    const durationMins = body.durationMins || null;
-    const emphasis: string = body.emphasis || "balanced";
-    const includeAssessments: string = body.includeAssessments || "light";
-
     // Load curriculum with modules
     const curriculum = await prisma.curriculum.findUnique({
       where: { id: curriculumId },
@@ -228,7 +211,10 @@ export async function POST(
     });
 
     if (!curriculum) {
-      return NextResponse.json({ ok: false, error: "Curriculum not found" }, { status: 404 });
+      await updateTaskProgress(taskId, {
+        context: { error: "Curriculum not found" },
+      });
+      return;
     }
 
     // Extract modules from notableInfo
@@ -236,10 +222,10 @@ export async function POST(
     const modules: any[] = notableInfo.modules || [];
 
     if (modules.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "Curriculum has no modules. Generate the curriculum first." },
-        { status: 400 },
-      );
+      await updateTaskProgress(taskId, {
+        context: { error: "Curriculum has no modules. Generate the curriculum first." },
+      });
+      return;
     }
 
     // Count assertions per module topic (if we have subject linkage)
@@ -338,10 +324,10 @@ Total modules: ${modules.length}`;
       parsed = JSON.parse(cleaned);
     } catch (parseErr) {
       console.error("[lesson-plan] Failed to parse AI response:", content?.slice(0, 200));
-      return NextResponse.json(
-        { ok: false, error: "AI did not return valid JSON. Try again." },
-        { status: 500 },
-      );
+      await updateTaskProgress(taskId, {
+        context: { error: "AI did not return valid JSON. Try again." },
+      });
+      return;
     }
 
     const entries: LessonPlanEntry[] = (parsed.entries || []).map((e: any, i: number) => ({
@@ -355,12 +341,102 @@ Total modules: ${modules.length}`;
       assertionCount: e.assertionCount || undefined,
     }));
 
-    return NextResponse.json({
-      ok: true,
-      plan: entries,
-      estimatedSessions: entries.length,
-      reasoning: parsed.reasoning || "",
+    // Save result to task context
+    await updateTaskProgress(taskId, {
+      context: {
+        plan: entries,
+        estimatedSessions: entries.length,
+        reasoning: parsed.reasoning || "",
+      },
     });
+
+    await completeTask(taskId);
+  } catch (error: any) {
+    console.error("[lesson-plan background] Error:", error);
+    await updateTaskProgress(taskId, {
+      context: { error: error.message },
+    });
+  }
+}
+
+// ── POST — AI-generate lesson plan (async) ─────────────
+
+/**
+ * @api POST /api/curricula/:curriculumId/lesson-plan
+ * @visibility public
+ * @scope curricula:write
+ * @auth session (OPERATOR+)
+ * @tags curricula, lesson-plan
+ * @description Start AI-generation of a lesson plan from curriculum modules. Returns 202 with taskId to poll for progress.
+ * @body { totalSessionTarget?: number, durationMins?: number, emphasis?: "breadth"|"depth"|"balanced", includeAssessments?: "formal"|"light"|"none" }
+ * @response 202 { ok: true, taskId: string }
+ * @response 400 { ok: false, error: "..." }
+ * @response 404 { ok: false, error: "Curriculum not found" }
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: Params,
+) {
+  try {
+    const auth = await requireAuth("OPERATOR");
+    if (isAuthError(auth)) return auth.error;
+
+    const { curriculumId } = await params;
+    const body = await request.json().catch(() => ({}));
+    const totalSessionTarget = body.totalSessionTarget || null;
+    const durationMins = body.durationMins || null;
+    const emphasis: string = body.emphasis || "balanced";
+    const includeAssessments: string = body.includeAssessments || "light";
+
+    // Verify curriculum exists
+    const curriculum = await prisma.curriculum.findUnique({
+      where: { id: curriculumId },
+      select: { id: true, notableInfo: true },
+    });
+
+    if (!curriculum) {
+      return NextResponse.json({ ok: false, error: "Curriculum not found" }, { status: 404 });
+    }
+
+    // Check curriculum has modules
+    const notableInfo = (curriculum.notableInfo as Record<string, any>) || {};
+    const modules: any[] = notableInfo.modules || [];
+
+    if (modules.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "Curriculum has no modules. Generate the curriculum first." },
+        { status: 400 },
+      );
+    }
+
+    // Create task
+    const taskId = await startTaskTracking(auth.session.user.id, "lesson_plan", {
+      curriculumId,
+      totalSessionTarget,
+      durationMins,
+      emphasis,
+      includeAssessments,
+    });
+
+    // Fire background generation (no await)
+    runBackgroundLessonPlanGeneration(
+      curriculumId,
+      taskId,
+      totalSessionTarget,
+      durationMins,
+      emphasis,
+      includeAssessments,
+    ).catch(async (err) => {
+      console.error("[lesson-plan] Background error:", err);
+      await updateTaskProgress(taskId, {
+        context: { error: err.message },
+      });
+    });
+
+    return NextResponse.json(
+      { ok: true, taskId },
+      { status: 202 }
+    );
   } catch (error: any) {
     console.error("[curricula/:id/lesson-plan] POST error:", error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
