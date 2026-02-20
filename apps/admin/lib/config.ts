@@ -279,6 +279,15 @@ export const config = {
     get defaultArchetype(): string {
       return optional("DEFAULT_ARCHETYPE_SLUG", "TUT-001");
     },
+
+    /**
+     * Classroom Setup Wizard Spec (default: CLASSROOM-SETUP-001)
+     * Defines classroom creation wizard steps: name, courses, review, invite.
+     * Can be overridden via CLASSROOM_SETUP_SPEC_SLUG env var.
+     */
+    get classroomSetup(): string {
+      return optional("CLASSROOM_SETUP_SPEC_SLUG", "CLASSROOM-SETUP-001");
+    },
   },
 
   // ---------------------------------------------------------------------------

@@ -110,6 +110,29 @@ describe("wizard-spec loader", () => {
       expect(steps).toBeNull();
     });
 
+    it("loads CLASSROOM-SETUP-001 steps with expected step IDs", async () => {
+      const mockSteps = [
+        { id: "name-focus", label: "Name & Focus", activeLabel: "Setting Name & Learning Focus", order: 1, skippable: false },
+        { id: "courses", label: "Courses", activeLabel: "Selecting Courses", order: 2, skippable: true },
+        { id: "review", label: "Review", activeLabel: "Reviewing Classroom", order: 3, skippable: false },
+        { id: "invite", label: "Invite", activeLabel: "Inviting Students", order: 4, skippable: false },
+      ];
+
+      mockPrisma.analysisSpec.findFirst.mockResolvedValueOnce({
+        slug: "CLASSROOM-SETUP-001",
+        config: {
+          parameters: [{ id: "wizard_steps", config: { steps: mockSteps } }],
+        },
+      });
+
+      const steps = await loadWizardSteps("CLASSROOM-SETUP-001");
+
+      expect(steps).toHaveLength(4);
+      expect(steps?.map((s) => s.id)).toEqual(["name-focus", "courses", "review", "invite"]);
+      expect(steps?.[1].skippable).toBe(true);
+      expect(steps?.[0].skippable).toBe(false);
+    });
+
     it("handles case-insensitive slug matching", async () => {
       mockPrisma.analysisSpec.findFirst.mockResolvedValueOnce({
         slug: "CONTENT-SOURCE-SETUP-001",

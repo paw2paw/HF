@@ -16,6 +16,22 @@ interface PlaybookOption {
   description: string | null;
 }
 
+interface WizardStep {
+  id: string;
+  label: string;
+  activeLabel: string;
+  order: number;
+  skippable: boolean;
+  description?: string;
+}
+
+const FALLBACK_STEPS: WizardStep[] = [
+  { id: "name-focus", label: "Name & Focus", activeLabel: "Setting Name & Learning Focus", order: 1, skippable: false },
+  { id: "courses", label: "Courses", activeLabel: "Selecting Courses", order: 2, skippable: true },
+  { id: "review", label: "Review", activeLabel: "Reviewing Classroom", order: 3, skippable: false },
+  { id: "invite", label: "Invite", activeLabel: "Inviting Students", order: 4, skippable: false },
+];
+
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -40,6 +56,7 @@ export default function NewClassroomPage() {
     joinToken: string;
   } | null>(null);
   const [error, setError] = useState("");
+  const [wizardSteps, setWizardSteps] = useState<WizardStep[]>(FALLBACK_STEPS);
 
   // Course picker state
   const [playbooks, setPlaybooks] = useState<PlaybookOption[]>([]);
@@ -57,6 +74,18 @@ export default function NewClassroomPage() {
         }
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  // Load wizard step definitions from spec
+  useEffect(() => {
+    fetch("/api/wizard-steps?slug=CLASSROOM-SETUP-001")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && data.steps?.length > 0) {
+          setWizardSteps(data.steps);
+        }
+      })
+      .catch(() => {}); // silent — fallback already set
   }, []);
 
   // Load playbooks when domain changes
@@ -164,15 +193,15 @@ export default function NewClassroomPage() {
           marginBottom: 32,
         }}
       >
-        {[1, 2, 3, 4].map((s) => (
+        {wizardSteps.map((ws, i) => (
           <div
-            key={s}
+            key={ws.id}
             style={{
               flex: 1,
               height: 4,
               borderRadius: 2,
               background:
-                s <= step
+                i + 1 <= step
                   ? "var(--button-primary-bg)"
                   : "var(--border-default)",
               transition: "background 0.3s",
@@ -199,7 +228,7 @@ export default function NewClassroomPage() {
               marginBottom: 20,
             }}
           >
-            Name & Learning Focus
+            {wizardSteps[0]?.label ?? "Name & Focus"}
           </h2>
 
           <div style={{ marginBottom: 16 }}>
@@ -350,7 +379,7 @@ export default function NewClassroomPage() {
               marginBottom: 8,
             }}
           >
-            Courses
+            {wizardSteps[1]?.label ?? "Courses"}
           </h2>
           <p
             style={{
@@ -526,7 +555,7 @@ export default function NewClassroomPage() {
               marginBottom: 20,
             }}
           >
-            Review
+            {wizardSteps[2]?.label ?? "Review"}
           </h2>
 
           <div

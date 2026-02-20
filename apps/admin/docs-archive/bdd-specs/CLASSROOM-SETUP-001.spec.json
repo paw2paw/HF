@@ -1,0 +1,71 @@
+{
+  "id": "classroom-setup-001",
+  "slug": "CLASSROOM-SETUP-001",
+  "title": "Classroom Setup Wizard",
+  "name": "Classroom Setup Wizard",
+  "version": "1.0.0",
+  "story": "As an educator, I want to create a classroom with courses and invite students via a join link",
+  "description": "Multi-step wizard for creating a classroom (cohort) with name, learning focus, courses, and invite link generation",
+  "specRole": "ORCHESTRATE",
+  "domain": "wizard",
+  "outputType": "ORCHESTRATE",
+  "specType": "SYSTEM",
+  "isActive": true,
+  "isDirty": false,
+  "isDeletable": true,
+  "triggers": [
+    {
+      "given": "An educator initiates the classroom creation workflow",
+      "when": "The educator clicks 'Create Classroom' on /x/educator/classrooms/new",
+      "then": "The wizard steps are loaded from this spec and the flow progresses through all steps",
+      "name": "Classroom Setup Wizard Execution",
+      "sortOrder": 0
+    }
+  ],
+  "parameters": [
+    {
+      "id": "wizard_steps",
+      "name": "Wizard Step Definitions",
+      "description": "Defines the sequence and configuration of classroom setup wizard steps",
+      "section": "orchestration",
+      "config": {
+        "steps": [
+          {
+            "id": "name-focus",
+            "label": "Name & Focus",
+            "activeLabel": "Setting Name & Learning Focus",
+            "order": 1,
+            "skippable": false,
+            "description": "Enter classroom name, optional description, and select learning domain"
+          },
+          {
+            "id": "courses",
+            "label": "Courses",
+            "activeLabel": "Selecting Courses",
+            "order": 2,
+            "skippable": true,
+            "description": "Select which courses (playbooks) to include in this classroom"
+          },
+          {
+            "id": "review",
+            "label": "Review",
+            "activeLabel": "Reviewing Classroom",
+            "order": 3,
+            "skippable": false,
+            "description": "Review classroom details and create"
+          },
+          {
+            "id": "invite",
+            "label": "Invite",
+            "activeLabel": "Inviting Students",
+            "order": 4,
+            "skippable": false,
+            "description": "Copy join link and invite message to share with students"
+          }
+        ]
+      }
+    }
+  ],
+  "createdAt": "2026-02-20T00:00:00Z",
+  "updatedAt": "2026-02-20T00:00:00Z"
+}
