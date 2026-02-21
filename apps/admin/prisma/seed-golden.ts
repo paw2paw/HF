@@ -5,8 +5,10 @@
  *   1. Greenfield Academy (school) — 2 lesson plans, 2 classes, 8 students
  *   2. Apex Consulting (corporate) — 1 training plan, 1 team, 6 employees
  *   3. Bright Path Training (training) — 12 courses, 1 cohort, 8 participants
+ *   4. Companion (community) — 2 programmes, 1 community, 6 members
  *
  * Each institution gets an EDUCATOR login (hff2026) so terminology resolves correctly.
+ * Additional RBAC demo users: admin@hff.com (ADMIN), viewer@hff.com (VIEWER).
  * All entities tagged with "golden-" externalId prefix for idempotent cleanup.
  *
  * Non-PROD only — refuses to run when NEXT_PUBLIC_APP_ENV=LIVE.
@@ -117,7 +119,34 @@ const INSTITUTIONS: InstitutionDef[] = [
     },
   },
 
-  // ── 3. Training Company ────────────────────────────────
+  // ── 3. Community Hub ───────────────────────────────────
+  {
+    slug: "companion-hub",
+    name: "Companion",
+    typeSlug: "community",
+    primaryColor: "#6366f1",
+    secondaryColor: "#a5b4fc",
+    welcomeMessage: "Welcome to Companion — your peer support community for wellbeing and life skills.",
+    login: { email: "community@hff.com", name: "Maya Rodriguez" },
+    domain: {
+      slug: "companion-hub",
+      name: "Companion Hub",
+      description: "A peer-support community for wellbeing and life skills development.",
+      playbooks: [
+        { slug: "golden-wellbeing-circle", name: "Wellbeing Circle", description: "Peer support for emotional wellbeing, resilience, and self-care strategies." },
+        { slug: "golden-life-skills-lab", name: "Life Skills Lab", description: "Practical skills for daily life — budgeting, cooking, time management, and digital literacy." },
+      ],
+      cohorts: [
+        {
+          name: "Founding Members",
+          teacher: { name: "Maya Rodriguez", email: "maya@companion.test" },
+          members: ["Jordan Lee", "Priya Sharma", "Tyler Brooks", "Amara Osei", "Finn Gallagher", "Lucia Vega"],
+        },
+      ],
+    },
+  },
+
+  // ── 4. Training Company ────────────────────────────────
   {
     slug: "bright-path-training",
     name: "Bright Path Training",
@@ -453,6 +482,22 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
     console.log("");
   }
 
+  // ── 3. Create RBAC demo users (not institution-scoped) ─
+  await prisma.user.upsert({
+    where: { email: "admin@hff.com" },
+    update: { name: "Admin User", role: "ADMIN", passwordHash, isActive: true },
+    create: { email: "admin@hff.com", name: "Admin User", role: "ADMIN", passwordHash, isActive: true },
+  });
+  console.log("  + RBAC: admin@hff.com (ADMIN)");
+
+  await prisma.user.upsert({
+    where: { email: "viewer@hff.com" },
+    update: { name: "Demo Viewer", role: "VIEWER", passwordHash, isActive: true },
+    create: { email: "viewer@hff.com", name: "Demo Viewer", role: "VIEWER", passwordHash, isActive: true },
+  });
+  console.log("  + RBAC: viewer@hff.com (VIEWER)");
+  console.log("");
+
   // ── Summary ────────────────────────────────────────────
   console.log("  ─────────────────────────────────────────────");
   console.log(`  ✓ Golden Path seed complete`);
@@ -462,7 +507,7 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
   console.log(`    Cohorts:       ${totalCohorts}`);
   console.log(`    Teachers:      ${totalTeachers}`);
   console.log(`    Learners:      ${totalLearners}`);
-  console.log(`    Logins:        ${INSTITUTIONS.length}`);
+  console.log(`    Logins:        ${INSTITUTIONS.length + 2} (${INSTITUTIONS.length} EDUCATOR + ADMIN + VIEWER)`);
   console.log("");
 
   if (!externalPrisma) {
