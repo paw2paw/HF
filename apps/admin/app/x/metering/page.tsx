@@ -6,19 +6,19 @@ import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 
 // Category colors
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  AI: { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },
-  DATABASE: { bg: "#fef3c7", text: "#b45309", border: "#fcd34d" },
-  COMPUTE: { bg: "#d1fae5", text: "#047857", border: "#6ee7b7" },
-  STORAGE: { bg: "#e0e7ff", text: "#4338ca", border: "#a5b4fc" },
-  EXTERNAL: { bg: "#fce7f3", text: "#be185d", border: "#f9a8d4" },
+  AI: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", border: "var(--badge-blue-border)" },
+  DATABASE: { bg: "var(--badge-amber-bg, #fef3c7)", text: "var(--badge-amber-text, #b45309)", border: "var(--badge-amber-border, #fcd34d)" },
+  COMPUTE: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text, #047857)", border: "var(--badge-green-border, #6ee7b7)" },
+  STORAGE: { bg: "var(--badge-indigo-bg)", text: "var(--badge-indigo-text)", border: "var(--badge-indigo-border, #a5b4fc)" },
+  EXTERNAL: { bg: "var(--badge-pink-bg)", text: "var(--badge-pink-text)", border: "var(--badge-pink-border)" },
 };
 
 // AI Provider colors - distinct dots for each provider
 const PROVIDER_COLORS: Record<string, { dot: string; bg: string; text: string; border: string; label: string }> = {
-  anthropic: { dot: "#8b5cf6", bg: "#f3e8ff", text: "#7c3aed", border: "#c4b5fd", label: "Claude" },
-  openai: { dot: "#10b981", bg: "#d1fae5", text: "#059669", border: "#6ee7b7", label: "OpenAI" },
-  mock: { dot: "#9ca3af", bg: "#f3f4f6", text: "#6b7280", border: "#d1d5db", label: "Mock" },
-  unknown: { dot: "#3b82f6", bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd", label: "Other" },
+  anthropic: { dot: "var(--badge-purple-text)", bg: "var(--badge-purple-bg)", text: "var(--badge-purple-text)", border: "var(--badge-purple-border)", label: "Claude" },
+  openai: { dot: "var(--badge-green-text)", bg: "var(--badge-green-bg)", text: "var(--badge-green-text)", border: "var(--badge-green-border)", label: "OpenAI" },
+  mock: { dot: "var(--badge-gray-text)", bg: "var(--badge-gray-bg)", text: "var(--badge-gray-text)", border: "var(--badge-gray-border)", label: "Mock" },
+  unknown: { dot: "var(--badge-blue-text)", bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", border: "var(--badge-blue-border)", label: "Other" },
 };
 
 // Helper: Derive provider from model name or engine
@@ -308,7 +308,7 @@ export default function MeteringPage() {
       <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Resource Metering</h1>
+        <h1 className="hf-page-title">Resource Metering</h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
           Track usage and costs across AI, database, compute, storage, and external services
         </p>

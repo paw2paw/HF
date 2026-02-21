@@ -25,6 +25,7 @@ interface ProgressData {
   }[];
   totalCalls: number;
   classroom: string | null;
+  classrooms?: Array<{ id: string; name: string; teacher: string | null }>;
   domain: string | null;
   teacherName: string | null;
   institutionName: string | null;

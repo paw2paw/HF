@@ -2311,7 +2311,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           {availableItems?.systemSpecs && availableItems.systemSpecs.length > 0 ? (
             <div style={{
               padding: 12,
-              background: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)",
+              background: "var(--status-success-bg)",
               border: "1px solid var(--status-success-border)",
               borderRadius: 12,
             }}>
@@ -4016,16 +4016,16 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                 // Dynamic color generation based on group name (NO HARDCODING!)
                 // Uses a color palette that assigns consistent colors based on hash
                 const colorPalette = [
-                  { primary: "#a78bfa", glow: "#8b5cf6" }, // purple
-                  { primary: "#34d399", glow: "#10b981" }, // green
-                  { primary: "#fbbf24", glow: "#f59e0b" }, // yellow
-                  { primary: "#60a5fa", glow: "#3b82f6" }, // blue
-                  { primary: "#f472b6", glow: "#ec4899" }, // pink
-                  { primary: "#fb923c", glow: "#f97316" }, // orange
-                  { primary: "#a3e635", glow: "#84cc16" }, // lime
-                  { primary: "#2dd4bf", glow: "#14b8a6" }, // teal
-                  { primary: "#c084fc", glow: "#a855f7" }, // violet
-                  { primary: "#9ca3af", glow: "#6b7280" }, // gray (fallback)
+                  { primary: "var(--slider-purple, #a78bfa)", glow: "var(--slider-purple-glow, #8b5cf6)" },
+                  { primary: "var(--slider-green, #34d399)", glow: "var(--slider-green-glow, #10b981)" },
+                  { primary: "var(--slider-yellow, #fbbf24)", glow: "var(--slider-yellow-glow, #f59e0b)" },
+                  { primary: "var(--slider-blue, #60a5fa)", glow: "var(--slider-blue-glow, #3b82f6)" },
+                  { primary: "var(--slider-pink, #f472b6)", glow: "var(--slider-pink-glow, #ec4899)" },
+                  { primary: "var(--slider-orange, #fb923c)", glow: "var(--slider-orange-glow, #f97316)" },
+                  { primary: "var(--slider-lime, #a3e635)", glow: "var(--slider-lime-glow, #84cc16)" },
+                  { primary: "var(--slider-teal, #2dd4bf)", glow: "var(--slider-teal-glow, #14b8a6)" },
+                  { primary: "var(--slider-violet, #c084fc)", glow: "var(--slider-violet-glow, #a855f7)" },
+                  { primary: "var(--text-muted)", glow: "var(--text-muted)" },
                 ];
 
                 // Simple string hash function for consistent color assignment
@@ -4241,13 +4241,13 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
                   {/* Memory Settings Group */}
-                  <SliderGroup title="Memory Settings" color={{ primary: "#60a5fa", glow: "#3b82f6" }}>
+                  <SliderGroup title="Memory Settings" color={{ primary: "var(--slider-blue, #60a5fa)", glow: "var(--slider-blue-glow, #3b82f6)" }}>
                     {/* Memory Min Confidence */}
                     <div>
                       <VerticalSlider
                         value={getConfigValue("memoryMinConfidence")}
                         targetValue={isConfigModified("memoryMinConfidence") ? defaultConfigSettings.memoryMinConfidence : undefined}
-                        color={{ primary: "#60a5fa", glow: "#3b82f6" }}
+                        color={{ primary: "var(--slider-blue, #60a5fa)", glow: "var(--slider-blue-glow, #3b82f6)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("memoryMinConfidence", v)}
                         isModified={isConfigModified("memoryMinConfidence")}
@@ -4272,7 +4272,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <VerticalSlider
                         value={getConfigValue("memoryMaxCount") / 50}
                         targetValue={isConfigModified("memoryMaxCount") ? defaultConfigSettings.memoryMaxCount / 50 : undefined}
-                        color={{ primary: "#60a5fa", glow: "#3b82f6" }}
+                        color={{ primary: "var(--slider-blue, #60a5fa)", glow: "var(--slider-blue-glow, #3b82f6)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("memoryMaxCount", Math.round(v * 50))}
                         isModified={isConfigModified("memoryMaxCount")}
@@ -4297,7 +4297,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <VerticalSlider
                         value={getConfigValue("memoryDecayHalfLife") / 90}
                         targetValue={isConfigModified("memoryDecayHalfLife") ? defaultConfigSettings.memoryDecayHalfLife / 90 : undefined}
-                        color={{ primary: "#60a5fa", glow: "#3b82f6" }}
+                        color={{ primary: "var(--slider-blue, #60a5fa)", glow: "var(--slider-blue-glow, #3b82f6)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("memoryDecayHalfLife", Math.max(1, Math.round(v * 90)))}
                         isModified={isConfigModified("memoryDecayHalfLife")}
@@ -4319,12 +4319,12 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   </SliderGroup>
 
                   {/* Learning Rate Group */}
-                  <SliderGroup title="Learning Rate" color={{ primary: "#34d399", glow: "#10b981" }}>
+                  <SliderGroup title="Learning Rate" color={{ primary: "var(--slider-green, #34d399)", glow: "var(--slider-green-glow, #10b981)" }}>
                     <div>
                       <VerticalSlider
                         value={getConfigValue("learningRate")}
                         targetValue={isConfigModified("learningRate") ? defaultConfigSettings.learningRate : undefined}
-                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        color={{ primary: "var(--slider-green, #34d399)", glow: "var(--slider-green-glow, #10b981)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("learningRate", v)}
                         isModified={isConfigModified("learningRate")}
@@ -4344,7 +4344,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <VerticalSlider
                         value={getConfigValue("learningTolerance")}
                         targetValue={isConfigModified("learningTolerance") ? defaultConfigSettings.learningTolerance : undefined}
-                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        color={{ primary: "var(--slider-green, #34d399)", glow: "var(--slider-green-glow, #10b981)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("learningTolerance", v)}
                         isModified={isConfigModified("learningTolerance")}
@@ -4364,7 +4364,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <VerticalSlider
                         value={getConfigValue("learningMinConfidence")}
                         targetValue={isConfigModified("learningMinConfidence") ? defaultConfigSettings.learningMinConfidence : undefined}
-                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        color={{ primary: "var(--slider-green, #34d399)", glow: "var(--slider-green-glow, #10b981)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("learningMinConfidence", v)}
                         isModified={isConfigModified("learningMinConfidence")}
@@ -4384,7 +4384,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <VerticalSlider
                         value={getConfigValue("learningMaxConfidence")}
                         targetValue={isConfigModified("learningMaxConfidence") ? defaultConfigSettings.learningMaxConfidence : undefined}
-                        color={{ primary: "#34d399", glow: "#10b981" }}
+                        color={{ primary: "var(--slider-green, #34d399)", glow: "var(--slider-green-glow, #10b981)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("learningMaxConfidence", v)}
                         isModified={isConfigModified("learningMaxConfidence")}
@@ -4403,12 +4403,12 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   </SliderGroup>
 
                   {/* AI Settings Group */}
-                  <SliderGroup title="AI Settings" color={{ primary: "#c084fc", glow: "#a855f7" }}>
+                  <SliderGroup title="AI Settings" color={{ primary: "var(--slider-violet, #c084fc)", glow: "var(--slider-violet-glow, #a855f7)" }}>
                     <div>
                       <VerticalSlider
                         value={getConfigValue("aiTemperature")}
                         targetValue={isConfigModified("aiTemperature") ? defaultConfigSettings.aiTemperature : undefined}
-                        color={{ primary: "#c084fc", glow: "#a855f7" }}
+                        color={{ primary: "var(--slider-violet, #c084fc)", glow: "var(--slider-violet-glow, #a855f7)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("aiTemperature", v)}
                         isModified={isConfigModified("aiTemperature")}
@@ -4427,12 +4427,12 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   </SliderGroup>
 
                   {/* Target Bounds Group */}
-                  <SliderGroup title="Target Bounds" color={{ primary: "#fb923c", glow: "#f97316" }}>
+                  <SliderGroup title="Target Bounds" color={{ primary: "var(--slider-orange, #fb923c)", glow: "var(--slider-orange-glow, #f97316)" }}>
                     <div>
                       <VerticalSlider
                         value={getConfigValue("targetClampMin")}
                         targetValue={isConfigModified("targetClampMin") ? defaultConfigSettings.targetClampMin : undefined}
-                        color={{ primary: "#fb923c", glow: "#f97316" }}
+                        color={{ primary: "var(--slider-orange, #fb923c)", glow: "var(--slider-orange-glow, #f97316)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("targetClampMin", v)}
                         isModified={isConfigModified("targetClampMin")}
@@ -4452,7 +4452,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <VerticalSlider
                         value={getConfigValue("targetClampMax")}
                         targetValue={isConfigModified("targetClampMax") ? defaultConfigSettings.targetClampMax : undefined}
-                        color={{ primary: "#fb923c", glow: "#f97316" }}
+                        color={{ primary: "var(--slider-orange, #fb923c)", glow: "var(--slider-orange-glow, #f97316)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("targetClampMax", v)}
                         isModified={isConfigModified("targetClampMax")}
@@ -4471,12 +4471,12 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   </SliderGroup>
 
                   {/* Threshold Sensitivity Group */}
-                  <SliderGroup title="Thresholds" color={{ primary: "#f472b6", glow: "#ec4899" }}>
+                  <SliderGroup title="Thresholds" color={{ primary: "var(--slider-pink, #f472b6)", glow: "var(--slider-pink-glow, #ec4899)" }}>
                     <div>
                       <VerticalSlider
                         value={getConfigValue("thresholdLow")}
                         targetValue={isConfigModified("thresholdLow") ? defaultConfigSettings.thresholdLow : undefined}
-                        color={{ primary: "#f472b6", glow: "#ec4899" }}
+                        color={{ primary: "var(--slider-pink, #f472b6)", glow: "var(--slider-pink-glow, #ec4899)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("thresholdLow", v)}
                         isModified={isConfigModified("thresholdLow")}
@@ -4496,7 +4496,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       <VerticalSlider
                         value={getConfigValue("thresholdHigh")}
                         targetValue={isConfigModified("thresholdHigh") ? defaultConfigSettings.thresholdHigh : undefined}
-                        color={{ primary: "#f472b6", glow: "#ec4899" }}
+                        color={{ primary: "var(--slider-pink, #f472b6)", glow: "var(--slider-pink-glow, #ec4899)" }}
                         editable={isEditable}
                         onChange={(v) => handleConfigChange("thresholdHigh", v)}
                         isModified={isConfigModified("thresholdHigh")}

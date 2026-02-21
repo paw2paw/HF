@@ -617,7 +617,7 @@ export default function CallerDetailPage() {
             style={{
               padding: "10px 20px",
               background: "rgba(139, 92, 246, 0.1)",
-              color: "#8b5cf6",
+              color: "var(--accent-secondary, #8b5cf6)",
               border: "1px solid rgba(139, 92, 246, 0.2)",
               borderRadius: 8,
               fontSize: 14,
@@ -658,7 +658,7 @@ export default function CallerDetailPage() {
             style={{
               padding: "10px 20px",
               background: exporting ? "var(--text-placeholder)" : "rgba(59, 130, 246, 0.1)",
-              color: exporting ? "var(--text-muted)" : "#3b82f6",
+              color: exporting ? "var(--text-muted)" : "var(--accent-primary)",
               border: "1px solid rgba(59, 130, 246, 0.2)",
               borderRadius: 8,
               fontSize: 14,
@@ -707,7 +707,7 @@ export default function CallerDetailPage() {
               fontSize: 13,
               fontWeight: 600,
               background: "var(--button-primary-bg)",
-              color: "#fff",
+              color: "var(--text-on-dark)",
               border: "none",
               borderRadius: 6,
               cursor: "pointer",

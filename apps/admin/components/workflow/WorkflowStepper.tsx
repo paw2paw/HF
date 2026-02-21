@@ -119,7 +119,7 @@ function StepIndicator({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#fff",
+          color: "var(--surface-primary)",
           fontSize: 14,
           fontWeight: 700,
         }}
@@ -156,12 +156,12 @@ function StepIndicator({
         height: size,
         borderRadius: 8,
         background: isCurrent
-          ? "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)"
+          ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)"
           : "var(--surface-tertiary)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: isCurrent ? "#fff" : "var(--text-muted)",
+        color: isCurrent ? "var(--surface-primary)" : "var(--text-muted)",
         fontWeight: 700,
         fontSize: 12,
         boxShadow: isCurrent ? "0 2px 6px rgba(99, 102, 241, 0.3)" : "none",

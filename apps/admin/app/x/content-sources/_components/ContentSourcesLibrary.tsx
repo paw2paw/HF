@@ -57,8 +57,18 @@ function InlineUploader({
   const startPolling = useCallback(
     (jobId: string) => {
       setElapsed(0);
+      const startedAt = Date.now();
+      const POLL_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
       tickRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
       pollRef.current = setInterval(async () => {
+        // Timeout guard
+        if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (tickRef.current) clearInterval(tickRef.current);
+          setError("Extraction timed out. Please try again.");
+          setPhase("error");
+          return;
+        }
         try {
           const res = await fetch(`/api/content-sources/${sourceId}/import?jobId=${jobId}`);
           const data = await res.json();
@@ -171,7 +181,7 @@ function InlineUploader({
               borderRadius: 6,
               border: "none",
               background: file ? "var(--accent-primary)" : "var(--surface-tertiary)",
-              color: file ? "#fff" : "var(--text-muted)",
+              color: file ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
               fontSize: 13,
               fontWeight: 600,
               cursor: file ? "pointer" : "default",
@@ -210,7 +220,7 @@ function InlineUploader({
                 style={{
                   height: "100%",
                   borderRadius: 2,
-                  background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                  background: "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
                   width: `${pct}%`,
                   transition: "width 0.5s ease-out",
                 }}
@@ -224,7 +234,7 @@ function InlineUploader({
                   height: "100%",
                   borderRadius: 2,
                   width: "30%",
-                  background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                  background: "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
                   animation: "indeterminate 1.5s ease-in-out infinite",
                 }}
               />
@@ -241,7 +251,7 @@ function InlineUploader({
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 18 }}>{"\u2705"}</span>
           <div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--success-text, #16a34a)" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--status-success-text)" }}>
               {progress?.importedCount ?? progress?.extractedCount ?? 0} assertions imported
             </span>
             {(progress?.duplicatesSkipped ?? 0) > 0 && (
@@ -273,7 +283,7 @@ function InlineUploader({
                 borderRadius: 6,
                 border: "none",
                 background: "var(--accent-primary)",
-                color: "#fff",
+                color: "var(--button-primary-text, #fff)",
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -473,7 +483,7 @@ function SourceRow({
                   borderRadius: 6,
                   border: "none",
                   background: "var(--accent-primary)",
-                  color: "#fff",
+                  color: "var(--button-primary-text, #fff)",
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: extracting ? "not-allowed" : "pointer",
@@ -599,7 +609,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
             style={{
               padding: "8px 14px", fontSize: 13, fontWeight: 500,
               background: !intentText.trim() || suggesting ? "var(--surface-secondary)" : "var(--accent-primary)",
-              color: !intentText.trim() || suggesting ? "var(--text-muted)" : "#fff",
+              color: !intentText.trim() || suggesting ? "var(--text-muted)" : "var(--button-primary-text, #fff)",
               border: "none", borderRadius: 4, cursor: !intentText.trim() || suggesting ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" as const,
             }}
@@ -662,7 +672,7 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
 
       <div style={{ display: "flex", gap: 8 }}>
         <button type="submit" disabled={saving}
-          style={{ padding: "8px 20px", borderRadius: 6, border: "none", backgroundColor: "var(--accent-primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+          style={{ padding: "8px 20px", borderRadius: 6, border: "none", backgroundColor: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
           {saving ? "Saving..." : "Create Source"}
         </button>
         <button type="button" onClick={onCancel}
@@ -810,10 +820,10 @@ export default function ContentSourcesLibrary() {
           padding: "10px 16px", marginBottom: 16, borderRadius: 8, fontSize: 13, fontWeight: 500,
           display: "flex", alignItems: "center", gap: 8,
           ...(dropStatus.phase === "error"
-            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid #FFCDD2" }
+            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid var(--status-error-border, #FFCDD2)" }
             : dropStatus.phase === "done"
-              ? { background: "#E8F5E9", color: "#2E7D32", border: "1px solid #C8E6C9" }
-              : { background: "#EBF3FC", color: "#1565C0", border: "1px solid #BBDEFB" }),
+              ? { background: "var(--status-success-bg)", color: "var(--status-success-text)", border: "1px solid var(--status-success-border, #C8E6C9)" }
+              : { background: "var(--status-info-bg, #EBF3FC)", color: "var(--status-info-text, #1565C0)", border: "1px solid var(--status-info-border, #BBDEFB)" }),
         }}>
           {(dropStatus.phase === "creating" || dropStatus.phase === "classifying") && (
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "currentColor", animation: "pulse 1.5s ease-in-out infinite" }} />
@@ -828,15 +838,15 @@ export default function ContentSourcesLibrary() {
       {(expired.length > 0 || expiringSoon.length > 0) && (
         <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
           {expired.length > 0 && (
-            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "var(--status-error-bg)", border: "1px solid #FFCDD2", fontSize: 13 }}>
+            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "var(--status-error-bg)", border: "1px solid var(--status-error-border, #FFCDD2)", fontSize: 13 }}>
               <span style={{ fontWeight: 600, color: "var(--status-error-text)" }}>{expired.length} expired</span>
-              <span style={{ color: "#C62828" }}> source{expired.length > 1 ? "s" : ""} need{expired.length === 1 ? "s" : ""} updating</span>
+              <span style={{ color: "var(--status-error-text)" }}> source{expired.length > 1 ? "s" : ""} need{expired.length === 1 ? "s" : ""} updating</span>
             </div>
           )}
           {expiringSoon.length > 0 && (
-            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "#FFF3E0", border: "1px solid #FFE0B2", fontSize: 13 }}>
-              <span style={{ fontWeight: 600, color: "#E65100" }}>{expiringSoon.length}</span>
-              <span style={{ color: "#BF360C" }}> source{expiringSoon.length > 1 ? "s" : ""} expiring within 60 days</span>
+            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border, #FFE0B2)", fontSize: 13 }}>
+              <span style={{ fontWeight: 600, color: "var(--status-warning-text)" }}>{expiringSoon.length}</span>
+              <span style={{ color: "var(--status-warning-text)" }}> source{expiringSoon.length > 1 ? "s" : ""} expiring within 60 days</span>
             </div>
           )}
         </div>
@@ -852,7 +862,7 @@ export default function ContentSourcesLibrary() {
           {TRUST_LEVELS.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
         </select>
         <button onClick={() => setShowCreateForm(!showCreateForm)}
-          style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--accent-primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           + Add Source
         </button>
         <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{filtered.length} source{filtered.length !== 1 ? "s" : ""}</span>

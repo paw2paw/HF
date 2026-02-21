@@ -68,15 +68,15 @@ export function AIConfigButton({
   // Determine button state colors
   const hasKeyProblem = configInfo && !configInfo.hasKey;
   const buttonBg = hasKeyProblem
-    ? "#fef2f2" // Red tint for missing key
+    ? "var(--status-error-bg)" // Red tint for missing key
     : configInfo?.isCustomized
-      ? "#ede9fe"
-      : "#f3f4f6";
+      ? "color-mix(in srgb, var(--accent-secondary, #8b5cf6) 15%, var(--surface-primary))"
+      : "var(--surface-secondary)";
   const buttonBorder = hasKeyProblem
-    ? "1px solid #fca5a5" // Red border for missing key
+    ? "1px solid color-mix(in srgb, var(--status-error-text) 60%, transparent)" // Red border for missing key
     : configInfo?.isCustomized
-      ? "1px solid #c4b5fd"
-      : "1px solid #e5e7eb";
+      ? "1px solid color-mix(in srgb, var(--accent-secondary, #8b5cf6) 50%, transparent)"
+      : "1px solid var(--border-default)";
 
   const buttonContent = (
     <div
@@ -112,8 +112,8 @@ export function AIConfigButton({
             width: 8,
             height: 8,
             borderRadius: "50%",
-            background: "#ef4444",
-            border: "1px solid #fff",
+            background: "var(--status-error-text)",
+            border: "1px solid var(--surface-primary)",
           }}
         />
       )}
@@ -128,8 +128,8 @@ export function AIConfigButton({
             transform: "translateX(-50%)",
             marginBottom: 4,
             padding: "6px 10px",
-            background: "#1f2937",
-            color: "#fff",
+            background: "var(--text-primary)",
+            color: "var(--surface-primary)",
             borderRadius: 6,
             fontSize: 11,
             whiteSpace: "nowrap",
@@ -148,12 +148,12 @@ export function AIConfigButton({
                 {configInfo.provider} / {configInfo.model.split("-").slice(0, 2).join("-")}
               </div>
               {!configInfo.hasKey && (
-                <div style={{ color: "#fca5a5", marginTop: 4, fontWeight: 600 }}>
+                <div style={{ color: "color-mix(in srgb, var(--status-error-text) 60%, transparent)", marginTop: 4, fontWeight: 600 }}>
                   ⚠️ No API key for {configInfo.provider}
                 </div>
               )}
               {configInfo.isCustomized && configInfo.hasKey && (
-                <div style={{ color: "#a5b4fc", marginTop: 2 }}>Customized</div>
+                <div style={{ color: "color-mix(in srgb, var(--accent-primary) 70%, var(--surface-primary))", marginTop: 2 }}>Customized</div>
               )}
             </div>
           ) : (
@@ -280,8 +280,8 @@ function InlineConfigPopup({
         right: 0,
         marginTop: 4,
         padding: 16,
-        background: "#fff",
-        border: "1px solid #e5e7eb",
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
         borderRadius: 8,
         boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
         zIndex: 200,
@@ -290,7 +290,7 @@ function InlineConfigPopup({
       onClick={(e) => e.stopPropagation()}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>AI Configuration</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>AI Configuration</span>
         <button
           onClick={onClose}
           style={{
@@ -298,7 +298,7 @@ function InlineConfigPopup({
             border: "none",
             cursor: "pointer",
             fontSize: 16,
-            color: "#6b7280",
+            color: "var(--text-muted)",
             padding: 0,
           }}
         >
@@ -307,11 +307,11 @@ function InlineConfigPopup({
       </div>
 
       {loading ? (
-        <div style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>Loading...</div>
+        <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
       ) : (
         <>
           <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", fontSize: 11, color: "#6b7280", marginBottom: 4 }}>
+            <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
               Provider
             </label>
             <select
@@ -327,10 +327,10 @@ function InlineConfigPopup({
               style={{
                 width: "100%",
                 padding: "6px 10px",
-                border: keyStatus[provider] === false ? "1px solid #fca5a5" : "1px solid #d1d5db",
+                border: keyStatus[provider] === false ? "1px solid color-mix(in srgb, var(--status-error-text) 60%, transparent)" : "1px solid var(--border-default)",
                 borderRadius: 6,
                 fontSize: 12,
-                background: keyStatus[provider] === false ? "#fef2f2" : "#fff",
+                background: keyStatus[provider] === false ? "var(--status-error-bg)" : "var(--surface-primary)",
               }}
             >
               <option value="claude">Claude (Anthropic) {keyStatus.claude === false ? "⚠️ No key" : ""}</option>
@@ -338,14 +338,14 @@ function InlineConfigPopup({
               <option value="mock">Mock (Testing)</option>
             </select>
             {keyStatus[provider] === false && (
-              <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>
+              <div style={{ fontSize: 10, color: "var(--status-error-text)", marginTop: 4 }}>
                 ⚠️ No API key configured for {provider}. Add to .env.local
               </div>
             )}
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", fontSize: 11, color: "#6b7280", marginBottom: 4 }}>
+            <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
               Model
             </label>
             <select
@@ -354,7 +354,7 @@ function InlineConfigPopup({
               style={{
                 width: "100%",
                 padding: "6px 10px",
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--border-default)",
                 borderRadius: 6,
                 fontSize: 12,
               }}
@@ -373,8 +373,8 @@ function InlineConfigPopup({
               style={{
                 flex: 1,
                 padding: "6px 12px",
-                background: "#f3f4f6",
-                border: "1px solid #d1d5db",
+                background: "var(--surface-secondary)",
+                border: "1px solid var(--border-default)",
                 borderRadius: 6,
                 fontSize: 12,
                 cursor: "pointer",
@@ -388,8 +388,8 @@ function InlineConfigPopup({
               style={{
                 flex: 1,
                 padding: "6px 12px",
-                background: "#4f46e5",
-                color: "#fff",
+                background: "var(--accent-primary)",
+                color: "var(--surface-primary)",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 12,
@@ -404,7 +404,7 @@ function InlineConfigPopup({
           <div style={{ marginTop: 8, textAlign: "center" }}>
             <Link
               href={`/x/ai-config?highlight=${encodeURIComponent(callPoint)}`}
-              style={{ fontSize: 11, color: "#6b7280" }}
+              style={{ fontSize: 11, color: "var(--text-muted)" }}
             >
               Advanced settings &rarr;
             </Link>

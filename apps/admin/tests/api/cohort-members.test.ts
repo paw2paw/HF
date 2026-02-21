@@ -15,10 +15,15 @@ const mockPrisma = {
   caller: {
     findMany: vi.fn(),
     findFirst: vi.fn(),
+    update: vi.fn(),
     updateMany: vi.fn(),
   },
   cohortGroup: {
     findUnique: vi.fn(),
+  },
+  callerCohortMembership: {
+    upsert: vi.fn(),
+    deleteMany: vi.fn(),
   },
 };
 
@@ -83,7 +88,8 @@ describe("/api/cohorts/:cohortId/members", () => {
         { id: "pupil-1", domainId: "domain-1", role: "LEARNER", cohortGroupId: null },
         { id: "pupil-2", domainId: "domain-1", role: "LEARNER", cohortGroupId: null },
       ]);
-      mockPrisma.caller.updateMany.mockResolvedValue({ count: 2 });
+      mockPrisma.callerCohortMembership.upsert.mockResolvedValue({});
+      mockPrisma.caller.update.mockResolvedValue({});
 
       const { POST } = await import(
         "../../app/api/cohorts/[cohortId]/members/route"
@@ -103,6 +109,7 @@ describe("/api/cohorts/:cohortId/members", () => {
 
       expect(data.ok).toBe(true);
       expect(data.added).toBe(2);
+      expect(mockPrisma.callerCohortMembership.upsert).toHaveBeenCalledTimes(2);
     });
 
     it("should return 400 if callerIds is empty", async () => {
@@ -193,6 +200,7 @@ describe("/api/cohorts/:cohortId/members", () => {
         },
       });
 
+      // These won't be reached since max member check fails before validation
       mockPrisma.caller.findMany.mockResolvedValue([
         { id: "pupil-1", domainId: "domain-1", role: "LEARNER", cohortGroupId: null },
         { id: "pupil-2", domainId: "domain-1", role: "LEARNER", cohortGroupId: null },
@@ -224,6 +232,7 @@ describe("/api/cohorts/:cohortId/members", () => {
   // ===================================================
   describe("DELETE", () => {
     it("should remove callers from cohort", async () => {
+      mockPrisma.callerCohortMembership.deleteMany.mockResolvedValue({ count: 1 });
       mockPrisma.caller.updateMany.mockResolvedValue({ count: 1 });
 
       const { DELETE } = await import(
@@ -244,6 +253,12 @@ describe("/api/cohorts/:cohortId/members", () => {
 
       expect(data.ok).toBe(true);
       expect(data.removed).toBe(1);
+      expect(mockPrisma.callerCohortMembership.deleteMany).toHaveBeenCalledWith({
+        where: {
+          callerId: { in: ["pupil-1"] },
+          cohortGroupId: "cohort-1",
+        },
+      });
     });
 
     it("should return 400 if callerIds missing", async () => {

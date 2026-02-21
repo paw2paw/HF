@@ -236,13 +236,13 @@ export function ActivateStepForm({
             padding: 16,
             borderRadius: 12,
             border: `1px solid ${
-              readiness.level === "ready" ? "#a7f3d0"
-                : readiness.level === "almost" ? "#fde68a"
-                : "#fecaca"
+              readiness.level === "ready" ? "var(--status-success-border, #a7f3d0)"
+                : readiness.level === "almost" ? "var(--status-warning-border, #fde68a)"
+                : "var(--status-error-border, #fecaca)"
             }`,
-            background: readiness.level === "ready" ? "#ecfdf5"
-              : readiness.level === "almost" ? "#fffbeb"
-              : "#fef2f2",
+            background: readiness.level === "ready" ? "var(--status-success-bg)"
+              : readiness.level === "almost" ? "var(--status-warning-bg)"
+              : "var(--status-error-bg)",
             marginBottom: 20,
           }}>
             {/* Score circle */}
@@ -254,10 +254,10 @@ export function ActivateStepForm({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              background: readiness.level === "ready" ? "#065f46"
-                : readiness.level === "almost" ? "#92400e"
-                : "#991b1b",
-              color: "#fff",
+              background: readiness.level === "ready" ? "var(--status-success-text)"
+                : readiness.level === "almost" ? "var(--status-warning-text)"
+                : "var(--status-error-text)",
+              color: "var(--surface-primary)",
               fontWeight: 800,
               fontSize: 18,
             }}>
@@ -268,9 +268,9 @@ export function ActivateStepForm({
               <div style={{
                 fontSize: 16,
                 fontWeight: 700,
-                color: readiness.level === "ready" ? "#065f46"
-                  : readiness.level === "almost" ? "#92400e"
-                  : "#991b1b",
+                color: readiness.level === "ready" ? "var(--status-success-text)"
+                  : readiness.level === "almost" ? "var(--status-warning-text)"
+                  : "var(--status-error-text)",
                 marginBottom: 2,
               }}>
                 {readiness.level === "ready" ? "Ready to Go Live"
@@ -349,9 +349,9 @@ export function ActivateStepForm({
             <div style={{
               padding: "12px 16px",
               borderRadius: 10,
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#991b1b",
+              background: "var(--status-error-bg)",
+              border: "1px solid var(--status-error-border, #fecaca)",
+              color: "var(--status-error-text)",
               fontSize: 13,
               marginBottom: 16,
               lineHeight: 1.5,
@@ -427,8 +427,8 @@ export function ActivateStepForm({
                 border: "none",
                 background: !canActivate || publishing
                   ? "var(--surface-tertiary)"
-                  : "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
-                color: !canActivate || publishing ? "var(--text-muted)" : "#fff",
+                  : "linear-gradient(135deg, var(--status-success-text) 0%, var(--status-success-text) 100%)",
+                color: !canActivate || publishing ? "var(--text-muted)" : "var(--surface-primary)",
                 cursor: !canActivate || publishing ? "not-allowed" : "pointer",
                 boxShadow: canActivate && !publishing ? "0 4px 12px rgba(22, 163, 74, 0.3)" : "none",
               }}

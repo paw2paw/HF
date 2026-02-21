@@ -267,22 +267,22 @@ export function DomainSwitchModal({
           <div
             style={{
               padding: 16,
-              background: "#eff6ff",
-              border: "1px solid #bfdbfe",
+              background: "var(--badge-blue-bg)",
+              border: "1px solid var(--status-info-border)",
               borderRadius: 8,
               marginBottom: 20,
             }}
           >
-            <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "#1e40af" }}>
+            <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "var(--status-info-text)" }}>
               What will happen:
             </h4>
 
             {/* Goals Impact */}
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, color: "#1e40af", marginBottom: 4 }}>
+              <div style={{ fontSize: 13, color: "var(--status-info-text)", marginBottom: 4 }}>
                 <strong>Goals:</strong>
               </div>
-              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "#1e3a8a" }}>
+              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "var(--status-info-text)" }}>
                 <li>
                   Archive {preview.impactPreview.activeGoalsCount} active goal(s) from {currentDomain.name}
                 </li>
@@ -308,10 +308,10 @@ export function DomainSwitchModal({
 
             {/* Onboarding */}
             <div>
-              <div style={{ fontSize: 13, color: "#1e40af", marginBottom: 4 }}>
+              <div style={{ fontSize: 13, color: "var(--status-info-text)", marginBottom: 4 }}>
                 <strong>First Call Experience:</strong>
               </div>
-              <div style={{ fontSize: 13, color: "#1e3a8a", paddingLeft: 20 }}>
+              <div style={{ fontSize: 13, color: "var(--status-info-text)", paddingLeft: 20 }}>
                 {preview.domain.onboardingIdentitySpec ? (
                   <div>Uses {preview.domain.onboardingIdentitySpec.name}</div>
                 ) : (
@@ -326,7 +326,7 @@ export function DomainSwitchModal({
                       borderRadius: 6,
                       fontSize: 12,
                       fontStyle: "italic",
-                      border: "1px solid #dbeafe",
+                      border: "1px solid var(--badge-blue-bg)",
                     }}
                   >
                     "{preview.domain.onboardingWelcome.substring(0, 150)}
@@ -425,8 +425,8 @@ export function DomainSwitchModal({
               background:
                 selectedDomainId && !switching && !loadingPreview
                   ? "var(--accent-primary)"
-                  : "#d1d5db",
-              color: "#fff",
+                  : "var(--border-default)",
+              color: "var(--text-on-dark)",
               border: "none",
               borderRadius: 8,
               cursor:

@@ -9,7 +9,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMasquerade } from '@/contexts/MasqueradeContext';
 import { Search, X, VenetianMask } from 'lucide-react';
-import { MASQUERADE_COLOR } from './MasqueradeBanner';
 
 interface PickerUser {
   id: string;
@@ -22,14 +21,14 @@ interface PickerUser {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  SUPERADMIN: '#dc2626',
-  ADMIN: '#ea580c',
-  OPERATOR: '#2563eb',
-  EDUCATOR: '#059669',
-  SUPER_TESTER: '#7c3aed',
-  TESTER: '#6b7280',
-  DEMO: '#a3a3a3',
-  VIEWER: '#6b7280',
+  SUPERADMIN: 'var(--status-error-text)',
+  ADMIN: 'var(--badge-orange-text, #ea580c)',
+  OPERATOR: 'var(--accent-primary)',
+  EDUCATOR: 'var(--status-success-text)',
+  SUPER_TESTER: 'var(--accent-secondary, #8b5cf6)',
+  TESTER: 'var(--text-muted)',
+  DEMO: 'var(--text-muted)',
+  VIEWER: 'var(--text-muted)',
 };
 
 export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
@@ -110,7 +109,7 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
         background: 'var(--surface-primary)',
         border: '1px solid var(--border-default)',
         borderRadius: 8,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        boxShadow: '0 8px 32px color-mix(in srgb, var(--text-primary) 20%, transparent)',
         zIndex: 100,
         maxHeight: 400,
         display: 'flex',
@@ -183,13 +182,13 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
         <div
           style={{
             padding: '6px 12px',
-            background: `color-mix(in srgb, ${MASQUERADE_COLOR} 10%, transparent)`,
+            background: `color-mix(in srgb, var(--masquerade-color) 10%, transparent)`,
             borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             gap: 6,
             fontSize: 11,
-            color: MASQUERADE_COLOR,
+            color: 'var(--masquerade-color)',
           }}
         >
           <VenetianMask size={12} />
@@ -231,7 +230,7 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
                   width: '100%',
                   padding: '8px 12px',
                   border: 'none',
-                  background: isCurrentMasquerade ? `color-mix(in srgb, ${MASQUERADE_COLOR} 6%, transparent)` : 'transparent',
+                  background: isCurrentMasquerade ? `color-mix(in srgb, var(--masquerade-color) 6%, transparent)` : 'transparent',
                   cursor: isCurrentMasquerade ? 'default' : 'pointer',
                   textAlign: 'left',
                   fontSize: 12,
@@ -242,7 +241,7 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
                   if (!isCurrentMasquerade) e.currentTarget.style.background = 'var(--hover-bg)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isCurrentMasquerade ? `color-mix(in srgb, ${MASQUERADE_COLOR} 6%, transparent)` : 'transparent';
+                  e.currentTarget.style.background = isCurrentMasquerade ? `color-mix(in srgb, var(--masquerade-color) 6%, transparent)` : 'transparent';
                 }}
               >
                 {/* Avatar circle */}
@@ -251,8 +250,8 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
                     width: 28,
                     height: 28,
                     borderRadius: '50%',
-                    background: ROLE_COLORS[user.role] || '#6b7280',
-                    color: '#fff',
+                    background: ROLE_COLORS[user.role] || 'var(--text-muted)',
+                    color: 'var(--surface-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -296,8 +295,8 @@ export function MasqueradeUserPicker({ onClose }: { onClose: () => void }) {
                     fontWeight: 600,
                     padding: '2px 6px',
                     borderRadius: 3,
-                    background: `${ROLE_COLORS[user.role] || '#6b7280'}18`,
-                    color: ROLE_COLORS[user.role] || '#6b7280',
+                    background: `color-mix(in srgb, ${ROLE_COLORS[user.role] || 'var(--text-muted)'} 10%, transparent)`,
+                    color: ROLE_COLORS[user.role] || 'var(--text-muted)',
                     whiteSpace: 'nowrap',
                   }}
                 >

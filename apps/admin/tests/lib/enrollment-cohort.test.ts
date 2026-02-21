@@ -22,6 +22,9 @@ const mockPrisma = vi.hoisted(() => ({
   caller: {
     findMany: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -114,7 +117,7 @@ describe("assignPlaybookToCohort", () => {
 
     expect(result.assignment.cohortGroupId).toBe("cohort-1");
     expect(result.enrolled).toBe(0);
-    expect(mockPrisma.caller.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.callerCohortMembership.findMany).not.toHaveBeenCalled();
   });
 
   it("auto-enrolls existing members when requested", async () => {
@@ -123,9 +126,9 @@ describe("assignPlaybookToCohort", () => {
       cohortGroupId: "cohort-1",
       playbookId: "pb-1",
     });
-    mockPrisma.caller.findMany.mockResolvedValue([
-      { id: "c-1" },
-      { id: "c-2" },
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
+      { callerId: "c-1" },
+      { callerId: "c-2" },
     ]);
     mockPrisma.callerPlaybook.upsert
       .mockResolvedValueOnce({ id: "enr-1" })
@@ -146,12 +149,15 @@ describe("removePlaybookFromCohort", () => {
 
     expect(result.removed).toBe(true);
     expect(result.dropped).toBe(0);
-    expect(mockPrisma.caller.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.callerCohortMembership.findMany).not.toHaveBeenCalled();
   });
 
   it("drops member enrollments when requested", async () => {
     mockPrisma.cohortPlaybook.delete.mockResolvedValue({});
-    mockPrisma.caller.findMany.mockResolvedValue([{ id: "c-1" }, { id: "c-2" }]);
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
+      { callerId: "c-1" },
+      { callerId: "c-2" },
+    ]);
     mockPrisma.callerPlaybook.updateMany.mockResolvedValue({ count: 2 });
 
     const result = await removePlaybookFromCohort("cohort-1", "pb-1", true);
@@ -171,10 +177,10 @@ describe("removePlaybookFromCohort", () => {
 
 describe("enrollCohortMembersInPlaybook", () => {
   it("enrolls all cohort members in a playbook", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([
-      { id: "c-1" },
-      { id: "c-2" },
-      { id: "c-3" },
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
+      { callerId: "c-1" },
+      { callerId: "c-2" },
+      { callerId: "c-3" },
     ]);
     mockPrisma.callerPlaybook.upsert.mockResolvedValue({ id: "enr" });
 
@@ -186,9 +192,9 @@ describe("enrollCohortMembersInPlaybook", () => {
   });
 
   it("collects errors for individual failures", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([
-      { id: "c-1" },
-      { id: "c-2" },
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
+      { callerId: "c-1" },
+      { callerId: "c-2" },
     ]);
     mockPrisma.callerPlaybook.upsert
       .mockResolvedValueOnce({ id: "enr-1" })

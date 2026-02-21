@@ -26,6 +26,10 @@ const SCHOOL_TERMS: TermMap = {
   cohort: 'Class',
   instructor: 'Teacher',
   session: 'Lesson',
+  persona: 'Teaching Style',
+  supervisor: 'My Teacher',
+  teach_action: 'Teach',
+  learning_noun: 'Learning',
 };
 
 describe('lib/terminology (two-tier resolution)', () => {

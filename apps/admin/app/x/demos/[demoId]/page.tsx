@@ -105,7 +105,7 @@ export default function DemoPlayerPage() {
           justifyContent: "space-between",
           padding: "6px 16px",
           borderBottom: "1px solid var(--border-default)",
-          background: "var(--surface-secondary, #181825)",
+          background: "var(--surface-secondary)",
           flexShrink: 0,
         }}
       >
@@ -124,7 +124,7 @@ export default function DemoPlayerPage() {
                 transition: "all 0.15s",
                 background:
                   viewMode === mode
-                    ? "var(--accent-primary, #7c3aed)"
+                    ? "var(--accent-primary)"
                     : "transparent",
                 color:
                   viewMode === mode

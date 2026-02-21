@@ -38,6 +38,10 @@ vi.mock("@/lib/ai/task-guidance", () => ({
   startTaskTracking: vi.fn().mockResolvedValue("task-123"),
   updateTaskProgress: vi.fn(),
   completeTask: vi.fn(),
+  failTask: vi.fn().mockResolvedValue(undefined),
+  backgroundRun: (taskId: string, fn: () => Promise<void>) => {
+    fn().catch(() => {});
+  },
 }));
 
 vi.mock("@/lib/jobs/curriculum-runner", () => ({

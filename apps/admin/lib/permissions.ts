@@ -85,6 +85,7 @@ export async function requireAuth(
           name: masquerade.name,
           role: masquerade.role,
           assignedDomainId: masquerade.assignedDomainId,
+          institutionId: masquerade.institutionId,
         };
         (session as any).masqueradedBy = realUserId;
       }

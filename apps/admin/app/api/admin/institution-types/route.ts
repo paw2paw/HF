@@ -37,7 +37,7 @@ export async function GET() {
  * @body name string - Display name (required)
  * @body slug string - URL-safe identifier (required, unique)
  * @body description string - Optional description
- * @body terminology object - 7-key TermMap (domain, playbook, spec, caller, cohort, instructor, session)
+ * @body terminology object - 11-key TermMap (domain, playbook, spec, caller, cohort, instructor, session, persona, supervisor, teach_action, learning_noun)
  * @body setupSpecSlug string - Wizard spec slug for setup flow (optional)
  * @body defaultDomainKind string - INSTITUTION or COMMUNITY (default: INSTITUTION)
  * @response 201 { ok: true, type: InstitutionType }

@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { SendArtifactModal } from "@/components/educator/SendArtifactModal";
+import { StudentEnrollmentsSection } from "@/components/educator/StudentEnrollmentsSection";
 
 interface StudentDetail {
   id: string;
   name: string;
   email: string | null;
   classroom: { id: string; name: string } | null;
+  classrooms?: Array<{ id: string; name: string }>;
   domain: { id: string; slug: string; name: string } | null;
   joinedAt: string;
 }
@@ -116,15 +118,16 @@ export default function StudentDetailPage() {
           >
             {student.name}
           </h1>
-          <div style={{ display: "flex", gap: 12, fontSize: 13, color: "var(--text-muted)" }}>
-            {student.classroom && (
+          <div style={{ display: "flex", gap: 12, fontSize: 13, color: "var(--text-muted)", flexWrap: "wrap" }}>
+            {(student.classrooms ?? (student.classroom ? [student.classroom] : [])).map(c => (
               <Link
-                href={`/x/educator/classrooms/${student.classroom.id}`}
+                key={c.id}
+                href={`/x/educator/classrooms/${c.id}`}
                 style={{ color: "var(--text-secondary)", textDecoration: "none" }}
               >
-                {student.classroom.name}
+                {c.name}
               </Link>
-            )}
+            ))}
             {student.domain && <span>{student.domain.name}</span>}
             <span>
               Joined{" "}
@@ -344,6 +347,9 @@ export default function StudentDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Course Enrolments */}
+      <StudentEnrollmentsSection studentId={id} domainId={student.domain?.id} />
 
       {showSendModal && (
         <SendArtifactModal

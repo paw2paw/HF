@@ -27,12 +27,12 @@ type LessonEntry = {
 };
 
 const SESSION_TYPES = [
-  { value: "onboarding", label: "Onboarding", color: "#8b5cf6" },
-  { value: "introduce", label: "Introduce", color: "#2563eb" },
-  { value: "deepen", label: "Deepen", color: "#0891b2" },
-  { value: "review", label: "Review", color: "#ea580c" },
-  { value: "assess", label: "Assess", color: "#dc2626" },
-  { value: "consolidate", label: "Consolidate", color: "#16a34a" },
+  { value: "onboarding", label: "Onboarding", color: "var(--accent-secondary, #8b5cf6)" },
+  { value: "introduce", label: "Introduce", color: "var(--accent-primary)" },
+  { value: "deepen", label: "Deepen", color: "var(--badge-cyan-text, #0891b2)" },
+  { value: "review", label: "Review", color: "var(--badge-orange-text, #ea580c)" },
+  { value: "assess", label: "Assess", color: "var(--status-error-text)" },
+  { value: "consolidate", label: "Consolidate", color: "var(--status-success-text)" },
 ] as const;
 
 const DURATIONS = [15, 20, 30, 45, 60] as const;
@@ -462,7 +462,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
               disabled={generating || curriculumStatus === "checking" || curriculumStatus === "generating"}
               style={{
                 padding: "12px 32px", borderRadius: 8, border: "none",
-                background: "var(--accent-primary)", color: "#fff",
+                background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
                 fontSize: 15, fontWeight: 700, cursor: "pointer",
                 opacity: generating || curriculumStatus === "checking" || curriculumStatus === "generating" ? 0.6 : 1,
               }}
@@ -557,7 +557,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
                       }}
                     />
                     <button onClick={() => handleInlineEditSave(index)}
-                      style={{ padding: "4px 10px", borderRadius: 4, border: "none", background: "var(--accent-primary)", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                      style={{ padding: "4px 10px", borderRadius: 4, border: "none", background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                       Save
                     </button>
                     <button onClick={() => setEditingIndex(null)}
@@ -642,7 +642,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
                 }}
               />
               <button onClick={handleAddSession}
-                style={{ padding: "4px 12px", borderRadius: 4, border: "none", background: "var(--accent-primary)", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                style={{ padding: "4px 12px", borderRadius: 4, border: "none", background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                 Add
               </button>
               <button onClick={() => setShowAdd(false)}
@@ -657,7 +657,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
             <button onClick={handleSave} disabled={saving || entries.length === 0}
               style={{
                 padding: "12px 32px", borderRadius: 8, border: "none",
-                background: "var(--accent-primary)", color: "#fff",
+                background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
                 fontSize: 15, fontWeight: 700, cursor: "pointer",
                 opacity: saving || entries.length === 0 ? 0.6 : 1,
               }}

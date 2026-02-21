@@ -100,7 +100,7 @@ export function CreateDomainModal({ open, onClose, onCreated, onError }: CreateD
             style={{
               padding: "8px 16px",
               background: "var(--button-primary-bg)",
-              color: "#fff",
+              color: "var(--button-primary-text, #fff)",
               border: "none",
               borderRadius: 6,
               cursor: "pointer",

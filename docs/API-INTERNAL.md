@@ -22,6 +22,8 @@
 - [Endpoints](#endpoints)
   - [Account](#account)
   - [Admin](#admin)
+  - [Agent Tuner](#agent-tuner)
+  - [Agent Tuning](#agent-tuning)
   - [Agents](#agents)
   - [AI](#ai)
   - [Analysis](#analysis)
@@ -47,7 +49,6 @@
   - [Lab](#lab)
   - [Layers](#layers)
   - [Logs](#logs)
-  - [Manifest](#manifest)
   - [Media](#media)
   - [Memories](#memories)
   - [Messages](#messages)
@@ -228,7 +229,7 @@ Create a new institution type with terminology preset (ADMIN role required)
 | name | body | string | No | Display name (required) |
 | slug | body | string | No | URL-safe identifier (required, unique) |
 | description | body | string | No | Optional description |
-| terminology | body | object | No | 7-key TermMap (domain, playbook, spec, caller, cohort, instructor, session) |
+| terminology | body | object | No | 11-key TermMap (domain, playbook, spec, caller, cohort, instructor, session, persona, supervisor, teach_action, learning_noun) |
 | setupSpecSlug | body | string | No | Wizard spec slug for setup flow (optional) |
 | defaultDomainKind | body | string | No | INSTITUTION or COMMUNITY (default: INSTITUTION) |
 
@@ -245,56 +246,6 @@ Create a new institution type with terminology preset (ADMIN role required)
 **Response** `409`
 ```json
 { ok: false, error: "Slug already exists" }
-```
-
----
-
-### `DELETE` /api/admin/institution-types/[id]
-
-Soft-delete an institution type by setting isActive=false (ADMIN role required)
-
-**Auth**: Bearer token · **Scope**: `admin:write`
-
-**Response** `200`
-```json
-{ ok: true }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Not found" }
-```
-
----
-
-### `PATCH` /api/admin/institution-types/[id]
-
-Update an institution type's name, terminology, or config (ADMIN role required)
-
-**Auth**: Bearer token · **Scope**: `admin:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| name | body | string | No | Display name |
-| description | body | string | No | Description |
-| terminology | body | object | No | 7-key TermMap |
-| setupSpecSlug | body | string | No | Wizard spec slug |
-| defaultDomainKind | body | string | No | INSTITUTION or COMMUNITY |
-| isActive | body | boolean | No | Whether this type is active |
-
-**Response** `200`
-```json
-{ ok: true, type: InstitutionType }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "..." }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Not found" }
 ```
 
 ---
@@ -328,62 +279,6 @@ Start stepping in as another user. Validates target exists, is active, and role 
 List users available to step in as (excludes current user, active only, max 50)
 
 **Auth**: Bearer token · **Scope**: `admin:read`
-
----
-
-### `GET` /api/admin/registry
-
-View all canonical parameters with coverage stats
-
-**Auth**: Session
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| deprecated | query | boolean | No | Show deprecated parameters (default: false) |
-| orphaned | query | boolean | No | Show only orphaned parameters with no spec actions (default: false) |
-
-**Response** `200`
-```json
-{ ok: true, parameters: Array<{ id, parameterId, name, definition, domainGroup, defaultTarget, isCanonical, deprecatedAt, replacedBy, aliases, usage: { inActions, inTargets, inScores, total } }>, summary: { total, active, deprecated, inUse, orphaned, byDomain } }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: string }
-```
-
----
-
-### `PUT` /api/admin/registry
-
-Update a parameter's registry fields (name, definition, deprecated, etc.)
-
-**Auth**: Session
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| parameterId | body | string | No | The parameter ID to update (required) |
-| name | body | string | No | New display name |
-| definition | body | string | No | New definition text |
-| defaultTarget | body | number | No | New default target value |
-| deprecatedAt | body | string | No | ISO date to mark as deprecated, or null to unmark |
-| replacedBy | body | string | No | Replacement parameter ID if deprecated |
-| isCanonical | body | boolean | No | Whether this is the canonical version |
-
-**Response** `200`
-```json
-{ ok: true, parameter: Parameter, message: string }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "parameterId is required" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: string }
-```
 
 ---
 
@@ -770,6 +665,55 @@ Update a user's role or active status (ADMIN role required, cannot deactivate se
 
 ---
 
+## Agent Tuner
+
+### `POST` /api/agent-tuner/interpret
+
+Translates natural language intent into behavior pills.
+
+**Auth**: Session · **Scope**: `agent-tuner:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| intent | body | string | No | Natural language style description (min 3 chars) |
+
+**Response** `200`
+```json
+{ ok: true, pills: AgentTunerPill[], interpretation: string }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
+
+---
+
+## Agent Tuning
+
+### `GET` /api/agent-tuning/settings
+
+Returns the agent tuning configuration (Boston Matrix definitions,
+
+**Auth**: Session · **Scope**: `agent-tuning:read`
+
+**Response** `200`
+```json
+{ ok: true, settings: AgentTuningSettings }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
+
+---
+
 ## Agents
 
 ### `GET` /api/agents
@@ -884,33 +828,6 @@ Create or update a draft agent instance with name, description, and settings
 **Response** `200`
 ```json
 { ok: true, action: "created"|"updated", instance: AgentInstance }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `GET` /api/agents/:agentId/preflight
-
-Check if all prerequisites are met for running an agent (DB table counts, file paths)
-
-**Auth**: Session · **Scope**: `agents:read`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| agentId | path | string | Yes | The agent identifier |
-
-**Response** `200`
-```json
-{ ok: true, canRun: boolean, hasWarnings: boolean, checks: PrerequisiteResult[], summary: { passed, failed, warnings } }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Agent not found: ..." }
 ```
 
 **Response** `500`
@@ -1741,125 +1658,6 @@ Update an analysis spec's metadata. Respects lock status. Marks spec as dirty if
 **Response** `423`
 ```json
 { ok: false, error: "Spec is locked and cannot be modified", locked: true }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `GET` /api/analysis-specs/:specId/compile
-
-Get compilation status for a spec (compiled/dirty/locked state)
-
-**Auth**: Session · **Scope**: `analysis-specs:read`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| specId | path | string | Yes | Spec UUID or slug |
-
-**Response** `200`
-```json
-{ ok: true, status: { isCompiled, isDirty, dirtyReason, compiledAt, compiledSetId, isLocked, lockedReason, usageCount } }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Spec not found" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `POST` /api/analysis-specs/:specId/compile
-
-Compile a spec: validate triggers/actions/parameters/anchors, and mark as compiled if validation passes
-
-**Auth**: Session · **Scope**: `analysis-specs:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| specId | path | string | Yes | Spec UUID or slug |
-| force | body | boolean | No | Compile even with critical errors (default: false) |
-
-**Response** `200`
-```json
-{ ok: true, spec: AnalysisSpec, validation: { passed, errors, warnings }, message: string }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Spec not found" }
-```
-
-**Response** `423`
-```json
-{ ok: false, error: "Spec is locked and cannot be compiled..." }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `GET` /api/analysis-specs/:specId/enrich
-
-Get enrichment status for a spec (total parameters, enriched count, percentage)
-
-**Auth**: Session · **Scope**: `analysis-specs:read`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| specId | path | string | Yes | Spec UUID or slug |
-
-**Response** `200`
-```json
-{ ok: true, status: { totalParameters, enrichedParameters, percentEnriched } }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Spec not found" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `POST` /api/analysis-specs/:specId/enrich
-
-Enrich a spec by extracting key terms from actions and searching knowledge artifacts. Currently a placeholder returning term previews. Future: full knowledge retrieval integration.
-
-**Auth**: Session · **Scope**: `analysis-specs:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| specId | path | string | Yes | Spec UUID or slug |
-
-**Response** `200`
-```json
-{ ok: true, message: string, enriched: number, spec: { id, name, actionCount }, terms: string[], hint: string }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Spec not found" }
-```
-
-**Response** `423`
-```json
-{ ok: false, error: "Spec is locked and cannot be enriched" }
 ```
 
 **Response** `500`
@@ -3565,7 +3363,7 @@ Regenerate the magic join link for a cohort.
 
 ### `DELETE` /api/cohorts/:cohortId/members
 
-Remove callers from a cohort group. Sets their cohortGroupId to null.
+Remove callers from a cohort group. Deletes their CallerCohortMembership record.
 
 **Auth**: Session · **Scope**: `cohorts:update`
 
@@ -3768,9 +3566,41 @@ Archive a community (soft delete)
 
 ### `GET` /api/communities/[communityId]
 
-Get a single community detail
+Get a single community detail with identity specs, onboarding config, and members
 
 **Auth**: Session · **Scope**: `communities:read`
+
+**Response** `200`
+```json
+{ ok: true, community: { id, name, slug, description, onboardingWelcome, onboardingIdentitySpecId, onboardingFlowPhases, onboardingDefaultTargets, memberCount, playbookCount, personaName, identitySpec, identitySpecs, members } }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `PATCH` /api/communities/[communityId]
+
+Update a community — name, description, welcome message, identity spec, flow phases, default targets
+
+**Auth**: Session · **Scope**: `communities:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Community name |
+| description | body | string | No | Community description |
+| onboardingWelcome | body | string | No | Welcome message for first call |
+| onboardingIdentitySpecId | body | string | No | Identity spec ID for the AI persona |
+| onboardingFlowPhases | body | object | No | Flow phases configuration |
+| onboardingDefaultTargets | body | object | No | Default behavior targets (includes _matrixPositions for round-trip) |
 
 **Response** `200`
 ```json
@@ -3789,21 +3619,24 @@ Get a single community detail
 
 ---
 
-### `PATCH` /api/communities/[communityId]
+### `POST` /api/communities/[communityId]/members
 
-Update a community
+Add a caller to a community by setting their domainId
 
 **Auth**: Session · **Scope**: `communities:write`
 
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
-| name | body | string | No | Community name |
-| description | body | string | No | Community description |
-| onboardingWelcome | body | string | No | Welcome message for first call |
+| callerId | body | string | No | Caller ID to add |
 
 **Response** `200`
 ```json
-{ ok: true, community: Domain }
+{ ok: true, member: { id, name, email } }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "callerId is required" }
 ```
 
 **Response** `404`
@@ -3811,9 +3644,27 @@ Update a community
 { ok: false, error: "Community not found" }
 ```
 
-**Response** `500`
+**Response** `409`
 ```json
-{ ok: false, error: "..." }
+{ ok: false, error: "Caller is already a member" }
+```
+
+---
+
+### `DELETE` /api/communities/[communityId]/members/[callerId]
+
+Remove a caller from a community by clearing their domainId
+
+**Auth**: Session · **Scope**: `communities:write`
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" | "Member not found" }
 ```
 
 ---
@@ -4352,6 +4203,24 @@ Mark multiple vocabulary entries as reviewed in a single transaction.
 ---
 
 ## Courses
+
+### `POST` /api/courses/generate-plan
+
+Generate a curriculum + lesson plan from course intent (name, outcomes, style).
+
+**Auth**: session (OPERATOR+) · **Scope**: `courses:write`
+
+**Response** `202`
+```json
+{ ok: true, taskId: string }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
 
 ### `POST` /api/courses/setup
 
@@ -5489,6 +5358,75 @@ List students. ADMIN+ users see all learners (optionally scoped by institutionId
 
 ---
 
+### `GET` /api/educator/students/:id/enrollments
+
+Enroll a student in a course (playbook). The playbook must be PUBLISHED and belong to the student's domain. Requires educator access to the student's cohort.
+
+**Auth**: Bearer token · **Scope**: `educator:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| playbookId | body | string | No | The playbook to enroll in |
+
+**Response** `200`
+```json
+{ ok: true, enrollments: CallerPlaybook[] }
+```
+
+**Response** `403`
+```json
+{ ok: false, error: "Forbidden" }
+```
+
+**Response** `200`
+```json
+{ ok: true, enrollment: CallerPlaybook }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `403`
+```json
+{ ok: false, error: "Forbidden" }
+```
+
+---
+
+### `PATCH` /api/educator/students/:id/enrollments/:enrollmentId
+
+Update a student's enrollment status (pause, resume, or drop). Requires educator access to the student's cohort.
+
+**Auth**: Bearer token · **Scope**: `educator:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| status | body | string | No | New status: "ACTIVE" | "PAUSED" | "DROPPED" |
+
+**Response** `200`
+```json
+{ ok: true, enrollment: CallerPlaybook }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `403`
+```json
+{ ok: false, error: "Forbidden" }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Enrollment not found" }
+```
+
+---
+
 ### `GET` /api/educator/students/[id]
 
 Get detailed student view including recent call history (last 20), goals with progress, and personality profile parameter values. Requires educator access to the student's cohort.
@@ -6010,24 +5948,6 @@ Compile AI-validated BDD uploads into a Feature Set with scoring spec generation
 
 ---
 
-### `GET` /api/lab/uploads/debug
-
-Debug endpoint to list recent BDD uploads with metadata (last 20)
-
-**Auth**: Session · **Scope**: `lab:read`
-
-**Response** `200`
-```json
-{ ok: true, uploadCount: number, uploads: UploadSummary[] }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
 ## Layers
 
 ### `GET` /api/layers/diff
@@ -6128,320 +6048,6 @@ Toggle logging on/off and/or set which log types are enabled. Both fields are op
 ```
 
 **Response** `400`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-## Manifest
-
-### `GET` /api/manifest
-
-Returns the full manifest with validation status and file metadata
-
-**Auth**: Session · **Scope**: `manifest:read`
-
-**Response** `200`
-```json
-{ ok: true, manifest, validation, meta: { path, lastModified, size } }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `POST` /api/manifest
-
-Perform manifest actions: validate, reload from disk, create backup, or restore from backup
-
-**Auth**: Session · **Scope**: `manifest:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| action | body | string | No | Action to perform: "validate" | "reload" | "backup" | "restore" |
-| backupPath | body | string | No | Required for "restore" action: path to backup file |
-
-**Response** `200`
-```json
-{ ok: true, validation?, message?, backupPath? }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "backupPath required for restore" }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "Unknown action: ..." }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Backup not found: ..." }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `PUT` /api/manifest
-
-Replace the entire manifest file (with optional validation skip)
-
-**Auth**: Session · **Scope**: `manifest:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| manifest | body | object | No | The full manifest object to save |
-| skipValidation | body | boolean | No | If true, skip validation before saving |
-
-**Response** `200`
-```json
-{ ok: true, message: "Manifest saved", validation }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "manifest object required" }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "Manifest validation failed", validation }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `GET` /api/manifest/agents
-
-List all agents in the manifest with summary info (settings, schema, prompts, I/O counts)
-
-**Auth**: Session · **Scope**: `manifest:read`
-
-**Response** `200`
-```json
-{ ok: true, count: number, agents: AgentSummary[] }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `POST` /api/manifest/agents
-
-Add a new agent definition to the manifest
-
-**Auth**: Session · **Scope**: `manifest:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| agent | body | object | No | Agent definition with required id, title, and opid fields |
-
-**Response** `200`
-```json
-{ ok: true, message: "Agent added to manifest", agent: AgentDefinition }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "agent object required" }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "agent.id is required" }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "agent.title is required" }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "agent.opid is required" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `DELETE` /api/manifest/agents/:agentId
-
-Remove an agent from the manifest
-
-**Auth**: Session · **Scope**: `manifest:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| agentId | path | string | Yes | The agent identifier |
-
-**Response** `200`
-```json
-{ ok: true, message: "Agent removed from manifest", agentId: string }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Agent not found: ..." }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `GET` /api/manifest/agents/:agentId
-
-Get a specific agent's full definition from the manifest
-
-**Auth**: Session · **Scope**: `manifest:read`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| agentId | path | string | Yes | The agent identifier |
-
-**Response** `200`
-```json
-{ ok: true, agent: AgentDefinition }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Agent not found: ..." }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `PATCH` /api/manifest/agents/:agentId
-
-Partial update - merge specific fields (settings, schema, prompts, inputs, outputs, etc.)
-
-**Auth**: Session · **Scope**: `manifest:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| agentId | path | string | Yes | The agent identifier |
-| settings | body | object | No | Settings to merge |
-| settingsSchema | body | object | No | Schema properties to merge |
-| prompts | body | object | No | Prompts to merge |
-| inputs | body | array | No | Input definitions (replaces) |
-| outputs | body | array | No | Output definitions (replaces) |
-| title | body | string | No | New title |
-| description | body | string | No | New description |
-| enabled | body | boolean | No | Enable/disable |
-| opid | body | string | No | New operation ID |
-
-**Response** `200`
-```json
-{ ok: true, message: "Agent patched in manifest", agent: AgentDefinition }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "Agent not found: ..." }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `PUT` /api/manifest/agents/:agentId
-
-Replace an agent's definition in the manifest (cannot change agent ID)
-
-**Auth**: Session · **Scope**: `manifest:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| agentId | path | string | Yes | The agent identifier |
-| updates | body | object | No | The updated agent fields |
-
-**Response** `200`
-```json
-{ ok: true, message: "Agent updated in manifest", agent: AgentDefinition }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "updates object required" }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "Cannot change agent ID" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `GET` /api/manifest/sync
-
-Preview sync: compare manifest agents with DB AgentInstances, showing what needs syncing
-
-**Auth**: Session · **Scope**: `manifest:read`
-
-**Response** `200`
-```json
-{ ok: true, validation, comparison, summary: { total, needsSync, orphaned, outOfSync, synced } }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: "..." }
-```
-
----
-
-### `POST` /api/manifest/sync
-
-Execute sync between manifest and DB: bootstrap new agents, reset to defaults, or cleanup orphans
-
-**Auth**: Session · **Scope**: `manifest:write`
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| action | body | string | No | Sync action: "bootstrap" | "reset" | "cleanup" (default: "bootstrap") |
-
-**Response** `200`
-```json
-{ ok: true, action, results, summary: { total, created, reset, archived, skipped } }
-```
-
-**Response** `500`
 ```json
 { ok: false, error: "..." }
 ```
@@ -7147,74 +6753,6 @@ Update onboarding configuration for a specific persona (welcome, targets, flow p
 
 ---
 
-### `DELETE` /api/onboarding/personas/manage
-
-Delete a persona from the onboarding spec. Cannot delete the default persona.
-
-**Auth**: Session
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| slug | query | string | No | The persona slug to delete (required) |
-
-**Response** `200`
-```json
-{ ok: true, message: string }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "slug query param is required" | "Cannot delete the default persona" }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "INIT-001 spec not found" | "Persona not found" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: string }
-```
-
----
-
-### `POST` /api/onboarding/personas/manage
-
-Create a new persona in the onboarding spec with default welcome message and first-call flow
-
-**Auth**: Session
-
-| Parameter | In | Type | Required | Description |
-|-----------|-----|------|----------|-------------|
-| slug | body | string | No | Persona slug, lowercase alphanumeric with hyphens (required) |
-| name | body | string | No | Persona display name (required) |
-| description | body | string | No | Persona description |
-| icon | body | string | No | Emoji icon (default: flag in hole) |
-| color | body | object | No | Color config { bg, border, text } |
-
-**Response** `200`
-```json
-{ ok: true, message: string, persona: object }
-```
-
-**Response** `400`
-```json
-{ ok: false, error: "slug and name are required" | "Slug must be lowercase..." | "Persona already exists" }
-```
-
-**Response** `404`
-```json
-{ ok: false, error: "INIT-001 spec not found" }
-```
-
-**Response** `500`
-```json
-{ ok: false, error: string }
-```
-
----
-
 ## Ops
 
 ### `GET` /api/ops
@@ -7520,14 +7058,6 @@ Load the ENTITY_ACCESS_V1 contract for the access matrix editor
 Update the ENTITY_ACCESS_V1 contract matrix (meta-RBAC: caller can only modify roles strictly below their authority level)
 
 **Auth**: rbac_policy:U
-
----
-
-### `POST` /api/admin/access-control/entity-access/reset
-
-Reset the ENTITY_ACCESS_V1 contract to its seed default
-
-**Auth**: SUPERADMIN
 
 ---
 
@@ -11280,13 +10810,14 @@ Returns a hierarchical tree of the full taxonomy:
 
 ### `GET` /api/wizard-steps
 
-Load wizard step definitions from a spec. Returns hardcoded fallback if spec not found.
+Load wizard step definitions from a spec. Accepts either `wizard` (name resolved via config) or `slug` (direct). Returns hardcoded fallback if spec not found.
 
 **Auth**: VIEWER+
 
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
-| slug | query | string | No | Spec slug (e.g., "CONTENT-SOURCE-SETUP-001") |
+| wizard | query | string | No | Wizard name (e.g., "demonstrate", "course", "classroom"). Resolved to spec slug via config. |
+| slug | query | string | No | Direct spec slug (deprecated, prefer `wizard`). Ignored if `wizard` is provided. |
 
 **Response** `200`
 ```json
@@ -11431,8 +10962,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 300 |
-| Files with annotations | 299 |
+| Route files found | 295 |
+| Files with annotations | 294 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

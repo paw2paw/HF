@@ -39,24 +39,27 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  // Get last call date for each classroom
+  // Get last call date for each classroom via join table
   const classroomIds = classrooms.map((c) => c.id);
-  const lastCallByClassroom = await prisma.call.groupBy({
-    by: ["callerId"],
-    where: {
-      caller: { cohortGroupId: { in: classroomIds } },
-    },
-    _max: { createdAt: true },
+  const membershipRows = await prisma.callerCohortMembership.findMany({
+    where: { cohortGroupId: { in: classroomIds } },
+    select: { callerId: true, cohortGroupId: true },
   });
+
+  const memberCallerIds = membershipRows.map((m) => m.callerId);
+  const lastCallByClassroom = memberCallerIds.length > 0
+    ? await prisma.call.groupBy({
+        by: ["callerId"],
+        where: {
+          callerId: { in: memberCallerIds },
+        },
+        _max: { createdAt: true },
+      })
+    : [];
 
   // Map caller IDs to classrooms for last activity
-  const callerClassrooms = await prisma.caller.findMany({
-    where: { cohortGroupId: { in: classroomIds } },
-    select: { id: true, cohortGroupId: true },
-  });
-
   const callerToClassroom = new Map(
-    callerClassrooms.map((c) => [c.id, c.cohortGroupId])
+    membershipRows.map((m) => [m.callerId, m.cohortGroupId])
   );
 
   const classroomLastActivity = new Map<string, Date>();

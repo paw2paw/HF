@@ -2,24 +2,21 @@
 
 /**
  * StepFlowBanner — persistent step navigation bar for multi-step flows.
- * Fixed at top of viewport (below MasqueradeBanner if active).
+ * Fixed at top of viewport.
  * Shows step progress + PREV/NEXT on flow page, "Back to flow" on other pages.
  */
 
 import { useEffect } from 'react';
 import { useStepFlow } from '@/contexts/StepFlowContext';
-import { useMasquerade } from '@/contexts/MasqueradeContext';
-import { MASQUERADE_BANNER_HEIGHT } from '@/components/shared/MasqueradeBanner';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const STEP_FLOW_BANNER_HEIGHT = 44;
-const BANNER_BG = '#0891b2';       // Cyan-600 — distinct from purple masquerade
-const BANNER_BORDER = '#0e7490';   // Cyan-700
+const BANNER_BG = 'var(--step-flow-bg, #0891b2)';       // Cyan-600 — distinct from purple masquerade
+const BANNER_BORDER = 'var(--step-flow-border, #0e7490)';   // Cyan-700
 
 export default function StepFlowBanner() {
   const { state, isActive, isOnFlowPage, prevStep, nextStep, endFlow } = useStepFlow();
-  const { isMasquerading } = useMasquerade();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -62,12 +59,11 @@ export default function StepFlowBanner() {
   // Derive a display name for the flow from the flowId
   const flowDisplayName = flowId.charAt(0).toUpperCase() + flowId.slice(1);
 
-  const topOffset = isMasquerading ? MASQUERADE_BANNER_HEIGHT : 0;
 
   const btnStyle: React.CSSProperties = {
     background: 'rgba(255,255,255,0.15)',
     border: 'none',
-    color: '#fff',
+    color: 'var(--surface-primary)',
     borderRadius: 4,
     padding: '4px 12px',
     cursor: 'pointer',
@@ -92,12 +88,12 @@ export default function StepFlowBanner() {
       aria-label={`${flowDisplayName} flow — step ${currentStep + 1} of ${totalSteps}`}
       style={{
         position: 'fixed',
-        top: topOffset,
+        top: 0,
         left: 0,
         right: 0,
         height: STEP_FLOW_BANNER_HEIGHT,
         background: BANNER_BG,
-        color: '#ffffff',
+        color: 'var(--surface-primary)',
         borderBottom: `1px solid ${BANNER_BORDER}`,
         display: 'flex',
         alignItems: 'center',

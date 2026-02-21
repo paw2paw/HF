@@ -3,24 +3,24 @@
 import React from "react";
 
 export const ROLE_COLORS: Record<string, string> = {
-  SUPERADMIN: "#dc2626",
-  ADMIN: "#ea580c",
-  OPERATOR: "#2563eb",
-  EDUCATOR: "#059669",
-  SUPER_TESTER: "#7c3aed",
-  TESTER: "#6b7280",
-  STUDENT: "#06b6d4",
-  DEMO: "#a3a3a3",
-  VIEWER: "#6b7280",
+  SUPERADMIN: "var(--status-error-text)",
+  ADMIN: "var(--badge-orange-text, #ea580c)",
+  OPERATOR: "var(--accent-primary)",
+  EDUCATOR: "var(--status-success-text)",
+  SUPER_TESTER: "var(--accent-secondary, #8b5cf6)",
+  TESTER: "var(--text-muted)",
+  STUDENT: "var(--badge-cyan-text, #06b6d4)",
+  DEMO: "var(--text-muted)",
+  VIEWER: "var(--text-muted)",
 };
 
 export const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg, #6366f1, #8b5cf6)",
-  "linear-gradient(135deg, #3b82f6, #06b6d4)",
-  "linear-gradient(135deg, #ec4899, #f43f5e)",
-  "linear-gradient(135deg, #f59e0b, #ef4444)",
-  "linear-gradient(135deg, #10b981, #14b8a6)",
-  "linear-gradient(135deg, #8b5cf6, #ec4899)",
+  "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary, #8b5cf6))",
+  "linear-gradient(135deg, var(--accent-primary), var(--badge-cyan-text, #06b6d4))",
+  "linear-gradient(135deg, var(--badge-pink-text, #ec4899), var(--status-error-text, #f43f5e))",
+  "linear-gradient(135deg, var(--status-warning-text), var(--status-error-text))",
+  "linear-gradient(135deg, var(--status-success-text), var(--badge-cyan-text, #14b8a6))",
+  "linear-gradient(135deg, var(--accent-secondary, #8b5cf6), var(--badge-pink-text, #ec4899))",
 ];
 
 export function getAvatarGradient(id: string): string {
@@ -60,8 +60,8 @@ export function UserAvatar({
     useGradient && userId
       ? getAvatarGradient(userId)
       : role
-        ? ROLE_COLORS[role] || "#6b7280"
-        : "#6b7280";
+        ? ROLE_COLORS[role] || "var(--text-muted)"
+        : "var(--text-muted)";
 
   const baseStyle: React.CSSProperties = {
     width: size,
@@ -91,7 +91,7 @@ export function UserAvatar({
       style={{
         ...baseStyle,
         background: bg,
-        color: "#fff",
+        color: "var(--surface-primary)",
         fontSize,
         fontWeight: 700,
       }}

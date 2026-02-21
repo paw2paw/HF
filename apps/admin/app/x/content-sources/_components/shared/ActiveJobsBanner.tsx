@@ -44,7 +44,19 @@ export function ActiveJobsBanner({ onJobDone }: { onJobDone: () => void }) {
 
   useEffect(() => {
     fetchActiveJobs();
-    pollRef.current = setInterval(fetchActiveJobs, 3000);
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+    pollRef.current = setInterval(() => {
+      if (Date.now() - startedAt > TIMEOUT_MS) {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+        setJobs([]); // Clear stale jobs
+        return;
+      }
+      fetchActiveJobs();
+    }, 3000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
@@ -107,7 +119,7 @@ export function ActiveJobsBanner({ onJobDone }: { onJobDone: () => void }) {
                   style={{
                     height: "100%",
                     borderRadius: 2,
-                    background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                    background: "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
                     width: `${pct}%`,
                     transition: "width 0.5s ease-out",
                   }}

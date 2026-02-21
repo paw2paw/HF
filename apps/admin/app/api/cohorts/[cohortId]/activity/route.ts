@@ -43,12 +43,12 @@ export async function GET(
     const limit = Math.min(200, parseInt(url.searchParams.get("limit") || "50"));
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
-    // Get member IDs for this cohort
-    const memberIds = await prisma.caller.findMany({
+    // Get member IDs for this cohort via join table
+    const memberRows = await prisma.callerCohortMembership.findMany({
       where: { cohortGroupId: cohortId },
-      select: { id: true },
+      select: { callerId: true },
     });
-    const callerIds = memberIds.map((m) => m.id);
+    const callerIds = memberRows.map((m) => m.callerId);
 
     if (callerIds.length === 0) {
       return NextResponse.json({

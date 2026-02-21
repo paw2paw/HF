@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Copy, FileText, ClipboardCopy } from "lucide-react";
 
 type LogType = "ai" | "api" | "system" | "user";
 
@@ -19,13 +20,55 @@ interface LogEntry {
 }
 
 const LOG_TYPE_COLORS: Record<LogType, { bg: string; text: string }> = {
-  ai: { bg: "#dbeafe", text: "#1e40af" },
-  api: { bg: "#dcfce7", text: "#166534" },
-  system: { bg: "#fef3c7", text: "#92400e" },
-  user: { bg: "#f3e8ff", text: "#6b21a8" },
+  ai: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text, #1e40af)" },
+  api: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text, #166534)" },
+  system: { bg: "var(--badge-amber-bg, #fef3c7)", text: "var(--badge-amber-text, #92400e)" },
+  user: { bg: "var(--badge-purple-bg, #f3e8ff)", text: "var(--badge-purple-text, #6b21a8)" },
 };
 
+const DEEP_BADGE = { bg: "var(--status-error-text)", text: "#fff" };
+
 const ALL_TYPES: LogType[] = ["ai", "api", "system", "user"];
+
+function isDeepEntry(log: LogEntry): boolean {
+  return log.metadata?.deep === true;
+}
+
+/**
+ * Format a log entry as a structured markdown block for pasting into Claude.
+ */
+function formatForClaude(log: LogEntry): string {
+  const lines: string[] = [];
+  lines.push(`## AI Call: ${log.stage}`);
+  if (log.metadata?.model || log.metadata?.engine || log.durationMs) {
+    const parts: string[] = [];
+    if (log.metadata?.model) parts.push(`**Model:** ${log.metadata.model}`);
+    if (log.metadata?.engine) parts.push(`**Engine:** ${log.metadata.engine}`);
+    if (log.durationMs) parts.push(`**Duration:** ${log.durationMs}ms`);
+    lines.push(parts.join(" | "));
+  }
+  if (log.usage) {
+    lines.push(`**Tokens:** ${log.usage.inputTokens ?? 0} in / ${log.usage.outputTokens ?? 0} out`);
+  }
+  lines.push(`**Time:** ${log.timestamp}`);
+  lines.push("");
+  if (log.promptPreview) {
+    lines.push("### Prompt");
+    lines.push(log.promptPreview);
+    lines.push("");
+  }
+  if (log.responsePreview) {
+    lines.push("### Response");
+    lines.push(log.responsePreview);
+    lines.push("");
+  }
+  if (log.metadata?.error) {
+    lines.push("### Error");
+    lines.push(String(log.metadata.error));
+    lines.push("");
+  }
+  return lines.join("\n");
+}
 
 export default function LogsPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -34,7 +77,8 @@ export default function LogsPage() {
   const [loggingEnabled, setLoggingEnabled] = useState(true);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState<LogType[]>(ALL_TYPES);
-  const [copied, setCopied] = useState<string | null>(null); // "all" or log index
+  const [deepOnly, setDeepOnly] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -77,26 +121,17 @@ export default function LogsPage() {
     });
   };
 
-  const copyAllLogs = async () => {
+  const copyToClipboard = async (text: string, key: string) => {
     try {
-      const text = logs.map((log) => JSON.stringify(log)).join("\n");
       await navigator.clipboard.writeText(text);
-      setCopied("all");
+      setCopied(key);
       setTimeout(() => setCopied(null), 2000);
     } catch (err) {
       console.error("Copy failed:", err);
     }
   };
 
-  const copyLog = async (idx: number, log: LogEntry) => {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(log, null, 2));
-      setCopied(String(idx));
-      setTimeout(() => setCopied(null), 2000);
-    } catch (err) {
-      console.error("Copy failed:", err);
-    }
-  };
+  const copyAllLogs = () => copyToClipboard(logs.map((log) => JSON.stringify(log)).join("\n"), "all");
 
   useEffect(() => {
     fetchLogs();
@@ -108,20 +143,23 @@ export default function LogsPage() {
     return () => clearInterval(interval);
   }, [autoRefresh, fetchLogs]);
 
-  const totalTokens = logs.reduce((sum, log) => {
+  const filteredLogs = deepOnly ? logs.filter(isDeepEntry) : logs;
+
+  const totalTokens = filteredLogs.reduce((sum, log) => {
     return sum + (log.usage?.inputTokens || 0) + (log.usage?.outputTokens || 0);
   }, 0);
 
-  const aiLogs = logs.filter((l) => l.type === "ai");
-  const estimatedCost = (totalTokens / 1000000) * 3; // ~$3 per 1M tokens for Sonnet
+  const aiLogs = filteredLogs.filter((l) => l.type === "ai");
+  const deepCount = logs.filter(isDeepEntry).length;
+  const estimatedCost = (totalTokens / 1000000) * 3;
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Logs</h1>
+          <h1 className="hf-page-title">Logs</h1>
           <p style={{ color: "var(--text-secondary)", margin: "4px 0 0" }}>
-            {logs.length} entries
+            {filteredLogs.length} entries{deepOnly ? ` (${deepCount} deep)` : ""}
             {aiLogs.length > 0 && ` | ${totalTokens.toLocaleString()} tokens | ~$${estimatedCost.toFixed(4)}`}
           </p>
         </div>
@@ -158,15 +196,15 @@ export default function LogsPage() {
           </button>
           <button
             onClick={copyAllLogs}
-            disabled={logs.length === 0}
+            disabled={filteredLogs.length === 0}
             style={{
               padding: "8px 16px",
               background: copied === "all" ? "var(--status-success-text)" : "var(--text-muted)",
               color: "white",
               border: "none",
               borderRadius: 6,
-              cursor: logs.length === 0 ? "not-allowed" : "pointer",
-              opacity: logs.length === 0 ? 0.5 : 1,
+              cursor: filteredLogs.length === 0 ? "not-allowed" : "pointer",
+              opacity: filteredLogs.length === 0 ? 0.5 : 1,
             }}
           >
             {copied === "all" ? "Copied!" : "Copy All"}
@@ -190,7 +228,7 @@ export default function LogsPage() {
         </div>
       </div>
 
-      {/* Type filters */}
+      {/* Type filters + Deep filter */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {ALL_TYPES.map((type) => {
           const isActive = typeFilter.includes(type);
@@ -215,29 +253,47 @@ export default function LogsPage() {
             </button>
           );
         })}
+        <span style={{ color: "var(--border-default)", lineHeight: "30px" }}>|</span>
+        <button
+          onClick={() => setDeepOnly((v) => !v)}
+          style={{
+            padding: "4px 12px",
+            background: deepOnly ? DEEP_BADGE.bg : "transparent",
+            color: deepOnly ? DEEP_BADGE.text : "var(--text-muted)",
+            border: `1px solid ${deepOnly ? DEEP_BADGE.bg : "var(--border-default)"}`,
+            borderRadius: 16,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          DEEP {deepCount > 0 ? `(${deepCount})` : ""}
+        </button>
       </div>
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>Loading...</div>
-      ) : logs.length === 0 ? (
+      ) : filteredLogs.length === 0 ? (
         <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
-          No logs yet. Activity will appear here.
+          {deepOnly ? "No deep log entries. Toggle deep logging ON in the status bar, then run a wizard or pipeline." : "No logs yet. Activity will appear here."}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {logs.map((log, idx) => {
+          {filteredLogs.map((log, idx) => {
             const isExpanded = expandedLog === idx;
             const inputTokens = log.usage?.inputTokens || 0;
             const outputTokens = log.usage?.outputTokens || 0;
             const logType = log.type || "ai";
             const colors = LOG_TYPE_COLORS[logType] || LOG_TYPE_COLORS.ai;
+            const isDeep = isDeepEntry(log);
 
             return (
               <div
                 key={idx}
                 style={{
                   background: "var(--background-secondary, #f9fafb)",
-                  border: "1px solid var(--border-default, #e5e7eb)",
+                  border: `1px solid ${isDeep ? "var(--status-error-text)" : "var(--border-default, #e5e7eb)"}`,
                   borderRadius: 8,
                   overflow: "hidden",
                 }}
@@ -252,7 +308,7 @@ export default function LogsPage() {
                     alignItems: "center",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span
                       style={{
                         padding: "2px 8px",
@@ -266,6 +322,22 @@ export default function LogsPage() {
                     >
                       {logType}
                     </span>
+                    {isDeep && (
+                      <span
+                        style={{
+                          padding: "2px 6px",
+                          background: DEEP_BADGE.bg,
+                          color: DEEP_BADGE.text,
+                          borderRadius: 4,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                        }}
+                      >
+                        DEEP
+                      </span>
+                    )}
                     <span
                       style={{
                         padding: "2px 8px",
@@ -312,32 +384,53 @@ export default function LogsPage() {
                 {isExpanded && (
                   <div style={{ borderTop: "1px solid var(--border-default, #e5e7eb)" }}>
                     <div style={{ padding: 16 }}>
-                      {/* Copy button for this log entry */}
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                      {/* Copy buttons */}
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12 }}>
+                        {logType === "ai" && log.promptPreview && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(log.promptPreview!, `prompt-${idx}`);
+                            }}
+                            className="hf-btn hf-btn-secondary"
+                            style={{ padding: "4px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
+                          >
+                            <Copy size={12} />
+                            {copied === `prompt-${idx}` ? "Copied!" : "Copy Prompt"}
+                          </button>
+                        )}
+                        {logType === "ai" && log.responsePreview && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(log.responsePreview!, `response-${idx}`);
+                            }}
+                            className="hf-btn hf-btn-secondary"
+                            style={{ padding: "4px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
+                          >
+                            <FileText size={12} />
+                            {copied === `response-${idx}` ? "Copied!" : "Copy Response"}
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            copyLog(idx, log);
+                            copyToClipboard(formatForClaude(log), `full-${idx}`);
                           }}
-                          style={{
-                            padding: "4px 12px",
-                            background: copied === String(idx) ? "var(--status-success-text)" : "var(--border-default)",
-                            color: copied === String(idx) ? "white" : "var(--text-primary)",
-                            border: "none",
-                            borderRadius: 4,
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 500,
-                          }}
+                          className="hf-btn hf-btn-secondary"
+                          style={{ padding: "4px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
                         >
-                          {copied === String(idx) ? "Copied!" : "Copy Entry"}
+                          <ClipboardCopy size={12} />
+                          {copied === `full-${idx}` ? "Copied!" : "Copy Full"}
                         </button>
                       </div>
+
                       {/* AI-specific: prompt and response */}
                       {logType === "ai" && log.promptPreview && (
                         <div style={{ marginBottom: 12 }}>
                           <strong style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                            PROMPT ({log.promptLength || 0} chars)
+                            PROMPT ({(log.promptLength || 0).toLocaleString()} chars)
+                            {isDeep && <span style={{ color: "var(--status-error-text)", marginLeft: 6 }}>FULL</span>}
                           </strong>
                           <pre
                             style={{
@@ -347,7 +440,7 @@ export default function LogsPage() {
                               borderRadius: 6,
                               fontSize: 11,
                               overflow: "auto",
-                              maxHeight: 300,
+                              maxHeight: isDeep ? 600 : 300,
                               marginTop: 6,
                               whiteSpace: "pre-wrap",
                               wordBreak: "break-word",
@@ -360,7 +453,8 @@ export default function LogsPage() {
                       {logType === "ai" && log.responsePreview && (
                         <div style={{ marginBottom: 12 }}>
                           <strong style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                            RESPONSE ({log.responseLength || 0} chars)
+                            RESPONSE ({(log.responseLength || 0).toLocaleString()} chars)
+                            {isDeep && <span style={{ color: "var(--status-error-text)", marginLeft: 6 }}>FULL</span>}
                           </strong>
                           <pre
                             style={{
@@ -370,7 +464,7 @@ export default function LogsPage() {
                               borderRadius: 6,
                               fontSize: 11,
                               overflow: "auto",
-                              maxHeight: 200,
+                              maxHeight: isDeep ? 600 : 200,
                               marginTop: 6,
                               whiteSpace: "pre-wrap",
                               wordBreak: "break-word",

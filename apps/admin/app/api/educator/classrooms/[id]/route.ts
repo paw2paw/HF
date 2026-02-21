@@ -29,19 +29,26 @@ export async function GET(
 
   const { cohort } = ownership;
 
-  // Get members with call stats
-  const members = await prisma.caller.findMany({
-    where: { cohortGroupId: id, role: "LEARNER" },
+  // Get members via join table with call stats
+  const memberships = await prisma.callerCohortMembership.findMany({
+    where: { cohortGroupId: id },
     include: {
-      _count: { select: { calls: true } },
-      calls: {
-        select: { createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 1,
+      caller: {
+        include: {
+          _count: { select: { calls: true } },
+          calls: {
+            select: { createdAt: true },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
       },
     },
-    orderBy: { name: "asc" },
   });
+  const members = memberships
+    .map((m) => m.caller)
+    .filter((c) => c.role === "LEARNER")
+    .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 
   return NextResponse.json({
     ok: true,

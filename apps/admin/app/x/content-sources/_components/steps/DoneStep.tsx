@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { FileText, Building2, GraduationCap, BookOpen } from "lucide-react";
+import { WizardSummary } from "@/components/shared/WizardSummary";
 
 interface StepProps {
   setData: (key: string, value: unknown) => void;
@@ -29,7 +30,7 @@ type ReadinessResult = {
   criticalTotal: number;
 };
 
-export default function DoneStep({ getData, endFlow }: StepProps) {
+export default function DoneStep({ getData, onPrev, endFlow }: StepProps) {
   const sourceId = getData<string>("sourceId");
   const sourceName = getData<string>("sourceName");
   const subjectName = getData<string>("subjectName");
@@ -71,182 +72,134 @@ export default function DoneStep({ getData, endFlow }: StepProps) {
 
   const scorePct = readiness ? Math.round(readiness.score * 100) : 0;
 
+  // Build stats from available data
+  const stats = [
+    ...(assertionCount != null ? [{ label: "Teaching Points", value: assertionCount }] : []),
+    ...(reviewedCount != null ? [{ label: "Reviewed", value: reviewedCount }] : []),
+    ...((questionCount ?? 0) > 0 ? [{ label: "Questions", value: questionCount! }] : []),
+    ...((vocabCount ?? 0) > 0 ? [{ label: "Vocabulary", value: vocabCount! }] : []),
+    ...(lessonCount != null ? [{ label: "Sessions", value: lessonCount }] : []),
+  ];
+
   return (
-    <div>
-      <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>
-        You&apos;re all set!
-      </h2>
-      <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" }}>
-        Here&apos;s a summary of everything you&apos;ve configured.
-      </p>
-
-      {/* Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 16, marginBottom: 24 }}>
-        {/* Content card */}
-        <SummaryCard title="Content" icon="\uD83D\uDCDA">
-          <SummaryRow label="Source" value={sourceName || "—"} />
-          {assertionCount != null && <SummaryRow label="Teaching points" value={String(assertionCount)} />}
-          {reviewedCount != null && (
-            <SummaryRow label="Reviewed" value={assertionCount ? `${reviewedCount}/${assertionCount}` : String(reviewedCount)} />
-          )}
-          {(questionCount ?? 0) > 0 && <SummaryRow label="Questions" value={String(questionCount)} />}
-          {(vocabCount ?? 0) > 0 && <SummaryRow label="Vocabulary terms" value={String(vocabCount)} />}
-        </SummaryCard>
-
-        {/* Curriculum card */}
-        <SummaryCard title="Curriculum" icon="\uD83C\uDF93">
-          <SummaryRow label="Subject" value={subjectName || "—"} />
-          {curriculumId && <SummaryRow label="Curriculum" value="Generated" />}
-          {lessonCount != null && <SummaryRow label="Lesson plan" value={`${lessonCount} sessions`} />}
-        </SummaryCard>
-
-        {/* Delivery card */}
-        <SummaryCard title="Delivery" icon="\uD83D\uDCE1">
-          <SummaryRow label="Domain" value={domainName || "—"} />
-          {domainId && <SummaryRow label="Onboarding" value="Configured" />}
-        </SummaryCard>
-      </div>
-
+    <WizardSummary
+      title="Content Ready!"
+      subtitle="Your content has been extracted and configured."
+      intent={{
+        items: [
+          { icon: <FileText className="w-4 h-4" />, label: "Source", value: sourceName || "—" },
+          ...(subjectName ? [{ icon: <GraduationCap className="w-4 h-4" />, label: "Subject", value: subjectName }] : []),
+          ...(domainName ? [{ icon: <Building2 className="w-4 h-4" />, label: "Institution", value: domainName }] : []),
+        ],
+      }}
+      created={{
+        entities: [
+          ...(sourceId ? [{
+            icon: <FileText className="w-5 h-5" />,
+            label: "Content Source",
+            name: sourceName || "—",
+            detail: assertionCount != null ? `${assertionCount} teaching points` : undefined,
+            href: `/x/content-sources/${sourceId}`,
+          }] : []),
+          ...(curriculumId && subjectName ? [{
+            icon: <GraduationCap className="w-5 h-5" />,
+            label: "Subject",
+            name: subjectName,
+            detail: lessonCount != null ? `${lessonCount} sessions` : undefined,
+          }] : []),
+          ...(domainId ? [{
+            icon: <Building2 className="w-5 h-5" />,
+            label: "Institution",
+            name: domainName || "—",
+            href: `/x/domains?id=${domainId}`,
+          }] : []),
+        ],
+      }}
+      stats={stats.length > 0 ? stats : undefined}
+      primaryAction={{
+        label: "Teach This",
+        href: domainId ? `/x/teach?domainId=${domainId}` : undefined,
+        onClick: endFlow,
+      }}
+      secondaryActions={[
+        ...(sourceId ? [{ label: "View Source", href: `/x/content-sources/${sourceId}`, onClick: endFlow }] : []),
+        ...(domainId ? [{ label: "Go to Institution", href: `/x/domains?id=${domainId}`, onClick: endFlow }] : []),
+        { label: "Start Another", onClick: endFlow },
+      ]}
+      onBack={onPrev}
+    >
       {/* Course Readiness */}
       {domainId && (
-        <div style={{
-          padding: 20, borderRadius: 12, marginBottom: 24,
-          border: "1px solid var(--border-default)", background: "var(--surface-primary)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
-              Course Readiness
-            </h3>
-            {loadingReadiness ? (
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Checking...</span>
-            ) : readiness ? (
-              <span style={{
-                padding: "3px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600,
-                color: readiness.ready ? "var(--status-success-text, #16a34a)" : "var(--status-error-text)",
-                background: readiness.ready
-                  ? "color-mix(in srgb, var(--status-success-text, #16a34a) 10%, transparent)"
-                  : "color-mix(in srgb, var(--status-error-text) 10%, transparent)",
-              }}>
-                {readiness.ready ? `${scorePct}% Ready` : `${scorePct}% — Not Ready`}
+        <div className="wiz-section">
+          <div className="wiz-section-label">Course Readiness</div>
+          <div style={{
+            padding: 20, borderRadius: 12,
+            border: "1px solid var(--border-default)", background: "var(--surface-primary)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: readiness ? 16 : 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                Status
               </span>
-            ) : null}
-          </div>
-
-          {readiness && (
-            <>
-              {/* Progress bar */}
-              <div style={{ height: 8, borderRadius: 4, background: "var(--surface-tertiary)", overflow: "hidden", marginBottom: 16 }}>
-                <div style={{
-                  height: "100%", borderRadius: 4,
+              {loadingReadiness ? (
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Checking...</span>
+              ) : readiness ? (
+                <span style={{
+                  padding: "3px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600,
+                  color: readiness.ready ? "var(--status-success-text)" : "var(--status-error-text)",
                   background: readiness.ready
-                    ? "var(--status-success-text, #16a34a)"
-                    : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
-                  width: `${scorePct}%`, transition: "width 0.3s ease-out",
-                }} />
-              </div>
+                    ? "color-mix(in srgb, var(--status-success-text) 10%, transparent)"
+                    : "color-mix(in srgb, var(--status-error-text) 10%, transparent)",
+                }}>
+                  {readiness.ready ? `${scorePct}% Ready` : `${scorePct}% — Not Ready`}
+                </span>
+              ) : null}
+            </div>
 
-              {/* Checks */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {readiness.checks.map((check) => (
-                  <div key={check.id} style={{
-                    display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
-                    borderRadius: 6, background: "var(--surface-secondary)",
-                  }}>
-                    <span style={{
-                      width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center",
-                      borderRadius: "50%", fontSize: 11, fontWeight: 700,
-                      background: check.passed
-                        ? "color-mix(in srgb, var(--status-success-text, #16a34a) 15%, transparent)"
-                        : "color-mix(in srgb, var(--status-error-text) 15%, transparent)",
-                      color: check.passed ? "var(--status-success-text, #16a34a)" : "var(--status-error-text)",
+            {readiness && (
+              <>
+                <div style={{ height: 8, borderRadius: 4, background: "var(--surface-tertiary)", overflow: "hidden", marginBottom: 16 }}>
+                  <div style={{
+                    height: "100%", borderRadius: 4,
+                    background: readiness.ready
+                      ? "var(--status-success-text)"
+                      : "var(--accent-primary)",
+                    width: `${scorePct}%`, transition: "width 0.3s ease-out",
+                  }} />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {readiness.checks.map((check) => (
+                    <div key={check.id} style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                      borderRadius: 6, background: "var(--surface-secondary)",
                     }}>
-                      {check.passed ? "\u2713" : "\u2717"}
-                    </span>
-                    <span style={{ flex: 1, fontSize: 13, color: "var(--text-primary)" }}>
-                      {check.label}
-                    </span>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, textTransform: "uppercase",
-                      color: check.level === "critical" ? "var(--status-error-text)" : "var(--text-muted)",
-                    }}>
-                      {check.level}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+                      <span style={{
+                        width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center",
+                        borderRadius: "50%", fontSize: 11, fontWeight: 700,
+                        background: check.passed
+                          ? "color-mix(in srgb, var(--status-success-text) 15%, transparent)"
+                          : "color-mix(in srgb, var(--status-error-text) 15%, transparent)",
+                        color: check.passed ? "var(--status-success-text)" : "var(--status-error-text)",
+                      }}>
+                        {check.passed ? "\u2713" : "\u2717"}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 13, color: "var(--text-primary)" }}>
+                        {check.label}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+                        color: check.level === "critical" ? "var(--status-error-text)" : "var(--text-muted)",
+                      }}>
+                        {check.level}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
-
-      {/* Action buttons */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        {sourceId && (
-          <ActionLink href={`/x/content-sources/${sourceId}`} label="View Source Details" onClick={endFlow} />
-        )}
-        {domainId && (
-          <ActionLink href={`/x/domains?id=${domainId}`} label="Go to Domain" onClick={endFlow} />
-        )}
-        {domainId && (
-          <ActionLink href={`/x/teach?domainId=${domainId}`} label="Teach This" primary onClick={endFlow} />
-        )}
-        <button
-          onClick={endFlow}
-          style={{
-            padding: "12px 24px", borderRadius: 8,
-            border: "1px solid var(--border-default)", background: "transparent",
-            color: "var(--text-secondary)", fontSize: 14, cursor: "pointer",
-          }}
-        >
-          Start Another
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Shared components ──────────────────────────────────
-
-function SummaryCard({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
-  return (
-    <div style={{
-      padding: 16, borderRadius: 10,
-      border: "1px solid var(--border-default)", background: "var(--surface-primary)",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{title}</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-      <span style={{ color: "var(--text-muted)" }}>{label}</span>
-      <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{value}</span>
-    </div>
-  );
-}
-
-function ActionLink({ href, label, primary, onClick }: { href: string; label: string; primary?: boolean; onClick?: () => void }) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      style={{
-        padding: "12px 24px", borderRadius: 8, textDecoration: "none",
-        fontSize: 14, fontWeight: primary ? 700 : 500, cursor: "pointer",
-        background: primary ? "var(--accent-primary)" : "transparent",
-        color: primary ? "#fff" : "var(--accent-primary)",
-        border: primary ? "none" : "1px solid var(--accent-primary)",
-      }}
-    >
-      {label}
-    </Link>
+    </WizardSummary>
   );
 }

@@ -96,16 +96,16 @@ export default function SupervisorPage() {
 
   const outputTypeBadge = (outputType: string) => {
     const styles: Record<string, { bg: string; color: string }> = {
-      LEARN: { bg: "#ede9fe", color: "#5b21b6" },
-      MEASURE: { bg: "#dcfce7", color: "#166534" },
-      MEASURE_AGENT: { bg: "#dbeafe", color: "#1e40af" },
-      AGGREGATE: { bg: "#fef3c7", color: "#92400e" },
-      REWARD: { bg: "#fee2e2", color: "#991b1b" },
-      ADAPT: { bg: "#fce7f3", color: "#be185d" },
-      SUPERVISE: { bg: "#fed7aa", color: "#9a3412" },
-      COMPOSE: { bg: "#e0e7ff", color: "#4338ca" },
+      LEARN: { bg: "var(--badge-violet-bg)", color: "var(--badge-violet-text)" },
+      MEASURE: { bg: "var(--badge-green-bg)", color: "var(--badge-green-text)" },
+      MEASURE_AGENT: { bg: "var(--badge-blue-bg)", color: "var(--badge-blue-text)" },
+      AGGREGATE: { bg: "var(--badge-amber-bg)", color: "var(--badge-amber-text)" },
+      REWARD: { bg: "var(--badge-red-bg)", color: "var(--badge-red-text)" },
+      ADAPT: { bg: "var(--badge-pink-bg)", color: "var(--badge-pink-text)" },
+      SUPERVISE: { bg: "var(--badge-orange-bg)", color: "var(--badge-orange-text)" },
+      COMPOSE: { bg: "var(--badge-indigo-bg)", color: "var(--badge-indigo-text)" },
     };
-    const s = styles[outputType] || { bg: "#f3f4f6", color: "#6b7280" };
+    const s = styles[outputType] || { bg: "var(--surface-secondary)", color: "var(--text-muted)" };
     return (
       <span
         className="text-[10px] px-1.5 py-0.5 rounded font-medium"

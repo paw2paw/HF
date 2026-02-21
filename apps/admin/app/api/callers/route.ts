@@ -220,6 +220,15 @@ export async function POST(req: Request) {
       },
     });
 
+    // Create join table membership (alongside legacy FK)
+    if (cohortGroupId) {
+      await prisma.callerCohortMembership.upsert({
+        where: { callerId_cohortGroupId: { callerId: caller.id, cohortGroupId } },
+        create: { callerId: caller.id, cohortGroupId },
+        update: {},
+      });
+    }
+
     // Auto-enroll in playbooks (cohort-specific if cohort provided, otherwise domain-wide)
     if (cohortGroupId && caller.domainId) {
       await enrollCallerInCohortPlaybooks(caller.id, cohortGroupId, caller.domainId, "auto");

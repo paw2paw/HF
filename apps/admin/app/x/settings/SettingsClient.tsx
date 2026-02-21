@@ -251,7 +251,7 @@ export default function SettingsClient() {
       >
         {/* Header */}
         <div style={{ marginBottom: 24, paddingTop: 12 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
+          <h1 className="hf-page-title" style={{ marginBottom: 6 }}>
             Settings
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>

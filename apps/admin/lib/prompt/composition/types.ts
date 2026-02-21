@@ -263,11 +263,20 @@ export interface CallerData {
     onboardingDefaultTargets?: unknown;
   } | null;
   domainId?: string | null;
+  /** @deprecated Use cohortMemberships instead. Legacy single-cohort FK during migration. */
   cohortGroup?: {
     id: string;
     name: string;
     owner: { id: string; name: string | null };
   } | null;
+  /** Multi-cohort memberships (preferred over legacy cohortGroup) */
+  cohortMemberships?: Array<{
+    cohortGroup: {
+      id: string;
+      name: string;
+      owner: { id: string; name: string | null };
+    };
+  }>;
 }
 
 export interface MemoryData {

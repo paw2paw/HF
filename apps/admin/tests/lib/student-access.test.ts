@@ -100,6 +100,7 @@ describe("student-access", () => {
         session: mockSession(),
         callerId: "caller-1",
         cohortGroupId: "cohort-1",
+        cohortGroupIds: ["cohort-1"],
         institutionId: null,
       };
       expect(isStudentAuthError(success)).toBe(false);
@@ -159,6 +160,7 @@ describe("student-access", () => {
       mockPrisma.caller.findFirst.mockResolvedValue({
         id: "caller-1",
         cohortGroupId: null,
+        cohortMemberships: [],
         user: { institutionId: null },
       });
 
@@ -172,12 +174,13 @@ describe("student-access", () => {
       }
     });
 
-    it("should return session, callerId, cohortGroupId on success", async () => {
+    it("should return session, callerId, cohortGroupId and cohortGroupIds on success", async () => {
       mockRequireAuth.mockResolvedValue(makeAuthSuccess("user-1"));
       mockIsAuthError.mockReturnValue(false);
       mockPrisma.caller.findFirst.mockResolvedValue({
         id: "learner-caller-1",
         cohortGroupId: "cohort-1",
+        cohortMemberships: [{ cohortGroupId: "cohort-1" }],
         user: { institutionId: "inst-1" },
       });
 
@@ -188,6 +191,7 @@ describe("student-access", () => {
         expect(result.session.user.id).toBe("user-1");
         expect(result.callerId).toBe("learner-caller-1");
         expect(result.cohortGroupId).toBe("cohort-1");
+        expect(result.cohortGroupIds).toEqual(["cohort-1"]);
         expect(result.institutionId).toBe("inst-1");
       }
     });
@@ -198,6 +202,7 @@ describe("student-access", () => {
       mockPrisma.caller.findFirst.mockResolvedValue({
         id: "learner-caller-1",
         cohortGroupId: "cohort-1",
+        cohortMemberships: [{ cohortGroupId: "cohort-1" }],
         user: { institutionId: null },
       });
 
@@ -208,6 +213,10 @@ describe("student-access", () => {
         select: {
           id: true,
           cohortGroupId: true,
+          cohortMemberships: {
+            select: { cohortGroupId: true },
+            orderBy: { joinedAt: "asc" },
+          },
           user: { select: { institutionId: true } },
         },
       });

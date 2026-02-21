@@ -244,6 +244,7 @@ describe("/api/callers/[callerId]", () => {
         cohortGroupId: null,
         domain: { id: "domain-1", slug: "test", name: "Test" },
         cohortGroup: null,
+        cohortMemberships: [],
         ownedCohorts: [],
       };
 
@@ -290,6 +291,7 @@ describe("/api/callers/[callerId]", () => {
         cohortGroupId: null,
         domain: null,
         cohortGroup: null,
+        cohortMemberships: [],
         ownedCohorts: [],
       };
 

@@ -554,6 +554,29 @@ export async function getDefaultsSettings(): Promise<DefaultsSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 11. AGENT TUNING (Boston Matrix structure)
+// ═══════════════════════════════════════════════════════
+
+import {
+  type AgentTuningSettings,
+  AGENT_TUNING_DEFAULTS,
+} from "@/lib/domain/agent-tuning";
+
+export type { AgentTuningSettings };
+
+export async function getAgentTuningSettings(): Promise<AgentTuningSettings> {
+  const matrices = await getSystemSetting(
+    "agent_tuning.matrices",
+    AGENT_TUNING_DEFAULTS.matrices,
+  );
+  const derivedConfidence = await getSystemSetting(
+    "agent_tuning.derived_confidence",
+    AGENT_TUNING_DEFAULTS.derivedConfidence,
+  );
+  return { matrices, derivedConfidence };
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -750,6 +773,16 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     description: "Default values used when creating new entities (domains, overlays, etc.)",
     settings: [
       { key: "defaults.archetype", label: "Default archetype", description: "Base archetype slug used when scaffolding new domain overlays (e.g. TUT-001, COACH-001)", type: "text" as const, default: "TUT-001", placeholder: "e.g. TUT-001" },
+    ],
+  },
+  {
+    id: "agent_tuning",
+    label: "Agent Tuning",
+    icon: "Sliders",
+    description: "Boston Matrix definitions, presets, and derivation weights for agent style tuning",
+    settings: [
+      { key: "agent_tuning.derived_confidence", label: "Derived confidence", description: "Confidence level assigned to parameters derived from matrix positions (0–1)", type: "float" as const, default: 0.5, min: 0, max: 1, step: 0.05 },
+      { key: "agent_tuning.matrices", label: "Matrix definitions (JSON)", description: "Array of matrix structures: axes, presets, derivation weights. Edit with care — invalid JSON breaks the tuning UI.", type: "textarea" as const, default: JSON.stringify(AGENT_TUNING_DEFAULTS.matrices, null, 2) },
     ],
   },
 ];

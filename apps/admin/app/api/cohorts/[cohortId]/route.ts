@@ -37,27 +37,33 @@ export async function GET(
     if (isCohortOwnershipError(ownershipResult)) return ownershipResult.error;
     const { cohort } = ownershipResult;
 
-    // Fetch members with summary stats
-    const members = await prisma.caller.findMany({
+    // Fetch members via join table with summary stats
+    const memberships = await prisma.callerCohortMembership.findMany({
       where: { cohortGroupId: cohortId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        archivedAt: true,
-        createdAt: true,
-        _count: {
+      include: {
+        caller: {
           select: {
-            calls: true,
-            goals: true,
-            memories: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            archivedAt: true,
+            createdAt: true,
+            _count: {
+              select: {
+                calls: true,
+                goals: true,
+                memories: true,
+              },
+            },
           },
         },
       },
-      orderBy: { name: "asc" },
     });
+    const members = memberships
+      .map((m) => m.caller)
+      .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 
     return NextResponse.json({ ok: true, cohort, members });
   } catch (error: any) {

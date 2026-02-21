@@ -89,32 +89,29 @@ export async function POST(
       );
     }
 
-    // Check for callers already in another cohort
-    const inOtherCohort = callers.filter(
-      (c) => c.cohortGroupId && c.cohortGroupId !== cohortId
-    );
-    if (inOtherCohort.length > 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: `Callers already in another cohort: ${inOtherCohort.map((c) => c.id).join(", ")}`,
-        },
-        { status: 400 }
-      );
+    // Create cohort memberships via join table (multi-cohort — no "already in another cohort" block)
+    // Also write legacy FK for backwards compat during migration
+    let added = 0;
+    for (const cid of callerIds) {
+      await prisma.callerCohortMembership.upsert({
+        where: { callerId_cohortGroupId: { callerId: cid, cohortGroupId: cohortId } },
+        create: { callerId: cid, cohortGroupId: cohortId },
+        update: {},
+      });
+      // Legacy FK — keep in sync until migration complete
+      await prisma.caller.update({
+        where: { id: cid },
+        data: { cohortGroupId: cohortId },
+      });
+      added++;
     }
-
-    // Assign callers to cohort
-    const result = await prisma.caller.updateMany({
-      where: { id: { in: callerIds } },
-      data: { cohortGroupId: cohortId },
-    });
 
     // Auto-enroll added callers in cohort's assigned playbooks
     for (const cid of callerIds) {
       await enrollCallerInCohortPlaybooks(cid, cohortId, cohort.domainId, "cohort-add");
     }
 
-    return NextResponse.json({ ok: true, added: result.count });
+    return NextResponse.json({ ok: true, added });
   } catch (error: any) {
     console.error("Error adding cohort members:", error);
     return NextResponse.json(
@@ -130,7 +127,7 @@ export async function POST(
  * @scope cohorts:update
  * @auth session
  * @tags cohorts
- * @description Remove callers from a cohort group. Sets their cohortGroupId to null.
+ * @description Remove callers from a cohort group. Deletes their CallerCohortMembership record.
  * @pathParam cohortId string - Cohort group ID
  * @body callerIds string[] - Array of caller IDs to remove
  * @response 200 { ok: true, removed: number }
@@ -166,8 +163,16 @@ export async function DELETE(
       );
     }
 
-    // Only remove callers actually in this cohort
-    const result = await prisma.caller.updateMany({
+    // Remove memberships from join table
+    const result = await prisma.callerCohortMembership.deleteMany({
+      where: {
+        callerId: { in: callerIds },
+        cohortGroupId: cohortId,
+      },
+    });
+
+    // Legacy FK cleanup — null out cohortGroupId if it points to this cohort
+    await prisma.caller.updateMany({
       where: {
         id: { in: callerIds },
         cohortGroupId: cohortId,

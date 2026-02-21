@@ -48,20 +48,20 @@ type GoalsResponse = { goals: Goal[]; counts: GoalCounts };
 
 const GOAL_TYPES = [
   { value: "all", label: "All Types" },
-  { value: "LEARN", label: "📚 Learn", color: "#3b82f6" },
-  { value: "ACHIEVE", label: "🏆 Achieve", color: "#f59e0b" },
-  { value: "CHANGE", label: "🔄 Change", color: "#8b5cf6" },
-  { value: "CONNECT", label: "🤝 Connect", color: "#ec4899" },
-  { value: "SUPPORT", label: "💚 Support", color: "#10b981" },
-  { value: "CREATE", label: "🎨 Create", color: "#06b6d4" },
+  { value: "LEARN", label: "📚 Learn", color: "var(--accent-primary)" },
+  { value: "ACHIEVE", label: "🏆 Achieve", color: "var(--status-warning-text)" },
+  { value: "CHANGE", label: "🔄 Change", color: "var(--badge-purple-text)" },
+  { value: "CONNECT", label: "🤝 Connect", color: "var(--badge-pink-text)" },
+  { value: "SUPPORT", label: "💚 Support", color: "var(--status-success-text)" },
+  { value: "CREATE", label: "🎨 Create", color: "var(--badge-cyan-text)" },
 ];
 
 const GOAL_STATUSES = [
   { value: "all", label: "All Statuses" },
-  { value: "ACTIVE", label: "✅ Active", color: "#10b981" },
-  { value: "COMPLETED", label: "🎉 Completed", color: "#3b82f6" },
-  { value: "PAUSED", label: "⏸️ Paused", color: "#f59e0b" },
-  { value: "ARCHIVED", label: "📦 Archived", color: "#6b7280" },
+  { value: "ACTIVE", label: "✅ Active", color: "var(--status-success-text)" },
+  { value: "COMPLETED", label: "🎉 Completed", color: "var(--accent-primary)" },
+  { value: "PAUSED", label: "⏸️ Paused", color: "var(--status-warning-text)" },
+  { value: "ARCHIVED", label: "📦 Archived", color: "var(--text-muted)" },
 ];
 
 export default function GoalsPage() {
@@ -88,11 +88,11 @@ export default function GoalsPage() {
   const counts = data?.counts || null;
 
   const getTypeConfig = (type: string) => {
-    return GOAL_TYPES.find((t) => t.value === type) || { label: type, color: "#6b7280" };
+    return GOAL_TYPES.find((t) => t.value === type) || { label: type, color: "var(--text-muted)" };
   };
 
   const getStatusConfig = (status: string) => {
-    return GOAL_STATUSES.find((s) => s.value === status) || { label: status, color: "#6b7280" };
+    return GOAL_STATUSES.find((s) => s.value === status) || { label: status, color: "var(--text-muted)" };
   };
 
   // Filter and sort goals
@@ -128,7 +128,7 @@ export default function GoalsPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Goals</h1>
+          <h1 className="hf-page-title">Goals</h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
             Track learning, achievements, and objectives across all callers
           </p>
@@ -249,7 +249,7 @@ export default function GoalsPage() {
                     transition: "border-color 0.15s, box-shadow 0.15s",
                   }}
                   onMouseOver={(e) => {
-                    e.currentTarget.style.borderColor = typeConfig.color || "#4f46e5";
+                    e.currentTarget.style.borderColor = typeConfig.color || "var(--accent-primary)";
                     e.currentTarget.style.boxShadow = `0 2px 8px color-mix(in srgb, ${typeConfig.color} 12%, transparent)`;
                   }}
                   onMouseOut={(e) => {

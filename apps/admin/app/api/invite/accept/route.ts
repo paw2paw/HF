@@ -77,10 +77,17 @@ export async function POST(request: NextRequest) {
             role: invite.callerRole,
             userId: newUser.id,
             domainId: invite.domainId,
-            cohortGroupId: invite.cohortGroupId,
+            cohortGroupId: invite.cohortGroupId, // legacy FK
             externalId: `invite-${newUser.id}`,
           },
         });
+
+        // Create join table membership if cohort specified
+        if (invite.cohortGroupId) {
+          await tx.callerCohortMembership.create({
+            data: { callerId: newCaller.id, cohortGroupId: invite.cohortGroupId },
+          });
+        }
 
         // Auto-enroll in cohort playbooks (or domain-wide fallback)
         if (invite.cohortGroupId && invite.domainId) {

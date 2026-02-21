@@ -32,7 +32,7 @@ export function BooleanToggle({ label, value, onChange, disabled }: BooleanToggl
             width: 16,
             height: 16,
             borderRadius: 8,
-            background: "#fff",
+            background: "var(--surface-primary)",
             position: "absolute",
             top: 2,
             left: value ? 18 : 2,

@@ -22,10 +22,12 @@ export default function CoursesPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const { terms } = useTerminology();
-  const { isActive: isSetupFlowActive, startFlow } = useStepFlow();
+  const { state, isActive: isSetupFlowActive, startFlow } = useStepFlow();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showWizard, setShowWizard] = useState(false);
+
+  // Derive wizard visibility from flow context (survives page refresh)
+  const showWizard = isSetupFlowActive && state?.flowId === "create-course";
 
   // Load courses on mount
   const loadCourses = async () => {
@@ -51,15 +53,14 @@ export default function CoursesPage() {
     let stepsToUse = [
       { id: 'intent', label: 'Intent', activeLabel: 'Setting Intent' },
       { id: 'content', label: 'Content', activeLabel: 'Adding Content' },
-      { id: 'teaching-points', label: 'Teaching Points', activeLabel: 'Reviewing Teaching Points' },
-      { id: 'lesson-structure', label: 'Lesson Structure', activeLabel: 'Planning Lessons' },
+      { id: 'lesson-plan', label: 'Lesson Plan', activeLabel: 'Planning Lessons' },
+      { id: 'course-config', label: 'Configure AI', activeLabel: 'Configuring AI' },
       { id: 'students', label: 'Students', activeLabel: 'Adding Students' },
-      { id: 'course-config', label: 'Course Config', activeLabel: 'Configuring Course' },
-      { id: 'done', label: 'Done', activeLabel: 'Complete' },
+      { id: 'done', label: 'Launch', activeLabel: 'Creating Course' },
     ];
 
     try {
-      const response = await fetch('/api/wizard-steps?slug=COURSE-SETUP-001');
+      const response = await fetch('/api/wizard-steps?wizard=course');
       const data = await response.json();
 
       if (data.ok && data.steps && data.steps.length > 0) {
@@ -80,15 +81,13 @@ export default function CoursesPage() {
       steps: stepsToUse,
       returnPath: '/x/courses',
     });
-    setShowWizard(true);
   };
 
-  if (showWizard && isSetupFlowActive) {
+  if (showWizard) {
     return (
       <CourseSetupWizard
         onComplete={async () => {
-          setShowWizard(false);
-          // Reload courses after wizard completes
+          // Reload courses after wizard completes (endFlow called by wizard)
           await loadCourses();
         }}
       />
@@ -142,7 +141,7 @@ export default function CoursesPage() {
             <CourseCard
               key={course.id}
               course={course}
-              onSelect={(courseId) => router.push(`/x/courses/${courseId}`)}
+              onSelect={(courseId) => router.push(`/x/playbooks/${courseId}`)}
             />
           ))}
         </div>

@@ -178,7 +178,7 @@ export default function QuestionsPanel({
         <div style={{ height: 4, borderRadius: 2, background: "var(--surface-tertiary)", overflow: "hidden" }}>
           <div style={{
             height: "100%", borderRadius: 2,
-            background: reviewPct === 100 ? "#16a34a" : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+            background: reviewPct === 100 ? "var(--status-success-text)" : "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
             width: `${reviewPct}%`, transition: "width 0.3s ease-out",
           }} />
         </div>
@@ -189,8 +189,8 @@ export default function QuestionsPanel({
         <div style={{
           padding: "8px 16px", marginBottom: 12, borderRadius: 8, fontSize: 13, fontWeight: 500,
           ...(feedback.type === "error"
-            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid #FFCDD2" }
-            : { background: "#E8F5E9", color: "#2E7D32", border: "1px solid #C8E6C9" }),
+            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid var(--status-error-border, #FFCDD2)" }
+            : { background: "var(--status-success-bg)", color: "var(--status-success-text)", border: "1px solid var(--status-success-border, #C8E6C9)" }),
         }}>
           {feedback.message}
         </div>
@@ -216,7 +216,7 @@ export default function QuestionsPanel({
         </select>
         {selected.size > 0 && (
           <button onClick={handleBulkReview} disabled={bulkLoading}
-            style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 600, cursor: bulkLoading ? "not-allowed" : "pointer", opacity: bulkLoading ? 0.6 : 1 }}>
+            style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: "var(--status-success-text)", color: "var(--button-primary-text, #fff)", fontSize: 12, fontWeight: 600, cursor: bulkLoading ? "not-allowed" : "pointer", opacity: bulkLoading ? 0.6 : 1 }}>
             {bulkLoading ? "Reviewing..." : `Mark ${selected.size} Reviewed`}
           </button>
         )}
@@ -308,7 +308,7 @@ function QuestionRow({ question: q, isExpanded, isSelected, isReviewed, truncate
         </td>
         <td style={{ padding: "8px 10px", color: "var(--text-primary)", lineHeight: 1.4 }}>{truncated}</td>
         <td style={{ padding: "8px 10px" }}>
-          <span style={{ display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color: "#2563eb", background: "color-mix(in srgb, #2563eb 10%, transparent)", textTransform: "uppercase" }}>
+          <span style={{ display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color: "var(--accent-primary)", background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)", textTransform: "uppercase" }}>
             {typeLabel}
           </span>
         </td>
@@ -320,7 +320,7 @@ function QuestionRow({ question: q, isExpanded, isSelected, isReviewed, truncate
         </td>
         <td style={{ padding: "8px 10px", textAlign: "center" }}>
           {isReviewed
-            ? <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Reviewed</span>
+            ? <span style={{ fontSize: 11, color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
             : <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Pending</span>}
         </td>
       </tr>
@@ -358,8 +358,8 @@ function QuestionDetail({ question: q, onMarkReviewed, onDelete }: { question: Q
               return (
                 <div key={key} style={{
                   fontSize: 13, padding: "4px 8px", borderRadius: 4,
-                  background: isCorrect ? "color-mix(in srgb, #16a34a 10%, transparent)" : "var(--surface-secondary)",
-                  color: isCorrect ? "#16a34a" : "var(--text-primary)",
+                  background: isCorrect ? "color-mix(in srgb, var(--status-success-text) 10%, transparent)" : "var(--surface-secondary)",
+                  color: isCorrect ? "var(--status-success-text)" : "var(--text-primary)",
                   fontWeight: isCorrect ? 600 : 400,
                 }}>
                   <strong>{key}.</strong> {String(val)}
@@ -376,7 +376,7 @@ function QuestionDetail({ question: q, onMarkReviewed, onDelete }: { question: Q
         {q.correctAnswer && (
           <div>
             <div style={labelStyle}>Correct Answer</div>
-            <div style={{ ...valueStyle, color: "#16a34a", fontWeight: 600 }}>{q.correctAnswer}</div>
+            <div style={{ ...valueStyle, color: "var(--status-success-text)", fontWeight: 600 }}>{q.correctAnswer}</div>
           </div>
         )}
         {q.answerExplanation && (
@@ -423,7 +423,7 @@ function QuestionDetail({ question: q, onMarkReviewed, onDelete }: { question: Q
           <div style={labelStyle}>Review Status</div>
           {q.reviewedAt ? (
             <div style={{ fontSize: 12 }}>
-              <span style={{ color: "#16a34a", fontWeight: 600 }}>Reviewed</span>
+              <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
               <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>
                 by {q.reviewer?.name || q.reviewer?.email || "unknown"} on {new Date(q.reviewedAt).toLocaleDateString()}
               </span>
@@ -438,7 +438,7 @@ function QuestionDetail({ question: q, onMarkReviewed, onDelete }: { question: Q
       <div style={{ display: "flex", gap: 8 }}>
         {!isReviewed && (
           <button onClick={onMarkReviewed}
-            style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "var(--status-success-text)", color: "var(--button-primary-text, #fff)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             Mark Reviewed
           </button>
         )}
@@ -447,7 +447,7 @@ function QuestionDetail({ question: q, onMarkReviewed, onDelete }: { question: Q
             <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
               <span style={{ fontSize: 12, color: "var(--status-error-text)" }}>Delete permanently?</span>
               <button onClick={onDelete}
-                style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "var(--status-error-text)", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "var(--status-error-text)", color: "var(--button-primary-text, #fff)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                 Confirm
               </button>
               <button onClick={() => setConfirmDelete(false)}
@@ -457,7 +457,7 @@ function QuestionDetail({ question: q, onMarkReviewed, onDelete }: { question: Q
             </span>
           ) : (
             <button onClick={() => setConfirmDelete(true)}
-              style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid #FFCDD2", background: "var(--surface-primary)", color: "var(--status-error-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid var(--status-error-border, #FFCDD2)", background: "var(--surface-primary)", color: "var(--status-error-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
               Delete
             </button>
           )}

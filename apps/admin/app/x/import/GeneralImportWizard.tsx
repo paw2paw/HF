@@ -87,11 +87,11 @@ const StepIndicator = ({ current, total }: { current: number; total: number }) =
             fontSize: 14,
             fontWeight: 600,
             background: num === current
-              ? "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)"
+              ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #6366f1) 100%)"
               : num < current
               ? "var(--success-text)"
               : "var(--surface-tertiary)",
-            color: num <= current ? "#fff" : "var(--text-muted)",
+            color: num <= current ? "white" : "var(--text-muted)",
             transition: "all 0.2s",
           }}
         >
@@ -434,7 +434,7 @@ export function GeneralImportWizard({
                               fontSize: 10,
                               padding: "2px 6px",
                               background: "var(--success-text)",
-                              color: "#fff",
+                              color: "white",
                               borderRadius: 4,
                             }}
                           >
@@ -482,8 +482,8 @@ export function GeneralImportWizard({
                 border: "none",
                 background: extracting
                   ? "var(--text-placeholder)"
-                  : "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                color: "#fff",
+                  : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #6366f1) 100%)",
+                color: "white",
                 cursor: extracting ? "not-allowed" : "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -585,8 +585,8 @@ export function GeneralImportWizard({
                 fontWeight: 700,
                 borderRadius: 10,
                 border: "none",
-                background: "linear-gradient(135deg, #22c55e 0%, #10b981 100%)",
-                color: "#fff",
+                background: "linear-gradient(135deg, var(--status-success-text) 0%, var(--status-success-text) 100%)",
+                color: "white",
                 cursor: "pointer",
                 boxShadow: "0 4px 12px rgba(34, 197, 94, 0.4)",
                 display: "flex",

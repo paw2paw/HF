@@ -1,45 +1,35 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+> **Configuration over Code. Database over Filesystem. Evidence over Assumption. Reuse over Reinvention.**
 
-> **Configuration over Code. Database over Filesystem. Evidence over Assumption.**
+@../skills/dev-principles-SKILL.md
+@../skills/hf-nextjs-patterns-SKILL.md
 
-## Tool Usage Guidelines
+---
 
-**Always use qmd and hf-graph first.** These MCP servers are configured and optimized for this codebase:
-- **qmd search** — Keyword matching (~30ms), exact phrase search
-- **qmd vector_search** — Semantic search (~2s), finds concepts even with different vocabulary
-- **qmd deep_search** — Auto-expands query variations, reranks results (~10s)
-- **hf-graph** — Code structure indexing, fast function/type lookups
+## ⚠️ MANDATORY: Use qmd and hf-graph — NOT grep, NOT glob
 
-**Only use Grep as a fallback** for complex regex patterns or multi-file edits. For exploration, searching, and navigation, **default to qmd** and **hf-graph**.
+**This is non-negotiable. Before searching, reading, or navigating any code in this repo:**
 
-Both are configured in `.mcp.json` and auto-connect when you open this project.
+1. **Use `qmd search` or `qmd vector_search` first** — always, for every exploration or lookup task
+2. **Use `hf-graph`** for function/type/import lookups
+3. **Grep is banned for exploration** — only permitted for complex multi-file regex edits with no qmd equivalent
 
-**qmd auto-sync (local machine only):** Git hooks keep qmd fresh on your local machine—`pre-commit` updates before commit, `post-merge` updates after pull. qmd is not needed on hf-dev VM.
+| Task | Required tool |
+|------|--------------|
+| Find a concept, feature, or keyword | `qmd search` |
+| Find something by meaning/intent | `qmd vector_search` |
+| Broad query, unsure of exact terms | `qmd deep_search` |
+| Find where a function/type is defined | `hf-graph` |
+| Complex regex across many files | grep (only this case) |
 
-## Principles
+**Do not skip qmd "to save time". It is faster and more accurate than grep for this codebase.**
 
-1. **Zero hardcoding** — Runtime values from DB or `lib/config.ts`. Magic strings are bugs.
-2. **Auth on every route** — `requireAuth("ROLE")` from `lib/permissions.ts`. CI enforces via `tests/lib/route-auth-coverage.test.ts`.
-3. **DB is source of truth** — Spec JSON files are seed data. After import, the database wins.
-4. **Dynamic parameters** — MEASURE specs → Pipeline → DB → UI. Adding a parameter = activate a spec, zero code changes.
-5. **Holographic Intent-Led UX** — All UI surfaces organized around **user intent** (what educators want to accomplish), never internal structures. Same mental model at all detail levels: teacher sees a "Course" (composed of lessons, content, onboarding), system internally composes it from Playbooks + Specs. Hide implementation complexity; auto-scaffold infrastructure (never ask users to manually wire Playbooks to Specs).
-6. **Test what matters** — Vitest for units, Playwright for e2e. Business logic must be tested.
-7. **Test every route** — Every `app/api/**/route.ts` must have a test. CI enforces via test coverage scanner.
-8. **E2E every feature** — Every new user-facing page or feature must have a Playwright e2e test in `e2e/tests/`. No feature ships without at least a smoke-level e2e spec covering: page loads, key elements visible, primary user flow works.
-9. **Document every API** — All routes listed in `docs/api.md` (route, method, auth, purpose). No undocumented endpoints.
-10. **Honest tests** — Mock only at system boundaries (DB, external APIs). Never mock the unit under test, never stub internal functions, never fabricate request/response shapes that don't match reality.
-11. **AI call registry** — All AI calls go through metered wrappers (ESLint enforces). `docs/ai-calls.md` lists every call site, purpose, and model used.
-12. **No dead tests** — No `test.skip` or `test.todo` in committed code.
+Both configured in `.mcp.json` — auto-connect on project open.
 
-## The Adaptive Loop
+**qmd auto-sync (local only):** Git hooks keep qmd fresh — `pre-commit` updates before commit, `post-merge` after pull. Not needed on hf-dev VM.
 
-```
-Call → Transcript → Pipeline (EXTRACT → AGGREGATE → REWARD → ADAPT → SUPERVISE → COMPOSE) → Next Prompt
-```
-
-Every feature must respect this loop. Pipeline stages are spec-driven from `PIPELINE-001` in the DB.
+---
 
 ## Architecture
 
@@ -61,9 +51,17 @@ apps/admin/
 └── e2e/             ← Playwright tests
 ```
 
-### Intent-Led UX: The Teacher's View
+### The Adaptive Loop
 
-**Teachers never see or interact with Playbooks, Specs, or Roles.** All UI is organized by **educator intent**. The same mental model works at all levels:
+```
+Call → Transcript → Pipeline (EXTRACT → AGGREGATE → REWARD → ADAPT → SUPERVISE → COMPOSE) → Next Prompt
+```
+
+Every feature must respect this loop. Pipeline stages are spec-driven from `PIPELINE-001` in the DB.
+
+### Intent-Led UX: Teacher's View
+
+Teachers never see Playbooks, Specs, or Roles. All UI is organized by educator intent.
 
 ```
 Teacher's View                  Internal Composition
@@ -71,21 +69,13 @@ Teacher's View                  Internal Composition
 Institution (Domain)           • Domain (1 per school/org)
 └─ Course (Playbook)           • Playbook + auto-created CourseReady overlay
    ├─ Lessons                   • Composited CONTENT specs (auto-linked)
-   ├─ Content Upload            • EXTRACT-CONTENT specs (annotations, media refs)
-   ├─ Teaching Points (assertions)
+   ├─ Content Upload            • EXTRACT-CONTENT specs
+   ├─ Teaching Points
    ├─ Onboarding Setup          • IDENTITY specs + INIT-001 phases + ADAPT targets
-   │  ├─ Welcome Message        • IDENTITY spec (tutor greeting)
-   │  ├─ Flow Phases            • onboardingFlowPhases (auto-generated)
-   │  └─ Default Behavior       • onboardingDefaultTargets (auto-generated)
    └─ First Call Preview        • Prompt composition from merged specs
 ```
 
-**No manual wiring.** When a teacher:
-- **Uploads a document** → System auto-extracts teaching points, creates a CONTENT spec, links it to course
-- **Reviews assertions** → System learns what "good teaching" looks like for this course
-- **Opens Onboarding tab** → System auto-generates welcome message, flow phases, default targets from course profile
-
-If a readiness check fails (e.g., "No curriculum content configured"), **the system auto-scaffolds it** rather than asking the user to understand specs.
+No manual wiring. System auto-scaffolds when readiness checks fail.
 
 ### SpecRole Taxonomy
 
@@ -96,6 +86,8 @@ If a readiness check fails (e.g., "No curriculum content configured"), **the sys
 - `IDENTITY` — Agent personas (TUT-001, COACH-001)
 - `CONTENT` — Curriculum material (WNF-CONTENT-001)
 - `VOICE` — Voice guidance (VOICE-001)
+
+---
 
 ## Commands
 
@@ -110,12 +102,13 @@ npm run ctl dev:status   # Dev server status
 
 ### Dev
 ```bash
-# Dev
 npm run dev              # Start dev server (:3000)
 npm run devX             # Kill + clear cache + restart
 npm run devZZZ           # Nuclear reset (DB + specs + transcripts)
+```
 
-# Test
+### Test
+```bash
 npm run test             # Vitest — all unit tests
 npm run test -- path     # Single test file
 npm run test:watch       # Watch mode
@@ -123,189 +116,126 @@ npm run test:coverage    # With coverage report
 npm run test:integration # Integration tests (requires running server)
 npm run test:e2e         # Playwright e2e (requires running server)
 npm run test:all         # Unit + integration + e2e
+```
 
-# Build & Lint
+### Build & Lint
+```bash
 npx tsc --noEmit         # Type-check
 npm run build            # Next.js production build
 npm run lint             # ESLint (includes AI metering + CSS var enforcement)
+```
 
-# Database
-npm run db:seed          # Seed specs + contracts (seed-clean.ts)
+### Database
+```bash
+npm run db:seed          # Seed specs + contracts
 npm run db:reset         # Full database reset
 npx prisma migrate dev   # Run/create migrations
 npx prisma studio        # DB GUI
+```
 
-# BDD (from repo root)
-npm run bdd              # Run Cucumber tests (bdd/features/*.feature)
-
-# CLI
+### BDD & CLI
+```bash
+npm run bdd              # Run Cucumber tests
 npm run ctl <command>    # Direct CLI command
 npm run control          # Interactive CLI menu
 ```
 
-## MCP Server Setup & Troubleshooting
+---
 
-Both servers auto-connect when you open this project. Verify on startup:
+## MCP Server Troubleshooting
+
 ```bash
-./scripts/check-startup.sh
+./scripts/check-startup.sh   # Verify on startup
 ```
 
-**If servers fail to connect:**
-1. Ensure `qmd` CLI is installed: `qmd --version`
-2. Ensure `.mcp.json` exists at repo root with correct config
+If servers fail:
+1. `qmd --version` — check installed
+2. `.mcp.json` exists at repo root
 3. Restart Claude Code
-4. For qmd vector search: run `qmd embed` to build embeddings (one-time, ~2 min)
+4. `qmd embed` — rebuild embeddings (one-time, ~2 min)
 
-## Key Patterns
+---
 
-```typescript
-// Auth — every route:
-import { requireAuth, isAuthError } from "@/lib/permissions";
-export async function GET() {
-  const auth = await requireAuth("VIEWER"); // VIEWER | OPERATOR | ADMIN
-  if (isAuthError(auth)) return auth.error;
-}
+## UI Design System (Zero Tolerance)
 
-// Config — never shadow the import:
-import { config } from "@/lib/config";
-// ❌ const config = spec.config;  ← TDZ crash
-// ✅ const specConfig = spec.config;
+No inline `style={{}}` for anything that has a CSS class. No hardcoded hex. No one-off styling.
 
-// ContractRegistry — always async:
-// ❌ ContractRegistry.get("key")
-// ✅ await ContractRegistry.get("key")
+### Admin Pages (`/x/**`) — `hf-*` classes
 
-// AI calls — must use metered wrapper (eslint enforces):
-// ❌ import { ... } from "@/lib/ai/client"
-// ✅ import { getConfiguredMeteredAICompletion } from "@/lib/metering"
-```
+- Page titles: `hf-page-title` | Subtitles: `hf-page-subtitle`
+- Cards: `hf-card` (radius 16, padding 24) | `hf-card-compact`
+- Inputs: `hf-input` | Buttons: `hf-btn` + `hf-btn-primary` / `hf-btn-secondary` / `hf-btn-destructive`
+- Banners: `hf-banner` + `hf-banner-info` / `hf-banner-warning` / `hf-banner-success` / `hf-banner-error`
+- Full list: `hf-page-title`, `hf-page-subtitle`, `hf-card`, `hf-card-compact`, `hf-section-title`, `hf-section-desc`, `hf-info-footer`, `hf-icon-box`, `hf-icon-box-lg`, `hf-label`, `hf-input`, `hf-btn`, `hf-spinner`, `hf-empty`, `hf-list-row`, `hf-banner`, `hf-category-label`
 
-## Bugs to Avoid
+### Auth Pages (`/login/**`) — `login-*` classes
 
-- **TDZ shadowing**: Never `const config = ...` when `config` is imported
-- **CSS alpha**: Never `${cssVar}99` — use `color-mix(in srgb, ${color} 60%, transparent)`
-- **Missing await**: All ContractRegistry methods are async
-- **Hardcoded slugs**: Use `config.specs.*` — all env-overridable
-- **Unmetered AI**: All AI calls must go through metered wrappers
+Dark navy/gold theme. Classes: `login-bg`, `login-card`, `login-form-card`, `login-input`, `login-label`, `login-btn`, `login-btn-secondary`, `login-error`, `login-text`, `login-icon-circle`, `login-footer`, `login-logo`
 
-## UI Gold Standard (Settings Page)
+### Color Map (hex → CSS var)
 
-All UI must follow the Settings page styling standard. CSS utility classes are defined in `app/globals.css` under the "HF Design System" section.
-
-**Mandatory rules:**
-- **No hardcoded hex colors** — Use CSS custom properties (`var(--text-primary)`, `var(--surface-secondary)`, etc.). Hardcoded hex breaks dark mode.
-- **Page titles**: `fontSize: 24, fontWeight: 700, color: var(--text-primary)` — or use `className="hf-page-title"`
-- **Page subtitles**: `fontSize: 14, color: var(--text-secondary)` — or use `className="hf-page-subtitle"`
-- **Cards/panels**: `borderRadius: 16, padding: 24` — or use `className="hf-card"` / `"hf-card-compact"` (12px radius)
-- **Section titles**: `fontSize: 15, fontWeight: 600` — or use `className="hf-section-title"`
-- **Inputs**: `borderRadius: 10` — or use `className="hf-input"`
-- **Alpha/opacity**: Always `color-mix(in srgb, var(--color) 60%, transparent)` — never hex opacity (`#fff9`)
-- **Info footers**: `className="hf-info-footer"` with `className="hf-icon-box"` for the icon container
-
-**CSS classes available** (all in `globals.css`):
-`hf-page-title`, `hf-page-subtitle`, `hf-card`, `hf-card-compact`, `hf-section-title`, `hf-section-desc`, `hf-info-footer`, `hf-icon-box`, `hf-icon-box-lg`, `hf-label`, `hf-input`, `hf-btn` + `hf-btn-primary` / `hf-btn-secondary` / `hf-btn-destructive`, `hf-spinner`, `hf-empty`, `hf-list-row`, `hf-banner` + `hf-banner-info` / `hf-banner-warning` / `hf-banner-success` / `hf-banner-error`, `hf-category-label`
-
-**Common color mappings** (hex → CSS var):
 | Hex | CSS Variable |
 |-----|-------------|
 | `#6b7280`, `#9ca3af` | `var(--text-muted)` |
 | `#374151`, `#1f2937` | `var(--text-primary)` |
 | `#f3f4f6`, `#f9fafb` | `var(--surface-secondary)` |
 | `#e5e7eb`, `#d1d5db` | `var(--border-default)` |
-| `#fff`, `#ffffff` | `var(--surface-primary)` |
+| `#fff` | `var(--surface-primary)` |
 | `#2563eb`, `#3b82f6` | `var(--accent-primary)` |
 | `#ef4444`, `#dc2626` | `var(--status-error-text)` |
 | `#10b981`, `#22c55e` | `var(--status-success-text)` |
+| `#F5B856` | `var(--login-gold)` |
+| `#1F1B4A` | `var(--login-navy)` |
+| `#9FB5ED` | `var(--login-blue)` |
 
-**Gold reference**: `app/x/settings/settingsclient.tsx` + `app/x/account/page.tsx`
+**Gold reference files:**
+- Admin: `app/x/settings/settingsclient.tsx` + `app/x/account/page.tsx`
+- Auth: `app/login/page.tsx` + `app/login/layout.tsx`
+
+---
 
 ## RBAC
 
-**SUPERADMIN (5) > ADMIN (4) > OPERATOR (3) > SUPER_TESTER (2) > TESTER/VIEWER (1) > DEMO (0)** — higher roles inherit lower permissions.
+**SUPERADMIN (5) > ADMIN (4) > OPERATOR (3) > SUPER_TESTER (2) > TESTER/VIEWER (1) > DEMO (0)**
 
-Public routes (no auth): `/api/auth/*`, `/api/health`, `/api/ready`, `/api/system/readiness`, `/api/invite/*`.
+Public routes (no auth): `/api/auth/*`, `/api/health`, `/api/ready`, `/api/system/readiness`, `/api/invite/*`
 
-Sim access: All sim routes use `requireAuth("VIEWER")`. Testers onboard via invite → user → session flow.
+Sim access: all sim routes use `requireAuth("VIEWER")`.
 
-## Database Patterns
-
-```typescript
-// Prefer _count over denormalized counts:
-const playbooks = await prisma.playbook.findMany({
-  include: { _count: { select: { items: true } } }
-});
-
-// Avoid N+1 — use include/select, never fetch-all + filter in JS
-
-// Transactions for related writes:
-await prisma.$transaction(async (tx) => {
-  const caller = await tx.caller.create({ data: callerData });
-  await tx.callerMemory.createMany({
-    data: memories.map(m => ({ ...m, callerId: caller.id }))
-  });
-});
-```
-
-## Testing
-
-- **Unit**: Vitest. `tests/setup.ts` mocks system boundaries (Prisma, fetch, next/navigation).
-- **Integration**: `npm run test:integration` — requires running dev server.
-- **E2E**: Playwright. Global setup logs in as admin, saves session. 3 projects: Authenticated, Unauthenticated, Mobile.
-- **Auth scanner**: `tests/lib/route-auth-coverage.test.ts` — CI fails if any route lacks auth.
-- **Route coverage**: Every `app/api/**/route.ts` must have a corresponding test file.
-- **Honest tests**: Mock only at system boundaries. Allowed mocks: Prisma (DB), `fetch` (external APIs), `next/navigation`. Never mock the unit under test, never stub internal library functions to force a code path, never fabricate request/response shapes that diverge from real API contracts.
-- **No dead tests**: No `test.skip` or `test.todo` in committed code. If a test can't pass, fix it or delete it.
-- **E2E for every feature**: Every new page (`app/x/**`) or user-facing feature must have a Playwright spec in `e2e/tests/`. At minimum: page loads without error, heading/key elements visible, primary happy-path flow works. Use existing fixtures (`test-data.fixture.ts`) and page objects (`page-objects/`). Follow the pattern in existing specs.
-
-## Prompt Composition
-
-16 data loaders run in parallel via `SectionDataLoader`. Templates use Mustache-style syntax (`{{variable}}`, `{{#if}}`, `{{#each}}`). Transforms in `lib/prompt/composition/transforms/` handle: preamble, identity, voice, personality, pedagogy, memories, targets, trust, instructions, teaching-content, modules.
+---
 
 ## Seed Data & Docker
 
-Spec JSONs in `docs-archive/bdd-specs/` are **seed data only**. After seeding, the DB owns the data.
+Spec JSONs in `docs-archive/bdd-specs/` are seed data only. After seeding, DB owns the data.
 
 ```bash
 docker build .                    # runner — minimal server.js for production
-docker build --target seed .      # seed — full codebase for DB initialization
-docker build --target migrate .   # migrate — prisma migrate deploy only
+docker build --target seed .      # seed — full codebase for DB init
+docker build --target migrate .   # migrate only
 ```
 
-The runner image CANNOT run seeds — use the seed target or SSH tunnel.
+Runner image CANNOT run seeds — use seed target or SSH tunnel. Docker NOT available locally or on VM — use Cloud Build.
+
+---
 
 ## Cloud Architecture (3 environments)
 
-All public URLs route through a Cloudflare Tunnel to separate Cloud Run services:
+| Env | Domain | Cloud Run Service |
+|-----|--------|-------------------|
+| DEV | `dev.humanfirstfoundation.com` | `hf-admin-dev` |
+| TEST | `test.humanfirstfoundation.com` | `hf-admin-test` |
+| PROD | `lab.humanfirstfoundation.com` | `hf-admin` |
 
-| Env | Domain | Cloud Run Service | Seed Job | Migrate Job |
-|-----|--------|-------------------|----------|-------------|
-| DEV | `dev.humanfirstfoundation.com` | `hf-admin-dev` | `hf-seed-dev` | `hf-migrate-dev` |
-| TEST | `test.humanfirstfoundation.com` | `hf-admin-test` | `hf-seed-test` | `hf-migrate-test` |
-| PROD | `lab.humanfirstfoundation.com` | `hf-admin` | `hf-seed` | `hf-migrate` |
+All public URLs route through Cloudflare Tunnel to separate Cloud Run services (europe-west2, Cloud SQL PostgreSQL 16). Full procedures in `docs/CLOUD-DEPLOYMENT.md`.
 
-**Docker is NOT available locally or on the VM.** Use Cloud Build for all image builds.
+---
 
-## VM Deploy Commands (hf-dev VM only)
+## Deploy Commands
 
-These commands update the hf-dev VM (localhost:3000 via SSH tunnel). They do NOT affect Cloud Run deployments. For Cloud Run, use `/deploy`.
+**VM (hf-dev only — does NOT affect Cloud Run):**
+- **`/vm-cp`** — commit + push + pull. Use for: components, pages, API routes, CSS, lib code, tests
+- **`/vm-cpp`** — commit + push + migrate + pull + restart. Use for: Prisma schema, `next.config.ts`, `middleware.ts`, new deps, env vars
 
-- **`/vm-cp`** — Commit + push + pull on VM. Use for:
-  - React components, pages, layouts (`app/`, `components/`)
-  - API routes (`app/api/**/route.ts`)
-  - CSS / Tailwind changes
-  - Lib code (`lib/*.ts`) — config, utils, pipeline, prompt
-  - Test files
-- **`/vm-cpp`** — Commit + push + migrate + pull + restart. Use for:
-  - Prisma schema or migration changes
-  - `next.config.ts` (CSP, redirects, env exposure)
-  - `middleware.ts`
-  - New dependencies in `package.json`
-  - Environment variable changes
+**Always state which command is needed at end of every change**, e.g. "Ready for `/vm-cp`" or "This needs `/vm-cpp` (migration)".
 
-**Always state which command is needed at the end of every change**, e.g. "Ready for `/vm-cp`" or "This needs `/vm-cpp` (migration)".
-
-For Cloud Run deployment, use `/deploy` which asks which environment (dev/test/prod) and handles Cloud Build, seed jobs, and Cloudflare cache purge.
-
-## Deployment
-
-Production runs on **GCP Cloud Run** (europe-west2) with **Cloud SQL** (PostgreSQL 16). Full deployment procedures, data safety guarantees, rollback steps, and GCP resource details are in `docs/CLOUD-DEPLOYMENT.md`. Use `/deploy` for an interactive deployment menu or `/deploy-check` for pre-flight validation.
+**Cloud Run:** Use `/deploy` (interactive menu — asks env, handles Cloud Build + seed + Cloudflare cache purge) or `/deploy-check` for pre-flight validation.

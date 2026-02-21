@@ -142,6 +142,17 @@ registerLoader("caller", async (callerId) => {
           owner: { select: { id: true, name: true } },
         },
       },
+      cohortMemberships: {
+        select: {
+          cohortGroup: {
+            select: {
+              id: true,
+              name: true,
+              owner: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
     },
   });
 });

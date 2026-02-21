@@ -27,6 +27,7 @@ export async function GET() {
           primaryColor: true,
           secondaryColor: true,
           welcomeMessage: true,
+          type: { select: { name: true } },
         },
       },
       institution: {
@@ -36,6 +37,7 @@ export async function GET() {
           primaryColor: true,
           secondaryColor: true,
           welcomeMessage: true,
+          type: { select: { name: true } },
         },
       },
     },
@@ -52,6 +54,7 @@ export async function GET() {
     ok: true,
     branding: {
       name: branding.name,
+      typeName: branding.type?.name ?? null,
       logoUrl: branding.logoUrl,
       primaryColor: branding.primaryColor,
       secondaryColor: branding.secondaryColor,

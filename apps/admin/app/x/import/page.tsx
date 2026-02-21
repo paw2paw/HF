@@ -316,7 +316,7 @@ export default function ImportPage() {
       </Suspense>
 
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Import</h1>
+        <h1 className="hf-page-title">Import</h1>
         <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           Upload transcripts or BDD specs to populate the database
         </p>

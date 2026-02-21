@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useBranding } from "@/contexts/BrandingContext";
 import { showEnvBanner, envSidebarColor, envLabel } from "@/components/shared/EnvironmentBanner";
+import Link from "next/link";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 
@@ -70,39 +71,23 @@ export default function LoginPage() {
             className="mx-auto mb-4 h-14"
           />
         ) : (
-          <div
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden"
-            style={{
-              background: "var(--login-navy-light)",
-              boxShadow: "0 4px 24px color-mix(in srgb, var(--login-gold) 20%, transparent)",
-            }}
-          >
+          <div className="login-logo">
             <img src="/icons/icon.svg" alt="HF" className="h-10 w-10 rounded-lg" />
           </div>
         )}
         <h1 className="text-2xl font-semibold tracking-tight text-white">
           {branding.name}
         </h1>
-        <p className="mt-2 text-sm" style={{ color: "var(--login-blue)" }}>
+        <p className="login-text mt-2 text-sm">
           {branding.welcomeMessage || "Sign in to continue"}
         </p>
       </div>
 
       {/* Login Card */}
-      <div
-        className="rounded-2xl p-8 shadow-2xl backdrop-blur-xl"
-        style={{
-          background: "color-mix(in srgb, var(--login-navy) 70%, transparent)",
-          border: "1px solid color-mix(in srgb, var(--login-blue) 20%, transparent)",
-        }}
-      >
+      <div className="login-form-card">
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm font-medium"
-              style={{ color: "var(--login-blue)" }}
-            >
+            <label htmlFor="email" className="login-label">
               Email
             </label>
             <input
@@ -113,22 +98,22 @@ export default function LoginPage() {
               placeholder="you@example.com"
               required
               autoComplete="email"
-              className="login-input w-full rounded-lg px-4 py-3 text-white placeholder-neutral-500 transition-colors"
-              style={{
-                background: "color-mix(in srgb, var(--login-navy-light) 80%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--login-blue) 15%, transparent)",
-              }}
+              className="login-input"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-medium"
-              style={{ color: "var(--login-blue)" }}
-            >
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="login-label">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="login-text-muted text-xs transition-colors hover:text-white"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"
@@ -137,36 +122,17 @@ export default function LoginPage() {
               placeholder="Enter password"
               required
               autoComplete="current-password"
-              className="login-input w-full rounded-lg px-4 py-3 text-white placeholder-neutral-500 transition-colors"
-              style={{
-                background: "color-mix(in srgb, var(--login-navy-light) 80%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--login-blue) 15%, transparent)",
-              }}
+              className="login-input"
             />
           </div>
 
-          {error && (
-            <div
-              className="rounded-lg p-3 text-sm"
-              style={{
-                background: "color-mix(in srgb, #ef4444 10%, transparent)",
-                border: "1px solid color-mix(in srgb, #ef4444 20%, transparent)",
-                color: "#fca5a5",
-              }}
-            >
-              {error}
-            </div>
-          )}
+          {error && <div className="login-error">{error}</div>}
 
           <button
             type="submit"
             disabled={isLoading || !email || !password}
-            className="login-btn w-full rounded-lg px-4 py-3 font-semibold transition-all"
-            style={{
-              background: branding.primaryColor || "var(--login-gold)",
-              color: "var(--login-navy)",
-              boxShadow: "0 0 20px color-mix(in srgb, var(--login-gold) 25%, transparent)",
-            }}
+            className="login-btn"
+            style={branding.primaryColor ? { background: branding.primaryColor } : undefined}
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -182,13 +148,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div
-          className="mt-6 pt-4 text-center text-xs"
-          style={{
-            borderTop: "1px solid color-mix(in srgb, var(--login-blue) 15%, transparent)",
-            color: "color-mix(in srgb, var(--login-blue) 60%, transparent)",
-          }}
-        >
+        <div className="login-footer">
           Admin access only. Testers use their invite link.
         </div>
       </div>
@@ -233,7 +193,7 @@ function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {
       }}
     >
       <div className="mb-4 text-center">
-        <span className="text-xs font-semibold tracking-wider uppercase" style={{ color: "var(--login-blue)", opacity: 0.7 }}>
+        <span className="login-text-muted text-xs font-semibold tracking-wider uppercase">
           Demo Accounts
         </span>
       </div>
@@ -250,7 +210,7 @@ function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {
           >
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-white truncate">{account.email}</div>
-              <div className="text-[11px]" style={{ color: "var(--login-blue)", opacity: 0.6 }}>
+              <div className="login-text-muted text-[11px]">
                 {account.label} &middot; {account.role}
               </div>
             </div>
@@ -261,7 +221,7 @@ function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {
                 title="Copy email"
                 className="p-1.5 rounded-md transition-colors"
                 style={{
-                  color: copied === account.email ? "#10b981" : "var(--login-blue)",
+                  color: copied === account.email ? "var(--login-success)" : "var(--login-blue)",
                   opacity: copied === account.email ? 1 : 0.5,
                 }}
               >
@@ -290,7 +250,7 @@ function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {
 
       {/* Password row */}
       <div className="mt-3 flex items-center justify-center gap-2">
-        <span className="text-[11px]" style={{ color: "var(--login-blue)", opacity: 0.5 }}>
+        <span className="login-text-muted text-[11px]">
           Password: <code className="font-mono">hff2026</code>
         </span>
         <button
@@ -299,7 +259,7 @@ function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {
           title="Copy password"
           className="p-1 rounded transition-colors"
           style={{
-            color: copied === "password" ? "#10b981" : "var(--login-blue)",
+            color: copied === "password" ? "var(--login-success)" : "var(--login-blue)",
             opacity: copied === "password" ? 1 : 0.4,
           }}
         >

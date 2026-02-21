@@ -6,7 +6,7 @@ import {
   type CommitOverrides,
   type AnalysisPreview,
 } from "@/lib/domain/quick-launch";
-import { completeTask, updateTaskProgress } from "@/lib/ai/task-guidance";
+import { completeTask, updateTaskProgress, failTask } from "@/lib/ai/task-guidance";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       learningGoals: string[];
       qualificationRef?: string;
       mode?: "upload" | "generate";
+      behaviorTargets?: Record<string, number>;
+      matrixPositions?: Record<string, { x: number; y: number }>;
     };
   };
 
@@ -83,7 +85,9 @@ export async function POST(req: NextRequest) {
     updateTaskProgress(taskId, {
       currentStep: 4,
       context: { phase: "committing", overrides },
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error(`[quick-launch:commit] Failed to update task progress:`, err);
+    });
   }
 
   // SSE stream
@@ -108,6 +112,8 @@ export async function POST(req: NextRequest) {
             qualificationRef: input.qualificationRef,
             mode: input.mode,
             domainId, // Forward so scaffold knows this is an existing domain
+            behaviorTargets: input.behaviorTargets,
+            matrixPositions: input.matrixPositions,
           },
           sendEvent,
         );
@@ -127,7 +133,9 @@ export async function POST(req: NextRequest) {
               },
             },
           });
-          completeTask(taskId).catch(() => {});
+          completeTask(taskId).catch((e) => {
+            console.error(`[quick-launch:commit] Failed to complete task:`, e);
+          });
         }
       } catch (err: any) {
         console.error("[quick-launch:commit] Failed:", err);
@@ -135,9 +143,10 @@ export async function POST(req: NextRequest) {
           phase: "error",
           message: err.message || "Commit failed",
         });
-        // Mark task as completed so it doesn't block future resume
         if (taskId) {
-          completeTask(taskId).catch(() => {});
+          failTask(taskId, err.message || "Commit failed").catch((e) => {
+            console.error(`[quick-launch:commit] Failed to mark task as failed:`, e);
+          });
         }
       } finally {
         controller.close();

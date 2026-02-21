@@ -31,7 +31,6 @@ import { useBranding } from "@/contexts/BrandingContext";
 import { TourTrigger } from "@/src/components/shared/TourTrigger";
 import { UserAvatar, ROLE_COLORS } from "./UserAvatar";
 import { envSidebarColor, envLabel } from "./EnvironmentBanner";
-import { MASQUERADE_COLOR } from "./MasqueradeBanner";
 
 interface LayoutOptions {
   isAdmin: boolean;
@@ -67,14 +66,14 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const PICKER_ROLE_COLORS: Record<string, string> = {
-  SUPERADMIN: "#dc2626",
-  ADMIN: "#ea580c",
-  OPERATOR: "#2563eb",
-  EDUCATOR: "#059669",
-  SUPER_TESTER: "#7c3aed",
-  TESTER: "#6b7280",
-  DEMO: "#a3a3a3",
-  VIEWER: "#6b7280",
+  SUPERADMIN: "var(--status-error-text)",
+  ADMIN: "var(--badge-orange-text, #ea580c)",
+  OPERATOR: "var(--accent-primary)",
+  EDUCATOR: "var(--status-success-text)",
+  SUPER_TESTER: "var(--accent-secondary, #8b5cf6)",
+  TESTER: "var(--text-muted)",
+  DEMO: "var(--text-muted)",
+  VIEWER: "var(--text-muted)",
 };
 
 /* ── Reusable section heading ── */
@@ -313,16 +312,16 @@ function InstitutionSwitcher() {
         <div
           className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mb-1"
           style={{
-            background: `color-mix(in srgb, #059669 8%, transparent)`,
-            border: `1px solid color-mix(in srgb, #059669 15%, transparent)`,
+            background: `color-mix(in srgb, var(--status-success-text) 8%, transparent)`,
+            border: `1px solid color-mix(in srgb, var(--status-success-text) 15%, transparent)`,
           }}
         >
           <Building2
             className="h-4 w-4 flex-shrink-0"
-            style={{ color: "#059669" }}
+            style={{ color: "var(--status-success-text)" }}
           />
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] font-medium truncate" style={{ color: "#059669" }}>
+            <div className="text-[12px] font-medium truncate" style={{ color: "var(--status-success-text)" }}>
               {activeInstitution.name}
             </div>
             <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
@@ -356,7 +355,7 @@ function InstitutionSwitcher() {
                 {inst.logoUrl ? (
                   <img src={inst.logoUrl} alt="" style={{ height: 14, width: "auto", maxWidth: 50, flexShrink: 0 }} />
                 ) : (
-                  <div className="h-4 w-4 flex-shrink-0 flex items-center justify-center rounded" style={{ background: "#059669" }}>
+                  <div className="h-4 w-4 flex-shrink-0 flex items-center justify-center rounded" style={{ background: "var(--status-success-text)" }}>
                     <span className="text-[10px] font-bold text-white">{inst.name[0]}</span>
                   </div>
                 )}
@@ -364,7 +363,7 @@ function InstitutionSwitcher() {
                 <span className="flex-1 truncate">{inst.name}</span>
                 {/* Active indicator */}
                 {isActive && (
-                  <span className="text-[9px] font-bold rounded px-1.5 py-0.5 flex-shrink-0" style={{ background: "#059669", color: "#fff" }}>
+                  <span className="text-[9px] font-bold rounded px-1.5 py-0.5 flex-shrink-0" style={{ background: "var(--status-success-text)", color: "var(--surface-primary)" }}>
                     Current
                   </span>
                 )}
@@ -444,16 +443,16 @@ function StepInSection() {
         <div
           className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mb-1"
           style={{
-            background: `color-mix(in srgb, ${MASQUERADE_COLOR} 8%, transparent)`,
-            border: `1px solid color-mix(in srgb, ${MASQUERADE_COLOR} 15%, transparent)`,
+            background: `color-mix(in srgb, var(--masquerade-color) 8%, transparent)`,
+            border: `1px solid color-mix(in srgb, var(--masquerade-color) 15%, transparent)`,
           }}
         >
           <VenetianMask
             className="h-4 w-4 flex-shrink-0"
-            style={{ color: MASQUERADE_COLOR }}
+            style={{ color: "var(--masquerade-color)" }}
           />
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] font-medium truncate" style={{ color: MASQUERADE_COLOR }}>
+            <div className="text-[12px] font-medium truncate" style={{ color: "var(--masquerade-color)" }}>
               {masquerade.name || masquerade.email}
             </div>
             <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
@@ -464,14 +463,14 @@ function StepInSection() {
             onClick={handleExit}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors"
             style={{
-              color: MASQUERADE_COLOR,
-              background: `color-mix(in srgb, ${MASQUERADE_COLOR} 12%, transparent)`,
+              color: "var(--masquerade-color)",
+              background: `color-mix(in srgb, var(--masquerade-color) 12%, transparent)`,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = `color-mix(in srgb, ${MASQUERADE_COLOR} 20%, transparent)`;
+              e.currentTarget.style.background = `color-mix(in srgb, var(--masquerade-color) 20%, transparent)`;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = `color-mix(in srgb, ${MASQUERADE_COLOR} 12%, transparent)`;
+              e.currentTarget.style.background = `color-mix(in srgb, var(--masquerade-color) 12%, transparent)`;
             }}
           >
             <X className="h-3 w-3" />
@@ -488,7 +487,7 @@ function StepInSection() {
       >
         <LogIn
           className="h-[18px] w-[18px] flex-shrink-0"
-          style={{ color: isMasquerading ? MASQUERADE_COLOR : "var(--text-muted)" }}
+          style={{ color: isMasquerading ? "var(--masquerade-color)" : "var(--text-muted)" }}
         />
         <span className="flex-1 text-left">
           {isMasquerading ? "Switch User" : "Step In As..."}
@@ -554,7 +553,7 @@ function StepInSection() {
               users.map((user) => {
                 const isCurrentMasquerade = masquerade?.userId === user.id;
                 const label = user.displayName || user.name || user.email;
-                const roleColor = PICKER_ROLE_COLORS[user.role] || "#6b7280";
+                const roleColor = PICKER_ROLE_COLORS[user.role] || "var(--text-muted)";
                 return (
                   <button
                     key={user.id}
@@ -626,7 +625,7 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
 
   const displayLabel = (user as any).displayName || user.name || user.email || "User";
   const role = user.role || "VIEWER";
-  const roleColor = ROLE_COLORS[role] || "#6b7280";
+  const roleColor = ROLE_COLORS[role] || "var(--text-muted)";
 
   const handleNavigate = () => {
     onClose();
@@ -719,8 +718,8 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
           label="Tasks"
           onClick={handleNavigate}
           pills={[
-            ...(taskCounts.processing > 0 ? [{ label: "Processing", count: taskCounts.processing, color: "#2563eb" }] : []),
-            ...(taskCounts.completedRecent > 0 ? [{ label: "Done (24h)", count: taskCounts.completedRecent, color: "#16a34a" }] : []),
+            ...(taskCounts.processing > 0 ? [{ label: "Processing", count: taskCounts.processing, color: "var(--accent-primary)" }] : []),
+            ...(taskCounts.completedRecent > 0 ? [{ label: "Done (24h)", count: taskCounts.completedRecent, color: "var(--status-success-text)" }] : []),
           ]}
         />
       </div>
@@ -872,9 +871,9 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
             <span
               className="inline-block rounded-full px-2.5 py-0.5 text-[9px] font-bold tracking-wide"
               style={{
-                background: "color-mix(in srgb, #22c55e 12%, transparent)",
-                color: "#16a34a",
-                border: "1px solid color-mix(in srgb, #22c55e 25%, transparent)",
+                background: "color-mix(in srgb, var(--status-success-text) 12%, transparent)",
+                color: "var(--status-success-text)",
+                border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)",
               }}
             >
               LIVE
@@ -896,17 +895,17 @@ export function AccountPanel({ onClose, onNavigate, unreadCount = 0, layoutOptio
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[12px] font-semibold transition-all"
             style={{
-              color: "#dc2626",
-              background: "color-mix(in srgb, #dc2626 5%, transparent)",
-              border: "1px solid color-mix(in srgb, #dc2626 10%, transparent)",
+              color: "var(--status-error-text)",
+              background: "color-mix(in srgb, var(--status-error-text) 5%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--status-error-text) 10%, transparent)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "color-mix(in srgb, #dc2626 10%, transparent)";
-              e.currentTarget.style.borderColor = "color-mix(in srgb, #dc2626 20%, transparent)";
+              e.currentTarget.style.background = "color-mix(in srgb, var(--status-error-text) 10%, transparent)";
+              e.currentTarget.style.borderColor = "color-mix(in srgb, var(--status-error-text) 20%, transparent)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "color-mix(in srgb, #dc2626 5%, transparent)";
-              e.currentTarget.style.borderColor = "color-mix(in srgb, #dc2626 10%, transparent)";
+              e.currentTarget.style.background = "color-mix(in srgb, var(--status-error-text) 5%, transparent)";
+              e.currentTarget.style.borderColor = "color-mix(in srgb, var(--status-error-text) 10%, transparent)";
             }}
           >
             <LogOut className="h-3.5 w-3.5" />

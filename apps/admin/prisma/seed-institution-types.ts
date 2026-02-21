@@ -25,6 +25,10 @@ interface InstitutionTypeSeed {
     cohort: string;
     instructor: string;
     session: string;
+    persona: string;
+    supervisor: string;
+    teach_action: string;
+    learning_noun: string;
   };
   setupSpecSlug: string | null;
   defaultDomainKind: "INSTITUTION" | "COMMUNITY";
@@ -43,6 +47,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Class",
       instructor: "Teacher",
       session: "Lesson",
+      persona: "Teaching Style",
+      supervisor: "My Teacher",
+      teach_action: "Teach",
+      learning_noun: "Learning",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -59,6 +67,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Team",
       instructor: "Trainer",
       session: "Training Session",
+      persona: "Agent Style",
+      supervisor: "My Manager",
+      teach_action: "Train",
+      learning_noun: "Development",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -75,6 +87,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Community",
       instructor: "Facilitator",
       session: "Call",
+      persona: "Guide Style",
+      supervisor: "My Guide",
+      teach_action: "Facilitate",
+      learning_noun: "Journey",
     },
     setupSpecSlug: "COMMUNITY-SETUP-001",
     defaultDomainKind: "COMMUNITY",
@@ -91,6 +107,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Group",
       instructor: "Coach",
       session: "Coaching Session",
+      persona: "Coaching Style",
+      supervisor: "My Coach",
+      teach_action: "Coach",
+      learning_noun: "Growth",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -107,6 +127,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Team",
       instructor: "Provider",
       session: "Patient Session",
+      persona: "Care Style",
+      supervisor: "My Provider",
+      teach_action: "Educate",
+      learning_noun: "Care Plan",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -123,6 +147,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Cohort",
       instructor: "Trainer",
       session: "Training Session",
+      persona: "Agent Style",
+      supervisor: "My Trainer",
+      teach_action: "Train",
+      learning_noun: "Training",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",

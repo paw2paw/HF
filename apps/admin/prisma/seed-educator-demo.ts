@@ -827,6 +827,13 @@ async function cleanupExistingData() {
     });
   }
 
+  // 5b. CallerCohortMembership — must come before Callers and CohortGroups
+  if (demoCallerIds.length > 0) {
+    await prisma.callerCohortMembership.deleteMany({
+      where: { callerId: { in: demoCallerIds } },
+    });
+  }
+
   // 6. Callers (pupils) — must come before CohortGroups (FK: caller.cohortGroupId)
   await prisma.caller.deleteMany({
     where: { externalId: { startsWith: "edu-demo-" } },
@@ -1151,6 +1158,22 @@ async function createPupils(
           role: "LEARNER",
           domainId,
           cohortGroupId,
+        },
+      });
+
+      // Multi-cohort membership (new join table — kept in sync with legacy cohortGroupId)
+      await prisma.callerCohortMembership.upsert({
+        where: {
+          callerId_cohortGroupId: {
+            callerId: caller.id,
+            cohortGroupId,
+          },
+        },
+        update: {},
+        create: {
+          callerId: caller.id,
+          cohortGroupId,
+          role: "MEMBER",
         },
       });
 

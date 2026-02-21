@@ -21,9 +21,13 @@ export async function GET() {
     where: {
       caller: {
         role: "LEARNER",
-        cohortGroup: {
-          ownerId: auth.callerId,
-          isActive: true,
+        cohortMemberships: {
+          some: {
+            cohortGroup: {
+              ownerId: auth.callerId,
+              isActive: true,
+            },
+          },
         },
       },
       endedAt: null,
@@ -36,8 +40,10 @@ export async function GET() {
         select: {
           id: true,
           name: true,
-          cohortGroup: {
-            select: { id: true, name: true },
+          cohortMemberships: {
+            include: { cohortGroup: { select: { id: true, name: true } } },
+            where: { cohortGroup: { ownerId: auth.callerId } },
+            take: 1,
           },
         },
       },
@@ -51,8 +57,8 @@ export async function GET() {
       callId: c.id,
       callerId: c.caller?.id,
       callerName: c.caller?.name,
-      classroom: c.caller?.cohortGroup?.name,
-      classroomId: c.caller?.cohortGroup?.id,
+      classroom: c.caller?.cohortMemberships?.[0]?.cohortGroup?.name ?? null,
+      classroomId: c.caller?.cohortMemberships?.[0]?.cohortGroup?.id ?? null,
       startedAt: c.createdAt,
     })),
   });

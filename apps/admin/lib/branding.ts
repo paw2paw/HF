@@ -7,6 +7,7 @@
 
 export interface InstitutionBranding {
   name: string;
+  typeName: string | null;
   logoUrl: string | null;
   primaryColor: string | null;
   secondaryColor: string | null;
@@ -15,6 +16,7 @@ export interface InstitutionBranding {
 
 export const DEFAULT_BRANDING: InstitutionBranding = {
   name: "HumanFirst Foundation",
+  typeName: null,
   logoUrl: null,
   primaryColor: null, // use CSS defaults
   secondaryColor: null,

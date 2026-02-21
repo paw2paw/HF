@@ -1,7 +1,7 @@
 /**
  * Terminology Types & Helpers — Client-safe (no Prisma dependency)
  *
- * The unified 7-key TermMap is the canonical terminology type.
+ * The unified 11-key TermMap is the canonical terminology type.
  * Resolution is now DB-driven via InstitutionType.terminology (see lib/terminology.ts).
  *
  * This file provides:
@@ -12,7 +12,7 @@
 
 // ── Canonical Types (unified system) ────────────────────────
 
-/** The 7 canonical term keys used across the app */
+/** The 11 canonical term keys used across the app */
 export type TermKey =
   | "domain"
   | "playbook"
@@ -20,12 +20,16 @@ export type TermKey =
   | "caller"
   | "cohort"
   | "instructor"
-  | "session";
+  | "session"
+  | "persona"
+  | "supervisor"
+  | "teach_action"
+  | "learning_noun";
 
-/** A complete terminology map — all 7 keys present, all strings */
+/** A complete terminology map — all 11 keys present, all strings */
 export type TermMap = Record<TermKey, string>;
 
-/** All 7 term keys in canonical order */
+/** All 11 term keys in canonical order */
 export const TERM_KEYS: TermKey[] = [
   "domain",
   "playbook",
@@ -34,6 +38,10 @@ export const TERM_KEYS: TermKey[] = [
   "cohort",
   "instructor",
   "session",
+  "persona",
+  "supervisor",
+  "teach_action",
+  "learning_noun",
 ];
 
 /** Human-readable labels for term keys (used in admin UI) */
@@ -45,10 +53,14 @@ export const TERM_KEY_LABELS: Record<TermKey, string> = {
   cohort: "Group / Class",
   instructor: "Teacher / Facilitator",
   session: "Call / Session",
+  persona: "Agent Style / Role",
+  supervisor: "Supervisor / Guide",
+  teach_action: "Teaching Verb",
+  learning_noun: "Learning Concept",
 };
 
 /**
- * Technical terms — Prisma model names. Only hardcoded fallback.
+ * Technical terms — neutral defaults. Only hardcoded fallback.
  * Shown to ADMIN/SUPERADMIN/SUPER_TESTER.
  */
 export const TECHNICAL_TERMS: TermMap = {
@@ -59,6 +71,10 @@ export const TECHNICAL_TERMS: TermMap = {
   cohort: "Cohort",
   instructor: "Instructor",
   session: "Session",
+  persona: "Persona",
+  supervisor: "Supervisor",
+  teach_action: "Teach",
+  learning_noun: "Learning",
 };
 
 // ── String helpers ──────────────────────────────────────────
@@ -99,7 +115,8 @@ export type LegacyTermKey =
   | "learner"
   | "instructor"
   | "supervisor"
-  | "session";
+  | "session"
+  | "persona";
 
 /** @deprecated Use TermMap instead */
 export type TerminologyProfile = Record<LegacyTermKey, string>;
@@ -129,6 +146,7 @@ export const TERMINOLOGY_PRESETS: Record<TerminologyPresetId, TerminologyProfile
     instructor: "Teacher",
     supervisor: "My Teacher",
     session: "Lesson",
+    persona: "Teaching Style",
   },
   corporate: {
     institution: "Organization",
@@ -137,6 +155,7 @@ export const TERMINOLOGY_PRESETS: Record<TerminologyPresetId, TerminologyProfile
     instructor: "Trainer",
     supervisor: "My Manager",
     session: "Training Session",
+    persona: "Agent Style",
   },
   coaching: {
     institution: "Practice",
@@ -145,6 +164,7 @@ export const TERMINOLOGY_PRESETS: Record<TerminologyPresetId, TerminologyProfile
     instructor: "Coach",
     supervisor: "My Coach",
     session: "Coaching Session",
+    persona: "Coaching Style",
   },
   healthcare: {
     institution: "Facility",
@@ -153,6 +173,7 @@ export const TERMINOLOGY_PRESETS: Record<TerminologyPresetId, TerminologyProfile
     instructor: "Provider",
     supervisor: "My Provider",
     session: "Patient Session",
+    persona: "Care Style",
   },
 };
 

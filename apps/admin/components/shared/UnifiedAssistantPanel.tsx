@@ -46,7 +46,7 @@ interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "pending" | "in_progress" | "completed";
+  status: "pending" | "in_progress" | "completed" | "abandoned";
   taskType: string;
   currentStep: number;
   totalSteps: number;
@@ -643,7 +643,7 @@ export function UnifiedAssistantPanel({
                   width: 28,
                   height: 28,
                   borderRadius: 6,
-                  background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                  background: "linear-gradient(135deg, var(--badge-indigo-text, #6366f1) 0%, var(--accent-secondary, #8b5cf6) 100%)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -838,7 +838,7 @@ export function UnifiedAssistantPanel({
                     border: "1px solid",
                     borderColor: isActive ? "var(--accent-primary)" : "var(--border-default)",
                     background: isActive ? "var(--accent-primary)" : "var(--surface-secondary)",
-                    color: isActive ? "#fff" : "var(--text-primary)",
+                    color: isActive ? "var(--button-primary-text, #fff)" : "var(--text-primary)",
                     cursor: "pointer",
                     fontSize: 11,
                     fontWeight: 600,
@@ -920,7 +920,7 @@ export function UnifiedAssistantPanel({
                       borderRadius: 3,
                       border: "none",
                       background: !searchQuery.trim() || isSearching ? "var(--surface-disabled)" : "var(--accent-primary)",
-                      color: !searchQuery.trim() || isSearching ? "var(--text-placeholder)" : "#fff",
+                      color: !searchQuery.trim() || isSearching ? "var(--text-placeholder)" : "var(--button-primary-text, #fff)",
                       cursor: !searchQuery.trim() || isSearching ? "not-allowed" : "pointer",
                       fontWeight: 600,
                       fontSize: 10,
@@ -1042,9 +1042,9 @@ export function UnifiedAssistantPanel({
                       borderRadius: 12,
                       background:
                         message.role === "user"
-                          ? "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
+                          ? "linear-gradient(135deg, var(--badge-indigo-text, #6366f1) 0%, var(--accent-secondary, #8b5cf6) 100%)"
                           : "var(--surface-secondary)",
-                      color: message.role === "user" ? "#fff" : "var(--text-primary)",
+                      color: message.role === "user" ? "var(--text-on-dark, #fff)" : "var(--text-primary)",
                       fontSize: 13,
                       lineHeight: 1.5,
                       border: message.role === "assistant" ? "1px solid var(--border-default)" : "none",
@@ -1176,11 +1176,11 @@ export function UnifiedAssistantPanel({
                           <span>Step {task.currentStep} of {task.totalSteps}</span>
                           <span>{Math.round(task.progress * 100)}%</span>
                         </div>
-                        <div style={{ height: 4, background: "#e5e7eb", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ height: 4, background: "var(--border-default)", borderRadius: 2, overflow: "hidden" }}>
                           <div style={{
                             width: `${task.progress * 100}%`,
                             height: '100%',
-                            background: 'linear-gradient(90deg, #8b5cf6, #6366f1)',
+                            background: 'linear-gradient(90deg, var(--accent-secondary, #8b5cf6), var(--badge-indigo-text, #6366f1))',
                             borderRadius: 2,
                             transition: 'width 0.3s ease',
                           }} />
@@ -1197,20 +1197,28 @@ export function UnifiedAssistantPanel({
                             border: "2px solid",
                             borderColor:
                               task.status === "completed"
-                                ? "#10b981"
+                                ? "var(--status-success-text)"
+                                : task.status === "abandoned"
+                                ? "var(--status-error-text)"
                                 : task.status === "in_progress"
-                                ? "#f59e0b"
+                                ? "var(--status-warning-text)"
                                 : "var(--border-default)",
-                            background: task.status === "completed" ? "#10b981" : "transparent",
+                            background:
+                              task.status === "completed"
+                                ? "var(--status-success-text)"
+                                : task.status === "abandoned"
+                                ? "var(--status-error-text)"
+                                : "transparent",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "#fff",
+                            color: "var(--button-primary-text, #fff)",
                             fontSize: 10,
                             flexShrink: 0,
                           }}
                         >
                           {task.status === "completed" && "✓"}
+                          {task.status === "abandoned" && "✕"}
                         </div>
                         <div style={{ flex: 1 }}>
                           <div
@@ -1236,12 +1244,12 @@ export function UnifiedAssistantPanel({
 
                       {/* Blockers */}
                       {task.blockers && task.blockers.length > 0 && (
-                        <div style={{ marginTop: 10, padding: 8, background: "rgba(239, 68, 68, 0.1)", borderRadius: 6, border: "1px solid rgba(239, 68, 68, 0.2)" }}>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: "#dc2626", marginBottom: 4 }}>
+                        <div style={{ marginTop: 10, padding: 8, background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--status-error-text) 20%, transparent)" }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-error-text)", marginBottom: 4 }}>
                             ⚠️ {task.blockers.length} Blocker{task.blockers.length > 1 ? 's' : ''}
                           </div>
                           {task.blockers.map((blocker, i) => (
-                            <div key={i} style={{ fontSize: 10, color: "#dc2626", marginLeft: 16 }}>
+                            <div key={i} style={{ fontSize: 10, color: "var(--status-error-text)", marginLeft: 16 }}>
                               • {blocker}
                             </div>
                           ))}
@@ -1311,7 +1319,7 @@ export function UnifiedAssistantPanel({
                     borderRadius: 4,
                     border: "none",
                     background: !input.trim() || loading ? "var(--surface-disabled)" : "var(--accent-primary)",
-                    color: !input.trim() || loading ? "var(--text-placeholder)" : "#fff",
+                    color: !input.trim() || loading ? "var(--text-placeholder)" : "var(--button-primary-text, #fff)",
                     cursor: !input.trim() || loading ? "not-allowed" : "pointer",
                     fontWeight: 600,
                     fontSize: 11,

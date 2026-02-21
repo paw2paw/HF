@@ -53,7 +53,7 @@ export default function ClassroomsPage() {
         }}
       >
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+          <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
             {plural("cohort")}
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
@@ -62,30 +62,15 @@ export default function ClassroomsPage() {
         </div>
         <Link
           href="/x/educator/classrooms/new"
-          style={{
-            padding: "8px 16px",
-            background: "var(--button-primary-bg)",
-            color: "var(--button-primary-text)",
-            borderRadius: 8,
-            textDecoration: "none",
-            fontSize: 14,
-            fontWeight: 600,
-          }}
+          className="hf-btn hf-btn-primary"
+          style={{ textDecoration: "none" }}
         >
           + New {terms.cohort}
         </Link>
       </div>
 
       {classrooms.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "60px 20px",
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-          }}
-        >
+        <div className="hf-card text-center" style={{ padding: "60px 20px" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>👋</div>
           <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
             No {lowerPlural("cohort")} yet
@@ -95,16 +80,8 @@ export default function ClassroomsPage() {
           </p>
           <Link
             href="/x/educator/classrooms/new"
-            style={{
-              display: "inline-block",
-              padding: "10px 24px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              borderRadius: 8,
-              textDecoration: "none",
-              fontSize: 14,
-              fontWeight: 600,
-            }}
+            className="hf-btn hf-btn-primary"
+            style={{ textDecoration: "none" }}
           >
             Create {terms.cohort}
           </Link>
@@ -121,18 +98,12 @@ export default function ClassroomsPage() {
             <Link
               key={classroom.id}
               href={`/x/educator/classrooms/${classroom.id}`}
+              className="hf-card-compact home-stat-card flex flex-col"
               style={{
-                display: "flex",
-                flexDirection: "column",
                 padding: 20,
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 12,
                 textDecoration: "none",
-                transition: "all 0.2s",
                 borderLeft: `3px solid ${classroom.isActive ? "var(--accent-primary)" : "var(--text-muted)"}`,
               }}
-              className="home-stat-card"
             >
               <div
                 style={{

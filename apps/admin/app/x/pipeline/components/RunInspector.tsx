@@ -333,15 +333,15 @@ export default function RunInspector() {
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
-          borderRight: "1px solid var(--border-default, #e5e7eb)",
-          background: "var(--surface-secondary, #f9fafb)",
+          borderRight: "1px solid var(--border-default)",
+          background: "var(--surface-secondary)",
           height: "100%",
         }}
       >
         {/* Header + search */}
         <div style={{ padding: "12px 10px 8px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary, #111827)" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>
               Recent Callers
             </span>
             <button
@@ -349,9 +349,9 @@ export default function RunInspector() {
               style={{
                 padding: "3px 6px",
                 borderRadius: 4,
-                border: "1px solid var(--border-default, #e5e7eb)",
-                background: "var(--surface-primary, #fff)",
-                color: "var(--text-tertiary, #9ca3af)",
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-primary)",
+                color: "var(--text-tertiary)",
                 cursor: "pointer",
                 fontSize: 12,
                 display: "flex",
@@ -371,12 +371,12 @@ export default function RunInspector() {
               gap: 6,
               padding: "5px 8px",
               borderRadius: 6,
-              border: "1px solid var(--border-default, #e5e7eb)",
-              background: "var(--surface-primary, #fff)",
+              border: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
               marginBottom: 6,
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary, #9ca3af)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
@@ -390,7 +390,7 @@ export default function RunInspector() {
                 outline: "none",
                 background: "transparent",
                 fontSize: 11,
-                color: "var(--text-primary, #111827)",
+                color: "var(--text-primary)",
                 width: "100%",
               }}
             />
@@ -418,14 +418,14 @@ export default function RunInspector() {
                   padding: "3px 8px",
                   borderRadius: 4,
                   border: sortMode === s.id
-                    ? "1px solid var(--accent-primary, #3b82f6)"
-                    : "1px solid var(--border-default, #e5e7eb)",
+                    ? "1px solid var(--accent-primary)"
+                    : "1px solid var(--border-default)",
                   background: sortMode === s.id
-                    ? "color-mix(in srgb, var(--accent-primary, #3b82f6) 10%, transparent)"
-                    : "var(--surface-primary, #fff)",
+                    ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)"
+                    : "var(--surface-primary)",
                   color: sortMode === s.id
-                    ? "var(--accent-primary, #3b82f6)"
-                    : "var(--text-tertiary, #9ca3af)",
+                    ? "var(--accent-primary)"
+                    : "var(--text-tertiary)",
                   fontSize: 10,
                   fontWeight: sortMode === s.id ? 600 : 400,
                   cursor: "pointer",
@@ -463,15 +463,15 @@ export default function RunInspector() {
                       padding: "8px 10px",
                       borderRadius: 6,
                       border: isSelected
-                        ? "1px solid var(--accent-primary, #3b82f6)"
+                        ? "1px solid var(--accent-primary)"
                         : "1px solid transparent",
                       background: isSelected
-                        ? "color-mix(in srgb, var(--accent-primary, #3b82f6) 8%, transparent)"
-                        : "var(--surface-primary, #fff)",
+                        ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
+                        : "var(--surface-primary)",
                       cursor: "pointer",
                       textAlign: "left",
                       transition: "all 0.15s",
-                      boxShadow: isSelected ? "0 1px 4px rgba(59,130,246,0.1)" : "0 1px 2px rgba(0,0,0,0.03)",
+                      boxShadow: isSelected ? "0 1px 4px color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "0 1px 2px color-mix(in srgb, var(--text-primary) 3%, transparent)",
                       width: "100%",
                     }}
                   >
@@ -481,7 +481,7 @@ export default function RunInspector() {
                         width: 6,
                         height: 6,
                         borderRadius: "50%",
-                        background: caller.lastStatus === "SUCCESS" ? "#22c55e" : "#ef4444",
+                        background: caller.lastStatus === "SUCCESS" ? "var(--status-success-text)" : "var(--status-error-text)",
                         flexShrink: 0,
                       }}
                     />
@@ -492,7 +492,7 @@ export default function RunInspector() {
                         style={{
                           fontSize: 12,
                           fontWeight: 500,
-                          color: "var(--text-primary, #111827)",
+                          color: "var(--text-primary)",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
@@ -500,7 +500,7 @@ export default function RunInspector() {
                       >
                         {caller.name || caller.id.slice(0, 8)}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-tertiary, #9ca3af)", marginTop: 1 }}>
+                      <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 1 }}>
                         {caller.totalRuns} run{caller.totalRuns !== 1 ? "s" : ""}
                         {caller.lastDurationMs != null && ` \u00B7 ${caller.lastDurationMs}ms`}
                       </div>
@@ -510,7 +510,7 @@ export default function RunInspector() {
                     <span
                       style={{
                         fontSize: 10,
-                        color: "var(--text-tertiary, #9ca3af)",
+                        color: "var(--text-tertiary)",
                         flexShrink: 0,
                         whiteSpace: "nowrap",
                       }}
@@ -528,9 +528,9 @@ export default function RunInspector() {
         <div
           style={{
             padding: "6px 10px",
-            borderTop: "1px solid var(--border-default, #e5e7eb)",
+            borderTop: "1px solid var(--border-default)",
             fontSize: 10,
-            color: "var(--text-tertiary, #9ca3af)",
+            color: "var(--text-tertiary)",
           }}
         >
           {recentCallers.length} caller{recentCallers.length !== 1 ? "s" : ""} with activity
@@ -546,8 +546,8 @@ export default function RunInspector() {
               display: "flex",
               gap: 10,
               padding: "10px 16px",
-              borderBottom: "1px solid var(--border-default, #e5e7eb)",
-              background: "var(--surface-primary, #fff)",
+              borderBottom: "1px solid var(--border-default)",
+              background: "var(--surface-primary)",
               flexShrink: 0,
               alignItems: "center",
             }}
@@ -571,9 +571,9 @@ export default function RunInspector() {
               style={{
                 padding: "6px 10px",
                 borderRadius: 6,
-                border: "1px solid var(--border-default, #e5e7eb)",
-                background: "var(--surface-primary, #fff)",
-                color: "var(--text-secondary, #6b7280)",
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-primary)",
+                color: "var(--text-secondary)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -582,7 +582,7 @@ export default function RunInspector() {
             >
               <Refresh style={{ fontSize: 16 }} />
             </button>
-            <span style={{ fontSize: 11, color: "var(--text-tertiary, #9ca3af)" }}>
+            <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
               {runs.length} run{runs.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -596,7 +596,7 @@ export default function RunInspector() {
               style={{
                 textAlign: "center",
                 padding: 60,
-                color: "var(--text-muted, #9ca3af)",
+                color: "var(--text-muted)",
               }}
             >
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.4 }}>
@@ -618,7 +618,7 @@ export default function RunInspector() {
               style={{
                 textAlign: "center",
                 padding: 60,
-                color: "var(--text-muted, #9ca3af)",
+                color: "var(--text-muted)",
               }}
             >
               <div style={{ fontSize: 14 }}>
@@ -629,7 +629,7 @@ export default function RunInspector() {
 
           {/* Loading state */}
           {loading && (
-            <div style={{ textAlign: "center", padding: 40, color: "var(--text-tertiary, #9ca3af)", fontSize: 13 }}>
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-tertiary)", fontSize: 13 }}>
               Loading runs...
             </div>
           )}
@@ -645,22 +645,22 @@ export default function RunInspector() {
                   gap: 12,
                   marginBottom: 20,
                   padding: 14,
-                  background: "var(--surface-secondary, #f9fafb)",
+                  background: "var(--surface-secondary)",
                   borderRadius: 8,
-                  border: "1px solid var(--border-default, #e5e7eb)",
+                  border: "1px solid var(--border-default)",
                 }}
               >
                 <StatusBadge status={selectedRun.status} size={24} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary, #111827)" }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary)" }}>
                     Prompt Composition
                     {selectedRun._model && (
                       <span
                         style={{
                           marginLeft: 8,
                           padding: "2px 8px",
-                          background: selectedRun._model === "deterministic" ? "#dbeafe" : "#fef3c7",
-                          color: selectedRun._model === "deterministic" ? "#1e40af" : "#92400e",
+                          background: selectedRun._model === "deterministic" ? "var(--badge-blue-bg)" : "var(--badge-yellow-bg)",
+                          color: selectedRun._model === "deterministic" ? "var(--badge-blue-text)" : "var(--badge-yellow-text)",
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 500,
@@ -670,7 +670,7 @@ export default function RunInspector() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary, #6b7280)" }}>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                     {new Date(selectedRun.startedAt).toLocaleString()} •{" "}
                     {selectedRun.durationMs}ms • {selectedRun.stepsSucceeded}/
                     {selectedRun.stepsTotal} steps • triggered by {selectedRun.triggeredBy || "manual"}
@@ -683,9 +683,9 @@ export default function RunInspector() {
                       alignItems: "center",
                       gap: 6,
                       padding: "6px 12px",
-                      background: "#fee2e2",
+                      background: "var(--status-error-bg)",
                       borderRadius: 6,
-                      color: "#dc2626",
+                      color: "var(--status-error-text)",
                       fontSize: 12,
                     }}
                   >
@@ -729,16 +729,16 @@ export default function RunInspector() {
 // =============================================================================
 
 const DATA_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  memories: { bg: "#dbeafe", text: "#1e40af", border: "#93c5fd" },
-  recentCalls: { bg: "#fef3c7", text: "#92400e", border: "#fcd34d" },
-  behaviorTargets: { bg: "#d1fae5", text: "#065f46", border: "#6ee7b7" },
-  playbooks: { bg: "#ede9fe", text: "#5b21b6", border: "#c4b5fd" },
-  personality: { bg: "#fce7f3", text: "#9d174d", border: "#f9a8d4" },
-  curriculum: { bg: "#cffafe", text: "#0e7490", border: "#67e8f9" },
-  identity: { bg: "#fed7aa", text: "#9a3412", border: "#fdba74" },
-  instructions: { bg: "#e0e7ff", text: "#3730a3", border: "#a5b4fc" },
-  learnerGoals: { bg: "#d9f99d", text: "#3f6212", border: "#bef264" },
-  default: { bg: "#f3f4f6", text: "#374151", border: "#d1d5db" },
+  memories: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", border: "color-mix(in srgb, var(--badge-blue-text) 40%, transparent)" },
+  recentCalls: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)", border: "color-mix(in srgb, var(--badge-yellow-text) 40%, transparent)" },
+  behaviorTargets: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)", border: "color-mix(in srgb, var(--badge-green-text) 40%, transparent)" },
+  playbooks: { bg: "var(--badge-purple-bg)", text: "var(--badge-purple-text)", border: "color-mix(in srgb, var(--badge-purple-text) 40%, transparent)" },
+  personality: { bg: "var(--badge-pink-bg)", text: "var(--badge-pink-text)", border: "var(--badge-pink-border)" },
+  curriculum: { bg: "var(--badge-cyan-bg)", text: "var(--badge-cyan-text)", border: "var(--badge-cyan-border)" },
+  identity: { bg: "var(--badge-orange-bg)", text: "var(--badge-orange-text)", border: "var(--badge-orange-border)" },
+  instructions: { bg: "var(--badge-indigo-bg)", text: "var(--badge-indigo-text)", border: "var(--badge-indigo-border)" },
+  learnerGoals: { bg: "var(--badge-lime-bg)", text: "var(--badge-lime-text)", border: "var(--badge-lime-border)" },
+  default: { bg: "var(--surface-secondary)", text: "var(--text-primary)", border: "var(--border-default)" },
 };
 
 function getTypeColor(key: string) {
@@ -771,8 +771,8 @@ function AICallBadge({
           alignItems: "center",
           gap: 4,
           padding: "2px 6px",
-          background: "#dbeafe",
-          color: "#1e40af",
+          background: "var(--badge-blue-bg)",
+          color: "var(--badge-blue-text)",
           borderRadius: 4,
           fontSize: 10,
           fontWeight: 500,
@@ -800,13 +800,13 @@ function AICallBadge({
           alignItems: "center",
           gap: 4,
           padding: "2px 8px",
-          background: isCustomized ? "#fef3c7" : "#dbeafe",
-          color: isCustomized ? "#92400e" : "#1e40af",
+          background: isCustomized ? "var(--badge-yellow-bg)" : "var(--badge-blue-bg)",
+          color: isCustomized ? "var(--badge-yellow-text)" : "var(--badge-blue-text)",
           borderRadius: 4,
           fontSize: 10,
           fontWeight: 500,
           cursor: "pointer",
-          border: `1px solid ${isCustomized ? "#fcd34d" : "#93c5fd"}`,
+          border: `1px solid ${isCustomized ? "var(--badge-yellow-text)" : "color-mix(in srgb, var(--badge-blue-text) 40%, transparent)"}`,
         }}
       >
         <Psychology style={{ fontSize: 12 }} />
@@ -828,7 +828,7 @@ function AICallBadge({
             background: "var(--surface-primary)",
             border: "1px solid var(--border-default)",
             borderRadius: 8,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            boxShadow: "0 4px 12px color-mix(in srgb, var(--text-primary) 15%, transparent)",
             zIndex: 100,
             minWidth: 220,
             fontSize: 12,
@@ -870,8 +870,8 @@ function AICallBadge({
                       style={{
                         marginLeft: 4,
                         padding: "1px 4px",
-                        background: "#fef3c7",
-                        color: "#92400e",
+                        background: "var(--badge-yellow-bg)",
+                        color: "var(--badge-yellow-text)",
                         borderRadius: 3,
                         fontSize: 9,
                       }}
@@ -892,7 +892,7 @@ function AICallBadge({
               color: "var(--text-muted)",
             }}
           >
-            Configure in <a href="/x/ai-config" style={{ color: "#2563eb" }}>AI Config</a>
+            Configure in <a href="/x/ai-config" style={{ color: "var(--accent-primary)" }}>AI Config</a>
           </div>
         </div>
       )}
@@ -1002,7 +1002,7 @@ function DataViewer({
                 <span style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: "#a78bfa",
+                  color: "var(--badge-purple-text)",
                   fontFamily: "monospace",
                 }}>
                   {typeof item.value === "number" ? item.value.toFixed(2) : item.value}
@@ -1222,7 +1222,7 @@ function StepCard({
             )}
             {step.error && step.status === "FAILED" && (
               <div
-                style={{ fontSize: 12, color: "#dc2626", marginTop: 2 }}
+                style={{ fontSize: 12, color: "var(--status-error-text)", marginTop: 2 }}
               >
                 {step.error}
               </div>
@@ -1317,9 +1317,9 @@ function StepCard({
                           alignItems: "center",
                           gap: 4,
                           padding: "4px 8px",
-                          background: isActive ? colors.text : hasData ? colors.bg : "#d1fae5",
-                          color: isActive ? "white" : hasData ? colors.text : "#065f46",
-                          border: hasData ? `1px solid ${colors.border}` : "1px solid #6ee7b7",
+                          background: isActive ? colors.text : hasData ? colors.bg : "var(--badge-green-bg)",
+                          color: isActive ? "var(--button-primary-text)" : hasData ? colors.text : "var(--badge-green-text)",
+                          border: hasData ? `1px solid ${colors.border}` : "1px solid color-mix(in srgb, var(--badge-green-text) 40%, transparent)",
                           borderRadius: 4,
                           fontSize: 12,
                           cursor: hasData ? "pointer" : "default",

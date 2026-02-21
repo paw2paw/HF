@@ -453,6 +453,7 @@ vi.mock('@/lib/student-access', () => ({
     },
     callerId: 'test-caller-id',
     cohortGroupId: 'test-cohort-id',
+    cohortGroupIds: ['test-cohort-id'],
     institutionId: null,
   }),
   requireStudentOrAdmin: vi.fn().mockResolvedValue({
@@ -462,6 +463,7 @@ vi.mock('@/lib/student-access', () => ({
     },
     callerId: 'test-caller-id',
     cohortGroupId: 'test-cohort-id',
+    cohortGroupIds: ['test-cohort-id'],
     institutionId: null,
   }),
   isStudentAuthError: vi.fn().mockReturnValue(false),

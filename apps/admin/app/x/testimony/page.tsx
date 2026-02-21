@@ -27,8 +27,8 @@ const roleColors: Record<string, string> = {
   SYNTHESISE: "var(--badge-purple-text)",
   ORCHESTRATE: "var(--text-muted)",
   CONSTRAIN: "var(--status-warning-text)",
-  IDENTITY: "#4338ca",
-  CONTENT: "#8b5cf6",
+  IDENTITY: "var(--identity-accent, #4338ca)",
+  CONTENT: "var(--content-accent, #8b5cf6)",
   VOICE: "var(--status-success-text)",
 };
 
@@ -65,7 +65,7 @@ export default function TestimonyDashboard() {
   return (
     <div data-tour="welcome" style={{ maxWidth: 960, padding: "0 0 40px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+        <h1 className="hf-page-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           Testimony
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
         </h1>

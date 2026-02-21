@@ -59,7 +59,18 @@ export default function TestDashboardPage() {
   useEffect(() => {
     if (!activeRun || activeRun.status !== "running") return;
 
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes (tests can take a while)
+
     const interval = setInterval(async () => {
+      if (Date.now() - startedAt > TIMEOUT_MS) {
+        clearInterval(interval);
+        setActiveRun((prev) =>
+          prev ? { ...prev, status: "failed" as const } : prev
+        );
+        setRunOutput((prev) => prev + "\n\n--- Polling timed out after 5 minutes ---\n");
+        return;
+      }
       try {
         const res = await fetch(`/api/admin/tests/run?runId=${activeRun.runId}`);
         const data = await res.json();
@@ -206,7 +217,8 @@ export default function TestDashboardPage() {
           <button
             onClick={() => runTests()}
             disabled={activeRun?.status === "running"}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-neutral-700 rounded font-medium flex items-center gap-2"
+            className="px-4 py-2 disabled:bg-neutral-700 rounded font-medium flex items-center gap-2"
+            style={{ background: activeRun?.status === "running" ? undefined : "var(--terminal-success-text)" }}
           >
             {activeRun?.status === "running" ? (
               <>
@@ -221,7 +233,8 @@ export default function TestDashboardPage() {
           {report?.hasReport && (
             <button
               onClick={() => setShowReport(!showReport)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-medium"
+              className="px-4 py-2 rounded font-medium hover:opacity-90"
+              style={{ background: "var(--terminal-info-text)" }}
             >
               {showReport ? "Hide Report" : "View Report"}
             </button>
@@ -236,23 +249,23 @@ export default function TestDashboardPage() {
             <div className="text-3xl font-bold">{report.summary.total}</div>
             <div className="text-neutral-400 text-sm">Total Tests</div>
           </div>
-          <div className="bg-green-900/30 border border-green-700 rounded-lg p-4">
-            <div className="text-3xl font-bold text-green-400">
+          <div className="rounded-lg p-4" style={{ background: "var(--terminal-success-bg)", border: "1px solid color-mix(in srgb, var(--terminal-success-text) 50%, transparent)" }}>
+            <div className="text-3xl font-bold" style={{ color: "var(--terminal-success-text)" }}>
               {report.summary.passed}
             </div>
-            <div className="text-green-400/70 text-sm">Passed</div>
+            <div className="text-sm" style={{ color: "color-mix(in srgb, var(--terminal-success-text) 70%, transparent)" }}>Passed</div>
           </div>
-          <div className="bg-red-900/30 border border-red-700 rounded-lg p-4">
-            <div className="text-3xl font-bold text-red-400">
+          <div className="rounded-lg p-4" style={{ background: "var(--terminal-error-bg)", border: "1px solid color-mix(in srgb, var(--terminal-error-text) 50%, transparent)" }}>
+            <div className="text-3xl font-bold" style={{ color: "var(--terminal-error-text)" }}>
               {report.summary.failed}
             </div>
-            <div className="text-red-400/70 text-sm">Failed</div>
+            <div className="text-sm" style={{ color: "color-mix(in srgb, var(--terminal-error-text) 70%, transparent)" }}>Failed</div>
           </div>
-          <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
-            <div className="text-3xl font-bold text-yellow-400">
+          <div className="rounded-lg p-4" style={{ background: "var(--terminal-warning-bg)", border: "1px solid color-mix(in srgb, var(--terminal-warning-text) 50%, transparent)" }}>
+            <div className="text-3xl font-bold" style={{ color: "var(--terminal-warning-text)" }}>
               {report.summary.skipped}
             </div>
-            <div className="text-yellow-400/70 text-sm">Skipped</div>
+            <div className="text-sm" style={{ color: "color-mix(in srgb, var(--terminal-warning-text) 70%, transparent)" }}>Skipped</div>
           </div>
           <div className="bg-neutral-800 rounded-lg p-4">
             <div className="text-3xl font-bold">
@@ -269,13 +282,13 @@ export default function TestDashboardPage() {
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               {activeRun.status === "running" && (
-                <span className="animate-pulse text-yellow-400">●</span>
+                <span className="animate-pulse" style={{ color: "var(--terminal-warning-text)" }}>●</span>
               )}
               {activeRun.status === "completed" && (
-                <span className="text-green-400">●</span>
+                <span style={{ color: "var(--terminal-success-text)" }}>●</span>
               )}
               {activeRun.status === "failed" && (
-                <span className="text-red-400">●</span>
+                <span style={{ color: "var(--terminal-error-text)" }}>●</span>
               )}
               Test Run
               <span className="text-neutral-500 text-sm font-normal">
@@ -308,7 +321,8 @@ export default function TestDashboardPage() {
             <a
               href="/api/admin/tests/report/html"
               target="_blank"
-              className="text-blue-400 hover:text-blue-300 text-sm"
+              className="text-sm hover:opacity-80"
+              style={{ color: "var(--terminal-info-text)" }}
             >
               Open in new tab ↗
             </a>
@@ -322,9 +336,9 @@ export default function TestDashboardPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 mb-6">
-          <div className="font-semibold text-red-400">Error</div>
-          <div className="text-red-300">{error}</div>
+        <div className="rounded-lg p-4 mb-6" style={{ background: "var(--terminal-error-bg)", border: "1px solid color-mix(in srgb, var(--terminal-error-text) 50%, transparent)" }}>
+          <div className="font-semibold" style={{ color: "var(--terminal-error-text)" }}>Error</div>
+          <div style={{ color: "color-mix(in srgb, var(--terminal-error-text) 80%, white)" }}>{error}</div>
         </div>
       )}
 
@@ -383,13 +397,14 @@ export default function TestDashboardPage() {
                     >
                       <div className="flex items-center gap-3">
                         <span
-                          className={`text-xs px-2 py-0.5 rounded ${
+                          className="text-xs px-2 py-0.5 rounded"
+                          style={
                             test.project === "authenticated"
-                              ? "bg-green-900/50 text-green-400"
+                              ? { background: "var(--terminal-success-bg)", color: "var(--terminal-success-text)" }
                               : test.project === "mobile"
-                              ? "bg-purple-900/50 text-purple-400"
-                              : "bg-neutral-700 text-neutral-400"
-                          }`}
+                              ? { background: "color-mix(in srgb, var(--terminal-purple-text) 20%, transparent)", color: "var(--terminal-purple-text)" }
+                              : { background: "var(--border-dark)", color: "var(--text-muted)" }
+                          }
                         >
                           {test.project}
                         </span>

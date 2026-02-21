@@ -281,12 +281,48 @@ export const config = {
     },
 
     /**
+     * Content Source Setup Wizard Spec (default: CONTENT-SOURCE-SETUP-001)
+     * Defines content source wizard steps: upload, extract, review.
+     * Can be overridden via CONTENT_SOURCE_SETUP_SPEC_SLUG env var.
+     */
+    get contentSourceSetup(): string {
+      return optional("CONTENT_SOURCE_SETUP_SPEC_SLUG", "CONTENT-SOURCE-SETUP-001");
+    },
+
+    /**
+     * Course Setup Wizard Spec (default: COURSE-SETUP-001)
+     * Defines course creation wizard steps: name, content, curriculum, review.
+     * Can be overridden via COURSE_SETUP_SPEC_SLUG env var.
+     */
+    get courseSetup(): string {
+      return optional("COURSE_SETUP_SPEC_SLUG", "COURSE-SETUP-001");
+    },
+
+    /**
      * Classroom Setup Wizard Spec (default: CLASSROOM-SETUP-001)
      * Defines classroom creation wizard steps: name, courses, review, invite.
      * Can be overridden via CLASSROOM_SETUP_SPEC_SLUG env var.
      */
     get classroomSetup(): string {
       return optional("CLASSROOM_SETUP_SPEC_SLUG", "CLASSROOM-SETUP-001");
+    },
+
+    /**
+     * Demonstrate Flow Wizard Spec (default: DEMONSTRATE-FLOW-001)
+     * Defines demonstrate wizard steps: select domain/caller, set goal, readiness, launch.
+     * Can be overridden via DEMONSTRATE_FLOW_SPEC_SLUG env var.
+     */
+    get demonstrateFlow(): string {
+      return optional("DEMONSTRATE_FLOW_SPEC_SLUG", "DEMONSTRATE-FLOW-001");
+    },
+
+    /**
+     * Teach Flow Wizard Spec (default: TEACH-FLOW-001)
+     * Defines teach wizard steps: select institution/learner, set goal, readiness, launch.
+     * Can be overridden via TEACH_FLOW_SPEC_SLUG env var.
+     */
+    get teachFlow(): string {
+      return optional("TEACH_FLOW_SPEC_SLUG", "TEACH-FLOW-001");
     },
   },
 

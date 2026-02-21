@@ -13,7 +13,7 @@ const TASK_LABELS: Record<string, string> = {
 
 const RESUME_PATHS: Record<string, (ctx: Record<string, any>) => string> = {
   quick_launch: () => "/x/quick-launch",
-  content_wizard: (ctx) => `/x/content-wizard${ctx.subjectId ? `?subjectId=${ctx.subjectId}` : ""}`,
+  content_wizard: () => `/x/content-sources`,
   create_spec: () => "/x/specs",
   configure_caller: (ctx) => ctx.callerId ? `/x/callers/${ctx.callerId}` : "/x/callers",
   extraction: (ctx) => ctx.subjectId ? `/x/subjects/${ctx.subjectId}` : "/x/subjects",

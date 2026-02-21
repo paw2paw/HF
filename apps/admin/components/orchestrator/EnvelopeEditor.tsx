@@ -261,7 +261,7 @@ function AcceptanceCriteriaEditor({
                   style={{ ...inputStyle, fontWeight: 600 }}
                 />
                 {(["given", "when", "then"] as const).map((gwt) => {
-                  const colors = { given: "#22c55e", when: "#3b82f6", then: "#f59e0b" };
+                  const colors = { given: "var(--status-success-text)", when: "var(--accent-primary)", then: "var(--status-warning-text)" };
                   return (
                     <div key={gwt} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <span
@@ -331,10 +331,10 @@ function ConstraintsEditor({
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const severityColors: Record<string, { bg: string; text: string }> = {
-    critical: { bg: "#fef2f2", text: "#dc2626" },
-    error: { bg: "#fef2f2", text: "#dc2626" },
-    warning: { bg: "#fffbeb", text: "#d97706" },
-    info: { bg: "#f0f9ff", text: "#0284c7" },
+    critical: { bg: "var(--status-error-bg)", text: "var(--status-error-text)" },
+    error: { bg: "var(--status-error-bg)", text: "var(--status-error-text)" },
+    warning: { bg: "var(--status-warning-bg, #fffbeb)", text: "var(--status-warning-text)" },
+    info: { bg: "var(--badge-blue-bg, #f0f9ff)", text: "var(--badge-blue-text, #0284c7)" },
   };
 
   const updateConstraint = (idx: number, updates: Partial<Constraint>) => {
@@ -534,7 +534,7 @@ function RelatedSpecsEditor({
               style={{
                 border: "none",
                 background: "none",
-                color: "#dc2626",
+                color: "var(--status-error-text)",
                 cursor: "pointer",
                 fontSize: 14,
                 padding: 4,
@@ -657,10 +657,10 @@ const textareaStyle: React.CSSProperties = {
 const dangerButtonStyle: React.CSSProperties = {
   padding: "4px 10px",
   borderRadius: 6,
-  border: "1px solid #fca5a5",
-  background: "#fef2f2",
+  border: "1px solid var(--status-error-border, #fca5a5)",
+  background: "var(--status-error-bg)",
   fontSize: 11,
-  color: "#dc2626",
+  color: "var(--status-error-text)",
   cursor: "pointer",
   fontWeight: 500,
 };

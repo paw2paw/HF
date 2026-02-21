@@ -26,8 +26,6 @@ import {
   Home,
   Sparkles,
 } from "lucide-react";
-import { envSidebarColor, envSidebarWidth } from "@/components/shared/EnvironmentBanner";
-import { MASQUERADE_BANNER_HEIGHT } from "@/components/shared/MasqueradeBanner";
 
 // ============================================================================
 // Icon Helper
@@ -213,32 +211,6 @@ export default function SimpleSidebarNav({
   const assistant = useGlobalAssistant();
   const guidance = useGuidance();
 
-  // Unread message count
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Fetch unread count
-  useEffect(() => {
-    if (!userId) return;
-
-    const fetchUnreadCount = async () => {
-      try {
-        const res = await fetch("/api/messages/unread-count");
-        const data = await res.json();
-        if (data.ok) {
-          setUnreadCount(data.count || 0);
-        }
-      } catch {
-        // Silent fail
-      }
-    };
-
-    fetchUnreadCount();
-
-    // Refetch every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, [userId]);
-
   // Active task count badge
   const [taskActiveCount, setTaskActiveCount] = useState(0);
 
@@ -282,29 +254,6 @@ export default function SimpleSidebarNav({
 
     fetchStudentUnread();
     const interval = setInterval(fetchStudentUnread, 30000);
-    return () => clearInterval(interval);
-  }, [userId, userRole]);
-
-  // System health RAG dot (SUPERADMIN/ADMIN only)
-  const [systemHealthRag, setSystemHealthRag] = useState<"green" | "amber" | "red" | null>(null);
-
-  useEffect(() => {
-    const roleLevel: Record<string, number> = { SUPERADMIN: 5, ADMIN: 4 };
-    if (!userId || (roleLevel[userRole || ""] ?? 0) < 4) return;
-
-    const fetchHealth = async () => {
-      try {
-        const res = await fetch("/api/system/ini");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.ok) setSystemHealthRag(data.status);
-      } catch {
-        // Silent fail
-      }
-    };
-
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 120000);
     return () => clearInterval(interval);
   }, [userId, userRole]);
 
@@ -511,39 +460,40 @@ export default function SimpleSidebarNav({
   return (
     <div className="relative flex h-full flex-col" style={{ color: "var(--text-primary)", zIndex: 50 }}>
       {/* Navigation panel */}
-      <div className="flex h-full flex-col p-2">
+      <div className={collapsed ? "flex h-full flex-col px-1.5 py-2" : "flex h-full flex-col p-2"}>
       {/* Header */}
       {collapsed ? (
-        <div className="mb-2 flex flex-col items-center gap-1">
+        <div className="mb-3 flex flex-col items-center gap-1.5">
           <button
             type="button"
             onClick={onToggle}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="w-full h-5 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] transition-colors mb-0.5"
+            className="sidebar-icon-btn"
           >
-            <PanelLeft className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+            <PanelLeft className="w-4 h-4" />
           </button>
           <Link
             href="/x"
-            className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+            className="sidebar-icon-btn"
             title="Home"
           >
-            <Home className="w-4 h-4 text-[var(--text-secondary)]" />
+            <Home className="w-4 h-4" />
           </Link>
           <button
             type="button"
             onClick={assistant.toggle}
             title={assistant.isOpen ? "Hide AI Assistant" : "Show AI Assistant"}
             className={
-              "w-8 h-8 flex items-center justify-center rounded-md transition-colors " +
+              "sidebar-icon-btn " +
               (assistant.isOpen
                 ? "bg-[var(--surface-selected)] text-[var(--accent-primary)]"
-                : "text-[var(--text-muted)] hover:bg-[var(--hover-bg)]")
+                : "")
             }
           >
             <Bot className="w-4 h-4" />
           </button>
+          <div className="w-6 my-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />
         </div>
       ) : (
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -591,7 +541,7 @@ export default function SimpleSidebarNav({
 
       {/* Scrollable nav area */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sidebar-scroll">
-        <nav ref={navRef} className="flex flex-col gap-3" onKeyDown={handleKeyDown} role="navigation" aria-label="Main navigation">
+        <nav ref={navRef} className={collapsed ? "flex flex-col gap-1" : "flex flex-col gap-4"} onKeyDown={handleKeyDown} role="navigation" aria-label="Main navigation">
           {visibleSections.map((section) => {
             // Resolve terminology for section title (e.g. "institution" → "My Organization")
             const termSectionKey = (section as NavSection & { terminologySectionTitle?: string }).terminologySectionTitle;
@@ -628,9 +578,9 @@ export default function SimpleSidebarNav({
                 }
                 style={{ cursor: collapsed ? "default" : dragState.draggedItem ? "default" : "grab" }}
               >
-                {/* Section divider — slightly more breathing room */}
-                {section.title && !collapsed && (
-                  <div className="mx-2 mt-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />
+                {/* Section divider */}
+                {section.title && (
+                  <div className={collapsed ? "mx-2 my-0.5 border-t" : "mx-2 mt-1 border-t"} style={{ borderColor: "var(--border-subtle)" }} />
                 )}
 
                 {/* Section title with kebab menu */}
@@ -712,10 +662,13 @@ export default function SimpleSidebarNav({
 
                 {/* Section items (collapsible) */}
                 <div
-                  className="flex flex-col gap-0.5 overflow-hidden transition-all duration-200"
+                  className={
+                    (collapsed ? "flex flex-col items-center gap-0.5" : "flex flex-col gap-1") +
+                    " overflow-hidden transition-all duration-200"
+                  }
                   style={{
-                    maxHeight: section.title && collapsedSections.has(section.id) ? "0px" : "500px",
-                    opacity: section.title && collapsedSections.has(section.id) ? 0 : 1,
+                    maxHeight: !collapsed && section.title && collapsedSections.has(section.id) ? "0px" : "500px",
+                    opacity: !collapsed && section.title && collapsedSections.has(section.id) ? 0 : 1,
                   }}
                 >
                   {section.items.map((rawItem) => {
@@ -748,14 +701,46 @@ export default function SimpleSidebarNav({
                       ? `sidebar-highlight-${highlight.type} `
                       : "";
 
-                    return (
+                    return collapsed ? (
                       <Link
                         key={item.href}
                         href={item.href}
-                        title={collapsed ? item.label : undefined}
+                        title={item.label}
                         data-nav-item
                         tabIndex={0}
-                        draggable={!collapsed}
+                        onClick={(e) => handleNavClick(e, item.href)}
+                        onFocus={() => setFocusedIndex(itemIndex)}
+                        className={
+                          "sidebar-icon-btn " +
+                          (active
+                            ? "sidebar-icon-btn-active"
+                            : "hover:bg-[var(--hover-bg)]")
+                        }
+                      >
+                        {item.icon && (
+                          <NavIcon
+                            name={item.icon}
+                            className={
+                              "w-[18px] h-[18px] " +
+                              (active ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]")
+                            }
+                          />
+                        )}
+                        {/* Badge dot for tasks/notifications in collapsed mode */}
+                        {item.href === "/x/tasks" && taskActiveCount > 0 && (
+                          <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "var(--accent-primary)" }} />
+                        )}
+                        {item.href === "/x/student/stuff" && studentUnreadCount > 0 && (
+                          <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "var(--accent-primary)" }} />
+                        )}
+                      </Link>
+                    ) : (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        data-nav-item
+                        tabIndex={0}
+                        draggable
                         onDragStart={(e) => itemDragHandlers.onDragStart(e, item.href)}
                         onDragOver={(e) => itemDragHandlers.onDragOverItem(e, item.href, section.id)}
                         onDrop={(e) => itemDragHandlers.onDropOnItem(e, item.href, section.id)}
@@ -765,7 +750,7 @@ export default function SimpleSidebarNav({
                         className={
                           baseClass +
                           highlightClass +
-                          "flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 " +
+                          "sidebar-nav-item " +
                           (isDraggingItem ? "opacity-50 " : "") +
                           (isDragOverThisItem ? "border-t-2 border-[var(--accent-primary)] " : "") +
                           (active
@@ -775,13 +760,13 @@ export default function SimpleSidebarNav({
                               : "font-medium hover:bg-[var(--hover-bg)]")
                         }
                         style={{
-                          cursor: collapsed ? "default" : "grab",
+                          cursor: "grab",
                           color: active ? "var(--accent-primary)" : "var(--text-primary)",
                           background: active ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : undefined,
                         }}
                       >
                         {item.icon && (
-                          <span className="flex items-center justify-center w-6 h-6 flex-shrink-0 rounded-md transition-colors">
+                          <span className="flex items-center justify-center w-5 h-5 flex-shrink-0 rounded-md transition-colors">
                             <NavIcon
                               name={item.icon}
                               className={
@@ -791,15 +776,15 @@ export default function SimpleSidebarNav({
                             />
                           </span>
                         )}
-                        {!collapsed && <span className="truncate">{item.label}</span>}
-                        {!collapsed && (rawItem as any).wizard && (
+                        <span className="truncate">{item.label}</span>
+                        {(rawItem as any).wizard && (
                           <Sparkles
                             className="w-[11px] h-[11px] flex-shrink-0 ml-0.5"
                             style={{ color: "var(--status-warning-text)", opacity: 0.75 }}
                             title="Guided flow"
                           />
                         )}
-                        {!collapsed && (rawItem as any).tag && (
+                        {(rawItem as any).tag && (
                           <span
                             className="ml-auto inline-flex items-center justify-center rounded text-[9px] font-bold tracking-wide px-1.5 py-0.5 flex-shrink-0"
                             style={{
@@ -811,18 +796,7 @@ export default function SimpleSidebarNav({
                             {(rawItem as any).tag}
                           </span>
                         )}
-                        {!collapsed && item.href === "/x/messages" && unreadCount > 0 && (
-                          <span
-                            className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
-                            style={{
-                              background: active ? "var(--accent-primary)" : "var(--accent-primary)",
-                              opacity: active ? 0.8 : 1,
-                            }}
-                          >
-                            {unreadCount}
-                          </span>
-                        )}
-                        {!collapsed && item.href === "/x/tasks" && taskActiveCount > 0 && (
+                        {item.href === "/x/tasks" && taskActiveCount > 0 && (
                           <span
                             className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
                             style={{
@@ -833,30 +807,16 @@ export default function SimpleSidebarNav({
                             {taskActiveCount}
                           </span>
                         )}
-                        {!collapsed && item.href === "/x/student/stuff" && studentUnreadCount > 0 && (
+                        {item.href === "/x/student/stuff" && studentUnreadCount > 0 && (
                           <span
                             className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
                             style={{
-                              background: active ? "var(--accent-primary)" : "var(--accent-primary)",
+                              background: "var(--accent-primary)",
                               opacity: active ? 0.8 : 1,
                             }}
                           >
                             {studentUnreadCount}
                           </span>
-                        )}
-                        {item.href === "/x/system" && systemHealthRag && (
-                          <span
-                            className="ml-auto inline-flex items-center justify-center w-2.5 h-2.5 rounded-full flex-shrink-0"
-                            style={{
-                              background:
-                                systemHealthRag === "green"
-                                  ? "var(--status-success-text)"
-                                  : systemHealthRag === "amber"
-                                    ? "var(--status-warning-text)"
-                                    : "var(--status-error-text)",
-                            }}
-                            title={`System: ${systemHealthRag}`}
-                          />
                         )}
                       </Link>
                     );

@@ -337,7 +337,7 @@ export async function ingestKnowledge(
 
         // Embed chunks in background (non-blocking)
         embedChunksForDoc(doc.id).catch((err) =>
-          console.error(`[knowledge-ingest] Embedding failed for doc ${doc.id}:`, err)
+          console.error(`[knowledge-ingest] Embedding failed for doc ${doc.id} (${relativePath}):`, err)
         );
 
         logVerbose(`   ✅ Completed (${allChunks.length} total chunks)`);

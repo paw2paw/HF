@@ -32,11 +32,14 @@ export function CourseCard({ course, onSelect }: CourseCardProps) {
           </div>
         </div>
         <span
-          className={`px-2 py-1 text-xs font-medium rounded ${
-            course.status === 'published'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
-              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'
-          }`}
+          style={{
+            padding: "2px 8px",
+            fontSize: 12,
+            fontWeight: 500,
+            borderRadius: 4,
+            background: course.status === 'published' ? "var(--status-success-bg)" : "color-mix(in srgb, var(--status-warning-text) 12%, transparent)",
+            color: course.status === 'published' ? "var(--status-success-text)" : "var(--status-warning-text)",
+          }}
         >
           {course.status === 'published' ? 'Live' : 'Draft'}
         </span>

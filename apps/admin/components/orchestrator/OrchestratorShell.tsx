@@ -227,9 +227,9 @@ export function OrchestratorShell({
             padding: "4px 10px",
             borderRadius: 6,
             border: "1px solid",
-            borderColor: editedActive ? "#22c55e" : "#d1d5db",
-            background: editedActive ? "#dcfce7" : "#f9fafb",
-            color: editedActive ? "#166534" : "#6b7280",
+            borderColor: editedActive ? "var(--status-success-border, #22c55e)" : "var(--border-default)",
+            background: editedActive ? "var(--status-success-bg)" : "var(--surface-secondary)",
+            color: editedActive ? "var(--status-success-text)" : "var(--text-muted)",
             fontSize: 11,
             fontWeight: 500,
             cursor: "pointer",
@@ -237,7 +237,7 @@ export function OrchestratorShell({
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: editedActive ? "#22c55e" : "#d1d5db" }} />
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: editedActive ? "var(--status-success-text)" : "var(--border-default)" }} />
           {editedActive ? "Active" : "Inactive"}
         </button>
 
@@ -245,8 +245,8 @@ export function OrchestratorShell({
           <span
             style={{
               fontSize: 10,
-              color: "#d97706",
-              background: "#fffbeb",
+              color: "var(--status-warning-text)",
+              background: "var(--status-warning-bg, #fffbeb)",
               padding: "2px 6px",
               borderRadius: 4,
               flexShrink: 0,
@@ -282,7 +282,7 @@ export function OrchestratorShell({
                 borderRadius: 6,
                 border: "1px solid var(--accent-primary, #3b82f6)",
                 background: "var(--accent-primary, #3b82f6)",
-                color: "#fff",
+                color: "var(--button-primary-text, #fff)",
                 fontSize: 12,
                 cursor: saving ? "wait" : "pointer",
                 fontWeight: 600,
@@ -341,7 +341,7 @@ export function OrchestratorShell({
                     width: 5,
                     height: 5,
                     borderRadius: "50%",
-                    background: "#f59e0b",
+                    background: "var(--status-warning-text)",
                   }}
                 />
               )}

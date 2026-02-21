@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   startTaskTracking: vi.fn(),
   updateTaskProgress: vi.fn(),
   completeTask: vi.fn(),
+  failTask: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/permissions", () => ({
@@ -62,6 +63,12 @@ vi.mock("@/lib/ai/task-guidance", () => ({
   startTaskTracking: (...args: any[]) => mocks.startTaskTracking(...args),
   updateTaskProgress: (...args: any[]) => mocks.updateTaskProgress(...args),
   completeTask: (...args: any[]) => mocks.completeTask(...args),
+  failTask: (...args: any[]) => mocks.failTask(...args),
+  backgroundRun: (taskId: string, fn: () => Promise<void>) => {
+    fn().catch(async (err: any) => {
+      mocks.failTask(taskId, err instanceof Error ? err.message : String(err));
+    });
+  },
 }));
 
 vi.mock("@/lib/content-trust/extraction-jobs", () => ({

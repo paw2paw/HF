@@ -15,6 +15,9 @@ const mockPrisma = {
   caller: {
     findMany: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+  },
   call: {
     findMany: vi.fn(),
     count: vi.fn(),
@@ -76,27 +79,31 @@ describe("/api/cohorts/:cohortId/dashboard", () => {
   });
 
   it("should return dashboard with summary and pupils", async () => {
-    // Mock members
-    mockPrisma.caller.findMany.mockResolvedValue([
+    // Mock members via join table
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
       {
-        id: "pupil-1",
-        name: "Alice",
-        email: "alice@test.com",
-        role: "LEARNER",
-        createdAt: new Date("2025-01-01"),
-        archivedAt: null,
-        personality: null,
-        _count: { calls: 5, goals: 3, memories: 10 },
+        caller: {
+          id: "pupil-1",
+          name: "Alice",
+          email: "alice@test.com",
+          role: "LEARNER",
+          createdAt: new Date("2025-01-01"),
+          archivedAt: null,
+          personality: null,
+          _count: { calls: 5, goals: 3, memories: 10 },
+        },
       },
       {
-        id: "pupil-2",
-        name: "Bob",
-        email: null,
-        role: "LEARNER",
-        createdAt: new Date("2025-02-01"),
-        archivedAt: null,
-        personality: null,
-        _count: { calls: 2, goals: 1, memories: 4 },
+        caller: {
+          id: "pupil-2",
+          name: "Bob",
+          email: null,
+          role: "LEARNER",
+          createdAt: new Date("2025-02-01"),
+          archivedAt: null,
+          personality: null,
+          _count: { calls: 2, goals: 1, memories: 4 },
+        },
       },
     ]);
 
@@ -138,7 +145,7 @@ describe("/api/cohorts/:cohortId/dashboard", () => {
   });
 
   it("should return empty dashboard for cohort with no members", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([]);
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([]);
 
     const { GET } = await import(
       "../../app/api/cohorts/[cohortId]/dashboard/route"
@@ -158,16 +165,18 @@ describe("/api/cohorts/:cohortId/dashboard", () => {
   });
 
   it("should compute goalCompletionRate correctly", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
       {
-        id: "pupil-1",
-        name: "Alice",
-        email: null,
-        role: "LEARNER",
-        createdAt: new Date(),
-        archivedAt: null,
-        personality: null,
-        _count: { calls: 10, goals: 4, memories: 0 },
+        caller: {
+          id: "pupil-1",
+          name: "Alice",
+          email: null,
+          role: "LEARNER",
+          createdAt: new Date(),
+          archivedAt: null,
+          personality: null,
+          _count: { calls: 10, goals: 4, memories: 0 },
+        },
       },
     ]);
 
@@ -203,10 +212,10 @@ describe("/api/cohorts/:cohortId/activity", () => {
   });
 
   it("should return paginated activity feed", async () => {
-    // Mock member IDs
-    mockPrisma.caller.findMany.mockResolvedValue([
-      { id: "pupil-1" },
-      { id: "pupil-2" },
+    // Mock member IDs via join table
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
+      { callerId: "pupil-1" },
+      { callerId: "pupil-2" },
     ]);
 
     const mockCalls = [
@@ -251,7 +260,7 @@ describe("/api/cohorts/:cohortId/activity", () => {
   });
 
   it("should return empty activity for cohort with no members", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([]);
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([]);
 
     const { GET } = await import(
       "../../app/api/cohorts/[cohortId]/activity/route"
@@ -270,7 +279,7 @@ describe("/api/cohorts/:cohortId/activity", () => {
   });
 
   it("should respect limit parameter", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([{ id: "pupil-1" }]);
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([{ callerId: "pupil-1" }]);
     mockPrisma.call.findMany.mockResolvedValue([]);
     mockPrisma.call.count.mockResolvedValue(0);
 

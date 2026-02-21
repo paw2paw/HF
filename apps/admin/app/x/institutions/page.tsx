@@ -42,7 +42,7 @@ export default function InstitutionsPage() {
       <AdvancedBanner />
       <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+          <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
             Institutions
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>

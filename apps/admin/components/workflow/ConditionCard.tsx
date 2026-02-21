@@ -85,8 +85,8 @@ export function ConditionCard({ condition, stepTitle, onAnswer }: ConditionCardP
             borderRadius: 10,
             border: "none",
             background:
-              "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-            color: "#fff",
+              "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
+            color: "var(--surface-primary)",
             cursor: "pointer",
             boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
           }}

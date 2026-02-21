@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { loadWizardSteps, type WizardStep } from "@/lib/wizards/wizard-spec";
+import { config } from "@/lib/config";
+
+/** Map wizard name → config.specs slug (server-side resolution) */
+const WIZARD_SLUG_MAP: Record<string, () => string> = {
+  "content-source": () => config.specs.contentSourceSetup,
+  "course": () => config.specs.courseSetup,
+  "classroom": () => config.specs.classroomSetup,
+  "demonstrate": () => config.specs.demonstrateFlow,
+  "teach": () => config.specs.teachFlow,
+};
 
 /**
  * @api GET /api/wizard-steps
  * @visibility internal
  * @auth VIEWER+
  * @tags wizard
- * @description Load wizard step definitions from a spec. Returns hardcoded fallback if spec not found.
- * @query slug string - Spec slug (e.g., "CONTENT-SOURCE-SETUP-001")
+ * @description Load wizard step definitions from a spec. Accepts either `wizard` (name resolved via config) or `slug` (direct). Returns hardcoded fallback if spec not found.
+ * @query wizard string - Wizard name (e.g., "demonstrate", "course", "classroom"). Resolved to spec slug via config.
+ * @query slug string - Direct spec slug (deprecated, prefer `wizard`). Ignored if `wizard` is provided.
  * @response 200 { ok: true, steps: WizardStep[], source: "database" | "fallback" }
  * @response 400 { ok: false, error: string }
  * @response 500 { ok: false, error: string }
@@ -19,11 +30,27 @@ export async function GET(request: NextRequest) {
     if (isAuthError(auth)) return auth.error;
 
     const { searchParams } = new URL(request.url);
-    const slug = searchParams.get("slug");
+    const wizardName = searchParams.get("wizard");
+    const directSlug = searchParams.get("slug");
+
+    // Resolve slug: wizard name → config lookup, or direct slug fallback
+    let slug: string | null = null;
+    if (wizardName) {
+      const resolver = WIZARD_SLUG_MAP[wizardName];
+      if (!resolver) {
+        return NextResponse.json(
+          { ok: false, error: `Unknown wizard: '${wizardName}'. Valid: ${Object.keys(WIZARD_SLUG_MAP).join(", ")}` },
+          { status: 400 }
+        );
+      }
+      slug = resolver();
+    } else if (directSlug) {
+      slug = directSlug;
+    }
 
     if (!slug) {
       return NextResponse.json(
-        { ok: false, error: "Missing 'slug' query parameter" },
+        { ok: false, error: "Missing 'wizard' or 'slug' query parameter" },
         { status: 400 }
       );
     }

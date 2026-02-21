@@ -58,7 +58,7 @@ describe("GET /api/educator/active-calls", () => {
         caller: {
           id: "student-1",
           name: "Alice",
-          cohortGroup: { id: "c1", name: "Year 10" },
+          cohortMemberships: [{ cohortGroup: { id: "c1", name: "Year 10" } }],
         },
       },
     ]);
@@ -100,10 +100,14 @@ describe("GET /api/educator/active-calls", () => {
         where: expect.objectContaining({
           caller: expect.objectContaining({
             role: "LEARNER",
-            cohortGroup: expect.objectContaining({
-              ownerId: "edu-caller-1",
-              isActive: true,
-            }),
+            cohortMemberships: {
+              some: {
+                cohortGroup: expect.objectContaining({
+                  ownerId: "edu-caller-1",
+                  isActive: true,
+                }),
+              },
+            },
           }),
           endedAt: null,
           createdAt: expect.objectContaining({

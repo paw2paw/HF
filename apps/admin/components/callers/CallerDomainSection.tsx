@@ -137,8 +137,8 @@ export function CallerDomainSection({
           <div
             style={{
               padding: 12,
-              background: "#dcfce7",
-              color: "#166534",
+              background: "var(--status-success-bg)",
+              color: "var(--status-success-text)",
               borderRadius: 8,
               marginBottom: 16,
               fontSize: 14,

@@ -54,7 +54,7 @@ export function VerticalSlider({
   targetValue,
   secondaryValue,
   baseValue,
-  color = { primary: "#a78bfa", glow: "#8b5cf6" },
+  color = { primary: "var(--accent-secondary-muted, #a78bfa)", glow: "var(--accent-secondary, #8b5cf6)" },
   editable = false,
   onChange,
   isModified = false,
@@ -75,8 +75,8 @@ export function VerticalSlider({
 
   // Determine if we should show as active/modified
   const isHighlighted = isModified || isActive || isDragging;
-  const activeColor = isModified ? "#fbbf24" : color.primary;
-  const glowColor = isModified ? "#f59e0b" : color.glow;
+  const activeColor = isModified ? "var(--status-warning-accent, #fbbf24)" : color.primary;
+  const glowColor = isModified ? "var(--status-warning-text, #f59e0b)" : color.glow;
 
   // Helper: create alpha variant of a color that works with both hex and CSS variables
   // Uses color-mix() which handles var() references correctly
@@ -383,7 +383,7 @@ export interface SliderGroupProps {
   children: React.ReactNode;
 }
 
-export function SliderGroup({ title, color = { primary: "#a78bfa", glow: "#8b5cf6" }, children }: SliderGroupProps) {
+export function SliderGroup({ title, color = { primary: "var(--accent-secondary-muted, #a78bfa)", glow: "var(--accent-secondary, #8b5cf6)" }, children }: SliderGroupProps) {
   return (
     <div
       style={{

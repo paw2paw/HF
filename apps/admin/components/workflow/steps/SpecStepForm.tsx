@@ -687,8 +687,8 @@ export function SpecStepForm({
                 fontWeight: 700,
                 borderRadius: 10,
                 border: "none",
-                background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                color: "#fff",
+                background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
+                color: "var(--surface-primary)",
                 cursor: "pointer",
                 boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
               }}
@@ -707,8 +707,8 @@ export function SpecStepForm({
                 border: "none",
                 background: creating
                   ? "var(--surface-tertiary)"
-                  : "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                color: creating ? "var(--text-muted)" : "#fff",
+                  : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
+                color: creating ? "var(--text-muted)" : "var(--surface-primary)",
                 cursor: creating ? "default" : "pointer",
                 boxShadow: creating ? "none" : "0 4px 12px rgba(99, 102, 241, 0.3)",
               }}

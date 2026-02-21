@@ -49,6 +49,25 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        cohortMemberships: {
+          select: {
+            cohortGroup: {
+              select: {
+                id: true,
+                name: true,
+                domain: { select: { name: true } },
+                owner: { select: { name: true } },
+                institution: {
+                  select: {
+                    name: true,
+                    logoUrl: true,
+                    welcomeMessage: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.callerMemorySummary.findUnique({
@@ -59,6 +78,9 @@ export async function GET(request: NextRequest) {
       where: { callerId, type: "KEY_FACT" },
     }),
   ]);
+
+  // Prefer join table memberships, fall back to legacy FK
+  const primaryCohort = caller?.cohortMemberships?.[0]?.cohortGroup ?? caller?.cohortGroup;
 
   return NextResponse.json({
     ok: true,
@@ -71,12 +93,17 @@ export async function GET(request: NextRequest) {
       : null,
     goals,
     totalCalls: callCount,
-    classroom: caller?.cohortGroup?.name ?? null,
-    domain: caller?.cohortGroup?.domain?.name ?? null,
-    teacherName: caller?.cohortGroup?.owner?.name ?? null,
-    institutionName: caller?.cohortGroup?.institution?.name ?? null,
-    institutionLogo: caller?.cohortGroup?.institution?.logoUrl ?? null,
-    welcomeMessage: caller?.cohortGroup?.institution?.welcomeMessage ?? null,
+    classroom: primaryCohort?.name ?? null,
+    classrooms: (caller?.cohortMemberships ?? []).map(m => ({
+      id: m.cohortGroup.id,
+      name: m.cohortGroup.name,
+      teacher: m.cohortGroup.owner?.name ?? null,
+    })),
+    domain: primaryCohort?.domain?.name ?? null,
+    teacherName: primaryCohort?.owner?.name ?? null,
+    institutionName: primaryCohort?.institution?.name ?? null,
+    institutionLogo: primaryCohort?.institution?.logoUrl ?? null,
+    welcomeMessage: primaryCohort?.institution?.welcomeMessage ?? null,
     topTopics: (memorySummary?.topTopics as Array<{ topic: string; lastMentioned: string }>) ?? [],
     topicCount: memorySummary?.topicCount ?? 0,
     keyFactCount,

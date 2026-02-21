@@ -47,14 +47,14 @@ export async function GET() {
     cohort: terms.cohort,
     learner: terms.caller,
     instructor: terms.instructor,
-    supervisor: terms.instructor, // supervisor maps to instructor in unified system
+    supervisor: terms.supervisor, // now a canonical key in unified system
     session: terms.session,
   };
 
   return NextResponse.json({
     ok: true,
     terminology: legacyTerms,
-    terms, // unified 7-key TermMap
+    terms, // unified 11-key TermMap
     preset: null, // presets are now DB-driven via InstitutionType
     overrides: null,
   });
@@ -130,7 +130,7 @@ export async function PATCH(request: NextRequest) {
       cohort: terms.cohort,
       learner: terms.caller,
       instructor: terms.instructor,
-      supervisor: terms.instructor,
+      supervisor: terms.supervisor,
       session: terms.session,
     },
     terms,

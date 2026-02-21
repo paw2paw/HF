@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { EntityPill, DomainPill, PlaybookPill, SpecPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
@@ -75,18 +76,19 @@ const playbookStatusMap: Record<string, "draft" | "active" | "archived"> = {
 };
 
 const outputTypeColors: Record<string, { bg: string; text: string }> = {
-  LEARN: { bg: "#ede9fe", text: "#4c1d95" },
-  MEASURE: { bg: "#dcfce7", text: "#14532d" },
-  ADAPT: { bg: "#fef3c7", text: "#78350f" },
-  COMPOSE: { bg: "#fce7f3", text: "#9d174d" },
-  AGGREGATE: { bg: "#e0e7ff", text: "#3730a3" },
-  REWARD: { bg: "#fef9c3", text: "#854d0e" },
+  LEARN: { bg: "var(--badge-violet-bg)", text: "var(--badge-violet-text)" },
+  MEASURE: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)" },
+  ADAPT: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)" },
+  COMPOSE: { bg: "var(--badge-pink-bg)", text: "var(--badge-pink-text)" },
+  AGGREGATE: { bg: "var(--badge-indigo-bg)", text: "var(--badge-indigo-text)" },
+  REWARD: { bg: "var(--badge-amber-bg)", text: "var(--badge-amber-text)" },
 };
 
 export default function PlaybooksPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
+  const { terms, plural } = useTerminology();
 
   // List state
   const [playbooks, setPlaybooks] = useState<PlaybookListItem[]>([]);
@@ -452,7 +454,7 @@ export default function PlaybooksPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Playbooks</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{plural("playbook")}</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={() => setShowCreate(true)}
@@ -519,7 +521,7 @@ export default function PlaybooksPage() {
 
           {/* Status */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by playbook status">Status</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title={`Filter by ${terms.playbook.toLowerCase()} status`}>Status</span>
             <ClearBtn onClick={() => setSelectedStatuses(new Set())} show={selectedStatuses.size > 0} />
             <div style={{ display: "flex", gap: 4 }}>
               {STATUSES.map((status) => {
@@ -544,7 +546,7 @@ export default function PlaybooksPage() {
             <>
               <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by domain">Domain</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title={`Filter by ${terms.domain.toLowerCase()}`}>{terms.domain}</span>
                 <FancySelect
                   value={selectedDomain}
                   onChange={setSelectedDomain}
@@ -597,8 +599,8 @@ export default function PlaybooksPage() {
               <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
                 {search || selectedStatuses.size > 0 || selectedDomain
-                  ? "No playbooks match filters"
-                  : "No playbooks yet"}
+                  ? `No ${plural("playbook").toLowerCase()} match filters`
+                  : `No ${plural("playbook").toLowerCase()} yet`}
               </div>
             </div>
           ) : (
@@ -1093,7 +1095,7 @@ export default function PlaybooksPage() {
             style={{ background: "var(--modal-bg)", borderRadius: 12, padding: 24, width: 400 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New Playbook</h2>
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New {terms.playbook}</h2>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Domain</label>
               <FancySelect

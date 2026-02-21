@@ -482,7 +482,7 @@ export default function TestHarnessPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+        <h1 className="hf-page-title">
           Test Harness
         </h1>
 

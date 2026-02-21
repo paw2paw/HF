@@ -56,7 +56,7 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
         alignSelf: 'center',
         width: '90%',
         maxWidth: 400,
-        background: '#FFFFFF',
+        background: 'var(--surface-primary)',
         borderRadius: 10,
         boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
         overflow: 'hidden',
@@ -75,7 +75,7 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
         }}
       >
         <span style={{ fontSize: 14 }}>{typeInfo.icon}</span>
-        <span style={{ color: '#fff', fontSize: 12, fontWeight: 600, flex: 1 }}>
+        <span style={{ color: 'var(--surface-primary)', fontSize: 12, fontWeight: 600, flex: 1 }}>
           {typeInfo.label}
         </span>
         <span
@@ -107,10 +107,10 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
         )}
         {mediaUrl && mediaMime === 'application/pdf' && (
           <a href={mediaUrl} target="_blank" rel="noopener noreferrer"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: '#f5f5f5', borderRadius: 4, marginBottom: 8, textDecoration: 'none', color: '#333', fontSize: 12 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: 'var(--surface-secondary)', borderRadius: 4, marginBottom: 8, textDecoration: 'none', color: 'var(--text-primary)', fontSize: 12 }}
             onClick={(e) => e.stopPropagation()}
           >
-            {'\u{1F4C4}'} {artifact.media?.fileName || 'Document'} <span style={{ marginLeft: 'auto', color: '#667781' }}>Open</span>
+            {'\u{1F4C4}'} {artifact.media?.fileName || 'Document'} <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>Open</span>
           </a>
         )}
         {mediaUrl && mediaMime?.startsWith('audio/') && (
@@ -125,7 +125,7 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
           style={{
             fontSize: 14,
             fontWeight: 600,
-            color: '#111B21',
+            color: 'var(--text-primary)',
             marginBottom: 4,
           }}
         >
@@ -134,7 +134,7 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
         <div
           style={{
             fontSize: 13,
-            color: '#3B4A54',
+            color: 'var(--text-secondary)',
             lineHeight: 1.4,
             whiteSpace: 'pre-wrap',
           }}
@@ -151,7 +151,7 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
             marginTop: 8,
           }}
         >
-          <span style={{ fontSize: 11, color: '#667781' }}>{time}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{time}</span>
           {artifact.content.length > 150 && (
             <span style={{ fontSize: 11, color: typeInfo.color, fontWeight: 500 }}>
               {expanded ? 'Show less' : 'Read more'}

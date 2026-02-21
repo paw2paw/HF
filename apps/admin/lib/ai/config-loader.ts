@@ -92,6 +92,7 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string; tempe
   "test-harness.greeting": { provider: "claude", model: config.ai.claude.model },
   "targets.suggest": { provider: "claude", model: config.ai.claude.lightModel },
   "content-sources.suggest": { provider: "claude", model: config.ai.claude.lightModel },
+  "agent-tuner.interpret": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2048 },
 };
 
 // In-memory cache with TTL

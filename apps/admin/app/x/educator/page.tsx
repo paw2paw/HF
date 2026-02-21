@@ -132,10 +132,10 @@ export default function EducatorDashboard() {
     return (
       <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+          <h1 className="hf-page-title" style={{ marginBottom: 8 }}>
             Select a {terms.domain}
           </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>
+          <p className="hf-page-subtitle">
             As an admin, choose which {lower("domain")} dashboard to view.
           </p>
         </div>
@@ -217,21 +217,11 @@ export default function EducatorDashboard() {
             &larr; Change {terms.domain}
           </button>
         )}
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            marginBottom: 8,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
+        <h1 className="hf-page-title flex items-center gap-2" style={{ marginBottom: 8 }}>
           {viewingSchoolName ?? `My ${terms.domain}`}
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", padding: "2px 6px", borderRadius: 4, background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)", color: "var(--status-success-text)", border: "1px solid color-mix(in srgb, var(--status-success-text) 25%, transparent)" }}>GF</span>
+          <span className="hf-gf-badge">GF</span>
         </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>
+        <p className="hf-page-subtitle">
           {hasClassrooms
             ? `${stats.totalStudents} ${stats.totalStudents !== 1 ? lowerPlural("caller") : lower("caller")} across ${stats.classroomCount} ${stats.classroomCount !== 1 ? lowerPlural("cohort") : lower("cohort")}`
             : `Get started by creating your first ${lower("cohort")}`}
@@ -254,37 +244,13 @@ export default function EducatorDashboard() {
         ].map((stat) => (
           <div
             key={stat.label}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "20px 16px",
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 12,
-            }}
+            className="hf-card-compact flex flex-col items-center justify-center"
+            style={{ padding: "20px 16px" }}
           >
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 700,
-                color: stat.color,
-                lineHeight: 1,
-                marginBottom: 6,
-              }}
-            >
+            <div className="hf-stat-value" style={{ color: stat.color }}>
               {stat.value}
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--text-muted)",
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
+            <div className="hf-stat-label">
               {stat.label}
             </div>
           </div>
@@ -298,14 +264,7 @@ export default function EducatorDashboard() {
 
       {/* Quick Actions */}
       <div style={{ marginBottom: 32 }}>
-        <h2
-          style={{
-            fontSize: 16,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 12,
-          }}
-        >
+        <h2 className="hf-section-title" style={{ marginBottom: 12 }}>
           Quick Actions
         </h2>
         <div
@@ -344,27 +303,10 @@ export default function EducatorDashboard() {
             <Link
               key={action.title}
               href={action.href}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                padding: 16,
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 10,
-                textDecoration: "none",
-                transition: "all 0.2s",
-                borderLeft: `3px solid ${action.accent}`,
-              }}
-              className="home-stat-card"
+              className="hf-card-compact home-stat-card flex flex-col"
+              style={{ padding: 16, borderLeft: `3px solid ${action.accent}`, textDecoration: "none" }}
             >
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  marginBottom: 4,
-                }}
-              >
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
                 {action.title}
               </div>
               <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
@@ -376,19 +318,8 @@ export default function EducatorDashboard() {
           {/* Invite Teacher Button */}
           <button
             onClick={() => { setShowInviteForm(!showInviteForm); setInviteResult(null); }}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              padding: 16,
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 10,
-              textAlign: "left",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              borderLeft: "3px solid var(--status-warning-text)",
-            }}
-            className="home-stat-card"
+            className="hf-card-compact home-stat-card flex flex-col text-left cursor-pointer"
+            style={{ padding: 16, borderLeft: "3px solid var(--status-warning-text)" }}
           >
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
               Invite a {terms.instructor}
@@ -402,17 +333,8 @@ export default function EducatorDashboard() {
         {/* Inline Invite Form */}
         {showInviteForm && (
           <div
-            style={{
-              marginTop: 12,
-              padding: 16,
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 10,
-              display: "flex",
-              gap: 8,
-              alignItems: "flex-start",
-              flexWrap: "wrap",
-            }}
+            className="hf-card-compact flex flex-wrap items-start gap-2"
+            style={{ marginTop: 12, padding: 16 }}
           >
             <input
               type="email"
@@ -420,31 +342,14 @@ export default function EducatorDashboard() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleInviteTeacher()}
-              style={{
-                flex: 1,
-                minWidth: 200,
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                fontSize: 14,
-                color: "var(--text-primary)",
-              }}
+              className="hf-input"
+              style={{ flex: 1, minWidth: 200 }}
             />
             <button
               onClick={handleInviteTeacher}
               disabled={inviting || !inviteEmail.trim()}
-              style={{
-                padding: "8px 20px",
-                borderRadius: 6,
-                border: "none",
-                background: "var(--status-warning-text)",
-                color: "white",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: inviting ? "wait" : "pointer",
-                opacity: inviting || !inviteEmail.trim() ? 0.6 : 1,
-              }}
+              className="hf-btn hf-btn-primary"
+              style={{ background: "var(--status-warning-text)", borderRadius: 6 }}
             >
               {inviting ? "Sending..." : "Send Invite"}
             </button>
@@ -464,16 +369,8 @@ export default function EducatorDashboard() {
                       navigator.clipboard.writeText(inviteResult.url!);
                       setInviteResult({ ...inviteResult, message: "Link copied!" });
                     }}
-                    style={{
-                      marginLeft: 8,
-                      padding: "2px 8px",
-                      fontSize: 12,
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 4,
-                      background: "var(--surface-secondary)",
-                      cursor: "pointer",
-                      color: "var(--text-secondary)",
-                    }}
+                    className="hf-btn hf-btn-secondary"
+                    style={{ marginLeft: 8, padding: "2px 8px", fontSize: 12 }}
                   >
                     Copy Link
                   </button>
@@ -493,24 +390,8 @@ export default function EducatorDashboard() {
         }}
       >
         {/* Recent Activity */}
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 20,
-          }}
-        >
-          <h3
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              marginBottom: 16,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
+        <div className="hf-card" style={{ padding: 20 }}>
+          <h3 className="hf-category-label" style={{ marginBottom: 16 }}>
             Recent Activity
           </h3>
           {(!data?.recentCalls || data.recentCalls.length === 0) ? (
@@ -557,24 +438,8 @@ export default function EducatorDashboard() {
 
         {/* Needs Attention */}
         {hasClassrooms && (
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <h3
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                marginBottom: 16,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
+          <div className="hf-card" style={{ padding: 20 }}>
+            <h3 className="hf-category-label" style={{ marginBottom: 16 }}>
               Needs Attention
             </h3>
             {(!data?.needsAttention || data.needsAttention.length === 0) ? (
@@ -626,55 +491,21 @@ export default function EducatorDashboard() {
 
       {/* Empty State CTA */}
       {!hasClassrooms && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "40px 20px",
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            marginTop: 20,
-          }}
-        >
+        <div className="hf-card text-center" style={{ padding: "40px 20px", marginTop: 20 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>
-            <span role="img" aria-label="welcome">
-              👋
-            </span>
+            <span role="img" aria-label="welcome">👋</span>
           </div>
-          <h3
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              marginBottom: 8,
-            }}
-          >
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
             Welcome to your {lower("domain")}
           </h3>
-          <p
-            style={{
-              fontSize: 14,
-              color: "var(--text-muted)",
-              marginBottom: 20,
-              maxWidth: 400,
-              margin: "0 auto 20px",
-            }}
-          >
+          <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 400, margin: "0 auto 20px" }}>
             Create your first {lower("cohort")}, invite {lowerPlural("caller")}, and start tracking
             their learning journey.
           </p>
           <Link
             href="/x/educator/classrooms/new"
-            style={{
-              display: "inline-block",
-              padding: "10px 24px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              borderRadius: 8,
-              textDecoration: "none",
-              fontSize: 14,
-              fontWeight: 600,
-            }}
+            className="hf-btn hf-btn-primary"
+            style={{ textDecoration: "none" }}
           >
             Create {terms.cohort}
           </Link>

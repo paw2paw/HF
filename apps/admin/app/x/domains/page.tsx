@@ -367,7 +367,7 @@ export default function DomainsPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Domains</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{plural("domain")}</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={() => setShowCreate(true)}
@@ -429,7 +429,7 @@ export default function DomainsPage() {
 
           {/* Status */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by domain status">Status</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title={`Filter by ${terms.domain.toLowerCase()} status`}>Status</span>
             <ClearBtn onClick={() => setSelectedStatuses(new Set())} show={selectedStatuses.size > 0} />
             <div style={{ display: "flex", gap: 4 }}>
               <FilterPill
@@ -496,7 +496,7 @@ export default function DomainsPage() {
             <div style={{ padding: 40, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🌐</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
-                {search || selectedStatuses.size > 0 ? "No domains match filters" : "No domains yet"}
+                {search || selectedStatuses.size > 0 ? `No ${plural("domain").toLowerCase()} match filters` : `No ${plural("domain").toLowerCase()} yet`}
               </div>
             </div>
           ) : (
@@ -795,7 +795,7 @@ export default function DomainsPage() {
                         cursor: "pointer",
                       }}
                     >
-                      + Add Playbook
+                      + Add {terms.playbook}
                     </button>
                   </div>
 
@@ -817,7 +817,7 @@ export default function DomainsPage() {
 
                   {sortedPlaybooks.length === 0 ? (
                     <div style={{ padding: 32, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
-                      <p style={{ color: "var(--text-muted)", marginBottom: 16 }}>No playbooks yet</p>
+                      <p style={{ color: "var(--text-muted)", marginBottom: 16 }}>{`No ${plural("playbook").toLowerCase()} yet`}</p>
                       <button
                         onClick={() => setShowPlaybookModal(true)}
                         style={{
@@ -1074,7 +1074,7 @@ export default function DomainsPage() {
                               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
                                 <span>{subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}</span>
                                 <Link
-                                  href={`/x/content-wizard?subjectId=${subj.id}&domainId=${domain.id}`}
+                                  href={`/x/content-sources`}
                                   style={{
                                     display: "inline-flex",
                                     alignItems: "center",

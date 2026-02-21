@@ -262,9 +262,9 @@ function MessageBubble({
           padding: "10px 14px",
           borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
           background: isUser
-            ? "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)"
+            ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)"
             : "var(--surface-secondary)",
-          color: isUser ? "#fff" : "var(--text-primary)",
+          color: isUser ? "var(--button-primary-text, var(--surface-primary))" : "var(--text-primary)",
           fontSize: 13,
           lineHeight: 1.5,
           whiteSpace: "pre-wrap",
@@ -517,11 +517,10 @@ function PlanPreview({
             fontWeight: 700,
             borderRadius: 10,
             border: "none",
-            background:
-              "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-            color: "#fff",
+            background: "var(--accent-primary)",
+            color: "var(--button-primary-text, var(--surface-primary))",
             cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
+            boxShadow: "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
           }}
         >
           Looks good — let's start
@@ -636,13 +635,13 @@ export function WorkflowAIPanel({
             height: 32,
             borderRadius: 10,
             background:
-              "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
+              "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Bot size={18} color="#fff" />
+          <Bot size={18} color="var(--button-primary-text, var(--surface-primary))" />
         </div>
         <div style={{ flex: 1 }}>
           <div
@@ -854,9 +853,9 @@ export function WorkflowAIPanel({
                 width: 40,
                 height: 40,
                 borderRadius: 10,
-                border: "1px solid var(--error-border, #f87171)",
+                border: "1px solid var(--error-border, var(--status-error-text))",
                 background: "var(--surface-primary)",
-                color: "var(--error-text, #ef4444)",
+                color: "var(--error-text, var(--status-error-text))",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -878,9 +877,9 @@ export function WorkflowAIPanel({
                 borderRadius: 10,
                 border: "none",
                 background: input.trim()
-                  ? "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)"
+                  ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)"
                   : "var(--surface-tertiary)",
-                color: input.trim() ? "#fff" : "var(--text-muted)",
+                color: input.trim() ? "var(--button-primary-text, var(--surface-primary))" : "var(--text-muted)",
                 cursor: input.trim() ? "pointer" : "default",
                 display: "flex",
                 alignItems: "center",

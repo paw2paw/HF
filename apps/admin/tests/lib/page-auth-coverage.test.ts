@@ -36,7 +36,6 @@ const PUBLIC_PAGES = new Set([
   "/x/quick-launch",
   "/x/tasks",
   "/x/demos",
-  "/x/messages",
   "/x/tickets",
   // Calls section (no requiredRole)
   "/x/callers",
@@ -50,12 +49,6 @@ const PUBLIC_PAGES = new Set([
   "/x/student",
   // Goals (no requiredRole)
   "/x/goals",
-  // Data hub (no requiredRole)
-  "/x/data",
-  // Supervisor (no requiredRole)
-  "/x/supervisor",
-  // Orchestrators (no requiredRole)
-  "/x/orchestrators",
 ]);
 
 // =====================================================

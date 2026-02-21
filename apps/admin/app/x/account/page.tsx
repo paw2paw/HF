@@ -163,7 +163,7 @@ export default function AccountPage() {
     );
   }
 
-  const roleColor = ROLE_COLORS[user.role] || "#6b7280";
+  const roleColor = ROLE_COLORS[user.role] || "var(--text-muted)";
 
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 16px" }}>
@@ -570,7 +570,7 @@ export default function AccountPage() {
                           height: 8,
                           borderRadius: "50%",
                           background: "var(--status-success-text)",
-                          boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)",
+                          boxShadow: "0 0 0 2px color-mix(in srgb, var(--status-success-text) 20%, transparent)",
                           flexShrink: 0,
                         }}
                       />
@@ -670,7 +670,7 @@ export default function AccountPage() {
                           height: 8,
                           borderRadius: "50%",
                           background: "var(--status-success-text)",
-                          boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)",
+                          boxShadow: "0 0 0 2px color-mix(in srgb, var(--status-success-text) 20%, transparent)",
                           flexShrink: 0,
                         }}
                       />

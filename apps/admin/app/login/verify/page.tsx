@@ -2,19 +2,13 @@ export default function VerifyPage() {
   return (
     <div className="login-card w-full max-w-md text-center">
       {/* Email Icon */}
-      <div
-        className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full"
-        style={{
-          background: "color-mix(in srgb, var(--login-gold) 15%, transparent)",
-        }}
-      >
+      <div className="login-icon-circle login-icon-circle-gold">
         <svg
           className="h-10 w-10"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth={2}
-          style={{ color: "var(--login-gold)" }}
         >
           <path
             strokeLinecap="round"
@@ -25,34 +19,21 @@ export default function VerifyPage() {
       </div>
 
       {/* Message */}
-      <div
-        className="rounded-2xl p-8 shadow-2xl backdrop-blur-xl"
-        style={{
-          background: "color-mix(in srgb, var(--login-navy) 70%, transparent)",
-          border: "1px solid color-mix(in srgb, var(--login-blue) 20%, transparent)",
-        }}
-      >
+      <div className="login-form-card">
         <h1 className="mb-4 text-2xl font-semibold text-white">
           Check your email
         </h1>
-        <p style={{ color: "var(--login-blue)" }} className="mb-6">
+        <p className="login-text mb-6">
           We sent a sign-in link to your email address. Click the link to continue.
         </p>
-        <p
-          className="text-sm"
-          style={{ color: "color-mix(in srgb, var(--login-blue) 60%, transparent)" }}
-        >
+        <p className="login-text-muted text-sm">
           The link will expire in 24 hours. If you don&apos;t see the email,
           check your spam folder.
         </p>
       </div>
 
       {/* Back link */}
-      <a
-        href="/login"
-        className="mt-6 inline-block text-sm transition-colors hover:text-white"
-        style={{ color: "var(--login-blue)" }}
-      >
+      <a href="/login" className="login-back-link">
         &larr; Back to login
       </a>
     </div>

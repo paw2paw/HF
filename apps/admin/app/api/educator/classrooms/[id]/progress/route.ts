@@ -33,18 +33,25 @@ export async function GET(
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  // Get all members with their call data
-  const members = await prisma.caller.findMany({
-    where: { cohortGroupId: id, role: "LEARNER" },
+  // Get all members via join table with their call data
+  const memberships = await prisma.callerCohortMembership.findMany({
+    where: { cohortGroupId: id },
     include: {
-      _count: { select: { calls: true } },
-      calls: {
-        where: { createdAt: { gte: thirtyDaysAgo } },
-        select: { createdAt: true },
-        orderBy: { createdAt: "desc" },
+      caller: {
+        include: {
+          _count: { select: { calls: true } },
+          calls: {
+            where: { createdAt: { gte: thirtyDaysAgo } },
+            select: { createdAt: true },
+            orderBy: { createdAt: "desc" },
+          },
+        },
       },
     },
   });
+  const members = memberships
+    .map((m) => m.caller)
+    .filter((c) => c.role === "LEARNER");
 
   // Build calls-per-day series (last 30 days)
   const callsPerDay: Record<string, number> = {};

@@ -43,7 +43,7 @@ function MediaRenderer({ media }: { media: MediaInfo }) {
           }}
         />
         {media.title && (
-          <div style={{ fontSize: 11, color: '#667781', marginBottom: 2 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>
             {media.title}
           </div>
         )}
@@ -74,9 +74,9 @@ function MediaRenderer({ media }: { media: MediaInfo }) {
           <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {media.title || media.fileName}
           </div>
-          <div style={{ fontSize: 11, color: '#667781' }}>PDF Document</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>PDF Document</div>
         </div>
-        <span style={{ fontSize: 11, color: '#667781' }}>Open</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Open</span>
       </a>
     );
   }
@@ -106,7 +106,7 @@ function MediaRenderer({ media }: { media: MediaInfo }) {
       href={media.url}
       target="_blank"
       rel="noopener noreferrer"
-      style={{ display: 'block', fontSize: 13, color: '#0077cc', marginBottom: 4 }}
+      style={{ display: 'block', fontSize: 13, color: 'var(--accent-primary)', marginBottom: 4 }}
     >
       {'\u{1F4CE}'} {media.title || media.fileName}
     </a>
@@ -123,7 +123,7 @@ export function MessageBubble({ role, content, timestamp, senderName, media }: M
   if (isTeacher) {
     return (
       <div className="wa-bubble wa-bubble-teacher">
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#d97706', marginBottom: 2 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--status-warning-text)', marginBottom: 2 }}>
           {senderName || 'Teacher'}
         </div>
         {media && <MediaRenderer media={media} />}

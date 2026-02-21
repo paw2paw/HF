@@ -57,13 +57,14 @@ export async function POST(req: NextRequest) {
 Required fields:
 - "name": a short, clear course/tutor name (2-5 words). Distill the essence — do NOT just truncate the input. Drop filler words like "for", "of", "the". The name should stand alone as a label.${personaClause}
 - "goals": an array of 2-4 concise learning goals the user should achieve (each 3-10 words)
+- "traits": an array of 2-4 tone/interaction traits describing how the agent should feel to talk to (e.g. "Warm", "Encouraging", "Direct", "Uses humor", "Never lectures"). Infer from the brief's tone and intent. Each trait should be 1-3 words, title-cased.
 
 Examples:
 Input: "11+ Creative Comprehension tutor for UK Key Stage 2 pupils aged 9-10"
-→ {"name": "11+ Creative Comprehension", "goals": ["Analyse fiction and non-fiction passages", "Write creative responses under timed conditions", "Build inference and deduction skills"]}
+→ {"name": "11+ Creative Comprehension", "goals": ["Analyse fiction and non-fiction passages", "Write creative responses under timed conditions", "Build inference and deduction skills"], "traits": ["Encouraging", "Patient", "Playful"]}
 
 Input: "GCSE Maths revision for Year 11 students"
-→ {"name": "GCSE Maths Revision", "goals": ["Master algebraic equations", "Understand geometric proofs", "Solve word problems confidently"]}
+→ {"name": "GCSE Maths Revision", "goals": ["Master algebraic equations", "Understand geometric proofs", "Solve word problems confidently"], "traits": ["Methodical", "Supportive", "Clear"]}
 
 Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
           },
@@ -73,7 +74,7 @@ Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
           },
         ],
         temperature: 0.3,
-        maxTokens: 200,
+        maxTokens: 300,
       },
       { sourceOp: "quick-launch:suggest-name" }
     );
@@ -83,7 +84,7 @@ Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
       .replace(/^```json\s*/i, "")
       .replace(/```\s*$/, "");
 
-    let parsed: { name?: string; persona?: string; goals?: string[] };
+    let parsed: { name?: string; persona?: string; goals?: string[]; traits?: string[] };
     try {
       parsed = JSON.parse(raw);
     } catch {
@@ -111,6 +112,7 @@ Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
       slug: toSlug(name && name.length >= 2 ? name : fallbackName(brief)),
       persona: parsed.persona || null,
       goals: Array.isArray(parsed.goals) ? parsed.goals.filter(g => typeof g === "string" && g.trim()) : null,
+      traits: Array.isArray(parsed.traits) ? parsed.traits.filter(t => typeof t === "string" && t.trim()) : null,
     });
   } catch (err: any) {
     console.warn("[suggest-name] AI call failed, using fallback:", err.message);
@@ -121,6 +123,7 @@ Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
       slug: toSlug(name),
       persona: null,
       goals: null,
+      traits: null,
     });
   }
 }

@@ -20,7 +20,7 @@ export default function PipelinePage() {
     <div style={{ minHeight: "100vh" }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Run History</h1>
+        <h1 className="hf-page-title">Run History</h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
           View and inspect past prompt composition runs
         </p>

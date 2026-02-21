@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import { StatusBadge } from "@/src/components/shared/EntityPill";
 import { playbookStatusMap } from "./constants";
 import type { Playbook } from "./types";
@@ -16,6 +17,7 @@ interface AddPlaybookModalProps {
 
 export function AddPlaybookModal({ domainId, domainName, open, onClose, onPlaybookAdded }: AddPlaybookModalProps) {
   const router = useRouter();
+  const { terms, plural } = useTerminology();
 
   // Modal-owned state
   const [creatingPlaybook, setCreatingPlaybook] = useState(false);
@@ -125,7 +127,7 @@ export function AddPlaybookModal({ domainId, domainName, open, onClose, onPlaybo
         {/* Modal Header with Tabs */}
         <div style={{ borderBottom: "1px solid var(--border-default)" }}>
           <div style={{ padding: "16px 20px 0 20px" }}>
-            <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Add Playbook to {domainName}</h2>
+            <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Add {terms.playbook} to {domainName}</h2>
           </div>
           <div style={{ display: "flex", gap: 0 }}>
             <button
@@ -173,7 +175,7 @@ export function AddPlaybookModal({ domainId, domainName, open, onClose, onPlaybo
                 const otherPlaybooks = allPlaybooks.filter((pb) => pb.domain?.id !== domainId);
                 return otherPlaybooks.length === 0 ? (
                   <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>
-                    <p>No playbooks in other domains to move.</p>
+                    <p>No {plural("playbook").toLowerCase()} in other {plural("domain").toLowerCase()} to move.</p>
                     <button
                       onClick={() => setModalTab("create")}
                       style={{
@@ -220,8 +222,8 @@ export function AddPlaybookModal({ domainId, domainName, open, onClose, onPlaybo
                             padding: "6px 12px",
                             fontSize: 12,
                             fontWeight: 500,
-                            background: movingPlaybookId === pb.id ? "#e5e7eb" : "#eef2ff",
-                            color: movingPlaybookId === pb.id ? "#9ca3af" : "#4f46e5",
+                            background: movingPlaybookId === pb.id ? "var(--border-default)" : "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                            color: movingPlaybookId === pb.id ? "var(--text-muted)" : "var(--accent-primary)",
                             border: "none",
                             borderRadius: 6,
                             cursor: movingPlaybookId === pb.id ? "not-allowed" : "pointer",
@@ -286,8 +288,8 @@ export function AddPlaybookModal({ domainId, domainName, open, onClose, onPlaybo
                   padding: "10px 16px",
                   fontSize: 14,
                   fontWeight: 500,
-                  background: newPlaybook.name ? "#4f46e5" : "#e5e7eb",
-                  color: newPlaybook.name ? "white" : "#9ca3af",
+                  background: newPlaybook.name ? "var(--accent-primary)" : "var(--border-default)",
+                  color: newPlaybook.name ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
                   border: "none",
                   borderRadius: 6,
                   cursor: newPlaybook.name && !creatingPlaybook ? "pointer" : "not-allowed",

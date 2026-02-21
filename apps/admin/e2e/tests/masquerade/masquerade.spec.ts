@@ -83,8 +83,8 @@ test.describe('Masquerade', () => {
         await userButtons.first().click();
         await page.waitForTimeout(1000);
 
-        // Should see purple border (masquerade indicator)
-        // Look for masquerade banner or purple styling
+        // Should see purple status bar (masquerade indicator)
+        // Look for masquerade class on status bar
         const banner = page.locator('[class*="masquerade"], [style*="purple"]');
         const maskIcon = page.locator('svg, [class*="mask"]');
 

@@ -19,6 +19,10 @@ vi.mock("@/lib/ai/task-guidance", () => ({
   startTaskTracking: mockTaskGuidance.startTaskTracking,
   updateTaskProgress: mockTaskGuidance.updateTaskProgress,
   completeTask: vi.fn(),
+  failTask: vi.fn().mockResolvedValue(undefined),
+  backgroundRun: (taskId: string, fn: () => Promise<void>) => {
+    fn().catch(() => {});
+  },
 }));
 
 vi.mock("@/lib/domain/course-setup", () => ({
@@ -119,6 +123,39 @@ describe("POST /api/courses/setup", () => {
 
     // Verify task was created
     expect(mockTaskGuidance.startTaskTracking).toHaveBeenCalled();
+  });
+
+  it("passes lesson plan and student enrollment fields to executor", async () => {
+    const body = {
+      courseName: "Biology 101",
+      learningOutcomes: ["Photosynthesis", "Cell division"],
+      teachingStyle: "tutor",
+      sessionCount: 8,
+      durationMins: 30,
+      emphasis: "depth",
+      welcomeMessage: "Welcome to Biology",
+      studentEmails: ["a@test.com"],
+      // New lesson plan fields
+      subjectId: "subject-pre-created",
+      curriculumId: "curriculum-pre-created",
+      planIntents: { sessionCount: 8, durationMins: 30, emphasis: "depth", assessments: "light" },
+      lessonPlanMode: "reviewed",
+      // New student enrollment fields
+      cohortGroupIds: ["cohort-1", "cohort-2"],
+      selectedCallerIds: ["caller-1"],
+    };
+
+    const req = new NextRequest("http://localhost/api/courses/setup", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(data.taskId).toBe("task-id-123");
   });
 
   it("handles missing request body", async () => {

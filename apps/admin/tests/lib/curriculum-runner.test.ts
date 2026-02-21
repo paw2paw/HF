@@ -35,6 +35,7 @@ const mockStartTaskTracking = vi.hoisted(() =>
 );
 const mockUpdateTaskProgress = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockCompleteTask = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockFailTask = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 const mockExtractCurriculum = vi.hoisted(() => vi.fn());
 
@@ -46,6 +47,12 @@ vi.mock("@/lib/ai/task-guidance", () => ({
   startTaskTracking: (...args: any[]) => mockStartTaskTracking(...args),
   updateTaskProgress: (...args: any[]) => mockUpdateTaskProgress(...args),
   completeTask: (...args: any[]) => mockCompleteTask(...args),
+  failTask: (...args: any[]) => mockFailTask(...args),
+  backgroundRun: (taskId: string, fn: () => Promise<void>) => {
+    fn().catch(async (err: any) => {
+      mockFailTask(taskId, err instanceof Error ? err.message : String(err));
+    });
+  },
 }));
 
 vi.mock("@/lib/content-trust/extract-curriculum", () => ({
@@ -135,10 +142,7 @@ describe("startCurriculumGeneration", () => {
     await startCurriculumGeneration("sub-1", "Food Safety L2", "user-1");
     await flushMicrotasks();
 
-    expect(mockPrisma.userTask.update).toHaveBeenCalledWith({
-      where: { id: "task-123" },
-      data: { status: "abandoned", completedAt: expect.any(Date) },
-    });
+    expect(mockFailTask).toHaveBeenCalledWith("task-123", "Subject not found");
     expect(mockCompleteTask).not.toHaveBeenCalled();
   });
 
@@ -149,13 +153,8 @@ describe("startCurriculumGeneration", () => {
     await startCurriculumGeneration("sub-1", "Food Safety L2", "user-1");
     await flushMicrotasks();
 
-    expect(mockPrisma.userTask.update).toHaveBeenCalledWith({
-      where: { id: "task-123" },
-      data: { status: "abandoned", completedAt: expect.any(Date) },
-    });
-    expect(mockUpdateTaskProgress).toHaveBeenCalledWith("task-123", {
-      context: { error: "No sources attached to this subject" },
-    });
+    expect(mockFailTask).toHaveBeenCalledWith("task-123", "No sources attached to this subject");
+    expect(mockCompleteTask).not.toHaveBeenCalled();
   });
 
   it("abandons task when no assertions found", async () => {
@@ -166,13 +165,8 @@ describe("startCurriculumGeneration", () => {
     await startCurriculumGeneration("sub-1", "Food Safety L2", "user-1");
     await flushMicrotasks();
 
-    expect(mockUpdateTaskProgress).toHaveBeenCalledWith("task-123", {
-      context: { error: "No assertions found. Extract documents first." },
-    });
-    expect(mockPrisma.userTask.update).toHaveBeenCalledWith({
-      where: { id: "task-123" },
-      data: { status: "abandoned", completedAt: expect.any(Date) },
-    });
+    expect(mockFailTask).toHaveBeenCalledWith("task-123", "No assertions found. Extract documents first.");
+    expect(mockCompleteTask).not.toHaveBeenCalled();
   });
 
   it("abandons task when AI extraction fails", async () => {
@@ -190,13 +184,7 @@ describe("startCurriculumGeneration", () => {
     await startCurriculumGeneration("sub-1", "Food Safety L2", "user-1");
     await flushMicrotasks();
 
-    expect(mockUpdateTaskProgress).toHaveBeenCalledWith("task-123", {
-      context: { error: "AI model error", warnings: ["Rate limited"] },
-    });
-    expect(mockPrisma.userTask.update).toHaveBeenCalledWith({
-      where: { id: "task-123" },
-      data: { status: "abandoned", completedAt: expect.any(Date) },
-    });
+    expect(mockFailTask).toHaveBeenCalledWith("task-123", "AI model error");
     expect(mockCompleteTask).not.toHaveBeenCalled();
   });
 

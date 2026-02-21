@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
     orderBy: { name: "asc" },
   });
 
-  // Build cohort filter
+  // Build cohort filter via join table
   const cohortFilter = cohortId
-    ? { cohortGroupId: cohortId, cohortGroup: scopeFilter }
-    : { cohortGroup: scopeFilter };
+    ? { cohortMemberships: { some: { cohortGroupId: cohortId, cohortGroup: scopeFilter } } }
+    : { cohortMemberships: { some: { cohortGroup: scopeFilter } } };
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

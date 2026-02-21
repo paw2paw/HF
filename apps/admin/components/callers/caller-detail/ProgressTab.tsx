@@ -247,11 +247,11 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
 
 // Trust-Weighted Progress Section
 const TRUST_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
-  REGULATORY_STANDARD: { bg: "#fef2f2", text: "#991b1b" },
-  ACCREDITED_MATERIAL: { bg: "#fefce8", text: "#854d0e" },
-  PUBLISHED_REFERENCE: { bg: "#eff6ff", text: "#1e40af" },
-  EXPERT_CURATED: { bg: "#f5f3ff", text: "#5b21b6" },
-  AI_ASSISTED: { bg: "#f0fdf4", text: "#166534" },
+  REGULATORY_STANDARD: { bg: "var(--status-error-bg)", text: "var(--trust-l5-text, #991b1b)" },
+  ACCREDITED_MATERIAL: { bg: "var(--status-warning-bg)", text: "var(--trust-l4-text, #854d0e)" },
+  PUBLISHED_REFERENCE: { bg: "var(--badge-blue-bg)", text: "var(--status-info-text)" },
+  EXPERT_CURATED: { bg: "var(--badge-purple-bg, #f5f3ff)", text: "var(--badge-purple-text, #5b21b6)" },
+  AI_ASSISTED: { bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
   UNVERIFIED: { bg: "var(--surface-secondary)", text: "var(--text-muted)" },
 };
 
@@ -304,10 +304,10 @@ export function TrustProgressSection({ callerId }: { callerId: string }) {
       borderRadius: 16,
       padding: 20,
       border: "1px solid var(--border-default)",
-      boxShadow: "0 4px 24px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)",
+      boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #16a34a" }} />
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-success-text)", boxShadow: "0 0 8px color-mix(in srgb, var(--status-success-text) 60%, transparent)" }} />
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "0.5px" }}>Certification Progress</span>
       </div>
 
@@ -325,19 +325,19 @@ export function TrustProgressSection({ callerId }: { callerId: string }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {/* Certification Readiness */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "#166534", width: 140, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--status-success-text)", width: 140, flexShrink: 0 }}>
                   Cert. Readiness
                 </span>
                 <div style={{ flex: 1, height: 10, background: "var(--border-default)", borderRadius: 5, overflow: "hidden" }}>
                   <div style={{
                     width: `${Math.round(curr.certificationReadiness * 100)}%`,
                     height: "100%",
-                    background: "linear-gradient(90deg, #22c55e, #16a34a)",
+                    background: "linear-gradient(90deg, var(--status-success-text), var(--status-success-text))",
                     borderRadius: 5,
                     transition: "width 0.4s ease",
                   }} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: "#166534", width: 40, textAlign: "right" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: "var(--status-success-text)", width: 40, textAlign: "right" }}>
                   {Math.round(curr.certificationReadiness * 100)}%
                 </span>
               </div>
@@ -351,12 +351,12 @@ export function TrustProgressSection({ callerId }: { callerId: string }) {
                   <div style={{
                     width: `${Math.round(curr.supplementaryMastery * 100)}%`,
                     height: "100%",
-                    background: "linear-gradient(90deg, #8b5cf6, #7c3aed)",
+                    background: "linear-gradient(90deg, var(--accent-secondary, #8b5cf6), var(--accent-secondary, #8b5cf6))",
                     borderRadius: 5,
                     transition: "width 0.4s ease",
                   }} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: "#7c3aed", width: 40, textAlign: "right" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: "var(--accent-secondary, #8b5cf6)", width: 40, textAlign: "right" }}>
                   {Math.round(curr.supplementaryMastery * 100)}%
                 </span>
               </div>
@@ -418,10 +418,10 @@ export function TrustProgressSection({ callerId }: { callerId: string }) {
                           }}>
                             {label}
                           </span>
-                          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, color: mod.mastery >= 0.8 ? "#16a34a" : mod.mastery >= 0.5 ? "#d97706" : "var(--text-muted)", width: 36, textAlign: "right" }}>
+                          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, color: mod.mastery >= 0.8 ? "var(--status-success-text)" : mod.mastery >= 0.5 ? "var(--status-warning-text)" : "var(--text-muted)", width: 36, textAlign: "right" }}>
                             {Math.round(mod.mastery * 100)}%
                           </span>
-                          <span style={{ fontSize: 10, color: mod.countsToCertification ? "#16a34a" : "var(--text-placeholder)", width: 14, textAlign: "center" }}>
+                          <span style={{ fontSize: 10, color: mod.countsToCertification ? "var(--status-success-text)" : "var(--text-placeholder)", width: 14, textAlign: "center" }}>
                             {mod.countsToCertification ? "\u2713" : "\u2212"}
                           </span>
                         </div>
@@ -497,18 +497,18 @@ export function LearningSection({
   }
 
   const GOAL_TYPE_CONFIG: Record<string, { label: string; icon: string; color: string; glow: string }> = {
-    LEARN: { label: "Learn", icon: "📚", color: "#22c55e", glow: "#16a34a" },
-    ACHIEVE: { label: "Achieve", icon: "🏆", color: "#f59e0b", glow: "#d97706" },
-    CHANGE: { label: "Change", icon: "🔄", color: "#8b5cf6", glow: "#7c3aed" },
-    CONNECT: { label: "Connect", icon: "🤝", color: "#06b6d4", glow: "#0891b2" },
-    SUPPORT: { label: "Support", icon: "💚", color: "#10b981", glow: "#059669" },
-    CREATE: { label: "Create", icon: "🎨", color: "#ec4899", glow: "#db2777" },
+    LEARN: { label: "Learn", icon: "📚", color: "var(--status-success-text)", glow: "var(--status-success-text)" },
+    ACHIEVE: { label: "Achieve", icon: "🏆", color: "var(--status-warning-text)", glow: "var(--status-warning-text)" },
+    CHANGE: { label: "Change", icon: "🔄", color: "var(--accent-secondary, #8b5cf6)", glow: "var(--accent-secondary, #8b5cf6)" },
+    CONNECT: { label: "Connect", icon: "🤝", color: "var(--badge-cyan-text, #06b6d4)", glow: "var(--badge-cyan-text, #0891b2)" },
+    SUPPORT: { label: "Support", icon: "💚", color: "var(--status-success-text)", glow: "var(--status-success-text)" },
+    CREATE: { label: "Create", icon: "🎨", color: "var(--badge-pink-text, #ec4899)", glow: "var(--badge-pink-accent, #db2777)" },
   };
 
   const MODULE_STATUS_COLORS: Record<string, { primary: string; glow: string }> = {
-    completed: { primary: "#22c55e", glow: "#16a34a" },
-    in_progress: { primary: "#3b82f6", glow: "#2563eb" },
-    not_started: { primary: "#64748b", glow: "#475569" },
+    completed: { primary: "var(--status-success-text)", glow: "var(--status-success-text)" },
+    in_progress: { primary: "var(--accent-primary)", glow: "var(--accent-primary)" },
+    not_started: { primary: "var(--text-muted)", glow: "var(--text-muted)" },
   };
 
   const activeGoals = goals?.filter(g => g.status === 'ACTIVE' || g.status === 'PAUSED') || [];
@@ -518,7 +518,7 @@ export function LearningSection({
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Active Goals — each as a visual card */}
       {activeGoals.map((goal) => {
-        const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "#64748b", glow: "#475569" };
+        const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "var(--text-muted)", glow: "var(--text-muted)" };
         const isLearn = goal.type === 'LEARN' && hasCurriculum && curriculum;
 
         return (
@@ -535,7 +535,7 @@ export function LearningSection({
                   {goal.playbook && <PlaybookPill label={`${goal.playbook.name} v${goal.playbook.version}`} size="compact" />}
                   {goal.startedAt && <span style={{ opacity: 0.7 }}>Started {new Date(goal.startedAt).toLocaleDateString()}</span>}
                   {curriculum.nextModule && (
-                    <span style={{ color: "#22c55e", fontWeight: 600 }}>
+                    <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>
                       Next: {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
                     </span>
                   )}
@@ -567,7 +567,7 @@ export function LearningSection({
                 borderRadius: 16,
                 padding: 20,
                 border: "1px solid var(--border-default)",
-                boxShadow: "0 4px 24px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)",
+                boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                   <ProgressRing progress={goal.progress} size={72} color={typeConfig.color} />
@@ -601,10 +601,10 @@ export function LearningSection({
           borderRadius: 16,
           padding: 20,
           border: "1px solid var(--border-default)",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)",
+          boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#8b5cf6", boxShadow: "0 0 8px #7c3aed" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-secondary, #8b5cf6)", boxShadow: "0 0 8px var(--accent-secondary, #8b5cf6)" }} />
             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "0.5px" }}>Learner Profile</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -673,7 +673,7 @@ export function LearningSection({
           {showArchived && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
               {archivedGoals.map((goal) => {
-                const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "#64748b", glow: "#475569" };
+                const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "var(--text-muted)", glow: "var(--text-muted)" };
                 return (
                   <div
                     key={goal.id}
@@ -866,7 +866,7 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
               borderRadius: 16,
               padding: 24,
               border: "1px solid var(--border-default)",
-              boxShadow: "0 4px 24px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)",
+              boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
             }}
           >
             {/* Header: spec slug + level badge + gate */}
@@ -892,9 +892,9 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
                 fontWeight: 600,
                 padding: "3px 10px",
                 borderRadius: 6,
-                background: curr.gateStatus?.allowed ? "#f0fdf4" : "#fef2f2",
-                color: curr.gateStatus?.allowed ? "#16a34a" : "#dc2626",
-                border: `1px solid ${curr.gateStatus?.allowed ? "#bbf7d0" : "#fecaca"}`,
+                background: curr.gateStatus?.allowed ? "var(--status-success-bg)" : "var(--status-error-bg)",
+                color: curr.gateStatus?.allowed ? "var(--status-success-text)" : "var(--status-error-text)",
+                border: `1px solid ${curr.gateStatus?.allowed ? "var(--status-success-border)" : "var(--status-error-border)"}`,
               }}>
                 {curr.gateStatus?.allowed ? "Gate: OPEN" : "Gate: LOCKED"}
               </span>
@@ -945,7 +945,7 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
                     </span>
                   )}
                   {curr.lastAttemptPassed !== null && (
-                    <span style={{ fontSize: 11, color: curr.lastAttemptPassed ? "#16a34a" : "#dc2626" }}>
+                    <span style={{ fontSize: 11, color: curr.lastAttemptPassed ? "var(--status-success-text)" : "var(--status-error-text)" }}>
                       Last: {curr.lastAttemptPassed ? "PASSED" : "FAILED"}
                     </span>
                   )}
@@ -963,11 +963,11 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
                   {moduleEntries.map(([moduleId, mastery]) => {
                     const masteryPct = Math.round((mastery as number) * 100);
                     const isWeak = weakModules.includes(moduleId);
-                    const barColor = isWeak ? "#f59e0b" : "#22c55e";
+                    const barColor = isWeak ? "var(--status-warning-text)" : "var(--status-success-text)";
                     return (
                       <div key={moduleId} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{
-                          width: 140, fontSize: 11, color: isWeak ? "#f59e0b" : "var(--text-muted)",
+                          width: 140, fontSize: 11, color: isWeak ? "var(--status-warning-text)" : "var(--text-muted)",
                           fontWeight: isWeak ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           flexShrink: 0,
                         }} title={moduleId}>
@@ -982,7 +982,7 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
                             transition: "width 0.3s ease",
                           }} />
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: isWeak ? "#f59e0b" : "var(--text-secondary)", width: 36, textAlign: "right", flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: isWeak ? "var(--status-warning-text)" : "var(--text-secondary)", width: 36, textAlign: "right", flexShrink: 0 }}>
                           {masteryPct}%
                         </span>
                       </div>
@@ -997,10 +997,10 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
               <div style={{
                 padding: "10px 14px",
                 borderRadius: 8,
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
+                background: "var(--status-warning-bg)",
+                border: "1px solid var(--status-warning-border)",
                 fontSize: 12,
-                color: "#92400e",
+                color: "var(--status-warning-text)",
                 lineHeight: 1.5,
               }}>
                 <strong>Weak modules:</strong> {weakModules.join(", ")} — targeted revision recommended before exam attempt
@@ -1200,12 +1200,12 @@ export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, calle
 // ------------------------------------------------------------------
 
 const PLAN_SESSION_TYPES: Record<string, { label: string; color: string }> = {
-  onboarding: { label: "Onboarding", color: "#6366F1" },
-  introduce: { label: "Introduce", color: "#059669" },
-  deepen: { label: "Deepen", color: "#2563EB" },
-  review: { label: "Review", color: "#D97706" },
-  assess: { label: "Assess", color: "#DC2626" },
-  consolidate: { label: "Consolidate", color: "#7C3AED" },
+  onboarding: { label: "Onboarding", color: "var(--accent-primary)" },
+  introduce: { label: "Introduce", color: "var(--status-success-text)" },
+  deepen: { label: "Deepen", color: "var(--accent-primary)" },
+  review: { label: "Review", color: "var(--status-warning-text)" },
+  assess: { label: "Assess", color: "var(--status-error-text)" },
+  consolidate: { label: "Consolidate", color: "var(--accent-secondary, #8b5cf6)" },
 };
 
 export function PlanProgressSection({
@@ -1318,7 +1318,7 @@ export function PlanProgressSection({
         <div style={{
           height: "100%",
           borderRadius: 3,
-          background: progressPct === 100 ? "#16a34a" : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+          background: progressPct === 100 ? "var(--status-success-text)" : "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
           width: `${progressPct}%`,
           transition: "width 0.5s ease-out",
         }} />
@@ -1327,7 +1327,7 @@ export function PlanProgressSection({
       {/* Session list */}
       <div style={{ display: "grid", gap: 4 }}>
         {progressEntries.map((e: any) => {
-          const sessionCfg = PLAN_SESSION_TYPES[e.type] || { label: e.type, color: "#6B7280" };
+          const sessionCfg = PLAN_SESSION_TYPES[e.type] || { label: e.type, color: "var(--text-muted)" };
           return (
             <div key={e.session} style={{
               display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",

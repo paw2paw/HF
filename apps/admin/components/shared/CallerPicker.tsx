@@ -213,10 +213,10 @@ export function CallerPicker({
           padding: "8px 12px",
           paddingRight: 32,
           fontSize: 14,
-          border: "1px solid #d1d5db",
+          border: "1px solid var(--border-default)",
           borderRadius: 8,
           outline: "none",
-          background: disabled ? "#f3f4f6" : "white",
+          background: disabled ? "var(--surface-secondary)" : "var(--surface-primary)",
           cursor: disabled ? "not-allowed" : "text",
         }}
       />
@@ -247,7 +247,7 @@ export function CallerPicker({
               border: "none",
               cursor: "pointer",
               padding: 2,
-              color: "#9ca3af",
+              color: "var(--text-muted)",
               fontSize: 14,
               lineHeight: 1,
             }}
@@ -256,7 +256,7 @@ export function CallerPicker({
             &times;
           </button>
         )}
-        <span style={{ color: "#9ca3af", fontSize: 10 }}>{isOpen ? "▲" : "▼"}</span>
+        <span style={{ color: "var(--text-muted)", fontSize: 10 }}>{isOpen ? "\u25B2" : "\u25BC"}</span>
       </div>
 
       {/* Dropdown */}
@@ -269,8 +269,8 @@ export function CallerPicker({
             left: 0,
             right: 0,
             marginTop: 4,
-            background: "white",
-            border: "1px solid #d1d5db",
+            background: "var(--surface-primary)",
+            border: "1px solid var(--border-default)",
             borderRadius: 8,
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             maxHeight: 320,
@@ -279,11 +279,11 @@ export function CallerPicker({
           }}
         >
           {loading ? (
-            <div style={{ padding: 16, textAlign: "center", color: "#6b7280", fontSize: 13 }}>
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
               Loading callers...
             </div>
           ) : filteredCallers.length === 0 ? (
-            <div style={{ padding: 16, textAlign: "center", color: "#6b7280", fontSize: 13 }}>
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
               {search ? "No callers match your search" : "No callers found"}
             </div>
           ) : (
@@ -292,8 +292,8 @@ export function CallerPicker({
                 style={{
                   padding: "6px 12px",
                   fontSize: 11,
-                  color: "#9ca3af",
-                  borderBottom: "1px solid #f3f4f6",
+                  color: "var(--text-muted)",
+                  borderBottom: "1px solid var(--surface-secondary)",
                 }}
               >
                 {filteredCallers.length} caller{filteredCallers.length !== 1 ? "s" : ""}
@@ -308,7 +308,7 @@ export function CallerPicker({
                     padding: "10px 12px",
                     cursor: "pointer",
                     background: "transparent",
-                    borderBottom: "1px solid #f3f4f6",
+                    borderBottom: "1px solid var(--surface-secondary)",
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
@@ -336,9 +336,9 @@ export function CallerPicker({
                       highlightIndex === index
                         ? entityColors.caller.bg
                         : caller.id === value
-                          ? "#f9fafb"
+                          ? "var(--surface-secondary)"
                           : "transparent",
-                    borderBottom: "1px solid #f3f4f6",
+                    borderBottom: "1px solid var(--surface-secondary)",
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
@@ -361,7 +361,7 @@ export function CallerPicker({
                       style={{
                         fontSize: 14,
                         fontWeight: 500,
-                        color: "#1f2937",
+                        color: "var(--text-primary)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -373,7 +373,7 @@ export function CallerPicker({
                       <div
                         style={{
                           fontSize: 12,
-                          color: "#6b7280",
+                          color: "var(--text-muted)",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",

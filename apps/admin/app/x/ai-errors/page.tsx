@@ -45,10 +45,10 @@ function relativeTime(dateStr: string): string {
 }
 
 function rateColor(rate: number): string {
-  if (rate >= 0.2) return "#ef4444";
-  if (rate >= 0.1) return "#f59e0b";
-  if (rate > 0) return "#f97316";
-  return "#10b981";
+  if (rate >= 0.2) return "var(--status-error-text)";
+  if (rate >= 0.1) return "var(--status-warning-text)";
+  if (rate > 0) return "var(--status-warning-text)";
+  return "var(--status-success-text)";
 }
 
 export default function AIErrorsPage() {
@@ -94,7 +94,7 @@ export default function AIErrorsPage() {
       {/* Header */}
       <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 className="hf-page-title">
             AI Error Monitor
           </h1>
           <p style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 8 }}>

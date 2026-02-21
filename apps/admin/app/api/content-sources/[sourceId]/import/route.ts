@@ -20,6 +20,8 @@ import {
   startTaskTracking,
   updateTaskProgress,
   completeTask,
+  failTask,
+  backgroundRun,
 } from "@/lib/ai/task-guidance";
 
 // ── Background: Classify document ──────────────────────
@@ -38,9 +40,7 @@ async function runBackgroundClassification(
     });
 
     if (!source) {
-      await updateTaskProgress(taskId, {
-        context: { error: "Source not found" },
-      });
+      await failTask(taskId, "Source not found");
       return;
     }
 
@@ -48,9 +48,7 @@ async function runBackgroundClassification(
     const { text } = await extractText(file);
 
     if (!text.trim()) {
-      await updateTaskProgress(taskId, {
-        context: { error: "Could not extract text from document" },
-      });
+      await failTask(taskId, "Could not extract text from document");
       return;
     }
 
@@ -131,9 +129,7 @@ async function runBackgroundClassification(
     await completeTask(taskId);
   } catch (error: any) {
     console.error("[classify-background] Error:", error);
-    await updateTaskProgress(taskId, {
-      context: { error: error.message },
-    });
+    await failTask(taskId, error.message);
   }
 }
 
@@ -211,12 +207,9 @@ export async function POST(
       });
 
       // Fire background classification (no await)
-      runBackgroundClassification(sourceId, taskId, file, buffer, authResult.session.user.id).catch(async (err) => {
-        console.error("[classify] Background error:", err);
-        await updateTaskProgress(taskId, {
-          context: { error: err.message },
-        });
-      });
+      backgroundRun(taskId, () =>
+        runBackgroundClassification(sourceId, taskId, file, buffer, authResult.session.user.id)
+      );
 
       return NextResponse.json(
         { ok: true, taskId },

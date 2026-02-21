@@ -1559,7 +1559,7 @@ Regenerate the magic join link for a cohort.
 
 ### `DELETE` /api/v1/cohorts/:cohortId/members
 
-Remove callers from a cohort group. Sets their cohortGroupId to null.
+Remove callers from a cohort group. Deletes their CallerCohortMembership record.
 
 **Auth**: Session · **Scope**: `cohorts:update`
 
@@ -1762,9 +1762,41 @@ Archive a community (soft delete)
 
 ### `GET` /api/v1/communities/[communityId]
 
-Get a single community detail
+Get a single community detail with identity specs, onboarding config, and members
 
 **Auth**: Session · **Scope**: `communities:read`
+
+**Response** `200`
+```json
+{ ok: true, community: { id, name, slug, description, onboardingWelcome, onboardingIdentitySpecId, onboardingFlowPhases, onboardingDefaultTargets, memberCount, playbookCount, personaName, identitySpec, identitySpecs, members } }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `PATCH` /api/v1/communities/[communityId]
+
+Update a community — name, description, welcome message, identity spec, flow phases, default targets
+
+**Auth**: Session · **Scope**: `communities:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Community name |
+| description | body | string | No | Community description |
+| onboardingWelcome | body | string | No | Welcome message for first call |
+| onboardingIdentitySpecId | body | string | No | Identity spec ID for the AI persona |
+| onboardingFlowPhases | body | object | No | Flow phases configuration |
+| onboardingDefaultTargets | body | object | No | Default behavior targets (includes _matrixPositions for round-trip) |
 
 **Response** `200`
 ```json
@@ -1783,21 +1815,24 @@ Get a single community detail
 
 ---
 
-### `PATCH` /api/v1/communities/[communityId]
+### `POST` /api/v1/communities/[communityId]/members
 
-Update a community
+Add a caller to a community by setting their domainId
 
 **Auth**: Session · **Scope**: `communities:write`
 
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
-| name | body | string | No | Community name |
-| description | body | string | No | Community description |
-| onboardingWelcome | body | string | No | Welcome message for first call |
+| callerId | body | string | No | Caller ID to add |
 
 **Response** `200`
 ```json
-{ ok: true, community: Domain }
+{ ok: true, member: { id, name, email } }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "callerId is required" }
 ```
 
 **Response** `404`
@@ -1805,9 +1840,27 @@ Update a community
 { ok: false, error: "Community not found" }
 ```
 
-**Response** `500`
+**Response** `409`
 ```json
-{ ok: false, error: "..." }
+{ ok: false, error: "Caller is already a member" }
+```
+
+---
+
+### `DELETE` /api/v1/communities/[communityId]/members/[callerId]
+
+Remove a caller from a community by clearing their domainId
+
+**Auth**: Session · **Scope**: `communities:write`
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Community not found" | "Member not found" }
 ```
 
 ---

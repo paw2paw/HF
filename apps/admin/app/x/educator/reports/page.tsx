@@ -104,7 +104,7 @@ function ReportsContent() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+          <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
             Reports
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>

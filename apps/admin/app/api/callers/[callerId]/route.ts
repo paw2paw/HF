@@ -60,6 +60,19 @@ export async function GET(
               owner: { select: { id: true, name: true } },
             },
           },
+          cohortMemberships: {
+            select: {
+              cohortGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  owner: { select: { id: true, name: true } },
+                },
+              },
+              joinedAt: true,
+              role: true,
+            },
+          },
           ownedCohorts: {
             select: {
               id: true,

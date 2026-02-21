@@ -294,7 +294,7 @@ function PlaybookRosterSection({
                       {entry.status === "ACTIVE" && (
                         <>
                           <button onClick={() => handleStatusChange(entry.id, entry.caller.id, "PAUSED")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-muted)", padding: "2px 4px" }}>Pause</button>
-                          <button onClick={() => handleStatusChange(entry.id, entry.caller.id, "DROPPED")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#dc2626", padding: "2px 4px" }}>Drop</button>
+                          <button onClick={() => handleStatusChange(entry.id, entry.caller.id, "DROPPED")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--status-error-text)", padding: "2px 4px" }}>Drop</button>
                         </>
                       )}
                       {entry.status === "PAUSED" && (

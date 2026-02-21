@@ -58,16 +58,16 @@ export function SecurityPanel(_props: PanelProps) {
       {/* Legend */}
       <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
         {[
-          { label: "C", desc: "Create", color: "#22c55e" },
-          { label: "R", desc: "Read", color: "#3b82f6" },
-          { label: "U", desc: "Update", color: "#f59e0b" },
-          { label: "D", desc: "Delete", color: "#ef4444" },
+          { label: "C", desc: "Create", color: "var(--status-success-text)" },
+          { label: "R", desc: "Read", color: "var(--accent-primary)" },
+          { label: "U", desc: "Update", color: "var(--status-warning-text)" },
+          { label: "D", desc: "Delete", color: "var(--status-error-text)" },
         ].map((op) => (
           <div key={op.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
             <span style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               width: 18, height: 18, borderRadius: 4, fontSize: 10, fontWeight: 700,
-              background: op.color, color: "#fff",
+              background: op.color, color: "var(--button-primary-text, #fff)",
             }}>{op.label}</span>
             <span style={{ color: "var(--text-muted)" }}>{op.desc}</span>
           </div>
@@ -101,7 +101,7 @@ export function SecurityPanel(_props: PanelProps) {
       )}
 
       {error && (
-        <p style={{ fontSize: 13, color: "#ef4444" }}>{error}</p>
+        <p style={{ fontSize: 13, color: "var(--status-error-text)" }}>{error}</p>
       )}
 
       {accessMatrix && (
@@ -146,7 +146,7 @@ export function SecurityPanel(_props: PanelProps) {
                     const sc = scopeColors[scope] || scopeColors.NONE;
 
                     const opColors: Record<string, string> = {
-                      C: "#22c55e", R: "#3b82f6", U: "#f59e0b", D: "#ef4444",
+                      C: "var(--status-success-text)", R: "var(--accent-primary)", U: "var(--status-warning-text)", D: "var(--status-error-text)",
                     };
 
                     return (
@@ -164,7 +164,7 @@ export function SecurityPanel(_props: PanelProps) {
                                 <span key={op} style={{
                                   display: "inline-flex", alignItems: "center", justifyContent: "center",
                                   width: 16, height: 16, borderRadius: 3, fontSize: 9, fontWeight: 700,
-                                  background: opColors[op] || "#6b7280", color: "#fff",
+                                  background: opColors[op] || "var(--text-muted)", color: "var(--button-primary-text, #fff)",
                                 }}>{op}</span>
                               ))}
                             </div>

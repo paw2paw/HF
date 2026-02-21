@@ -127,31 +127,31 @@ export default function AccessControlPage() {
   return (
     <div className="space-y-6 p-6 max-w-7xl">
       <div>
-        <h1 className="text-2xl font-bold">Access Control & Terminology</h1>
-        <p className="text-sm text-gray-600 mt-2">
+        <h1 className="hf-page-title">Access Control & Terminology</h1>
+        <p className="hf-page-subtitle" style={{ marginTop: 8 }}>
           Configure entity access permissions. Terminology is managed per institution type.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-300">
+      <div className="flex gap-2" style={{ borderBottom: "1px solid var(--border-default)" }}>
         <button
           onClick={() => setCurrentTab('rbac')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            currentTab === 'rbac'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
+          className="px-4 py-2 font-medium transition-colors"
+          style={{
+            borderBottom: currentTab === 'rbac' ? "2px solid var(--accent-primary)" : "2px solid transparent",
+            color: currentTab === 'rbac' ? "var(--accent-primary)" : "var(--text-muted)",
+          }}
         >
           Access Control Matrix
         </button>
         <button
           onClick={() => setCurrentTab('terminology')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            currentTab === 'terminology'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
+          className="px-4 py-2 font-medium transition-colors"
+          style={{
+            borderBottom: currentTab === 'terminology' ? "2px solid var(--accent-primary)" : "2px solid transparent",
+            color: currentTab === 'terminology' ? "var(--accent-primary)" : "var(--text-muted)",
+          }}
         >
           Terminology
         </button>
@@ -159,12 +159,12 @@ export default function AccessControlPage() {
 
       {/* Messages */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+        <div className="hf-banner hf-banner-error">
           {error}
         </div>
       )}
       {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
+        <div className="hf-banner hf-banner-success">
           {success}
         </div>
       )}
@@ -194,7 +194,7 @@ export default function AccessControlPage() {
             <button
               onClick={handleSaveRBAC}
               disabled={isSaving}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+              className="hf-btn hf-btn-primary"
             >
               {isSaving ? 'Saving...' : 'Save RBAC Matrix'}
             </button>
@@ -233,11 +233,11 @@ function RBACMatrixTab({
   const roles = ['SUPERADMIN', 'ADMIN', 'OPERATOR', 'EDUCATOR', 'SUPER_TESTER', 'TESTER', 'STUDENT', 'DEMO'];
 
   return (
-    <div className="overflow-x-auto border border-gray-300 rounded-lg">
+    <div className="overflow-x-auto rounded-lg" style={{ border: "1px solid var(--border-default)" }}>
       <table className="w-full border-collapse">
         <thead>
-          <tr className="bg-gray-100 border-b border-gray-300">
-            <th className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold w-32">
+          <tr style={{ background: "var(--surface-secondary)", borderBottom: "1px solid var(--border-default)" }}>
+            <th className="px-3 py-2 text-left text-sm font-semibold w-32" style={{ borderRight: "1px solid var(--border-default)", color: "var(--text-primary)" }}>
               Entity
             </th>
             {roles.map((role) => {
@@ -246,9 +246,12 @@ function RBACMatrixTab({
               return (
                 <th
                   key={role}
-                  className={`border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold min-w-[120px] ${
-                    !canEdit ? 'bg-gray-200 opacity-70' : ''
-                  }`}
+                  className="px-3 py-2 text-left text-sm font-semibold min-w-[120px]"
+                  style={{
+                    borderRight: "1px solid var(--border-default)",
+                    color: "var(--text-primary)",
+                    ...(!canEdit ? { background: "var(--surface-tertiary)", opacity: 0.7 } : {}),
+                  }}
                 >
                   <div className="flex items-center gap-1">
                     {role}
@@ -261,8 +264,8 @@ function RBACMatrixTab({
         </thead>
         <tbody>
           {entities.map((entity) => (
-            <tr key={entity} className="hover:bg-gray-50 border-b border-gray-300">
-              <td className="border-r border-gray-300 px-3 py-2 font-medium text-sm bg-gray-50">
+            <tr key={entity} className="transition-colors" style={{ borderBottom: "1px solid var(--border-default)" }}>
+              <td className="px-3 py-2 font-medium text-sm" style={{ borderRight: "1px solid var(--border-default)", background: "var(--surface-secondary)", color: "var(--text-primary)" }}>
                 {entity}
               </td>
               {roles.map((role) => {
@@ -273,9 +276,11 @@ function RBACMatrixTab({
                 return (
                   <td
                     key={`${entity}-${role}`}
-                    className={`border-r border-gray-300 px-2 py-1 ${
-                      !canEdit ? 'bg-gray-100' : ''
-                    }`}
+                    className="px-2 py-1"
+                    style={{
+                      borderRight: "1px solid var(--border-default)",
+                      ...(!canEdit ? { background: "var(--surface-secondary)" } : {}),
+                    }}
                   >
                     <input
                       type="text"
@@ -283,9 +288,11 @@ function RBACMatrixTab({
                       onChange={(e) => canEdit && onChange(entity, role, e.target.value)}
                       disabled={isSaving || !canEdit}
                       placeholder="SCOPE:OPS"
-                      className={`w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono ${
-                        !canEdit ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
-                      }`}
+                      className="hf-input w-full text-xs font-mono"
+                      style={{
+                        padding: "4px 8px",
+                        ...(!canEdit ? { cursor: "not-allowed", opacity: 0.6 } : {}),
+                      }}
                     />
                   </td>
                 );
@@ -294,7 +301,7 @@ function RBACMatrixTab({
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-gray-600 mt-3 px-3 py-2">
+      <p className="mt-3 px-3 py-2" style={{ fontSize: 12, color: "var(--text-muted)" }}>
         Format: SCOPE:OPS (e.g., &quot;ALL:CRUD&quot;, &quot;DOMAIN:CR&quot;, &quot;OWN:R&quot;, &quot;NONE&quot;).
       </p>
     </div>
@@ -317,34 +324,35 @@ function TerminologyTab({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
+        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           Terminology labels per institution type. Admin roles always see technical terms.
         </p>
         <Link
           href="/x/settings#institution_types"
-          className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+          className="hf-btn hf-btn-secondary inline-flex items-center gap-1"
         >
           Manage Institution Types <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
 
-      <div className="overflow-x-auto border border-gray-300 rounded-lg">
+      <div className="overflow-x-auto rounded-lg" style={{ border: "1px solid var(--border-default)" }}>
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray-100 border-b border-gray-300">
-              <th className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold w-40">
+            <tr style={{ background: "var(--surface-secondary)", borderBottom: "1px solid var(--border-default)" }}>
+              <th className="px-3 py-2 text-left text-sm font-semibold w-40" style={{ borderRight: "1px solid var(--border-default)", color: "var(--text-primary)" }}>
                 Term
               </th>
-              <th className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold min-w-[120px] bg-indigo-50">
+              <th className="px-3 py-2 text-left text-sm font-semibold min-w-[120px]" style={{ borderRight: "1px solid var(--border-default)", color: "var(--text-primary)", background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)" }}>
                 Technical (Admin)
               </th>
               {institutionTypes.map((type) => (
                 <th
                   key={type.id}
-                  className="border-r border-gray-300 px-3 py-2 text-left text-sm font-semibold min-w-[120px]"
+                  className="px-3 py-2 text-left text-sm font-semibold min-w-[120px]"
+                  style={{ borderRight: "1px solid var(--border-default)", color: "var(--text-primary)" }}
                 >
                   <div>{type.name}</div>
-                  <div className="text-xs font-normal text-gray-500">
+                  <div style={{ fontSize: 12, fontWeight: 400, color: "var(--text-muted)" }}>
                     {type.institutionCount} institution{type.institutionCount !== 1 ? 's' : ''}
                   </div>
                 </th>
@@ -353,17 +361,18 @@ function TerminologyTab({
           </thead>
           <tbody>
             {termKeys.map((key) => (
-              <tr key={key} className="hover:bg-gray-50 border-b border-gray-300">
-                <td className="border-r border-gray-300 px-3 py-2 font-medium text-sm bg-gray-50">
+              <tr key={key} className="transition-colors" style={{ borderBottom: "1px solid var(--border-default)" }}>
+                <td className="px-3 py-2 font-medium text-sm" style={{ borderRight: "1px solid var(--border-default)", background: "var(--surface-secondary)", color: "var(--text-primary)" }}>
                   {TERM_KEY_LABELS[key]}
                 </td>
-                <td className="border-r border-gray-300 px-3 py-2 text-sm font-mono text-gray-500 bg-indigo-50/50">
+                <td className="px-3 py-2 text-sm font-mono" style={{ borderRight: "1px solid var(--border-default)", color: "var(--text-muted)", background: "color-mix(in srgb, var(--accent-primary) 4%, transparent)" }}>
                   {technicalTerms[key] || '—'}
                 </td>
                 {institutionTypes.map((type) => (
                   <td
                     key={`${key}-${type.id}`}
-                    className="border-r border-gray-300 px-3 py-2 text-sm"
+                    className="px-3 py-2 text-sm"
+                    style={{ borderRight: "1px solid var(--border-default)", color: "var(--text-primary)" }}
                   >
                     {type.terminology[key] || '—'}
                   </td>
@@ -375,9 +384,9 @@ function TerminologyTab({
       </div>
 
       {institutionTypes.length === 0 && (
-        <div className="text-center py-8 text-gray-500 text-sm">
+        <div className="text-center py-8" style={{ fontSize: 14, color: "var(--text-muted)" }}>
           No institution types configured.{' '}
-          <Link href="/x/settings#institution_types" className="text-indigo-600 hover:underline">
+          <Link href="/x/settings#institution_types" style={{ color: "var(--accent-primary)" }} className="hover:underline">
             Create one
           </Link>
         </div>

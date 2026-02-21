@@ -217,8 +217,6 @@ model Parameter {
   enrichedAt         DateTime? // When enrichment was last run
   enrichmentChunkIds String[] // IDs of KB chunks used for enrichment
 
-  mappings ParameterMapping[]
-
   // Status such as Active or MVP is represented via tags, not boolean columns
   tags ParameterTag[]
 
@@ -227,7 +225,6 @@ model Parameter {
   callScores                CallScore[]
 
   // Knowledge base relations
-  knowledgeArtifacts KnowledgeArtifact[]
   knowledgeLinks     ParameterKnowledgeLink[]
 
   // Analysis spec relations (for MEASURE actions)
@@ -260,19 +257,6 @@ model Parameter {
   @@index([isCanonical])
   @@index([deprecatedAt])
   @@index([domainGroup])
-}
-
-model ParameterMapping {
-  id          String  @id @default(uuid())
-  parameterId String
-  targetType  String
-  targetKey   String
-  weight      Float?
-  notes       String?
-
-  parameter Parameter @relation(fields: [parameterId], references: [parameterId])
-
-  createdAt DateTime @default(now())
 }
 
 model Tag {
@@ -318,8 +302,6 @@ model AnalysisProfile {
   lockedReason String? // e.g., "Used by compiled set 'v1.0 Full Analysis'"
 
   parameters   AnalysisProfileParameter[]
-  runs         AnalysisRun[]
-  compiledSets CompiledAnalysisSet[]
 
   @@map("ParameterSet") // Keep existing table name for backwards compatibility
 }
@@ -352,89 +334,6 @@ model AnalysisProfileParameter {
   @@index([analysisProfileId])
   @@index([parameterId])
   @@map("ParameterSetParameter") // Keep existing table name
-}
-
-model AnalysisRun {
-  id                String  @id @default(uuid())
-  analysisProfileId String? @map("parameterSetId")
-  compiledSetId     String? // Reference to compiled set used for this run
-
-  // e.g. QUEUED | RUNNING | SUCCEEDED | FAILED
-  status     String
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-  metadata   Json? // Additional run metadata
-
-  createdAt DateTime @default(now())
-
-  analysisProfile AnalysisProfile?     @relation(fields: [analysisProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  compiledSet     CompiledAnalysisSet? @relation(fields: [compiledSetId], references: [id])
-  scores          CallScore[]
-
-  @@index([analysisProfileId])
-  @@index([compiledSetId])
-  @@index([status])
-}
-
-// =========================
-// COMPILED ANALYSIS SETS
-// =========================
-// A compiled set is a validated, enriched snapshot of an AnalysisProfile
-// ready for production use. Once used, it locks the source profile.
-
-enum CompilationStatus {
-  DRAFT // Initial state, not yet compiled
-  COMPILING // Compilation in progress
-  READY // Validated and ready for use
-  ERROR // Compilation failed
-  SUPERSEDED // Replaced by a newer version
-}
-
-model CompiledAnalysisSet {
-  id          String  @id @default(uuid())
-  name        String
-  description String?
-  version     String  @default("1.0")
-
-  // Source profile (locked when this set is used)
-  analysisProfileId String
-  analysisProfile   AnalysisProfile @relation(fields: [analysisProfileId], references: [id])
-
-  // Compilation status
-  status     CompilationStatus @default(DRAFT)
-  compiledAt DateTime?
-  compiledBy String? // User or system that compiled
-
-  // Validation results
-  validationErrors Json? // Array of { specId/parameterId, error, severity }
-  validationPassed Boolean @default(false)
-
-  // What's included (spec IDs from the profile)
-  specIds String[] // AnalysisSpec IDs included in compilation
-
-  // Enrichment / RAG context
-  ragContext   String?  @db.Text // Assembled KB context for prompts
-  kbChunksUsed String[] // IDs of KB chunks used for enrichment
-
-  // Computed stats at compile time
-  measureSpecCount Int @default(0)
-  learnSpecCount   Int @default(0)
-  parameterCount   Int @default(0)
-  anchorCount      Int @default(0)
-
-  // Version chain
-  parentVersionId String?
-  parentVersion   CompiledAnalysisSet?  @relation("VersionChain", fields: [parentVersionId], references: [id])
-  childVersions   CompiledAnalysisSet[] @relation("VersionChain")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Runs using this compiled set
-  runs AnalysisRun[]
-
-  @@index([analysisProfileId])
-  @@index([status])
 }
 
 // =========================
@@ -656,8 +555,8 @@ model InstitutionType {
   description String?
   isActive    Boolean @default(true)
 
-  // Terminology preset — JSON TermMap with 7 keys:
-  // { domain, playbook, spec, caller, cohort, instructor, session }
+  // Terminology preset — JSON TermMap with 11 keys:
+  // { domain, playbook, spec, caller, cohort, instructor, session, persona, supervisor, teach_action, learning_noun }
   terminology Json
 
   // Which wizard spec to use for setup (null = default COURSE-SETUP-001)
@@ -816,14 +715,6 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
 // Invite system - control who can sign up
 model Invite {
   id        String    @id @default(uuid())
@@ -875,9 +766,11 @@ model Caller {
   previousDomainId  String? // Track last domain for re-onboarding detection
   domainSwitchCount Int     @default(0) // Number of times caller switched domains
 
-  // Cohort group membership (for pupils in a teacher's group)
-  cohortGroupId String?
-  cohortGroup   CohortGroup? @relation("CohortMembers", fields: [cohortGroupId], references: [id])
+  // Cohort group membership — multi-cohort via join table
+  // DEPRECATED: cohortGroupId is kept for migration compatibility, use cohortMemberships instead
+  cohortGroupId    String?
+  cohortGroup      CohortGroup?             @relation("CohortMembers", fields: [cohortGroupId], references: [id])
+  cohortMemberships CallerCohortMembership[] @relation("CallerCohortMemberships")
 
   // Direct supervisor (for 1-1 tutor relationships without a formal group)
   supervisorCallerId String?
@@ -985,8 +878,10 @@ model CohortGroup {
   joinToken    String?   @unique
   joinTokenExp DateTime? // Optional expiry (null = no expiry)
 
-  // Members
+  // Members — legacy direct relation (via Caller.cohortGroupId FK)
   members Caller[] @relation("CohortMembers")
+  // Members — new multi-cohort join table
+  memberships CallerCohortMembership[] @relation("CohortGroupMemberships")
 
   // Institution branding (null = no institution)
   institutionId String?
@@ -1005,6 +900,23 @@ model CohortGroup {
   @@index([ownerId])
   @@index([isActive])
   @@index([institutionId])
+}
+
+// CallerCohortMembership — join table for multi-cohort membership.
+// A caller can belong to multiple cohort groups simultaneously
+// (e.g. "Math 101" AND "Science 201").
+model CallerCohortMembership {
+  id            String      @id @default(uuid())
+  callerId      String
+  caller        Caller      @relation("CallerCohortMemberships", fields: [callerId], references: [id], onDelete: Cascade)
+  cohortGroupId String
+  cohortGroup   CohortGroup @relation("CohortGroupMemberships", fields: [cohortGroupId], references: [id], onDelete: Cascade)
+  joinedAt      DateTime    @default(now())
+  role          String      @default("MEMBER") // MEMBER | LEADER
+
+  @@unique([callerId, cohortGroupId])
+  @@index([callerId])
+  @@index([cohortGroupId])
 }
 
 // CallTarget - Per-call behavior targets computed by ADAPT specs
@@ -1327,11 +1239,10 @@ model CallMessage {
 }
 
 model CallScore {
-  id            String  @id @default(uuid())
-  analysisRunId String? // Optional - can be scored by agent without a run
-  callId        String
-  callerId      String? // Denormalized for efficient queries
-  parameterId   String
+  id         String  @id @default(uuid())
+  callId     String
+  callerId   String? // Denormalized for efficient queries
+  parameterId String
 
   // Scoring result
   score      Float
@@ -1347,14 +1258,12 @@ model CallScore {
   createdAt DateTime @default(now())
 
   // Relations
-  run          AnalysisRun?  @relation(fields: [analysisRunId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   call         Call          @relation(fields: [callId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   caller       Caller?       @relation(fields: [callerId], references: [id], onDelete: SetNull)
   parameter    Parameter     @relation(fields: [parameterId], references: [parameterId], onDelete: Restrict, onUpdate: Cascade)
   analysisSpec AnalysisSpec? @relation(fields: [analysisSpecId], references: [id], onDelete: SetNull)
 
-  @@unique([analysisRunId, callId, parameterId])
-  @@index([analysisRunId])
+  @@unique([callId, parameterId])
   @@index([callId])
   @@index([parameterId])
   @@index([callerId], map: "CallScore_userId_idx")
@@ -1456,41 +1365,6 @@ model VectorEmbedding {
 
   @@index([chunkId])
   @@index([model])
-}
-
-// Knowledge artifacts curated for specific parameters
-enum ArtifactType {
-  SCORING_GUIDE // "How to score openness from conversation"
-  EXAMPLES // "Examples of high/low openness in calls"
-  RESEARCH_SUMMARY // "Research findings on openness indicators"
-  PROMPT_TEMPLATE // "LLM prompt template for scoring openness"
-  CALIBRATION_DATA // "Benchmark examples with known scores"
-}
-
-model KnowledgeArtifact {
-  id          String  @id @default(uuid())
-  parameterId String? // Link to specific parameter
-
-  // Artifact type and content
-  type    ArtifactType
-  title   String
-  content String       @db.Text // Condensed, curated content
-
-  // Source tracking
-  sourceChunkIds String[] // Which chunks contributed to this artifact
-  confidence     Float? // How confident are we in this artifact?
-
-  // Metadata
-  tags    String[] // ["openness", "high_indicators", "conversational"]
-  version String   @default("1.0")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  parameter Parameter? @relation(fields: [parameterId], references: [parameterId])
-
-  @@index([parameterId])
-  @@index([type])
 }
 
 // Junction table: Parameter ↔ Knowledge chunks (with relevance scores)
@@ -2000,38 +1874,10 @@ model PromptSlugSelection {
   call   Call    @relation(fields: [callId], references: [id], onDelete: Cascade)
   caller Caller? @relation(fields: [callerId], references: [id])
 
-  // Link to reward (populated after call ends)
-  reward PromptSlugReward?
-
   @@index([callId])
   @@index([callerId], map: "PromptSlugSelection_userId_idx")
   @@index([promptSlug])
   @@index([selectedAt])
-}
-
-// Reward for a specific prompt slug selection
-model PromptSlugReward {
-  id          String @id @default(uuid())
-  selectionId String @unique
-
-  // Computed reward score (-1.0 to +1.0)
-  rewardScore Float
-
-  // Component scores that fed into reward
-  components Json // { csat, duration, resolved, sentiment_delta, ... }
-
-  // Source of reward signals
-  explicitFeedback Json? // Agent/customer ratings
-  implicitSignals  Json? // Call metrics
-  derivedMetrics   Json? // AI-computed metrics
-
-  createdAt DateTime @default(now())
-
-  selection PromptSlugSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
-
-  @@index([selectionId])
-  @@index([rewardScore])
-  @@index([createdAt])
 }
 
 // =========================
@@ -2581,44 +2427,13 @@ model ParameterScoringAnchor {
   @@index([sourceFeatureSetId])
 }
 
-// Aggregated effectiveness stats per prompt slug + personality bucket
-model PromptSlugStats {
-  id String @id @default(uuid())
-
-  // The slug being tracked
-  promptSlug String
-
-  // Personality bucket (e.g., "high_N", "high_E_low_N", "balanced")
-  personalityBucket String
-
-  // Aggregated metrics
-  totalUses            Int   @default(0)
-  avgReward            Float @default(0)
-  successRate          Float @default(0) // % of positive rewards
-  confidenceAdjustment Float @default(0) // Learned adjustment to base confidence
-
-  // Time-windowed stats (last 30 days)
-  recentUses      Int   @default(0)
-  recentAvgReward Float @default(0)
-
-  // Last updated
-  updatedAt DateTime @updatedAt
-
-  @@unique([promptSlug, personalityBucket])
-  @@index([promptSlug])
-  @@index([personalityBucket])
-  @@index([avgReward])
-}
-
 // =========================
 // PROMPT SLUG SYSTEM
 // =========================
-// Dynamic prompt composition based on parameter values, memories, and stacks
+// Dynamic prompt composition based on parameter values and memories
 // Key concepts:
 // - PromptBlock: Static prompt blocks (system prompts, safety, personas)
 // - PromptSlug: Dynamic prompt fragments driven by parameter values
-// - PromptStack: Ordered collection of blocks + slugs that compose into final prompt
-// - "Last wins" override: Later items in stack override earlier guidance
 
 enum PromptSlugSource {
   PARAMETER // Driven by a parameter value (e.g., openness score)
@@ -2631,19 +2446,6 @@ enum PromptSlugMode {
   ABSOLUTE // Uses current value (e.g., openness = 0.8)
   DELTA // Uses change from previous call (e.g., openness increased by 0.2)
   GOAL // Uses goal progress (current / target)
-}
-
-enum PromptStackStatus {
-  DRAFT // Work in progress
-  PUBLISHED // Active and can be used by callers
-  ARCHIVED // Superseded by newer version
-}
-
-enum PromptStackItemType {
-  BLOCK // Static prompt block
-  SLUG // Dynamic slug driven by parameter/memory
-  CALLER // Auto-generated from caller's memories
-  AUTO_SLUGS // Auto-collect all relevant dynamic prompts for caller's parameters
 }
 
 // Static prompt blocks (system prompts, safety, personas)
@@ -2666,9 +2468,6 @@ model PromptBlock {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relation to stack items
-  stackItems PromptStackItem[]
 
   @@index([category])
   @@index([isActive])
@@ -2721,9 +2520,6 @@ model PromptSlug {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relation to stack items
-  stackItems PromptStackItem[]
 
   // Relation to AnalysisSpecs that use this slug
   analysisSpecs AnalysisSpec[]
@@ -2792,128 +2588,6 @@ model PromptSlugRange {
 }
 
 // =========================
-// PROMPT COMPOSITION CONFIG
-// =========================
-
-// Global configuration for prompt composition
-// System-wide defaults that can be overridden per-slug
-model PromptCompositionConfig {
-  id          String  @id @default(uuid())
-  name        String  @unique // e.g., "default", "high-memory", "minimal"
-  description String?
-
-  // Memory injection defaults
-  memoryMaxCount      Int      @default(20) // Max memories to inject globally
-  memoryMinConfidence Float    @default(0.5) // Minimum confidence threshold
-  memoryDecayEnabled  Boolean  @default(true) // Apply time-based decay weighting
-  memoryCategories    String[] // Categories to include (empty = all)
-
-  // Summarization settings
-  memorySummarizeAbove Int? // If > N memories, summarize instead of listing
-  memorySummaryPrompt  String? @db.Text // Template for summarization
-
-  // Context-awareness settings
-  memoryRelevanceMode String @default("all") // "all" | "topic-match" | "recent" | "weighted"
-  memoryRecencyDays   Int? // For "recent" mode: only include memories from last N days
-
-  // Prompt assembly settings
-  slugSeparator   String  @default("\n\n") // How to join multiple slug outputs
-  includeMetadata Boolean @default(false) // Include debug metadata in output
-
-  // Status
-  isActive  Boolean @default(true)
-  isDefault Boolean @default(false) // Use this config when none specified
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isActive])
-  @@index([isDefault])
-}
-
-// Prompt stack: ordered collection of blocks + slugs
-// Composed at runtime to produce the final prompt
-model PromptStack {
-  id          String  @id @default(uuid())
-  name        String
-  description String?
-
-  // Status workflow
-  status PromptStackStatus @default(DRAFT)
-
-  // Is this the default stack for new callers?
-  isDefault Boolean @default(false)
-
-  // Version chain
-  version         String        @default("1.0")
-  parentVersionId String?
-  parentVersion   PromptStack?  @relation("StackVersionChain", fields: [parentVersionId], references: [id])
-  childVersions   PromptStack[] @relation("StackVersionChain")
-
-  // Usage tracking
-  usageCount Int @default(0)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  publishedAt DateTime?
-
-  // Items in this stack (ordered)
-  items PromptStackItem[]
-
-  // CallerIdentities using this stack
-  callerIdentities CallerIdentity[]
-
-  @@index([status])
-  @@index([isDefault])
-}
-
-// Item in a prompt stack (block, slug, or caller content)
-model PromptStackItem {
-  id      String @id @default(uuid())
-  stackId String
-
-  // What type of item
-  itemType PromptStackItemType
-
-  // === BLOCK item ===
-  blockId String?
-  block   PromptBlock? @relation(fields: [blockId], references: [id])
-
-  // === SLUG item ===
-  slugId String?
-  slug   PromptSlug? @relation(fields: [slugId], references: [id])
-
-  // === CALLER item ===
-  // Auto-generates content from caller's memories
-  // Configure which memory categories to include
-  callerMemoryCategories String[] // e.g., ["FACT", "PREFERENCE"]
-  callerMemoryLimit      Int? // Max memories to include
-
-  // === AUTO_SLUGS item ===
-  // Auto-collect all relevant dynamic prompts based on caller's parameter values
-  autoSlugSourceTypes  String[] // e.g., ["PARAMETER", "COMPOSITE"] - which source types to include
-  autoSlugOrderBy      String? // "priority" | "domainGroup" | "name" - how to order collected prompts
-  autoSlugLimit        Int? // Max slugs to include (null = unlimited)
-  autoSlugDomainFilter String[] // Optional: only include slugs from these domains
-
-  // Item state
-  isEnabled Boolean @default(true)
-
-  // Ordering (critical for "last wins" override)
-  sortOrder Int @default(0)
-
-  stack PromptStack @relation(fields: [stackId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([stackId])
-  @@index([blockId])
-  @@index([slugId])
-  @@index([sortOrder])
-}
-
-// =========================
 // CALLER IDENTITY MODEL
 // =========================
 // Represents a contact identity (phone number, account ID) linked to a Caller
@@ -2938,10 +2612,6 @@ model CallerIdentity {
   segment   Segment? @relation(fields: [segmentId], references: [id])
 
   // === PROMPT STATE ===
-  // Which stack is assigned to this identity
-  promptStackId String?
-  promptStack   PromptStack? @relation(fields: [promptStackId], references: [id])
-
   // The composed prompt ready for the next call
   // This is the output of evaluating the stack against current state
   callerPrompt String? @db.Text
@@ -3025,34 +2695,6 @@ model ComposedPrompt {
   @@index([composedAt])
   @@index([triggerCallId])
   @@index([status])
-}
-
-// =========================
-// SYSTEM ADMIN LOGGING
-// =========================
-
-// System-wide error and event logging for administrators
-model SystemLog {
-  id       String @id @default(uuid())
-  level    String // DEBUG, INFO, WARN, ERROR, CRITICAL
-  category String // CURRICULUM, AI_PROVIDER, SPEC_PROCESSING, etc.
-  message  String @db.Text
-  context  Json? // Additional context data
-  error    Json? // Error details (name, message, stack)
-
-  // Request context
-  requestId String?
-  userId    String?
-  callerId  String?
-
-  // Timestamps
-  timestamp DateTime @default(now())
-
-  // Indexes for admin dashboard queries
-  @@index([level])
-  @@index([category])
-  @@index([timestamp])
-  @@index([callerId])
 }
 
 // =========================
@@ -3538,62 +3180,6 @@ model TicketComment {
 // =========================
 // AI KNOWLEDGE ACCUMULATION
 // =========================
-
-// Logs all AI interactions for learning and improvement
-model AIInteractionLog {
-  id String @id @default(uuid())
-
-  // Where this interaction occurred
-  callPoint String // 'spec.assistant', 'pipeline.measure', etc.
-
-  // The interaction
-  userMessage String @db.Text
-  aiResponse  String @db.Text
-
-  // Outcome classification
-  outcome String // 'success', 'correction', 'failure'
-
-  // Additional context
-  metadata Json? // { entityType, entityId, action, corrections, etc. }
-
-  // Timestamps
-  createdAt DateTime @default(now())
-
-  @@index([callPoint])
-  @@index([outcome])
-  @@index([createdAt])
-}
-
-// Patterns learned from successful interactions
-model AILearnedPattern {
-  id String @id @default(uuid())
-
-  // The pattern (e.g., "create_spec_for_personality")
-  pattern String
-
-  // Where this pattern applies
-  callPoint String
-
-  // Optional domain
-  domain String?
-
-  // Confidence and frequency
-  confidence  Float @default(0.5) // 0-1
-  occurrences Int   @default(1)
-
-  // Example interactions that demonstrate this pattern
-  examples String[] // Array of example messages
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([pattern, callPoint])
-  @@index([callPoint])
-  @@index([domain])
-  @@index([confidence])
-  @@index([occurrences])
-}
 
 // =========================
 // TASK GUIDANCE & FLASH SIDEBAR

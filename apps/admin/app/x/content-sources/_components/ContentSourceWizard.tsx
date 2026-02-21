@@ -36,7 +36,7 @@ export default function ContentSourceWizard() {
       // Load steps from spec
       let stepsToUse = CONTENT_STEPS;
       try {
-        const response = await fetch("/api/wizard-steps?slug=CONTENT-SOURCE-SETUP-001");
+        const response = await fetch("/api/wizard-steps?wizard=content-source");
         const data = await response.json();
 
         if (data.ok && data.steps && data.steps.length > 0) {
@@ -69,19 +69,29 @@ export default function ContentSourceWizard() {
 
   const currentStep = state?.currentStep ?? 0;
 
+  // Track visited steps for accurate stepper display
+  const visitedSteps = useRef(new Set<number>([0]));
+  if (!visitedSteps.current.has(currentStep)) {
+    visitedSteps.current.add(currentStep);
+  }
+
   const handleNext = () => nextStep();
   const handlePrev = () => prevStep();
   const handleGoToStep = (step: number) => setStep(step);
 
-  // Build ProgressStepper data
+  // Build ProgressStepper data — only mark visited steps as completed
   const progressSteps = CONTENT_STEPS.map((s, i) => ({
     label: s.label,
-    completed: i < currentStep,
+    completed: visitedSteps.current.has(i) && i < currentStep,
     active: i === currentStep,
     onClick: i < currentStep ? () => handleGoToStep(i) : undefined,
   }));
 
   const stepProps = { setData, getData, onNext: handleNext, onPrev: handlePrev, endFlow, setStep: handleGoToStep };
+
+  // CS-1: Skip ExtractStep when no file — forward and back
+  const sourceOnNext = getData<boolean>("hasFile") ? handleNext : () => handleGoToStep(2);
+  const reviewOnPrev = getData<boolean>("hasFile") ? handlePrev : () => handleGoToStep(0);
 
   return (
     <div>
@@ -91,9 +101,9 @@ export default function ContentSourceWizard() {
       </div>
 
       {/* Current step */}
-      {currentStep === 0 && <SourceStep {...stepProps} />}
+      {currentStep === 0 && <SourceStep {...stepProps} onNext={sourceOnNext} />}
       {currentStep === 1 && <ExtractStep {...stepProps} />}
-      {currentStep === 2 && <ReviewStep {...stepProps} />}
+      {currentStep === 2 && <ReviewStep {...stepProps} onPrev={reviewOnPrev} />}
       {currentStep === 3 && (
         <PlanStep
           {...stepProps}

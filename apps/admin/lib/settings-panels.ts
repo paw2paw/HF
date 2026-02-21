@@ -79,6 +79,7 @@ export const DEFAULT_CATEGORY_MAP: Record<string, SettingsCategory> = {
   demo: "developer",
   actions: "system",
   defaults: "system",
+  agent_tuning: "ai",
 };
 
 // Non-advanced panels (shown in simple mode)
@@ -147,7 +148,7 @@ export function buildPanelRegistry(
 export const ICON_NAMES = [
   "Activity", "Brain", "Target", "ShieldCheck", "Sparkles",
   "Gauge", "Shield", "Camera", "Mail", "Search", "Phone",
-  "Sun", "Lock", "Zap",
+  "Sun", "Lock", "Zap", "Sliders",
 ] as const;
 
 // ── Helpers ─────────────────────────────────────────

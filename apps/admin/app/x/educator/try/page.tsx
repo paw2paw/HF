@@ -193,7 +193,7 @@ function TryItContent() {
           <div
             style={{
               padding: 16,
-              background: "color-mix(in srgb, #8b5cf6 8%, transparent)",
+              background: "color-mix(in srgb, var(--accent-secondary, #8b5cf6) 8%, transparent)",
               borderRadius: 8,
               marginBottom: 20,
               fontSize: 13,

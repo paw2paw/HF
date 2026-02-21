@@ -62,7 +62,7 @@ export default function TicketsPage() {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Tickets</h1>
+          <h1 className="hf-page-title">Tickets</h1>
           <button
             onClick={() => setShowCreate(true)}
             className="hf-btn hf-btn-primary"
@@ -87,28 +87,28 @@ export default function TicketsPage() {
           <StatCard
             label="Open"
             count={stats.byStatus.OPEN}
-            color="#22c55e"
+            color="var(--status-success-text)"
             onClick={() => setFilterStatus("OPEN")}
             active={filterStatus === "OPEN"}
           />
           <StatCard
             label="In Progress"
             count={stats.byStatus.IN_PROGRESS}
-            color="#3b82f6"
+            color="var(--accent-primary)"
             onClick={() => setFilterStatus("IN_PROGRESS")}
             active={filterStatus === "IN_PROGRESS"}
           />
           <StatCard
             label="Waiting"
             count={stats.byStatus.WAITING}
-            color="#f59e0b"
+            color="var(--status-warning-text)"
             onClick={() => setFilterStatus("WAITING")}
             active={filterStatus === "WAITING"}
           />
           <StatCard
             label="My Assigned"
             count={stats.myAssigned}
-            color="#8b5cf6"
+            color="var(--accent-secondary, #8b5cf6)"
             onClick={() => setFilterAssignedToMe(!filterAssignedToMe)}
             active={filterAssignedToMe}
           />
@@ -441,10 +441,10 @@ function getPriorityConfig(priority: TicketPriority) {
 
 function getPriorityColor(priority: TicketPriority): string {
   const colors: Record<TicketPriority, string> = {
-    LOW: "#6b7280",
-    MEDIUM: "#3b82f6",
-    HIGH: "#f97316",
-    URGENT: "#ef4444",
+    LOW: "var(--text-muted)",
+    MEDIUM: "var(--accent-primary)",
+    HIGH: "var(--status-warning-text)",
+    URGENT: "var(--status-error-text)",
   };
   return colors[priority];
 }

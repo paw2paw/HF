@@ -1,30 +1,65 @@
 [
   {
-    "id": "home",
+    "id": "start",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
       { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true, "wizard": true },
-      { "id": "teach", "href": "/x/teach", "label": "Teach", "icon": "PlayCircle", "wizard": true },
-      { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users", "requiredRole": "OPERATOR", "wizard": true },
-      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "requiredRole": "OPERATOR", "wizard": true, "terminologyLabel": "playbook_plural" },
-      { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" },
+      { "id": "teach", "href": "/x/teach", "label": "Teach", "icon": "PlayCircle", "wizard": true, "terminologyLabel": "teach_action" },
       { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" }
     ]
   },
   {
+    "id": "school",
+    "title": "My School",
+    "terminologySectionTitle": "domain",
+    "defaultHiddenFor": ["OPERATOR", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
+    "items": [
+      { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms", "icon": "School" } } },
+      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["ADMIN", "SUPERADMIN"] }
+    ]
+  },
+  {
+    "id": "learning",
+    "title": "My Learning",
+    "terminologySectionTitle": "learning_noun",
+    "defaultHiddenFor": ["TESTER", "SUPER_TESTER", "DEMO", "EDUCATOR"],
+    "items": [
+      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] }
+    ]
+  },
+  {
+    "id": "manage",
+    "title": "Manage",
+    "requiredRole": "OPERATOR",
+    "defaultHiddenFor": ["EDUCATOR"],
+    "items": [
+      { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users", "wizard": true },
+      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "wizard": true, "terminologyLabel": "playbook_plural" },
+      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural" },
+      { "id": "tasks", "href": "/x/tasks", "label": "Tasks", "icon": "ListChecks" }
+    ]
+  },
+  {
     "id": "calls",
-    "title": "Callers & Calls",
-    "href": "/x/callers",
+    "title": "Calls",
+    "href": "/x/sim",
     "defaultHiddenFor": ["TESTER", "STUDENT", "DEMO", "EDUCATOR"],
     "items": [
-      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural" },
       { "id": "sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
       { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
       { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR" }
     ]
   },
   {
-    "id": "content",
+    "id": "library",
     "title": "Library",
     "href": "/x/subjects",
     "requiredRole": "OPERATOR",
@@ -33,26 +68,9 @@
     "items": [
       { "id": "subjects", "href": "/x/subjects", "label": "Subjects", "icon": "BookMarked" },
       { "id": "content-sources", "href": "/x/content-sources", "label": "Sources", "icon": "ShieldCheck", "wizard": true },
-      { "id": "content-review", "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" }
-    ]
-  },
-  {
-    "id": "educator",
-    "title": "My School",
-    "terminologySectionTitle": "institution",
-    "defaultHiddenFor": ["OPERATOR", "SUPER_TESTER", "TESTER", "DEMO"],
-    "items": [
-      { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms", "icon": "School" } } },
-      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "learner_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["ADMIN", "SUPERADMIN"] },
-      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] }
+      { "id": "content-review", "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" },
+      { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" },
+      { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download" }
     ]
   },
   {
@@ -69,9 +87,7 @@
       { "id": "layers", "href": "/x/layers", "label": "Layers", "icon": "Layers" },
       { "id": "taxonomy-graph", "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" },
       { "id": "flows", "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
-      { "id": "content-explorer", "href": "/x/content-explorer", "label": "Content Explorer", "icon": "FileSearch" },
-      { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download" },
-      { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" }
+      { "id": "content-explorer", "href": "/x/content-explorer", "label": "Content Explorer", "icon": "FileSearch" }
     ]
   },
   {
@@ -83,6 +99,7 @@
     "items": [
       { "id": "ai-config", "href": "/x/ai-config", "label": "AI Config", "icon": "Bot" },
       { "id": "ai-knowledge", "href": "/x/ai-knowledge", "label": "AI Knowledge", "icon": "Brain" },
+      { "id": "ai-logs", "href": "/x/logs", "label": "AI Logs", "icon": "FileText" },
       { "id": "ai-errors", "href": "/x/ai-errors", "label": "AI Errors", "icon": "AlertTriangle" },
       { "id": "ai-metering", "href": "/x/metering", "label": "AI Metering", "icon": "BarChart3" }
     ]

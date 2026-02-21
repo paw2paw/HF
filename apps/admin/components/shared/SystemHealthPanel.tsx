@@ -35,32 +35,32 @@ const ragConfig: Record<
   { bg: string; text: string; border: string; label: string; icon: string }
 > = {
   green: {
-    bg: "#ecfdf5",
-    text: "#065f46",
-    border: "#a7f3d0",
+    bg: "var(--status-success-bg, #ecfdf5)",
+    text: "var(--status-success-text, #065f46)",
+    border: "var(--status-success-border, #a7f3d0)",
     label: "All Clear",
     icon: "\u2713",
   },
   amber: {
-    bg: "#fffbeb",
-    text: "#92400e",
-    border: "#fde68a",
+    bg: "var(--status-warning-bg, #fffbeb)",
+    text: "var(--status-warning-text, #92400e)",
+    border: "var(--status-warning-border, #fde68a)",
     label: "Warnings",
     icon: "\u25CB",
   },
   red: {
-    bg: "#fef2f2",
-    text: "#991b1b",
-    border: "#fecaca",
+    bg: "var(--status-error-bg, #fef2f2)",
+    text: "var(--status-error-text, #991b1b)",
+    border: "var(--status-error-border, #fecaca)",
     label: "Issues Found",
     icon: "\u2717",
   },
 };
 
 const statusIcon: Record<CheckStatus, { icon: string; color: string }> = {
-  pass: { icon: "\u2713", color: "#16a34a" },
-  warn: { icon: "\u25CB", color: "#f59e0b" },
-  fail: { icon: "\u2717", color: "#dc2626" },
+  pass: { icon: "\u2713", color: "var(--status-success-text)" },
+  warn: { icon: "\u25CB", color: "var(--status-warning-text)" },
+  fail: { icon: "\u2717", color: "var(--status-error-text)" },
 };
 
 const severityOrder = ["critical", "recommended", "optional"] as const;
@@ -70,9 +70,9 @@ const severityLabels: Record<string, string> = {
   optional: "Optional",
 };
 const severityColors: Record<string, string> = {
-  critical: "#dc2626",
-  recommended: "#f59e0b",
-  optional: "#6b7280",
+  critical: "var(--status-error-text)",
+  recommended: "var(--status-warning-text)",
+  optional: "var(--text-muted)",
 };
 
 // =====================================================
@@ -179,7 +179,7 @@ export function SystemHealthPanel() {
           >
             System Health
           </span>
-          <span data-testid="system-health-error" style={{ fontSize: 12, color: "#dc2626", marginLeft: 8 }}>
+          <span data-testid="system-health-error" style={{ fontSize: 12, color: "var(--status-error-text)", marginLeft: 8 }}>
             {error}
           </span>
         </div>
@@ -320,9 +320,9 @@ export function SystemHealthPanel() {
                       fontSize: 12,
                       color:
                         check.status === "fail"
-                          ? "#dc2626"
+                          ? "var(--status-error-text)"
                           : check.status === "warn"
-                            ? "#92400e"
+                            ? "var(--status-warning-text, #92400e)"
                             : "var(--text-muted)",
                       marginTop: 1,
                     }}

@@ -15,6 +15,9 @@ const mockPrisma = {
     findMany: vi.fn(),
     findFirst: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+  },
   call: {
     findMany: vi.fn(),
     count: vi.fn(),
@@ -77,9 +80,9 @@ describe("/api/cohorts/:cohortId/activity", () => {
   // ===================================================
   describe("GET", () => {
     it("should return activity for cohort members", async () => {
-      mockPrisma.caller.findMany.mockResolvedValue([
-        { id: "pupil-1" },
-        { id: "pupil-2" },
+      mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
+        { callerId: "pupil-1" },
+        { callerId: "pupil-2" },
       ]);
 
       const mockCalls = [
@@ -125,7 +128,7 @@ describe("/api/cohorts/:cohortId/activity", () => {
     });
 
     it("should return empty activity when cohort has no members", async () => {
-      mockPrisma.caller.findMany.mockResolvedValue([]);
+      mockPrisma.callerCohortMembership.findMany.mockResolvedValue([]);
 
       const { GET } = await import(
         "../../app/api/cohorts/[cohortId]/activity/route"
@@ -144,7 +147,7 @@ describe("/api/cohorts/:cohortId/activity", () => {
     });
 
     it("should respect limit and offset query parameters", async () => {
-      mockPrisma.caller.findMany.mockResolvedValue([{ id: "pupil-1" }]);
+      mockPrisma.callerCohortMembership.findMany.mockResolvedValue([{ callerId: "pupil-1" }]);
       mockPrisma.call.findMany.mockResolvedValue([]);
       mockPrisma.call.count.mockResolvedValue(0);
 
@@ -168,7 +171,7 @@ describe("/api/cohorts/:cohortId/activity", () => {
     });
 
     it("should cap limit at 200", async () => {
-      mockPrisma.caller.findMany.mockResolvedValue([{ id: "pupil-1" }]);
+      mockPrisma.callerCohortMembership.findMany.mockResolvedValue([{ callerId: "pupil-1" }]);
       mockPrisma.call.findMany.mockResolvedValue([]);
       mockPrisma.call.count.mockResolvedValue(0);
 

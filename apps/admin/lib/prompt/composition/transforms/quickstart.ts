@@ -57,10 +57,22 @@ registerTransform("computeQuickStart", (
 
     this_caller: `${caller?.name || "Unknown"} (call #${loadedData.callCount + 1})`,
 
-    cohort_context: caller?.cohortGroup
-      ? `Part of ${caller.cohortGroup.name}` +
-        (caller.cohortGroup.owner?.name ? ` (teacher: ${caller.cohortGroup.owner.name})` : "")
-      : null,
+    cohort_context: (() => {
+      // Prefer multi-cohort memberships, fall back to legacy single cohort
+      const memberships = caller?.cohortMemberships;
+      if (memberships && memberships.length > 0) {
+        return memberships.map(m => {
+          let ctx = m.cohortGroup.name;
+          if (m.cohortGroup.owner?.name) ctx += ` (teacher: ${m.cohortGroup.owner.name})`;
+          return ctx;
+        }).join("; ");
+      }
+      if (caller?.cohortGroup) {
+        return `Part of ${caller.cohortGroup.name}` +
+          (caller.cohortGroup.owner?.name ? ` (teacher: ${caller.cohortGroup.owner.name})` : "");
+      }
+      return null;
+    })(),
 
     this_session: (() => {
       if (isFirstCall && modules[0]) {

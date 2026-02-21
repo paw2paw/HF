@@ -23,9 +23,9 @@ export function MinimizedAssistant() {
         width: 60,
         height: 60,
         borderRadius: "50%",
-        background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+        background: "linear-gradient(135deg, var(--badge-indigo-text, #6366f1) 0%, var(--accent-secondary, #8b5cf6) 100%)",
         border: "none",
-        boxShadow: "0 4px 20px rgba(99, 102, 241, 0.4)",
+        boxShadow: "0 4px 20px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 40%, transparent)",
         cursor: "pointer",
         display: "flex",
         alignItems: "center",
@@ -36,11 +36,11 @@ export function MinimizedAssistant() {
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "scale(1.1)";
-        e.currentTarget.style.boxShadow = "0 6px 30px rgba(99, 102, 241, 0.6)";
+        e.currentTarget.style.boxShadow = "0 6px 30px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 60%, transparent)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "scale(1)";
-        e.currentTarget.style.boxShadow = "0 4px 20px rgba(99, 102, 241, 0.4)";
+        e.currentTarget.style.boxShadow = "0 4px 20px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 40%, transparent)";
       }}
     >
       🤖

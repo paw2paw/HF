@@ -146,7 +146,7 @@ export default function DebugPage() {
   return (
     <div style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Debug Console</h1>
+        <h1 className="hf-page-title">Debug Console</h1>
         <p style={{ color: "var(--text-secondary)", margin: "4px 0 0", fontSize: 14 }}>
           Test API endpoints and view request/response logs
         </p>
@@ -157,7 +157,7 @@ export default function DebugPage() {
           onClick={testPipeline}
           style={{
             padding: "8px 16px",
-            background: "var(--accent-primary, #4f46e5)",
+            background: "var(--accent-primary)",
             color: "white",
             border: "none",
             borderRadius: 6,
@@ -172,7 +172,7 @@ export default function DebugPage() {
           onClick={clearLogs}
           style={{
             padding: "8px 16px",
-            background: "var(--error, #dc2626)",
+            background: "var(--status-error-text)",
             color: "white",
             border: "none",
             borderRadius: 6,
@@ -228,7 +228,7 @@ export default function DebugPage() {
           disabled={!input.trim()}
           style={{
             padding: "8px 16px",
-            background: input.trim() ? "var(--success, #059669)" : "var(--text-tertiary, #9ca3af)",
+            background: input.trim() ? "var(--status-success-text)" : "var(--text-muted)",
             color: "white",
             border: "none",
             borderRadius: 6,
@@ -262,7 +262,7 @@ export default function DebugPage() {
               onClick={copyResult}
               style={{
                 padding: "4px 10px",
-                background: copied ? "var(--success, #059669)" : "var(--surface-tertiary, #e5e7eb)",
+                background: copied ? "var(--status-success-text)" : "var(--surface-tertiary)",
                 color: copied ? "white" : "var(--text-secondary)",
                 border: "none",
                 borderRadius: 4,

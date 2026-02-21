@@ -14,8 +14,6 @@ import type { UserRole } from "@prisma/client";
 
 export const MASQUERADE_COOKIE = "hf.masquerade";
 export const MASQUERADE_MAX_AGE = 8 * 60 * 60; // 8 hours
-export const MASQUERADE_BANNER_HEIGHT = 32; // px — used by layout for padding
-
 export interface MasqueradeState {
   userId: string;
   email: string;

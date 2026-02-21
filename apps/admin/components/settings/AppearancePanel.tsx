@@ -130,7 +130,7 @@ export function AppearancePanel(_props: PanelProps) {
                     <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{preset.name}</div>
                     <div style={{ fontSize: 11, color: "#6b7280" }}>{preset.description}</div>
                   </div>
-                  {mounted && isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)" }} title="Currently active" />}
+                  {mounted && isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-success-text)", boxShadow: "0 0 0 2px color-mix(in srgb, var(--status-success-text) 20%, transparent)" }} title="Currently active" />}
                   {mounted && isSelected && !isActive && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--accent-primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={14} strokeWidth={2.5} /></div>}
                 </button>
               );
@@ -161,7 +161,7 @@ export function AppearancePanel(_props: PanelProps) {
                     <div style={{ fontSize: 13, fontWeight: 500, color: "#e5e7eb" }}>{preset.name}</div>
                     <div style={{ fontSize: 11, color: "#9ca3af" }}>{preset.description}</div>
                   </div>
-                  {mounted && isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.2)" }} title="Currently active" />}
+                  {mounted && isActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-success-text)", boxShadow: "0 0 0 2px color-mix(in srgb, var(--status-success-text) 20%, transparent)" }} title="Currently active" />}
                   {mounted && isSelected && !isActive && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--accent-primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={14} strokeWidth={2.5} /></div>}
                 </button>
               );
@@ -201,7 +201,7 @@ export function AppearancePanel(_props: PanelProps) {
             transition: "all 0.15s ease",
           }}
         >
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", color: bugReporterEnabled ? "#ef4444" : "var(--text-muted)" }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", color: bugReporterEnabled ? "var(--status-error-text)" : "var(--text-muted)" }}>
             <Bug size={18} />
           </div>
           <div style={{ flex: 1, textAlign: "left" }}>
@@ -225,12 +225,12 @@ export function AppearancePanel(_props: PanelProps) {
                 width: 18,
                 height: 18,
                 borderRadius: "50%",
-                background: "#fff",
+                background: "var(--surface-primary)",
                 position: "absolute",
                 top: 2,
                 left: mounted && bugReporterEnabled ? 20 : 2,
                 transition: "left 0.2s ease",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                boxShadow: "0 1px 3px color-mix(in srgb, var(--text-primary) 20%, transparent)",
               }}
             />
           </div>

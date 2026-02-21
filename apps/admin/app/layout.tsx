@@ -5,19 +5,19 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
 import { TopBar } from '@/components/shared/TopBar';
-import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, useMasquerade, BrandingProvider, useBranding, ViewModeProvider, StepFlowProvider, useStepFlow } from '@/contexts';
+import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, BrandingProvider, useBranding, ViewModeProvider, StepFlowProvider, useStepFlow } from '@/contexts';
 import { TerminologyProvider } from '@/contexts/TerminologyContext';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
 import { ChatPanel } from '@/components/chat';
 import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
-import EnvironmentBanner, { envSidebarColor, envSidebarWidth, envLabel } from '@/components/shared/EnvironmentBanner';
-import MasqueradeBanner, { MASQUERADE_BANNER_HEIGHT, MASQUERADE_COLOR } from '@/components/shared/MasqueradeBanner';
+import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 import StepFlowBanner, { STEP_FLOW_BANNER_HEIGHT } from '@/components/shared/StepFlowBanner';
 import { TourOverlay } from '@/src/components/shared/TourOverlay';
 import { ErrorCaptureProvider } from '@/contexts/ErrorCaptureContext';
 import { BugReportButton } from '@/components/shared/BugReportButton';
+import { StatusBar } from '@/components/shared/StatusBar';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Menu, PanelLeft } from 'lucide-react';
 import './globals.css';
@@ -72,7 +72,7 @@ const SIDEBAR_WIDTH_KEY = 'hf.sidebar.width';
 const DEFAULT_SIDEBAR_WIDTH = 180;
 const MIN_SIDEBAR_WIDTH = 140;
 const MAX_SIDEBAR_WIDTH = 320;
-const COLLAPSED_WIDTH = 0;
+const COLLAPSED_WIDTH = 56;
 
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
@@ -85,13 +85,8 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const { isOpen, chatLayout } = useChatContext();
   const { isMobile, showDesktop } = useResponsive();
-  const { isMasquerading } = useMasquerade();
   const { isActive: isStepFlowActive } = useStepFlow();
   const { branding } = useBranding();
-
-  // Hydration guard is now centralized in MasqueradeContext — isMasquerading
-  // is always false until after mount, so all consumers are automatically safe.
-  const showMasqueradeChrome = isMasquerading;
 
   // Embed mode - render without sidebar/chrome (for iframes)
   const isEmbed = searchParams.get('embed') === '1';
@@ -203,11 +198,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Get isOnFlowPage from context to suppress banner height on wizard home pages
   const { isOnFlowPage } = useStepFlow();
 
-  // Height accounts for fixed banners (MasqueradeBanner + StepFlowBanner)
+  // Height accounts for fixed banners (StepFlowBanner)
   const showStepFlowBar = isStepFlowActive && !isOnFlowPage && !isSimPage && !isAuthPage && !isEmbed;
-  const bannerHeight =
-    (showMasqueradeChrome ? MASQUERADE_BANNER_HEIGHT : 0) +
-    (showStepFlowBar ? STEP_FLOW_BANNER_HEIGHT : 0);
+  const bannerHeight = showStepFlowBar ? STEP_FLOW_BANNER_HEIGHT : 0;
   const layoutHeight = bannerHeight > 0 ? `calc(100vh - ${bannerHeight}px)` : '100vh';
 
   // Auth pages, embed mode, and sim pages render without sidebar/chrome
@@ -215,15 +208,10 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Masquerade border — visible purple frame around the viewport
-  const masqueradeBorderStyle: React.CSSProperties = showMasqueradeChrome
-    ? { boxShadow: `inset 0 0 0 3px ${MASQUERADE_COLOR}` }
-    : {};
-
   // Mobile layout (< 768px, not forced desktop mode)
   if (isMobile && !showDesktop) {
     return (
-      <div className="flex flex-col" style={{ height: layoutHeight, ...masqueradeBorderStyle }}>
+      <div className="flex flex-col" style={{ height: layoutHeight }}>
         {/* Mobile header with hamburger */}
         <header
           className="h-14 border-b flex items-center px-4 gap-3 flex-shrink-0"
@@ -262,7 +250,6 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               style={{
                 background: 'var(--surface-primary)',
                 borderRight: '1px solid var(--border-default)',
-                borderLeft: envSidebarColor ? `${envSidebarWidth}px solid ${envSidebarColor}` : undefined,
               }}
             >
               <div className="h-full px-2 py-4">
@@ -276,88 +263,76 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto min-h-0">
           <div className="px-4 py-6">
             {children}
           </div>
         </main>
+
+        <StatusBar />
       </div>
     );
   }
 
   // Desktop layout (current grid)
   return (
-    <div
-      className="grid relative"
-      style={{
-        height: layoutHeight,
-        gridTemplateColumns: `${effectiveSidebarWidth}px 1fr`,
-        gridTemplateRows: '1fr',
-        transition: isResizing ? 'none' : 'grid-template-columns 200ms ease-out',
-        ...masqueradeBorderStyle,
-      }}
-    >
-      {/* Floating sidebar open button when fully hidden */}
-      {collapsed && (
-        <button
-          onClick={() => setCollapsed(false)}
-          className="absolute top-4 left-3 z-30 flex h-8 w-8 items-center justify-center rounded-md transition-all hover:bg-[var(--hover-bg)]"
-          style={{
-            background: 'var(--surface-primary)',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-          }}
-          aria-label="Open sidebar"
-          title="Open sidebar"
-        >
-          <PanelLeft className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
-        </button>
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className="relative h-full overflow-hidden"
+    <div style={{ height: layoutHeight, display: 'flex', flexDirection: 'column' }}>
+      <div
+        className="grid relative"
         style={{
-          background: 'var(--surface-primary)',
-          borderRight: collapsed ? 'none' : '1px solid var(--border-subtle)',
-          borderLeft: envSidebarColor ? `${envSidebarWidth}px solid ${envSidebarColor}` : undefined,
+          flex: 1,
+          minHeight: 0,
+          gridTemplateColumns: `${effectiveSidebarWidth}px 1fr`,
+          gridTemplateRows: '1fr',
+          transition: isResizing ? 'none' : 'grid-template-columns 200ms ease-out',
         }}
       >
-        <div className="h-full px-2 py-4">
-          <SimpleSidebarNav
-            collapsed={collapsed}
-            onToggle={() => setCollapsed((v) => !v)}
-          />
-        </div>
-        {/* Resize handle - thin line, wider hit target */}
-        {!collapsed && (
-          <div
-            ref={resizeRef}
-            onMouseDown={handleMouseDown}
-            className="absolute top-0 right-0 w-3 h-full cursor-col-resize flex justify-end"
-            style={{ zIndex: 10 }}
-            title="Drag to resize"
-          >
-            <div
-              className={
-                "w-px h-full transition-all " +
-                (isResizing ? "w-0.5 bg-indigo-500" : "bg-neutral-300 dark:bg-neutral-600 hover:w-0.5 hover:bg-indigo-400")
-              }
+        {/* Sidebar */}
+        <aside
+          className="relative h-full overflow-hidden"
+          style={{
+            background: 'var(--surface-primary)',
+            borderRight: '1px solid var(--border-subtle)',
+          }}
+        >
+          <div className="h-full px-2 py-4">
+            <SimpleSidebarNav
+              collapsed={collapsed}
+              onToggle={() => setCollapsed((v) => !v)}
             />
           </div>
-        )}
-      </aside>
+          {/* Resize handle - thin line, wider hit target */}
+          {!collapsed && (
+            <div
+              ref={resizeRef}
+              onMouseDown={handleMouseDown}
+              className="absolute top-0 right-0 w-3 h-full cursor-col-resize flex justify-end"
+              style={{ zIndex: 10 }}
+              title="Drag to resize"
+            >
+              <div
+                className={
+                  "w-px h-full transition-all " +
+                  (isResizing ? "w-0.5 bg-indigo-500" : "bg-neutral-300 dark:bg-neutral-600 hover:w-0.5 hover:bg-indigo-400")
+                }
+              />
+            </div>
+          )}
+        </aside>
 
-      {/* Main content */}
-      <main
-        className="h-full min-w-0 overflow-auto transition-all duration-200 flex flex-col"
-        style={getMainStyle()}
-      >
-        <TopBar />
-        <div className="py-6" style={{ paddingLeft: collapsed ? 56 : 32, paddingRight: 32, flex: 1 }}>
-          {children}
-        </div>
-      </main>
+        {/* Main content */}
+        <main
+          className="h-full min-w-0 overflow-auto transition-all duration-200 flex flex-col"
+          style={getMainStyle()}
+        >
+          <TopBar />
+          <div className="py-6" style={{ paddingLeft: 32, paddingRight: 32, flex: 1 }}>
+            {children}
+          </div>
+        </main>
+      </div>
+
+      <StatusBar />
     </div>
   );
 }
@@ -386,7 +361,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <MasqueradeProvider>
               <StepFlowProvider>
               <ViewModeProvider>
-              <MasqueradeBanner />
               <StepFlowBanner />
               <EntityProvider>
                 <GuidanceProvider>

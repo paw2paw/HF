@@ -96,13 +96,13 @@ type ApiResult = {
 // ── Colors ──
 
 const DOMAIN_COLORS: Record<string, string> = {
-  companion: "#8b5cf6",
-  communication: "#0891b2",
-  personality: "#d97706",
-  learning: "#059669",
-  voice: "#2563eb",
-  memory: "#ec4899",
-  math: "#f59e0b",
+  companion: "var(--badge-purple-text)",
+  communication: "var(--badge-cyan-text)",
+  personality: "var(--badge-yellow-text)",
+  learning: "var(--status-success-text)",
+  voice: "var(--accent-primary)",
+  memory: "var(--badge-pink-text)",
+  math: "var(--status-warning-text)",
 };
 
 function domainColor(group: string | null): string {
@@ -289,7 +289,7 @@ export default function DictionaryPage() {
       {/* Header */}
       <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 className="hf-page-title">
             Data Dictionary
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
@@ -322,11 +322,11 @@ export default function DictionaryPage() {
       {summary && !loading && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
           <StatCard label="Total" value={summary.total} />
-          <StatCard label="Active" value={summary.active} accent="#059669" />
-          <StatCard label="With Specs" value={summary.withSpecs} accent="#4f46e5" />
-          <StatCard label="With Playbooks" value={summary.withPlaybooks} accent="#2563eb" />
-          <StatCard label="With Targets" value={summary.withTargets} accent="#d97706" />
-          <StatCard label="Orphaned" value={summary.orphaned} accent={summary.orphaned > 0 ? "#dc2626" : "var(--text-muted)"} />
+          <StatCard label="Active" value={summary.active} accent="var(--status-success-text)" />
+          <StatCard label="With Specs" value={summary.withSpecs} accent="var(--accent-primary)" />
+          <StatCard label="With Playbooks" value={summary.withPlaybooks} accent="var(--accent-primary)" />
+          <StatCard label="With Targets" value={summary.withTargets} accent="var(--badge-yellow-text)" />
+          <StatCard label="Orphaned" value={summary.orphaned} accent={summary.orphaned > 0 ? "var(--status-error-text)" : "var(--text-muted)"} />
         </div>
       )}
 
@@ -376,7 +376,7 @@ export default function DictionaryPage() {
             type="checkbox"
             checked={showOrphans}
             onChange={(e) => setShowOrphans(e.target.checked)}
-            style={{ accentColor: "#dc2626" }}
+            style={{ accentColor: "var(--status-error-text)" }}
           />
           Orphans only
         </label>
@@ -395,7 +395,7 @@ export default function DictionaryPage() {
             type="checkbox"
             checked={showActiveOnly}
             onChange={(e) => setShowActiveOnly(e.target.checked)}
-            style={{ accentColor: "#059669" }}
+            style={{ accentColor: "var(--status-success-text)" }}
           />
           Active only
         </label>
@@ -576,11 +576,11 @@ export default function DictionaryPage() {
 
                           {/* Relationship pills */}
                           <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
-                            <Pill label="Specs" count={param._counts.specs} color="#4f46e5" />
-                            <Pill label="Playbooks" count={param._counts.playbooks} color="#2563eb" />
-                            <Pill label="Targets" count={param._counts.behaviorTargets} color="#d97706" />
-                            <Pill label="Slugs" count={param._counts.promptSlugs} color="#0891b2" />
-                            <Pill label="Anchors" count={param._counts.scoringAnchors} color="#8b5cf6" />
+                            <Pill label="Specs" count={param._counts.specs} color="var(--accent-primary)" />
+                            <Pill label="Playbooks" count={param._counts.playbooks} color="var(--accent-primary)" />
+                            <Pill label="Targets" count={param._counts.behaviorTargets} color="var(--badge-yellow-text)" />
+                            <Pill label="Slugs" count={param._counts.promptSlugs} color="var(--badge-cyan-text)" />
+                            <Pill label="Anchors" count={param._counts.scoringAnchors} color="var(--badge-purple-text)" />
                             {relCount === 0 && (
                               <span style={{ fontSize: 11, color: "var(--status-error-text)", fontWeight: 500 }}>
                                 orphan
@@ -622,7 +622,7 @@ export default function DictionaryPage() {
                                       key={s.id}
                                       label={s.slug}
                                       sub={`${s.actionCount} action${s.actionCount !== 1 ? "s" : ""}`}
-                                      color={s.isActive ? "#4f46e5" : "var(--text-muted)"}
+                                      color={s.isActive ? "var(--accent-primary)" : "var(--text-muted)"}
                                     />
                                   ))}
                                 </div>
@@ -638,7 +638,7 @@ export default function DictionaryPage() {
                                       key={pb.id}
                                       label={pb.name}
                                       sub={pb.domain?.name || undefined}
-                                      color="#2563eb"
+                                      color="var(--accent-primary)"
                                     />
                                   ))}
                                 </div>
@@ -654,7 +654,7 @@ export default function DictionaryPage() {
                                       key={ps.id}
                                       label={ps.slug}
                                       sub={ps.rangeCount > 0 ? `${ps.rangeCount} range${ps.rangeCount !== 1 ? "s" : ""}` : undefined}
-                                      color="#0891b2"
+                                      color="var(--badge-cyan-text)"
                                     />
                                   ))}
                                 </div>
@@ -678,11 +678,11 @@ export default function DictionaryPage() {
                                         padding: "8px 10px",
                                         fontSize: 12,
                                         borderRadius: 6,
-                                        border: "1px solid color-mix(in srgb, #d97706 20%, transparent)",
-                                        background: "color-mix(in srgb, #d97706 5%, transparent)",
+                                        border: "1px solid color-mix(in srgb, var(--badge-yellow-text) 20%, transparent)",
+                                        background: "color-mix(in srgb, var(--badge-yellow-text) 5%, transparent)",
                                       }}
                                     >
-                                      <div style={{ fontWeight: 600, color: "#d97706" }}>
+                                      <div style={{ fontWeight: 600, color: "var(--badge-yellow-text)" }}>
                                         Target: {bt.targetValue}
                                         {bt.confidence != null && (
                                           <span style={{ fontWeight: 400, marginLeft: 6, opacity: 0.7 }}>
@@ -718,7 +718,7 @@ export default function DictionaryPage() {
                                       <span
                                         style={{
                                           fontWeight: 700,
-                                          color: "#8b5cf6",
+                                          color: "var(--badge-purple-text)",
                                           minWidth: 20,
                                           textAlign: "right",
                                         }}
@@ -730,8 +730,8 @@ export default function DictionaryPage() {
                                           style={{
                                             fontSize: 10,
                                             fontWeight: 600,
-                                            color: "#D4AF37",
-                                            background: "color-mix(in srgb, #D4AF37 12%, transparent)",
+                                            color: "var(--trust-l5-text)",
+                                            background: "color-mix(in srgb, var(--trust-l5-text) 12%, transparent)",
                                             padding: "1px 5px",
                                             borderRadius: 4,
                                           }}

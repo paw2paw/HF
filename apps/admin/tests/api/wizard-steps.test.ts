@@ -22,7 +22,7 @@ describe("GET /api/wizard-steps", () => {
     vi.clearAllMocks();
   });
 
-  it("returns steps from database when spec exists", async () => {
+  it("returns steps from database when spec exists (slug param)", async () => {
     const mockSteps = [
       { id: "source", label: "Add Source", activeLabel: "Adding Source", order: 1 },
       { id: "extract", label: "Extract", activeLabel: "Extracting Content", order: 2 },
@@ -46,6 +46,40 @@ describe("GET /api/wizard-steps", () => {
     expect(data.steps[0].id).toBe("source");
   });
 
+  it("resolves slug from config when wizard param used", async () => {
+    const mockSteps = [
+      { id: "name", label: "Name", activeLabel: "Naming", order: 1 },
+    ];
+
+    mockPrisma.analysisSpec.findFirst.mockResolvedValueOnce({
+      slug: "COURSE-SETUP-001",
+      config: {
+        parameters: [{ id: "wizard_steps", config: { steps: mockSteps } }],
+      },
+    });
+
+    const req = new NextRequest("http://localhost/api/wizard-steps?wizard=course");
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(data.steps).toHaveLength(1);
+    // Verify it resolved through config (findFirst was called with the config slug)
+    expect(mockPrisma.analysisSpec.findFirst).toHaveBeenCalled();
+  });
+
+  it("returns error for unknown wizard name", async () => {
+    const req = new NextRequest("http://localhost/api/wizard-steps?wizard=nonexistent");
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.ok).toBe(false);
+    expect(data.error).toContain("Unknown wizard");
+    expect(data.error).toContain("nonexistent");
+  });
+
   it("returns fallback when spec not found", async () => {
     mockPrisma.analysisSpec.findFirst.mockResolvedValueOnce(null);
 
@@ -59,14 +93,14 @@ describe("GET /api/wizard-steps", () => {
     expect(data.steps).toEqual([]);
   });
 
-  it("returns error when slug parameter missing", async () => {
+  it("returns error when neither wizard nor slug provided", async () => {
     const req = new NextRequest("http://localhost/api/wizard-steps");
     const res = await GET(req);
     const data = await res.json();
 
     expect(res.status).toBe(400);
     expect(data.ok).toBe(false);
-    expect(data.error).toContain("slug");
+    expect(data.error).toContain("wizard");
   });
 
   it("returns fallback on database failure (loadWizardSteps catches internally)", async () => {

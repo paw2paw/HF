@@ -181,7 +181,7 @@ export function AIAssistantPanel({
                   width: 40,
                   height: 40,
                   borderRadius: 10,
-                  background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                  background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #8b5cf6) 100%)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -256,9 +256,9 @@ export function AIAssistantPanel({
                   borderRadius: 12,
                   background:
                     message.role === "user"
-                      ? "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
+                      ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #8b5cf6) 100%)"
                       : "var(--surface-secondary)",
-                  color: message.role === "user" ? "#fff" : "var(--text-primary)",
+                  color: message.role === "user" ? "var(--surface-primary)" : "var(--text-primary)",
                   fontSize: 14,
                   lineHeight: 1.5,
                   border:
@@ -314,7 +314,7 @@ export function AIAssistantPanel({
                       borderRadius: 6,
                       border: "1px solid var(--accent-primary)",
                       background: "var(--accent-primary)",
-                      color: "#fff",
+                      color: "var(--surface-primary)",
                       cursor: "pointer",
                     }}
                     onClick={() => {
@@ -428,7 +428,7 @@ export function AIAssistantPanel({
                 borderRadius: 6,
                 border: "none",
                 background: !input.trim() || loading ? "var(--surface-disabled)" : "var(--accent-primary)",
-                color: !input.trim() || loading ? "var(--text-placeholder)" : "#fff",
+                color: !input.trim() || loading ? "var(--text-placeholder)" : "var(--surface-primary)",
                 cursor: !input.trim() || loading ? "not-allowed" : "pointer",
                 fontWeight: 600,
                 fontSize: 13,

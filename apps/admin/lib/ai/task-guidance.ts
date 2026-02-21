@@ -165,9 +165,26 @@ export async function failTask(taskId: string, error: string): Promise<void> {
         },
       });
     });
-  } catch {
-    // Best-effort — don't let error recording crash the caller
+  } catch (err) {
+    console.error(`[failTask] Could not record failure for task ${taskId}:`, err);
   }
+}
+
+/**
+ * Wrap a fire-and-forget async function so errors always call failTask().
+ *
+ * Use this instead of `fn().catch(console.error)` for any background job
+ * that has a UserTask. Guarantees the task reaches a terminal state on error.
+ *
+ * @example
+ *   backgroundRun(taskId, () => runMyLongJob(taskId, ...args));
+ */
+export function backgroundRun(taskId: string, fn: () => Promise<void>): void {
+  fn().catch(async (err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[backgroundRun] Task ${taskId} failed:`, err);
+    await failTask(taskId, message);
+  });
 }
 
 // ============================================================================

@@ -68,8 +68,8 @@ export function TemplateEditor({ label, value, onChange, disabled }: TemplateEdi
             <span
               key={i}
               style={{
-                background: "#ede9fe",
-                color: "#6d28d9",
+                background: "var(--accent-bg, #ede9fe)",
+                color: "var(--accent-primary)",
                 padding: "1px 4px",
                 borderRadius: 3,
                 fontWeight: 500,

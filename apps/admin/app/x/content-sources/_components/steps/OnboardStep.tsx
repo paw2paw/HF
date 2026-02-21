@@ -5,6 +5,8 @@ import { FancySelect } from "@/components/shared/FancySelect";
 import type { FancySelectOption } from "@/components/shared/FancySelect";
 import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
+import { AgentTuner } from "@/components/shared/AgentTuner";
+import type { AgentTunerOutput } from "@/lib/agent-tuner/types";
 
 interface StepProps {
   setData: (key: string, value: unknown) => void;
@@ -38,6 +40,7 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
   const [identitySpecId, setIdentitySpecId] = useState("");
   const [availableSpecs, setAvailableSpecs] = useState<Array<{ id: string; slug: string; name: string }>>([]);
   const [flowPhases, setFlowPhases] = useState<FlowPhase[]>([]);
+  const [behaviorTargets, setBehaviorTargets] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -171,7 +174,11 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
           onboardingFlowPhases: flowPhases.length > 0
             ? { phases: flowPhases.map(({ _id, ...rest }) => rest) }
             : null,
-          onboardingDefaultTargets: null, // preserve existing
+          onboardingDefaultTargets: Object.keys(behaviorTargets).length > 0
+            ? Object.fromEntries(
+                Object.entries(behaviorTargets).map(([k, v]) => [k, { value: v, confidence: 0.5 }])
+              )
+            : null,
         }),
       });
       const data = await res.json();
@@ -230,7 +237,7 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
               }}
             />
             <button onClick={handleCreateDomain}
-              style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               Create
             </button>
             <button onClick={() => setCreatingDomain(false)}
@@ -302,6 +309,12 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
             </select>
           </div>
 
+          {/* Behavior Tuning */}
+          <AgentTuner
+            context={{ domainName: domainName || undefined, subjectName: subjectName || undefined }}
+            onChange={({ parameterMap }: AgentTunerOutput) => setBehaviorTargets(parameterMap)}
+          />
+
           {/* Flow Phases */}
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>
@@ -320,7 +333,7 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{
                       width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center",
-                      background: "var(--accent-primary)", color: "#fff", borderRadius: "50%",
+                      background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", borderRadius: "50%",
                       fontSize: 11, fontWeight: 600, flexShrink: 0,
                     }}>
                       {index + 1}
@@ -384,7 +397,7 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
         <button onClick={handleSave} disabled={saving || !domainId}
           style={{
             padding: "12px 32px", borderRadius: 8, border: "none",
-            background: "var(--accent-primary)", color: "#fff",
+            background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
             fontSize: 15, fontWeight: 700, cursor: "pointer",
             opacity: saving || !domainId ? 0.6 : 1,
           }}

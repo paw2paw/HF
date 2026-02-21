@@ -28,6 +28,9 @@ const mockPrisma = {
     count: vi.fn(),
     findMany: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -179,18 +182,24 @@ describe("GET /api/educator/classrooms/[id]/progress", () => {
     const now = new Date();
     const recentDate = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
 
-    mockPrisma.caller.findMany.mockResolvedValue([
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
       {
-        id: "s1",
-        name: "Alice",
-        _count: { calls: 5 },
-        calls: [{ createdAt: recentDate }],
+        caller: {
+          id: "s1",
+          name: "Alice",
+          role: "LEARNER",
+          _count: { calls: 5 },
+          calls: [{ createdAt: recentDate }],
+        },
       },
       {
-        id: "s2",
-        name: "Bob",
-        _count: { calls: 0 },
-        calls: [],
+        caller: {
+          id: "s2",
+          name: "Bob",
+          role: "LEARNER",
+          _count: { calls: 0 },
+          calls: [],
+        },
       },
     ]);
 

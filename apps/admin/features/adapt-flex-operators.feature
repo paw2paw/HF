@@ -5,7 +5,7 @@ Feature: Adaptation Flex Operators
 
   Background:
     Given active ADAPT specs exist with adaptation rules
-    And a caller has a learner profile
+    And a caller has a LearnerProfile and CallerPersonalityProfile
 
   # =============================================================================
   # BACKWARD COMPATIBILITY
@@ -42,7 +42,7 @@ Feature: Adaptation Flex Operators
   # NUMERIC COMPARISONS
   # =============================================================================
 
-  Scenario: gt — greater than threshold
+  Scenario: gt - greater than threshold
     Given an adaptation rule condition:
       """
       { "profileKey": "engagement_score", "operator": "gt", "threshold": 0.7 }
@@ -51,7 +51,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it matches (0.8 > 0.7)
 
-  Scenario: gt — equal to threshold does not match
+  Scenario: gt - equal to threshold does not match
     Given an adaptation rule condition:
       """
       { "profileKey": "engagement_score", "operator": "gt", "threshold": 0.7 }
@@ -60,7 +60,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it does not match (0.7 is not > 0.7)
 
-  Scenario: gte — equal to threshold matches
+  Scenario: gte - equal to threshold matches
     Given an adaptation rule condition:
       """
       { "profileKey": "confidence", "operator": "gte", "threshold": 0.6 }
@@ -69,7 +69,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it matches (0.6 >= 0.6)
 
-  Scenario: lt — less than threshold
+  Scenario: lt - less than threshold
     Given an adaptation rule condition:
       """
       { "profileKey": "error_rate", "operator": "lt", "threshold": 0.3 }
@@ -78,7 +78,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it matches (0.2 < 0.3)
 
-  Scenario: lte — equal to threshold matches
+  Scenario: lte - equal to threshold matches
     Given an adaptation rule condition:
       """
       { "profileKey": "score", "operator": "lte", "threshold": 0.5 }
@@ -91,7 +91,7 @@ Feature: Adaptation Flex Operators
   # RANGE AND SET OPERATORS
   # =============================================================================
 
-  Scenario: between — value in range (inclusive)
+  Scenario: between - value in range (inclusive)
     Given an adaptation rule condition:
       """
       { "profileKey": "mastery", "operator": "between", "range": { "min": 0.3, "max": 0.7 } }
@@ -100,7 +100,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it matches (0.3 <= 0.5 <= 0.7)
 
-  Scenario: between — value at boundary matches
+  Scenario: between - value at boundary matches
     Given an adaptation rule condition:
       """
       { "profileKey": "mastery", "operator": "between", "range": { "min": 0.3, "max": 0.7 } }
@@ -109,7 +109,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it matches (inclusive boundary)
 
-  Scenario: between — value outside range does not match
+  Scenario: between - value outside range does not match
     Given an adaptation rule condition:
       """
       { "profileKey": "mastery", "operator": "between", "range": { "min": 0.3, "max": 0.7 } }
@@ -118,7 +118,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it does not match (0.9 > 0.7)
 
-  Scenario: between — missing range field does not match
+  Scenario: between - missing range field does not match
     Given an adaptation rule condition:
       """
       { "profileKey": "mastery", "operator": "between" }
@@ -126,7 +126,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it does not match (range is required for between)
 
-  Scenario: in — value in set
+  Scenario: in - value in set
     Given an adaptation rule condition:
       """
       { "profileKey": "learningStyle", "operator": "in", "values": ["visual", "kinesthetic"] }
@@ -135,7 +135,7 @@ Feature: Adaptation Flex Operators
     When the condition is evaluated
     Then it matches (value in set)
 
-  Scenario: in — value not in set
+  Scenario: in - value not in set
     Given an adaptation rule condition:
       """
       { "profileKey": "learningStyle", "operator": "in", "values": ["visual", "kinesthetic"] }
@@ -189,7 +189,7 @@ Feature: Adaptation Flex Operators
     Then it does not match (unknown operators fail safely)
 
   # =============================================================================
-  # ADJUSTMENT METHODS
+  # ADJUSTMENT METHODS (CallerTarget writes)
   # =============================================================================
 
   Scenario: Set adjustment writes absolute value

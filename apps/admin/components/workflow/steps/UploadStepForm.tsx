@@ -107,8 +107,18 @@ export function UploadStepForm({
       setElapsed(0);
       tickRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
 
+      const startedAt = Date.now();
+      const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
       // Poll every 2s
       pollRef.current = setInterval(async () => {
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (tickRef.current) clearInterval(tickRef.current);
+          setError("Extraction timed out. Please try again.");
+          setPhase("error");
+          return;
+        }
         try {
           const res = await fetch(
             `/api/content-sources/${sourceId}/import?jobId=${jid}`
@@ -331,11 +341,11 @@ export function UploadStepForm({
                 borderRadius: 10,
                 border: "none",
                 background: file
-                  ? "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)"
+                  ? "var(--accent-primary)"
                   : "var(--surface-tertiary)",
-                color: file ? "#fff" : "var(--text-muted)",
+                color: file ? "var(--button-primary-text, var(--surface-primary))" : "var(--text-muted)",
                 cursor: file ? "pointer" : "default",
-                boxShadow: file ? "0 4px 12px rgba(99, 102, 241, 0.3)" : "none",
+                boxShadow: file ? "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)" : "none",
               }}
             >
               Upload &amp; Extract
@@ -378,7 +388,7 @@ export function UploadStepForm({
                   height: 20,
                   borderRadius: 6,
                   background: "var(--success-text)",
-                  color: "#fff",
+                  color: "var(--surface-primary)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -434,7 +444,7 @@ export function UploadStepForm({
                     borderRadius: 3,
                     background: isDone
                       ? "var(--success-text)"
-                      : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                      : "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
                     width: isDone ? "100%" : `${chunkPct}%`,
                     transition: "width 0.5s ease-out",
                   }}
@@ -474,7 +484,7 @@ export function UploadStepForm({
                     height: "100%",
                     borderRadius: 3,
                     width: "30%",
-                    background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                    background: "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
                     animation: "indeterminate 1.5s ease-in-out infinite",
                   }}
                 />
@@ -521,8 +531,8 @@ export function UploadStepForm({
                 borderRadius: 10,
                 border: "none",
                 background:
-                  "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                color: "#fff",
+                  "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
+                color: "var(--surface-primary)",
                 cursor: "pointer",
                 boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
               }}

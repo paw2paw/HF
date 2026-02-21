@@ -1,20 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowRight, AlertCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { useTerminology } from '@/contexts/TerminologyContext';
 import type { StepProps } from '../CourseSetupWizard';
 
-const TEACHING_STYLES = [
-  { id: 'tutor', label: 'Interactive Tutor', icon: '🧑‍🏫', description: 'Ask questions and guide learning' },
-  { id: 'coach', label: 'Coach', icon: '🏅', description: 'Encourage and motivate' },
-  { id: 'mentor', label: 'Mentor', icon: '🤝', description: 'Personalized guidance' },
-  { id: 'socratic', label: 'Socratic Method', icon: '💭', description: 'Question back and forth' },
-];
+type PersonaOption = {
+  slug: string;
+  name: string;
+  description: string | null;
+  icon: string;
+};
 
 export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
+  const { terms, lower } = useTerminology();
   const [courseName, setCourseName] = useState('');
   const [outcomes, setOutcomes] = useState<string[]>(['', '', '']);
-  const [teachingStyle, setTeachingStyle] = useState<string | undefined>();
+  const [persona, setPersona] = useState<string | undefined>();
+  const [personas, setPersonas] = useState<PersonaOption[]>([]);
+  const [personasLoading, setPersonasLoading] = useState(true);
   const [existingCourseWarning, setExistingCourseWarning] = useState<string | null>(null);
   const [checkingCourse, setCheckingCourse] = useState(false);
 
@@ -22,12 +26,45 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
   useEffect(() => {
     const saved = getData<string>('courseName');
     const savedOutcomes = getData<string[]>('learningOutcomes');
-    const savedStyle = getData<string>('teachingStyle');
+    const savedPersona = getData<string>('persona') || getData<string>('teachingStyle');
 
     if (saved) setCourseName(saved);
     if (savedOutcomes) setOutcomes(savedOutcomes);
-    if (savedStyle) setTeachingStyle(savedStyle);
+    if (savedPersona) setPersona(savedPersona);
   }, [getData]);
+
+  // Fetch personas from API (same source as Quick Launch)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/onboarding');
+        if (!res.ok) throw new Error('Failed to fetch personas');
+        const data = await res.json();
+        if (!cancelled && data.ok && data.personasList?.length > 0) {
+          setPersonas(data.personasList.map((p: any) => ({
+            slug: p.slug,
+            name: p.name,
+            description: p.description || null,
+            icon: p.icon || '🎭',
+          })));
+        } else if (!cancelled) {
+          // API returned ok:false or empty list — use fallback
+          throw new Error(data.error || 'No personas returned');
+        }
+      } catch (e) {
+        console.warn('[IntentStep] Failed to load personas, using fallback:', e);
+        if (!cancelled) {
+          setPersonas([
+            { slug: 'tutor', name: 'Tutor', description: 'Patient teaching expert', icon: '🧑‍🏫' },
+          ]);
+        }
+      } finally {
+        if (!cancelled) setPersonasLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Check for existing course when name changes
   useEffect(() => {
@@ -66,13 +103,17 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
   };
 
   const handleNext = () => {
+    const selected = personas.find(p => p.slug === persona);
     setData('courseName', courseName.trim());
     setData('learningOutcomes', outcomes.filter(o => o.trim()));
-    setData('teachingStyle', teachingStyle);
+    setData('persona', persona);
+    setData('personaName', selected?.name || persona);
+    // Keep teachingStyle for backwards compat with course-setup API
+    setData('teachingStyle', persona);
     onNext();
   };
 
-  const isValid = courseName.trim().length > 0 && teachingStyle;
+  const isValid = courseName.trim().length > 0 && persona;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -86,7 +127,7 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
         {/* Course Name */}
         <div className="mb-8">
           <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
-            What's your course called?
+            What&apos;s your course called?
           </label>
           <input
             type="text"
@@ -99,7 +140,7 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
             <div className="mt-2 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 flex gap-2">
               <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-yellow-700 dark:text-yellow-200">
-                <p className="font-medium">Course exists: "{existingCourseWarning}"</p>
+                <p className="font-medium">Course exists: &quot;{existingCourseWarning}&quot;</p>
                 <p className="mt-1">Would you like to enroll more students in it, or create a new version?</p>
               </div>
             </div>
@@ -126,32 +167,41 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
             ))}
           </div>
           <p className="text-xs text-[var(--text-tertiary)] mt-2">
-            Examples: "Understand photosynthesis" • "Explain cellular respiration" • "Design experiments"
+            Examples: &quot;Understand photosynthesis&quot; • &quot;Explain cellular respiration&quot; • &quot;Design experiments&quot;
           </p>
         </div>
 
-        {/* Teaching Style */}
+        {/* Persona Selection */}
         <div className="mb-8">
           <label className="block text-sm font-semibold text-[var(--text-primary)] mb-3">
-            How will you teach this?
+            Choose a {lower('persona')}
           </label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {TEACHING_STYLES.map((style) => (
-              <button
-                key={style.id}
-                onClick={() => setTeachingStyle(style.id)}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  teachingStyle === style.id
-                    ? 'border-[var(--accent)] bg-[var(--accent)] bg-opacity-10'
-                    : 'border-[var(--border-default)] hover:border-[var(--border-default)]'
-                }`}
-              >
-                <div className="text-2xl mb-2">{style.icon}</div>
-                <h3 className="font-semibold text-[var(--text-primary)]">{style.label}</h3>
-                <p className="text-sm text-[var(--text-secondary)] mt-1">{style.description}</p>
-              </button>
-            ))}
-          </div>
+          {personasLoading ? (
+            <div className="flex items-center gap-2 text-[var(--text-muted)] py-4">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Loading {lower('persona')}s...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {personas.map((p) => (
+                <button
+                  key={p.slug}
+                  onClick={() => setPersona(p.slug)}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    persona === p.slug
+                      ? 'border-[var(--accent)] bg-[var(--accent)] bg-opacity-10'
+                      : 'border-[var(--border-default)] hover:border-[var(--border-default)]'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">{p.icon}</div>
+                  <h3 className="font-semibold text-[var(--text-primary)]">{p.name}</h3>
+                  {p.description && (
+                    <p className="text-sm text-[var(--text-secondary)] mt-1">{p.description}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

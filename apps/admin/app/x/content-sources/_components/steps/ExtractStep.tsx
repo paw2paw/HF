@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
+import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
 import { DOCUMENT_TYPES } from "../shared/badges";
 
 interface StepProps {
@@ -12,6 +14,7 @@ interface StepProps {
 }
 
 export default function ExtractStep({ setData, getData, onNext, onPrev }: StepProps) {
+  const { addExtractionJob } = useBackgroundTaskQueue();
   const sourceId = getData<string>("sourceId");
   const sourceName = getData<string>("sourceName");
   const hasFile = getData<boolean>("hasFile");
@@ -25,15 +28,9 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
   const [chunkProgress, setChunkProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
 
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  // Task ID for polling (UserTask ID returned from extract API as jobId)
+  const [extractTaskId, setExtractTaskId] = useState<string | null>(null);
   const tickRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Skip this step if no file was uploaded
-  useEffect(() => {
-    if (!hasFile) {
-      onNext();
-    }
-  }, [hasFile, onNext]);
 
   // Check for active extraction jobs on mount (re-entry)
   useEffect(() => {
@@ -47,7 +44,10 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
         );
         if (job) {
           setPhase("extracting");
-          startTracking();
+          setExtractTaskId(job.id);
+          addExtractionJob(job.id, sourceId!, sourceName || "Content Extraction", "");
+          // Start elapsed timer
+          tickRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
         }
       } catch {}
     }
@@ -62,54 +62,62 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
     }).catch(() => {});
   }, [sourceId]);
 
+  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
       if (tickRef.current) clearInterval(tickRef.current);
     };
   }, []);
 
-  function startTracking() {
-    setElapsed(0);
-    tickRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await fetch("/api/tasks?status=in_progress");
-        const data = await res.json();
-        if (!data.ok) return;
-        const job = (data.tasks || []).find(
-          (t: any) => t.taskType === "extraction" && t.context?.sourceId === sourceId
-        );
-        if (job) {
-          const ctx = job.context || {};
-          setExtractedCount(ctx.extractedCount || 0);
-          setChunkProgress({ current: ctx.currentChunk || 0, total: ctx.totalChunks || 0 });
-        } else {
-          // Job finished — fetch final counts for assertions, questions, vocabulary
-          if (pollRef.current) clearInterval(pollRef.current);
-          if (tickRef.current) clearInterval(tickRef.current);
-          const [countRes, qRes, vRes] = await Promise.all([
-            fetch(`/api/content-sources/${sourceId}/assertions?limit=1`),
-            fetch(`/api/content-sources/${sourceId}/questions?limit=1`),
-            fetch(`/api/content-sources/${sourceId}/vocabulary?limit=1`),
-          ]);
-          const [countData, qData, vData] = await Promise.all([
-            countRes.json(), qRes.json(), vRes.json(),
-          ]);
-          const finalCount = countData.total || extractedCount;
-          const qTotal = qData.total || 0;
-          const vTotal = vData.total || 0;
-          setExtractedCount(finalCount);
-          setQuestionCount(qTotal);
-          setVocabCount(vTotal);
-          setData("assertionCount", finalCount);
-          setData("questionCount", qTotal);
-          setData("vocabCount", vTotal);
-          setPhase("done");
-        }
-      } catch {}
-    }, 3000);
-  }
+  // Poll extraction task using the shared hook
+  const handleComplete = useCallback(async (_task: PollableTask) => {
+    if (tickRef.current) clearInterval(tickRef.current);
+    setExtractTaskId(null);
+
+    // Fetch final counts for assertions, questions, vocabulary
+    try {
+      const [countRes, qRes, vRes] = await Promise.all([
+        fetch(`/api/content-sources/${sourceId}/assertions?limit=1`),
+        fetch(`/api/content-sources/${sourceId}/questions?limit=1`),
+        fetch(`/api/content-sources/${sourceId}/vocabulary?limit=1`),
+      ]);
+      const [countData, qData, vData] = await Promise.all([
+        countRes.json(), qRes.json(), vRes.json(),
+      ]);
+      const finalCount = countData.total || extractedCount;
+      const qTotal = qData.total || 0;
+      const vTotal = vData.total || 0;
+      setExtractedCount(finalCount);
+      setQuestionCount(qTotal);
+      setVocabCount(vTotal);
+      setData("assertionCount", finalCount);
+      setData("questionCount", qTotal);
+      setData("vocabCount", vTotal);
+    } catch {
+      // Use whatever counts we have from progress
+    }
+    setPhase("done");
+  }, [sourceId, extractedCount, setData]);
+
+  const handleError = useCallback((message: string) => {
+    if (tickRef.current) clearInterval(tickRef.current);
+    setExtractTaskId(null);
+    setError(message);
+    setPhase("error");
+  }, []);
+
+  const handleProgress = useCallback((task: PollableTask) => {
+    const ctx = task.context || {};
+    setExtractedCount(ctx.extractedCount || 0);
+    setChunkProgress({ current: ctx.currentChunk || 0, total: ctx.totalChunks || 0 });
+  }, []);
+
+  useTaskPoll({
+    taskId: extractTaskId,
+    onComplete: handleComplete,
+    onError: handleError,
+    onProgress: handleProgress,
+  });
 
   async function handleExtract() {
     setPhase("extracting");
@@ -131,7 +139,12 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      startTracking();
+
+      // The extract API returns jobId which IS a UserTask ID
+      setExtractTaskId(data.jobId);
+      addExtractionJob(data.jobId, sourceId!, sourceName || "Content Extraction", "");
+      setElapsed(0);
+      tickRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
     } catch (err: any) {
       setError(err.message);
       setPhase("error");
@@ -187,7 +200,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
             <button onClick={handleExtract}
               style={{
                 padding: "12px 32px", borderRadius: 8, border: "none",
-                background: "var(--accent-primary)", color: "#fff",
+                background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
                 fontSize: 15, fontWeight: 700, cursor: "pointer",
               }}
             >
@@ -227,7 +240,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
               <div style={{ height: 6, borderRadius: 3, background: "var(--surface-tertiary)", overflow: "hidden", marginBottom: 8 }}>
                 <div style={{
                   height: "100%", borderRadius: 3,
-                  background: "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+                  background: "var(--accent-primary)",
                   width: `${pct}%`, transition: "width 0.5s ease-out",
                 }} />
               </div>
@@ -265,7 +278,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
           <button onClick={onNext}
             style={{
               padding: "12px 32px", borderRadius: 8, border: "none",
-              background: "var(--accent-primary)", color: "#fff",
+              background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
               fontSize: 15, fontWeight: 700, cursor: "pointer",
             }}
           >
@@ -276,7 +289,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
 
       {phase === "error" && (
         <div style={{
-          padding: 24, borderRadius: 12, border: "1px solid #FFCDD2",
+          padding: 24, borderRadius: 12, border: "1px solid color-mix(in srgb, var(--status-error-text) 30%, transparent)",
           background: "var(--status-error-bg)",
         }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-error-text)", marginBottom: 12 }}>
@@ -286,7 +299,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
             <button onClick={() => { setPhase("confirm"); setError(null); }}
               style={{
                 padding: "10px 24px", borderRadius: 6, border: "none",
-                background: "var(--accent-primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
               Try Again

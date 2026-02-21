@@ -268,19 +268,19 @@ export const statusColors: Record<string, { bg: string; text: string }> = {
   QUEUED: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)" },
 };
 
-// Category/type colors (these work in both modes)
+// Category/type colors (CSS vars for dark mode support)
 export const categoryColors: Record<string, string> = {
-  system: "#6366f1",
-  safety: "#dc2626",
-  persona: "#10b981",
-  instruction: "#f59e0b",
-  custom: "#8b5cf6",
-  BLOCK: "#6366f1",
-  SLUG: "#10b981",
-  CALLER: "#f59e0b",
-  AUTO_SLUGS: "#8b5cf6",
-  PARAMETER: "#6366f1",
-  COMPOSITE: "#f59e0b",
-  ADAPT: "#8b5cf6",
-  MEMORY: "#10b981",
+  system: "var(--badge-indigo-text)",
+  safety: "var(--status-error-text)",
+  persona: "var(--status-success-text)",
+  instruction: "var(--status-warning-text)",
+  custom: "var(--badge-purple-text)",
+  BLOCK: "var(--badge-indigo-text)",
+  SLUG: "var(--status-success-text)",
+  CALLER: "var(--status-warning-text)",
+  AUTO_SLUGS: "var(--badge-purple-text)",
+  PARAMETER: "var(--badge-indigo-text)",
+  COMPOSITE: "var(--status-warning-text)",
+  ADAPT: "var(--badge-purple-text)",
+  MEMORY: "var(--status-success-text)",
 };

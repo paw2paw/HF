@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { AdvancedSection } from "@/components/shared/AdvancedSection";
@@ -40,17 +41,17 @@ const TRUST_LEVELS = [
 ];
 
 const SOURCE_TAGS = [
-  { value: "syllabus", label: "Syllabus", color: "#6366F1", desc: "Defines the curriculum structure / schedule" },
-  { value: "content", label: "Content", color: "#059669", desc: "Teaching material the AI delivers from" },
+  { value: "syllabus", label: "Syllabus", color: "var(--accent-primary)", desc: "Defines the curriculum structure / schedule" },
+  { value: "content", label: "Content", color: "var(--status-success-text)", desc: "Teaching material the AI delivers from" },
 ];
 
 const DOCUMENT_TYPES = [
-  { value: "CURRICULUM", label: "Curriculum", color: "#4338CA", desc: "Formal syllabus with LOs/ACs" },
-  { value: "TEXTBOOK", label: "Textbook", color: "#059669", desc: "Dense reference material" },
-  { value: "WORKSHEET", label: "Worksheet", color: "#D97706", desc: "Learner activity sheet" },
-  { value: "EXAMPLE", label: "Example", color: "#7C3AED", desc: "Illustrative document" },
-  { value: "ASSESSMENT", label: "Assessment", color: "#DC2626", desc: "Test/quiz material" },
-  { value: "REFERENCE", label: "Reference", color: "#6B7280", desc: "Quick reference/glossary" },
+  { value: "CURRICULUM", label: "Curriculum", color: "var(--badge-indigo-text)", desc: "Formal syllabus with LOs/ACs" },
+  { value: "TEXTBOOK", label: "Textbook", color: "var(--status-success-text)", desc: "Dense reference material" },
+  { value: "WORKSHEET", label: "Worksheet", color: "var(--badge-yellow-text)", desc: "Learner activity sheet" },
+  { value: "EXAMPLE", label: "Example", color: "var(--badge-purple-text)", desc: "Illustrative document" },
+  { value: "ASSESSMENT", label: "Assessment", color: "var(--status-error-text)", desc: "Test/quiz material" },
+  { value: "REFERENCE", label: "Reference", color: "var(--text-muted)", desc: "Quick reference/glossary" },
 ] as const;
 
 function TrustBadge({ level }: { level: string }) {
@@ -67,7 +68,7 @@ function TagPills({ tags }: { tags: string[] }) {
     <span style={{ display: "inline-flex", gap: 3 }}>
       {tags.map((tag) => {
         const cfg = SOURCE_TAGS.find((t) => t.value === tag);
-        const c = cfg?.color || "#6B7280";
+        const c = cfg?.color || "var(--text-muted)";
         return (
           <span key={tag} style={{ display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color: c, backgroundColor: `color-mix(in srgb, ${c} 15%, transparent)`, textTransform: "uppercase" }}>
             {cfg?.label || tag}
@@ -168,6 +169,7 @@ export default function SubjectDetailPage() {
   const router = useRouter();
   const { addExtractionJob, addCurriculumJob, jobs } = useBackgroundTaskQueue();
   const { isAdvanced } = useViewMode();
+  const { plural } = useTerminology();
 
   const [subject, setSubject] = useState<Subject | null>(null);
   const [loading, setLoading] = useState(true);
@@ -795,9 +797,7 @@ export default function SubjectDetailPage() {
           </span>
           <button
             onClick={() => {
-              const params = new URLSearchParams({ subjectId });
-              if (subject.domains.length === 1) params.set("domainId", subject.domains[0].domain.id);
-              router.push(`/x/content-wizard?${params.toString()}`);
+              router.push(`/x/content-sources`);
             }}
             style={{
               fontSize: 12,
@@ -1288,7 +1288,7 @@ export default function SubjectDetailPage() {
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>All domains are linked.</p>
         )}
         {allDomains.length === 0 && (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No domains configured yet. Create domains first.</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{`No ${plural("domain").toLowerCase()} configured yet. Create ${plural("domain").toLowerCase()} first.`}</p>
         )}
       </section>
 
@@ -1503,17 +1503,17 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
 // ------------------------------------------------------------------
 
 const SESSION_TYPES = [
-  { value: "onboarding", label: "Onboarding", color: "#6366F1" },
-  { value: "introduce", label: "Introduce", color: "#059669" },
-  { value: "deepen", label: "Deepen", color: "#2563EB" },
-  { value: "review", label: "Review", color: "#D97706" },
-  { value: "assess", label: "Assess", color: "#DC2626" },
-  { value: "consolidate", label: "Consolidate", color: "#7C3AED" },
+  { value: "onboarding", label: "Onboarding", color: "var(--accent-primary)" },
+  { value: "introduce", label: "Introduce", color: "var(--status-success-text)" },
+  { value: "deepen", label: "Deepen", color: "var(--accent-primary)" },
+  { value: "review", label: "Review", color: "var(--badge-yellow-text)" },
+  { value: "assess", label: "Assess", color: "var(--status-error-text)" },
+  { value: "consolidate", label: "Consolidate", color: "var(--badge-purple-text)" },
 ] as const;
 
 function SessionTypeBadge({ type }: { type: string }) {
   const cfg = SESSION_TYPES.find((t) => t.value === type);
-  const color = cfg?.color || "#6B7280";
+  const color = cfg?.color || "var(--text-muted)";
   return (
     <span style={{
       display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10,

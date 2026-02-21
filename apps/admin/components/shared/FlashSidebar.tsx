@@ -130,7 +130,7 @@ export function FlashSidebar({ taskId, visible = false, onClose }: FlashSidebarP
                   width: 40,
                   height: 40,
                   borderRadius: 10,
-                  background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                  background: "linear-gradient(135deg, var(--accent-secondary, #8b5cf6) 0%, var(--accent-primary) 100%)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -216,7 +216,7 @@ export function FlashSidebar({ taskId, visible = false, onClose }: FlashSidebarP
                     style={{
                       height: "100%",
                       width: `${(guidance.task.currentStep / guidance.task.totalSteps) * 100}%`,
-                      background: "linear-gradient(90deg, #8b5cf6 0%, #6366f1 100%)",
+                      background: "linear-gradient(90deg, var(--accent-secondary, #8b5cf6) 0%, var(--accent-primary) 100%)",
                       transition: "width 0.3s ease",
                     }}
                   />
@@ -241,7 +241,7 @@ export function FlashSidebar({ taskId, visible = false, onClose }: FlashSidebarP
                     <span style={{ fontSize: 16 }}>⚠️</span>
                     <div style={{ flex: 1 }}>
                       {guidance.warnings.map((warning, i) => (
-                        <p key={i} style={{ fontSize: 13, color: "#d97706", margin: 0 }}>
+                        <p key={i} style={{ fontSize: 13, color: "var(--status-warning-text)", margin: 0 }}>
                           {warning}
                         </p>
                       ))}
@@ -361,7 +361,7 @@ export function FlashSidebar({ taskId, visible = false, onClose }: FlashSidebarP
                                 action.priority === "high"
                                   ? "var(--accent-primary)"
                                   : "var(--surface-tertiary)",
-                              color: action.priority === "high" ? "#fff" : "var(--text-muted)",
+                              color: action.priority === "high" ? "var(--surface-primary)" : "var(--text-muted)",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",

@@ -45,7 +45,7 @@ export default function SpecSchemaPage() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 className="hf-page-title">
             BDD Spec Schema
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>

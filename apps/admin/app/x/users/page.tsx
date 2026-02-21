@@ -49,15 +49,15 @@ interface AuditLogEntry {
 }
 
 const ROLE_COLORS: Record<UserRole, { bg: string; text: string; darkBg: string; darkText: string }> = {
-  SUPERADMIN: { bg: "#fef3c7", text: "#b45309", darkBg: "#78350f", darkText: "#fcd34d" },
-  ADMIN: { bg: "#f3e8ff", text: "#7c3aed", darkBg: "#4c1d95", darkText: "#c4b5fd" },
-  OPERATOR: { bg: "#dbeafe", text: "#2563eb", darkBg: "#1e3a5f", darkText: "#93c5fd" },
-  EDUCATOR: { bg: "#dbeafe", text: "#1d4ed8", darkBg: "#1e3a5f", darkText: "#93c5fd" },
-  SUPER_TESTER: { bg: "#d1fae5", text: "#059669", darkBg: "#064e3b", darkText: "#6ee7b7" },
-  TESTER: { bg: "#ecfdf5", text: "#10b981", darkBg: "#065f46", darkText: "#a7f3d0" },
-  STUDENT: { bg: "#e0f2fe", text: "#0284c7", darkBg: "#0c4a6e", darkText: "#7dd3fc" },
-  DEMO: { bg: "#fef9c3", text: "#a16207", darkBg: "#713f12", darkText: "#fef08a" },
-  VIEWER: { bg: "#f3f4f6", text: "#4b5563", darkBg: "#374151", darkText: "#d1d5db" },
+  SUPERADMIN: { bg: "var(--badge-amber-bg)", text: "var(--badge-amber-text)", darkBg: "var(--badge-amber-bg)", darkText: "var(--badge-amber-text)" },
+  ADMIN: { bg: "var(--badge-purple-bg)", text: "var(--badge-purple-text)", darkBg: "var(--badge-purple-bg)", darkText: "var(--badge-purple-text)" },
+  OPERATOR: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", darkBg: "var(--badge-blue-bg)", darkText: "var(--badge-blue-text)" },
+  EDUCATOR: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", darkBg: "var(--badge-blue-bg)", darkText: "var(--badge-blue-text)" },
+  SUPER_TESTER: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)", darkBg: "var(--badge-green-bg)", darkText: "var(--badge-green-text)" },
+  TESTER: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)", darkBg: "var(--badge-green-bg)", darkText: "var(--badge-green-text)" },
+  STUDENT: { bg: "var(--badge-cyan-bg)", text: "var(--badge-cyan-text)", darkBg: "var(--badge-cyan-bg)", darkText: "var(--badge-cyan-text)" },
+  DEMO: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)", darkBg: "var(--badge-yellow-bg)", darkText: "var(--badge-yellow-text)" },
+  VIEWER: { bg: "var(--badge-gray-bg)", text: "var(--badge-gray-text)", darkBg: "var(--badge-gray-bg)", darkText: "var(--badge-gray-text)" },
 };
 
 function formatRoleLabel(role: string): string {
@@ -65,12 +65,12 @@ function formatRoleLabel(role: string): string {
 }
 
 const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg, #6366f1, #8b5cf6)",
-  "linear-gradient(135deg, #3b82f6, #06b6d4)",
-  "linear-gradient(135deg, #ec4899, #f43f5e)",
-  "linear-gradient(135deg, #f59e0b, #ef4444)",
-  "linear-gradient(135deg, #10b981, #14b8a6)",
-  "linear-gradient(135deg, #8b5cf6, #ec4899)",
+  "linear-gradient(135deg, var(--accent-primary, #6366f1), var(--accent-secondary, #8b5cf6))",
+  "linear-gradient(135deg, var(--accent-primary, #3b82f6), var(--badge-cyan-text, #06b6d4))",
+  "linear-gradient(135deg, var(--badge-pink-text, #ec4899), var(--status-error-text, #f43f5e))",
+  "linear-gradient(135deg, var(--status-warning-text, #f59e0b), var(--status-error-text, #ef4444))",
+  "linear-gradient(135deg, var(--status-success-text, #10b981), var(--badge-cyan-text, #14b8a6))",
+  "linear-gradient(135deg, var(--accent-secondary, #8b5cf6), var(--badge-pink-text, #ec4899))",
 ];
 
 function getAvatarGradient(id: string) {
@@ -322,7 +322,7 @@ export default function UsersPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 className="hf-page-title">
             Team Members
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>

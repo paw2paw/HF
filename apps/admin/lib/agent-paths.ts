@@ -1,8 +1,6 @@
 import {
   loadManifest as loadDataManifest,
-  getAgentPaths as getAgentDataPaths,
   resolveDataNodePath,
-  getKbRoot,
   clearManifestCache
 } from "./data-paths";
 
@@ -52,14 +50,6 @@ function loadManifest(): AgentManifest {
 }
 
 /**
- * Get the path settings definitions from manifest
- */
-export function getPathSettings(): Record<string, PathSetting> {
-  const manifest = loadManifest();
-  return manifest.pathSettings || {};
-}
-
-/**
  * Resolve a pathRef (e.g., "sources.knowledge") to an absolute path
  * Maps legacy pathRef format to data node IDs
  */
@@ -73,10 +63,6 @@ function resolvePathRef(pathRef: string): string | null {
 
   const [category, key] = parts;
 
-  // Map legacy pathRef format to data node IDs
-  // e.g., "sources.knowledge" -> "data:knowledge"
-  // e.g., "sources.transcripts" -> "data:transcripts"
-  // e.g., "derived.knowledge" -> "data:knowledge_derived"
   let nodeId: string;
   if (category === "sources") {
     nodeId = `data:${key}`;
@@ -88,22 +74,6 @@ function resolvePathRef(pathRef: string): string | null {
   }
 
   return resolveDataNodePath(nodeId);
-}
-
-/**
- * Get the default path for a path setting key
- */
-export function getDefaultPathForSetting(settingRef: string): string | null {
-  // settingRef is like "#/settings/knowledgeSourceDir" or just "knowledgeSourceDir"
-  const key = settingRef.replace(/^#\/settings\//, "");
-  const pathSettings = getPathSettings();
-  const setting = pathSettings[key];
-
-  if (!setting) {
-    return null;
-  }
-
-  return resolvePathRef(setting.pathRef);
 }
 
 /**

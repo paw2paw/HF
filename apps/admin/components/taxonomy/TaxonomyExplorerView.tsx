@@ -307,7 +307,7 @@ export default function TaxonomyExplorerView() {
                       padding: "8px 0",
                       borderRadius: 6,
                       background: "var(--accent-primary)",
-                      color: "#fff",
+                      color: "var(--button-primary-text, #fff)",
                       border: "none",
                       cursor: "pointer",
                     }}

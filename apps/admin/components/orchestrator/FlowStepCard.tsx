@@ -51,11 +51,11 @@ function getPriority(item: Record<string, unknown>): string | null {
 }
 
 const PRIORITY_COLORS: Record<string, { border: string; bg: string; text: string }> = {
-  critical: { border: "#ef4444", bg: "#fef2f2", text: "#dc2626" },
-  high: { border: "#f97316", bg: "#fff7ed", text: "#ea580c" },
-  medium: { border: "#eab308", bg: "#fefce8", text: "#ca8a04" },
-  low: { border: "#22c55e", bg: "#f0fdf4", text: "#16a34a" },
-  optional: { border: "#94a3b8", bg: "#f8fafc", text: "#64748b" },
+  critical: { border: "var(--status-error-border)", bg: "var(--status-error-bg)", text: "var(--status-error-text)" },
+  high: { border: "var(--badge-orange-border, #f97316)", bg: "var(--badge-orange-bg)", text: "var(--badge-orange-text)" },
+  medium: { border: "var(--status-warning-border, #eab308)", bg: "var(--status-warning-bg, #fefce8)", text: "var(--status-warning-text, #ca8a04)" },
+  low: { border: "var(--status-success-border, #22c55e)", bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
+  optional: { border: "var(--border-muted, #94a3b8)", bg: "var(--surface-secondary, #f8fafc)", text: "var(--text-secondary, #64748b)" },
 };
 
 export function FlowStepCard({
@@ -191,8 +191,8 @@ export function FlowStepCard({
                   fontSize: 10,
                   padding: "1px 7px",
                   borderRadius: 10,
-                  background: priorityStyle?.bg || "#f3f4f6",
-                  color: priorityStyle?.text || "#6b7280",
+                  background: priorityStyle?.bg || "var(--surface-secondary)",
+                  color: priorityStyle?.text || "var(--text-muted)",
                   fontWeight: 600,
                   textTransform: "capitalize",
                   flexShrink: 0,
@@ -210,8 +210,8 @@ export function FlowStepCard({
                   fontSize: 10,
                   padding: "1px 7px",
                   borderRadius: 10,
-                  background: "#f0f9ff",
-                  color: "#0369a1",
+                  background: "var(--badge-blue-bg)",
+                  color: "var(--badge-blue-text)",
                   fontWeight: 500,
                   flexShrink: 0,
                 }}
@@ -228,8 +228,8 @@ export function FlowStepCard({
                   fontSize: 10,
                   padding: "1px 7px",
                   borderRadius: 10,
-                  background: f.value ? "#dcfce7" : "#f3f4f6",
-                  color: f.value ? "#166534" : "#6b7280",
+                  background: f.value ? "var(--badge-green-bg)" : "var(--surface-secondary)",
+                  color: f.value ? "var(--badge-green-text)" : "var(--text-muted)",
                   fontWeight: 500,
                   flexShrink: 0,
                 }}
@@ -378,10 +378,10 @@ export function FlowStepCard({
                 style={{
                   padding: "4px 12px",
                   borderRadius: 6,
-                  border: "1px solid #fca5a5",
-                  background: "#fef2f2",
+                  border: "1px solid var(--status-error-border)",
+                  background: "var(--status-error-bg)",
                   fontSize: 11,
-                  color: "#dc2626",
+                  color: "var(--status-error-text)",
                   cursor: "pointer",
                   fontWeight: 500,
                   transition: "all 0.15s",

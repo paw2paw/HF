@@ -370,7 +370,7 @@ export function ExplorerTabContent({
                                                     top: 2,
                                                     left: isEnabled ? 20 : 2,
                                                     transition: "left 0.15s",
-                                                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                                                    boxShadow: "0 1px 3px color-mix(in srgb, var(--text-primary) 20%, transparent)",
                                                   }} />
                                                 </button>
                                               </div>

@@ -389,6 +389,22 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
         });
         totalLearners++;
 
+        // Multi-cohort membership (new join table — kept in sync with legacy cohortGroupId)
+        await prisma.callerCohortMembership.upsert({
+          where: {
+            callerId_cohortGroupId: {
+              callerId: learner.id,
+              cohortGroupId: cohort.id,
+            },
+          },
+          update: {},
+          create: {
+            callerId: learner.id,
+            cohortGroupId: cohort.id,
+            role: "MEMBER",
+          },
+        });
+
         // Enroll in all playbooks for this domain
         for (const pb of playbooks) {
           await prisma.callerPlaybook.create({
@@ -495,6 +511,9 @@ async function cleanup(prisma: PrismaClient): Promise<void> {
       // Table might not exist in this schema version
     }
   }
+
+  // Delete multi-cohort memberships before disconnecting legacy FK
+  await prisma.callerCohortMembership.deleteMany();
 
   // Disconnect callers from cohort groups before deleting cohorts
   await prisma.caller.updateMany({

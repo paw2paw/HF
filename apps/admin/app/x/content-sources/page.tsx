@@ -12,7 +12,7 @@ export default function ContentSourcesPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 className="hf-page-title">
             {viewMode === "wizard" ? "Content Sources" : "Content Library"}
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>

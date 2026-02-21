@@ -1,11 +1,27 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { CheckCircle, PlayCircle, Zap } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { PlayCircle, BookOpen, Users, GraduationCap, Building2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useTaskPoll, type PollableTask } from '@/hooks/useTaskPoll';
+import { useBackgroundTaskQueue } from '@/components/shared/ContentJobQueue';
+import { useTerminology } from '@/contexts/TerminologyContext';
+import { WizardSummary } from '@/components/shared/WizardSummary';
+import type { AgentTunerPill } from '@/lib/agent-tuner/types';
 import type { StepProps } from '../CourseSetupWizard';
 
-export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
+interface TaskSummary {
+  domain?: { id: string; name: string; slug: string };
+  playbook?: { id: string; name: string };
+  contentSpecId?: string | null;
+  curriculumId?: string | null;
+  invitationCount?: number;
+  warnings?: string[];
+}
+
+export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps) {
+  const { addCourseSetupJob } = useBackgroundTaskQueue();
+  const { terms } = useTerminology();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -18,17 +34,30 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [taskSummary, setTaskSummary] = useState<TaskSummary | null>(null);
 
+  // Read all flow bag keys
   const courseName = getData<string>('courseName');
-  const sessionCount = getData<number>('sessionCount') || 12;
-  const studentEmails = getData<string[]>('studentEmails') || [];
   const teachingStyle = getData<string>('teachingStyle');
+  const personaName = getData<string>('personaName');
   const learningOutcomes = getData<string[]>('learningOutcomes') || [];
-  const contentFile = getData<File>('contentFile');
-  const welcomeMessage = getData<string>('welcomeMessage') || '';
-  const durationMins = getData<number>('durationMins') || 45;
-  const emphasis = getData<string>('emphasis') || 'balanced';
+
+  // Lesson plan keys
+  const lessonPlanMode = getData<string>('lessonPlanMode') || 'skipped';
+  const planIntents = getData<{ sessionCount: number; durationMins: number; emphasis: string; assessments: string }>('planIntents');
+  const sessionCount = getData<number>('sessionCount') || planIntents?.sessionCount || 12;
+  const durationMins = getData<number>('durationMins') || planIntents?.durationMins || 30;
+  const emphasis = getData<string>('emphasis') || planIntents?.emphasis || 'balanced';
+
+  // Student keys
+  const studentEmails = getData<string[]>('studentEmails') || [];
+  const cohortGroupIds = getData<string[]>('cohortGroupIds') || [];
+  const selectedCallerIds = getData<string[]>('selectedCallerIds') || [];
+  const totalStudents = studentEmails.length + cohortGroupIds.length + selectedCallerIds.length;
+
+  // Config keys (AgentTuner behavior targets + pills)
+  const behaviorTargets = getData<Record<string, number>>('behaviorTargets');
+  const tunerPills = getData<AgentTunerPill[]>('tunerPills') || [];
 
   // On mount: resume if taskId already in flow bag (page refresh during setup)
   useEffect(() => {
@@ -37,59 +66,38 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
       setTaskId(existingTaskId);
       setLoading(true);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll for task progress using setInterval (correct React pattern)
-  useEffect(() => {
-    if (!taskId) return;
-
-    pollIntervalRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/tasks?taskId=${taskId}`);
-        const data = await res.json();
-
-        if (data.ok && data.task) {
-          const task = data.task;
-          if (task.context) {
-            setTaskProgress({
-              message: task.context.message || task.context.phase || '',
-              phase: task.context.phase || '',
-              stepIndex: task.context.stepIndex,
-              totalSteps: task.context.totalSteps,
-              error: task.context.error,
-            });
-          }
-
-          // If task is completed or abandoned, stop polling
-          if (task.status === 'completed' || task.status === 'abandoned') {
-            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-            if (task.status === 'abandoned') {
-              setError(task.context?.error || 'Course setup failed');
-            } else {
-              // Successfully completed
-              setData('taskId', undefined);
-              setCompleted(true);
-            }
-            setLoading(false);
-          }
-        }
-      } catch (err) {
-        console.error('[CourseDoneStep] Failed to poll task:', err);
-      }
-    }, 2000);
-
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
-  }, [taskId]);
+  // Poll task via gold-standard hook (3s interval, 3min timeout, orphan detection)
+  useTaskPoll({
+    taskId,
+    onProgress: useCallback((task: PollableTask) => {
+      const ctx = task.context || {};
+      setTaskProgress({
+        message: ctx.message || ctx.phase || '',
+        phase: ctx.phase || '',
+        stepIndex: ctx.stepIndex,
+        totalSteps: ctx.totalSteps,
+        error: ctx.error,
+      });
+    }, []),
+    onComplete: useCallback((task: PollableTask) => {
+      setData('taskId', undefined);
+      setTaskSummary(task.context?.summary || null);
+      setCompleted(true);
+      setLoading(false);
+    }, [setData]),
+    onError: useCallback((message: string, task?: PollableTask) => {
+      setError(task?.context?.error || message);
+      setLoading(false);
+    }, []),
+  });
 
   const handleLaunch = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Note: We don't have a sourceId yet (file upload in ContentStep doesn't persist)
-      // This is acceptable - the executor will generate curriculum from learningOutcomes instead
       const res = await fetch('/api/courses/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,9 +108,15 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
           sessionCount,
           durationMins,
           emphasis,
-          welcomeMessage,
+          welcomeMessage: getData<string>('welcomeMessage') || '',
           studentEmails,
-          // sourceId: undefined, // not available (file not persisted)
+          subjectId: getData<string>('subjectId') || undefined,
+          curriculumId: getData<string>('curriculumId') || undefined,
+          planIntents: planIntents || undefined,
+          lessonPlanMode,
+          cohortGroupIds: cohortGroupIds.length > 0 ? cohortGroupIds : undefined,
+          selectedCallerIds: selectedCallerIds.length > 0 ? selectedCallerIds : undefined,
+          behaviorTargets: behaviorTargets && Object.keys(behaviorTargets).length > 0 ? behaviorTargets : undefined,
         }),
       });
 
@@ -112,53 +126,85 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
         throw new Error(data.error || 'Failed to start course setup');
       }
 
-      // Persist taskId to flow bag (survives page refresh)
       setData('taskId', data.taskId);
       setTaskId(data.taskId);
-      // Loading continues as we poll the task
+      addCourseSetupJob(data.taskId, courseName || 'Course Setup');
     } catch (err: any) {
       setError(err.message || 'Failed to launch course setup');
       setLoading(false);
     }
   };
 
-  // Show success state after course creation completes
+  const handleGoToCourses = () => {
+    endFlow();
+    router.push('/x/courses');
+  };
+
+  // ── Success State ──────────────────────────────────
   if (completed && !loading) {
+    const domainId = taskSummary?.domain?.id;
+    const domainName = taskSummary?.domain?.name || courseName || 'Your Course';
+
+    // Build tuning traits from pills
+    const tuningTraits = tunerPills
+      .map(p => p.label)
+      .filter(Boolean);
+    const paramCount = behaviorTargets ? Object.keys(behaviorTargets).length : 0;
+
     return (
       <div className="min-h-screen flex flex-col">
-        <div className="flex-1 p-8 max-w-2xl mx-auto w-full flex flex-col items-center justify-center">
-          <div className="text-center">
-            <div className="text-6xl mb-4">🎉</div>
-            <h1 className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-              Course Created Successfully!
-            </h1>
-            <p className="text-[var(--text-secondary)] mb-6">
-              Your course is ready. Students can now join and start learning.
-            </p>
-          </div>
-        </div>
-
-        <div className="p-6 border-t border-[var(--border-default)] bg-[var(--surface-secondary)]">
-          <div className="max-w-2xl mx-auto flex gap-3">
-            <button
-              onClick={() => {
-                setCompleted(false);
-                setLoading(false);
-                setTaskId(null);
-                endFlow();
-                router.push('/x/courses');
-              }}
-              className="flex-1 px-6 py-3 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity font-semibold"
-            >
-              Back to Courses
-            </button>
-          </div>
+        <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
+          <WizardSummary
+            title="Course Created Successfully!"
+            subtitle="Your AI tutor is ready. Students can now join and start learning."
+            intent={{
+              items: [
+                { icon: <BookOpen className="w-4 h-4" />, label: 'Course', value: courseName || '—' },
+                { icon: <GraduationCap className="w-4 h-4" />, label: 'Sessions', value: `${sessionCount} × ${durationMins} min` },
+                { icon: <Users className="w-4 h-4" />, label: 'Style', value: personaName || teachingStyle || '—' },
+                ...(learningOutcomes.length > 0
+                  ? [{ label: 'Goals', value: `${learningOutcomes.length} learning outcome${learningOutcomes.length !== 1 ? 's' : ''}` }]
+                  : []),
+              ],
+            }}
+            created={{
+              entities: [
+                ...(domainId ? [{
+                  icon: <Building2 className="w-5 h-5" />,
+                  label: terms.domain,
+                  name: domainName,
+                  href: `/x/domains?id=${domainId}`,
+                }] : []),
+                ...(taskSummary?.playbook ? [{
+                  icon: <BookOpen className="w-5 h-5" />,
+                  label: 'Course',
+                  name: taskSummary.playbook.name || courseName || '—',
+                }] : []),
+              ],
+            }}
+            stats={[
+              { label: 'Sessions', value: sessionCount },
+              { label: 'Duration', value: `${durationMins}m` },
+              { label: 'Students', value: totalStudents > 0 ? totalStudents : '—' },
+              ...(emphasis !== 'balanced' ? [{ label: 'Focus', value: emphasis }] : []),
+            ]}
+            tuning={tuningTraits.length > 0 ? { traits: tuningTraits, paramCount } : undefined}
+            primaryAction={{
+              label: 'Start Teaching',
+              icon: <PlayCircle className="w-5 h-5" />,
+              href: domainId ? `/x/teach?domainId=${domainId}` : undefined,
+              onClick: domainId ? undefined : handleGoToCourses,
+            }}
+            secondaryActions={[
+              { label: 'Back to Courses', onClick: handleGoToCourses },
+            ]}
+          />
         </div>
       </div>
     );
   }
 
-  // Show loading state while creating course
+  // ── Loading / Error State ──────────────────────────
   if (loading || taskId) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -166,8 +212,8 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
           <div className="text-center">
             {taskProgress?.error || error ? (
               <>
-                <div className="text-5xl mb-4">❌</div>
-                <h1 className="text-3xl font-bold text-red-600 dark:text-red-400 mb-2">
+                <div className="text-5xl mb-4">&#x274C;</div>
+                <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--status-error-text)" }}>
                   Course Setup Failed
                 </h1>
                 <p className="text-[var(--text-secondary)] mb-6">
@@ -177,7 +223,7 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
             ) : (
               <>
                 <div className="text-5xl mb-4 animate-spin" style={{ animationDuration: '2s' }}>
-                  ⚙️
+                  &#x2699;&#xFE0F;
                 </div>
                 <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
                   Creating Your Course
@@ -186,7 +232,7 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
                   {taskProgress?.message || 'Setting up...'}
                 </p>
                 {taskProgress?.totalSteps && (
-                  <div className="w-full max-w-xs bg-[var(--surface-secondary)] rounded-full h-2">
+                  <div className="w-full max-w-xs mx-auto bg-[var(--surface-secondary)] rounded-full h-2">
                     <div
                       className="bg-[var(--accent)] h-2 rounded-full transition-all duration-300"
                       style={{
@@ -215,16 +261,14 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
                   setTaskProgress(null);
                   setError(null);
                   setData('taskId', undefined);
+                  setTimeout(() => handleLaunch(), 0);
                 }}
                 className="flex-1 px-6 py-3 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity font-semibold"
               >
                 Retry
               </button>
               <button
-                onClick={() => {
-                  endFlow();
-                  router.push('/x/courses');
-                }}
+                onClick={handleGoToCourses}
                 className="flex-1 px-6 py-3 border border-[var(--border-default)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-primary)] transition-colors"
               >
                 Back to Courses
@@ -236,84 +280,45 @@ export function CourseDoneStep({ getData, setData, endFlow }: StepProps) {
     );
   }
 
+  // ── Pre-launch Review State ────────────────────────
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
-        <div className="mb-8 text-center">
-          <CheckCircle className="w-16 h-16 text-green-600 dark:text-green-400 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Course Ready!</h1>
-          <p className="text-[var(--text-secondary)]">Your course is configured and ready to teach</p>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {/* Course Card */}
-          <div className="p-4 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-default)]">
-            <p className="text-xs text-[var(--text-tertiary)] font-semibold mb-1">COURSE</p>
-            <p className="font-semibold text-[var(--text-primary)]">{courseName}</p>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">{sessionCount} lessons planned</p>
-          </div>
-
-          {/* Students Card */}
-          <div className="p-4 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-default)]">
-            <p className="text-xs text-[var(--text-tertiary)] font-semibold mb-1">STUDENTS</p>
-            <p className="font-semibold text-[var(--text-primary)]">
-              {studentEmails?.length || 0} invited
-            </p>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Awaiting signup</p>
-          </div>
-
-          {/* Teaching Style Card */}
-          <div className="p-4 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-default)]">
-            <p className="text-xs text-[var(--text-tertiary)] font-semibold mb-1">TEACHING STYLE</p>
-            <p className="font-semibold text-[var(--text-primary)] capitalize">{teachingStyle}</p>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">AI persona configured</p>
-          </div>
-        </div>
-
-        {/* Readiness Check */}
-        <div className="p-6 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 mb-8">
-          <div className="flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-green-900 dark:text-green-100 mb-1">Course is ready</p>
-              <p className="text-sm text-green-800 dark:text-green-200">
-                All requirements met. You can start teaching right away.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Text */}
-        <div className="text-center">
-          <p className="text-[var(--text-secondary)] mb-6">
-            What would you like to do next?
-          </p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="p-6 border-t border-[var(--border-default)] bg-[var(--surface-secondary)]">
-        <div className="max-w-2xl mx-auto flex gap-3">
-          <button
-            onClick={handleLaunch}
-            disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity font-semibold disabled:opacity-50"
-          >
-            <PlayCircle className="w-5 h-5" />
-            Launch Course
-          </button>
-          <button
-            onClick={() => {
-              endFlow();
-              router.push('/x/courses');
-            }}
-            disabled={loading}
-            className="flex-1 px-6 py-3 border border-[var(--border-default)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-primary)] transition-colors disabled:opacity-50"
-          >
-            Back to Courses
-          </button>
-        </div>
+        <WizardSummary
+          title="Ready to Launch"
+          subtitle="Review your course and launch when ready"
+          intent={{
+            items: [
+              { icon: <BookOpen className="w-4 h-4" />, label: 'Course', value: courseName || '—' },
+              { icon: <GraduationCap className="w-4 h-4" />, label: 'Sessions', value: `${sessionCount} × ${durationMins} min` },
+              { icon: <Users className="w-4 h-4" />, label: 'Students', value: totalStudents > 0 ? `${totalStudents} enrolled` : 'None yet' },
+              { label: 'Plan', value: lessonPlanMode === 'reviewed' ? 'Custom plan' : lessonPlanMode === 'accept' ? 'Auto-generated' : 'Defaults' },
+              { label: 'Style', value: personaName || teachingStyle || '—' },
+            ],
+          }}
+          stats={[
+            { label: 'Sessions', value: sessionCount },
+            { label: 'Duration', value: `${durationMins}m` },
+            { label: 'Students', value: totalStudents || '—' },
+          ]}
+          tuning={tunerPills.length > 0 ? {
+            traits: tunerPills.map(p => p.label).filter(Boolean),
+            paramCount: behaviorTargets ? Object.keys(behaviorTargets).length : 0,
+          } : undefined}
+          primaryAction={{
+            label: 'Launch Course',
+            icon: <PlayCircle className="w-5 h-5" />,
+            onClick: handleLaunch,
+            disabled: loading,
+          }}
+          secondaryActions={[
+            {
+              label: 'Save as Draft',
+              onClick: handleGoToCourses,
+            },
+          ]}
+          onBack={onPrev}
+        />
       </div>
     </div>
   );

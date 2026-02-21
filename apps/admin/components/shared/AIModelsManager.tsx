@@ -25,19 +25,19 @@ interface Provider {
 
 // Provider styling
 const PROVIDER_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  claude: { bg: "#fdf4ff", text: "#9333ea", border: "#d8b4fe" },
-  openai: { bg: "#ecfdf5", text: "#059669", border: "#6ee7b7" },
-  mock: { bg: "#f3f4f6", text: "#6b7280", border: "#d1d5db" },
+  claude: { bg: "var(--badge-purple-bg, #fdf4ff)", text: "var(--badge-purple-text, #9333ea)", border: "var(--badge-purple-border, #d8b4fe)" },
+  openai: { bg: "var(--badge-green-bg, #ecfdf5)", text: "var(--badge-green-text, #059669)", border: "var(--badge-green-border, #6ee7b7)" },
+  mock: { bg: "var(--badge-gray-bg, #f3f4f6)", text: "var(--badge-gray-text, #6b7280)", border: "var(--badge-gray-border, #d1d5db)" },
 };
 
 // Tier badges
 const TIER_STYLES: Record<string, { bg: string; text: string }> = {
-  flagship: { bg: "#fef3c7", text: "#d97706" },
-  standard: { bg: "#f3f4f6", text: "#374151" },
-  fast: { bg: "#dbeafe", text: "#2563eb" },
-  test: { bg: "#d1fae5", text: "#059669" },
-  premium: { bg: "#fef3c7", text: "#d97706" },
-  free: { bg: "#d1fae5", text: "#059669" },
+  flagship: { bg: "var(--badge-amber-bg, #fef3c7)", text: "var(--badge-amber-text, #d97706)" },
+  standard: { bg: "var(--surface-secondary)", text: "var(--text-primary)" },
+  fast: { bg: "var(--badge-blue-bg, #dbeafe)", text: "var(--badge-blue-text, #2563eb)" },
+  test: { bg: "var(--badge-green-bg, #d1fae5)", text: "var(--badge-green-text, #059669)" },
+  premium: { bg: "var(--badge-amber-bg, #fef3c7)", text: "var(--badge-amber-text, #d97706)" },
+  free: { bg: "var(--badge-green-bg, #d1fae5)", text: "var(--badge-green-text, #059669)" },
 };
 
 // =====================================================

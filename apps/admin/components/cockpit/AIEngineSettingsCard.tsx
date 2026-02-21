@@ -53,8 +53,8 @@ export default function AIEngineSettingsCard() {
   return (
     <div
       style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
         borderRadius: 12,
         padding: 20,
       }}
@@ -62,11 +62,11 @@ export default function AIEngineSettingsCard() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>AI Engine</h3>
         {saved && (
-          <span style={{ fontSize: 11, color: "#10b981" }}>Saved</span>
+          <span style={{ fontSize: 11, color: "var(--status-success-text)" }}>Saved</span>
         )}
       </div>
 
-      <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
         Select which AI engine to use for analysis operations (MEASURE, LEARN, etc).
       </p>
 
@@ -83,8 +83,8 @@ export default function AIEngineSettingsCard() {
               style={{
                 flex: 1,
                 padding: "12px 16px",
-                background: isSelected ? "#eef2ff" : available ? "#f9fafb" : "#f3f4f6",
-                border: `2px solid ${isSelected ? "#4f46e5" : "#e5e7eb"}`,
+                background: isSelected ? "var(--surface-selected, #eef2ff)" : available ? "var(--surface-secondary)" : "var(--surface-secondary)",
+                border: `2px solid ${isSelected ? "var(--accent-primary)" : "var(--border-default)"}`,
                 borderRadius: 8,
                 cursor: available ? "pointer" : "not-allowed",
                 textAlign: "center",
@@ -95,7 +95,7 @@ export default function AIEngineSettingsCard() {
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: isSelected ? "#4f46e5" : available ? "#374151" : "#9ca3af",
+                  color: isSelected ? "var(--accent-primary)" : available ? "var(--text-primary)" : "var(--text-muted)",
                 }}
               >
                 {eng.label}
@@ -103,7 +103,7 @@ export default function AIEngineSettingsCard() {
               <div
                 style={{
                   fontSize: 11,
-                  color: isSelected ? "#6366f1" : "#9ca3af",
+                  color: isSelected ? "var(--badge-indigo-text, #6366f1)" : "var(--text-muted)",
                   marginTop: 4,
                 }}
               >
@@ -114,7 +114,7 @@ export default function AIEngineSettingsCard() {
                   style={{
                     fontSize: 10,
                     marginTop: 6,
-                    color: available ? "#10b981" : "#ef4444",
+                    color: available ? "var(--status-success-text)" : "var(--status-error-text)",
                   }}
                 >
                   {available ? "API key configured" : `Missing ${eng.envKey}`}
@@ -125,7 +125,7 @@ export default function AIEngineSettingsCard() {
         })}
       </div>
 
-      <div style={{ marginTop: 12, fontSize: 11, color: "#9ca3af" }}>
+      <div style={{ marginTop: 12, fontSize: 11, color: "var(--text-muted)" }}>
         Setting takes effect immediately for new op runs. Mock mode uses pattern-based scoring without API calls.
       </div>
     </div>

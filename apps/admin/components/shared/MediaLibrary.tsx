@@ -108,7 +108,7 @@ export function MediaLibrary({
                 border: "1px solid",
                 borderColor: filter === f.value ? "var(--accent-primary, #4338ca)" : "var(--border-default, #d1d5db)",
                 background: filter === f.value ? "var(--accent-primary, #4338ca)" : "var(--surface-primary, #fff)",
-                color: filter === f.value ? "#fff" : "var(--text-secondary, #374151)",
+                color: filter === f.value ? "var(--button-primary-text, #fff)" : "var(--text-secondary, #374151)",
                 cursor: "pointer",
                 fontWeight: filter === f.value ? 600 : 400,
               }}

@@ -221,7 +221,7 @@ export function ConversationList() {
                     border: 'none',
                     cursor: 'pointer',
                     fontSize: 13,
-                    color: '#dc2626',
+                    color: 'var(--status-error-text)',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--wa-hover)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}

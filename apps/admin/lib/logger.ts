@@ -185,14 +185,16 @@ export function logAI(
   if (!enabledTypes.includes("ai")) return;
 
   try {
+    const isDeep = options?.deep === true;
+
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       type: "ai",
       stage,
       promptLength: prompt.length,
-      promptPreview: prompt.slice(0, 1000),
+      promptPreview: isDeep ? prompt : prompt.slice(0, 1000),
       responseLength: response.length,
-      responsePreview: response.slice(0, 500),
+      responsePreview: isDeep ? response : response.slice(0, 500),
       usage: options?.usage,
       durationMs: options?.durationMs,
       metadata: options,

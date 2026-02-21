@@ -39,32 +39,32 @@ const levelConfig: Record<string, {
   icon: string;
 }> = {
   ready: {
-    bg: "#ecfdf5",
-    text: "#065f46",
-    border: "#a7f3d0",
+    bg: "var(--status-success-bg, #ecfdf5)",
+    text: "var(--status-success-text, #065f46)",
+    border: "var(--status-success-border, #a7f3d0)",
     label: "Ready",
     icon: "\u2713", // checkmark
   },
   almost: {
-    bg: "#fffbeb",
-    text: "#92400e",
-    border: "#fde68a",
+    bg: "var(--status-warning-bg, #fffbeb)",
+    text: "var(--status-warning-text, #92400e)",
+    border: "var(--status-warning-border, #fde68a)",
     label: "Almost Ready",
     icon: "\u25CB", // circle
   },
   incomplete: {
-    bg: "#fef2f2",
-    text: "#991b1b",
-    border: "#fecaca",
+    bg: "var(--status-error-bg, #fef2f2)",
+    text: "var(--status-error-text, #991b1b)",
+    border: "var(--status-error-border, #fecaca)",
     label: "Not Ready",
     icon: "\u2717", // x mark
   },
 };
 
 const severityIcons: Record<string, { icon: string; color: string }> = {
-  critical: { icon: "\u25CF", color: "#dc2626" },
-  recommended: { icon: "\u25CF", color: "#f59e0b" },
-  optional: { icon: "\u25CF", color: "#6b7280" },
+  critical: { icon: "\u25CF", color: "var(--status-error-text)" },
+  recommended: { icon: "\u25CF", color: "var(--status-warning-text)" },
+  optional: { icon: "\u25CF", color: "var(--text-muted)" },
 };
 
 // =====================================================
@@ -142,8 +142,8 @@ export function ReadinessBadge({
         padding: size === "compact" ? "2px 8px" : "4px 12px",
         fontSize: size === "compact" ? "11px" : "12px",
         borderRadius: "12px",
-        backgroundColor: "#f3f4f6",
-        color: "#9ca3af",
+        backgroundColor: "var(--surface-secondary)",
+        color: "var(--text-muted)",
       }}>
         Checking...
       </span>
@@ -199,9 +199,9 @@ export function ReadinessBadge({
             borderRadius: 8,
             border: "none",
             background: scaffolding
-              ? "#e5e7eb"
-              : "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-            color: scaffolding ? "#9ca3af" : "#fff",
+              ? "var(--border-default)"
+              : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #8b5cf6) 100%)",
+            color: scaffolding ? "var(--text-muted)" : "var(--surface-primary)",
             cursor: scaffolding ? "default" : "pointer",
             boxShadow: scaffolding ? "none" : "0 2px 8px rgba(99, 102, 241, 0.3)",
             transition: "all 0.2s",
@@ -237,7 +237,7 @@ export function ReadinessChecklist({
     <div style={{
       border: `1px solid ${config.border}`,
       borderRadius: "8px",
-      backgroundColor: "#ffffff",
+      backgroundColor: "var(--surface-primary)",
       overflow: "hidden",
       fontSize: "13px",
     }}>
@@ -255,8 +255,8 @@ export function ReadinessChecklist({
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               color: severityIcons[severity].color,
-              backgroundColor: "#fafafa",
-              borderBottom: "1px solid #f0f0f0",
+              backgroundColor: "var(--surface-secondary)",
+              borderBottom: "1px solid var(--border-default)",
             }}>
               {severity} ({group.filter((c) => c.passed).length}/{group.length})
             </div>
@@ -269,14 +269,14 @@ export function ReadinessChecklist({
                   alignItems: "flex-start",
                   gap: "8px",
                   padding: "8px 12px",
-                  borderBottom: "1px solid #f5f5f5",
+                  borderBottom: "1px solid var(--border-subtle, #f5f5f5)",
                 }}
               >
                 {/* Pass/fail icon */}
                 <span style={{
                   fontSize: "14px",
                   lineHeight: "20px",
-                  color: check.passed ? "#16a34a" : "#dc2626",
+                  color: check.passed ? "var(--status-success-text)" : "var(--status-error-text)",
                   flexShrink: 0,
                 }}>
                   {check.passed ? "\u2713" : "\u2717"}
@@ -284,12 +284,12 @@ export function ReadinessChecklist({
 
                 {/* Check info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, color: "#1f2937" }}>
+                  <div style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                     {check.name}
                   </div>
                   <div style={{
                     fontSize: "11px",
-                    color: check.passed ? "#6b7280" : "#dc2626",
+                    color: check.passed ? "var(--text-muted)" : "var(--status-error-text)",
                     marginTop: "1px",
                   }}>
                     {check.detail}
@@ -302,7 +302,7 @@ export function ReadinessChecklist({
                     href={check.fixAction.href}
                     style={{
                       fontSize: "11px",
-                      color: "#2563eb",
+                      color: "var(--accent-primary)",
                       textDecoration: "none",
                       whiteSpace: "nowrap",
                       flexShrink: 0,

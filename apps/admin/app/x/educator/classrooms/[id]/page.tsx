@@ -186,7 +186,7 @@ export default function ClassroomDetailPage() {
         </Link>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+            <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
               {classroom.name}
             </h1>
             <div style={{ display: "flex", gap: 12, fontSize: 13, color: "var(--text-muted)" }}>
@@ -204,17 +204,8 @@ export default function ClassroomDetailPage() {
           </div>
           <button
             onClick={() => setShowSendModal(true)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 8,
-              border: "none",
-              background: "var(--accent-primary)",
-              color: "white",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
+            className="hf-btn hf-btn-primary flex-shrink-0"
+            style={{ fontSize: 13 }}
           >
             Send to Class
           </button>
@@ -224,31 +215,18 @@ export default function ClassroomDetailPage() {
       {/* Join Link Banner */}
       {classroom.joinToken && (
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "12px 16px",
-            background: "color-mix(in srgb, #3b82f6 8%, transparent)",
-            border: "1px solid color-mix(in srgb, #3b82f6 20%, transparent)",
-            borderRadius: 8,
-            marginBottom: 20,
-          }}
+          className="hf-banner hf-banner-info flex items-center gap-3"
+          style={{ marginBottom: 20 }}
         >
           <span style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}>
             Invite link: <span style={{ fontFamily: "monospace", fontSize: 12 }}>{joinUrl}</span>
           </span>
           <button
             onClick={copyLink}
+            className="hf-btn hf-btn-primary"
             style={{
-              padding: "4px 12px",
-              background: copied ? "var(--status-success-text)" : "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
+              padding: "4px 12px", fontSize: 12,
+              background: copied ? "var(--status-success-text)" : undefined,
             }}
           >
             {copied ? "Copied!" : "Copy"}
@@ -257,29 +235,12 @@ export default function ClassroomDetailPage() {
       )}
 
       {/* Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 20,
-          borderBottom: "1px solid var(--border-default)",
-        }}
-      >
+      <div className="flex gap-1" style={{ marginBottom: 20, borderBottom: "1px solid var(--border-default)" }}>
         {(["roster", "settings"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              background: "transparent",
-              color: tab === t ? "var(--button-primary-bg)" : "var(--text-muted)",
-              borderBottom: tab === t ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-              textTransform: "capitalize",
-            }}
+            className={`hf-tab${tab === t ? " hf-tab-active" : ""}`}
           >
             {t}
           </button>
@@ -290,48 +251,24 @@ export default function ClassroomDetailPage() {
       {tab === "roster" && (
         <div>
           {/* Invite section */}
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 10,
-              padding: 16,
-              marginBottom: 20,
-            }}
-          >
+          <div className="hf-card-compact" style={{ padding: 16, marginBottom: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
               Invite {plural("caller")}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={inviteEmails}
                 onChange={(e) => setInviteEmails(e.target.value)}
                 placeholder="Enter email addresses (comma-separated)"
-                style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 6,
-                  fontSize: 13,
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                  outline: "none",
-                }}
+                className="hf-input"
+                style={{ flex: 1, fontSize: 13 }}
               />
               <button
                 disabled={inviting || !inviteEmails.trim()}
                 onClick={handleInvite}
-                style={{
-                  padding: "8px 16px",
-                  background: inviting || !inviteEmails.trim() ? "var(--border-default)" : "var(--button-primary-bg)",
-                  color: inviting || !inviteEmails.trim() ? "var(--text-muted)" : "var(--button-primary-text)",
-                  border: "none",
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: inviting || !inviteEmails.trim() ? "not-allowed" : "pointer",
-                }}
+                className="hf-btn hf-btn-primary"
+                style={{ fontSize: 13 }}
               >
                 {inviting ? "Sending..." : "Send Invites"}
               </button>
@@ -356,14 +293,8 @@ export default function ClassroomDetailPage() {
               No {lowerPlural("caller")} yet. Share the invite link or send email invites above.
             </div>
           ) : (
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 10,
-                overflow: "hidden",
-              }}
-            >
+            <div className="hf-card-compact" style={{ overflow: "hidden", padding: 0 }}>
+
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr
@@ -488,90 +419,38 @@ export default function ClassroomDetailPage() {
 
       {/* Settings Tab */}
       {tab === "settings" && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 10,
-            padding: 24,
-          }}
-        >
+        <div className="hf-card">
           <div style={{ marginBottom: 16 }}>
-            <label
-              style={{ display: "block", fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}
-            >
-              {terms.cohort} Name
-            </label>
+            <label className="hf-label">{terms.cohort} Name</label>
             <input
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 14,
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
+              className="hf-input"
+              style={{ width: "100%" }}
             />
           </div>
           <div style={{ marginBottom: 20 }}>
-            <label
-              style={{ display: "block", fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}
-            >
-              Description
-            </label>
+            <label className="hf-label">Description</label>
             <textarea
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
               rows={3}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 14,
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                outline: "none",
-                resize: "vertical",
-                boxSizing: "border-box",
-              }}
+              className="hf-input"
+              style={{ width: "100%", resize: "vertical" }}
             />
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="flex gap-3">
             <button
               disabled={saving}
               onClick={handleSave}
-              style={{
-                padding: "8px 20px",
-                background: "var(--button-primary-bg)",
-                color: "var(--button-primary-text)",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: saving ? "not-allowed" : "pointer",
-              }}
+              className="hf-btn hf-btn-primary"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>
             <button
               onClick={handleArchive}
-              style={{
-                padding: "8px 20px",
-                background: "transparent",
-                color: "var(--status-error-text)",
-                border: "1px solid var(--status-error-text)",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-destructive"
             >
               Archive {terms.cohort}
             </button>

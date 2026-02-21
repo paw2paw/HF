@@ -30,6 +30,9 @@ const mockPrisma = {
   caller: {
     findMany: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+  },
   call: {
     groupBy: vi.fn(),
   },
@@ -134,8 +137,8 @@ describe("GET /api/educator/classrooms", () => {
       },
     ]);
 
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([]);
     mockPrisma.call.groupBy.mockResolvedValue([]);
-    mockPrisma.caller.findMany.mockResolvedValue([]);
 
     const res = await GET(createGetRequest());
     const body = await res.json();
@@ -243,14 +246,17 @@ describe("GET /api/educator/classrooms/[id]", () => {
   });
 
   it("returns classroom detail with roster", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
       {
-        id: "s1",
-        name: "Alice",
-        email: "alice@test.com",
-        _count: { calls: 3 },
-        calls: [{ createdAt: new Date() }],
-        createdAt: new Date(),
+        caller: {
+          id: "s1",
+          name: "Alice",
+          email: "alice@test.com",
+          role: "LEARNER",
+          _count: { calls: 3 },
+          calls: [{ createdAt: new Date() }],
+          createdAt: new Date(),
+        },
       },
     ]);
 

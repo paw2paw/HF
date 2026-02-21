@@ -7,7 +7,7 @@ export default function AdminPage() {
     <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Admin</h1>
+        <h1 className="hf-page-title">Admin</h1>
         <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
           System-wide settings and configuration
         </p>

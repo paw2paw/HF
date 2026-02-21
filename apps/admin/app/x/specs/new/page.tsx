@@ -150,7 +150,7 @@ const StepBadge = ({ number, active = true }: { number: number; active?: boolean
       height: 32,
       borderRadius: 10,
       background: active
-        ? "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)"
+        ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)"
         : "var(--surface-tertiary)",
       display: "flex",
       alignItems: "center",
@@ -158,7 +158,7 @@ const StepBadge = ({ number, active = true }: { number: number; active?: boolean
       color: active ? "white" : "var(--text-muted)",
       fontWeight: 700,
       fontSize: 13,
-      boxShadow: active ? "0 2px 8px rgba(99, 102, 241, 0.3)" : "none",
+      boxShadow: active ? "0 2px 8px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)" : "none",
     }}
   >
     {number}
@@ -690,11 +690,11 @@ export default function CreateSpecPage() {
             top: 24,
             right: 24,
             zIndex: 1000,
-            background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+            background: "linear-gradient(135deg, var(--accent-secondary, #8b5cf6) 0%, var(--badge-indigo-text, #6366f1) 100%)",
             color: "white",
             padding: "16px 20px",
             borderRadius: 12,
-            boxShadow: "0 8px 24px rgba(139, 92, 246, 0.4)",
+            boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-secondary, #8b5cf6) 40%, transparent)",
             display: "flex",
             alignItems: "center",
             gap: 12,
@@ -740,7 +740,7 @@ export default function CreateSpecPage() {
                   width: 64,
                   height: 64,
                   borderRadius: 16,
-                  background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+                  background: "linear-gradient(135deg, var(--status-warning-accent, #fbbf24) 0%, var(--status-warning-text, #f59e0b) 100%)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -780,10 +780,10 @@ export default function CreateSpecPage() {
                     fontWeight: 600,
                     borderRadius: 10,
                     border: "none",
-                    background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
+                    background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                     color: "white",
                     cursor: "pointer",
-                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
+                    boxShadow: "0 4px 12px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)",
                   }}
                 >
                   Restore Draft
@@ -948,12 +948,12 @@ export default function CreateSpecPage() {
                 width: 56,
                 height: 56,
                 borderRadius: 16,
-                background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                background: "linear-gradient(135deg, var(--accent-secondary, #8b5cf6) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 28,
-                boxShadow: "0 4px 16px rgba(139, 92, 246, 0.3)",
+                boxShadow: "0 4px 16px color-mix(in srgb, var(--accent-secondary, #8b5cf6) 30%, transparent)",
               }}
             >
               🤖
@@ -1026,7 +1026,7 @@ export default function CreateSpecPage() {
               }}
               onFocus={(e) => {
                 e.target.style.borderColor = "var(--accent-primary)";
-                e.target.style.boxShadow = "0 0 0 3px rgba(99, 102, 241, 0.1)";
+                e.target.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--accent-primary) 10%, transparent)";
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = "var(--border-default)";
@@ -1045,11 +1045,11 @@ export default function CreateSpecPage() {
                 background:
                   chatLoading || !chatInput.trim()
                     ? "var(--surface-tertiary)"
-                    : "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
+                    : "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                 color: chatLoading || !chatInput.trim() ? "var(--text-muted)" : "white",
                 cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer",
                 whiteSpace: "nowrap",
-                boxShadow: chatLoading || !chatInput.trim() ? "none" : "0 4px 12px rgba(99, 102, 241, 0.3)",
+                boxShadow: chatLoading || !chatInput.trim() ? "none" : "0 4px 12px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)",
                 transition: "all 0.2s ease",
                 display: "flex",
                 alignItems: "center",
@@ -1111,8 +1111,8 @@ export default function CreateSpecPage() {
                       height: 36,
                       borderRadius: 10,
                       background: msg.role === "user"
-                        ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-                        : "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                        ? "linear-gradient(135deg, var(--status-success-text, #10b981) 0%, var(--status-success-accent, #059669) 100%)"
+                        : "linear-gradient(135deg, var(--accent-secondary, #8b5cf6) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1562,10 +1562,10 @@ export default function CreateSpecPage() {
                       fontWeight: 600,
                       borderRadius: 10,
                       border: "none",
-                      background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
+                      background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                       color: "white",
                       cursor: "pointer",
-                      boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)",
+                      boxShadow: "0 2px 8px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)",
                     }}
                   >
                     <Plus size={16} />
@@ -1624,7 +1624,7 @@ export default function CreateSpecPage() {
                                 width: 28,
                                 height: 28,
                                 borderRadius: 8,
-                                background: "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
+                                background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                                 color: "white",
                                 display: "flex",
                                 alignItems: "center",
@@ -1894,13 +1894,13 @@ export default function CreateSpecPage() {
                     border: "none",
                     background: creating
                       ? "var(--surface-tertiary)"
-                      : "linear-gradient(135deg, var(--success-text) 0%, #059669 100%)",
+                      : "linear-gradient(135deg, var(--success-text) 0%, var(--status-success-accent, #059669) 100%)",
                     color: creating ? "var(--text-muted)" : "white",
                     cursor: creating ? "not-allowed" : "pointer",
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                    boxShadow: creating ? "none" : "0 4px 12px rgba(16, 185, 129, 0.3)",
+                    boxShadow: creating ? "none" : "0 4px 12px color-mix(in srgb, var(--status-success-text, #10b981) 30%, transparent)",
                   }}
                 >
                   {creating && (

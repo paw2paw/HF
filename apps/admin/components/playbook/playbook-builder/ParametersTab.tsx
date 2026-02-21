@@ -237,20 +237,17 @@ export function ParametersTabContent({
                               </span>
                               <span style={{ fontWeight: 500 }}>{param.name}</span>
                               {param.sourceFeatureSet && (
-                                <a
-                                  href={`/lab/features/${param.sourceFeatureSet.id}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                <span
                                   style={{
                                     fontSize: 10,
                                     background: "var(--status-success-bg)",
                                     color: "var(--status-success-text)",
                                     padding: "1px 6px",
                                     borderRadius: 3,
-                                    textDecoration: "none",
                                   }}
                                 >
-                                  📦 {param.sourceFeatureSet.name}
-                                </a>
+                                  {param.sourceFeatureSet.name}
+                                </span>
                               )}
                               {param.scoringAnchors.length > 0 && (
                                 <span style={{ color: "var(--text-muted)", fontSize: 11 }}>

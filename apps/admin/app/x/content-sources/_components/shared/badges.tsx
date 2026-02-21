@@ -95,7 +95,7 @@ export function FreshnessIndicator({ validUntil }: { validUntil: string | null }
     return <span style={{ color: "var(--status-error-text)", fontSize: 12, fontWeight: 600 }}>Expired {Math.abs(daysUntil)}d ago</span>;
   }
   if (daysUntil <= 60) {
-    return <span style={{ color: "#FF8F00", fontSize: 12, fontWeight: 600 }}>Expires in {daysUntil}d</span>;
+    return <span style={{ color: "var(--status-warning-text)", fontSize: 12, fontWeight: 600 }}>Expires in {daysUntil}d</span>;
   }
   return <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Valid until {expiry.toLocaleDateString()}</span>;
 }

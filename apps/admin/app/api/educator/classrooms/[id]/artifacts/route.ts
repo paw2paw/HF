@@ -52,11 +52,14 @@ export async function POST(
     );
   }
 
-  // Get all LEARNER members of this classroom
-  const members = await prisma.caller.findMany({
-    where: { cohortGroupId: classroomId, role: "LEARNER" },
-    select: { id: true },
+  // Get all LEARNER members of this classroom via join table
+  const memberships = await prisma.callerCohortMembership.findMany({
+    where: { cohortGroupId: classroomId },
+    include: { caller: { select: { id: true, role: true } } },
   });
+  const members = memberships
+    .map((m) => m.caller)
+    .filter((c) => c.role === "LEARNER");
 
   if (members.length === 0) {
     return NextResponse.json(

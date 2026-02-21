@@ -87,7 +87,7 @@ export function ContentPicker({ callerId, callId, onClose, onShared }: ContentPi
         left: 0,
         right: 0,
         maxHeight: '70%',
-        background: '#fff',
+        background: 'var(--surface-primary)',
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
         boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
@@ -97,11 +97,11 @@ export function ContentPicker({ callerId, callId, onClose, onShared }: ContentPi
       }}
     >
       {/* Header */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>Share Content</span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#667781', padding: '2px 6px' }}
+          style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-muted)', padding: '2px 6px' }}
         >
           {'\u2715'}
         </button>
@@ -118,9 +118,9 @@ export function ContentPicker({ callerId, callId, onClose, onShared }: ContentPi
               borderRadius: 14,
               fontSize: 12,
               border: '1px solid',
-              borderColor: filter === f ? '#4338ca' : '#d1d5db',
-              background: filter === f ? '#4338ca' : '#fff',
-              color: filter === f ? '#fff' : '#374151',
+              borderColor: filter === f ? 'var(--accent-primary)' : 'var(--border-default)',
+              background: filter === f ? 'var(--accent-primary)' : 'var(--surface-primary)',
+              color: filter === f ? 'var(--surface-primary)' : 'var(--text-primary)',
               cursor: 'pointer',
             }}
           >
@@ -140,7 +140,7 @@ export function ContentPicker({ callerId, callId, onClose, onShared }: ContentPi
             width: '100%',
             padding: '6px 10px',
             borderRadius: 8,
-            border: '1px solid #d1d5db',
+            border: '1px solid var(--border-default)',
             fontSize: 13,
             outline: 'none',
           }}
@@ -150,9 +150,9 @@ export function ContentPicker({ callerId, callId, onClose, onShared }: ContentPi
       {/* Media grid */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 20, color: '#667781', fontSize: 13 }}>Loading content library...</div>
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Loading content library...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 20, color: '#667781', fontSize: 13 }}>
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>
             {media.length === 0 ? 'No content uploaded for this subject yet' : 'No matching content'}
           </div>
         ) : (
@@ -164,16 +164,16 @@ export function ContentPicker({ callerId, callId, onClose, onShared }: ContentPi
                 disabled={sharing === item.id}
                 style={{
                   padding: 8,
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid var(--border-default)',
                   borderRadius: 8,
-                  background: '#fff',
+                  background: 'var(--surface-primary)',
                   cursor: sharing === item.id ? 'wait' : 'pointer',
                   textAlign: 'left',
                   opacity: sharing === item.id ? 0.5 : 1,
                 }}
               >
                 {/* Thumbnail */}
-                <div style={{ width: '100%', height: 80, borderRadius: 4, overflow: 'hidden', marginBottom: 6, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '100%', height: 80, borderRadius: 4, overflow: 'hidden', marginBottom: 6, background: 'var(--surface-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {item.mimeType.startsWith('image/') ? (
                     <img src={item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : item.mimeType === 'application/pdf' ? (
@@ -189,7 +189,7 @@ export function ContentPicker({ callerId, callId, onClose, onShared }: ContentPi
                 <div style={{ fontSize: 11, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.title || item.fileName}
                 </div>
-                <div style={{ fontSize: 10, color: '#667781' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                   {item.mimeType.startsWith('image/') ? 'Image' : item.mimeType === 'application/pdf' ? 'PDF' : item.mimeType.startsWith('audio/') ? 'Audio' : 'File'}
                 </div>
               </button>

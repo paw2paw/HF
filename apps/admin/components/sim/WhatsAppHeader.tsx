@@ -36,7 +36,7 @@ export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibr
           onClick={onMediaLibrary}
           aria-label="Shared files"
           title="Shared files"
-          style={{ color: mediaLibraryActive ? '#4338ca' : undefined }}
+          style={{ color: mediaLibraryActive ? 'var(--accent-primary)' : undefined }}
         >
           <FolderOpen size={20} />
         </button>
@@ -46,7 +46,7 @@ export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibr
           className="wa-back-btn"
           onClick={onEndCall}
           aria-label="End call"
-          style={{ color: '#FF5252' }}
+          style={{ color: 'var(--status-error-text)' }}
         >
           <PhoneOff size={22} />
         </button>

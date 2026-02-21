@@ -225,7 +225,7 @@ export function SendArtifactModal({ target, onClose, onSuccess }: SendArtifactMo
           </div>
 
           {error && (
-            <p className="text-xs" style={{ color: "#dc2626" }}>
+            <p className="text-xs" style={{ color: "var(--status-error-text)" }}>
               {error}
             </p>
           )}

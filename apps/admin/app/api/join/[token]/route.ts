@@ -132,7 +132,14 @@ export async function POST(
 
   if (existingUser) {
     // User exists — check if they already have a caller in this cohort
-    const existingCaller = await prisma.caller.findFirst({
+    // Check if user already has a membership in this cohort (via join table or legacy FK)
+    const existingMembership = await prisma.callerCohortMembership.findFirst({
+      where: {
+        cohortGroupId: cohort.id,
+        caller: { userId: existingUser.id },
+      },
+    });
+    const existingCaller = existingMembership || await prisma.caller.findFirst({
       where: { userId: existingUser.id, cohortGroupId: cohort.id },
     });
 
@@ -151,9 +158,14 @@ export async function POST(
         role: "LEARNER",
         userId: existingUser.id,
         domainId: cohort.domainId,
-        cohortGroupId: cohort.id,
+        cohortGroupId: cohort.id, // legacy FK
         externalId: `join-${existingUser.id}-${cohort.id}`,
       },
+    });
+
+    // Create join table membership
+    await prisma.callerCohortMembership.create({
+      data: { callerId: newCaller.id, cohortGroupId: cohort.id },
     });
 
     // Auto-enroll in cohort's playbooks (falls back to domain-wide if none assigned)
@@ -190,9 +202,14 @@ export async function POST(
         role: "LEARNER",
         userId: newUser.id,
         domainId: cohort.domainId,
-        cohortGroupId: cohort.id,
+        cohortGroupId: cohort.id, // legacy FK
         externalId: `join-${newUser.id}`,
       },
+    });
+
+    // Create join table membership
+    await tx.callerCohortMembership.create({
+      data: { callerId: newCaller.id, cohortGroupId: cohort.id },
     });
 
     // Auto-enroll in cohort's playbooks (falls back to domain-wide if none assigned)

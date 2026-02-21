@@ -29,12 +29,14 @@ export interface GeneratedIdentityConfig {
   principles: string[];
   methods: string[];
   domainVocabulary: string[];
+  toneTraits?: string[];
 }
 
 export interface GenerateIdentityOptions {
   subjectName: string;
   persona: string;
   learningGoals: string[];
+  toneTraits?: string[];
   assertions: Array<{
     assertion: string;
     category: string;
@@ -129,7 +131,7 @@ export async function generateIdentityFromAssertions(
   const sampled = sampleAssertions(options.assertions, maxSample);
 
   if (sampled.length === 0) {
-    return buildFallbackConfig(options.subjectName, options.persona, options.learningGoals);
+    return buildFallbackConfig(options.subjectName, options.persona, options.learningGoals, options.toneTraits);
   }
 
   // Build assertion summary for AI
@@ -148,8 +150,12 @@ export async function generateIdentityFromAssertions(
     ? `\nLearner's goals: ${options.learningGoals.join(", ")}.\nTailor the identity's primaryGoal, techniques, and session structure to support these goals.`
     : "";
 
+  const traitsSection = options.toneTraits?.length
+    ? `\nDesired interaction traits: ${options.toneTraits.join(", ")}.\nEnsure these traits are reflected in styleGuidelines, does/doesNot, and session phase approaches.`
+    : "";
+
   const userPrompt = `Generate an identity for a "${options.persona}" agent teaching "${options.subjectName}".
-${goalsSection}
+${goalsSection}${traitsSection}
 
 Subject covers ${chapters.length} topic areas: ${chapters.slice(0, 10).join(", ")}${chapters.length > 10 ? "..." : ""}
 Content categories: ${categories.join(", ")}
@@ -176,7 +182,7 @@ Generate the identity configuration JSON.`;
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.warn("[generate-identity] AI did not return valid JSON, using fallback");
-      return buildFallbackConfig(options.subjectName, options.persona, options.learningGoals);
+      return buildFallbackConfig(options.subjectName, options.persona, options.learningGoals, options.toneTraits);
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
@@ -197,12 +203,13 @@ Generate the identity configuration JSON.`;
       principles: parsed.principles || [],
       methods: parsed.methods || [],
       domainVocabulary: parsed.domainVocabulary || [],
+      toneTraits: options.toneTraits || [],
     };
 
     return { ok: true, config };
   } catch (err: any) {
     console.error("[generate-identity] AI call failed:", err.message);
-    return buildFallbackConfig(options.subjectName, options.persona, options.learningGoals);
+    return buildFallbackConfig(options.subjectName, options.persona, options.learningGoals, options.toneTraits);
   }
 }
 
@@ -211,7 +218,8 @@ Generate the identity configuration JSON.`;
 async function buildFallbackConfig(
   subjectName: string,
   persona: string,
-  learningGoals: string[]
+  learningGoals: string[],
+  toneTraits?: string[]
 ): Promise<GenerateIdentityResult> {
   const goalText = learningGoals.length > 0
     ? `, focused on helping learners ${learningGoals[0].toLowerCase()}`
@@ -242,6 +250,7 @@ async function buildFallbackConfig(
       principles: tpl.principles,
       methods: tpl.methods,
       domainVocabulary: [],
+      toneTraits: toneTraits || [],
     },
     error: undefined,
   };

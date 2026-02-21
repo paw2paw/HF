@@ -23,9 +23,9 @@ type Assertion = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  fact: "#2563eb", definition: "#7c3aed", threshold: "#dc2626",
-  rule: "#ea580c", process: "#0891b2", example: "#16a34a",
-  principle: "#4338ca", formula: "#be185d",
+  fact: "var(--accent-primary)", definition: "var(--accent-secondary, #8b5cf6)", threshold: "var(--status-error-text)",
+  rule: "var(--badge-orange-text, #ea580c)", process: "var(--badge-cyan-text, #0891b2)", example: "var(--status-success-text)",
+  principle: "var(--accent-primary)", formula: "var(--badge-pink-text, #be185d)",
 };
 
 export default function ReviewStep({ setData, getData, onNext, onPrev }: StepProps) {
@@ -157,7 +157,7 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
             height: "100%", borderRadius: 3,
             background: reviewPct === 100
               ? "var(--status-success-text, #16a34a)"
-              : "linear-gradient(90deg, var(--accent-primary), #6366f1)",
+              : "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
             width: `${reviewPct}%`, transition: "width 0.3s ease-out",
           }} />
         </div>
@@ -184,7 +184,7 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
           <button onClick={handleBulkReview} disabled={bulkReviewing}
             style={{
               padding: "6px 16px", borderRadius: 6, border: "none",
-              background: "var(--accent-primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: "pointer",
             }}
           >
             {bulkReviewing ? "Marking..." : `Mark ${selected.size} Reviewed`}
@@ -266,7 +266,7 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
                       <button onClick={() => handleMarkReviewed(a.id)}
                         style={{
                           padding: "6px 16px", borderRadius: 6, border: "none",
-                          background: "var(--accent-primary)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                          background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 12, fontWeight: 600, cursor: "pointer",
                         }}
                       >
                         Mark Reviewed
@@ -302,7 +302,7 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
         <button onClick={handleContinue}
           style={{
             padding: "12px 32px", borderRadius: 8, border: "none",
-            background: "var(--accent-primary)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer",
+            background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 15, fontWeight: 700, cursor: "pointer",
           }}
         >
           Continue to Plan Lessons

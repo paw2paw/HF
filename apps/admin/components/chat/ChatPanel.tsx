@@ -23,9 +23,9 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
         style={{
           padding: "8px 16px",
           fontSize: 12,
-          color: "#9ca3af",
-          background: "#f9fafb",
-          borderBottom: "1px solid #e5e7eb",
+          color: "var(--text-muted)",
+          background: "var(--surface-secondary)",
+          borderBottom: "1px solid var(--border-default)",
         }}
       >
         No context selected - navigate to a caller or call to add context
@@ -37,8 +37,8 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
     <div
       style={{
         padding: "8px 16px",
-        background: "#f9fafb",
-        borderBottom: "1px solid #e5e7eb",
+        background: "var(--surface-secondary)",
+        borderBottom: "1px solid var(--border-default)",
         display: "flex",
         alignItems: "center",
         gap: 4,
@@ -50,7 +50,7 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
         const colors = ENTITY_COLORS[crumb.type];
         return (
           <React.Fragment key={crumb.id}>
-            {i > 0 && <span style={{ color: "#9ca3af" }}>›</span>}
+            {i > 0 && <span style={{ color: "var(--text-muted)" }}>›</span>}
             <button
               onClick={() => clearToEntity(crumb.id)}
               style={{
@@ -99,16 +99,16 @@ function ChatMessages() {
           alignItems: "center",
           justifyContent: "center",
           padding: 24,
-          color: "#9ca3af",
+          color: "var(--text-muted)",
           textAlign: "center",
         }}
       >
         <span style={{ fontSize: 48, marginBottom: 16 }}>{config.icon}</span>
-        <p style={{ fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 4 }}>
+        <p style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>
           {config.label} Mode
         </p>
         <p style={{ fontSize: 12 }}>{config.description}</p>
-        <p style={{ fontSize: 11, marginTop: 16, color: "#9ca3af" }}>
+        <p style={{ fontSize: 11, marginTop: 16, color: "var(--text-muted)" }}>
           Type a message or use /help for commands
         </p>
       </div>
@@ -146,7 +146,7 @@ function ChatMessages() {
               <div
                 style={{
                   fontSize: 11,
-                  color: "#8b5cf6",
+                  color: "var(--accent-secondary, #8b5cf6)",
                   marginBottom: 4,
                   paddingLeft: 4,
                   display: "flex",
@@ -163,8 +163,8 @@ function ChatMessages() {
                 maxWidth: "85%",
                 padding: "10px 14px",
                 borderRadius: 12,
-                background: isUser ? "#3b82f6" : hasError ? "#fef2f2" : "#f3f4f6",
-                color: isUser ? "white" : hasError ? "#dc2626" : "#1f2937",
+                background: isUser ? "var(--accent-primary)" : hasError ? "color-mix(in srgb, var(--status-error-text) 10%, transparent)" : "var(--surface-secondary)",
+                color: isUser ? "white" : hasError ? "var(--status-error-text)" : "var(--text-primary)",
                 fontSize: 13,
                 lineHeight: 1.5,
                 wordBreak: "break-word",
@@ -187,8 +187,8 @@ function ChatMessages() {
                             <code
                               style={{
                                 display: "block",
-                                background: "#1f2937",
-                                color: "#e5e7eb",
+                                background: "var(--text-primary)",
+                                color: "var(--border-default)",
                                 padding: 12,
                                 borderRadius: 6,
                                 fontSize: 12,
@@ -204,7 +204,7 @@ function ChatMessages() {
                         return (
                           <code
                             style={{
-                              background: "#e5e7eb",
+                              background: "var(--border-default)",
                               padding: "1px 4px",
                               borderRadius: 3,
                               fontSize: 12,
@@ -233,9 +233,9 @@ function ChatMessages() {
                       th: ({ children }) => (
                         <th
                           style={{
-                            border: "1px solid #d1d5db",
+                            border: "1px solid var(--border-default)",
                             padding: "4px 8px",
-                            background: "#e5e7eb",
+                            background: "var(--border-default)",
                             fontWeight: 600,
                             textAlign: "left",
                           }}
@@ -244,7 +244,7 @@ function ChatMessages() {
                         </th>
                       ),
                       td: ({ children }) => (
-                        <td style={{ border: "1px solid #d1d5db", padding: "4px 8px" }}>{children}</td>
+                        <td style={{ border: "1px solid var(--border-default)", padding: "4px 8px" }}>{children}</td>
                       ),
                       h3: ({ children }) => (
                         <h3 style={{ fontSize: 14, fontWeight: 600, margin: "12px 0 4px 0" }}>{children}</h3>
@@ -255,10 +255,10 @@ function ChatMessages() {
                       blockquote: ({ children }) => (
                         <blockquote
                           style={{
-                            borderLeft: "3px solid #8b5cf6",
+                            borderLeft: "3px solid var(--accent-secondary, #8b5cf6)",
                             paddingLeft: 12,
                             margin: "8px 0",
-                            color: "#4b5563",
+                            color: "var(--text-secondary)",
                           }}
                         >
                           {children}
@@ -276,7 +276,7 @@ function ChatMessages() {
                     display: "inline-block",
                     width: 6,
                     height: 14,
-                    background: "#6b7280",
+                    background: "var(--text-muted)",
                     marginLeft: 2,
                     animation: "blink 1s infinite",
                   }}
@@ -286,7 +286,7 @@ function ChatMessages() {
             <div
               style={{
                 fontSize: 10,
-                color: "#9ca3af",
+                color: "var(--text-muted)",
                 marginTop: 4,
                 paddingLeft: isUser ? 0 : 4,
                 paddingRight: isUser ? 4 : 0,
@@ -297,7 +297,7 @@ function ChatMessages() {
             >
               {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               {msg.metadata?.command && (
-                <span style={{ marginLeft: 8, color: "#8b5cf6" }}>{msg.metadata.command}</span>
+                <span style={{ marginLeft: 8, color: "var(--accent-secondary, #8b5cf6)" }}>{msg.metadata.command}</span>
               )}
               {!isUser && <AIModelBadge callPoint={`chat.${mode.toLowerCase()}`} variant="text" size="sm" />}
             </div>
@@ -343,8 +343,8 @@ function ChatInput() {
       onSubmit={handleSubmit}
       style={{
         padding: 12,
-        borderTop: "1px solid #e5e7eb",
-        background: "white",
+        borderTop: "1px solid var(--border-default)",
+        background: "var(--surface-primary)",
       }}
     >
       <div
@@ -364,7 +364,7 @@ function ChatInput() {
           style={{
             flex: 1,
             padding: "10px 12px",
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--border-default)",
             borderRadius: 8,
             fontSize: 13,
             resize: "none",
@@ -372,10 +372,10 @@ function ChatInput() {
             maxHeight: 120,
             outline: "none",
             fontFamily: "inherit",
-            background: "#ffffff",
-            color: "#111827",
-            caretColor: "#111827",
-            WebkitTextFillColor: "#111827",
+            background: "var(--surface-primary)",
+            color: "var(--text-primary)",
+            caretColor: "var(--text-primary)",
+            WebkitTextFillColor: "var(--text-primary)",
           } as React.CSSProperties}
           rows={1}
         />
@@ -385,7 +385,7 @@ function ChatInput() {
             onClick={cancelStream}
             style={{
               padding: "10px 16px",
-              background: "#ef4444",
+              background: "var(--status-error-text)",
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -402,8 +402,8 @@ function ChatInput() {
             disabled={!input.trim()}
             style={{
               padding: "10px 16px",
-              background: input.trim() ? config.color : "#e5e7eb",
-              color: input.trim() ? "white" : "#9ca3af",
+              background: input.trim() ? config.color : "var(--border-default)",
+              color: input.trim() ? "white" : "var(--text-muted)",
               border: "none",
               borderRadius: 8,
               fontSize: 13,
@@ -415,7 +415,7 @@ function ChatInput() {
           </button>
         )}
       </div>
-      <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 6, textAlign: "center" }}>
+      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, textAlign: "center" }}>
         Press Enter to send, Shift+Enter for new line
       </div>
     </form>
@@ -438,7 +438,7 @@ export function ChatPanel() {
   const getLayoutStyles = (): React.CSSProperties => {
     const baseStyles: React.CSSProperties = {
       position: "fixed",
-      background: "white",
+      background: "var(--surface-primary)",
       display: "flex",
       flexDirection: "column",
       zIndex: 50,
@@ -453,8 +453,8 @@ export function ChatPanel() {
           right: 0,
           bottom: 0,
           height: 320,
-          borderTop: "1px solid #e5e7eb",
-          boxShadow: isOpen ? "0 -4px 24px rgba(0,0,0,0.1)" : "none",
+          borderTop: "1px solid var(--border-default)",
+          boxShadow: isOpen ? "0 -4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)" : "none",
           transform: isOpen ? "translateY(0)" : "translateY(100%)",
         };
       case "popout":
@@ -465,8 +465,8 @@ export function ChatPanel() {
           width: 420,
           height: 560,
           borderRadius: 12,
-          border: "1px solid #e5e7eb",
-          boxShadow: isOpen ? "0 8px 32px rgba(0,0,0,0.15)" : "none",
+          border: "1px solid var(--border-default)",
+          boxShadow: isOpen ? "0 8px 32px color-mix(in srgb, var(--text-primary) 15%, transparent)" : "none",
           transform: isOpen ? "scale(1)" : "scale(0.9)",
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? "auto" : "none",
@@ -479,8 +479,8 @@ export function ChatPanel() {
           top: 0,
           width: 400,
           height: "100vh",
-          borderLeft: "1px solid #e5e7eb",
-          boxShadow: isOpen ? "-4px 0 24px rgba(0,0,0,0.1)" : "none",
+          borderLeft: "1px solid var(--border-default)",
+          boxShadow: isOpen ? "-4px 0 24px color-mix(in srgb, var(--text-primary) 10%, transparent)" : "none",
           transform: isOpen ? "translateX(0)" : "translateX(100%)",
         };
     }
@@ -507,7 +507,7 @@ export function ChatPanel() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.3)",
+            background: "color-mix(in srgb, var(--text-primary) 30%, transparent)",
             zIndex: 40,
             display: "none", // Hidden on desktop, show on mobile via media query
           }}
@@ -523,16 +523,16 @@ export function ChatPanel() {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "12px 16px",
-            borderBottom: "1px solid #e5e7eb",
-            background: "white",
+            borderBottom: "1px solid var(--border-default)",
+            background: "var(--surface-primary)",
             borderRadius: chatLayout === "popout" ? "12px 12px 0 0" : undefined,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 20 }}>{config.icon}</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#1f2937" }}>AI Assistant</div>
-              <div style={{ fontSize: 11, color: "#6b7280" }}>{config.description}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>AI Assistant</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{config.description}</div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -544,12 +544,12 @@ export function ChatPanel() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--border-default)",
                 borderRadius: 6,
-                background: "white",
+                background: "var(--surface-primary)",
                 cursor: "pointer",
                 fontSize: 14,
-                color: "#6b7280",
+                color: "var(--text-muted)",
               }}
               title={`Layout: ${layoutLabels[chatLayout].title} (click to change)`}
             >
@@ -563,12 +563,12 @@ export function ChatPanel() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--border-default)",
                 borderRadius: 6,
-                background: "white",
+                background: "var(--surface-primary)",
                 cursor: "pointer",
                 fontSize: 16,
-                color: "#6b7280",
+                color: "var(--text-muted)",
               }}
               title="Close (Cmd+K)"
             >

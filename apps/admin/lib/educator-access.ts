@@ -191,6 +191,8 @@ export async function requireEducatorCohortOwnership(
 
 /**
  * Verify that a student (Caller) is a member of one of the educator's cohorts.
+ * Uses CallerCohortMembership join table for multi-cohort support,
+ * with fallback to legacy Caller.cohortGroupId.
  */
 export async function requireEducatorStudentAccess(
   studentCallerId: string,
@@ -199,8 +201,17 @@ export async function requireEducatorStudentAccess(
   const student = await prisma.caller.findUnique({
     where: { id: studentCallerId },
     include: {
+      // Legacy single-cohort relation (kept during migration)
       cohortGroup: {
         select: { id: true, name: true, ownerId: true },
+      },
+      // Multi-cohort memberships (preferred)
+      cohortMemberships: {
+        include: {
+          cohortGroup: {
+            select: { id: true, name: true, ownerId: true },
+          },
+        },
       },
       domain: { select: { id: true, slug: true, name: true } },
     },
@@ -215,15 +226,31 @@ export async function requireEducatorStudentAccess(
     };
   }
 
-  // Student must be in a cohort owned by this educator
-  if (!student.cohortGroup || student.cohortGroup.ownerId !== educatorCallerId) {
-    return {
-      error: NextResponse.json(
-        { ok: false, error: "Forbidden" },
-        { status: 403 }
-      ),
-    };
+  // Check multi-cohort memberships first
+  if (student.cohortMemberships && student.cohortMemberships.length > 0) {
+    const ownedMembership = student.cohortMemberships.find(
+      (m) => m.cohortGroup.ownerId === educatorCallerId
+    );
+    if (ownedMembership) {
+      // Return student with cohortGroup pointing to the educator's owned cohort
+      return {
+        student: {
+          ...student,
+          cohortGroup: ownedMembership.cohortGroup,
+        },
+      };
+    }
   }
 
-  return { student };
+  // Fallback to legacy single-cohort
+  if (student.cohortGroup && student.cohortGroup.ownerId === educatorCallerId) {
+    return { student };
+  }
+
+  return {
+    error: NextResponse.json(
+      { ok: false, error: "Forbidden" },
+      { status: 403 }
+    ),
+  };
 }

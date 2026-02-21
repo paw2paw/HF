@@ -343,7 +343,7 @@ export function SequencerView({ config, onChange, disabled }: SequencerViewProps
                     : "var(--surface-primary, #fff)",
                 color:
                   idx === activeSequenceIdx
-                    ? "#fff"
+                    ? "var(--button-primary-text, #fff)"
                     : "var(--text-secondary, #6b7280)",
                 fontSize: 12,
                 fontWeight: 500,
@@ -491,7 +491,7 @@ export function SequencerView({ config, onChange, disabled }: SequencerViewProps
                     fontSize: 12,
                     fontWeight: 700,
                     background: "var(--accent-primary, #3b82f6)",
-                    color: "#fff",
+                    color: "var(--button-primary-text, #fff)",
                     boxShadow: "0 2px 6px rgba(59,130,246,0.3)",
                     zIndex: 2,
                   }}

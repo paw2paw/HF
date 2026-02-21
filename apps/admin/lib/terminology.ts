@@ -16,58 +16,14 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { pluralize, lc } from "@/lib/terminology/types";
 import type { UserRole } from "@prisma/client";
 
-// ============================================================================
-// Types
-// ============================================================================
+// Re-export canonical types from the client-safe types module (single source of truth)
+export type { TermKey, TermMap } from "@/lib/terminology/types";
+export { TECHNICAL_TERMS, TERM_KEYS, pluralize, lc } from "@/lib/terminology/types";
 
-/** The 7 canonical term keys used across the app */
-export type TermKey =
-  | "domain"
-  | "playbook"
-  | "spec"
-  | "caller"
-  | "cohort"
-  | "instructor"
-  | "session";
-
-/** A complete terminology map — all 7 keys present, all strings */
-export type TermMap = Record<TermKey, string>;
-
-// Re-export helpers from types module
-export { pluralize, lc } from "@/lib/terminology/types";
-
-// ============================================================================
-// Technical Terms (fallback only — Prisma model names)
-// ============================================================================
-
-/**
- * Technical terms shown to ADMIN/SUPERADMIN/SUPER_TESTER.
- * These are the Prisma model names — the only hardcoded fallback.
- * All user-facing labels come from InstitutionType.terminology in the DB.
- */
-export const TECHNICAL_TERMS: TermMap = {
-  domain: "Domain",
-  playbook: "Playbook",
-  spec: "Spec",
-  caller: "Caller",
-  cohort: "Cohort",
-  instructor: "Instructor",
-  session: "Session",
-};
-
-/** All 7 term keys in canonical order */
-export const TERM_KEYS: TermKey[] = [
-  "domain",
-  "playbook",
-  "spec",
-  "caller",
-  "cohort",
-  "instructor",
-  "session",
-];
+import { TECHNICAL_TERMS, TERM_KEYS } from "@/lib/terminology/types";
+import type { TermKey, TermMap } from "@/lib/terminology/types";
 
 /** Roles that always see technical terms */
 const TECHNICAL_ROLES: UserRole[] = ["ADMIN", "SUPERADMIN", "SUPER_TESTER"];
@@ -97,7 +53,7 @@ export function invalidateTerminologyCache(): void {
  *
  * @param role - User's RBAC role
  * @param institutionId - User's institution ID (optional)
- * @returns Complete 7-key TermMap
+ * @returns Complete 8-key TermMap
  */
 export async function resolveTerminology(
   role: UserRole,
@@ -156,7 +112,7 @@ export async function resolveTerminology(
 /**
  * Resolve a single term label.
  *
- * @param key - Term key (domain, playbook, spec, caller, cohort, instructor, session)
+ * @param key - Term key (domain, playbook, spec, caller, cohort, instructor, session, persona)
  * @param role - User's RBAC role
  * @param institutionId - User's institution ID (optional)
  * @param plural - If true, pluralize the label
@@ -173,24 +129,3 @@ export async function resolveTermLabel(
   return plural ? pluralize(label) : label;
 }
 
-// ============================================================================
-// Backwards-compatible exports (for existing consumers)
-// ============================================================================
-
-/**
- * @deprecated Use resolveTerminology() instead. Kept for backwards compatibility.
- */
-export async function getTerminologyForRole(role: UserRole): Promise<TermMap> {
-  return resolveTerminology(role);
-}
-
-/**
- * @deprecated Use resolveTermLabel() instead. Kept for backwards compatibility.
- */
-export async function getTermLabel(
-  key: TermKey,
-  role: UserRole,
-  plural = false
-): Promise<string> {
-  return resolveTermLabel(key, role, null, plural);
-}

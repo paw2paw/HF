@@ -43,6 +43,46 @@
       "TESTER": "Student",
       "STUDENT": "Learner",
       "DEMO": "Student"
+    },
+    "persona": {
+      "SUPERADMIN": "Persona",
+      "ADMIN": "Persona",
+      "OPERATOR": "Agent Style",
+      "EDUCATOR": "Teaching Style",
+      "SUPER_TESTER": "Persona",
+      "TESTER": "Agent Style",
+      "STUDENT": "Guide Style",
+      "DEMO": "Agent Style"
+    },
+    "supervisor": {
+      "SUPERADMIN": "Supervisor",
+      "ADMIN": "Supervisor",
+      "OPERATOR": "Supervisor",
+      "EDUCATOR": "My Teacher",
+      "SUPER_TESTER": "Supervisor",
+      "TESTER": "Supervisor",
+      "STUDENT": "My Teacher",
+      "DEMO": "Supervisor"
+    },
+    "teach_action": {
+      "SUPERADMIN": "Teach",
+      "ADMIN": "Teach",
+      "OPERATOR": "Teach",
+      "EDUCATOR": "Teach",
+      "SUPER_TESTER": "Teach",
+      "TESTER": "Teach",
+      "STUDENT": "Learn",
+      "DEMO": "Teach"
+    },
+    "learning_noun": {
+      "SUPERADMIN": "Learning",
+      "ADMIN": "Learning",
+      "OPERATOR": "Learning",
+      "EDUCATOR": "Learning",
+      "SUPER_TESTER": "Learning",
+      "TESTER": "Learning",
+      "STUDENT": "Learning",
+      "DEMO": "Learning"
     }
   },
   "metadata": {

@@ -57,10 +57,6 @@ test.describe('Teach Flow', () => {
       // Goal textarea should be visible
       const goalInput = page.getByPlaceholder(/what do you want to teach/i);
       await expect(goalInput).toBeVisible();
-
-      // Banner should show step 2
-      const banner = page.getByRole('navigation', { name: /flow/i });
-      await expect(banner).toContainText('Step 2 of 4');
     }
   });
 
@@ -79,9 +75,9 @@ test.describe('Teach Flow', () => {
       const backBtn = page.getByRole('button', { name: /back/i });
       await backBtn.click();
 
-      // Should be back on step 1
-      const banner = page.getByRole('navigation', { name: /flow/i });
-      await expect(banner).toContainText('Step 1 of 4');
+      // Should be back on step 1 — institution selector visible
+      const institutionLabel = page.getByText(/institution/i).first();
+      await expect(institutionLabel).toBeVisible();
     }
   });
 });

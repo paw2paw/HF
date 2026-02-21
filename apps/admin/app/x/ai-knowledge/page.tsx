@@ -64,7 +64,7 @@ export default function AIKnowledgePage() {
       {/* Header */}
       <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 className="hf-page-title">
             AI Knowledge Dashboard
           </h1>
           <p style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 8 }}>

@@ -8,10 +8,10 @@ interface DemoListingCardProps {
 }
 
 const AUDIENCE_LABELS: Record<DemoAudience, { label: string; color: string; bg: string }> = {
-  operator: { label: "Operator", color: "#6366f1", bg: "rgba(99, 102, 241, 0.1)" },
-  team_member: { label: "Team", color: "#0891b2", bg: "rgba(8, 145, 178, 0.1)" },
-  evaluator: { label: "Evaluator", color: "#16a34a", bg: "rgba(22, 163, 74, 0.1)" },
-  developer: { label: "Developer", color: "#ea580c", bg: "rgba(234, 88, 12, 0.1)" },
+  operator: { label: "Operator", color: "var(--badge-indigo-text)", bg: "color-mix(in srgb, var(--badge-indigo-text) 10%, transparent)" },
+  team_member: { label: "Team", color: "var(--badge-cyan-text)", bg: "color-mix(in srgb, var(--badge-cyan-text) 10%, transparent)" },
+  evaluator: { label: "Evaluator", color: "var(--status-success-text)", bg: "color-mix(in srgb, var(--status-success-text) 10%, transparent)" },
+  developer: { label: "Developer", color: "var(--badge-orange-text)", bg: "color-mix(in srgb, var(--badge-orange-text) 10%, transparent)" },
 };
 
 export function DemoListingCard({ spec }: DemoListingCardProps) {

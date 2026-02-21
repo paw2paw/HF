@@ -66,8 +66,8 @@ export function DemoSidebar({ step, stepIndex, totalSteps, onAskAI }: DemoSideba
         <div
           style={{
             padding: 12,
-            background: "rgba(139, 92, 246, 0.06)",
-            border: "1px solid rgba(139, 92, 246, 0.2)",
+            background: "color-mix(in srgb, var(--badge-purple-text) 6%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--badge-purple-text) 20%, transparent)",
             borderRadius: 8,
             fontSize: 13,
             color: "var(--text-secondary)",
@@ -78,7 +78,7 @@ export function DemoSidebar({ step, stepIndex, totalSteps, onAskAI }: DemoSideba
             style={{
               fontSize: 11,
               fontWeight: 600,
-              color: "rgba(139, 92, 246, 0.8)",
+              color: "var(--badge-purple-text)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               marginBottom: 6,
@@ -158,7 +158,7 @@ export function DemoSidebar({ step, stepIndex, totalSteps, onAskAI }: DemoSideba
         style={{
           padding: "10px 16px",
           background: "var(--accent-primary)",
-          color: "#fff",
+          color: "var(--button-primary-text, #fff)",
           border: "none",
           borderRadius: 8,
           fontSize: 13,

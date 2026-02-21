@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useErrorCapture } from "@/contexts/ErrorCaptureContext";
 import { useEntityContext } from "@/contexts";
 import ReactMarkdown from "react-markdown";
+import { registerBugReportOpener, unregisterBugReportOpener, STATUS_BAR_HEIGHT } from "./StatusBar";
 
 const BUG_REPORTER_KEY = "ui.bugReporter";
 
@@ -158,66 +159,27 @@ export function BugReportButton() {
 
   const recentErrors = getRecentErrors();
 
+  // Register opener so StatusBar can trigger expansion
+  useEffect(() => {
+    registerBugReportOpener(() => setExpanded(true));
+    return () => unregisterBugReportOpener();
+  }, []);
+
   if (isHidden) return null;
+
+  // Only render when expanded — StatusBar provides the trigger
+  if (!expanded) return null;
 
   return (
     <div
       style={{
         position: "fixed",
-        bottom: 20,
-        left: 20,
+        bottom: STATUS_BAR_HEIGHT + 8,
+        right: 16,
         zIndex: 9998,
         fontFamily: "var(--font-sans, system-ui, sans-serif)",
       }}
     >
-      {/* Collapsed badge */}
-      {!expanded && (
-        <button
-          onClick={() => setExpanded(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 14px",
-            borderRadius: 12,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            position: "relative",
-          }}
-          title="Report a bug"
-        >
-          <Bug size={16} />
-          <span>Bug</span>
-          {errorCount > 0 && (
-            <span
-              style={{
-                position: "absolute",
-                top: -4,
-                right: -4,
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                background: "#ef4444",
-                color: "#fff",
-                fontSize: 10,
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "2px solid var(--surface-primary)",
-              }}
-            >
-              {errorCount > 9 ? "9+" : errorCount}
-            </span>
-          )}
-        </button>
-      )}
-
       {/* Expanded panel */}
       {expanded && (
         <div
@@ -245,7 +207,7 @@ export function BugReportButton() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Bug size={16} style={{ color: "#ef4444" }} />
+              <Bug size={16} style={{ color: "var(--status-error-text)" }} />
               <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
                 Bug Report
               </span>
@@ -269,7 +231,7 @@ export function BugReportButton() {
                     cursor: "pointer",
                     padding: 4,
                     borderRadius: 6,
-                    color: copied ? "#22c55e" : "var(--text-tertiary)",
+                    color: copied ? "var(--status-success-text)" : "var(--text-tertiary)",
                     display: "flex",
                     transition: "color 0.15s",
                   }}
@@ -343,7 +305,7 @@ export function BugReportButton() {
               <span style={{ color: "var(--text-tertiary)" }}>
                 {pathname}
                 {recentErrors.length > 0 && (
-                  <span style={{ color: "#ef4444", marginLeft: 8 }}>
+                  <span style={{ color: "var(--status-error-text)", marginLeft: 8 }}>
                     {recentErrors.length} error{recentErrors.length !== 1 ? "s" : ""}
                   </span>
                 )}
@@ -362,7 +324,7 @@ export function BugReportButton() {
                         style={{
                           padding: "4px 8px",
                           marginTop: 4,
-                          background: "color-mix(in srgb, #ef4444 8%, transparent)",
+                          background: "color-mix(in srgb, var(--status-error-text) 8%, transparent)",
                           borderRadius: 6,
                           fontSize: 11,
                           color: "var(--text-secondary)",
@@ -371,7 +333,7 @@ export function BugReportButton() {
                           gap: 4,
                         }}
                       >
-                        <AlertCircle size={12} style={{ color: "#ef4444", flexShrink: 0, marginTop: 1 }} />
+                        <AlertCircle size={12} style={{ color: "var(--status-error-text)", flexShrink: 0, marginTop: 1 }} />
                         <span>
                           {err.message}
                           {err.source && <span style={{ color: "var(--text-tertiary)" }}> ({err.source})</span>}
@@ -539,11 +501,11 @@ export function BugReportButton() {
                     border: "none",
                     background:
                       description.trim() && !isStreaming
-                        ? "#ef4444"
+                        ? "var(--status-error-text)"
                         : "var(--surface-tertiary, rgba(0,0,0,0.06))",
                     color:
                       description.trim() && !isStreaming
-                        ? "#fff"
+                        ? "var(--surface-primary)"
                         : "var(--text-tertiary)",
                     fontSize: 12,
                     fontWeight: 600,

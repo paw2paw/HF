@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
 import type { GeneratedIdentityConfig } from "@/lib/domain/generate-identity";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 // ── Types ──────────────────────────────────────────
 
@@ -17,6 +18,7 @@ interface ReviewPanelProps {
     fileSize?: number;
     qualificationRef?: string;
     mode?: "upload" | "generate";
+    agentStyleTraits?: string[];
   };
   /** Partial preview — fills progressively as SSE events arrive */
   preview: Partial<AnalysisPreview>;
@@ -334,16 +336,16 @@ function CategoryBar({ label, count, maxCount }: { label: string; count: number;
 // ── Category Badge ─────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, string> = {
-  fact: "#2563eb", key_fact: "#2563eb", reading_passage: "#2563eb", information: "#2563eb",
-  definition: "#059669", vocabulary_item: "#059669", vocabulary_exercise: "#059669",
-  question: "#7c3aed", comprehension_question: "#7c3aed", discussion_prompt: "#7c3aed",
-  answer: "#0891b2", answer_key_item: "#0891b2",
-  true_false: "#d97706", matching_exercise: "#d97706", matching_item: "#d97706",
-  rule: "#dc2626", legal_requirement: "#dc2626", safety_point: "#dc2626",
-  threshold: "#ea580c", process: "#ea580c", procedure: "#ea580c",
-  example: "#6366f1", concept: "#6366f1", observation: "#6366f1",
-  learning_outcome: "#0d9488", assessment_criterion: "#0d9488",
-  activity: "#8b5cf6", starter: "#8b5cf6", plenary: "#8b5cf6",
+  fact: "var(--accent-primary, #2563eb)", key_fact: "var(--accent-primary, #2563eb)", reading_passage: "var(--accent-primary, #2563eb)", information: "var(--accent-primary, #2563eb)",
+  definition: "var(--status-success-text, #059669)", vocabulary_item: "var(--status-success-text, #059669)", vocabulary_exercise: "var(--status-success-text, #059669)",
+  question: "var(--accent-secondary, #7c3aed)", comprehension_question: "var(--accent-secondary, #7c3aed)", discussion_prompt: "var(--accent-secondary, #7c3aed)",
+  answer: "var(--badge-cyan-text, #0891b2)", answer_key_item: "var(--badge-cyan-text, #0891b2)",
+  true_false: "var(--status-warning-text, #d97706)", matching_exercise: "var(--status-warning-text, #d97706)", matching_item: "var(--status-warning-text, #d97706)",
+  rule: "var(--status-error-text, #dc2626)", legal_requirement: "var(--status-error-text, #dc2626)", safety_point: "var(--status-error-text, #dc2626)",
+  threshold: "var(--badge-orange-text, #ea580c)", process: "var(--badge-orange-text, #ea580c)", procedure: "var(--badge-orange-text, #ea580c)",
+  example: "var(--badge-indigo-text, #6366f1)", concept: "var(--badge-indigo-text, #6366f1)", observation: "var(--badge-indigo-text, #6366f1)",
+  learning_outcome: "var(--badge-cyan-text, #0d9488)", assessment_criterion: "var(--badge-cyan-text, #0d9488)",
+  activity: "var(--accent-secondary, #8b5cf6)", starter: "var(--accent-secondary, #8b5cf6)", plenary: "var(--accent-secondary, #8b5cf6)",
 };
 
 function AssertionCategoryBadge({ category }: { category: string }) {
@@ -381,6 +383,7 @@ export default function ReviewPanel({
   onConfirm,
   onBack,
 }: ReviewPanelProps) {
+  const { terms } = useTerminology();
   const [identityExpanded, setIdentityExpanded] = useState(false);
 
   const updateOverride = useCallback(
@@ -444,7 +447,7 @@ export default function ReviewPanel({
             )}
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Persona</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{terms.persona}</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
                 {input.personaName || input.persona}
               </div>
@@ -496,10 +499,34 @@ export default function ReviewPanel({
             </div>
 
             {input.qualificationRef && (
-              <div>
+              <div style={{ marginBottom: input.agentStyleTraits?.length ? 16 : 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Qualification</div>
                 <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                   {input.qualificationRef}
+                </div>
+              </div>
+            )}
+
+            {input.agentStyleTraits && input.agentStyleTraits.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Agent Style</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {input.agentStyleTraits.map((trait, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 12,
+                        background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--accent-primary)",
+                      }}
+                    >
+                      {trait}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
@@ -823,6 +850,12 @@ export default function ReviewPanel({
                     label="Domain Vocabulary"
                     tags={effectiveIdentity.domainVocabulary || []}
                     onChange={(tags) => updateIdentityOverride("domainVocabulary", tags)}
+                  />
+
+                  <EditableTagList
+                    label="Tone Traits"
+                    tags={effectiveIdentity.toneTraits || []}
+                    onChange={(tags) => updateIdentityOverride("toneTraits", tags)}
                   />
 
                   <EditableTagList

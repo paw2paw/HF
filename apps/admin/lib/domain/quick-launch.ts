@@ -21,6 +21,7 @@ import {
   type GeneratedIdentityConfig,
 } from "@/lib/domain/generate-identity";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
+import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
 import { enrollCaller } from "@/lib/enrollment";
@@ -45,12 +46,15 @@ export interface QuickLaunchInput {
   brief?: string;
   persona: string;
   learningGoals: string[];
+  toneTraits?: string[];
   file?: File;
   qualificationRef?: string;
   mode?: "upload" | "generate";
   domainId?: string; // Use existing domain instead of creating new one
   kind?: "INSTITUTION" | "COMMUNITY"; // Domain kind (defaults to INSTITUTION)
   institutionId?: string; // Link domain to an institution
+  behaviorTargets?: Record<string, number>; // Matrix/pill-derived behavior targets → BehaviorTarget rows + onboardingDefaultTargets
+  matrixPositions?: Record<string, { x: number; y: number }>; // UI metadata for round-trip matrix reconstruction
 }
 
 export interface ProgressEvent {
@@ -347,6 +351,7 @@ const stepExecutors: Record<string, StepExecutor> = {
       subjectName: ctx.input.subjectName,
       persona: ctx.input.persona,
       learningGoals: ctx.input.learningGoals,
+      toneTraits: ctx.input.toneTraits,
       assertions: assertions.map((a) => ({
         assertion: a.assertion,
         category: a.category,
@@ -390,6 +395,35 @@ const stepExecutors: Record<string, StepExecutor> = {
       ctx.results.playbookId = scaffoldResult.playbook.id;
     }
     ctx.results.warnings!.push(...scaffoldResult.skipped);
+
+    // Apply behavior targets from matrix/pills if provided
+    const targets = ctx.input.behaviorTargets;
+    if (targets && Object.keys(targets).length > 0) {
+      // Store on Domain.onboardingDefaultTargets (first-call fallback)
+      const targetPayload: Record<string, unknown> = {};
+      for (const [paramId, value] of Object.entries(targets)) {
+        targetPayload[paramId] = { value, confidence: 0.5 };
+      }
+      // Stash matrix positions for UI round-trip
+      if (ctx.input.matrixPositions) {
+        targetPayload._matrixPositions = ctx.input.matrixPositions;
+      }
+      await prisma.domain.update({
+        where: { id: domainId },
+        data: { onboardingDefaultTargets: targetPayload },
+      });
+
+      // Apply as PLAYBOOK-scoped BehaviorTarget rows (always-active)
+      if (ctx.results.playbookId) {
+        const applied = await applyBehaviorTargets(ctx.results.playbookId, targets);
+        if (applied > 0) {
+          ctx.onProgress({
+            phase: "scaffold_domain",
+            message: `Applied ${applied} behavior targets`,
+          });
+        }
+      }
+    }
   },
 
   /**

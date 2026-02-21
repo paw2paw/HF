@@ -111,8 +111,8 @@ function PlaceholderStep({ step, onComplete, onSkip }: StepFormProps) {
             borderRadius: 10,
             border: "none",
             background:
-              "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-            color: "#fff",
+              "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
+            color: "var(--surface-primary)",
             cursor: "pointer",
           }}
         >
@@ -157,7 +157,7 @@ function CompletionSummary({
           justifyContent: "center",
           margin: "0 auto 20px",
           fontSize: 28,
-          color: "#fff",
+          color: "var(--surface-primary)",
         }}
       >
         ✓
@@ -200,7 +200,7 @@ function CompletionSummary({
                 height: 24,
                 borderRadius: 6,
                 background: "var(--success-text)",
-                color: "#fff",
+                color: "var(--surface-primary)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -240,8 +240,8 @@ function CompletionSummary({
           borderRadius: 10,
           border: "none",
           background:
-            "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-          color: "#fff",
+            "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
+          color: "var(--surface-primary)",
           cursor: "pointer",
           boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
         }}
@@ -316,9 +316,9 @@ function StepNavButtons({
               ? "none"
               : "1px solid var(--border-default)",
             background: nextStep.id === currentStepId
-              ? "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)"
+              ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)"
               : "var(--surface-secondary)",
-            color: nextStep.id === currentStepId ? "#fff" : "var(--text-secondary)",
+            color: nextStep.id === currentStepId ? "var(--surface-primary)" : "var(--text-secondary)",
           }}
         >
           {nextStep.id === currentStepId ? "Back to Current Step" : nextStep.title} →
@@ -895,7 +895,7 @@ export function WorkflowOrchestrator() {
                 width: 64,
                 height: 64,
                 borderRadius: 16,
-                background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+                background: "linear-gradient(135deg, var(--status-warning-text) 0%, var(--status-warning-text) 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -969,8 +969,8 @@ export function WorkflowOrchestrator() {
                   borderRadius: 10,
                   border: "none",
                   background:
-                    "linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%)",
-                  color: "#fff",
+                    "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
+                  color: "var(--surface-primary)",
                   cursor: "pointer",
                   boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
                 }}
@@ -1079,7 +1079,7 @@ export function WorkflowOrchestrator() {
                         height: 28,
                         borderRadius: 8,
                         background: "var(--success-text)",
-                        color: "#fff",
+                        color: "var(--surface-primary)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",

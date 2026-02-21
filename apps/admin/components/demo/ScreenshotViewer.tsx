@@ -149,7 +149,7 @@ function AnnotationOverlay({
       <div
         style={{
           background: "var(--accent-primary)",
-          color: "#fff",
+          color: "var(--button-primary-text, #fff)",
           padding: "4px 10px",
           borderRadius: 6,
           fontSize: 12,

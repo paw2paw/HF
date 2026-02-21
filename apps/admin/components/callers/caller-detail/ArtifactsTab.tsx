@@ -450,9 +450,9 @@ function ActionsSubSection({
                     <span style={{
                       padding: "1px 6px", fontSize: 10, borderRadius: 8, fontWeight: 500,
                       background: action.priority === "URGENT"
-                        ? "color-mix(in srgb, #ef4444 15%, transparent)"
-                        : "color-mix(in srgb, #f59e0b 15%, transparent)",
-                      color: action.priority === "URGENT" ? "#dc2626" : "#d97706",
+                        ? "color-mix(in srgb, var(--status-error-text, #ef4444) 15%, transparent)"
+                        : "color-mix(in srgb, var(--status-warning-text, #f59e0b) 15%, transparent)",
+                      color: action.priority === "URGENT" ? "var(--status-error-text)" : "var(--status-warning-text, #d97706)",
                     }}>
                       {action.priority}
                     </span>

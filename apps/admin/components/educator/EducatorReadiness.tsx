@@ -34,20 +34,20 @@ interface EducatorReadinessProps {
 
 const levelConfig = {
   ready: {
-    bg: "#ecfdf5",
-    text: "#065f46",
+    bg: "var(--status-success-bg)",
+    text: "var(--status-success-text)",
     icon: CheckCircle,
     label: "Ready for learners",
   },
   almost: {
-    bg: "#fffbeb",
-    text: "#92400e",
+    bg: "var(--status-warning-bg)",
+    text: "var(--status-warning-text)",
     icon: AlertTriangle,
     label: "Almost ready",
   },
   incomplete: {
-    bg: "#fef2f2",
-    text: "#991b1b",
+    bg: "var(--status-error-bg)",
+    text: "var(--status-error-text)",
     icon: XCircle,
     label: "Setup needed",
   },

@@ -1,37 +1,27 @@
-Feature: Caller Profile Page
+Feature: Caller Profile
   As an admin user
   I want to view a comprehensive profile for each caller
-  So that I can understand their personality, memories, and prompt status
+  So that I can understand their learning progress, memories, and behaviour
 
   Background:
     Given a caller "John Doe" exists with id "caller-123"
-    And the caller has personality data
-    And the caller has memories
-    And the caller has call scores
+    And the caller belongs to domain "english-tutor"
+    And the caller has a CallerPersonalityProfile
+    And the caller has CallerMemory records
+    And the caller has Call records with CallScore data
 
   # =============================================================================
-  # Overview Tab
+  # Tab Layout (4 consolidated tabs)
   # =============================================================================
 
-  Scenario: View caller overview
-    When I navigate to /callers/caller-123
-    Then I should see the caller's name "John Doe"
-    And I should see their personality profile as progress bars
-    And I should see a memory summary with counts by category
-    And I should see recent calls
-
-  Scenario: View personality traits
-    Given the caller has openness score of 0.75
-    When I view the caller profile
-    Then I should see "Openness" displayed as a progress bar at 75%
-    And I should see all Big 5 traits displayed
-
-  Scenario: View caller identities
-    Given the caller has 2 identities (phone numbers)
-    When I view the caller profile sidebar
-    Then I should see a list of 2 identities
-    And each identity should show its external ID
-    And I should be able to click an identity to view its prompt
+  Scenario: Caller detail page shows 4 tabs
+    When I navigate to /x/callers/caller-123
+    Then I should see exactly 4 tabs:
+      | tab       |
+      | Calls     |
+      | Profile   |
+      | Assess    |
+      | Artifacts |
 
   # =============================================================================
   # Calls Tab
@@ -39,68 +29,106 @@ Feature: Caller Profile Page
 
   Scenario: View caller's call history
     Given the caller has 10 calls
-    When I click the "Calls" tab
+    When I view the "Calls" tab
     Then I should see a list of all 10 calls
     And each call should show date, source, and score count
     And calls should be sorted by date descending
 
-  Scenario: View call transcript
+  Scenario: Expand call to see detail (4 sub-tabs)
     When I click on a specific call
-    Then I should see the full transcript
-    And I should see any scores associated with that call
+    Then I should see 4 call-level tabs:
+      | sub-tab      |
+      | Transcript   |
+      | Extraction   |
+      | Behaviour    |
+      | Prompt       |
+
+  Scenario: Behaviour tab shows measurements only
+    Given the call has BehaviorMeasurement records
+    When I view the call's "Behaviour" tab
+    Then I should see measured values (not static targets)
+    And a badge should show the measurement count
 
   # =============================================================================
-  # Memories Tab
+  # Profile Tab
   # =============================================================================
 
-  Scenario: View caller's memories
-    Given the caller has 15 memories across categories
-    When I click the "Memories" tab
-    Then I should see memories grouped by category (FACT, PREFERENCE, EVENT, etc.)
+  Scenario: View caller personality profile
+    Given the caller has a CallerPersonalityProfile with parameterValues
+    When I view the "Profile" tab
+    Then I should see personality traits as progress bars
+    And I should see a memory summary grouped by category
+
+  Scenario: View caller memories
+    Given the caller has 15 CallerMemory records across categories
+    When I view the "Profile" tab
+    Then I should see memories grouped by category (FACT, PREFERENCE, EVENT, CONTEXT, TOPIC, RELATION)
     And each memory should show key, value, and confidence
 
-  Scenario: Filter memories by category
-    Given the caller has 5 FACT memories and 3 PREFERENCE memories
-    When I view the Memories tab
-    Then I should see FACT memories grouped together
-    And I should see PREFERENCE memories grouped together
+  Scenario: View caller domain and role
+    Given the caller has role LEARNER
+    And the caller belongs to domain "english-tutor"
+    When I view the caller profile sidebar
+    Then I should see the caller's role as "Learner"
+    And I should see the domain name
 
   # =============================================================================
-  # Scores Tab
+  # Assess Tab
   # =============================================================================
 
-  Scenario: View caller's scores across calls
+  Scenario: View caller assessment data
     Given the caller has scores for 5 parameters across 10 calls
-    When I click the "Scores" tab
+    When I view the "Assess" tab
     Then I should see scores grouped by parameter
-    And I should see the score history over time
-    And I should see the parameter name and definition
+    And I should see the caller's goals with progress
 
-  Scenario: Score visualization
-    Given the caller has multiple scores for "openness"
-    When I view the Scores tab
-    Then I should see scores displayed with visual indicators
-    And high scores (>0.7) should be highlighted green
-    And low scores (<0.4) should be highlighted differently
+  Scenario: View caller goals
+    Given the caller has 3 active goals (type LEARN)
+    When I view the "Assess" tab
+    Then I should see goal names with progress bars (0.0-1.0)
+    And I should see goal status (ACTIVE, COMPLETED, PAUSED)
 
   # =============================================================================
-  # Prompt Tab
+  # Artifacts Tab
   # =============================================================================
 
-  Scenario: View composed prompt for identity
-    Given the caller has an identity with a composed prompt
-    When I click the "Prompt" tab
-    Then I should see the full prompt text
-    And I should see when the prompt was composed
-    And I should see the inputs used for composition
+  Scenario: View conversation artifacts
+    Given the caller has ConversationArtifact records
+    When I view the "Artifacts" tab
+    Then I should see artifacts with:
+      | field      | description                          |
+      | type       | SUMMARY, KEY_FACT, EXERCISE, etc.    |
+      | content    | The artifact text                    |
+      | trustLevel | VERIFIED, INFERRED, or UNVERIFIED    |
+      | status     | PENDING, SENT, DELIVERED, READ       |
 
-  Scenario: No prompt available
-    Given the caller's identity has no composed prompt
-    When I click the "Prompt" tab
-    Then I should see a message "No prompt composed yet"
-    And I should see a button to compose prompt
+  # =============================================================================
+  # Section Selector (Toggle Chips)
+  # =============================================================================
 
-  Scenario: Switch between identities to view prompts
-    Given the caller has 2 identities with different prompts
-    When I select the second identity from the sidebar
-    Then the Prompt tab should update to show that identity's prompt
+  Scenario: Section selector persists to localStorage
+    Given I am viewing the Profile tab
+    When I toggle a section chip off
+    And I navigate away and return
+    Then the section chip should still be off
+    And the preference should be stored in localStorage
+
+  # =============================================================================
+  # Caller API
+  # =============================================================================
+
+  Scenario: GET caller detail
+    When I call GET /api/callers/caller-123
+    Then the response should include:
+      | field               |
+      | caller              |
+      | calls               |
+      | personality         |
+      | memories            |
+      | goals               |
+      | enrollments         |
+
+  Scenario: Caller not found
+    When I call GET /api/callers/nonexistent-id
+    Then the response should be 404
+    And the error should be "Caller not found"

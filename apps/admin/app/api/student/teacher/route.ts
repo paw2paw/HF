@@ -12,9 +12,22 @@ export async function GET(request: NextRequest) {
   const auth = await requireStudentOrAdmin(request);
   if (isStudentAuthError(auth)) return auth.error;
 
-  const cohort = await prisma.cohortGroup.findUnique({
-    where: { id: auth.cohortGroupId },
+  // Query all cohort memberships (prefer join table, fallback to legacy FK)
+  const cohortIds = auth.cohortGroupIds.length > 0
+    ? auth.cohortGroupIds
+    : auth.cohortGroupId ? [auth.cohortGroupId] : [];
+
+  if (cohortIds.length === 0) {
+    return NextResponse.json(
+      { ok: false, error: "No classroom found" },
+      { status: 404 }
+    );
+  }
+
+  const cohorts = await prisma.cohortGroup.findMany({
+    where: { id: { in: cohortIds } },
     select: {
+      id: true,
       name: true,
       owner: { select: { name: true, email: true } },
       domain: { select: { name: true } },
@@ -22,25 +35,33 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  if (!cohort) {
+  if (cohorts.length === 0) {
     return NextResponse.json(
       { ok: false, error: "Classroom not found" },
       { status: 404 }
     );
   }
 
+  // Primary cohort (first membership) for backwards compat
+  const primary = cohorts[0];
+
   return NextResponse.json({
     ok: true,
     teacher: {
-      name: cohort.owner.name ?? "Your teacher",
-      email: cohort.owner.email,
+      name: primary.owner.name ?? "Your teacher",
+      email: primary.owner.email,
     },
-    classroom: cohort.name,
-    domain: cohort.domain.name,
-    institution: cohort.institution
+    classroom: primary.name,
+    classrooms: cohorts.map(c => ({
+      id: c.id,
+      name: c.name,
+      teacher: c.owner.name ?? "Your teacher",
+    })),
+    domain: primary.domain.name,
+    institution: primary.institution
       ? {
-          name: cohort.institution.name,
-          logo: cohort.institution.logoUrl,
+          name: primary.institution.name,
+          logo: primary.institution.logoUrl,
         }
       : null,
   });

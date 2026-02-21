@@ -6,7 +6,9 @@ import { FancySelect } from "@/components/shared/FancySelect";
 import type { FancySelectOption } from "@/components/shared/FancySelect";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import { useEntityContext } from "@/contexts/EntityContext";
-import { ChevronRight, ChevronLeft, Pencil, Trash2, Save, X, Plus } from "lucide-react";
+import { ChevronRight, ChevronLeft, Pencil, Trash2, Save, X, Plus, Building2, User, Target, PlayCircle } from "lucide-react";
+import { WizardSummary } from "@/components/shared/WizardSummary";
+import { POLL_TIMEOUT_MS } from "@/lib/tasks/constants";
 
 // ── Types ──────────────────────────────────────────
 
@@ -105,26 +107,42 @@ export default function DemonstratePage() {
 
   const currentStep = state?.currentStep ?? 0;
 
-  // ── Initialize step flow ──
+  // ── Initialize step flow (load steps from ORCHESTRATE spec with hardcoded fallback) ──
   useEffect(() => {
     if (flowInitialized.current) return;
     flowInitialized.current = true;
 
-    if (!isActive) {
-      startFlow({
-        flowId: "demonstrate",
-        steps: DEMONSTRATE_STEPS,
-        returnPath: "/x/demonstrate",
-      });
-    } else {
-      // Returning from a fix-action page — restore state from context
-      const savedDomainId = getData<string>("domainId");
-      const savedCallerId = getData<string>("callerId");
-      const savedGoal = getData<string>("goal");
-      if (savedDomainId) setSelectedDomainId(savedDomainId);
-      if (savedCallerId) setSelectedCallerId(savedCallerId);
-      if (savedGoal) setGoalText(savedGoal);
-    }
+    const initFlow = async () => {
+      let stepsToUse = DEMONSTRATE_STEPS;
+      try {
+        const res = await fetch("/api/wizard-steps?wizard=demonstrate");
+        const data = await res.json();
+        if (data.ok && data.steps?.length > 0) {
+          stepsToUse = data.steps.map((s: any) => ({
+            id: s.id, label: s.label, activeLabel: s.activeLabel,
+          }));
+        }
+      } catch {
+        // Silent — use hardcoded fallback
+      }
+
+      if (!isActive) {
+        startFlow({
+          flowId: "demonstrate",
+          steps: stepsToUse,
+          returnPath: "/x/demonstrate",
+        });
+      } else {
+        // Returning from a fix-action page — restore state from context
+        const savedDomainId = getData<string>("domainId");
+        const savedCallerId = getData<string>("callerId");
+        const savedGoal = getData<string>("goal");
+        if (savedDomainId) setSelectedDomainId(savedDomainId);
+        if (savedCallerId) setSelectedCallerId(savedCallerId);
+        if (savedGoal) setGoalText(savedGoal);
+      }
+    };
+    initFlow();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Push flow breadcrumb for Cmd+K awareness ──
@@ -375,10 +393,17 @@ export default function DemonstratePage() {
     if (currentStep === 2 && selectedDomainId) fetchReadiness();
   }, [currentStep, selectedDomainId, selectedCallerId, fetchReadiness]);
 
-  // Poll readiness every 10s while on step 2
+  // Poll readiness every 10s while on step 2 (with timeout guard)
   useEffect(() => {
     if (currentStep !== 2 || !selectedDomainId) return;
-    const interval = setInterval(fetchReadiness, 10_000);
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        clearInterval(interval);
+        return;
+      }
+      fetchReadiness();
+    }, 10_000);
     return () => clearInterval(interval);
   }, [currentStep, selectedDomainId, fetchReadiness]);
 
@@ -412,6 +437,14 @@ export default function DemonstratePage() {
   };
 
   const handlePrev = () => {
+    // Save context before navigating back
+    if (currentStep === 1) {
+      setData("goal", goalText.trim());
+    } else if (currentStep >= 1) {
+      setData("domainId", selectedDomainId);
+      setData("callerId", selectedCallerId);
+      setData("domainName", selectedDomain?.name || "");
+    }
     setStep(currentStep - 1);
   };
 
@@ -561,7 +594,7 @@ export default function DemonstratePage() {
           )}
 
           {/* Caller selector */}
-          {callerOptions.length > 0 && (
+          {selectedDomainId && callerOptions.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={sectionLabelStyle}>
                 {callerOptions.length > 1 ? "Test Caller" : "Caller"}
@@ -579,6 +612,32 @@ export default function DemonstratePage() {
                   searchable={callerOptions.length > 5}
                 />
               )}
+            </div>
+          )}
+
+          {/* Zero-callers warning */}
+          {selectedDomainId && !loadingDomains && callerOptions.length === 0 && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 16,
+                borderRadius: 10,
+                background: "color-mix(in srgb, var(--status-warning-text) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--status-warning-text) 20%, transparent)",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 4 }}>
+                No learners found
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                This institution has no callers yet.{" "}
+                <span
+                  style={{ color: "var(--accent-primary)", cursor: "pointer", fontWeight: 600 }}
+                  onClick={() => router.push(`/x/domains?selected=${selectedDomainId}`)}
+                >
+                  Add a learner on the Institution page
+                </span>
+              </div>
             </div>
           )}
 
@@ -1001,84 +1060,31 @@ export default function DemonstratePage() {
       {/* ═══════════════════════════════════════════════════ */}
       {currentStep === 3 && (
         <div style={sectionStyle}>
-          {/* Summary */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={sectionLabelStyle}>Session Summary</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Institution:</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                  {selectedDomain?.name || "—"}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Caller:</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                  {callers.find((c) => c.id === selectedCallerId)?.name || "—"}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Goal:</span>
-                <span style={{ fontSize: 14, color: "var(--text-primary)", fontStyle: goalText ? "normal" : "italic" }}>
-                  {goalText || "—"}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 70 }}>Ready:</span>
-                <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: levelColor,
-                  }}
-                >
-                  {levelLabel} ({score}%)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Start Lesson button */}
-          <button
-            onClick={handleStartLesson}
-            disabled={!ready || !selectedCallerId}
-            title={
-              !selectedCallerId
-                ? "No caller available for this domain"
-                : !ready
-                  ? "Complete required readiness checks first"
-                  : undefined
-            }
-            style={{
-              width: "100%",
-              padding: "16px 24px",
-              borderRadius: 12,
-              background:
-                ready && selectedCallerId
-                  ? "linear-gradient(135deg, var(--accent-primary), var(--accent-primary-hover))"
-                  : "var(--border-default)",
-              color: ready && selectedCallerId ? "white" : "var(--text-muted)",
-              border: "none",
-              fontSize: 18,
-              fontWeight: 700,
-              cursor: ready && selectedCallerId ? "pointer" : "not-allowed",
-              letterSpacing: "-0.01em",
-              transition: "all 0.2s",
-              boxShadow:
-                ready && selectedCallerId
-                  ? "0 4px 16px color-mix(in srgb, var(--accent-primary) 30%, transparent)"
-                  : "none",
+          <WizardSummary
+            title="Ready to Go!"
+            subtitle={ready ? "All checks passed. Start your lesson." : `${levelLabel} — ${score}% readiness`}
+            intent={{
+              items: [
+                { icon: <Building2 className="w-4 h-4" />, label: "Institution", value: selectedDomain?.name || "—" },
+                { icon: <User className="w-4 h-4" />, label: "Caller", value: callers.find((c) => c.id === selectedCallerId)?.name || "—" },
+                ...(goalText ? [{ icon: <Target className="w-4 h-4" />, label: "Goal", value: goalText }] : []),
+              ],
             }}
-          >
-            Start Lesson
-          </button>
-
-          {/* Back */}
-          <div style={{ display: "flex", justifyContent: "flex-start", marginTop: 16 }}>
-            <button onClick={handlePrev} style={backBtnStyle}>
-              <ChevronLeft size={16} /> Back
-            </button>
-          </div>
+            stats={[
+              { label: "Readiness", value: `${score}%` },
+            ]}
+            primaryAction={{
+              label: "Start Lesson",
+              icon: <PlayCircle className="w-5 h-5" />,
+              onClick: handleStartLesson,
+              disabled: !ready || !selectedCallerId,
+            }}
+            secondaryActions={[
+              ...(selectedDomainId ? [{ label: "View Institution", href: `/x/domains?selected=${selectedDomainId}` }] : []),
+              ...(selectedCallerId ? [{ label: "View Caller", href: `/x/callers/${selectedCallerId}` }] : []),
+            ]}
+            onBack={handlePrev}
+          />
         </div>
       )}
 

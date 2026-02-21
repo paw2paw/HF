@@ -23,7 +23,7 @@ import {
 import {
   generateIdentityFromAssertions,
 } from "@/lib/domain/generate-identity";
-import { startTaskTracking, updateTaskProgress, completeTask } from "@/lib/ai/task-guidance";
+import { startTaskTracking, updateTaskProgress, completeTask, failTask } from "@/lib/ai/task-guidance";
 import { embedAssertionsForSource } from "@/lib/embeddings";
 
 /**
@@ -111,6 +111,22 @@ export async function POST(req: NextRequest) {
     } catch {
       if (goalsRaw.trim()) {
         learningGoals = [goalsRaw.trim()];
+      }
+    }
+  }
+
+  // Parse tone traits
+  const traitsRaw = formData.get("toneTraits") as string | null;
+  let toneTraits: string[] = [];
+  if (traitsRaw) {
+    try {
+      const parsed = JSON.parse(traitsRaw);
+      if (Array.isArray(parsed)) {
+        toneTraits = parsed.filter((t: any) => typeof t === "string" && t.trim());
+      }
+    } catch {
+      if (traitsRaw.trim()) {
+        toneTraits = [traitsRaw.trim()];
       }
     }
   }
@@ -222,6 +238,7 @@ export async function POST(req: NextRequest) {
           subjectName: subjectName.trim(),
           persona: persona.trim(),
           learningGoals,
+          toneTraits,
           assertions: [],
           maxSampleSize: 0,
         });
@@ -243,6 +260,7 @@ export async function POST(req: NextRequest) {
             brief: brief?.trim() || undefined,
             persona: persona.trim(),
             learningGoals,
+            toneTraits,
             qualificationRef: qualificationRef?.trim() || undefined,
           },
           domainId: domain.id,
@@ -275,9 +293,12 @@ export async function POST(req: NextRequest) {
               brief: brief?.trim() || undefined,
               persona: persona.trim(),
               learningGoals,
+              toneTraits,
             },
           },
-        }).catch(() => {});
+        }).catch((err) => {
+          console.error(`[quick-launch:analyze] Failed to save task preview:`, err);
+        });
       }
 
       return NextResponse.json(
@@ -381,6 +402,7 @@ export async function POST(req: NextRequest) {
         subjectName: subjectName.trim(),
         persona: persona.trim(),
         learningGoals,
+        toneTraits,
       },
       {
         domainId: domain.id,
@@ -392,12 +414,8 @@ export async function POST(req: NextRequest) {
     ).catch(async (err) => {
       console.error(`[quick-launch:analyze] Background job ${job.id} unhandled error:`, err);
       await updateJob(job.id, { status: "error", error: err.message || "Unknown error" });
-      // Mark task as completed so it doesn't stay in_progress forever
       if (taskId) {
-        await updateTaskProgress(taskId, {
-          context: { error: err.message || "Unknown error", phase: "failed" },
-        }).catch(() => {});
-        completeTask(taskId).catch(() => {});
+        await failTask(taskId, err.message || "Unknown error");
       }
     });
 
@@ -442,6 +460,7 @@ async function runQuickLaunchBackground(
     subjectName: string;
     persona: string;
     learningGoals: string[];
+    toneTraits?: string[];
   },
   domainInfo: {
     domainId: string;
@@ -503,12 +522,8 @@ async function runQuickLaunchBackground(
       error: result.error || "Extraction failed",
       warnings: result.warnings,
     });
-    // Mark task as completed so it doesn't stay in_progress forever
     if (taskId) {
-      await updateTaskProgress(taskId, {
-        context: { error: result.error || "Extraction failed", phase: "failed" },
-      });
-      completeTask(taskId).catch(() => {});
+      await failTask(taskId, result.error || "Extraction failed");
     }
     return;
   }
@@ -560,6 +575,7 @@ async function runQuickLaunchBackground(
       subjectName: identityInput.subjectName,
       persona: identityInput.persona,
       learningGoals: identityInput.learningGoals,
+      toneTraits: identityInput.toneTraits,
       assertions: result.assertions.slice(0, 60).map((a) => ({
         assertion: a.assertion,
         category: a.category,
@@ -605,6 +621,8 @@ async function runQuickLaunchBackground(
         preview,
         input: identityInput,
       },
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error(`[quick-launch:analyze] Failed to save task preview:`, err);
+    });
   }
 }

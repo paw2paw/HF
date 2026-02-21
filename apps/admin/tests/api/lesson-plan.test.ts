@@ -32,10 +32,17 @@ vi.mock("@/lib/ai/assistant-wrapper", () => ({
 const mockStartTaskTracking = vi.fn();
 const mockUpdateTaskProgress = vi.fn();
 const mockCompleteTask = vi.fn();
+const mockFailTask = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/ai/task-guidance", () => ({
   startTaskTracking: (...args: any[]) => mockStartTaskTracking(...args),
   updateTaskProgress: (...args: any[]) => mockUpdateTaskProgress(...args),
   completeTask: (...args: any[]) => mockCompleteTask(...args),
+  failTask: (...args: any[]) => mockFailTask(...args),
+  backgroundRun: (taskId: string, fn: () => Promise<void>) => {
+    fn().catch(async (err: any) => {
+      mockFailTask(taskId, err instanceof Error ? err.message : String(err));
+    });
+  },
 }));
 
 // ── Helpers ────────────────────────────────────────────

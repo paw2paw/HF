@@ -51,7 +51,7 @@ export function EmailPreviewPanel({ values }: EmailPreviewPanelProps) {
             <iframe
               title="Magic link email preview"
               sandbox=""
-              style={{ width: "100%", height: 500, border: "none", background: "#f5f5f5" }}
+              style={{ width: "100%", height: 500, border: "none", background: "var(--surface-secondary)" }}
               srcDoc={renderEmailHtml({
                 heading: String(values["email.magic_link.heading"] ?? EMAIL_TEMPLATE_DEFAULTS.magicLinkHeading),
                 bodyHtml: `<p style="font-size:16px;margin:0 0 16px;">${String(values["email.magic_link.body"] ?? EMAIL_TEMPLATE_DEFAULTS.magicLinkBody)}</p>`,
@@ -116,7 +116,7 @@ export function EmailPreviewPanel({ values }: EmailPreviewPanelProps) {
               <iframe
                 title="Invite email preview"
                 sandbox=""
-                style={{ width: "100%", height: 500, border: "none", background: "#f5f5f5" }}
+                style={{ width: "100%", height: 500, border: "none", background: "var(--surface-secondary)" }}
                 srcDoc={renderEmailHtml({
                   heading: replaceVars(String(values["email.invite.heading"] ?? EMAIL_TEMPLATE_DEFAULTS.inviteHeading)),
                   bodyHtml,

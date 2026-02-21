@@ -54,12 +54,12 @@ export function ChannelsPanel() {
   }
 
   if (loading) {
-    return <div style={{ padding: 20, color: '#667781', fontSize: 13 }}>Loading channels...</div>;
+    return <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Loading channels...</div>;
   }
 
   return (
     <div style={{ padding: '16px 0' }}>
-      <p style={{ fontSize: 13, color: '#667781', marginBottom: 16 }}>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
         Configure delivery channels for sharing content with learners. Enable channels globally or per-domain.
       </p>
 
@@ -72,7 +72,7 @@ export function ChannelsPanel() {
             <div
               key={ct.type}
               style={{
-                border: '1px solid #e5e7eb',
+                border: '1px solid var(--border-default)',
                 borderRadius: 8,
                 padding: '14px 16px',
                 display: 'flex',
@@ -84,9 +84,9 @@ export function ChannelsPanel() {
               <span style={{ fontSize: 24 }}>{ct.icon}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{ct.label}</div>
-                <div style={{ fontSize: 12, color: '#667781' }}>{ct.description}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{ct.description}</div>
                 {ct.type !== 'sim' && isEnabled && (
-                  <div style={{ fontSize: 11, color: '#d97706', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--status-warning-text)', marginTop: 4 }}>
                     Configuration required — set API keys in channel config
                   </div>
                 )}
@@ -99,7 +99,7 @@ export function ChannelsPanel() {
                   disabled={saving === ct.type}
                   style={{ width: 18, height: 18, cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: 12, color: '#667781' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   {saving === ct.type ? 'Saving...' : isEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </label>
@@ -113,7 +113,7 @@ export function ChannelsPanel() {
         <div style={{ marginTop: 20 }}>
           <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Domain Overrides</h4>
           {channels.filter((c) => c.domainId).map((c) => (
-            <div key={c.id} style={{ fontSize: 12, color: '#374151', padding: '4px 0' }}>
+            <div key={c.id} style={{ fontSize: 12, color: 'var(--text-primary)', padding: '4px 0' }}>
               <strong>{c.domain?.name}</strong>: {c.channelType} {c.isEnabled ? '(enabled)' : '(disabled)'}
             </div>
           ))}

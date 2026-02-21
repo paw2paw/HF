@@ -213,19 +213,19 @@ export default function Blueprint() {
             flexWrap: "wrap",
           }}
         >
-          <DataFlowBox label="Transcript" color="#f1f5f9" />
+          <DataFlowBox label="Transcript" color="var(--surface-secondary)" />
           <Arrow />
-          <DataFlowBox label="CallScore" color="#e0e7ff" />
+          <DataFlowBox label="CallScore" color="var(--badge-indigo-bg)" />
           <Arrow />
-          <DataFlowBox label="CallerPersonality" color="#fce7f3" />
+          <DataFlowBox label="CallerPersonality" color="var(--badge-pink-bg)" />
           <Arrow />
-          <DataFlowBox label="CallerMemory" color="#fef3c7" />
+          <DataFlowBox label="CallerMemory" color="var(--badge-yellow-bg)" />
           <Arrow />
-          <DataFlowBox label="BehaviorMeasurement" color="#cffafe" />
+          <DataFlowBox label="BehaviorMeasurement" color="var(--badge-cyan-bg)" />
           <Arrow />
-          <DataFlowBox label="RewardScore" color="#d1fae5" />
+          <DataFlowBox label="RewardScore" color="var(--badge-green-bg)" />
           <Arrow />
-          <DataFlowBox label="ComposedPrompt" color="#ede9fe" highlight />
+          <DataFlowBox label="ComposedPrompt" color="var(--badge-purple-bg)" highlight />
         </div>
       </div>
 
@@ -430,7 +430,7 @@ function DataFlowBox({
         fontWeight: 500,
         color: "var(--text-primary)",
         border: highlight ? "2px solid var(--badge-purple-text)" : "1px solid var(--border-default)",
-        boxShadow: highlight ? "0 0 12px rgba(124, 58, 237, 0.3)" : undefined,
+        boxShadow: highlight ? "0 0 12px color-mix(in srgb, var(--badge-purple-text) 30%, transparent)" : undefined,
       }}
     >
       {label}

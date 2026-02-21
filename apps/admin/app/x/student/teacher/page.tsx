@@ -11,6 +11,7 @@ interface TeacherData {
     email: string | null;
   };
   classroom: string;
+  classrooms?: Array<{ id: string; name: string; teacher: string }>;
   domain: string;
   institution: {
     name: string;
@@ -89,7 +90,7 @@ function StudentTeacherContent() {
           <div className="flex items-center gap-3 mb-4">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: "color-mix(in srgb, #059669 15%, transparent)" }}
+              style={{ background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)" }}
             >
               <GraduationCap size={20} style={{ color: "var(--status-success-text)" }} />
             </div>

@@ -38,36 +38,42 @@ export async function GET(
     if (isCohortOwnershipError(ownershipResult)) return ownershipResult.error;
     const { cohort } = ownershipResult;
 
-    // Fetch members with their stats
-    const members = await prisma.caller.findMany({
+    // Fetch members via join table with their stats
+    const memberships = await prisma.callerCohortMembership.findMany({
       where: { cohortGroupId: cohortId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        archivedAt: true,
-        personality: {
+      include: {
+        caller: {
           select: {
-            openness: true,
-            conscientiousness: true,
-            extraversion: true,
-            agreeableness: true,
-            neuroticism: true,
-            confidenceScore: true,
-          },
-        },
-        _count: {
-          select: {
-            calls: true,
-            goals: true,
-            memories: true,
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            archivedAt: true,
+            personality: {
+              select: {
+                openness: true,
+                conscientiousness: true,
+                extraversion: true,
+                agreeableness: true,
+                neuroticism: true,
+                confidenceScore: true,
+              },
+            },
+            _count: {
+              select: {
+                calls: true,
+                goals: true,
+                memories: true,
+              },
+            },
           },
         },
       },
-      orderBy: { name: "asc" },
     });
+    const members = memberships
+      .map((m) => m.caller)
+      .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 
     // Get the most recent call per member
     const memberIds = members.map((m) => m.id);

@@ -1,98 +1,110 @@
 Feature: System Readiness
   As an admin user
   I want to see system readiness status
-  So that I know if prerequisites are met for analysis
+  So that I know if prerequisites are met for the platform
 
   # =============================================================================
-  # Readiness API
+  # Readiness API (/api/system/readiness — public, no auth)
   # =============================================================================
 
   Scenario: Check system readiness - all green
     Given the database is connected
-    And 5 Parameters exist
-    And 3 AnalysisSpecs exist (at least 1 active)
-    And 2 RunConfigs are compiled
+    And active AnalysisSpecs exist with compiledAt set
+    And Parameters exist
+    And at least one CompiledAnalysisSet has status "READY"
+    And Callers, Calls, and BehaviorTargets exist
     When I call GET /api/system/readiness
     Then I should receive ready: true
     And all checks should show ok: true
 
-  Scenario: Check system readiness - missing parameters
+  Scenario: Check system readiness - no active specs
     Given the database is connected
-    And 0 Parameters exist
-    When I call GET /api/system/readiness
-    Then I should receive ready: false
-    And the parameters check should show ok: false
-    And I should see a suggested action to create parameters
-
-  Scenario: Check system readiness - missing analysis specs
-    Given the database is connected
-    And 5 Parameters exist
-    And 0 AnalysisSpecs exist
+    And 0 AnalysisSpecs have isActive=true and compiledAt set
     When I call GET /api/system/readiness
     Then I should receive ready: false
     And the analysisSpecs check should show ok: false
-    And I should see a suggested action to create analysis specs
 
-  Scenario: Check system readiness - no run configs
+  Scenario: Check system readiness - no compiled run configs
     Given the database is connected
-    And Parameters and AnalysisSpecs exist
-    And 0 RunConfigs are compiled
+    And active AnalysisSpecs exist
+    And 0 CompiledAnalysisSets have status "READY"
     When I call GET /api/system/readiness
     Then I should receive ready: false
     And the runConfigs check should show ok: false
-    And I should see a suggested action to compile a run config
+
+  Scenario: Check system readiness - no parameters
+    Given the database is connected
+    And 0 Parameters exist
+    When I call GET /api/system/readiness
+    Then the parameters check should show ok: false
+
+  Scenario: Check system readiness - no callers
+    Given the database is connected
+    And 0 Callers exist
+    When I call GET /api/system/readiness
+    Then the callers check should show ok: false
+    And suggestedActions should include "Process Transcripts"
 
   Scenario: Check system readiness - database error
     Given the database is not connected
     When I call GET /api/system/readiness
-    Then I should receive ready: false
+    Then the response status should be 500
+    And I should receive ready: false
     And the database check should show ok: false
-    And I should see a suggested action to check database connection
 
   # =============================================================================
-  # Readiness Response Structure
+  # Response Structure
   # =============================================================================
 
-  Scenario: Readiness response includes all checks
+  Scenario: Readiness response includes all check categories
     When I call GET /api/system/readiness
-    Then the response should include:
-      | check          | fields                    |
-      | database       | ok, message              |
-      | analysisSpecs  | ok, count, required      |
-      | parameters     | ok, count                |
-      | runConfigs     | ok, count                |
-      | callers        | ok, count                |
-      | calls          | ok, count                |
-      | behaviorTargets| ok, count                |
+    Then the response should include checks:
+      | check           | fields                    |
+      | database        | ok, message               |
+      | analysisSpecs   | ok, count, required, link |
+      | parameters      | ok, count, link           |
+      | runConfigs      | ok, count, link           |
+      | callers         | ok, count, link           |
+      | calls           | ok, count, link           |
+      | behaviorTargets | ok, count, link           |
 
-  Scenario: Readiness response includes sources
+  Scenario: Readiness response includes source status
     When I call GET /api/system/readiness
     Then the response should include sources:
-      | source      | fields      |
-      | callers     | count       |
-      | calls       | count       |
-      | memories    | count       |
-      | runConfigs  | count       |
+      | source      | fields                     |
+      | knowledge   | status, count, label, link |
+      | transcripts | status, count, label, link |
+      | callers     | status, count, label, link |
 
-  Scenario: Readiness response includes suggested actions
+  Scenario: Readiness response includes stats
+    When I call GET /api/system/readiness
+    Then the response should include stats:
+      | stat               |
+      | totalCallers       |
+      | totalCalls         |
+      | totalMemories      |
+      | analyzedCalls      |
+      | callersWithPrompts |
+
+  Scenario: Readiness response includes prioritised suggested actions
     Given some prerequisites are not met
     When I call GET /api/system/readiness
     Then the response should include suggestedActions
-    And each action should have: label, href, priority, context
+    And each action should have: priority, action, description
+    And actions should be sorted by priority ascending
 
   # =============================================================================
-  # UI Integration
+  # Domain Readiness (separate from system readiness)
   # =============================================================================
 
-  Scenario: Analyze page displays readiness status
-    Given the system is not ready (missing run configs)
-    When I navigate to /analyze
-    Then I should see a "Prerequisites" section
-    And RunConfigs should show a red indicator
-    And I should see a link to create a run config
-
-  Scenario: Analyze page allows proceeding when ready
-    Given the system is fully ready
-    When I navigate to /analyze
-    Then the "Prerequisites" section should show all green
-    And I should be able to proceed with analysis
+  Scenario: Domain readiness checks spec roles
+    Given a domain "english-tutor" exists with a published playbook
+    When I call GET /api/domains/{domainId}/readiness
+    Then readiness checks should include:
+      | check             | description                                    |
+      | identity_spec     | IDENTITY spec exists in playbook               |
+      | content_spec      | CONTENT spec exists in playbook                |
+      | pipeline_spec     | PIPELINE-001 system spec is enabled            |
+      | composition_spec  | COMP-001 system spec is enabled                |
+      | ai_engine         | At least one AI engine has an API key           |
+      | behavior_targets  | SYSTEM-level behavior targets exist            |

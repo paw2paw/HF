@@ -6,6 +6,8 @@ import { Layers } from "lucide-react";
 import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
 import type { DomainDetail } from "./types";
+import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shared/AgentTuningPanel";
+import type { MatrixPosition } from "@/lib/domain/agent-tuning";
 
 export function OnboardingTabContent({
   domain,
@@ -27,7 +29,7 @@ export function OnboardingTabContent({
     defaultTargets: "",
   });
   const [flowPhasesMode, setFlowPhasesMode] = useState<"visual" | "json">("visual");
-  const [defaultTargetsMode, setDefaultTargetsMode] = useState<"visual" | "json">("visual");
+  const [defaultTargetsMode, setDefaultTargetsMode] = useState<"matrix" | "visual" | "json">("matrix");
   const [structuredPhases, setStructuredPhases] = useState<Array<{
     _id: string;
     phase: string;
@@ -37,6 +39,7 @@ export function OnboardingTabContent({
   }>>([]);
   const [domainMedia, setDomainMedia] = useState<Array<{ id: string; title: string | null; fileName: string; mimeType: string }>>([]);
   const [structuredTargets, setStructuredTargets] = useState<Record<string, { value: number; confidence: number }>>({});
+  const [matrixOutput, setMatrixOutput] = useState<AgentTuningPanelOutput | null>(null);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [onboardingSaveError, setOnboardingSaveError] = useState<string | null>(null);
   const [onboardingSaveSuccess, setOnboardingSaveSuccess] = useState(false);
@@ -76,8 +79,16 @@ export function OnboardingTabContent({
   useEffect(() => {
     fetchScaffoldingTasks();
 
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
     if (scaffoldingTasks.length > 0 && !pollInterval) {
       const interval = setInterval(() => {
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          clearInterval(interval);
+          setPollInterval(null);
+          return;
+        }
         fetchScaffoldingTasks();
       }, 2000);
       setPollInterval(interval);
@@ -218,7 +229,17 @@ export function OnboardingTabContent({
         }
       }
 
-      if (defaultTargetsMode === "visual") {
+      if (defaultTargetsMode === "matrix" && matrixOutput) {
+        // Matrix mode: derive targets from matrix positions
+        const matrixDerived: Record<string, { value: number; confidence: number }> = {};
+        for (const [paramId, value] of Object.entries(matrixOutput.parameterMap)) {
+          matrixDerived[paramId] = { value, confidence: 0.5 };
+        }
+        // Merge matrix targets with any manually-set structured targets (manual wins)
+        defaultTargets = { ...matrixDerived, ...structuredTargets };
+        // Stash matrix positions for round-trip
+        (defaultTargets as any)._matrixPositions = matrixOutput.matrixPositions;
+      } else if (defaultTargetsMode === "visual") {
         // Use structured targets
         if (Object.keys(structuredTargets).length > 0) {
           defaultTargets = structuredTargets;
@@ -272,8 +293,8 @@ export function OnboardingTabContent({
                   {scaffoldingTasks.length > 0 && (
                     <div style={{
                       padding: 16,
-                      background: "#f0f9ff",
-                      border: "1px solid #bfdbfe",
+                      background: "var(--status-info-bg)",
+                      border: "1px solid color-mix(in srgb, var(--status-info-text) 25%, transparent)",
                       borderRadius: 8,
                       marginBottom: 20,
                     }}>
@@ -290,7 +311,7 @@ export function OnboardingTabContent({
                           background: "white",
                           borderRadius: 6,
                           marginBottom: 8,
-                          border: "1px solid #dbeafe",
+                          border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
                         }}>
                           {/* Task progress */}
                           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -305,6 +326,7 @@ export function OnboardingTabContent({
                             )}
                             {task.status === "completed" && <div>✅</div>}
                             {task.status === "abandoned" && <div>⚠️</div>}
+                            {!["in_progress", "completed", "abandoned"].includes(task.status) && <div>❓</div>}
 
                             <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                               {task.context?.message || "Processing..."}
@@ -335,7 +357,7 @@ export function OnboardingTabContent({
                           {task.status === "abandoned" && task.context?.error && (
                             <div style={{
                               fontSize: 12,
-                              color: "#991b1b",
+                              color: "var(--status-error-text)",
                               marginLeft: 30,
                               padding: "8px 0",
                             }}>
@@ -407,8 +429,8 @@ export function OnboardingTabContent({
                     <div style={{
                       padding: 12,
                       marginBottom: 16,
-                      background: "#dcfce7",
-                      color: "#166534",
+                      background: "var(--status-success-bg)",
+                      color: "var(--status-success-text)",
                       borderRadius: 8,
                       fontSize: 14,
                     }}>
@@ -765,40 +787,44 @@ export function OnboardingTabContent({
                             Default Behavior Targets
                           </label>
                           <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              onClick={() => setDefaultTargetsMode("visual")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: defaultTargetsMode === "visual" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: defaultTargetsMode === "visual" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Visual
-                            </button>
-                            <button
-                              onClick={() => setDefaultTargetsMode("json")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: defaultTargetsMode === "json" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: defaultTargetsMode === "json" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              JSON
-                            </button>
+                            {(["matrix", "visual", "json"] as const).map((mode) => (
+                              <button
+                                key={mode}
+                                onClick={() => setDefaultTargetsMode(mode)}
+                                style={{
+                                  padding: "4px 12px",
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  background: defaultTargetsMode === mode ? "var(--accent-primary)" : "var(--surface-secondary)",
+                                  color: defaultTargetsMode === mode ? "white" : "var(--text-secondary)",
+                                  border: "1px solid var(--border-default)",
+                                  borderRadius: 4,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {mode === "matrix" ? "Matrix" : mode === "visual" ? "Visual" : "JSON"}
+                              </button>
+                            ))}
                           </div>
                         </div>
 
-                        {defaultTargetsMode === "visual" ? (
+                        {defaultTargetsMode === "matrix" ? (
+                          /* Boston Matrix Editor */
+                          <div>
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+                              Drag the dots to set your agent&apos;s style. Click a preset to start from a known personality.
+                            </div>
+                            <AgentTuningPanel
+                              initialPositions={(domain.onboardingDefaultTargets as any)?._matrixPositions}
+                              existingParams={
+                                Object.keys(structuredTargets).length > 0
+                                  ? Object.fromEntries(Object.entries(structuredTargets).map(([k, v]) => [k, v.value]))
+                                  : undefined
+                              }
+                              onChange={setMatrixOutput}
+                            />
+                          </div>
+                        ) : defaultTargetsMode === "visual" ? (
                           /* Visual Editor with Vertical Sliders */
                           <div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
@@ -1045,7 +1071,7 @@ export function OnboardingTabContent({
                             padding: "10px 24px",
                             fontSize: 14,
                             fontWeight: 600,
-                            background: savingOnboarding ? "#d1d5db" : "var(--accent-primary)",
+                            background: savingOnboarding ? "var(--border-default)" : "var(--accent-primary)",
                             color: "white",
                             border: "none",
                             borderRadius: 6,
@@ -1075,7 +1101,7 @@ export function OnboardingTabContent({
                       justifyContent: "center",
                       padding: "20px 16px",
                       background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingIdentitySpec ? "#10b981" : "#ef4444"}`,
+                      border: `2px solid ${domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)"}`,
                       borderRadius: 12,
                       transition: "all 0.2s",
                     }}>
@@ -1085,7 +1111,7 @@ export function OnboardingTabContent({
                       <div style={{
                         fontSize: 13,
                         fontWeight: 600,
-                        color: domain.onboardingIdentitySpec ? "#10b981" : "#ef4444",
+                        color: domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)",
                         textAlign: "center",
                         marginBottom: 4,
                       }}>
@@ -1109,8 +1135,8 @@ export function OnboardingTabContent({
                             padding: "3px 10px",
                             fontSize: 10,
                             fontWeight: 600,
-                            color: "#6366f1",
-                            background: "#e0e7ff",
+                            color: "var(--accent-primary)",
+                            background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
                             borderRadius: 4,
                             textDecoration: "none",
                             transition: "opacity 0.15s",
@@ -1130,7 +1156,7 @@ export function OnboardingTabContent({
                       justifyContent: "center",
                       padding: "20px 16px",
                       background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingWelcome ? "#10b981" : "#d1d5db"}`,
+                      border: `2px solid ${domain.onboardingWelcome ? "var(--status-success-text)" : "var(--border-default)"}`,
                       borderRadius: 12,
                       transition: "all 0.2s",
                     }}>
@@ -1140,7 +1166,7 @@ export function OnboardingTabContent({
                       <div style={{
                         fontSize: 13,
                         fontWeight: 600,
-                        color: domain.onboardingWelcome ? "#10b981" : "var(--text-muted)",
+                        color: domain.onboardingWelcome ? "var(--status-success-text)" : "var(--text-muted)",
                         textAlign: "center",
                         marginBottom: 4,
                       }}>
@@ -1163,7 +1189,7 @@ export function OnboardingTabContent({
                       justifyContent: "center",
                       padding: "20px 16px",
                       background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingFlowPhases ? "#10b981" : "#d1d5db"}`,
+                      border: `2px solid ${domain.onboardingFlowPhases ? "var(--status-success-text)" : "var(--border-default)"}`,
                       borderRadius: 12,
                       transition: "all 0.2s",
                     }}>
@@ -1198,7 +1224,7 @@ export function OnboardingTabContent({
                       justifyContent: "center",
                       padding: "20px 16px",
                       background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingDefaultTargets ? "#10b981" : "#d1d5db"}`,
+                      border: `2px solid ${domain.onboardingDefaultTargets ? "var(--status-success-text)" : "var(--border-default)"}`,
                       borderRadius: 12,
                       transition: "all 0.2s",
                     }}>

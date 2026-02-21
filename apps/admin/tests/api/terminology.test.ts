@@ -45,6 +45,10 @@ describe('GET /api/terminology', () => {
       cohort: 'Cohort',
       instructor: 'Instructor',
       session: 'Session',
+      persona: 'Persona',
+      supervisor: 'Supervisor',
+      teach_action: 'Teach',
+      learning_noun: 'Learning',
     });
 
     const res = await GET();
@@ -72,6 +76,10 @@ describe('GET /api/terminology', () => {
       cohort: 'Class',
       instructor: 'Teacher',
       session: 'Lesson',
+      persona: 'Teaching Style',
+      supervisor: 'My Teacher',
+      teach_action: 'Teach',
+      learning_noun: 'Learning',
     });
 
     const res = await GET();
@@ -85,7 +93,7 @@ describe('GET /api/terminology', () => {
     expect(resolveTerminology).toHaveBeenCalledWith('EDUCATOR', 'inst-123');
   });
 
-  it('should return all 7 term keys', async () => {
+  it('should return all 11 term keys', async () => {
     vi.mocked(requireAuth).mockResolvedValue({
       session: {
         user: { role: 'VIEWER', institutionId: null },
@@ -100,6 +108,10 @@ describe('GET /api/terminology', () => {
       cohort: 'Cohort',
       instructor: 'Instructor',
       session: 'Session',
+      persona: 'Persona',
+      supervisor: 'Supervisor',
+      teach_action: 'Teach',
+      learning_noun: 'Learning',
     });
 
     const res = await GET();
@@ -113,6 +125,10 @@ describe('GET /api/terminology', () => {
     expect(keys).toContain('cohort');
     expect(keys).toContain('instructor');
     expect(keys).toContain('session');
-    expect(keys.length).toBe(7);
+    expect(keys).toContain('persona');
+    expect(keys).toContain('supervisor');
+    expect(keys).toContain('teach_action');
+    expect(keys).toContain('learning_noun');
+    expect(keys.length).toBe(11);
   });
 });

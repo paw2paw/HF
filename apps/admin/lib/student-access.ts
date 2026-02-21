@@ -4,7 +4,7 @@
  * Provides helpers for student routes to verify identity and scope.
  *
  * A student's scope is: their linked Caller (LEARNER role) →
- * cohortGroup → owner (teacher).
+ * cohortMemberships → cohortGroup → owner (teacher).
  */
 
 import { prisma } from "@/lib/prisma";
@@ -15,7 +15,8 @@ import type { Session } from "next-auth";
 type StudentAuthSuccess = {
   session: Session;
   callerId: string; // The student's Caller.id (LEARNER role)
-  cohortGroupId: string; // The student's classroom
+  cohortGroupId: string; // Primary cohort (first membership) — kept for backwards compat
+  cohortGroupIds: string[]; // All cohort memberships
   institutionId: string | null;
 };
 
@@ -31,9 +32,32 @@ export function isStudentAuthError(
   return "error" in result;
 }
 
+/** Select shape for caller with cohort memberships */
+const callerWithMembershipsSelect = {
+  id: true,
+  cohortGroupId: true, // legacy FK — still populated during migration period
+  cohortMemberships: {
+    select: { cohortGroupId: true },
+    orderBy: { joinedAt: "asc" as const },
+  },
+  user: { select: { institutionId: true } },
+};
+
+/** Extract cohort IDs from a caller query result */
+function extractCohortIds(caller: {
+  cohortGroupId: string | null;
+  cohortMemberships: { cohortGroupId: string }[];
+}): string[] {
+  // Prefer join table memberships, fall back to legacy FK
+  if (caller.cohortMemberships.length > 0) {
+    return caller.cohortMemberships.map((m) => m.cohortGroupId);
+  }
+  return caller.cohortGroupId ? [caller.cohortGroupId] : [];
+}
+
 /**
  * Require authenticated student with a linked LEARNER Caller in a classroom.
- * Returns { session, callerId, cohortGroupId, institutionId } on success.
+ * Returns { session, callerId, cohortGroupId, cohortGroupIds, institutionId } on success.
  */
 export async function requireStudent(): Promise<StudentAuthResult> {
   const authResult = await requireAuth("STUDENT");
@@ -56,14 +80,12 @@ export async function requireStudent(): Promise<StudentAuthResult> {
       userId: session.user.id,
       role: "LEARNER",
     },
-    select: {
-      id: true,
-      cohortGroupId: true,
-      user: { select: { institutionId: true } },
-    },
+    select: callerWithMembershipsSelect,
   });
 
-  if (!caller || !caller.cohortGroupId) {
+  const cohortIds = caller ? extractCohortIds(caller) : [];
+
+  if (!caller || cohortIds.length === 0) {
     return {
       error: NextResponse.json(
         { ok: false, error: "No student profile found. Please join a classroom." },
@@ -75,7 +97,8 @@ export async function requireStudent(): Promise<StudentAuthResult> {
   return {
     session,
     callerId: caller.id,
-    cohortGroupId: caller.cohortGroupId,
+    cohortGroupId: cohortIds[0], // primary for backwards compat
+    cohortGroupIds: cohortIds,
     institutionId: caller.user?.institutionId ?? null,
   };
 }
@@ -98,14 +121,12 @@ export async function requireStudentOrAdmin(
   if (role === "STUDENT") {
     const caller = await prisma.caller.findFirst({
       where: { userId: session.user.id, role: "LEARNER" },
-      select: {
-        id: true,
-        cohortGroupId: true,
-        user: { select: { institutionId: true } },
-      },
+      select: callerWithMembershipsSelect,
     });
 
-    if (!caller || !caller.cohortGroupId) {
+    const cohortIds = caller ? extractCohortIds(caller) : [];
+
+    if (!caller || cohortIds.length === 0) {
       return {
         error: NextResponse.json(
           { ok: false, error: "No student profile found. Please join a classroom." },
@@ -117,7 +138,8 @@ export async function requireStudentOrAdmin(
     return {
       session,
       callerId: caller.id,
-      cohortGroupId: caller.cohortGroupId,
+      cohortGroupId: cohortIds[0],
+      cohortGroupIds: cohortIds,
       institutionId: caller.user?.institutionId ?? null,
     };
   }
@@ -137,11 +159,7 @@ export async function requireStudentOrAdmin(
 
     const caller = await prisma.caller.findFirst({
       where: { id: callerId, role: "LEARNER" },
-      select: {
-        id: true,
-        cohortGroupId: true,
-        user: { select: { institutionId: true } },
-      },
+      select: callerWithMembershipsSelect,
     });
 
     if (!caller) {
@@ -153,10 +171,13 @@ export async function requireStudentOrAdmin(
       };
     }
 
+    const cohortIds = extractCohortIds(caller);
+
     return {
       session,
       callerId: caller.id,
-      cohortGroupId: caller.cohortGroupId ?? "",
+      cohortGroupId: cohortIds[0] || "",
+      cohortGroupIds: cohortIds,
       institutionId: caller.user?.institutionId ?? null,
     };
   }

@@ -132,35 +132,35 @@ const SCOPES = ["SYSTEM", "DOMAIN", "CALLER"] as const;
 const TYPES = ["MEASURE", "LEARN", "ADAPT", "COMPOSE", "AGGREGATE", "REWARD"] as const;
 
 const outputTypeColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
-  MEASURE: { bg: "#dcfce7", text: "#14532d", icon: "📊", desc: "Score caller behavior" },
-  LEARN: { bg: "#ede9fe", text: "#4c1d95", icon: "💾", desc: "Extract memories/facts" },
-  ADAPT: { bg: "#fef3c7", text: "#78350f", icon: "🎯", desc: "Compute behavior targets" },
-  COMPOSE: { bg: "#fce7f3", text: "#9d174d", icon: "✍️", desc: "Build prompt sections" },
-  AGGREGATE: { bg: "#e0e7ff", text: "#3730a3", icon: "📈", desc: "Combine data into profiles" },
-  REWARD: { bg: "#fef9c3", text: "#854d0e", icon: "🏆", desc: "Compute reward signals" },
+  MEASURE: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)", icon: "📊", desc: "Score caller behavior" },
+  LEARN: { bg: "var(--badge-violet-bg)", text: "var(--badge-violet-text)", icon: "💾", desc: "Extract memories/facts" },
+  ADAPT: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)", icon: "🎯", desc: "Compute behavior targets" },
+  COMPOSE: { bg: "var(--badge-pink-bg)", text: "var(--badge-pink-text)", icon: "✍️", desc: "Build prompt sections" },
+  AGGREGATE: { bg: "var(--badge-indigo-bg)", text: "var(--badge-indigo-text)", icon: "📈", desc: "Combine data into profiles" },
+  REWARD: { bg: "var(--badge-amber-bg)", text: "var(--badge-amber-text)", icon: "🏆", desc: "Compute reward signals" },
 };
 
 const scopeColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
-  SYSTEM: { bg: "#e5e7eb", text: "#1f2937", icon: "⚙️", desc: "Global specs for all callers" },
-  DOMAIN: { bg: "#dbeafe", text: "#1e3a8a", icon: "🏢", desc: "Domain-specific specs" },
-  CALLER: { bg: "#fce7f3", text: "#9d174d", icon: "👤", desc: "Per-caller learned specs" },
+  SYSTEM: { bg: "var(--surface-tertiary)", text: "var(--text-primary)", icon: "⚙️", desc: "Global specs for all callers" },
+  DOMAIN: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", icon: "🏢", desc: "Domain-specific specs" },
+  CALLER: { bg: "var(--badge-pink-bg)", text: "var(--badge-pink-text)", icon: "👤", desc: "Per-caller learned specs" },
 };
 
 const roleColors: Record<string, { bg: string; text: string; label: string; icon: string; desc: string }> = {
   // New taxonomy
-  ORCHESTRATE: { bg: "#dbeafe", text: "#1e40af", label: "Orchestrate", icon: "🎯", desc: "Flow/sequence control" },
-  EXTRACT: { bg: "#dcfce7", text: "#166534", label: "Extract", icon: "🔍", desc: "Measurement/learning" },
-  SYNTHESISE: { bg: "#fef3c7", text: "#92400e", label: "Synthesise", icon: "🧮", desc: "Combine/transform data" },
-  CONSTRAIN: { bg: "#fee2e2", text: "#991b1b", label: "Constrain", icon: "📏", desc: "Bounds/guardrails" },
-  IDENTITY: { bg: "#e0e7ff", text: "#4338ca", label: "Identity", icon: "👤", desc: "Agent personas" },
-  CONTENT: { bg: "#fce7f3", text: "#be185d", label: "Content", icon: "📚", desc: "Curriculum" },
-  VOICE: { bg: "#e0e7ff", text: "#4338ca", label: "Voice", icon: "🎙️", desc: "Voice guidance" },
+  ORCHESTRATE: { bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)", label: "Orchestrate", icon: "🎯", desc: "Flow/sequence control" },
+  EXTRACT: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)", label: "Extract", icon: "🔍", desc: "Measurement/learning" },
+  SYNTHESISE: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)", label: "Synthesise", icon: "🧮", desc: "Combine/transform data" },
+  CONSTRAIN: { bg: "var(--badge-red-bg)", text: "var(--badge-red-text)", label: "Constrain", icon: "📏", desc: "Bounds/guardrails" },
+  IDENTITY: { bg: "var(--badge-indigo-bg)", text: "var(--badge-indigo-text)", label: "Identity", icon: "👤", desc: "Agent personas" },
+  CONTENT: { bg: "var(--badge-pink-bg)", text: "var(--badge-pink-text)", label: "Content", icon: "📚", desc: "Curriculum" },
+  VOICE: { bg: "var(--badge-indigo-bg)", text: "var(--badge-indigo-text)", label: "Voice", icon: "🎙️", desc: "Voice guidance" },
   // Deprecated (backward compatibility) - grayed out
-  MEASURE: { bg: "#f3f4f6", text: "#6b7280", label: "Measure (→Extract)", icon: "📊", desc: "DEPRECATED: Use EXTRACT" },
-  ADAPT: { bg: "#f3f4f6", text: "#6b7280", label: "Adapt (→Synthesise)", icon: "🔄", desc: "DEPRECATED: Use SYNTHESISE" },
-  REWARD: { bg: "#f3f4f6", text: "#6b7280", label: "Reward (→Synthesise)", icon: "⭐", desc: "DEPRECATED: Use SYNTHESISE" },
-  GUARDRAIL: { bg: "#f3f4f6", text: "#6b7280", label: "Guardrail (→Constrain)", icon: "🛡️", desc: "DEPRECATED: Use CONSTRAIN" },
-  BOOTSTRAP: { bg: "#f3f4f6", text: "#6b7280", label: "Bootstrap (→Orchestrate)", icon: "🔄", desc: "DEPRECATED: Use ORCHESTRATE" },
+  MEASURE: { bg: "var(--badge-gray-bg)", text: "var(--badge-gray-text)", label: "Measure (→Extract)", icon: "📊", desc: "DEPRECATED: Use EXTRACT" },
+  ADAPT: { bg: "var(--badge-gray-bg)", text: "var(--badge-gray-text)", label: "Adapt (→Synthesise)", icon: "🔄", desc: "DEPRECATED: Use SYNTHESISE" },
+  REWARD: { bg: "var(--badge-gray-bg)", text: "var(--badge-gray-text)", label: "Reward (→Synthesise)", icon: "⭐", desc: "DEPRECATED: Use SYNTHESISE" },
+  GUARDRAIL: { bg: "var(--badge-gray-bg)", text: "var(--badge-gray-text)", label: "Guardrail (→Constrain)", icon: "🛡️", desc: "DEPRECATED: Use CONSTRAIN" },
+  BOOTSTRAP: { bg: "var(--badge-gray-bg)", text: "var(--badge-gray-text)", label: "Bootstrap (→Orchestrate)", icon: "🔄", desc: "DEPRECATED: Use ORCHESTRATE" },
 };
 
 // =============================================================================
@@ -207,12 +207,12 @@ function getNodePath(tree: TreeNode | null, targetId: string, path: string[] = [
 // =============================================================================
 
 const TRUST_LEVEL_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  REGULATORY_STANDARD: { bg: "#dcfce7", text: "#14532d", label: "L5 Regulatory" },
-  ACCREDITED_MATERIAL: { bg: "#dbeafe", text: "#1e3a5f", label: "L4 Accredited" },
-  PUBLISHED_REFERENCE: { bg: "#e0e7ff", text: "#3730a3", label: "L3 Published" },
-  EXPERT_CURATED: { bg: "#fef3c7", text: "#78350f", label: "L2 Expert" },
-  AI_ASSISTED: { bg: "#fce7f3", text: "#9d174d", label: "L1 AI" },
-  UNVERIFIED: { bg: "#f3f4f6", text: "#6b7280", label: "L0 Unverified" },
+  REGULATORY_STANDARD: { bg: "var(--trust-l5-bg)", text: "var(--trust-l5-text)", label: "L5 Regulatory" },
+  ACCREDITED_MATERIAL: { bg: "var(--trust-l4-bg)", text: "var(--trust-l4-text)", label: "L4 Accredited" },
+  PUBLISHED_REFERENCE: { bg: "var(--trust-l3-bg)", text: "var(--trust-l3-text)", label: "L3 Published" },
+  EXPERT_CURATED: { bg: "var(--trust-l2-bg)", text: "var(--trust-l2-text)", label: "L2 Expert" },
+  AI_ASSISTED: { bg: "var(--trust-l1-bg)", text: "var(--trust-l1-text)", label: "L1 AI" },
+  UNVERIFIED: { bg: "var(--trust-l0-bg)", text: "var(--trust-l0-text)", label: "L0 Unverified" },
 };
 
 type AvailableSource = {
@@ -1423,7 +1423,7 @@ export default function SpecsPage() {
                 }}
                 style={{
                   padding: "6px 12px",
-                  background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                  background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #8b5cf6) 100%)",
                   color: "white",
                   border: "none",
                   borderRadius: 6,

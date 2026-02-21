@@ -200,22 +200,30 @@ export async function getCohortPlaybookIds(
 }
 
 /**
- * Enroll a caller in playbooks assigned to their cohort.
- * Falls back to domain-wide enrollment if cohort has no assigned playbooks.
+ * Enroll a caller in playbooks assigned to their cohort(s).
+ * Accepts a single cohortGroupId or an array for multi-cohort.
+ * Takes the UNION of all cohort playbooks across all memberships.
+ * Falls back to domain-wide enrollment if no cohort playbooks found.
  */
 export async function enrollCallerInCohortPlaybooks(
   callerId: string,
-  cohortGroupId: string,
+  cohortGroupId: string | string[],
   domainId: string,
   source: string,
   tx?: TxClient
 ): Promise<CallerPlaybook[]> {
-  const cohortPlaybookIds = await getCohortPlaybookIds(cohortGroupId, tx);
+  const cohortIds = Array.isArray(cohortGroupId) ? cohortGroupId : [cohortGroupId];
 
-  if (cohortPlaybookIds.length > 0) {
-    // Enroll only in cohort's assigned playbooks
+  // Union all playbook IDs across all cohort memberships
+  const allPlaybookIds = new Set<string>();
+  for (const cid of cohortIds) {
+    const ids = await getCohortPlaybookIds(cid, tx);
+    ids.forEach((id) => allPlaybookIds.add(id));
+  }
+
+  if (allPlaybookIds.size > 0) {
     const results: CallerPlaybook[] = [];
-    for (const playbookId of cohortPlaybookIds) {
+    for (const playbookId of allPlaybookIds) {
       const enrollment = await enrollCaller(callerId, playbookId, source, tx);
       results.push(enrollment);
     }
@@ -266,16 +274,16 @@ export async function removePlaybookFromCohort(
 
   let dropped = 0;
   if (dropMemberEnrollments) {
-    const members = await db(tx).caller.findMany({
+    const memberships = await db(tx).callerCohortMembership.findMany({
       where: { cohortGroupId },
-      select: { id: true },
+      select: { callerId: true },
     });
 
-    if (members.length > 0) {
+    if (memberships.length > 0) {
       const result = await db(tx).callerPlaybook.updateMany({
         where: {
           playbookId,
-          callerId: { in: members.map((m) => m.id) },
+          callerId: { in: memberships.map((m) => m.callerId) },
           status: "ACTIVE",
         },
         data: { status: "DROPPED", droppedAt: new Date() },
@@ -289,6 +297,7 @@ export async function removePlaybookFromCohort(
 
 /**
  * Enroll all current cohort members in a specific playbook (sync operation).
+ * Uses CallerCohortMembership join table for member lookup.
  */
 export async function enrollCohortMembersInPlaybook(
   cohortGroupId: string,
@@ -296,10 +305,11 @@ export async function enrollCohortMembersInPlaybook(
   source: string,
   tx?: TxClient
 ): Promise<{ enrolled: number; errors: string[] }> {
-  const members = await db(tx).caller.findMany({
+  const memberships = await db(tx).callerCohortMembership.findMany({
     where: { cohortGroupId },
-    select: { id: true },
+    select: { callerId: true },
   });
+  const members = memberships.map((m) => ({ id: m.callerId }));
 
   let enrolled = 0;
   const errors: string[] = [];

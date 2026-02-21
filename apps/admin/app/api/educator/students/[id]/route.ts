@@ -59,6 +59,12 @@ export async function GET(
     }),
   ]);
 
+  // Fetch cohort memberships for this student
+  const cohortMemberships = await prisma.callerCohortMembership.findMany({
+    where: { callerId: id },
+    include: { cohortGroup: { select: { id: true, name: true } } },
+  });
+
   return NextResponse.json({
     ok: true,
     student: {
@@ -68,6 +74,10 @@ export async function GET(
       classroom: student.cohortGroup
         ? { id: student.cohortGroup.id, name: student.cohortGroup.name }
         : null,
+      classrooms: cohortMemberships.map((m) => ({
+        id: m.cohortGroup.id,
+        name: m.cohortGroup.name,
+      })),
       domain: student.domain,
       joinedAt: (student as any).createdAt,
     },

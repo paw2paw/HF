@@ -65,7 +65,7 @@ function SourceCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "#fff",
+            color: "var(--button-primary-text, #fff)",
             fontSize: 13,
             fontWeight: 700,
           }}
@@ -183,9 +183,13 @@ function UploadNewSourceSection({
   } | null>(null);
   const [classifyTaskId, setClassifyTaskId] = useState<string | null>(null);
 
-  const [sourceCreated, setSourceCreated] = useState(false);
+  const existingSourceId = getData<string>("sourceId");
+  const isExistingSource = getData<boolean>("existingSource");
+  const [sourceCreated, setSourceCreated] = useState(
+    !!existingSourceId && !isExistingSource
+  );
   const [sourceId, setSourceId] = useState<string | null>(
-    getData<string>("sourceId") || null
+    existingSourceId || null
   );
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +197,16 @@ function UploadNewSourceSection({
   // Poll classification task
   useEffect(() => {
     if (!classifyTaskId) return;
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
     const interval = setInterval(async () => {
+      if (Date.now() - startedAt > TIMEOUT_MS) {
+        clearInterval(interval);
+        setError("Classification timed out. Please try again.");
+        setClassifying(false);
+        setClassifyTaskId(null);
+        return;
+      }
       try {
         const res = await fetch(`/api/tasks?taskId=${classifyTaskId}`);
         const data = await res.json();
@@ -428,7 +441,7 @@ function UploadNewSourceSection({
             borderRadius: 8,
             border: "none",
             background: "var(--accent-primary)",
-            color: "#fff",
+            color: "var(--button-primary-text, #fff)",
             fontSize: 15,
             fontWeight: 700,
             cursor: "pointer",
@@ -570,7 +583,7 @@ function UploadNewSourceSection({
                 color:
                   !intentText.trim() || suggesting
                     ? "var(--text-muted)"
-                    : "#fff",
+                    : "var(--button-primary-text, #fff)",
                 fontSize: 14,
                 fontWeight: 600,
                 cursor:
@@ -924,7 +937,7 @@ function UploadNewSourceSection({
                 background: newSubjectName.trim()
                   ? "var(--accent-primary)"
                   : "var(--surface-tertiary)",
-                color: newSubjectName.trim() ? "#fff" : "var(--text-muted)",
+                color: newSubjectName.trim() ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: newSubjectName.trim() ? "pointer" : "not-allowed",
@@ -942,7 +955,7 @@ function UploadNewSourceSection({
             padding: "10px 16px",
             borderRadius: 8,
             background: "var(--status-error-bg)",
-            border: "1px solid #FFCDD2",
+            border: "1px solid var(--status-error-border, #FFCDD2)",
             color: "var(--status-error-text)",
             fontSize: 13,
             marginBottom: 16,
@@ -963,7 +976,7 @@ function UploadNewSourceSection({
           background: metadata?.name
             ? "var(--accent-primary)"
             : "var(--surface-tertiary)",
-          color: metadata?.name ? "#fff" : "var(--text-muted)",
+          color: metadata?.name ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
           fontSize: 15,
           fontWeight: 700,
           cursor: metadata?.name && !creating ? "pointer" : "not-allowed",
@@ -1339,7 +1352,7 @@ export default function SourceStep({
                         ? "var(--accent-primary)"
                         : "var(--surface-tertiary)",
                       color: newSubjectName.trim()
-                        ? "#fff"
+                        ? "var(--button-primary-text, #fff)"
                         : "var(--text-muted)",
                       fontSize: 13,
                       fontWeight: 600,
@@ -1359,7 +1372,7 @@ export default function SourceStep({
                     padding: "10px 16px",
                     borderRadius: 8,
                     background: "var(--status-error-bg)",
-                    border: "1px solid #FFCDD2",
+                    border: "1px solid var(--status-error-border, #FFCDD2)",
                     color: "var(--status-error-text)",
                     fontSize: 13,
                     marginBottom: 16,
@@ -1379,7 +1392,7 @@ export default function SourceStep({
                   background: selectedSubjectId
                     ? "var(--accent-primary)"
                     : "var(--surface-tertiary)",
-                  color: selectedSubjectId ? "#fff" : "var(--text-muted)",
+                  color: selectedSubjectId ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: selectedSubjectId ? "pointer" : "not-allowed",

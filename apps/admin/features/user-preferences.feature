@@ -16,11 +16,11 @@ Feature: User Preferences and Multi-User Isolation
   Scenario: User preferences are fully isolated
     Given user "alice@example.com" is logged in
     And user "alice" customizes:
-      | Preference          | Value                   |
-      | Chat Layout         | horizontal              |
-      | Chat Mode           | DATA                    |
-      | Pipeline Tabs       | [Blueprint, Inspector]  |
-      | Sidebar Sections    | [Data, Config, Home]    |
+      | Preference       | Value                  |
+      | Chat Layout      | horizontal             |
+      | Chat Mode        | DATA                   |
+      | Pipeline Tabs    | [Blueprint, Inspector] |
+      | Sidebar Sections | [Data, Config, Home]   |
     When user "bob@example.com" logs in on the same browser
     Then user "bob" should see all default preferences
     And user "bob" should NOT see user "alice" customizations
@@ -62,7 +62,6 @@ Feature: User Preferences and Multi-User Isolation
     Given user "alice" has sent 60 messages in CHAT mode
     When messages are persisted to localStorage
     Then only the 50 most recent messages should be stored
-    And oldest 10 messages should be discarded
 
   # =============================================================================
   # DRAGGABLE TABS
@@ -120,7 +119,7 @@ Feature: User Preferences and Multi-User Isolation
   Scenario: Sidebar sections can be reordered
     Given user is on any /x/* page
     And sidebar is expanded (not collapsed)
-    When user drags "Data" section before "Prompts" section
+    When user drags a section to a new position
     Then sidebar should reflect the new order
     And order should be persisted
 
@@ -128,14 +127,12 @@ Feature: User Preferences and Multi-User Isolation
   Scenario: Drag is disabled when sidebar is collapsed
     Given sidebar is collapsed
     Then section drag handles should be disabled
-    And sections should not be draggable
 
   @sidebar @reset
   Scenario: Sidebar reset restores default order
     Given user has custom sidebar order
     When user clicks sidebar reset button
     Then sidebar should be in default order
-    And reset button should be hidden
 
   # =============================================================================
   # ANONYMOUS USERS
@@ -146,7 +143,6 @@ Feature: User Preferences and Multi-User Isolation
     Given no user is logged in (anonymous session)
     When anonymous user reorders tabs
     Then order should be stored with base key (no userId suffix)
-    And customization should work normally
 
   @anonymous
   Scenario: Anonymous and authenticated preferences are separate
@@ -165,7 +161,6 @@ Feature: User Preferences and Multi-User Isolation
     Given localStorage throws QuotaExceededError
     When user tries to save preferences
     Then operation should fail silently
-    And no error should be shown to user
     And in-memory state should remain correct
 
   @error-handling

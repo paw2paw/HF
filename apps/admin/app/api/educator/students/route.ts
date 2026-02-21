@@ -8,7 +8,9 @@ const studentSelect = {
   name: true,
   email: true,
   createdAt: true,
-  cohortGroup: { select: { id: true, name: true } },
+  cohortMemberships: {
+    include: { cohortGroup: { select: { id: true, name: true } } },
+  },
   _count: { select: { calls: true } },
   calls: {
     select: { createdAt: true },
@@ -18,17 +20,24 @@ const studentSelect = {
 };
 
 function formatStudents(students: Awaited<ReturnType<typeof prisma.caller.findMany<{ select: typeof studentSelect }>>>) {
-  return students.map((s) => ({
-    id: s.id,
-    name: s.name ?? "Unknown",
-    email: s.email,
-    classroom: s.cohortGroup
-      ? { id: s.cohortGroup.id, name: s.cohortGroup.name }
-      : null,
-    totalCalls: s._count.calls,
-    lastCallAt: s.calls[0]?.createdAt ?? null,
-    joinedAt: s.createdAt,
-  }));
+  return students.map((s) => {
+    const primaryMembership = s.cohortMemberships?.[0];
+    return {
+      id: s.id,
+      name: s.name ?? "Unknown",
+      email: s.email,
+      classroom: primaryMembership?.cohortGroup
+        ? { id: primaryMembership.cohortGroup.id, name: primaryMembership.cohortGroup.name }
+        : null,
+      classrooms: (s.cohortMemberships ?? []).map((m) => ({
+        id: m.cohortGroup.id,
+        name: m.cohortGroup.name,
+      })),
+      totalCalls: s._count.calls,
+      lastCallAt: s.calls[0]?.createdAt ?? null,
+      joinedAt: s.createdAt,
+    };
+  });
 }
 
 /**
@@ -52,9 +61,9 @@ export async function GET(request: NextRequest) {
     if (institutionId) {
       // Learners in this institution's cohorts + unassigned learners in domains linked to this institution
       where.OR = [
-        { cohortGroup: { institutionId, isActive: true } },
+        { cohortMemberships: { some: { cohortGroup: { institutionId, isActive: true } } } },
         {
-          cohortGroupId: null,
+          cohortMemberships: { none: {} },
           domain: { cohortGroups: { some: { institutionId } } },
         },
       ];
@@ -75,7 +84,7 @@ export async function GET(request: NextRequest) {
 
   const students = await prisma.caller.findMany({
     where: {
-      cohortGroup: { ownerId: auth.callerId, isActive: true },
+      cohortMemberships: { some: { cohortGroup: { ownerId: auth.callerId, isActive: true } } },
       role: "LEARNER",
     },
     select: studentSelect,

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import { VerticalSlider } from "@/components/shared/VerticalSlider";
 import { CallerPicker } from "@/components/shared/CallerPicker";
 import { FancySelect } from "@/components/shared/FancySelect";
@@ -250,6 +251,7 @@ function formatDate(dateStr: string): string {
 export default function PlaygroundPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { terms } = useTerminology();
 
   // Read mode from URL, default to "caller"
   const modeParam = searchParams.get("mode") as WizardMode | null;
@@ -737,8 +739,8 @@ export default function PlaygroundPage() {
                   width: 22,
                   height: 22,
                   borderRadius: "50%",
-                  background: selectedCallerId ? entityColors.caller.bg : "#f3f4f6",
-                  color: selectedCallerId ? entityColors.caller.text : "#9ca3af",
+                  background: selectedCallerId ? entityColors.caller.bg : "var(--surface-secondary)",
+                  color: selectedCallerId ? entityColors.caller.text : "var(--text-muted)",
                   fontSize: 11,
                   fontWeight: 600,
                   display: "flex",
@@ -760,7 +762,7 @@ export default function PlaygroundPage() {
               </div>
             </div>
 
-            <span style={{ color: "#d1d5db", fontSize: 18 }}>›</span>
+            <span style={{ color: "var(--border-default)", fontSize: 18 }}>›</span>
 
             {/* Step 2: Playbook Picker */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -769,8 +771,8 @@ export default function PlaygroundPage() {
                   width: 22,
                   height: 22,
                   borderRadius: "50%",
-                  background: selectedPlaybookId ? entityColors.playbook.bg : "#f3f4f6",
-                  color: selectedPlaybookId ? entityColors.playbook.text : "#9ca3af",
+                  background: selectedPlaybookId ? entityColors.playbook.bg : "var(--surface-secondary)",
+                  color: selectedPlaybookId ? entityColors.playbook.text : "var(--text-muted)",
                   fontSize: 11,
                   fontWeight: 600,
                   display: "flex",
@@ -811,7 +813,7 @@ export default function PlaygroundPage() {
               </div>
             </div>
 
-            <span style={{ color: "#d1d5db", fontSize: 18 }}>›</span>
+            <span style={{ color: "var(--border-default)", fontSize: 18 }}>›</span>
 
             {/* Step 3: Generate Button */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -820,8 +822,8 @@ export default function PlaygroundPage() {
                   width: 22,
                   height: 22,
                   borderRadius: "50%",
-                  background: generatedPrompt ? "#ede9fe" : "#f3f4f6",
-                  color: generatedPrompt ? "#7c3aed" : "#9ca3af",
+                  background: generatedPrompt ? "var(--accent-secondary-bg, #ede9fe)" : "var(--surface-secondary)",
+                  color: generatedPrompt ? "var(--accent-secondary, #7c3aed)" : "var(--text-muted)",
                   fontSize: 11,
                   fontWeight: 600,
                   display: "flex",
@@ -838,13 +840,13 @@ export default function PlaygroundPage() {
                   padding: "8px 16px",
                   fontSize: 13,
                   fontWeight: 600,
-                  color: "#fff",
+                  color: "var(--surface-primary)",
                   background:
                     !selectedCallerId || !selectedPlaybookId
-                      ? "#d1d5db"
+                      ? "var(--border-default)"
                       : isGenerating
-                        ? "#a78bfa"
-                        : "#7c3aed",
+                        ? "var(--accent-secondary-muted, #a78bfa)"
+                        : "var(--accent-secondary, #7c3aed)",
                   border: "none",
                   borderRadius: 8,
                   cursor: !selectedCallerId || !selectedPlaybookId ? "not-allowed" : "pointer",
@@ -909,8 +911,8 @@ export default function PlaygroundPage() {
                 style={{
                   padding: "4px 10px",
                   borderRadius: 6,
-                  background: matrixCallerIds.length > 0 ? entityColors.caller.bg : "#f3f4f6",
-                  color: matrixCallerIds.length > 0 ? entityColors.caller.text : "#9ca3af",
+                  background: matrixCallerIds.length > 0 ? entityColors.caller.bg : "var(--surface-secondary)",
+                  color: matrixCallerIds.length > 0 ? entityColors.caller.text : "var(--text-muted)",
                   fontSize: 12,
                   fontWeight: 600,
                 }}
@@ -922,8 +924,8 @@ export default function PlaygroundPage() {
                 style={{
                   padding: "4px 10px",
                   borderRadius: 6,
-                  background: matrixPlaybookIds.length > 0 ? entityColors.playbook.bg : "#f3f4f6",
-                  color: matrixPlaybookIds.length > 0 ? entityColors.playbook.text : "#9ca3af",
+                  background: matrixPlaybookIds.length > 0 ? entityColors.playbook.bg : "var(--surface-secondary)",
+                  color: matrixPlaybookIds.length > 0 ? entityColors.playbook.text : "var(--text-muted)",
                   fontSize: 12,
                   fontWeight: 600,
                 }}
@@ -1012,12 +1014,12 @@ export default function PlaygroundPage() {
                 padding: "8px 16px",
                 fontSize: 13,
                 fontWeight: 600,
-                color: "#fff",
+                color: "var(--surface-primary)",
                 background: isGeneratingMatrix
-                  ? "#9ca3af"
+                  ? "var(--text-muted)"
                   : matrixCallerIds.length > 0 && matrixPlaybookIds.length > 0
-                  ? "linear-gradient(135deg, #8b5cf6, #6366f1)"
-                  : "#d1d5db",
+                  ? "linear-gradient(135deg, var(--accent-secondary, #8b5cf6), var(--accent-primary))"
+                  : "var(--border-default)",
                 border: "none",
                 borderRadius: 8,
                 cursor: matrixCallerIds.length > 0 && matrixPlaybookIds.length > 0 && !isGeneratingMatrix ? "pointer" : "not-allowed",
@@ -1046,10 +1048,10 @@ export default function PlaygroundPage() {
                 padding: "8px 12px",
                 fontSize: 13,
                 fontWeight: 500,
-                color: showMatrixHelp ? "#6366f1" : "var(--text-muted)",
-                background: showMatrixHelp ? "#eef2ff" : "transparent",
+                color: showMatrixHelp ? "var(--accent-primary)" : "var(--text-muted)",
+                background: showMatrixHelp ? "var(--accent-subtle-bg, #eef2ff)" : "transparent",
                 border: "1px solid",
-                borderColor: showMatrixHelp ? "#c7d2fe" : "var(--border-default)",
+                borderColor: showMatrixHelp ? "var(--accent-subtle-border, #c7d2fe)" : "var(--border-default)",
                 borderRadius: 8,
                 cursor: "pointer",
                 display: "flex",
@@ -1074,7 +1076,7 @@ export default function PlaygroundPage() {
               fontSize: 13,
               fontWeight: 500,
               background: "rgba(139, 92, 246, 0.1)",
-              color: "#8b5cf6",
+              color: "var(--accent-secondary, #8b5cf6)",
               border: "1px solid rgba(139, 92, 246, 0.2)",
               borderRadius: 6,
               cursor: "pointer",
@@ -1097,18 +1099,18 @@ export default function PlaygroundPage() {
             margin: "0 20px",
             marginTop: 12,
             padding: 20,
-            background: "linear-gradient(135deg, #eef2ff 0%, #faf5ff 100%)",
+            background: "linear-gradient(135deg, var(--accent-subtle-bg, #eef2ff) 0%, var(--surface-secondary) 100%)",
             borderRadius: 12,
-            border: "1px solid #c7d2fe",
+            border: "1px solid var(--accent-subtle-border, #c7d2fe)",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#4338ca", display: "flex", alignItems: "center", gap: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--identity-accent, #4338ca)", display: "flex", alignItems: "center", gap: 8 }}>
               <span>📊</span> How to Use Test Matrix
             </h3>
             <button
               onClick={() => setShowMatrixHelp(false)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#6366f1" }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--accent-primary)" }}
             >
               ×
             </button>
@@ -1116,39 +1118,39 @@ export default function PlaygroundPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             {/* Step 1 */}
-            <div style={{ background: "white", borderRadius: 8, padding: 16, border: "1px solid #e0e7ff" }}>
+            <div style={{ background: "var(--surface-primary)", borderRadius: 8, padding: 16, border: "1px solid var(--accent-subtle-border, #e0e7ff)" }}>
               <div style={{ fontSize: 20, marginBottom: 8 }}>1️⃣</div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: "#1e1b4b", marginBottom: 6 }}>Add Items to Matrix</div>
-              <div style={{ fontSize: 12, color: "#4b5563", lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>Add Items to Matrix</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
                 Click <strong style={{ color: entityColors.caller.accent }}>+ Add Callers</strong> and <strong style={{ color: entityColors.playbook.accent }}>+ Add Playbooks</strong> in the left panel to build your test matrix.
               </div>
             </div>
 
             {/* Step 2 */}
-            <div style={{ background: "white", borderRadius: 8, padding: 16, border: "1px solid #e0e7ff" }}>
+            <div style={{ background: "var(--surface-primary)", borderRadius: 8, padding: 16, border: "1px solid var(--accent-subtle-border, #e0e7ff)" }}>
               <div style={{ fontSize: 20, marginBottom: 8 }}>2️⃣</div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: "#1e1b4b", marginBottom: 6 }}>Generate Prompts</div>
-              <div style={{ fontSize: 12, color: "#4b5563", lineHeight: 1.5 }}>
-                Click <strong style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", color: "white", padding: "1px 6px", borderRadius: 4 }}>Generate All</strong> to create prompts for every caller × playbook combination.
+              <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>Generate Prompts</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                Click <strong style={{ background: "linear-gradient(135deg, var(--accent-secondary, #8b5cf6), var(--accent-primary))", color: "var(--surface-primary)", padding: "1px 6px", borderRadius: 4 }}>Generate All</strong> to create prompts for every caller × playbook combination.
               </div>
             </div>
 
             {/* Step 3 */}
-            <div style={{ background: "white", borderRadius: 8, padding: 16, border: "1px solid #e0e7ff" }}>
+            <div style={{ background: "var(--surface-primary)", borderRadius: 8, padding: 16, border: "1px solid var(--accent-subtle-border, #e0e7ff)" }}>
               <div style={{ fontSize: 20, marginBottom: 8 }}>3️⃣</div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: "#1e1b4b", marginBottom: 6 }}>View & Compare</div>
-              <div style={{ fontSize: 12, color: "#4b5563", lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>View & Compare</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
                 <strong>Click</strong> a cell to view its prompt. <strong>Shift+click</strong> two cells to see a side-by-side diff comparison.
               </div>
             </div>
           </div>
 
           {/* Tips */}
-          <div style={{ marginTop: 16, padding: 12, background: "white", borderRadius: 8, border: "1px solid #e0e7ff" }}>
-            <div style={{ fontWeight: 600, fontSize: 12, color: "#4338ca", marginBottom: 8 }}>Tips</div>
-            <div style={{ display: "flex", gap: 24, fontSize: 11, color: "#4b5563" }}>
-              <div><span style={{ color: "#3b82f6", fontWeight: 600 }}>A</span> = First selected cell (blue)</div>
-              <div><span style={{ color: "#ec4899", fontWeight: 600 }}>B</span> = Second selected cell (pink)</div>
+          <div style={{ marginTop: 16, padding: 12, background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--accent-subtle-border, #e0e7ff)" }}>
+            <div style={{ fontWeight: 600, fontSize: 12, color: "var(--identity-accent, #4338ca)", marginBottom: 8 }}>Tips</div>
+            <div style={{ display: "flex", gap: 24, fontSize: 11, color: "var(--text-secondary)" }}>
+              <div><span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>A</span> = First selected cell (blue)</div>
+              <div><span style={{ color: "var(--badge-pink-text)", fontWeight: 600 }}>B</span> = Second selected cell (pink)</div>
               <div><strong>(baseline)</strong> = No playbook applied, uses domain defaults</div>
               <div>Diff view shows section differences between two prompts</div>
             </div>
@@ -1164,8 +1166,8 @@ export default function PlaygroundPage() {
             margin: "0 20px",
             marginTop: 12,
             padding: 12,
-            background: "#fef2f2",
-            color: "#dc2626",
+            background: "var(--status-error-bg)",
+            color: "var(--status-error-text)",
             borderRadius: 8,
             fontSize: 13,
             display: "flex",
@@ -1226,7 +1228,7 @@ export default function PlaygroundPage() {
                     style={{
                       padding: "12px 24px",
                       background: "var(--button-primary-bg)",
-                      color: "#fff",
+                      color: "var(--surface-primary)",
                       border: "none",
                       borderRadius: 8,
                       fontSize: 14,
@@ -1309,7 +1311,7 @@ export default function PlaygroundPage() {
                       onClick={() => setShowSystemSpecs(!showSystemSpecs)}
                       style={{
                         fontSize: 11,
-                        color: showSystemSpecs ? "#4f46e5" : "#9ca3af",
+                        color: showSystemSpecs ? "var(--accent-primary)" : "var(--text-muted)",
                         background: "none",
                         border: "none",
                         cursor: "pointer",
@@ -1328,7 +1330,7 @@ export default function PlaygroundPage() {
                         {availableSpecs.systemSpecs.map((spec) => {
                           const isEnabled = specToggles[spec.id] !== false;
                           const badgeType = getSpecBadgeType(spec);
-                          const colors = BADGE_COLORS[badgeType] || { bg: "#f3f4f6", text: "#6b7280" };
+                          const colors = BADGE_COLORS[badgeType] || { bg: "var(--surface-secondary)", text: "var(--text-muted)" };
                           return (
                             <button
                               key={spec.id}
@@ -1340,8 +1342,8 @@ export default function PlaygroundPage() {
                                 borderRadius: 4,
                                 border: "none",
                                 cursor: "pointer",
-                                background: isEnabled ? colors.bg : "#f3f4f6",
-                                color: isEnabled ? colors.text : "#9ca3af",
+                                background: isEnabled ? colors.bg : "var(--surface-secondary)",
+                                color: isEnabled ? colors.text : "var(--text-muted)",
                                 opacity: isEnabled ? 1 : 0.5,
                               }}
                             >
@@ -1361,7 +1363,7 @@ export default function PlaygroundPage() {
                         {availableSpecs.domainSpecs.map((spec) => {
                           const isEnabled = specToggles[spec.id] !== false;
                           const badgeType = getSpecBadgeType(spec);
-                          const colors = BADGE_COLORS[badgeType] || { bg: "#f3f4f6", text: "#6b7280" };
+                          const colors = BADGE_COLORS[badgeType] || { bg: "var(--surface-secondary)", text: "var(--text-muted)" };
                           return (
                             <button
                               key={spec.id}
@@ -1373,8 +1375,8 @@ export default function PlaygroundPage() {
                                 borderRadius: 4,
                                 border: "none",
                                 cursor: "pointer",
-                                background: isEnabled ? colors.bg : "#f3f4f6",
-                                color: isEnabled ? colors.text : "#9ca3af",
+                                background: isEnabled ? colors.bg : "var(--surface-secondary)",
+                                color: isEnabled ? colors.text : "var(--text-muted)",
                                 opacity: isEnabled ? 1 : 0.5,
                               }}
                             >
@@ -1398,25 +1400,25 @@ export default function PlaygroundPage() {
                   <div
                     style={{
                       marginTop: 16,
-                      background: "#fffbeb",
-                      border: "1px solid #fde68a",
+                      background: "var(--status-warning-bg, #fffbeb)",
+                      border: "1px solid var(--status-warning-border, #fde68a)",
                       borderRadius: 12,
                       padding: 16,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                       <span style={{ fontSize: 14 }}>🎚️</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>Tuning</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--status-warning-text, #92400e)" }}>Tuning</span>
                       {Object.keys(previewOverrides).length > 0 && (
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} title="Modified" />
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-warning-accent, #f59e0b)" }} title="Modified" />
                       )}
                       <div style={{ flex: 1 }} />
-                      <span style={{ fontSize: 11, color: "#b45309" }}>{behaviorParams.length} params</span>
+                      <span style={{ fontSize: 11, color: "var(--status-warning-muted, #b45309)" }}>{behaviorParams.length} params</span>
                     </div>
                     <div style={{ maxHeight: 200, overflowY: "auto" }}>
                       {behaviorParams.slice(0, 5).map((param) => (
-                        <div key={param.parameterId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #fef3c7" }}>
-                          <div style={{ flex: 1, fontSize: 11, color: "#92400e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{param.name}</div>
+                        <div key={param.parameterId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--status-warning-border-light, #fef3c7)" }}>
+                          <div style={{ flex: 1, fontSize: 11, color: "var(--status-warning-text, #92400e)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{param.name}</div>
                           <input
                             type="range"
                             min="0"
@@ -1425,7 +1427,7 @@ export default function PlaygroundPage() {
                             onChange={(e) => setPreviewOverrides((prev) => ({ ...prev, [param.parameterId]: parseInt(e.target.value) }))}
                             style={{ width: 60 }}
                           />
-                          <span style={{ fontSize: 10, color: "#b45309", width: 24, textAlign: "right" }}>{previewOverrides[param.parameterId] ?? param.effectiveValue}</span>
+                          <span style={{ fontSize: 10, color: "var(--status-warning-muted, #b45309)", width: 24, textAlign: "right" }}>{previewOverrides[param.parameterId] ?? param.effectiveValue}</span>
                         </div>
                       ))}
                     </div>
@@ -1452,7 +1454,7 @@ export default function PlaygroundPage() {
                     <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>Click Generate in the control bar or below</p>
                     <button
                       onClick={generatePrompt}
-                      style={{ padding: "12px 24px", fontSize: 14, fontWeight: 600, color: "#fff", background: "#7c3aed", border: "none", borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
+                      style={{ padding: "12px 24px", fontSize: 14, fontWeight: 600, color: "var(--surface-primary)", background: "var(--accent-secondary, #7c3aed)", border: "none", borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
                     >
                       <span>✨</span> Generate Prompt
                     </button>
@@ -1463,7 +1465,7 @@ export default function PlaygroundPage() {
                 {isGenerating && (
                   <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--surface-primary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
                     <div style={{ fontSize: 48, marginBottom: 16 }} className="animate-pulse">⟳</div>
-                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "#7c3aed", margin: 0 }}>Generating prompt...</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--accent-secondary, #7c3aed)", margin: 0 }}>Generating prompt...</h3>
                   </div>
                 )}
 
@@ -1482,9 +1484,9 @@ export default function PlaygroundPage() {
                           onClick={() => setOutputMode("sections")}
                           style={{
                             padding: "4px 10px", fontSize: 11, fontWeight: outputMode === "sections" ? 600 : 400,
-                            color: outputMode === "sections" ? "#4f46e5" : "#6b7280",
-                            background: outputMode === "sections" ? "#eef2ff" : "transparent",
-                            border: "1px solid", borderColor: outputMode === "sections" ? "#c7d2fe" : "#e5e7eb", borderRadius: 4, cursor: "pointer",
+                            color: outputMode === "sections" ? "var(--accent-primary)" : "var(--text-muted)",
+                            background: outputMode === "sections" ? "var(--accent-subtle-bg, #eef2ff)" : "transparent",
+                            border: "1px solid", borderColor: outputMode === "sections" ? "var(--accent-subtle-border, #c7d2fe)" : "var(--border-default)", borderRadius: 4, cursor: "pointer",
                           }}
                         >
                           Sections
@@ -1493,9 +1495,9 @@ export default function PlaygroundPage() {
                           onClick={() => setOutputMode("raw")}
                           style={{
                             padding: "4px 10px", fontSize: 11, fontWeight: outputMode === "raw" ? 600 : 400,
-                            color: outputMode === "raw" ? "#4f46e5" : "#6b7280",
-                            background: outputMode === "raw" ? "#eef2ff" : "transparent",
-                            border: "1px solid", borderColor: outputMode === "raw" ? "#c7d2fe" : "#e5e7eb", borderRadius: 4, cursor: "pointer",
+                            color: outputMode === "raw" ? "var(--accent-primary)" : "var(--text-muted)",
+                            background: outputMode === "raw" ? "var(--accent-subtle-bg, #eef2ff)" : "transparent",
+                            border: "1px solid", borderColor: outputMode === "raw" ? "var(--accent-subtle-border, #c7d2fe)" : "var(--border-default)", borderRadius: 4, cursor: "pointer",
                           }}
                         >
                           Raw
@@ -1507,7 +1509,7 @@ export default function PlaygroundPage() {
                           setCopied(true);
                           setTimeout(() => setCopied(false), 2000);
                         }}
-                        style={{ padding: "4px 10px", fontSize: 11, color: copied ? "#059669" : "#6b7280", background: copied ? "#d1fae5" : "#f3f4f6", border: "none", borderRadius: 4, cursor: "pointer" }}
+                        style={{ padding: "4px 10px", fontSize: 11, color: copied ? "var(--status-success-text)" : "var(--text-muted)", background: copied ? "var(--status-success-bg, #d1fae5)" : "var(--surface-secondary)", border: "none", borderRadius: 4, cursor: "pointer" }}
                       >
                         {copied ? "Copied!" : "Copy"}
                       </button>
@@ -1524,7 +1526,7 @@ export default function PlaygroundPage() {
                           {generatedPrompt.llmPrompt?._quickStart && (
                             <div style={{ marginBottom: 16 }}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Quick Start</div>
-                              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 12, fontSize: 12 }}>
+                              <div style={{ background: "var(--status-success-bg, #f0fdf4)", border: "1px solid var(--status-success-border, #bbf7d0)", borderRadius: 8, padding: 12, fontSize: 12 }}>
                                 <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{JSON.stringify(generatedPrompt.llmPrompt._quickStart, null, 2)}</pre>
                               </div>
                             </div>
@@ -1682,8 +1684,8 @@ export default function PlaygroundPage() {
                           alignItems: "center",
                           gap: 4,
                           padding: "4px 8px",
-                          background: id ? entityColors.playbook.bg : "#f3f4f6",
-                          color: id ? entityColors.playbook.text : "#6b7280",
+                          background: id ? entityColors.playbook.bg : "var(--surface-secondary)",
+                          color: id ? entityColors.playbook.text : "var(--text-muted)",
                           borderRadius: 6,
                           fontSize: 12,
                           fontWeight: 500,
@@ -1692,7 +1694,7 @@ export default function PlaygroundPage() {
                         {pb?.name || "(baseline)"}
                         <button
                           onClick={() => setMatrixPlaybookIds(prev => prev.filter((_, j) => j !== i))}
-                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 14, color: id ? entityColors.playbook.text : "#6b7280", opacity: 0.7 }}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 14, color: id ? entityColors.playbook.text : "var(--text-muted)", opacity: 0.7 }}
                         >
                           ×
                         </button>
@@ -1774,12 +1776,12 @@ export default function PlaygroundPage() {
                             key={pbId || "baseline"}
                             style={{
                               padding: 12,
-                              background: pbId ? entityColors.playbook.bg : "#f9fafb",
+                              background: pbId ? entityColors.playbook.bg : "var(--surface-secondary)",
                               borderBottom: "1px solid var(--border-default)",
                               textAlign: "center",
                               fontSize: 12,
                               fontWeight: 600,
-                              color: pbId ? entityColors.playbook.text : "#6b7280",
+                              color: pbId ? entityColors.playbook.text : "var(--text-muted)",
                               minWidth: 160,
                             }}
                           >
@@ -1839,9 +1841,9 @@ export default function PlaygroundPage() {
                                   textAlign: "center",
                                   cursor: cell?.status === "success" ? "pointer" : "default",
                                   background: isSelected
-                                    ? selectionIndex === 1 ? "#dbeafe" : "#fce7f3"  // blue for 1st, pink for 2nd
+                                    ? selectionIndex === 1 ? "var(--badge-blue-bg, #dbeafe)" : "var(--badge-pink-bg, #fce7f3)"  // blue for 1st, pink for 2nd
                                     : "var(--surface-primary)",
-                                  outline: isSelected ? `2px solid ${selectionIndex === 1 ? "#3b82f6" : "#ec4899"}` : "none",
+                                  outline: isSelected ? `2px solid ${selectionIndex === 1 ? "var(--accent-primary)" : "var(--badge-pink-text)"}` : "none",
                                   outlineOffset: -2,
                                   transition: "background 0.15s",
                                 }}
@@ -1851,11 +1853,11 @@ export default function PlaygroundPage() {
                                 ) : cell.status === "generating" ? (
                                   <span className="animate-spin" style={{ fontSize: 16 }}>⟳</span>
                                 ) : cell.status === "error" ? (
-                                  <span style={{ fontSize: 12, color: "#dc2626" }} title={cell.error}>❌</span>
+                                  <span style={{ fontSize: 12, color: "var(--status-error-text)" }} title={cell.error}>❌</span>
                                 ) : cell.status === "success" && cell.prompt ? (
                                   <div>
-                                    <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>
-                                      {isSelected ? <span style={{ color: selectionIndex === 1 ? "#3b82f6" : "#ec4899" }}>{selectionIndex === 1 ? "A" : "B"}</span> : "✓"}
+                                    <div style={{ fontSize: 11, color: "var(--status-success-text)", fontWeight: 600 }}>
+                                      {isSelected ? <span style={{ color: selectionIndex === 1 ? "var(--accent-primary)" : "var(--badge-pink-text)" }}>{selectionIndex === 1 ? "A" : "B"}</span> : "✓"}
                                     </div>
                                     <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
                                       {cell.prompt.inputs?.composition?.sectionsActivated?.length || 0} sections
@@ -1893,21 +1895,21 @@ export default function PlaygroundPage() {
                   style={{
                     marginTop: 20,
                     background: "var(--surface-primary)",
-                    border: "2px solid #3b82f6",
+                    border: "2px solid var(--accent-primary)",
                     borderRadius: 12,
                     overflow: "hidden",
                   }}
                 >
-                  <div style={{ padding: 16, background: "#dbeafe", borderBottom: "1px solid #93c5fd", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ padding: 16, background: "var(--badge-blue-bg, #dbeafe)", borderBottom: "1px solid var(--badge-blue-border, #93c5fd)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <span style={{ fontWeight: 700, color: "#1d4ed8", marginRight: 8 }}>A</span>
-                      <span style={{ fontWeight: 600, color: "#1e40af" }}>{cell.callerName}</span>
-                      <span style={{ color: "#3b82f6", margin: "0 8px" }}>×</span>
-                      <span style={{ fontWeight: 600, color: "#1e40af" }}>{cell.playbookName}</span>
+                      <span style={{ fontWeight: 700, color: "var(--badge-blue-text, #1d4ed8)", marginRight: 8 }}>A</span>
+                      <span style={{ fontWeight: 600, color: "var(--badge-blue-text, #1e40af)" }}>{cell.callerName}</span>
+                      <span style={{ color: "var(--accent-primary)", margin: "0 8px" }}>×</span>
+                      <span style={{ fontWeight: 600, color: "var(--badge-blue-text, #1e40af)" }}>{cell.playbookName}</span>
                     </div>
                     <button
                       onClick={() => setSelectedCells(new Set())}
-                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#3b82f6" }}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--accent-primary)" }}
                     >
                       ×
                     </button>
@@ -1942,15 +1944,15 @@ export default function PlaygroundPage() {
                 <div style={{ marginTop: 20 }}>
                   {/* Diff Header */}
                   <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-                    <div style={{ flex: 1, padding: 12, background: "#dbeafe", borderRadius: 8, border: "2px solid #3b82f6" }}>
-                      <div style={{ fontWeight: 700, color: "#1d4ed8", marginBottom: 4 }}>A</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>{cellA.callerName} × {cellA.playbookName}</div>
-                      <div style={{ fontSize: 11, color: "#3b82f6" }}>{sectionsA.size} sections, {((cellA.prompt.prompt?.length || 0) / 1000).toFixed(1)}k chars</div>
+                    <div style={{ flex: 1, padding: 12, background: "var(--badge-blue-bg, #dbeafe)", borderRadius: 8, border: "2px solid var(--accent-primary)" }}>
+                      <div style={{ fontWeight: 700, color: "var(--badge-blue-text, #1d4ed8)", marginBottom: 4 }}>A</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--badge-blue-text, #1e40af)" }}>{cellA.callerName} × {cellA.playbookName}</div>
+                      <div style={{ fontSize: 11, color: "var(--accent-primary)" }}>{sectionsA.size} sections, {((cellA.prompt.prompt?.length || 0) / 1000).toFixed(1)}k chars</div>
                     </div>
-                    <div style={{ flex: 1, padding: 12, background: "#fce7f3", borderRadius: 8, border: "2px solid #ec4899" }}>
-                      <div style={{ fontWeight: 700, color: "#be185d", marginBottom: 4 }}>B</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#9d174d" }}>{cellB.callerName} × {cellB.playbookName}</div>
-                      <div style={{ fontSize: 11, color: "#ec4899" }}>{sectionsB.size} sections, {((cellB.prompt.prompt?.length || 0) / 1000).toFixed(1)}k chars</div>
+                    <div style={{ flex: 1, padding: 12, background: "var(--badge-pink-bg, #fce7f3)", borderRadius: 8, border: "2px solid var(--badge-pink-text)" }}>
+                      <div style={{ fontWeight: 700, color: "var(--badge-pink-accent, #be185d)", marginBottom: 4 }}>B</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--badge-pink-accent, #9d174d)" }}>{cellB.callerName} × {cellB.playbookName}</div>
+                      <div style={{ fontSize: 11, color: "var(--badge-pink-text)" }}>{sectionsB.size} sections, {((cellB.prompt.prompt?.length || 0) / 1000).toFixed(1)}k chars</div>
                     </div>
                     <button
                       onClick={() => setSelectedCells(new Set())}
@@ -1965,15 +1967,15 @@ export default function PlaygroundPage() {
                     <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Section Differences</div>
                     <div style={{ display: "flex", gap: 24, fontSize: 12 }}>
                       <div>
-                        <span style={{ color: "#22c55e", fontWeight: 600 }}>In both ({inBoth.length}):</span>{" "}
+                        <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>In both ({inBoth.length}):</span>{" "}
                         <span style={{ color: "var(--text-muted)" }}>{inBoth.join(", ") || "none"}</span>
                       </div>
                       <div>
-                        <span style={{ color: "#3b82f6", fontWeight: 600 }}>Only in A ({onlyInA.length}):</span>{" "}
+                        <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>Only in A ({onlyInA.length}):</span>{" "}
                         <span style={{ color: "var(--text-muted)" }}>{onlyInA.join(", ") || "none"}</span>
                       </div>
                       <div>
-                        <span style={{ color: "#ec4899", fontWeight: 600 }}>Only in B ({onlyInB.length}):</span>{" "}
+                        <span style={{ color: "var(--badge-pink-text)", fontWeight: 600 }}>Only in B ({onlyInB.length}):</span>{" "}
                         <span style={{ color: "var(--text-muted)" }}>{onlyInB.join(", ") || "none"}</span>
                       </div>
                     </div>
@@ -1981,16 +1983,16 @@ export default function PlaygroundPage() {
 
                   {/* Side-by-Side Prompts */}
                   <div style={{ display: "flex", gap: 16 }}>
-                    <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid #93c5fd", borderRadius: 8, overflow: "hidden" }}>
-                      <div style={{ padding: "8px 12px", background: "#dbeafe", borderBottom: "1px solid #93c5fd", fontWeight: 600, fontSize: 12, color: "#1d4ed8" }}>
+                    <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid var(--badge-blue-border, #93c5fd)", borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ padding: "8px 12px", background: "var(--badge-blue-bg, #dbeafe)", borderBottom: "1px solid var(--badge-blue-border, #93c5fd)", fontWeight: 600, fontSize: 12, color: "var(--badge-blue-text, #1d4ed8)" }}>
                         Prompt A
                       </div>
                       <pre style={{ fontSize: 10, padding: 12, margin: 0, maxHeight: 400, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                         {cellA.prompt.prompt}
                       </pre>
                     </div>
-                    <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid #f9a8d4", borderRadius: 8, overflow: "hidden" }}>
-                      <div style={{ padding: "8px 12px", background: "#fce7f3", borderBottom: "1px solid #f9a8d4", fontWeight: 600, fontSize: 12, color: "#be185d" }}>
+                    <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid var(--badge-pink-border, #f9a8d4)", borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ padding: "8px 12px", background: "var(--badge-pink-bg, #fce7f3)", borderBottom: "1px solid var(--badge-pink-border, #f9a8d4)", fontWeight: 600, fontSize: 12, color: "var(--badge-pink-accent, #be185d)" }}>
                         Prompt B
                       </div>
                       <pre style={{ fontSize: 10, padding: 12, margin: 0, maxHeight: 400, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
@@ -2141,8 +2143,8 @@ export default function PlaygroundPage() {
                   padding: "10px 20px",
                   border: "none",
                   borderRadius: 6,
-                  background: newCallerName.trim() ? "#4f46e5" : "#e5e7eb",
-                  color: newCallerName.trim() ? "#fff" : "#9ca3af",
+                  background: newCallerName.trim() ? "var(--accent-primary)" : "var(--border-default)",
+                  color: newCallerName.trim() ? "var(--surface-primary)" : "var(--text-muted)",
                   cursor: newCallerName.trim() ? "pointer" : "not-allowed",
                   fontSize: 14,
                   fontWeight: 500,
@@ -2180,7 +2182,7 @@ export default function PlaygroundPage() {
               boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
             }}
           >
-            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>Create New Playbook</h2>
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>{`Create New ${terms.playbook}`}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
@@ -2268,14 +2270,14 @@ export default function PlaygroundPage() {
                   padding: "10px 20px",
                   border: "none",
                   borderRadius: 6,
-                  background: newPlaybookName.trim() && newPlaybookDomainId ? "#4f46e5" : "#e5e7eb",
-                  color: newPlaybookName.trim() && newPlaybookDomainId ? "#fff" : "#9ca3af",
+                  background: newPlaybookName.trim() && newPlaybookDomainId ? "var(--accent-primary)" : "var(--border-default)",
+                  color: newPlaybookName.trim() && newPlaybookDomainId ? "var(--surface-primary)" : "var(--text-muted)",
                   cursor: newPlaybookName.trim() && newPlaybookDomainId ? "pointer" : "not-allowed",
                   fontSize: 14,
                   fontWeight: 500,
                 }}
               >
-                {creatingPlaybook ? "Creating..." : "Create Playbook"}
+                {creatingPlaybook ? "Creating..." : `Create ${terms.playbook}`}
               </button>
             </div>
           </div>
@@ -2307,7 +2309,7 @@ export default function PlaygroundPage() {
               boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
             }}
           >
-            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>Create New Domain</h2>
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>{`Create New ${terms.domain}`}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
@@ -2404,14 +2406,14 @@ export default function PlaygroundPage() {
                   padding: "10px 20px",
                   border: "none",
                   borderRadius: 6,
-                  background: newDomainName.trim() ? "#4f46e5" : "#e5e7eb",
-                  color: newDomainName.trim() ? "#fff" : "#9ca3af",
+                  background: newDomainName.trim() ? "var(--accent-primary)" : "var(--border-default)",
+                  color: newDomainName.trim() ? "var(--surface-primary)" : "var(--text-muted)",
                   cursor: newDomainName.trim() ? "pointer" : "not-allowed",
                   fontSize: 14,
                   fontWeight: 500,
                 }}
               >
-                {creatingDomain ? "Creating..." : "Create Domain"}
+                {creatingDomain ? "Creating..." : `Create ${terms.domain}`}
               </button>
             </div>
           </div>
@@ -2443,7 +2445,7 @@ export default function PlaygroundPage() {
               boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
             }}
           >
-            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>Create New Playbook</h2>
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600 }}>{`Create New ${terms.playbook}`}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
@@ -2529,14 +2531,14 @@ export default function PlaygroundPage() {
                   padding: "10px 20px",
                   border: "none",
                   borderRadius: 6,
-                  background: newPlaybookName.trim() && newPlaybookDomainId ? "#4f46e5" : "#e5e7eb",
-                  color: newPlaybookName.trim() && newPlaybookDomainId ? "#fff" : "#9ca3af",
+                  background: newPlaybookName.trim() && newPlaybookDomainId ? "var(--accent-primary)" : "var(--border-default)",
+                  color: newPlaybookName.trim() && newPlaybookDomainId ? "var(--surface-primary)" : "var(--text-muted)",
                   cursor: newPlaybookName.trim() && newPlaybookDomainId ? "pointer" : "not-allowed",
                   fontSize: 14,
                   fontWeight: 500,
                 }}
               >
-                {creatingPlaybook ? "Creating..." : "Create Playbook"}
+                {creatingPlaybook ? "Creating..." : `Create ${terms.playbook}`}
               </button>
             </div>
           </div>

@@ -138,7 +138,7 @@ export function DemoNavigationBar({
             background: isLastStep
               ? "var(--surface-tertiary)"
               : "var(--accent-primary)",
-            color: isLastStep ? "var(--text-muted)" : "#fff",
+            color: isLastStep ? "var(--text-muted)" : "var(--button-primary-text, #fff)",
             cursor: isLastStep ? "not-allowed" : "pointer",
             opacity: isLastStep ? 0.5 : 1,
             display: "flex",

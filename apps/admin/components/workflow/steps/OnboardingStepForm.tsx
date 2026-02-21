@@ -224,8 +224,8 @@ export function OnboardingStepForm({
           {/* Exam Readiness */}
           <fieldset style={{
             ...fieldsetStyle,
-            border: examEnabled ? "2px solid #6366f1" : fieldsetStyle.border,
-            background: examEnabled ? "#f5f3ff" : fieldsetStyle.background,
+            border: examEnabled ? "2px solid var(--accent-primary)" : fieldsetStyle.border,
+            background: examEnabled ? "var(--accent-bg, #f5f3ff)" : fieldsetStyle.background,
           }}>
             <legend style={legendStyle}>Exam Readiness</legend>
 
@@ -273,10 +273,10 @@ export function OnboardingStepForm({
                 <div style={{
                   padding: "10px 14px",
                   borderRadius: 8,
-                  background: "#ede9fe",
-                  border: "1px solid #c4b5fd",
+                  background: "var(--accent-bg, #ede9fe)",
+                  border: "1px solid var(--accent-primary)",
                   fontSize: 12,
-                  color: "#5b21b6",
+                  color: "var(--accent-primary)",
                   lineHeight: 1.5,
                 }}>
                   All thresholds and weights are loaded from the EXAM_READINESS_V1 contract at runtime.
@@ -304,8 +304,8 @@ export function OnboardingStepForm({
                 border: "none",
                 background: saving
                   ? "var(--surface-tertiary)"
-                  : "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                color: saving ? "var(--text-muted)" : "#fff",
+                  : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #8b5cf6) 100%)",
+                color: saving ? "var(--text-muted)" : "var(--surface-primary)",
                 cursor: saving ? "not-allowed" : "pointer",
                 boxShadow: saving ? "none" : "0 4px 12px rgba(99, 102, 241, 0.3)",
               }}

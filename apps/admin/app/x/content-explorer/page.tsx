@@ -33,16 +33,16 @@ type ApiResponse = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  identity: "#4338ca",
-  voice: "#0891b2",
-  content: "#059669",
-  pedagogy: "#d97706",
-  adaptation: "#8b5cf6",
-  targets: "#2563eb",
-  orchestration: "#6366f1",
-  guardrails: "#be185d",
-  measurement: "#4f46e5",
-  config: "#737373",
+  identity: "var(--identity-accent, #4338ca)",
+  voice: "var(--badge-cyan-text, #0891b2)",
+  content: "var(--status-success-text, #059669)",
+  pedagogy: "var(--status-warning-text, #d97706)",
+  adaptation: "var(--accent-secondary, #8b5cf6)",
+  targets: "var(--accent-primary, #2563eb)",
+  orchestration: "var(--badge-indigo-text, #6366f1)",
+  guardrails: "var(--badge-pink-text, #be185d)",
+  measurement: "var(--accent-primary, #4f46e5)",
+  config: "var(--text-muted, #737373)",
 };
 
 export default function ContentExplorerPage() {
@@ -143,7 +143,7 @@ export default function ContentExplorerPage() {
   if (loading) {
     return (
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+        <h1 className="hf-page-title" style={{ marginBottom: 8 }}>
           Content Explorer
         </h1>
         <p style={{ color: "var(--text-muted)" }}>Loading fragments...</p>
@@ -154,7 +154,7 @@ export default function ContentExplorerPage() {
   if (error) {
     return (
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+        <h1 className="hf-page-title" style={{ marginBottom: 8 }}>
           Content Explorer
         </h1>
         <p style={{ color: "var(--status-error-text)" }}>Error: {error}</p>
@@ -169,7 +169,7 @@ export default function ContentExplorerPage() {
       <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+        <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
           Content Explorer
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
@@ -185,8 +185,8 @@ export default function ContentExplorerPage() {
         marginBottom: 24,
       }}>
         <StatCard label="Total Fragments" value={stats.totalFragments} />
-        <StatCard label="Prompt-Used" value={stats.promptConsumed} color="#059669" />
-        <StatCard label="Metadata Only" value={stats.metadataOnly} color="#737373" />
+        <StatCard label="Prompt-Used" value={stats.promptConsumed} color="var(--status-success-text, #059669)" />
+        <StatCard label="Metadata Only" value={stats.metadataOnly} color="var(--text-muted, #737373)" />
         <StatCard label="Total Characters" value={`${(stats.totalChars / 1000).toFixed(0)}K`} />
       </div>
 
@@ -209,9 +209,9 @@ export default function ContentExplorerPage() {
               fontSize: 12,
               fontWeight: 500,
               borderRadius: 12,
-              border: `1px solid ${categoryFilter === cat ? CATEGORY_COLORS[cat] || "#666" : "var(--border-default)"}`,
+              border: `1px solid ${categoryFilter === cat ? CATEGORY_COLORS[cat] || "var(--text-muted)" : "var(--border-default)"}`,
               background: categoryFilter === cat
-                ? `color-mix(in srgb, ${CATEGORY_COLORS[cat] || "#666"} 15%, transparent)`
+                ? `color-mix(in srgb, ${CATEGORY_COLORS[cat] || "var(--text-muted)"} 15%, transparent)`
                 : "transparent",
               color: CATEGORY_COLORS[cat] || "var(--text-muted)",
               cursor: "pointer",
@@ -268,7 +268,7 @@ export default function ContentExplorerPage() {
             type="checkbox"
             checked={promptOnly}
             onChange={e => setPromptOnly(e.target.checked)}
-            style={{ accentColor: "#059669" }}
+            style={{ accentColor: "var(--status-success-text, #059669)" }}
           />
           Prompt-Used Only
         </label>
@@ -339,8 +339,8 @@ export default function ContentExplorerPage() {
                     fontSize: 11,
                     fontWeight: 500,
                     borderRadius: 10,
-                    color: CATEGORY_COLORS[fragment.category] || "#666",
-                    background: `color-mix(in srgb, ${CATEGORY_COLORS[fragment.category] || "#666"} 12%, transparent)`,
+                    color: CATEGORY_COLORS[fragment.category] || "var(--text-muted)",
+                    background: `color-mix(in srgb, ${CATEGORY_COLORS[fragment.category] || "var(--text-muted)"} 12%, transparent)`,
                   }}>
                     {fragment.category}
                   </span>

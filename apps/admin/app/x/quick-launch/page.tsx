@@ -6,6 +6,13 @@ import { useSession } from "next-auth/react";
 import ReviewPanel from "./ReviewPanel";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
 import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
+import { useTerminology } from "@/contexts/TerminologyContext";
+import { AgentTuner } from "@/components/shared/AgentTuner";
+import type { AgentTunerOutput, AgentTunerPill } from "@/lib/agent-tuner/types";
+import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shared/AgentTuningPanel";
+import type { MatrixPosition } from "@/lib/domain/agent-tuning";
+import { WizardSummary } from "@/components/shared/WizardSummary";
+import { Building2, BookOpen, User, FileText, PlayCircle } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
 
@@ -491,6 +498,7 @@ function ProgressBar({ progress, label }: { progress: number; label: string }) {
 export default function QuickLaunchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { terms, lower } = useTerminology();
   const communityMode = searchParams.get("mode") === "community";
 
   // ── Phase state machine ────────────────────────────
@@ -508,6 +516,11 @@ export default function QuickLaunchPage() {
   const [persona, setPersona] = useState("");
   const [goalInput, setGoalInput] = useState("");
   const [goals, setGoals] = useState<string[]>([]);
+  const [tunerPills, setTunerPills] = useState<AgentTunerPill[]>([]);
+  const [behaviorTargets, setBehaviorTargets] = useState<Record<string, number>>({});
+  const [matrixTargets, setMatrixTargets] = useState<Record<string, number>>({});
+  const [matrixTraits, setMatrixTraits] = useState<string[]>([]);
+  const [matrixPositions, setMatrixPositions] = useState<Record<string, MatrixPosition>>({});
   const [file, setFile] = useState<File | null>(null);
   const [qualificationRef, setQualificationRef] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -773,6 +786,8 @@ export default function QuickLaunchPage() {
             }
           }
         }
+
+        // Traits: no longer auto-populated — use AgentTuner instead
       } catch {
         // Silently fail — user can fill fields manually
       } finally {
@@ -796,6 +811,17 @@ export default function QuickLaunchPage() {
   const removeGoal = (index: number) => {
     setGoals((prev) => prev.filter((_, i) => i !== index));
   };
+
+  const handleTunerChange = useCallback(({ pills, parameterMap }: AgentTunerOutput) => {
+    setTunerPills(pills);
+    setBehaviorTargets(parameterMap);
+  }, []);
+
+  const handleMatrixChange = useCallback(({ parameterMap, traits, matrixPositions: mp }: AgentTuningPanelOutput) => {
+    setMatrixTargets(parameterMap);
+    setMatrixTraits(traits);
+    setMatrixPositions(mp);
+  }, []);
 
   // ── File handling ──────────────────────────────────
 
@@ -835,7 +861,17 @@ export default function QuickLaunchPage() {
     if (!extractionJobId || !extractionSourceId) return;
     if (analysisComplete) return;
 
+    const startedAt = Date.now();
+    const POLL_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
     const poll = async () => {
+      // Timeout guard
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        if (jobPollRef.current) clearInterval(jobPollRef.current);
+        setError("Content extraction timed out. Please try again.");
+        return;
+      }
+
       try {
         const res = await fetch(
           `/api/content-sources/${extractionSourceId}/import?jobId=${extractionJobId}`
@@ -870,18 +906,14 @@ export default function QuickLaunchPage() {
             assertionCount: job.importedCount ?? job.extractedCount ?? 0,
           }));
 
-          // Fetch full preview from task (includes identity config + assertion summary)
+          // Fetch full preview from task by ID (not by status filter)
           if (taskId) {
             try {
-              const taskRes = await fetch(`/api/tasks?status=in_progress`);
+              const taskRes = await fetch(`/api/tasks?taskId=${taskId}`);
               const taskData = await taskRes.json();
-              if (taskData.ok && taskData.tasks) {
-                const qlTask = taskData.tasks.find(
-                  (t: any) => t.id === taskId && t.context?.preview
-                );
-                if (qlTask?.context?.preview) {
-                  setPreview(qlTask.context.preview as Partial<AnalysisPreview>);
-                }
+              const qlTask = taskData.task || taskData.tasks?.[0];
+              if (qlTask?.context?.preview) {
+                setPreview(qlTask.context.preview as Partial<AnalysisPreview>);
               }
             } catch {
               // Preview from task unavailable — continue with what we have
@@ -949,6 +981,11 @@ export default function QuickLaunchPage() {
     }
     if (goals.length > 0) {
       formData.append("learningGoals", JSON.stringify(goals));
+    }
+    // Merge traits: matrix-derived + pill labels (deduplicated)
+    const allTraits = [...new Set([...matrixTraits, ...tunerPills.map((p) => p.label)])];
+    if (allTraits.length > 0) {
+      formData.append("toneTraits", JSON.stringify(allTraits));
     }
     if (qualificationRef.trim()) {
       formData.append("qualificationRef", qualificationRef.trim());
@@ -1040,6 +1077,8 @@ export default function QuickLaunchPage() {
             qualificationRef: qualificationRef.trim() || undefined,
             mode: launchMode,
             kind: communityMode ? "COMMUNITY" : "INSTITUTION",
+            behaviorTargets: { ...matrixTargets, ...behaviorTargets },
+            matrixPositions: Object.keys(matrixPositions).length > 0 ? matrixPositions : undefined,
           },
         }),
       });
@@ -1377,7 +1416,7 @@ export default function QuickLaunchPage() {
           }}
         >
           {phase === "form" && (communityMode
-            ? "Create a community for individuals to learn together with an AI guide."
+            ? "Create a community for individuals to have meaningful conversations with an AI guide."
             : "Describe what you want to build and launch a working AI agent in one click.")}
           {phase === "building" && (communityMode ? "Setting up your community..." : "Building your agent...")}
           {phase === "review" && "Review what AI created and customize before finalizing."}
@@ -1510,6 +1549,7 @@ export default function QuickLaunchPage() {
             fileSize: file?.size,
             qualificationRef: qualificationRef.trim() || undefined,
             mode: launchMode,
+            agentStyleTraits: [...new Set([...matrixTraits, ...tunerPills.map((p) => p.label)])],
           }}
           preview={preview}
           overrides={overrides}
@@ -1639,29 +1679,62 @@ export default function QuickLaunchPage() {
       {/* ── Phase: Result ── */}
       {phase === "result" && result && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* ── Success Banner ── */}
-          <div
-            style={{
-              padding: 32,
-              borderRadius: 16,
-              background: "var(--status-success-bg)",
-              border: "2px solid var(--status-success-border)",
+          {/* ── Summary ── */}
+          <WizardSummary
+            title={communityMode ? "Your Community is Ready!" : "Your Agent is Ready!"}
+            subtitle={`${result.assertionCount} teaching points${result.moduleCount > 0 ? `, ${result.moduleCount} modules` : ""}${result.goalCount > 0 ? `, ${result.goalCount} goals` : ""}`}
+            intent={{
+              items: [
+                { icon: <BookOpen className="w-4 h-4" />, label: "Subject", value: subjectName || "—" },
+                ...(selectedPersona ? [{ icon: <User className="w-4 h-4" />, label: "Persona", value: selectedPersona.name }] : []),
+                ...(goals.length > 0 ? [{ label: "Goals", value: `${goals.length} learning goal${goals.length !== 1 ? "s" : ""}` }] : []),
+                ...(file ? [{ icon: <FileText className="w-4 h-4" />, label: "Source", value: file.name }] : []),
+              ],
             }}
+            created={{
+              entities: [
+                {
+                  icon: <Building2 className="w-5 h-5" />,
+                  label: terms.domain,
+                  name: result.domainName,
+                  href: `/x/domains?selected=${result.domainId}`,
+                },
+                {
+                  icon: <User className="w-5 h-5" />,
+                  label: "Test Caller",
+                  name: result.callerName,
+                  href: `/x/callers/${result.callerId}`,
+                },
+                ...(result.identitySpecId ? [{
+                  icon: <FileText className="w-5 h-5" />,
+                  label: "Identity",
+                  name: "AI Persona",
+                  href: `/x/specs/${result.identitySpecId}`,
+                }] : []),
+              ],
+            }}
+            stats={[
+              { label: "Teaching Points", value: result.assertionCount },
+              ...(result.moduleCount > 0 ? [{ label: "Modules", value: result.moduleCount }] : []),
+              ...(result.goalCount > 0 ? [{ label: "Goals", value: result.goalCount }] : []),
+            ]}
+            tuning={matrixTraits.length > 0 || tunerPills.length > 0 ? {
+              traits: [...new Set([...matrixTraits, ...tunerPills.map(p => p.label)])],
+              paramCount: Object.keys(behaviorTargets).length,
+            } : undefined}
+            primaryAction={{
+              label: "Start Lesson",
+              icon: <PlayCircle className="w-5 h-5" />,
+              href: `/x/sim/${result.callerId}`,
+              disabled: !courseReady && courseChecks.length > 0,
+            }}
+            secondaryActions={[
+              { label: "Launch Another", onClick: handleReset },
+            ]}
           >
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                marginBottom: 10,
-                color: "var(--status-success-text)",
-              }}
-            >
-              Ready to test
-            </div>
-
-            {/* ── Editable domain name ── */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 6 }}>
+            {/* ── Editable agent name ── */}
+            <div className="wiz-section">
+              <div className="wiz-section-label">
                 Agent Name {savingName && <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— saving...</span>}
               </div>
               <input
@@ -1670,44 +1743,15 @@ export default function QuickLaunchPage() {
                 onChange={(e) => setEditDomainName(e.target.value)}
                 onBlur={() => handleSaveDomainName(editDomainName)}
                 onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border-default)",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  background: "var(--surface-primary)",
-                  color: "var(--text-primary)",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  transition: "border-color 0.15s",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--accent-primary)")}
+                className="hf-input"
+                style={{ width: "100%", fontSize: 16, fontWeight: 600 }}
               />
             </div>
 
-            <div
-              style={{
-                fontSize: 14,
-                color: "var(--text-secondary)",
-                marginBottom: 20,
-                lineHeight: 1.6,
-              }}
-            >
-              {result.assertionCount} teaching points
-              {result.moduleCount > 0 && `, ${result.moduleCount} curriculum modules`}
-              {result.goalCount > 0 && `, ${result.goalCount} learning goals`}
-            </div>
-
-            {/* ── Course Readiness Checklist (COURSE-READY-001) ── */}
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 10 }}>
-                Review Steps
-              </div>
-              {checksLoading && courseChecks.length === 0 ? (
-                <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>Loading checks...</div>
-              ) : (
+            {/* ── Course Readiness Checklist ── */}
+            {courseChecks.length > 0 && (
+              <div className="wiz-section">
+                <div className="wiz-section-label">Review Steps</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {courseChecks.map((check) => (
                     <div
@@ -1753,90 +1797,17 @@ export default function QuickLaunchPage() {
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* ── Start Lesson (primary CTA, gated by critical checks) ── */}
-            <button
-              onClick={() => router.push(`/x/sim/${result.callerId}`)}
-              disabled={!courseReady && courseChecks.length > 0}
-              title={!courseReady && courseChecks.length > 0 ? "Complete required steps above first" : undefined}
-              style={{
-                width: "100%",
-                padding: "14px 24px",
-                borderRadius: 10,
-                background: courseReady || courseChecks.length === 0 ? "var(--accent-primary)" : "var(--border-default)",
-                color: courseReady || courseChecks.length === 0 ? "white" : "var(--text-muted)",
-                border: "none",
-                fontSize: 16,
-                fontWeight: 700,
-                cursor: courseReady || courseChecks.length === 0 ? "pointer" : "not-allowed",
-                letterSpacing: "-0.01em",
-                transition: "all 0.2s",
-              }}
-            >
-              Start Lesson
-            </button>
-
-            {/* ── Secondary actions ── */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                onClick={() => router.push(`/x/domains?selected=${result.domainId}`)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  background: "transparent",
-                  border: "1px solid var(--border-default)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                View Agent
-              </button>
-              {result.identitySpecId && (
-                <button
-                  onClick={() => router.push(`/x/specs/${result.identitySpecId}`)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    background: "transparent",
-                    border: "1px solid var(--border-default)",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  Edit Identity
-                </button>
-              )}
-              <button
-                onClick={() => router.push(`/x/callers/${result.callerId}`)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  background: "transparent",
-                  border: "1px solid var(--border-default)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                View Test Caller
-              </button>
-            </div>
+              </div>
+            )}
 
             {result.warnings.length > 0 && (
-              <div style={{ marginTop: 16, fontSize: 13, color: "var(--text-muted)" }}>
+              <div className="hf-banner hf-banner-warning">
                 {result.warnings.map((w, i) => (
-                  <div key={i}>Note: {w}</div>
+                  <div key={i}>{w}</div>
                 ))}
               </div>
             )}
-          </div>
+          </WizardSummary>
 
           {/* ── Onboarding Welcome ── */}
           <div
@@ -2007,22 +1978,7 @@ export default function QuickLaunchPage() {
             )}
           </div>
 
-          {/* ── Launch Another ── */}
-          <button
-            onClick={handleReset}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 8,
-              background: "transparent",
-              border: "1px solid var(--border-default)",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-              alignSelf: "flex-start",
-            }}
-          >
-            Launch Another
-          </button>
+          {/* Launch Another is in WizardSummary secondary actions */}
         </div>
       )}
 
@@ -2074,7 +2030,7 @@ export default function QuickLaunchPage() {
             {domains.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
-                  Domain
+                  {terms.domain}
                 </label>
                 <select
                   value={selectedDomainId}
@@ -2090,14 +2046,14 @@ export default function QuickLaunchPage() {
                     cursor: "pointer",
                   }}
                 >
-                  <option value="">Create new domain</option>
+                  <option value="">{`Create new ${lower("domain")}`}</option>
                   {domains.map((d) => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
                 {selectedDomainId && (
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                    A new playbook (class) will be created within this domain.
+                    {`A new ${lower("playbook")} (class) will be created within this ${lower("domain")}.`}
                   </div>
                 )}
               </div>
@@ -2288,7 +2244,7 @@ export default function QuickLaunchPage() {
 
           {/* Step 2: Persona */}
           <FormCard>
-            <StepMarker number={2} label="Choose a persona" completed={!!persona} />
+            <StepMarker number={2} label={`Choose a ${lower('persona')}`} completed={!!persona} />
             <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
               The personality and interaction style your AI will use with callers.
             </div>
@@ -2296,7 +2252,7 @@ export default function QuickLaunchPage() {
               options={personas.map((p) => ({ value: p.slug, label: p.name, description: p.description }))}
               value={persona}
               onChange={(v) => { setPersona(v); setSuggestedPersona(null); }}
-              placeholder="Pick a persona..."
+              placeholder={`Pick a ${lower('persona')}...`}
               loading={personasLoading}
             />
             {suggestedPersona && suggestedPersona !== persona && (() => {
@@ -2335,6 +2291,30 @@ export default function QuickLaunchPage() {
                 </button>
               );
             })()}
+
+            {/* ── Teaching style (Boston Matrix) ── */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--border-subtle)" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+                Teaching style
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+                Place the dots to set your agent&apos;s personality. Click a preset to start from a known style.
+              </div>
+              <AgentTuningPanel
+                onChange={handleMatrixChange}
+                compact
+              />
+            </div>
+
+            {/* ── Advanced: AI-driven behavior pills ── */}
+            <div style={{ marginTop: 12 }}>
+              <AgentTuner
+                initialPills={tunerPills}
+                context={{ personaSlug: persona || undefined, subjectName: subjectName || undefined }}
+                onChange={handleTunerChange}
+                label="Advanced: Fine-tune behavior"
+              />
+            </div>
           </FormCard>
 
           {/* Step 3: Learning Goals */}
@@ -2567,7 +2547,7 @@ export default function QuickLaunchPage() {
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
-                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Style</span>
+                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>{terms.persona}</span>
                     <span style={{ color: selectedPersona ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
                       {selectedPersona?.name || "select above"}
                     </span>

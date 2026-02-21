@@ -47,21 +47,20 @@
             "description": "Upload or describe course content"
           },
           {
-            "id": "teaching-points",
-            "label": "Teaching Points",
-            "activeLabel": "Reviewing Teaching Points",
+            "id": "lesson-plan",
+            "label": "Lesson Plan",
+            "activeLabel": "Planning Lessons",
             "order": 3,
             "skippable": true,
-            "taskType": "extraction",
-            "description": "Review extracted teaching points from content"
+            "description": "Set session count, duration, emphasis — optionally generate and review a full lesson plan"
           },
           {
-            "id": "lesson-structure",
-            "label": "Lesson Structure",
-            "activeLabel": "Configuring Lessons",
+            "id": "course-config",
+            "label": "Configure AI",
+            "activeLabel": "Configuring AI",
             "order": 4,
             "skippable": true,
-            "description": "Configure lesson count, duration, and assessment style"
+            "description": "Customize the AI tutor's welcome message and persona"
           },
           {
             "id": "students",
@@ -69,21 +68,13 @@
             "activeLabel": "Adding Students",
             "order": 5,
             "skippable": true,
-            "description": "Invite students to the course"
-          },
-          {
-            "id": "course-config",
-            "label": "Configure AI",
-            "activeLabel": "Configuring AI",
-            "order": 6,
-            "skippable": true,
-            "description": "Customize the AI tutor's welcome message and persona"
+            "description": "Add learners by group, individual, or email invite"
           },
           {
             "id": "done",
             "label": "Launch",
             "activeLabel": "Creating Course",
-            "order": 7,
+            "order": 6,
             "skippable": false,
             "taskType": "course_setup",
             "description": "Create the course and complete onboarding"

@@ -252,6 +252,15 @@ describe("educator-access", () => {
         name: "Year 9 Maths",
         ownerId: "teacher-caller-1",
       },
+      cohortMemberships: [
+        {
+          cohortGroup: {
+            id: "cohort-1",
+            name: "Year 9 Maths",
+            ownerId: "teacher-caller-1",
+          },
+        },
+      ],
       domain: { id: "domain-1", slug: "maths", name: "Maths" },
     };
 
@@ -273,6 +282,7 @@ describe("educator-access", () => {
         ...baseStudent,
         cohortGroup: null,
         cohortGroupId: null,
+        cohortMemberships: [],
       };
       mockPrisma.caller.findUnique.mockResolvedValue(studentNoCohort);
 
@@ -294,6 +304,15 @@ describe("educator-access", () => {
           name: "Year 9 Maths",
           ownerId: "other-teacher",
         },
+        cohortMemberships: [
+          {
+            cohortGroup: {
+              id: "cohort-1",
+              name: "Year 9 Maths",
+              ownerId: "other-teacher",
+            },
+          },
+        ],
       };
       mockPrisma.caller.findUnique.mockResolvedValue(studentOtherTeacher);
 
@@ -329,6 +348,13 @@ describe("educator-access", () => {
         include: {
           cohortGroup: {
             select: { id: true, name: true, ownerId: true },
+          },
+          cohortMemberships: {
+            include: {
+              cohortGroup: {
+                select: { id: true, name: true, ownerId: true },
+              },
+            },
           },
           domain: { select: { id: true, slug: true, name: true } },
         },

@@ -13,11 +13,19 @@ import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
 import { loadPersonaFlowPhases } from "@/lib/domain/quick-launch";
+import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
 import { enrollCaller, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
-import { updateTaskProgress, completeTask } from "@/lib/ai/task-guidance";
+import { updateTaskProgress, completeTask, failTask } from "@/lib/ai/task-guidance";
 import type { SpecConfig } from "@/lib/types/json-fields";
 
 // ── Types ──────────────────────────────────────────────
+
+export interface PlanIntents {
+  sessionCount: number;
+  durationMins: number;
+  emphasis: string; // "breadth" | "balanced" | "depth"
+  assessments: string; // "formal" | "light" | "none"
+}
 
 export interface CourseSetupInput {
   courseName: string;
@@ -30,6 +38,16 @@ export interface CourseSetupInput {
   studentEmails: string[];
   domainId?: string; // if attaching to existing institution
   sourceId?: string; // if content step created a ContentSource already
+  // Lesson plan step — pre-created entities from "Generate & Review" path
+  subjectId?: string;
+  curriculumId?: string;
+  planIntents?: PlanIntents;
+  lessonPlanMode?: "accept" | "reviewed" | "skipped";
+  // Students step — cohort/individual enrollment
+  cohortGroupIds?: string[];
+  selectedCallerIds?: string[];
+  // Config step — behavior tuning targets from AgentTuner
+  behaviorTargets?: Record<string, number>;
 }
 
 export interface CourseSetupResult {
@@ -118,14 +136,19 @@ async function loadCourseSetupSteps(): Promise<CourseSetupStep[]> {
 }
 
 function mapStepToOperation(stepId: string): string {
+  // TODO: Wire generate_curriculum, configure_onboarding, invite_students when
+  // course creation moves from all-at-once ("done" → "create_course") to per-step execution.
+  // The executors below are implemented but currently unused (all mapped to "noop").
   const mapping: Record<string, string> = {
     intent: "noop", // intent step is UI-only, no server work
     content: "noop", // content upload happens in step itself
-    "teaching-points": "noop", // extraction polling happens in UI
-    "lesson-structure": "noop", // UI-only configuration
-    students: "noop", // UI-only email collection
+    "lesson-plan": "noop", // UI-only plan configuration (accept/review paths)
     "course-config": "noop", // UI-only welcome message
+    students: "noop", // UI-only email/cohort/individual collection
     done: "create_course", // final step runs the full course setup
+    // Legacy step IDs (kept for backwards compat with existing DB specs)
+    "teaching-points": "noop",
+    "lesson-structure": "noop",
   };
   return mapping[stepId] || "noop";
 }
@@ -172,17 +195,28 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
     ctx.results.domainSlug = domain.slug;
     ctx.results.domainName = domain.name;
 
-    // 2. Create or find Subject
-    const subjectSlug = domainSlug;
-    let subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
+    // 2. Create or find Subject (reuse pre-created from Generate & Review path)
+    let subject;
+    if (ctx.input.subjectId) {
+      subject = await prisma.subject.findUnique({ where: { id: ctx.input.subjectId } });
+      if (!subject) {
+        // Pre-created subject was deleted — fall back to create
+        ctx.results.warnings!.push("Pre-created subject not found, creating new one");
+        ctx.input.subjectId = undefined;
+      }
+    }
     if (!subject) {
-      subject = await prisma.subject.create({
-        data: {
-          slug: subjectSlug,
-          name: ctx.input.courseName,
-          isActive: true,
-        },
-      });
+      const subjectSlug = domainSlug;
+      subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
+      if (!subject) {
+        subject = await prisma.subject.create({
+          data: {
+            slug: subjectSlug,
+            name: ctx.input.courseName,
+            isActive: true,
+          },
+        });
+      }
     }
     ctx.results.subjectId = subject.id;
 
@@ -214,6 +248,12 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
 
   generate_curriculum: async (ctx) => {
     const domainId = ctx.results.domainId!;
+
+    // Reuse pre-created curriculum from "Generate & Review" path
+    if (ctx.input.curriculumId) {
+      ctx.results.curriculumId = ctx.input.curriculumId;
+      return;
+    }
 
     // Try assertion-based generation first (if sourceId provided)
     if (ctx.input.sourceId) {
@@ -305,9 +345,23 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
       select: {
         id: true,
         onboardingIdentitySpecId: true,
+        onboardingDefaultTargets: true,
         playbooks: { where: { status: "PUBLISHED" }, take: 1, select: { id: true } },
       },
     });
+
+    // Build onboarding default targets in structured format: { value, confidence }
+    // Runtime (targets.ts) expects this shape for first-call default injection
+    const existingTargets = (domain?.onboardingDefaultTargets as Record<string, any>) || {};
+    const wrappedNewTargets: Record<string, { value: number; confidence: number }> = {};
+    if (ctx.input.behaviorTargets) {
+      for (const [paramId, value] of Object.entries(ctx.input.behaviorTargets)) {
+        wrappedNewTargets[paramId] = { value, confidence: 0.5 };
+      }
+    }
+    const mergedForDomain = Object.keys(wrappedNewTargets).length > 0
+      ? { ...existingTargets, ...wrappedNewTargets }
+      : existingTargets;
 
     // Update onboarding config
     await prisma.domain.update({
@@ -315,47 +369,79 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
       data: {
         onboardingWelcome: ctx.input.welcomeMessage,
         onboardingFlowPhases: await loadPersonaFlowPhases(ctx.input.teachingStyle),
+        ...(Object.keys(mergedForDomain).length > 0 && {
+          onboardingDefaultTargets: mergedForDomain,
+        }),
       },
     });
+
+    // Also create PLAYBOOK-scoped BehaviorTarget rows so values are visible in PlaybookBuilder
+    // applyBehaviorTargets expects flat Record<string, number>, not the structured format
+    const playbookId = domain?.playbooks?.[0]?.id;
+    if (playbookId && ctx.input.behaviorTargets && Object.keys(ctx.input.behaviorTargets).length > 0) {
+      await applyBehaviorTargets(playbookId, ctx.input.behaviorTargets);
+    }
   },
 
   invite_students: async (ctx) => {
     const domainId = ctx.results.domainId!;
-
-    if (!ctx.input.studentEmails || ctx.input.studentEmails.length === 0) {
-      ctx.results.invitationCount = 0;
-      return;
-    }
-
-    // Create invite records for each email
-    const domain = await prisma.domain.findUnique({
-      where: { id: domainId },
-      select: { slug: true, name: true },
-    });
-
+    const playbookId = ctx.results.playbookId;
     let invitationCount = 0;
 
-    for (const email of ctx.input.studentEmails) {
-      try {
-        // Check if invite already exists
-        const existing = await prisma.invite.findFirst({
-          where: { email, domainId },
-        });
-
-        if (!existing) {
-          await prisma.invite.create({
-            data: {
-              email,
-              domainId,
-              role: "LEARNER",
-              invitedBy: ctx.userId,
-              status: "PENDING",
+    // 1. Link cohort groups to the playbook (if selected)
+    if (ctx.input.cohortGroupIds && ctx.input.cohortGroupIds.length > 0 && playbookId) {
+      for (const cohortId of ctx.input.cohortGroupIds) {
+        try {
+          await prisma.cohortPlaybook.upsert({
+            where: { cohortGroupId_playbookId: { cohortGroupId: cohortId, playbookId } },
+            update: {},
+            create: {
+              cohortGroupId: cohortId,
+              playbookId,
+              assignedBy: "course-setup",
             },
           });
-          invitationCount++;
+        } catch (err) {
+          ctx.results.warnings!.push(`Failed to link cohort ${cohortId}: ${err}`);
         }
-      } catch (err) {
-        ctx.results.warnings!.push(`Failed to invite ${email}: ${err}`);
+      }
+    }
+
+    // 2. Enroll individual callers (if selected)
+    if (ctx.input.selectedCallerIds && ctx.input.selectedCallerIds.length > 0) {
+      for (const callerId of ctx.input.selectedCallerIds) {
+        try {
+          await enrollCallerInDomainPlaybooks(callerId, domainId);
+          invitationCount++;
+        } catch (err) {
+          ctx.results.warnings!.push(`Failed to enroll caller ${callerId}: ${err}`);
+        }
+      }
+    }
+
+    // 3. Email invites (existing flow)
+    if (ctx.input.studentEmails && ctx.input.studentEmails.length > 0) {
+      for (const email of ctx.input.studentEmails) {
+        try {
+          const existing = await prisma.invite.findFirst({
+            where: { email, domainId },
+          });
+
+          if (!existing) {
+            await prisma.invite.create({
+              data: {
+                email,
+                domainId,
+                role: "STUDENT",
+                createdBy: ctx.userId,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+              },
+            });
+            invitationCount++;
+          }
+        } catch (err) {
+          ctx.results.warnings!.push(`Failed to invite ${email}: ${err}`);
+        }
       }
     }
 
@@ -374,99 +460,119 @@ export async function courseSetup(
   taskId: string,
   onProgress: ProgressCallback
 ): Promise<CourseSetupResult> {
-  const steps = await loadCourseSetupSteps();
+  try {
+    const steps = await loadCourseSetupSteps();
 
-  const ctx: CourseSetupContext = {
-    input,
-    userId,
-    results: { warnings: [] },
-    onProgress,
-  };
-
-  onProgress({
-    phase: "init",
-    message: `Starting Course Setup (${steps.length} steps)...`,
-    totalSteps: steps.length,
-  });
-
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
-    const executor = stepExecutors[step.operation];
-
-    if (!executor) {
-      const msg = `Unknown step operation: "${step.operation}"`;
-      if (step.onError === "abort") throw new Error(msg);
-      ctx.results.warnings!.push(msg);
-      continue;
-    }
+    const ctx: CourseSetupContext = {
+      input,
+      userId,
+      results: { warnings: [] },
+      onProgress,
+    };
 
     onProgress({
-      phase: step.id,
-      message: step.progressMessage,
-      stepIndex: i,
+      phase: "init",
+      message: `Starting Course Setup (${steps.length} steps)...`,
       totalSteps: steps.length,
     });
 
-    try {
-      await executor(ctx, step);
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      const executor = stepExecutors[step.operation];
 
-      onProgress({
-        phase: step.id,
-        message: `${step.name} ✓`,
-        stepIndex: i,
-        totalSteps: steps.length,
-      });
-    } catch (err: any) {
-      console.error(`[course-setup] Step "${step.id}" failed:`, err.message);
-
-      if (step.onError === "abort") {
-        onProgress({
-          phase: step.id,
-          message: `Failed: ${err.message}`,
-          stepIndex: i,
-          totalSteps: steps.length,
-        });
-        throw err;
+      if (!executor) {
+        const msg = `Unknown step operation: "${step.operation}"`;
+        if (step.onError === "abort") throw new Error(msg);
+        ctx.results.warnings!.push(msg);
+        continue;
       }
 
-      ctx.results.warnings!.push(`${step.name}: ${err.message}`);
       onProgress({
         phase: step.id,
-        message: `${step.name} — skipped (${err.message})`,
-        stepIndex: i,
-        totalSteps: steps.length,
-      });
-    }
-
-    // Update task progress after each step
-    await updateTaskProgress(taskId, {
-      context: {
-        step: step.id,
         message: step.progressMessage,
         stepIndex: i,
         totalSteps: steps.length,
+      });
+
+      try {
+        await executor(ctx, step);
+
+        onProgress({
+          phase: step.id,
+          message: `${step.name} ✓`,
+          stepIndex: i,
+          totalSteps: steps.length,
+        });
+      } catch (err: any) {
+        console.error(`[course-setup] Step "${step.id}" failed:`, err.message);
+
+        if (step.onError === "abort") {
+          onProgress({
+            phase: step.id,
+            message: `Failed: ${err.message}`,
+            stepIndex: i,
+            totalSteps: steps.length,
+          });
+          throw err;
+        }
+
+        ctx.results.warnings!.push(`${step.name}: ${err.message}`);
+        onProgress({
+          phase: step.id,
+          message: `${step.name} — skipped (${err.message})`,
+          stepIndex: i,
+          totalSteps: steps.length,
+        });
+      }
+
+      // Update task progress after each step
+      await updateTaskProgress(taskId, {
+        context: {
+          step: step.id,
+          message: step.progressMessage,
+          stepIndex: i,
+          totalSteps: steps.length,
+        },
+      });
+    }
+
+    onProgress({
+      phase: "ready",
+      message: "Course Setup complete!",
+      totalSteps: steps.length,
+    });
+
+    // Store completion summary in task context (available to UI via useTaskPoll)
+    await updateTaskProgress(taskId, {
+      context: {
+        summary: {
+          domain: { id: ctx.results.domainId, name: ctx.results.domainName, slug: ctx.results.domainSlug },
+          playbook: { id: ctx.results.playbookId, name: ctx.results.playbookName },
+          contentSpecId: ctx.results.contentSpecId || null,
+          curriculumId: ctx.results.curriculumId || null,
+          invitationCount: ctx.results.invitationCount || 0,
+          warnings: ctx.results.warnings || [],
+        },
       },
     });
+
+    // Complete the task
+    await completeTask(taskId);
+
+    return {
+      domainId: ctx.results.domainId!,
+      domainName: ctx.results.domainName!,
+      domainSlug: ctx.results.domainSlug!,
+      playbookId: ctx.results.playbookId!,
+      playbookName: ctx.results.playbookName!,
+      contentSpecId: ctx.results.contentSpecId,
+      curriculumId: ctx.results.curriculumId,
+      invitationCount: ctx.results.invitationCount || 0,
+      warnings: ctx.results.warnings || [],
+    };
+  } catch (error: any) {
+    console.error("[course-setup] Fatal error:", error.message);
+    await failTask(taskId, error.message);
+    throw error;
   }
-
-  onProgress({
-    phase: "ready",
-    message: "Course Setup complete!",
-    totalSteps: steps.length,
-  });
-
-  // Complete the task
-  await completeTask(taskId);
-
-  return {
-    domainId: ctx.results.domainId!,
-    domainName: ctx.results.domainName!,
-    domainSlug: ctx.results.domainSlug!,
-    playbookId: ctx.results.playbookId!,
-    playbookName: ctx.results.playbookName!,
-    contentSpecId: ctx.results.contentSpecId,
-    curriculumId: ctx.results.curriculumId,
-    invitationCount: ctx.results.invitationCount || 0,
-    warnings: ctx.results.warnings || [],
-  };
 }

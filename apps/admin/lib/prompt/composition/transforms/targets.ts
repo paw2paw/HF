@@ -59,6 +59,7 @@ registerTransform("mergeAndGroupTargets", (
 
     if (defaultTargets) {
       for (const [paramId, defaults] of Object.entries(defaultTargets)) {
+        if (paramId.startsWith("_")) continue; // Skip metadata keys (e.g. _matrixPositions)
         if (!existingParams.has(paramId)) {
           merged.push({
             parameterId: paramId,

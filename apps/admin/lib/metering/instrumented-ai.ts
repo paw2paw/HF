@@ -20,6 +20,8 @@ import {
 } from "@/lib/ai/client";
 import { logAIUsage } from "./usage-logger";
 import { classifyAIError, isRetryable } from "@/lib/ai/error-utils";
+import { isDeepLoggingEnabled } from "@/lib/deep-logging";
+import { logAI } from "@/lib/logger";
 
 export interface MeteringContext {
   userId?: string;
@@ -175,6 +177,81 @@ export function createMeteredStream(
 }
 
 // ============================================================
+// DEEP LOGGING (fire-and-forget diagnostic capture)
+// ============================================================
+
+/**
+ * When deep logging is enabled, capture full prompt + response for diagnostics.
+ * Fire-and-forget — never blocks the AI call return path.
+ */
+function maybeDeepLog(
+  options: ConfiguredAIOptions,
+  result: AICompletionResult,
+  durationMs: number,
+  context?: MeteringContext
+): void {
+  isDeepLoggingEnabled()
+    .then((enabled) => {
+      if (!enabled) return;
+
+      const fullPrompt = options.messages
+        .map((m) => `[${m.role}] ${getTextContent(m)}`)
+        .join("\n---\n");
+
+      logAI(`deep:${options.callPoint}`, fullPrompt, result.content, {
+        deep: true,
+        durationMs,
+        model: result.model,
+        engine: result.engine,
+        usage: result.usage,
+        callId: context?.callId,
+        callerId: context?.callerId,
+        userId: context?.userId,
+        sourceOp: context?.sourceOp || options.callPoint,
+      });
+    })
+    .catch(() => {
+      // Never throw from diagnostic logging
+    });
+}
+
+/**
+ * Deep-log a failed AI call for diagnostics.
+ */
+function maybeDeepLogError(
+  options: ConfiguredAIOptions,
+  error: unknown,
+  durationMs: number,
+  context?: MeteringContext
+): void {
+  isDeepLoggingEnabled()
+    .then((enabled) => {
+      if (!enabled) return;
+
+      const fullPrompt = options.messages
+        .map((m) => `[${m.role}] ${getTextContent(m)}`)
+        .join("\n---\n");
+
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      logAI(`deep:${options.callPoint}:error`, fullPrompt, errorMessage, {
+        deep: true,
+        durationMs,
+        error: errorMessage,
+        errorType: classifyAIError(error),
+        callId: context?.callId,
+        callerId: context?.callerId,
+        userId: context?.userId,
+        sourceOp: context?.sourceOp || options.callPoint,
+      });
+    })
+    .catch(() => {
+      // Never throw from diagnostic logging
+    });
+}
+
+// ============================================================
 // CONFIG-AWARE METERED COMPLETIONS
 // ============================================================
 
@@ -192,6 +269,7 @@ export async function getConfiguredMeteredAICompletion(
   options: ConfiguredAIOptions,
   context?: MeteringContext
 ): Promise<AICompletionResult> {
+  const startTime = Date.now();
   const maxRetries = options.maxRetries ?? 2;
   let lastError: unknown;
 
@@ -215,6 +293,9 @@ export async function getConfiguredMeteredAICompletion(
         });
       }
 
+      // Deep logging (fire-and-forget)
+      maybeDeepLog(options, result, Date.now() - startTime, context);
+
       return result;
     } catch (err) {
       lastError = err;
@@ -232,6 +313,8 @@ export async function getConfiguredMeteredAICompletion(
 
       // Only retry if the error is retryable and we have retries left
       if (!isRetryable(errorCode) || attempt === maxRetries) {
+        // Deep-log the final failure
+        maybeDeepLogError(options, err, Date.now() - startTime, context);
         throw err;
       }
     }
@@ -243,6 +326,10 @@ export async function getConfiguredMeteredAICompletion(
 
 /**
  * Get AI completion stream with configuration from database and automatic metering.
+ *
+ * NOTE: Deep logging is not supported for streaming calls — the response is consumed
+ * incrementally and cannot be captured without buffering. All wizard and pipeline AI calls
+ * use non-streaming, so this is acceptable for diagnostic purposes.
  *
  * @param options - Includes callPoint to load config for
  * @param context - Metering context

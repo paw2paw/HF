@@ -3,8 +3,8 @@
 export const STATUSES = ["active", "inactive"] as const;
 
 export const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
-  active: { bg: "#dcfce7", text: "#166534", icon: "✅", desc: "Currently active domains" },
-  inactive: { bg: "#fee2e2", text: "#991b1b", icon: "⏸️", desc: "Inactive domains" },
+  active: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", icon: "✅", desc: "Currently active domains" },
+  inactive: { bg: "var(--status-error-bg)", text: "var(--status-error-text)", icon: "⏸️", desc: "Inactive domains" },
 };
 
 export const playbookStatusMap: Record<string, "draft" | "active" | "archived"> = {
@@ -43,17 +43,17 @@ export function TrustBadge({ level }: { level: string }) {
 }
 
 export const DOC_TYPES: Record<string, { label: string; color: string }> = {
-  CURRICULUM: { label: "Curriculum", color: "#4338CA" },
-  TEXTBOOK: { label: "Textbook", color: "#059669" },
-  WORKSHEET: { label: "Worksheet", color: "#D97706" },
-  EXAMPLE: { label: "Example", color: "#7C3AED" },
-  ASSESSMENT: { label: "Assessment", color: "#DC2626" },
-  REFERENCE: { label: "Reference", color: "#6B7280" },
+  CURRICULUM: { label: "Curriculum", color: "var(--badge-indigo-text)" },
+  TEXTBOOK: { label: "Textbook", color: "var(--status-success-text)" },
+  WORKSHEET: { label: "Worksheet", color: "var(--badge-yellow-text)" },
+  EXAMPLE: { label: "Example", color: "var(--badge-purple-text)" },
+  ASSESSMENT: { label: "Assessment", color: "var(--status-error-text)" },
+  REFERENCE: { label: "Reference", color: "var(--text-muted)" },
 };
 
 export function DocTypeBadge({ type }: { type?: string }) {
   if (!type) return null;
-  const cfg = DOC_TYPES[type] || { label: type, color: "#6B7280" };
+  const cfg = DOC_TYPES[type] || { label: type, color: "var(--text-muted)" };
   return (
     <span style={{
       display: "inline-block",

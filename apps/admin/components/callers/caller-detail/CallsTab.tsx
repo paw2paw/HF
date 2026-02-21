@@ -1040,8 +1040,8 @@ function CallDetailPanel({
           tabs={[
             { id: "transcript", label: "Transcript", icon: <FileTextIcon size={14} />, title: "View the full call transcript" },
             { id: "extraction", label: "Extraction", icon: <FileSearch size={14} />, count: memories.length + (personalityObservation ? 1 : 0) + scores.length, title: "What the pipeline learned from this caller" },
-            { id: "measurements", label: "Behaviour", icon: <Brain size={14} />, count: measurements.length || null, title: "Agent behavioral measurements", accentColor: "#4338ca" },
-            { id: "prompt", label: "Prompt", icon: <MessageCircle size={14} />, count: triggeredPrompts.length || null, title: "Composed prompts for the agent", accentColor: "#4338ca" },
+            { id: "measurements", label: "Behaviour", icon: <Brain size={14} />, count: measurements.length || null, title: "Agent behavioral measurements", accentColor: "var(--identity-accent, #4338ca)" },
+            { id: "prompt", label: "Prompt", icon: <MessageCircle size={14} />, count: triggeredPrompts.length || null, title: "Composed prompts for the agent", accentColor: "var(--identity-accent, #4338ca)" },
           ]}
           activeTab={activeTab}
           onTabChange={(id) => setActiveTab(id as typeof activeTab)}

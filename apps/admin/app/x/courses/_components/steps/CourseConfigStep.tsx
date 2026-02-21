@@ -1,32 +1,62 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import { AgentTuner } from '@/components/shared/AgentTuner';
+import type { AgentTunerOutput, AgentTunerPill } from '@/lib/agent-tuner/types';
 import type { StepProps } from '../CourseSetupWizard';
 
 export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps) {
   const [welcomeMessage, setWelcomeMessage] = useState('');
-  const [persona, setPersona] = useState<string | undefined>();
+  const [defaultWelcome, setDefaultWelcome] = useState('');
+  const [loadingWelcome, setLoadingWelcome] = useState(false);
+  const [tunerPills, setTunerPills] = useState<AgentTunerPill[]>(getData<AgentTunerPill[]>('tunerPills') ?? []);
+  const [behaviorTargets, setBehaviorTargets] = useState<Record<string, number>>(getData<Record<string, number>>('behaviorTargets') ?? {});
 
+  const personaSlug = getData<string>('persona');
+  const personaName = getData<string>('personaName');
+
+  // Load saved welcome message
   useEffect(() => {
     const saved = getData<string>('welcomeMessage');
     if (saved) setWelcomeMessage(saved);
   }, [getData]);
 
-  const teachingStyle = getData<string>('teachingStyle');
+  // Fetch default welcome template for selected persona
+  useEffect(() => {
+    if (!personaSlug) return;
+    let cancelled = false;
+    setLoadingWelcome(true);
 
-  const PERSONAS = {
-    tutor: "I'm your interactive tutor. I'll ask questions to guide your learning.",
-    coach: "I'm your coach. I believe in you and want to help you succeed.",
-    mentor: 'I\'m your mentor. Let\'s explore this together at your pace.',
-    socratic: 'I\'m here to ask you great questions that help you discover answers.',
+    (async () => {
+      try {
+        const res = await fetch(`/api/onboarding?persona=${encodeURIComponent(personaSlug)}`);
+        if (!res.ok) throw new Error('Failed to fetch persona config');
+        const data = await res.json();
+        if (!cancelled && data.ok) {
+          setDefaultWelcome(data.welcomeTemplate || '');
+        }
+      } catch (e) {
+        console.warn('[CourseConfigStep] Failed to load welcome template:', e);
+      } finally {
+        if (!cancelled) setLoadingWelcome(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [personaSlug]);
+
+  const handleTunerChange = ({ pills, parameterMap }: AgentTunerOutput) => {
+    setTunerPills(pills);
+    setBehaviorTargets(parameterMap);
+    setData('tunerPills', pills);
+    setData('behaviorTargets', parameterMap);
   };
 
-  const defaultPersona = teachingStyle ? PERSONAS[teachingStyle as keyof typeof PERSONAS] : '';
-
   const handleNext = () => {
-    setData('welcomeMessage', welcomeMessage || defaultPersona);
-    setData('persona', persona || teachingStyle);
+    setData('welcomeMessage', welcomeMessage || defaultWelcome);
+    setData('tunerPills', tunerPills);
+    setData('behaviorTargets', behaviorTargets);
     onNext();
   };
 
@@ -34,8 +64,8 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Configure Your Course</h1>
-          <p className="text-[var(--text-secondary)]">Customize how your AI teaches</p>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Configure Your AI</h1>
+          <p className="text-[var(--text-secondary)]">Defaults are ready — customize if you like, or just hit Accept</p>
         </div>
 
         {/* Persona Preview */}
@@ -43,9 +73,21 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
           <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
             How will your AI introduce itself?
           </label>
-          <p className="text-[var(--text-secondary)] italic">
-            {welcomeMessage || defaultPersona || 'Your AI will introduce itself...'}
-          </p>
+          {loadingWelcome ? (
+            <div className="flex items-center gap-2 text-[var(--text-muted)]">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Loading welcome template...</span>
+            </div>
+          ) : (
+            <p className="text-[var(--text-secondary)] italic">
+              {welcomeMessage || defaultWelcome || 'Your AI will introduce itself...'}
+            </p>
+          )}
+          {personaName && (
+            <p className="text-xs text-[var(--text-tertiary)] mt-2">
+              Based on {personaName} persona
+            </p>
+          )}
         </div>
 
         {/* Welcome Message */}
@@ -56,7 +98,7 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
           <textarea
             value={welcomeMessage}
             onChange={(e) => setWelcomeMessage(e.target.value)}
-            placeholder={defaultPersona}
+            placeholder={defaultWelcome || 'Enter a custom welcome message...'}
             rows={4}
             className="w-full px-4 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           />
@@ -66,15 +108,22 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
         </div>
 
         {/* WhatsApp Notice */}
-        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-          <p className="text-sm text-blue-900 dark:text-blue-100">
-            <strong>💬 WhatsApp Follow-ups:</strong> After each lesson, students will receive a message on WhatsApp.
-            Make sure students have provided phone numbers during enrollment.
-          </p>
+        <div className="hf-banner hf-banner-info">
+          <strong>WhatsApp Follow-ups:</strong> After each lesson, students will receive a message on WhatsApp.
+          Make sure students have provided phone numbers during enrollment.
+        </div>
+
+        {/* Behavior Tuning */}
+        <div className="mt-6">
+          <AgentTuner
+            initialPills={tunerPills}
+            context={{ personaSlug: personaSlug || undefined, subjectName: getData<string>('courseName') || undefined }}
+            onChange={handleTunerChange}
+          />
         </div>
       </div>
 
-      <div className="p-6 border-t border-[var(--border-default)] bg-[var(--surface-secondary)] flex justify-between">
+      <div className="p-6 border-t border-[var(--border-default)] bg-[var(--surface-secondary)] flex justify-between items-center">
         <button
           onClick={onPrev}
           className="px-6 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -85,7 +134,7 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
           onClick={handleNext}
           className="flex items-center gap-2 px-6 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90"
         >
-          Next <ArrowRight className="w-4 h-4" />
+          Accept <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>

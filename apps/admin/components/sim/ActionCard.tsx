@@ -48,7 +48,7 @@ export function ActionCard({ action }: { action: Action }) {
         alignSelf: 'center',
         width: '90%',
         maxWidth: 400,
-        background: '#FFFFFF',
+        background: 'var(--surface-primary)',
         borderRadius: 10,
         boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
         overflow: 'hidden',
@@ -60,7 +60,7 @@ export function ActionCard({ action }: { action: Action }) {
       {/* Header */}
       <div
         style={{
-          background: '#F0F2F5',
+          background: 'var(--surface-secondary)',
           padding: '6px 12px',
           display: 'flex',
           alignItems: 'center',
@@ -68,7 +68,7 @@ export function ActionCard({ action }: { action: Action }) {
         }}
       >
         <span style={{ fontSize: 14 }}>{typeInfo.icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#3B4A54', flex: 1 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', flex: 1 }}>
           {typeInfo.label}
         </span>
         <span
@@ -86,8 +86,8 @@ export function ActionCard({ action }: { action: Action }) {
         {isHighPriority && (
           <span
             style={{
-              background: '#FFEBEE',
-              color: '#C62828',
+              background: 'var(--status-error-bg)',
+              color: 'var(--status-error-text)',
               fontSize: 10,
               fontWeight: 600,
               padding: '2px 6px',
@@ -101,11 +101,11 @@ export function ActionCard({ action }: { action: Action }) {
 
       {/* Content */}
       <div style={{ padding: '10px 12px' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#111B21', marginBottom: 2 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
           {action.title}
         </div>
         {action.description && (
-          <div style={{ fontSize: 13, color: '#3B4A54', lineHeight: 1.4 }}>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
             {action.description}
           </div>
         )}
@@ -119,15 +119,15 @@ export function ActionCard({ action }: { action: Action }) {
             marginTop: 8,
           }}
         >
-          <span style={{ fontSize: 11, color: '#667781' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             {time}
             {dueStr && ` \u00B7 due ${dueStr}`}
           </span>
           <span
             style={{
               fontSize: 10,
-              color: '#667781',
-              background: '#F0F2F5',
+              color: 'var(--text-muted)',
+              background: 'var(--surface-secondary)',
               padding: '1px 5px',
               borderRadius: 3,
             }}

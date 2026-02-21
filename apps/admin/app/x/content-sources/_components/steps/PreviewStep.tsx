@@ -83,7 +83,7 @@ export default function PreviewStep({ setData, getData, onNext, onPrev }: StepPr
           <button onClick={onNext}
             style={{
               padding: "12px 32px", borderRadius: 8, border: "none",
-              background: "var(--accent-primary)", color: "#fff",
+              background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
               fontSize: 15, fontWeight: 700, cursor: "pointer",
             }}>
             Skip to Done
@@ -223,7 +223,7 @@ export default function PreviewStep({ setData, getData, onNext, onPrev }: StepPr
         <button onClick={onNext}
           style={{
             padding: "12px 32px", borderRadius: 8, border: "none",
-            background: "var(--accent-primary)", color: "#fff",
+            background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
             fontSize: 15, fontWeight: 700, cursor: "pointer",
           }}
         >

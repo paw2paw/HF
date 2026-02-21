@@ -23,14 +23,14 @@ interface Artifact {
 }
 
 const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
-  SUMMARY: { icon: "\u{1F4CB}", label: "Summary", color: "#1B5E20" },
-  KEY_FACT: { icon: "\u{1F4A1}", label: "Key Fact", color: "#E65100" },
-  FORMULA: { icon: "\u{1F9EE}", label: "Formula", color: "#4A148C" },
-  EXERCISE: { icon: "\u{270F}\u{FE0F}", label: "Exercise", color: "#0D47A1" },
-  RESOURCE_LINK: { icon: "\u{1F4D6}", label: "Resource", color: "#006064" },
-  STUDY_NOTE: { icon: "\u{1F4DD}", label: "Study Note", color: "#33691E" },
-  REMINDER: { icon: "\u{23F0}", label: "Reminder", color: "#BF360C" },
-  MEDIA: { icon: "\u{1F4CE}", label: "Media", color: "#37474F" },
+  SUMMARY: { icon: "\u{1F4CB}", label: "Summary", color: "var(--status-success-text)" },
+  KEY_FACT: { icon: "\u{1F4A1}", label: "Key Fact", color: "var(--badge-orange-text)" },
+  FORMULA: { icon: "\u{1F9EE}", label: "Formula", color: "var(--badge-purple-text)" },
+  EXERCISE: { icon: "\u{270F}\u{FE0F}", label: "Exercise", color: "var(--accent-primary)" },
+  RESOURCE_LINK: { icon: "\u{1F4D6}", label: "Resource", color: "var(--badge-cyan-text)" },
+  STUDY_NOTE: { icon: "\u{1F4DD}", label: "Study Note", color: "var(--badge-lime-text)" },
+  REMINDER: { icon: "\u{23F0}", label: "Reminder", color: "var(--status-error-text)" },
+  MEDIA: { icon: "\u{1F4CE}", label: "Media", color: "var(--text-secondary)" },
 };
 
 export default function StudentStuffPage() {

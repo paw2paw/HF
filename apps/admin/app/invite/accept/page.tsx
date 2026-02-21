@@ -129,7 +129,7 @@ export default function InviteAcceptPage() {
           >
             <div
               className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
-              style={{ background: "color-mix(in srgb, #ef4444 15%, transparent)" }}
+              style={{ background: "color-mix(in srgb, var(--status-error-text) 15%, transparent)" }}
             >
               <svg
                 className="h-7 w-7"
@@ -137,7 +137,7 @@ export default function InviteAcceptPage() {
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={2}
-                style={{ color: "#fca5a5" }}
+                style={{ color: "color-mix(in srgb, var(--status-error-text) 60%, white)" }}
               >
                 <path
                   strokeLinecap="round"
@@ -277,9 +277,9 @@ export default function InviteAcceptPage() {
               <div
                 className="rounded-lg p-3 text-sm"
                 style={{
-                  background: "color-mix(in srgb, #ef4444 10%, transparent)",
-                  border: "1px solid color-mix(in srgb, #ef4444 20%, transparent)",
-                  color: "#fca5a5",
+                  background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--status-error-text) 20%, transparent)",
+                  color: "color-mix(in srgb, var(--status-error-text) 60%, white)",
                 }}
               >
                 {error}

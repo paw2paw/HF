@@ -28,22 +28,33 @@ export async function DELETE(
   const ownership = await requireEducatorCohortOwnership(id, auth.callerId);
   if ("error" in ownership) return ownership.error;
 
-  // Verify the caller is actually in this cohort
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { id: true, cohortGroupId: true },
+  // Verify the caller is a member of this cohort (join table or legacy FK)
+  const membership = await prisma.callerCohortMembership.findUnique({
+    where: { callerId_cohortGroupId: { callerId, cohortGroupId: id } },
   });
 
-  if (!caller || caller.cohortGroupId !== id) {
-    return NextResponse.json(
-      { ok: false, error: "Student not found in this classroom" },
-      { status: 404 }
-    );
+  if (!membership) {
+    // Fallback: check legacy FK
+    const caller = await prisma.caller.findUnique({
+      where: { id: callerId },
+      select: { cohortGroupId: true },
+    });
+    if (!caller || caller.cohortGroupId !== id) {
+      return NextResponse.json(
+        { ok: false, error: "Student not found in this classroom" },
+        { status: 404 }
+      );
+    }
   }
 
-  // Unlink from cohort (don't delete the caller)
-  await prisma.caller.update({
-    where: { id: callerId },
+  // Remove from join table
+  await prisma.callerCohortMembership.deleteMany({
+    where: { callerId, cohortGroupId: id },
+  });
+
+  // Legacy FK cleanup
+  await prisma.caller.updateMany({
+    where: { id: callerId, cohortGroupId: id },
     data: { cohortGroupId: null },
   });
 

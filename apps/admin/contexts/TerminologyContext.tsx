@@ -10,7 +10,7 @@ import {
 } from "@/lib/terminology/types";
 
 interface TerminologyContextValue {
-  /** The fully resolved terminology map (7 keys) */
+  /** The fully resolved terminology map (11 keys) */
   terms: TermMap;
   /** Whether still loading from API */
   loading: boolean;
@@ -78,7 +78,7 @@ export function TerminologyProvider({
 /**
  * Hook to access resolved terminology for the current user.
  *
- * Returns the unified 7-key TermMap resolved by role + institution type.
+ * Returns the unified 11-key TermMap resolved by role + institution type.
  * ADMIN/SUPERADMIN/SUPER_TESTER see technical terms (Domain, Playbook, etc.).
  * All other roles see their institution type's labels (School, Lesson Plan, etc.).
  */

@@ -391,7 +391,7 @@ export function SimChat({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: 'assistant', content: fullContent }),
-        }).catch(() => {});
+        }).catch((err) => console.warn("[sim] Observer relay failed:", err));
       }
     } catch (e: any) {
       if (e.name === 'AbortError') {
@@ -402,7 +402,7 @@ export function SimChat({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role: 'assistant', content: fullContent }),
-          }).catch(() => {});
+          }).catch((err) => console.warn("[sim] Observer relay failed:", err));
         }
         return;
       }
@@ -441,7 +441,7 @@ export function SimChat({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'user', content: input.trim() }),
-      }).catch(() => {});
+      }).catch((err) => console.warn("[sim] Observer relay failed:", err));
     }
 
     const history = updatedMessages.map(m => ({
@@ -594,7 +594,7 @@ export function SimChat({
               padding: '4px 12px',
               borderRadius: 8,
               fontSize: 12,
-              color: '#667781',
+              color: 'var(--text-muted)',
               margin: '8px 0',
               boxShadow: '0 1px 0.5px rgba(0,0,0,0.1)',
               textAlign: 'center',
@@ -623,7 +623,7 @@ export function SimChat({
             padding: '4px 12px',
             borderRadius: 8,
             fontSize: 12,
-            color: '#667781',
+            color: 'var(--text-muted)',
             margin: '12px 0 8px',
             boxShadow: '0 1px 0.5px rgba(0,0,0,0.1)',
             textAlign: 'center',
@@ -643,7 +643,7 @@ export function SimChat({
             padding: '4px 12px',
             borderRadius: 8,
             fontSize: 12,
-            color: '#667781',
+            color: 'var(--text-muted)',
             margin: '8px 0',
             boxShadow: '0 1px 0.5px rgba(0,0,0,0.1)',
             textAlign: 'center',
@@ -675,12 +675,12 @@ export function SimChat({
         {newPromptId && (
           <div style={{
             alignSelf: 'center',
-            background: 'linear-gradient(135deg, #ecfdf5, #f0fdf4)',
-            border: '1px solid #86efac',
+            background: 'linear-gradient(135deg, var(--status-success-bg), var(--status-success-bg))',
+            border: '1px solid var(--status-success-border)',
             padding: '10px 16px',
             borderRadius: 10,
             fontSize: 13,
-            color: '#166534',
+            color: 'var(--status-success-text)',
             margin: '12px 16px 4px',
             display: 'flex',
             alignItems: 'center',
@@ -690,7 +690,7 @@ export function SimChat({
             onClick={() => window.open(`/x/callers/${callerId}?tab=prompt`, '_blank')}
           >
             <span style={{ fontWeight: 700 }}>Prompt 1 generated</span>
-            <span style={{ fontSize: 12, color: '#15803d' }}>View &rarr;</span>
+            <span style={{ fontSize: 12, color: 'var(--status-success-text)' }}>View &rarr;</span>
           </div>
         )}
 
@@ -703,7 +703,7 @@ export function SimChat({
               padding: '4px 12px',
               borderRadius: 8,
               fontSize: 12,
-              color: '#667781',
+              color: 'var(--text-muted)',
               margin: '12px 0 4px',
               boxShadow: '0 1px 0.5px rgba(0,0,0,0.1)',
             }}>
@@ -724,11 +724,11 @@ export function SimChat({
       {/* Error banner */}
       {error && (
         <div style={{
-          background: '#FFF3E0',
+          background: 'var(--status-warning-bg)',
           padding: '8px 16px',
           fontSize: 13,
-          color: '#E65100',
-          borderTop: '1px solid #FFE0B2',
+          color: 'var(--status-warning-text)',
+          borderTop: '1px solid var(--status-warning-border)',
         }}>
           {error}
         </div>
@@ -765,7 +765,7 @@ export function SimChat({
                 padding: '8px 8px 8px 12px',
                 fontSize: 20,
                 cursor: 'pointer',
-                color: showContentPicker ? '#4338ca' : '#667781',
+                color: showContentPicker ? 'var(--accent-primary)' : 'var(--text-muted)',
                 flexShrink: 0,
               }}
             >
@@ -787,11 +787,11 @@ export function SimChat({
       {callEnded && onNewCall && (
         <div style={{
           padding: '16px 20px',
-          borderTop: '1px solid #E9EDEF',
+          borderTop: '1px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--surface-primary, #fff)',
+          background: 'var(--surface-primary)',
         }}>
           <button
             onClick={onNewCall}
@@ -799,7 +799,7 @@ export function SimChat({
               padding: '10px 24px',
               borderRadius: 8,
               border: 'none',
-              background: '#25D366',
+              background: 'var(--status-success-text)',
               color: 'white',
               fontSize: 14,
               fontWeight: 600,
@@ -816,7 +816,7 @@ export function SimChat({
         <>
           <div className="wa-sheet-overlay" onClick={() => !isEnding && setShowEndSheet(false)} />
           <div className="wa-sheet">
-            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#111B21', margin: '0 0 16px' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 16px' }}>
               End this call?
             </h3>
 
@@ -825,13 +825,13 @@ export function SimChat({
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '12px 0',
-              borderTop: '1px solid #E9EDEF',
-              borderBottom: '1px solid #E9EDEF',
+              borderTop: '1px solid var(--border-default)',
+              borderBottom: '1px solid var(--border-default)',
               marginBottom: 20,
             }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 500, color: '#111B21' }}>Run analysis pipeline</div>
-                <div style={{ fontSize: 13, color: '#667781', marginTop: 2 }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Run analysis pipeline</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
                   Extract memories, measure traits, adapt targets
                 </div>
               </div>
@@ -850,12 +850,12 @@ export function SimChat({
                   flex: 1,
                   padding: 14,
                   borderRadius: 8,
-                  border: '1px solid #D1D7DB',
+                  border: '1px solid var(--border-default)',
                   background: 'white',
                   fontSize: 15,
                   fontWeight: 500,
                   cursor: 'pointer',
-                  color: '#111B21',
+                  color: 'var(--text-primary)',
                 }}
               >
                 Cancel
@@ -868,7 +868,7 @@ export function SimChat({
                   padding: 14,
                   borderRadius: 8,
                   border: 'none',
-                  background: '#E53935',
+                  background: 'var(--status-error-text)',
                   color: 'white',
                   fontSize: 15,
                   fontWeight: 600,

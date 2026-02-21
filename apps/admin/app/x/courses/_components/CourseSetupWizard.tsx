@@ -2,12 +2,12 @@
 
 import { useCallback } from 'react';
 import { useStepFlow } from '@/contexts/StepFlowContext';
+import { ProgressStepper } from '@/components/shared/ProgressStepper';
 import { IntentStep } from './steps/IntentStep';
 import { ContentStep } from './steps/ContentStep';
-import { TeachingPointsStep } from './steps/TeachingPointsStep';
-import { LessonStructureStep } from './steps/LessonStructureStep';
-import { StudentsStep } from './steps/StudentsStep';
+import { LessonPlanStep } from './steps/LessonPlanStep';
 import { CourseConfigStep } from './steps/CourseConfigStep';
+import { StudentsStep } from './steps/StudentsStep';
 import { CourseDoneStep } from './steps/CourseDoneStep';
 
 type StepComponent = React.FC<StepProps>;
@@ -36,10 +36,9 @@ export function CourseSetupWizard({ onComplete }: CourseSetupWizardProps) {
   const steps: Record<string, StepComponent> = {
     intent: IntentStep,
     content: ContentStep,
-    'teaching-points': TeachingPointsStep,
-    'lesson-structure': LessonStructureStep,
-    students: StudentsStep,
+    'lesson-plan': LessonPlanStep,
     'course-config': CourseConfigStep,
+    students: StudentsStep,
     done: CourseDoneStep,
   };
 
@@ -62,8 +61,18 @@ export function CourseSetupWizard({ onComplete }: CourseSetupWizardProps) {
     return <div>Unknown step: {currentStepId}</div>;
   }
 
+  const progressSteps = state.steps.map((s, i) => ({
+    label: s.label,
+    completed: i < state.currentStep,
+    active: i === state.currentStep,
+    onClick: i < state.currentStep ? () => setStep(i) : undefined,
+  }));
+
   return (
     <div className="min-h-screen bg-[var(--surface-primary)]">
+      <div style={{ padding: "16px 32px 0", maxWidth: 720, margin: "0 auto" }}>
+        <ProgressStepper steps={progressSteps} />
+      </div>
       <StepComponent
         setData={setData}
         getData={getData}
